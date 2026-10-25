@@ -23,6 +23,17 @@ describe("determinism", () => {
     expect(inSteps.state).toEqual(inOneGo);
   });
 
+  it("gives identical snapshots for the same seed and the same commands", () => {
+    const play = () =>
+      scenario(42)
+        .plan("solar-array", { x: 20, y: 12 })
+        .advance({ hours: 5 })
+        .plan("solar-array", { x: -30, y: 4 })
+        .advance({ earthDays: 2 }).state;
+
+    expect(play()).toEqual(play());
+  });
+
   it("refuses a seed that is not a whole number from 0 to 2³² − 1", () => {
     for (const seed of [-1, 1.5, 2 ** 32, Number.NaN]) {
       expect(() => createCampaign({ seed })).toThrow(RangeError);

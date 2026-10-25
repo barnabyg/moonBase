@@ -1,17 +1,32 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
-import { createLanderModel, createRobotModel } from "./models";
-import { createEarth, createGround, createLighting } from "./scenery";
+import { createCameraControls } from "./camera";
+import { createConstructionViews } from "./construction-views";
+import { toScene, type Frame } from "./interpolation";
+import { createLighting } from "./lighting";
+import { createLanderModel } from "./models";
+import {
+  createPlacementPreview,
+  type PlacementPreview,
+} from "./placement-preview";
+import { createRobotViews } from "./robot-views";
+import { createEarth, createGround } from "./scenery";
+
+export type { Frame, PlacementPreview };
 
 export interface Renderer {
-  /** Draws the scene as the given snapshot describes it. It never changes the simulation. */
-  render(snapshot: Snapshot): void;
-}
-
-/** Maps a simulation ground position (x east, y north) onto the Three.js scene (x east, z south). */
-function toScene(position: GroundPosition, height = 0): THREE.Vector3 {
-  return new THREE.Vector3(position.x, height, -position.y);
+  /** The element the 3D view is drawn on, which receives the player's pointer input. */
+  readonly canvas: HTMLCanvasElement;
+  /** Draws the scene as the frame describes it. It never changes the simulation. */
+  render(frame: Frame): void;
+  /**
+   * The point on the ground under a position on the screen, in client
+   * pixels, or undefined if the ground isn't there (such as in the sky).
+   */
+  pickGround(clientX: number, clientY: number): GroundPosition | undefined;
+  /** Shows a Structure the player is about to place, or hides it when undefined. */
+  showPlacementPreview(preview: PlacementPreview | undefined): void;
 }
 
 export function createRenderer(
@@ -29,23 +44,35 @@ export function createRenderer(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
 
-  // A fixed view of the landing site; camera controls come in a later ticket.
+  // The game opens on a view of the landing site, which the player can then
+  // pan, rotate and zoom.
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20000);
-  const lookAt = toScene(initial.lander.position, 2);
-  camera.position.copy(lookAt).add(new THREE.Vector3(17, 6, 21));
-  camera.lookAt(lookAt);
+  const landingSite = toScene(initial.lander.position);
+  camera.position.copy(landingSite).add(new THREE.Vector3(17, 8, 21));
+  camera.lookAt(landingSite);
 
-  const viewDirection = new THREE.Vector3();
-  camera.getWorldDirection(viewDirection);
+  const earthDirection = new THREE.Vector3();
+  camera.getWorldDirection(earthDirection);
+  earthDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12);
+  const lighting = createLighting(catalogue.lunation, earthDirection);
   scene.add(
     createGround(initial.map),
-    createEarth(viewDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12)),
-    ...createLighting(),
+    createEarth(earthDirection),
+    ...lighting.objects,
+  );
+
+  const cameraControls = createCameraControls(
+    camera,
+    webgl.domElement,
+    initial.map,
+    landingSite,
   );
 
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
   scene.add(lander);
-  const robots = new Map<string, THREE.Group>();
+  const robots = createRobotViews(scene);
+  const constructions = createConstructionViews(scene);
+  const placementPreview = createPlacementPreview(scene);
 
   function resize(): void {
     const width = container.clientWidth;
@@ -57,20 +84,43 @@ export function createRenderer(
   new ResizeObserver(resize).observe(container);
   resize();
 
+  const raycaster = new THREE.Raycaster();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pointer = new THREE.Vector2();
+  const hit = new THREE.Vector3();
+
   return {
-    render(snapshot) {
-      lander.position.copy(toScene(snapshot.lander.position));
-      for (const robot of snapshot.robots) {
-        let model = robots.get(robot.id);
-        if (model === undefined) {
-          model = createRobotModel();
-          robots.set(robot.id, model);
-          scene.add(model);
-        }
-        model.position.copy(toScene(robot.position));
-        model.lookAt(toScene(snapshot.lander.position));
-      }
+    canvas: webgl.domElement,
+    render(frame) {
+      const { current } = frame;
+      const realSeconds = performance.now() / 1000;
+      cameraControls.update();
+      const { focus } = cameraControls;
+      lighting.update(
+        current.lunation,
+        focus,
+        camera.position.distanceTo(focus),
+      );
+      lander.position.copy(toScene(current.lander.position));
+      robots.update(frame, realSeconds);
+      constructions.update(frame, realSeconds, lighting.sunFacing);
       webgl.render(scene, camera);
+    },
+    pickGround(clientX, clientY) {
+      const bounds = webgl.domElement.getBoundingClientRect();
+      pointer.set(
+        ((clientX - bounds.left) / bounds.width) * 2 - 1,
+        -((clientY - bounds.top) / bounds.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, camera);
+      if (raycaster.ray.intersectPlane(groundPlane, hit) === null) {
+        return undefined;
+      }
+      // Back from the scene (z south) to the ground (y north).
+      return { x: hit.x, y: -hit.z };
+    },
+    showPlacementPreview(preview) {
+      placementPreview.show(preview);
     },
   };
 }

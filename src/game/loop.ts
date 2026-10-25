@@ -1,5 +1,5 @@
 import { catalogue, type GameSpeed } from "../catalogue";
-import type { Campaign } from "../simulation";
+import type { Campaign, GameEvent, Snapshot } from "../simulation";
 
 /**
  * The longest stretch of real time a single frame may account for. A longer
@@ -19,6 +19,19 @@ export interface GameLoop {
    * advances the Campaign by them. Returns how many game-minutes it advanced.
    */
   update(realElapsedMs: number): number;
+  /**
+   * Jumps the Campaign straight to its next notable event, whatever the
+   * speed, and returns the events that happened then.
+   */
+  skipToNextEvent(): readonly GameEvent[];
+  /**
+   * The Campaign's state one game-minute before its current state, so that
+   * the renderer can draw smoothly between the two. Undefined until the first
+   * game-minute passes, and straight after a skip.
+   */
+  readonly previous: Snapshot | undefined;
+  /** How far real time has run towards the next game-minute, from 0 to 1. */
+  readonly tickProgress: number;
 }
 
 export function createGameLoop(campaign: Campaign): GameLoop {
@@ -34,12 +47,19 @@ export function createGameLoop(campaign: Campaign): GameLoop {
   // Game-minutes owed but not yet ticked, scaled by MS_PER_SECOND so that
   // whole-millisecond frames accumulate exactly.
   let owedScaledMinutes = 0;
+  let previous: Snapshot | undefined;
 
   return {
     get speed() {
       return speed;
     },
     speeds,
+    get previous() {
+      return previous;
+    },
+    get tickProgress() {
+      return owedScaledMinutes / MS_PER_SECOND;
+    },
     setSpeed(id) {
       speed = findSpeed(id);
     },
@@ -48,8 +68,18 @@ export function createGameLoop(campaign: Campaign): GameLoop {
       owedScaledMinutes += frameMs * speed.gameMinutesPerRealSecond;
       const gameMinutes = Math.floor(owedScaledMinutes / MS_PER_SECOND);
       owedScaledMinutes -= gameMinutes * MS_PER_SECOND;
-      campaign.advance(gameMinutes);
+      if (gameMinutes > 0) {
+        campaign.advance(gameMinutes - 1);
+        previous = campaign.snapshot();
+        campaign.advance(1);
+      }
       return gameMinutes;
+    },
+    skipToNextEvent() {
+      // The jump replaces the part-minute that was building up.
+      previous = undefined;
+      owedScaledMinutes = 0;
+      return campaign.advanceToNextEvent();
     },
   };
 }

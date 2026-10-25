@@ -1,0 +1,160 @@
+import * as THREE from "three";
+import type { RobotActivity, RobotSnapshot } from "../simulation";
+import { between, facingAngle, toScene, type Frame } from "./interpolation";
+import { createRobotModel, type RobotModel, type RobotPose } from "./models";
+
+/** The distance the Robot covers in one full walking stride, in metres. */
+const STRIDE_METRES = 1.4;
+/** How fast working movements repeat, in cycles per real second. */
+const WORK_CYCLES_PER_SECOND = 1.2;
+
+interface RobotView {
+  readonly model: RobotModel;
+  heading: number;
+  strideAngle: number;
+  lastPosition: THREE.Vector3 | undefined;
+}
+
+/**
+ * Draws each Robot where the simulation says it is, interpolated between
+ * ticks, and animated for what it is doing.
+ */
+export function createRobotViews(scene: THREE.Scene) {
+  const views = new Map<string, RobotView>();
+
+  return {
+    update(frame: Frame, realSeconds: number): void {
+      for (const robot of frame.current.robots) {
+        let view = views.get(robot.id);
+        if (view === undefined) {
+          const model = createRobotModel();
+          scene.add(model.group);
+          view = { model, heading: 0, strideAngle: 0, lastPosition: undefined };
+          views.set(robot.id, view);
+        }
+        const before = frame.previous?.robots.find(
+          (other) => other.id === robot.id,
+        );
+        const position = toScene(
+          between(before?.position, robot.position, frame.tickProgress),
+        );
+        const moved =
+          view.lastPosition === undefined
+            ? 0
+            : position.distanceTo(view.lastPosition);
+        if (robot.activity.kind === "walking" && moved > 1e-6) {
+          view.heading = facingAngle(view.lastPosition ?? position, position);
+          view.strideAngle += (moved / STRIDE_METRES) * Math.PI * 2;
+        } else {
+          const target = workTarget(frame, robot);
+          if (target !== undefined)
+            view.heading = facingAngle(position, target);
+        }
+        view.lastPosition = position.clone();
+        view.model.group.position.copy(position);
+        view.model.group.rotation.y = view.heading;
+        view.model.pose(
+          poseFor(
+            robot,
+            view.strideAngle,
+            realSeconds * WORK_CYCLES_PER_SECOND,
+          ),
+        );
+      }
+    },
+  };
+}
+
+/** What the Robot faces while it works: the Lander when loading, otherwise the site. */
+function workTarget(
+  frame: Frame,
+  robot: RobotSnapshot,
+): THREE.Vector3 | undefined {
+  const { activity } = robot;
+  if (activity.kind === "idle" || activity.kind === "walking") return undefined;
+  if (
+    activity.kind === "loading-components" ||
+    activity.kind === "waiting-for-components"
+  ) {
+    return toScene(frame.current.lander.position);
+  }
+  const site =
+    frame.current.constructions.find(
+      (construction) => construction.id === activity.constructionId,
+    ) ??
+    frame.current.structures.find(
+      (structure) => structure.id === activity.constructionId,
+    );
+  return site === undefined ? undefined : toScene(site.position);
+}
+
+function poseFor(
+  robot: RobotSnapshot,
+  strideAngle: number,
+  workCycles: number,
+): RobotPose {
+  const carrying = robot.carrying.length > 0;
+  const work = Math.sin(workCycles * Math.PI * 2);
+  const poses: Record<RobotActivity["kind"], () => RobotPose> = {
+    idle: () => still(carrying),
+    "waiting-for-components": () => still(carrying),
+    walking: () => {
+      const swing = Math.sin(strideAngle) * 0.45;
+      return {
+        legSwing: swing,
+        leftArm: carrying ? 1.2 : swing * 0.8,
+        rightArm: carrying ? 1.2 : -swing * 0.8,
+        lean: 0.05,
+        carrying,
+      };
+    },
+    // Raking and levelling the ground.
+    "preparing-site": () => ({
+      legSwing: 0.1,
+      leftArm: 0.9 + work * 0.35,
+      rightArm: 0.9 + work * 0.35,
+      lean: 0.45,
+      carrying,
+    }),
+    // Lifting crates in and out of the cargo bay.
+    "loading-components": () => lifting(work, carrying),
+    "unloading-components": () => lifting(work, carrying),
+    // Reaching up to open out the panel.
+    assembling: () => ({
+      legSwing: 0,
+      leftArm: 2.2 + work * 0.4,
+      rightArm: 2.2 - work * 0.4,
+      lean: -0.05,
+      carrying,
+    }),
+    // Holding a test lead to the array and watching it.
+    commissioning: () => ({
+      legSwing: 0,
+      leftArm: 0.1,
+      rightArm: 1.3 + work * 0.08,
+      lean: 0.1,
+      carrying,
+    }),
+  };
+  return poses[robot.activity.kind]();
+}
+
+function still(carrying: boolean): RobotPose {
+  return {
+    legSwing: 0,
+    leftArm: carrying ? 1.2 : 0,
+    rightArm: carrying ? 1.2 : 0,
+    lean: 0,
+    carrying,
+  };
+}
+
+function lifting(work: number, carrying: boolean): RobotPose {
+  return {
+    legSwing: 0.05,
+    leftArm: 1.1 + work * 0.5,
+    rightArm: 1.1 + work * 0.5,
+    lean: 0.25 + work * 0.15,
+    carrying,
+  };
+}

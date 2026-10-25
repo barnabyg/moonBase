@@ -1,6 +1,7 @@
 import type { GameLoop } from "../game/loop";
 import type { Snapshot } from "../simulation";
-import { formatClock } from "./format";
+import { setText } from "./dom";
+import { formatClock, formatLunation, structureLabel } from "./format";
 
 export interface StatusPanel {
   update(snapshot: Snapshot): void;
@@ -26,6 +27,12 @@ export function createStatusPanel(
   // drown out everything else for screen-reader users.
   clock.setAttribute("aria-live", "off");
 
+  const lunation = document.createElement("p");
+  lunation.className = "status-panel__lunation";
+  lunation.setAttribute("role", "status");
+  lunation.setAttribute("aria-label", "Lunation");
+  lunation.setAttribute("aria-live", "off");
+
   const speedGroup = document.createElement("div");
   speedGroup.className = "status-panel__speeds";
   speedGroup.setAttribute("role", "group");
@@ -44,6 +51,14 @@ export function createStatusPanel(
     return button;
   });
 
+  const skip = document.createElement("button");
+  skip.type = "button";
+  skip.className = "status-panel__skip";
+  skip.textContent = "Skip to next event";
+  skip.addEventListener("click", () => {
+    loop.skipToNextEvent();
+  });
+
   function showSelectedSpeed(): void {
     for (const button of speedButtons) {
       button.setAttribute(
@@ -53,14 +68,27 @@ export function createStatusPanel(
     }
   }
 
-  panel.append(clock, speedGroup);
+  const structures = document.createElement("ul");
+  structures.className = "status-panel__structures";
+  structures.setAttribute("aria-label", "Structures");
+  const structureItems = new Map<string, HTMLLIElement>();
+
+  panel.append(clock, lunation, speedGroup, skip, structures);
   container.append(panel);
   showSelectedSpeed();
 
   return {
     update(snapshot) {
-      const text = formatClock(snapshot.clock);
-      if (clock.textContent !== text) clock.textContent = text;
+      setText(clock, formatClock(snapshot.clock));
+      setText(lunation, formatLunation(snapshot.lunation));
+      for (const structure of snapshot.structures) {
+        if (structureItems.has(structure.id)) continue;
+        const item = document.createElement("li");
+        item.textContent = `${structureLabel(structure.structureTypeId)}: commissioned`;
+        structures.append(item);
+        structureItems.set(structure.id, item);
+      }
+      structures.hidden = structureItems.size === 0;
     },
   };
 }

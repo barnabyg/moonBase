@@ -40,6 +40,26 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("schedules Lunations whose parts last a positive, whole number of game-minutes", () => {
+    const {
+      daylightEarthDays,
+      nightEarthDays,
+      initialDaylightRemainingEarthDays,
+    } = catalogue.lunation;
+
+    for (const earthDays of [
+      daylightEarthDays,
+      nightEarthDays,
+      initialDaylightRemainingEarthDays,
+    ]) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+    expect(initialDaylightRemainingEarthDays).toBeLessThanOrEqual(
+      daylightEarthDays,
+    );
+  });
+
   it("lands the Lander with its whole footprint on the map", () => {
     const { footprintRadiusMetres } = catalogue.lander;
 
@@ -58,6 +78,67 @@ describe("the data catalogue", () => {
       expect(
         Math.hypot(robot.x - landerPosition.x, robot.y - landerPosition.y),
       ).toBeGreaterThan(catalogue.lander.footprintRadiusMetres);
+    }
+  });
+
+  it("gives the Robot a positive walking speed and working gap", () => {
+    expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
+    expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);
+  });
+
+  it("has Components with unique ids and labels", () => {
+    const { componentTypes } = catalogue;
+
+    expect(new Set(componentTypes.map((type) => type.id)).size).toBe(
+      componentTypes.length,
+    );
+    expect(new Set(componentTypes.map((type) => type.label)).size).toBe(
+      componentTypes.length,
+    );
+  });
+
+  it("only uses known Components, in positive whole numbers, for Structures and the starting cargo", () => {
+    const known = new Set(catalogue.componentTypes.map((type) => type.id));
+    const counts = [
+      ...catalogue.startingCargo,
+      ...catalogue.structureTypes.flatMap((type) => type.components),
+    ];
+
+    for (const { componentId, count } of counts) {
+      expect(known).toContain(componentId);
+      expect(Number.isInteger(count)).toBe(true);
+      expect(count).toBeGreaterThan(0);
+    }
+  });
+
+  it("describes Structures that can be constructed", () => {
+    const { structureTypes } = catalogue;
+    expect(new Set(structureTypes.map((type) => type.id)).size).toBe(
+      structureTypes.length,
+    );
+
+    for (const type of structureTypes) {
+      expect(type.footprintRadiusMetres).toBeGreaterThan(0);
+      expect(type.components.length).toBeGreaterThan(0);
+      for (const hours of Object.values(type.stageHours)) {
+        expect(hours).toBeGreaterThan(0);
+        expect(Number.isInteger(hours * 60)).toBe(true);
+      }
+      expect(type.commissioningFailureChance).toBeGreaterThanOrEqual(0);
+      expect(type.commissioningFailureChance).toBeLessThan(1);
+    }
+  });
+
+  it("brings the Components for a solar array in the starting cargo", () => {
+    const solarArray = catalogue.structureTypes.find(
+      (type) => type.id === "solar-array",
+    );
+
+    for (const need of solarArray?.components ?? []) {
+      const inCargo = catalogue.startingCargo
+        .filter((stock) => stock.componentId === need.componentId)
+        .reduce((total, stock) => total + stock.count, 0);
+      expect(inCargo).toBeGreaterThanOrEqual(need.count);
     }
   });
 });

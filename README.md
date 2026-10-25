@@ -16,6 +16,8 @@ It installs or updates the dependencies when needed, starts the game at <http://
 
 Without the launcher, run `npm.cmd ci && npm.cmd run dev` from the repository's root folder and open <http://localhost:5173> in Firefox.
 
+In the game, drag with the left mouse button to pan the camera, drag with the right button to rotate it, and use the wheel to zoom from the whole base map down to a close-up of the Robot. "Skip to next event" jumps straight to the next notable moment, such as Night falling or a Construction being commissioned. To plan a Construction, pick a Structure in the build menu at the bottom left, move its translucent preview over the map and click to place it (right-click or Esc cancels); the Robot then carries it out by itself, and the Construction panel at the top right shows each stage.
+
 Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every new Campaign gets a new seed.
 
 ## Verification
@@ -52,7 +54,7 @@ Every check applies; none is skipped. Tool versions are pinned exactly in `packa
 - `src/simulation/`: the headless, deterministic game rules. Create a Campaign from a seed, advance it in fixed 1-game-minute ticks, and read immutable snapshots. It never imports the renderer or interface, and never reads the system clock or `Math.random`; lint rules and a separate type check enforce this.
 - `src/catalogue/`: the typed data catalogue holding all content and tuning numbers.
 - `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed.
-- `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes such as the Lander's footprint). It never changes simulation state.
+- `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them.
 - `e2e/`: Playwright end-to-end tests in Firefox.

@@ -2,6 +2,8 @@ import "./ui/styles.css";
 import { createGameLoop } from "./game/loop";
 import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
+import { createBuildMenu } from "./ui/build-menu";
+import { createConstructionPanel } from "./ui/construction-panel";
 import { createStatusPanel } from "./ui/status-panel";
 
 /**
@@ -50,7 +52,13 @@ function startRenderer(
 const campaign = createCampaign({ seed: chooseSeed() });
 const loop = createGameLoop(campaign);
 const statusPanel = createStatusPanel(container, loop);
+const constructionPanel = createConstructionPanel(container);
 const renderer = startRenderer(container, campaign.snapshot());
+// Placing a Structure needs the 3D view to point at the map.
+const buildMenu =
+  renderer === undefined
+    ? undefined
+    : createBuildMenu(container, campaign, renderer);
 
 let lastFrameTime: number | undefined;
 function frame(time: number): void {
@@ -58,7 +66,13 @@ function frame(time: number): void {
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
   statusPanel.update(snapshot);
-  renderer?.render(snapshot);
+  constructionPanel.update(snapshot);
+  buildMenu?.update(snapshot);
+  renderer?.render({
+    current: snapshot,
+    previous: loop.previous,
+    tickProgress: loop.tickProgress,
+  });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
