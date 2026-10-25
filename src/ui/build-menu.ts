@@ -137,7 +137,9 @@ export function createBuildMenu(
       position: target.position,
     });
     if (result.ok) {
-      stopPlacing(`${target.type.label} planned. The Robot will build it.`);
+      stopPlacing(
+        `${target.type.label} planned. The Robot will carry out its Construction.`,
+      );
     } else {
       setText(hint, result.message);
     }

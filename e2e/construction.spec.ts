@@ -27,7 +27,7 @@ async function placeOnClearGround(page: Page): Promise<void> {
   throw new Error("Found no clear ground to place the Structure on.");
 }
 
-test("a solar array placed on the map is built by the Robot and commissioned", async ({
+test("the Robot carries out the Construction of a solar array placed on the map", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -40,7 +40,7 @@ test("a solar array placed on the map is built by the Robot and commissioned", a
   await placeOnClearGround(page);
 
   await expect(page.getByRole("status", { name: "Placement" })).toHaveText(
-    "Solar array planned. The Robot will build it.",
+    "Solar array planned. The Robot will carry out its Construction.",
   );
   const constructions = page.getByRole("complementary", {
     name: "Constructions",

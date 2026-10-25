@@ -110,7 +110,7 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("describes Structures that can be built", () => {
+  it("describes Structures that can be constructed", () => {
     const { structureTypes } = catalogue;
     expect(new Set(structureTypes.map((type) => type.id)).size).toBe(
       structureTypes.length,

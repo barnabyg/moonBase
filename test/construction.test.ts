@@ -58,7 +58,7 @@ function findSeed(firstAttemptFails: boolean): number {
   throw new Error("No seed found.");
 }
 
-describe("building a solar array", () => {
+describe("the Construction of a solar array", () => {
   it("goes through Site Preparation, Component delivery, Assembly and Commissioning, in that order", () => {
     const game = scenario().plan("solar-array", site);
 
@@ -182,7 +182,7 @@ describe("building a solar array", () => {
   });
 
   it.each([0, 45, 90, 135, 180, 225, 270, 315])(
-    "builds a solar array right beside the Lander, at %i° round it",
+    "commissions a solar array right beside the Lander, at %i° round it",
     (degrees) => {
       const reach =
         catalogue.lander.footprintRadiusMetres +
@@ -251,7 +251,7 @@ describe("building a solar array", () => {
     expect(robotOf(game.state).activity.kind).toBe("waiting-for-components");
   });
 
-  it("leaves the Robot idle once there is nothing to build", () => {
+  it("leaves the Robot idle once there is no Construction left", () => {
     const game = scenario();
     expect(robotOf(game.state).activity).toEqual({ kind: "idle" });
 

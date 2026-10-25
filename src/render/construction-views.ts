@@ -144,8 +144,8 @@ function showConstruction(
     crate.visible = index < cratesHere;
   }
 
-  const building = stage === "assembly" || stage === "commissioning";
-  view.array.group.visible = building;
+  const assembled = stage === "assembly" || stage === "commissioning";
+  view.array.group.visible = assembled;
   view.array.setUnfolded(stage === "assembly" ? progress : 1);
   const blinkOn =
     Math.floor(realSeconds * TEST_BLINKS_PER_SECOND * 2) % 2 === 0;

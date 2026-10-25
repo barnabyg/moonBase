@@ -16,7 +16,7 @@ It installs or updates the dependencies when needed, starts the game at <http://
 
 Without the launcher, run `npm.cmd ci && npm.cmd run dev` from the repository's root folder and open <http://localhost:5173> in Firefox.
 
-In the game, drag with the left mouse button to pan the camera, drag with the right button to rotate it, and use the wheel to zoom from the whole base map down to a close-up of the Robot. "Skip to next event" jumps straight to the next notable moment, such as Night falling or a Construction being commissioned. To build, pick a Structure in the build menu at the bottom left, move its translucent preview over the map and click to place it (right-click or Esc cancels); the Robot then builds it by itself, and the Construction panel at the top right shows each stage.
+In the game, drag with the left mouse button to pan the camera, drag with the right button to rotate it, and use the wheel to zoom from the whole base map down to a close-up of the Robot. "Skip to next event" jumps straight to the next notable moment, such as Night falling or a Construction being commissioned. To plan a Construction, pick a Structure in the build menu at the bottom left, move its translucent preview over the map and click to place it (right-click or Esc cancels); the Robot then carries it out by itself, and the Construction panel at the top right shows each stage.
 
 Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every new Campaign gets a new seed.
 
