@@ -1,0 +1,3 @@
+# Saves are player-managed, versioned files
+
+Games are saved and loaded only when the player chooses to, and always as files on disk, never in browser storage. The player clears browser data when the browser closes, so anything kept there would be lost. Saving downloads a save file, and loading opens a file picker, which works in Firefox, the only supported browser. Every save file records a format version from the very first release. Old versions stay loadable through explicit migrations, because a released save format is a compatibility contract. The save also stores the random seed, so a loaded game plays out the same way it would have.
