@@ -1,0 +1,43 @@
+{
+  "name": "moon-base",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A construction and management game about building a base at the lunar south pole.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check --log-level warn .",
+    "lint": "eslint --max-warnings 0 .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.simulation.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "audit": "npm audit",
+    "secrets": "secretlint --maskSecrets \"**/*\"",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.0",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.6",
+    "@types/node": "24.19.1",
+    "@types/three": "0.186.0",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "secretlint": "13.0.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  }
+}

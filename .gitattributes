@@ -1,0 +1,8 @@
+# Keep LF line endings in the repository and in working copies on every platform.
+* text=auto eol=lf
+
+# Binary files are never normalised.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
