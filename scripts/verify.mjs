@@ -20,9 +20,11 @@ const steps = [
 
 for (const [index, [title, script]] of steps.entries()) {
   console.log(`\n=== ${index + 1}/${steps.length} ${title} ===`);
-  const result = spawnSync("npm", ["run", "--silent", script], {
+  // One command string (rather than an argument list) so the shell can find
+  // npm.cmd on Windows; the script names are fixed above.
+  const result = spawnSync(`npm run --silent ${script}`, {
     stdio: "inherit",
-    shell: process.platform === "win32",
+    shell: true,
   });
   if (result.status !== 0) {
     console.error(`\nverify failed at: ${title}`);
