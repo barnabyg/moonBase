@@ -66,6 +66,13 @@ export default tseslint.config(
           property: "random",
           message: "Use the simulation's seeded generator.",
         },
+        // The same globals reached through globalThis.
+        ...["Date", "performance", "crypto", "Math"].map((property) => ({
+          object: "globalThis",
+          property,
+          message:
+            "The simulation keeps its own game clock and seeded generator.",
+        })),
       ],
       "no-restricted-globals": [
         "error",
