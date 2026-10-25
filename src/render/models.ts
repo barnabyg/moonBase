@@ -34,6 +34,26 @@ const materials = {
     metalness: 0.9,
     roughness: 0.15,
   }),
+  solarCell: new THREE.MeshStandardMaterial({
+    color: 0x1d2b4f,
+    metalness: 0.6,
+    roughness: 0.25,
+    side: THREE.DoubleSide,
+  }),
+  crate: new THREE.MeshStandardMaterial({
+    color: 0xb9b2a2,
+    metalness: 0.1,
+    roughness: 0.8,
+  }),
+  statusOff: new THREE.MeshStandardMaterial({ color: 0x222222 }),
+  statusTesting: new THREE.MeshStandardMaterial({
+    color: 0xffb020,
+    emissive: 0xffa000,
+  }),
+  statusOn: new THREE.MeshStandardMaterial({
+    color: 0x40ff70,
+    emissive: 0x20d050,
+  }),
 };
 
 function part(
@@ -103,47 +123,215 @@ export function createLanderModel(footprintRadius: number): THREE.Group {
   return lander;
 }
 
+/** How the Robot holds itself, in radians: positive leans and lifts forward. */
+export interface RobotPose {
+  /** Each leg's swing from the hip; the other leg mirrors it. */
+  readonly legSwing: number;
+  readonly leftArm: number;
+  readonly rightArm: number;
+  readonly lean: number;
+  readonly carrying: boolean;
+}
+
+export interface RobotModel {
+  readonly group: THREE.Group;
+  pose(pose: RobotPose): void;
+}
+
 /** A humanoid Robot about 1.8 m tall, facing along its local +z axis. */
-export function createRobotModel(): THREE.Group {
+export function createRobotModel(): RobotModel {
   const robot = new THREE.Group();
   robot.name = "Robot";
 
   const limb = (width: number, length: number) =>
     new THREE.BoxGeometry(width, length, width);
-  robot.add(
-    // Legs
-    part(limb(0.16, 0.85), materials.robotShell, [-0.12, 0.43, 0]),
-    part(limb(0.16, 0.85), materials.robotShell, [0.12, 0.43, 0]),
-    // Hips and torso
+  /** A limb hanging from a joint, so that turning the joint swings it. */
+  const jointed = (
+    geometry: THREE.BufferGeometry,
+    joint: [number, number, number],
+    length: number,
+  ): THREE.Group => {
+    const pivot = new THREE.Group();
+    pivot.position.set(...joint);
+    pivot.add(part(geometry, materials.robotShell, [0, -length / 2, 0]));
+    return pivot;
+  };
+
+  const hipHeight = 0.86;
+  const leftLeg = jointed(limb(0.16, 0.85), [-0.12, hipHeight, 0], 0.85);
+  const rightLeg = jointed(limb(0.16, 0.85), [0.12, hipHeight, 0], 0.85);
+
+  // Everything above the hips leans forward as one.
+  const upperBody = new THREE.Group();
+  upperBody.position.y = hipHeight;
+  const leftArm = jointed(limb(0.12, 0.65), [-0.31, 0.65, 0], 0.65);
+  const rightArm = jointed(limb(0.12, 0.65), [0.31, 0.65, 0], 0.65);
+  const crate = part(
+    new THREE.BoxGeometry(0.5, 0.35, 0.4),
+    materials.crate,
+    [0, 0.45, 0.45],
+  );
+  upperBody.add(
     part(
       new THREE.BoxGeometry(0.4, 0.14, 0.22),
       materials.robotJoint,
-      [0, 0.9, 0],
+      [0, 0.04, 0],
     ),
     part(
       new THREE.BoxGeometry(0.46, 0.55, 0.26),
       materials.robotShell,
-      [0, 1.25, 0],
+      [0, 0.39, 0],
     ),
-    // Arms
-    part(limb(0.12, 0.65), materials.robotShell, [-0.31, 1.18, 0]),
-    part(limb(0.12, 0.65), materials.robotShell, [0.31, 1.18, 0]),
-    // Neck, head and visor
+    leftArm,
+    rightArm,
     part(
       new THREE.CylinderGeometry(0.05, 0.06, 0.08, 6),
       materials.robotJoint,
-      [0, 1.56, 0],
+      [0, 0.7, 0],
     ),
     part(
       new THREE.BoxGeometry(0.24, 0.22, 0.24),
       materials.robotShell,
-      [0, 1.7, 0],
+      [0, 0.84, 0],
     ),
     part(
       new THREE.BoxGeometry(0.2, 0.08, 0.02),
       materials.visor,
-      [0, 1.72, 0.125],
+      [0, 0.86, 0.125],
     ),
+    crate,
   );
-  return robot;
+  robot.add(leftLeg, rightLeg, upperBody);
+
+  return {
+    group: robot,
+    pose(pose) {
+      // Three.js turns a positive x rotation backwards, so negate to lift forwards.
+      leftLeg.rotation.x = -pose.legSwing;
+      rightLeg.rotation.x = pose.legSwing;
+      leftArm.rotation.x = -pose.leftArm;
+      rightArm.rotation.x = -pose.rightArm;
+      upperBody.rotation.x = pose.lean;
+      crate.visible = pose.carrying;
+    },
+  };
+}
+
+/**
+ * A solar array for the lunar south pole: the sun stays near the horizon, so
+ * the panel stands upright on a mast and turns to face it. During Assembly
+ * the mast rises and the folded panel opens out up it.
+ */
+export interface SolarArrayModel {
+  readonly group: THREE.Group;
+  /** From 0, packed on its base, to 1, fully unfolded. */
+  setUnfolded(fraction: number): void;
+  /** Turns the panel to face the given direction on the ground (radians, as for Object3D.rotation.y). */
+  setFacing(angle: number): void;
+  /** The light on the base: off, amber while Commissioning, green once commissioned. */
+  setStatusLight(state: "off" | "testing" | "on"): void;
+}
+
+const PANEL_WIDTH = 2.6;
+const PANEL_HEIGHT = 4.2;
+const PANEL_FOLDS = 6;
+const MAST_HEIGHT = 1.2;
+
+export function createSolarArrayModel(): SolarArrayModel {
+  const array = new THREE.Group();
+  array.name = "Solar array";
+
+  const statusLightMaterial = materials.statusOff.clone();
+  const statusLight = part(
+    new THREE.SphereGeometry(0.09, 8, 6),
+    statusLightMaterial,
+    [0.55, 0.42, 0.55],
+  );
+  array.add(
+    part(
+      new THREE.CylinderGeometry(0.9, 1.1, 0.3, 8),
+      materials.darkMetal,
+      [0, 0.15, 0],
+    ),
+    statusLight,
+  );
+
+  // The part that turns to face the sun.
+  const head = new THREE.Group();
+  head.position.y = 0.3;
+  array.add(head);
+  const mast = part(
+    new THREE.CylinderGeometry(0.08, 0.1, 1, 8),
+    materials.darkMetal,
+    [0, 0.5, 0],
+  );
+  head.add(mast);
+
+  // The panel is a strip of cells folded like a fan. Each fold is hinged to
+  // the one below, and the whole strip rides up on top of the mast.
+  const panel = new THREE.Group();
+  head.add(panel);
+  const foldHeight = PANEL_HEIGHT / PANEL_FOLDS;
+  const folds: THREE.Group[] = [];
+  let parent: THREE.Object3D = panel;
+  for (let index = 0; index < PANEL_FOLDS; index++) {
+    const hinge = new THREE.Group();
+    hinge.position.y = index === 0 ? 0 : foldHeight;
+    hinge.add(
+      part(
+        new THREE.BoxGeometry(PANEL_WIDTH, foldHeight, 0.04),
+        materials.solarCell,
+        [0, foldHeight / 2, 0],
+      ),
+    );
+    parent.add(hinge);
+    folds.push(hinge);
+    parent = hinge;
+  }
+
+  return {
+    group: array,
+    setUnfolded(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      // First the mast rises, then the panel unfolds up it.
+      const mastF = THREE.MathUtils.smoothstep(f, 0, 0.35);
+      const panelF = THREE.MathUtils.smoothstep(f, 0.3, 1);
+      const mastHeight = 0.2 + mastF * MAST_HEIGHT;
+      mast.scale.y = mastHeight;
+      mast.position.y = mastHeight / 2;
+      panel.position.y = mastHeight;
+      for (const [index, fold] of folds.entries()) {
+        if (index === 0) {
+          fold.rotation.x = 0;
+          continue;
+        }
+        // Alternate folds bend opposite ways, like a concertina.
+        const folded = index % 2 === 1 ? Math.PI * 0.97 : -Math.PI * 0.97;
+        fold.rotation.x = folded * (1 - panelF);
+      }
+    },
+    setFacing(angle) {
+      head.rotation.y = angle;
+    },
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+  };
+}
+
+/** A packing crate holding one Component, standing on the ground. */
+export function createCrateModel(): THREE.Mesh {
+  const crate = part(
+    new THREE.BoxGeometry(0.6, 0.4, 0.5),
+    materials.crate,
+    [0, 0.2, 0],
+  );
+  crate.name = "Component crate";
+  return crate;
 }

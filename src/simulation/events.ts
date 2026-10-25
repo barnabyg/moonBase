@@ -4,4 +4,11 @@
  */
 export type GameEvent =
   | { readonly kind: "night-started"; readonly atMinute: number }
-  | { readonly kind: "daylight-started"; readonly atMinute: number };
+  | { readonly kind: "daylight-started"; readonly atMinute: number }
+  | {
+      readonly kind: "construction-completed";
+      readonly atMinute: number;
+      /** The id of the newly commissioned Structure. */
+      readonly structureId: string;
+      readonly structureTypeId: string;
+    };

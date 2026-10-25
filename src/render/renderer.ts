@@ -2,18 +2,31 @@ import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
 import { createCameraControls } from "./camera";
+import { createConstructionViews } from "./construction-views";
+import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
-import { createLanderModel, createRobotModel } from "./models";
+import { createLanderModel } from "./models";
+import {
+  createPlacementPreview,
+  type PlacementPreview,
+} from "./placement-preview";
+import { createRobotViews } from "./robot-views";
 import { createEarth, createGround } from "./scenery";
 
-export interface Renderer {
-  /** Draws the scene as the given snapshot describes it. It never changes the simulation. */
-  render(snapshot: Snapshot): void;
-}
+export type { Frame, PlacementPreview };
 
-/** Maps a simulation ground position (x east, y north) onto the Three.js scene (x east, z south). */
-function toScene(position: GroundPosition, height = 0): THREE.Vector3 {
-  return new THREE.Vector3(position.x, height, -position.y);
+export interface Renderer {
+  /** The element the 3D view is drawn on, which receives the player's pointer input. */
+  readonly canvas: HTMLCanvasElement;
+  /** Draws the scene as the frame describes it. It never changes the simulation. */
+  render(frame: Frame): void;
+  /**
+   * The point on the ground under a position on the screen, in client
+   * pixels, or undefined if the ground isn't there (such as in the sky).
+   */
+  pickGround(clientX: number, clientY: number): GroundPosition | undefined;
+  /** Shows a Structure the player is about to place, or hides it when undefined. */
+  showPlacementPreview(preview: PlacementPreview | undefined): void;
 }
 
 export function createRenderer(
@@ -57,7 +70,9 @@ export function createRenderer(
 
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
   scene.add(lander);
-  const robots = new Map<string, THREE.Group>();
+  const robots = createRobotViews(scene);
+  const constructions = createConstructionViews(scene);
+  const placementPreview = createPlacementPreview(scene);
 
   function resize(): void {
     const width = container.clientWidth;
@@ -69,27 +84,43 @@ export function createRenderer(
   new ResizeObserver(resize).observe(container);
   resize();
 
+  const raycaster = new THREE.Raycaster();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pointer = new THREE.Vector2();
+  const hit = new THREE.Vector3();
+
   return {
-    render(snapshot) {
+    canvas: webgl.domElement,
+    render(frame) {
+      const { current } = frame;
+      const realSeconds = performance.now() / 1000;
       cameraControls.update();
       const { focus } = cameraControls;
       lighting.update(
-        snapshot.lunation,
+        current.lunation,
         focus,
         camera.position.distanceTo(focus),
       );
-      lander.position.copy(toScene(snapshot.lander.position));
-      for (const robot of snapshot.robots) {
-        let model = robots.get(robot.id);
-        if (model === undefined) {
-          model = createRobotModel();
-          robots.set(robot.id, model);
-          scene.add(model);
-        }
-        model.position.copy(toScene(robot.position));
-        model.lookAt(toScene(snapshot.lander.position));
-      }
+      lander.position.copy(toScene(current.lander.position));
+      robots.update(frame, realSeconds);
+      constructions.update(frame, realSeconds, lighting.sunFacing);
       webgl.render(scene, camera);
+    },
+    pickGround(clientX, clientY) {
+      const bounds = webgl.domElement.getBoundingClientRect();
+      pointer.set(
+        ((clientX - bounds.left) / bounds.width) * 2 - 1,
+        -((clientY - bounds.top) / bounds.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, camera);
+      if (raycaster.ray.intersectPlane(groundPlane, hit) === null) {
+        return undefined;
+      }
+      // Back from the scene (z south) to the ground (y north).
+      return { x: hit.x, y: -hit.z };
+    },
+    showPlacementPreview(preview) {
+      placementPreview.show(preview);
     },
   };
 }

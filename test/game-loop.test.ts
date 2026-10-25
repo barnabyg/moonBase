@@ -88,4 +88,35 @@ describe("the game loop", () => {
     expect(game.state.lunation.part).toBe("night");
     expect(loop.speed.id).toBe("paused");
   });
+
+  it("keeps the state from one game-minute before the latest, so the renderer can draw between ticks", () => {
+    const game = scenario();
+    const loop = createGameLoop(game.campaign);
+    expect(loop.previous).toBeUndefined();
+    loop.setSpeed("20x");
+
+    // 20x is 120 game-minutes a second, so 25 ms is 3 game-minutes.
+    loop.update(25);
+
+    expect(game.state.clock.elapsedMinutes).toBe(3);
+    expect(loop.previous?.clock.elapsedMinutes).toBe(2);
+  });
+
+  it("reports how far real time has run towards the next game-minute", () => {
+    const loop = createGameLoop(scenario().campaign);
+
+    // At 1x a game-minute takes 1000/6 ms, so 250 ms is one and a half.
+    loop.update(250);
+
+    expect(loop.tickProgress).toBeCloseTo(0.5);
+  });
+
+  it("forgets the earlier state after a skip, so nothing is drawn sliding across the jump", () => {
+    const loop = createGameLoop(scenario().campaign);
+    loop.update(250);
+
+    loop.skipToNextEvent();
+
+    expect(loop.previous).toBeUndefined();
+  });
 });

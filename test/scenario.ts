@@ -1,6 +1,7 @@
 import {
   createCampaign,
   type Campaign,
+  type GroundPosition,
   type Snapshot,
 } from "../src/simulation";
 
@@ -24,6 +25,8 @@ export function toGameMinutes(duration: Duration): number {
 export interface Scenario {
   readonly campaign: Campaign;
   advance(duration: Duration): Scenario;
+  /** Plans a Construction, failing the test if the placement is refused. */
+  plan(structureTypeId: string, position: GroundPosition): Scenario;
   readonly state: Snapshot;
 }
 
@@ -34,6 +37,12 @@ export function scenario(seed: number = DEFAULT_SEED): Scenario {
     campaign,
     advance(duration) {
       campaign.advance(toGameMinutes(duration));
+      return self;
+    },
+    plan(structureTypeId, position) {
+      const result = campaign.planConstruction({ structureTypeId, position });
+      if (!result.ok)
+        throw new Error(`Planning was refused: ${result.message}`);
       return self;
     },
     get state() {

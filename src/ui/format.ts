@@ -1,4 +1,11 @@
-import type { ClockSnapshot, LunationSnapshot } from "../simulation";
+import { catalogue } from "../catalogue";
+import type {
+  ClockSnapshot,
+  ConstructionSnapshot,
+  ConstructionStage,
+  LunationSnapshot,
+  RobotSnapshot,
+} from "../simulation";
 
 const twoDigits = (value: number): string => String(value).padStart(2, "0");
 
@@ -29,4 +36,60 @@ export function formatLunation(lunation: LunationSnapshot): string {
     ...(hours > 0 || earthDays === 0 ? [plural(hours, "hour")] : []),
   ];
   return `${part}: ${parts.join(" ")} left`;
+}
+
+const stageLabels: Record<ConstructionStage, string> = {
+  "site-preparation": "Site Preparation",
+  "component-delivery": "Component delivery",
+  assembly: "Assembly",
+  commissioning: "Commissioning",
+};
+
+export function formatStage(stage: ConstructionStage): string {
+  return stageLabels[stage];
+}
+
+export function structureLabel(structureTypeId: string): string {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.label ?? structureTypeId
+  );
+}
+
+/** Says what is happening on a Construction right now, for the Construction panel. */
+export function describeWork(
+  construction: ConstructionSnapshot,
+  robots: readonly RobotSnapshot[],
+): string {
+  const robot = robots.find(
+    (candidate) =>
+      candidate.activity.kind !== "idle" &&
+      candidate.activity.constructionId === construction.id,
+  );
+  if (robot === undefined) return "Waiting for the Robot";
+  const { activity } = robot;
+  switch (activity.kind) {
+    case "idle":
+      return "Waiting for the Robot";
+    case "walking":
+      return activity.destination === "lander"
+        ? "Robot walking to the Lander for the Components"
+        : robot.carrying.length > 0
+          ? "Robot carrying the Components to the site"
+          : "Robot walking to the site";
+    case "preparing-site":
+      return "Robot clearing and grading the ground";
+    case "loading-components":
+      return "Robot loading the Components at the Lander";
+    case "unloading-components":
+      return "Robot unloading the Components at the site";
+    case "assembling":
+      return `Robot assembling the ${structureLabel(construction.structureTypeId).toLowerCase()}`;
+    case "commissioning":
+      return construction.failedCommissionings === 0
+        ? "Robot testing it before it goes live"
+        : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
+    case "waiting-for-components":
+      return "Waiting: its Components aren't in the cargo stock";
+  }
 }

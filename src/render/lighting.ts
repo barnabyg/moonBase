@@ -26,6 +26,11 @@ const SUN_DISC_RADIUS = 24;
 export interface Lighting {
   readonly objects: readonly THREE.Object3D[];
   /**
+   * The angle for Object3D.rotation.y that turns a model's +z axis towards the
+   * sun, or undefined at Night.
+   */
+  readonly sunFacing: number | undefined;
+  /**
    * Places the sun for the current part of the Lunation, and fits its shadows
    * around the part of the map in view.
    */
@@ -64,9 +69,13 @@ export function createLighting(
     daylightMinutes + schedule.nightEarthDays * MINUTES_PER_EARTH_DAY;
   const sunDirection = new THREE.Vector3();
   let shadowRadius = 0;
+  let sunFacing: number | undefined;
 
   return {
     objects: [sun, sun.target, sunDisc, fill, earthshine],
+    get sunFacing() {
+      return sunFacing;
+    },
     update(lunation, focus, viewRadius) {
       // The sun is dimmed rather than hidden at Night, because changing the
       // number of lights makes Three.js recompile every material.
@@ -75,6 +84,7 @@ export function createLighting(
       fill.intensity = isDaylight ? 0.6 : 0.05;
       if (!isDaylight) {
         sun.intensity = 0;
+        sunFacing = undefined;
         return;
       }
 
@@ -92,6 +102,7 @@ export function createLighting(
         Math.sin(elevation),
         Math.sin(azimuth) * Math.cos(elevation),
       );
+      sunFacing = Math.atan2(sunDirection.x, sunDirection.z);
       const risen = Math.min(sinceSunrise, lunation.minutesRemaining);
       sun.intensity =
         SUN_INTENSITY * THREE.MathUtils.clamp(risen / SUNRISE_MINUTES, 0, 1);

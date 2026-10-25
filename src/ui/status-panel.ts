@@ -1,6 +1,7 @@
 import type { GameLoop } from "../game/loop";
 import type { Snapshot } from "../simulation";
-import { formatClock, formatLunation } from "./format";
+import { setText } from "./dom";
+import { formatClock, formatLunation, structureLabel } from "./format";
 
 export interface StatusPanel {
   update(snapshot: Snapshot): void;
@@ -67,7 +68,12 @@ export function createStatusPanel(
     }
   }
 
-  panel.append(clock, lunation, speedGroup, skip);
+  const structures = document.createElement("ul");
+  structures.className = "status-panel__structures";
+  structures.setAttribute("aria-label", "Structures");
+  const structureItems = new Map<string, HTMLLIElement>();
+
+  panel.append(clock, lunation, speedGroup, skip, structures);
   container.append(panel);
   showSelectedSpeed();
 
@@ -75,11 +81,14 @@ export function createStatusPanel(
     update(snapshot) {
       setText(clock, formatClock(snapshot.clock));
       setText(lunation, formatLunation(snapshot.lunation));
+      for (const structure of snapshot.structures) {
+        if (structureItems.has(structure.id)) continue;
+        const item = document.createElement("li");
+        item.textContent = `${structureLabel(structure.structureTypeId)}: commissioned`;
+        structures.append(item);
+        structureItems.set(structure.id, item);
+      }
+      structures.hidden = structureItems.size === 0;
     },
   };
-}
-
-/** Changes an element's text only when it differs, to spare the browser needless layout work. */
-function setText(element: HTMLElement, text: string): void {
-  if (element.textContent !== text) element.textContent = text;
 }
