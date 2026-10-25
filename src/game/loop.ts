@@ -8,6 +8,7 @@ import type { Campaign } from "../simulation";
  */
 const MAX_FRAME_MS = 250;
 const MS_PER_SECOND = 1000;
+const INITIAL_SPEED_ID = "1x";
 
 export interface GameLoop {
   readonly speed: GameSpeed;
@@ -20,11 +21,8 @@ export interface GameLoop {
   update(realElapsedMs: number): number;
 }
 
-export function createGameLoop(
-  campaign: Campaign,
-  speeds: readonly GameSpeed[] = catalogue.gameSpeeds,
-  initialSpeedId = "1x",
-): GameLoop {
+export function createGameLoop(campaign: Campaign): GameLoop {
+  const speeds = catalogue.gameSpeeds;
   const findSpeed = (id: string): GameSpeed => {
     const found = speeds.find((speed) => speed.id === id);
     if (found === undefined)
@@ -32,7 +30,7 @@ export function createGameLoop(
     return found;
   };
 
-  let speed = findSpeed(initialSpeedId);
+  let speed = findSpeed(INITIAL_SPEED_ID);
   // Game-minutes owed but not yet ticked, scaled by MS_PER_SECOND so that
   // whole-millisecond frames accumulate exactly.
   let owedScaledMinutes = 0;
