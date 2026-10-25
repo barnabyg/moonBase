@@ -15,7 +15,8 @@ export interface Catalogue {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
   };
-  readonly startingScenario: {
+  /** Where the Lander has touched down and its Robots stand when a Campaign begins. */
+  readonly landingSite: {
     readonly landerPosition: CataloguePosition;
     readonly robotPositions: readonly CataloguePosition[];
   };
@@ -38,7 +39,7 @@ export const catalogue: Catalogue = {
   version: 1,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
-  startingScenario: {
+  landingSite: {
     landerPosition: { x: 0, y: 0 },
     robotPositions: [{ x: 6, y: -3 }],
   },

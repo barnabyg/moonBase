@@ -14,7 +14,7 @@ npm.cmd ci && npm.cmd run dev
 
 This installs the dependencies and starts the game. Open <http://localhost:5173> in Firefox. Stop it with `Ctrl+C`.
 
-Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every game starts from a new seed.
+Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every new Campaign gets a new seed.
 
 ## Verification
 

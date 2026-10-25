@@ -54,15 +54,15 @@ interface CampaignState {
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
-  const { startingScenario } = catalogue;
+  const { landingSite } = catalogue;
   const state: CampaignState = {
     random: seedRandom(options.seed),
     elapsedMinutes: 0,
     lander: {
       state: "landed",
-      position: { ...startingScenario.landerPosition },
+      position: { ...landingSite.landerPosition },
     },
-    robots: startingScenario.robotPositions.map((position, index) => ({
+    robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
       position: { ...position },
     })),
