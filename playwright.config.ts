@@ -9,6 +9,10 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: `http://localhost:${port}`,
+    // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
+    // context, so CI runs Firefox with a window inside a virtual X display
+    // (see .github/workflows/verify.yml).
+    headless: process.env["PLAYWRIGHT_HEADED"] !== "1",
   },
   // Desktop Firefox is the only supported target (ADR-0004).
   projects: [

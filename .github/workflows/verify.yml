@@ -19,8 +19,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps firefox
-      # The runner has no GPU. Mesa's software OpenGL (llvmpipe) lets headless
-      # Firefox create the WebGL2 context the renderer needs.
-      - name: Install software OpenGL
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libegl1 libegl-mesa0 libgles2
-      - run: npm run verify
+      # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
+      # the WebGL2 context the renderer needs, but only with a display, so the
+      # end-to-end tests run Firefox with a window in a virtual X display.
+      - name: Install software OpenGL and a virtual display
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgles2 xvfb
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify
+        env:
+          PLAYWRIGHT_HEADED: "1"
