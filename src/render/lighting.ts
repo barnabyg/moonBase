@@ -20,6 +20,7 @@ const SUNRISE_MINUTES = 3 * 60;
  */
 const SUNRISE_AZIMUTH = THREE.MathUtils.degToRad(-128);
 const SKY_DISTANCE = 5000;
+const SHADOW_MAP_SIZE = 2048;
 const SUN_DISC_RADIUS = 24;
 
 export interface Lighting {
@@ -42,9 +43,8 @@ export function createLighting(
   const sun = new THREE.DirectionalLight(0xfff6e8, SUN_INTENSITY);
   sun.name = "Sun";
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
   sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.02;
 
   const sunDisc = new THREE.Mesh(
     new THREE.SphereGeometry(SUN_DISC_RADIUS, 16, 8),
@@ -115,6 +115,10 @@ export function createLighting(
         camera.near = 1;
         camera.far = radius * 4;
         camera.updateProjectionMatrix();
+        // With the sun this low, each shadow-map texel smears across a long
+        // strip of ground, so the offset that stops surfaces shadowing
+        // themselves has to grow with the texel size.
+        sun.shadow.normalBias = ((radius * 2) / SHADOW_MAP_SIZE) * 1.5;
       }
     },
   };

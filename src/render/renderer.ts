@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
+import { createCameraControls } from "./camera";
 import { createLighting } from "./lighting";
 import { createLanderModel, createRobotModel } from "./models";
 import { createEarth, createGround } from "./scenery";
@@ -30,11 +31,12 @@ export function createRenderer(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
 
-  // A fixed view of the landing site; camera controls come in a later ticket.
+  // The game opens on a view of the landing site, which the player can then
+  // pan, rotate and zoom.
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20000);
-  const lookAt = toScene(initial.lander.position, 2);
-  camera.position.copy(lookAt).add(new THREE.Vector3(17, 6, 21));
-  camera.lookAt(lookAt);
+  const landingSite = toScene(initial.lander.position);
+  camera.position.copy(landingSite).add(new THREE.Vector3(17, 8, 21));
+  camera.lookAt(landingSite);
 
   const earthDirection = new THREE.Vector3();
   camera.getWorldDirection(earthDirection);
@@ -44,6 +46,13 @@ export function createRenderer(
     createGround(initial.map),
     createEarth(earthDirection),
     ...lighting.objects,
+  );
+
+  const cameraControls = createCameraControls(
+    camera,
+    webgl.domElement,
+    initial.map,
+    landingSite,
   );
 
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
@@ -62,10 +71,12 @@ export function createRenderer(
 
   return {
     render(snapshot) {
+      cameraControls.update();
+      const { focus } = cameraControls;
       lighting.update(
         snapshot.lunation,
-        lookAt,
-        camera.position.distanceTo(lookAt),
+        focus,
+        camera.position.distanceTo(focus),
       );
       lander.position.copy(toScene(snapshot.lander.position));
       for (const robot of snapshot.robots) {
