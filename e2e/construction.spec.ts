@@ -34,7 +34,7 @@ test("the Robot carries out the Construction of a solar array placed on the map"
   await page.goto("/?seed=1");
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const solarArray = buildMenu.getByRole("button", { name: /Solar array/ });
-  await expect(solarArray).toContainText("1 in cargo");
+  await expect(solarArray).toContainText("1 available");
 
   await solarArray.click();
   await placeOnClearGround(page);
@@ -46,6 +46,8 @@ test("the Robot carries out the Construction of a solar array placed on the map"
     name: "Constructions",
   });
   await expect(constructions).toContainText("Site Preparation");
+  // Its Components are promised, so there are none left to plan another.
+  await expect(solarArray).toBeDisabled();
 
   await page
     .getByRole("group", { name: "Game speed" })
@@ -55,7 +57,8 @@ test("the Robot carries out the Construction of a solar array placed on the map"
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
   ).toHaveText(["Solar array: commissioned"], { timeout: 45_000 });
-  await expect(solarArray).toContainText("0 in cargo");
+  await expect(solarArray).toContainText("0 available");
+  await expect(solarArray).toBeDisabled();
 });
 
 test("a solar array can't be placed over the Lander", async ({ page }) => {

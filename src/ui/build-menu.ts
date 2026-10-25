@@ -152,21 +152,43 @@ export function createBuildMenu(
 
   return {
     update(snapshot) {
-      for (const { type, stock } of buttons) {
-        setText(stock, `${setsInCargo(type, snapshot)} in cargo`);
+      for (const { type, button, stock } of buttons) {
+        const available = setsAvailable(type, snapshot);
+        setText(stock, `${available} available`);
+        button.disabled = available === 0;
+        if (available === 0 && placing === type) stopPlacing("");
       }
     },
   };
 }
 
-/** How many of a Structure the Components in the cargo stock would make. */
-function setsInCargo(type: StructureType, snapshot: Snapshot): number {
+/**
+ * How many more of a Structure the cargo stock can supply, leaving aside the
+ * Components already promised to planned Constructions that haven't taken
+ * them yet. Planning more than this would leave a Construction waiting for
+ * Components that will never come.
+ */
+function setsAvailable(type: StructureType, snapshot: Snapshot): number {
+  const promised = (componentId: string) =>
+    snapshot.constructions
+      .filter((construction) => !construction.componentsTaken)
+      .flatMap(
+        (construction) =>
+          catalogue.structureTypes.find(
+            (other) => other.id === construction.structureTypeId,
+          )?.components ?? [],
+      )
+      .filter((need) => need.componentId === componentId)
+      .reduce((total, need) => total + need.count, 0);
   return Math.min(
     ...type.components.map((need) => {
       const inStock =
         snapshot.cargo.find((stock) => stock.componentId === need.componentId)
           ?.count ?? 0;
-      return Math.floor(inStock / need.count);
+      return Math.max(
+        Math.floor((inStock - promised(need.componentId)) / need.count),
+        0,
+      );
     }),
   );
 }

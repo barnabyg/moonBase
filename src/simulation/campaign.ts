@@ -51,6 +51,8 @@ export interface ConstructionSnapshot {
   readonly stage: ConstructionStage;
   /** How much of the current stage's work is done, from 0 to 1. */
   readonly stageProgress: number;
+  /** Whether the Robot has taken this Construction's Components from the cargo stock. */
+  readonly componentsTaken: boolean;
   readonly failedCommissionings: number;
 }
 
@@ -193,6 +195,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
           position: { ...construction.position },
           stage: construction.stage,
           stageProgress: stageProgress(construction),
+          componentsTaken: construction.componentsTaken,
           failedCommissionings: construction.failedCommissionings,
         })),
         structures: copy(state.structures),
