@@ -11,7 +11,22 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
   },
   // Desktop Firefox is the only supported target (ADR-0004).
-  projects: [{ name: "firefox", use: { ...devices["Desktop Firefox"] } }],
+  projects: [
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: {
+          firefoxUserPrefs: {
+            // Firefox's graphics blocklist refuses WebGL2 on the software
+            // renderer of GPU-less machines such as the CI runner
+            // ("AllowWebgl2:false"). Tests need the 3D view, so bypass it.
+            "webgl.force-enabled": true,
+          },
+        },
+      },
+    },
+  ],
   webServer: {
     command: `npx vite --port ${port} --strictPort`,
     url: `http://localhost:${port}`,
