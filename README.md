@@ -6,13 +6,15 @@ Desktop Firefox is the only supported browser.
 
 ## Play it
 
-You need [Node.js](https://nodejs.org/) 24 or later. In PowerShell, from the repository's root folder (the one containing `package.json`), run:
+You need [Node.js](https://nodejs.org/) 24 or later. Double-click `run.bat` in the repository's root folder (the one containing `package.json`), or run it from PowerShell in any folder:
 
 ```powershell
-npm.cmd ci && npm.cmd run dev
+C:\docs\git\moonBase\run.bat
 ```
 
-This installs the dependencies and starts the game. Open <http://localhost:5173> in Firefox. Stop it with `Ctrl+C`.
+It installs or updates the dependencies when needed, starts the game at <http://localhost:5173> and opens it in Firefox (or your default browser if Firefox isn't installed in the usual place). Stop it by closing its window or pressing `Ctrl+C` in it.
+
+Without the launcher, run `npm.cmd ci && npm.cmd run dev` from the repository's root folder and open <http://localhost:5173> in Firefox.
 
 Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every new Campaign gets a new seed.
 
