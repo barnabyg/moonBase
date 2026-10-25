@@ -4,8 +4,8 @@ import type { MapSnapshot } from "../simulation";
 
 // The player's view of the base. Dragging with the left mouse button pans,
 // dragging with the right button rotates, and the wheel zooms towards the
-// cursor. The camera only ever looks at the map: it can't dip below the
-// ground, and the point it looks at can't leave the map.
+// cursor. The camera stays over the map: it can't dip below the ground or
+// pass the map's edge, and neither can the point it looks at.
 
 /** Close enough that the 1.8 m Robot fills a good part of the view. */
 const CLOSEST_ZOOM_METRES = 4;
@@ -55,6 +55,18 @@ export function createCameraControls(
       if (correction.lengthSq() > 0) {
         target.add(correction);
         camera.position.add(correction);
+      }
+      // Pull the camera itself back over the map; zoomed far out near an
+      // edge, this tips the view to look down more steeply.
+      const { position } = camera;
+      const overX =
+        THREE.MathUtils.clamp(position.x, -halfWidth, halfWidth) - position.x;
+      const overZ =
+        THREE.MathUtils.clamp(position.z, -halfDepth, halfDepth) - position.z;
+      if (overX !== 0 || overZ !== 0) {
+        position.x += overX;
+        position.z += overZ;
+        camera.lookAt(target);
       }
     },
   };
