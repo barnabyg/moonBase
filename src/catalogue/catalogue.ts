@@ -23,6 +23,8 @@ export interface Catalogue {
   readonly robot: {
     /** How far a Robot walks in a game-hour. */
     readonly walkingSpeedMetresPerHour: number;
+    /** How far outside a footprint, or beside the Lander, a Robot stands to work. */
+    readonly workingGapMetres: number;
   };
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
@@ -111,7 +113,7 @@ export const catalogue: Catalogue = {
     nightEarthDays: 9.5,
     initialDaylightRemainingEarthDays: 8,
   },
-  robot: { walkingSpeedMetresPerHour: 12 },
+  robot: { walkingSpeedMetresPerHour: 12, workingGapMetres: 1 },
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },

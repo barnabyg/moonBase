@@ -8,7 +8,6 @@ import {
   componentsFor,
   findStructureType,
   stageMinutes,
-  WORKING_GAP_METRES,
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
@@ -198,7 +197,8 @@ function landerSpot(
   const lander = state.lander.position;
   const { workSpot } = construction;
   const angle = Math.atan2(workSpot.y - lander.y, workSpot.x - lander.x);
-  const reach = catalogue.lander.footprintRadiusMetres + WORKING_GAP_METRES;
+  const reach =
+    catalogue.lander.footprintRadiusMetres + catalogue.robot.workingGapMetres;
   return {
     x: lander.x + Math.cos(angle) * reach,
     y: lander.y + Math.sin(angle) * reach,

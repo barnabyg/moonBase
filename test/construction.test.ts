@@ -92,11 +92,15 @@ describe("the Construction of a solar array", () => {
     );
     const atWork = robotOf(states[firstWork] as Snapshot).position;
     expect(distanceBetween(atWork, site)).toBeLessThanOrEqual(
-      solarArray.footprintRadiusMetres + 1.01,
+      solarArray.footprintRadiusMetres +
+        catalogue.robot.workingGapMetres +
+        1e-9,
     );
     expect(firstWork).toBeGreaterThanOrEqual(
       Math.floor(
-        (distanceBetween(start, site) - solarArray.footprintRadiusMetres - 1) /
+        (distanceBetween(start, site) -
+          solarArray.footprintRadiusMetres -
+          catalogue.robot.workingGapMetres) /
           metresPerMinute,
       ),
     );
@@ -148,6 +152,15 @@ describe("the Construction of a solar array", () => {
 
     const states = runUntilBuilt(game.plan("solar-array", site));
 
+    for (const state of states) {
+      const [construction] = state.constructions;
+      if (construction === undefined) continue;
+      expect(construction.componentsTaken).toBe(
+        !state.cargo.every(
+          (stock, index) => stock.count === startingStock[index]?.count,
+        ),
+      );
+    }
     const stockDuring = (stage: string) =>
       states.filter((state) => state.constructions[0]?.stage === stage);
     for (const state of stockDuring("site-preparation")) {
@@ -202,6 +215,34 @@ describe("the Construction of a solar array", () => {
       expect(game.state.structures).toHaveLength(1);
     },
   );
+
+  it("has the Robot work from clear ground, not from inside a neighbouring Structure", () => {
+    // The side of the second site facing the Lander lies inside the first.
+    const first = { x: 20, y: 0 };
+    const second = { x: 20 + solarArray.footprintRadiusMetres * 2 + 0.5, y: 0 };
+    const game = scenario()
+      .plan("solar-array", first)
+      .plan("solar-array", second);
+
+    const secondId = game.state.constructions[1]?.id;
+
+    const preparingSecond: Snapshot[] = [];
+    for (let minute = 0; minute < 2 * 24 * 60; minute++) {
+      const { activity } = robotOf(game.advance({ minutes: 1 }).state);
+      if (
+        activity.kind === "preparing-site" &&
+        activity.constructionId === secondId
+      ) {
+        preparingSecond.push(game.state);
+      }
+    }
+    expect(preparingSecond.length).toBeGreaterThan(0);
+    for (const state of preparingSecond) {
+      expect(
+        distanceBetween(robotOf(state).position, first),
+      ).toBeGreaterThanOrEqual(solarArray.footprintRadiusMetres);
+    }
+  });
 
   it("retries a Commissioning that fails, until the solar array is commissioned", () => {
     const game = scenario(findSeed(true)).plan("solar-array", site);

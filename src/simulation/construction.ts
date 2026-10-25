@@ -141,19 +141,18 @@ function refuse(reason: PlacementRefusal, message: string): PlacementCheck {
   return { ok: false, reason, message };
 }
 
-/** How far from a footprint's edge the Robot stands to work, in metres. */
-export const WORKING_GAP_METRES = 1;
-
 /**
  * Chooses where the Robot stands to work on a site: just outside its
  * footprint, on the side facing the Lander if that is clear, otherwise turning
- * round the site until it finds clear ground.
+ * round the site until it finds ground clear of the Lander, every other
+ * Structure and the map's edge.
  */
 export function chooseWorkSpot(
   site: Site,
   plan: ConstructionPlan,
 ): GroundPosition {
-  const reach = footprintRadius(plan.structureTypeId) + WORKING_GAP_METRES;
+  const gap = catalogue.robot.workingGapMetres;
+  const reach = footprintRadius(plan.structureTypeId) + gap;
   const lander = site.lander.position;
   const towardsLander = Math.atan2(
     lander.y - plan.position.y,
@@ -166,15 +165,23 @@ export function chooseWorkSpot(
       y: plan.position.y + Math.sin(angle) * reach,
     };
   });
-  const landerClearance =
-    catalogue.lander.footprintRadiusMetres + WORKING_GAP_METRES;
+  const clearOfLander = (spot: GroundPosition) =>
+    distance(spot, lander) >= catalogue.lander.footprintRadiusMetres + gap;
+  const onMap = (spot: GroundPosition) =>
+    Math.abs(spot.x) <= catalogue.map.widthMetres / 2 &&
+    Math.abs(spot.y) <= catalogue.map.depthMetres / 2;
+  const clearOfStructures = (spot: GroundPosition) =>
+    [...site.structures, ...site.constructions].every(
+      (other) =>
+        distance(spot, other.position) >=
+        footprintRadius(other.structureTypeId),
+    );
+  // A site hemmed in on every side still gets a spot the Robot can reach.
   return (
     candidates.find(
-      (spot) =>
-        distance(spot, lander) >= landerClearance &&
-        Math.abs(spot.x) <= catalogue.map.widthMetres / 2 &&
-        Math.abs(spot.y) <= catalogue.map.depthMetres / 2,
+      (spot) => clearOfLander(spot) && onMap(spot) && clearOfStructures(spot),
     ) ??
+    candidates.find((spot) => clearOfLander(spot) && onMap(spot)) ??
     candidates[0] ??
     plan.position
   );

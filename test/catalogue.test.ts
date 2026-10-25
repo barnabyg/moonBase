@@ -81,8 +81,9 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("gives the Robot a positive walking speed", () => {
+  it("gives the Robot a positive walking speed and working gap", () => {
     expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
+    expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);
   });
 
   it("has Components with unique ids and labels", () => {
