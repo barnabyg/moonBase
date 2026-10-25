@@ -1,0 +1,13 @@
+# Keep LF line endings in the repository and in working copies on every
+# platform, except for Windows batch files below.
+* text=auto eol=lf
+
+# Binary files are never normalised.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+
+# Windows batch files need CRLF line endings for cmd.exe.
+*.bat text eol=crlf
+*.cmd text eol=crlf

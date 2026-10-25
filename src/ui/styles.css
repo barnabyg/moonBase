@@ -1,0 +1,96 @@
+:root {
+  color-scheme: dark;
+  --panel-background: rgb(12 14 18 / 82%);
+  --panel-border: rgb(255 255 255 / 14%);
+  --text: #e8eaee;
+  --text-muted: #9aa1ad;
+  --accent: #f2c14e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#app canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.status-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 12px 14px;
+  min-width: 220px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.status-panel__clock {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-panel__speeds {
+  display: flex;
+  gap: 4px;
+}
+
+.status-panel__speeds button {
+  flex: 1;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.status-panel__speeds button:hover {
+  border-color: var(--text-muted);
+}
+
+.status-panel__speeds button[aria-pressed="true"] {
+  color: #000;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.status-panel__speeds button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.renderer-unavailable {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 480px;
+  margin: 0;
+  padding: 16px 18px;
+  transform: translate(-50%, -50%);
+  line-height: 1.5;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}

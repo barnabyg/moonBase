@@ -1,0 +1,9 @@
+{
+  "//": "Type-checks the simulation and the data catalogue with no DOM or Node types, so any use of a browser or Node API fails to compile (ADR-0003).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src/simulation", "src/catalogue"]
+}

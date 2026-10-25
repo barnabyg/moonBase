@@ -1,0 +1,29 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps firefox
+      # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
+      # the WebGL2 context the renderer needs, but only with a display, so the
+      # end-to-end tests run Firefox with a window in a virtual X display.
+      - name: Install software OpenGL and a virtual display
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgles2 xvfb
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify
+        env:
+          PLAYWRIGHT_HEADED: "1"
