@@ -144,10 +144,7 @@ describe("the Construction of a solar array", () => {
   it("takes the Components from the Lander's cargo stock during Component delivery", () => {
     const game = scenario();
     const startingStock = game.state.cargo;
-    expect(startingStock).toEqual([
-      { componentId: "solar-panel", count: 2 },
-      { componentId: "array-mast", count: 1 },
-    ]);
+    expect(startingStock).toEqual(catalogue.startingCargo);
 
     const states = runUntilBuilt(game.plan("solar-array", site));
 
@@ -164,10 +161,16 @@ describe("the Construction of a solar array", () => {
       expect(state.constructions[0]?.stage).toBe("component-delivery");
       expect(robotOf(state).carrying).toEqual(solarArray.components);
     }
-    expect(game.state.cargo).toEqual([
-      { componentId: "solar-panel", count: 0 },
-      { componentId: "array-mast", count: 0 },
-    ]);
+    expect(game.state.cargo).toEqual(
+      startingStock.map((stock) => ({
+        componentId: stock.componentId,
+        count:
+          stock.count -
+          (solarArray.components.find(
+            (need) => need.componentId === stock.componentId,
+          )?.count ?? 0),
+      })),
+    );
   });
 
   it("has the Robot walk round the Lander rather than through it", () => {

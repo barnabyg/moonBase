@@ -61,6 +61,20 @@ describe("planning a Construction", () => {
     expect(game.state.constructions).toHaveLength(1);
   });
 
+  it("refuses a placement that overlaps a commissioned Structure", () => {
+    const game = scenario().plan("solar-array", { x: 30, y: 30 });
+    game.campaign.advanceToNextEvent();
+    expect(game.state.structures).toHaveLength(1);
+
+    const result = game.campaign.planConstruction({
+      structureTypeId: "solar-array",
+      position: { x: 30, y: 30 + arrayRadius },
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: "overlaps-structure" });
+    expect(game.state.constructions).toEqual([]);
+  });
+
   it("refuses a placement that would stick out over the edge of the map", () => {
     const result = scenario().campaign.planConstruction({
       structureTypeId: "solar-array",
