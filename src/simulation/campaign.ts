@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type GroundPosition, type MapSize } from "../catalogue";
 import { readClock, type ClockSnapshot } from "./clock";
 import { seedRandom, type RandomState } from "./random";
 
@@ -7,16 +7,8 @@ export interface CampaignOptions {
   readonly seed: number;
 }
 
-/** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
-export interface GroundPosition {
-  readonly x: number;
-  readonly y: number;
-}
-
-export interface MapSnapshot {
-  readonly widthMetres: number;
-  readonly depthMetres: number;
-}
+export type { GroundPosition };
+export type MapSnapshot = MapSize;
 
 export interface LanderSnapshot {
   readonly state: "landed";

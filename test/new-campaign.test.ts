@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import type { GroundPosition } from "../src/simulation";
+import type { GroundPosition, MapSnapshot } from "../src/simulation";
 import { scenario } from "./scenario";
 
 function distanceBetween(a: GroundPosition, b: GroundPosition): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function isOnMap(
-  position: GroundPosition,
-  map: { widthMetres: number; depthMetres: number },
-) {
+function isOnMap(position: GroundPosition, map: MapSnapshot) {
   return (
     Math.abs(position.x) <= map.widthMetres / 2 &&
     Math.abs(position.y) <= map.depthMetres / 2

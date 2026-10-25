@@ -7,26 +7,29 @@
 export interface Catalogue {
   /** Bumped whenever the shape or meaning of the catalogue changes. */
   readonly version: number;
-  readonly map: {
-    readonly widthMetres: number;
-    readonly depthMetres: number;
-  };
+  readonly map: MapSize;
   readonly lander: {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
   };
   /** Where the Lander has touched down and its Robots stand when a Campaign begins. */
   readonly landingSite: {
-    readonly landerPosition: CataloguePosition;
-    readonly robotPositions: readonly CataloguePosition[];
+    readonly landerPosition: GroundPosition;
+    readonly robotPositions: readonly GroundPosition[];
   };
   /** The game speeds the player can choose between, in the order they are offered. */
   readonly gameSpeeds: readonly GameSpeed[];
 }
 
-export interface CataloguePosition {
+/** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
+export interface GroundPosition {
   readonly x: number;
   readonly y: number;
+}
+
+export interface MapSize {
+  readonly widthMetres: number;
+  readonly depthMetres: number;
 }
 
 export interface GameSpeed {
