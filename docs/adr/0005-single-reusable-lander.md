@@ -1,0 +1,3 @@
+# A single reusable Lander makes every Launch
+
+All traffic between Earth and the base goes through one reusable Lander. Its round trip sets the Launch cadence, it carries Exports home within its Return Mass, and it can't leave while the Mission Director still depends on it for shelter, so building the first Habitat gates every later Launch. We chose this over independent cargo landers on an arbitrary timer because the cadence then comes from something the player can see and reason about, and every landing produces Plume Ejecta that makes a landing pad worthwhile. A second Lander is a possible later extension.
