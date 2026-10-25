@@ -76,7 +76,9 @@ export function createGameLoop(campaign: Campaign): GameLoop {
       return gameMinutes;
     },
     skipToNextEvent() {
+      // The jump replaces the part-minute that was building up.
       previous = undefined;
+      owedScaledMinutes = 0;
       return campaign.advanceToNextEvent();
     },
   };

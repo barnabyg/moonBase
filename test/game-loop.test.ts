@@ -118,5 +118,6 @@ describe("the game loop", () => {
     loop.skipToNextEvent();
 
     expect(loop.previous).toBeUndefined();
+    expect(loop.tickProgress).toBe(0);
   });
 });
