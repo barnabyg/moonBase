@@ -5,7 +5,7 @@ import type { MapSnapshot } from "../simulation";
 // casting long shadows, and Earth low on the horizon.
 
 /** A small, fixed pseudo-random sequence, so the scenery looks the same on every load. */
-function scatter(seed: number): () => number {
+function fixedRandom(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -41,7 +41,7 @@ export function createGround(map: MapSnapshot): THREE.Group {
   surroundings.position.y = -0.02;
   ground.add(baseMap, surroundings);
 
-  const random = scatter(1969);
+  const random = fixedRandom(1969);
   const rockMaterial = new THREE.MeshStandardMaterial({
     color: 0x6e6b67,
     roughness: 1,
