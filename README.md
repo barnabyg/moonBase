@@ -50,7 +50,7 @@ Every check applies; none is skipped. Tool versions are pinned exactly in `packa
 - `src/simulation/`: the headless, deterministic game rules. Create a Campaign from a seed, advance it in fixed 1-game-minute ticks, and read immutable snapshots. It never imports the renderer or interface, and never reads the system clock or `Math.random`; lint rules and a separate type check enforce this.
 - `src/catalogue/`: the typed data catalogue holding all content and tuning numbers.
 - `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed.
-- `src/render/`: the Three.js renderer, which only reads snapshots.
+- `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes such as the Lander's footprint). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them.
 - `e2e/`: Playwright end-to-end tests in Firefox.
