@@ -9,15 +9,19 @@ function collectConsoleErrors(page: Page): string[] {
   return errors;
 }
 
-async function readClock(page: Page): Promise<number> {
+/**
+ * Reads the game clock in whole game-hours since the Campaign began. The clock
+ * shows Earth Days and hours only, so its minutes always read ":00".
+ */
+async function readClockHours(page: Page): Promise<number> {
   const text = await page
     .getByRole("status", { name: "Game clock" })
     .textContent();
-  const match = /Earth Day (\d+), (\d{2}):(\d{2})/.exec(text ?? "");
+  const match = /^Earth Day (\d+), (\d{2}):00$/.exec(text ?? "");
   if (match === null)
     throw new Error(`Unexpected game clock text: ${text ?? "(none)"}`);
-  const [, day, hour, minute] = match.map(Number);
-  return ((day ?? 0) - 1) * 1440 + (hour ?? 0) * 60 + (minute ?? 0);
+  const [, day, hour] = match.map(Number);
+  return ((day ?? 0) - 1) * 24 + (hour ?? 0);
 }
 
 test("the game loads with no console errors and the clock advances", async ({
@@ -31,9 +35,10 @@ test("the game loads with no console errors and the clock advances", async ({
     /Earth Day 1, /,
   );
   await expect(page.locator("canvas")).toBeVisible();
-  const start = await readClock(page);
+  // At 1x the clock moves on one game-hour every 10 real seconds.
+  const start = await readClockHours(page);
   await expect
-    .poll(() => readClock(page), { timeout: 5_000 })
+    .poll(() => readClockHours(page), { timeout: 15_000 })
     .toBeGreaterThan(start);
   expect(errors).toEqual([]);
 });
@@ -49,12 +54,12 @@ test("pause stops the clock and a faster speed runs it again", async ({
     "aria-pressed",
     "true",
   );
-  const paused = await readClock(page);
+  const paused = await readClockHours(page);
   await page.waitForTimeout(1_000);
-  expect(await readClock(page)).toBe(paused);
+  expect(await readClockHours(page)).toBe(paused);
 
   await speeds.getByRole("button", { name: "20x" }).click();
   await expect
-    .poll(() => readClock(page), { timeout: 5_000 })
-    .toBeGreaterThan(paused + 60);
+    .poll(() => readClockHours(page), { timeout: 5_000 })
+    .toBeGreaterThan(paused + 1);
 });
