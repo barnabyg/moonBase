@@ -1,4 +1,5 @@
 export { createCampaign } from "./campaign";
+export { MAX_SEED } from "./random";
 export type {
   Campaign,
   CampaignOptions,
