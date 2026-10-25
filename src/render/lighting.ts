@@ -1,12 +1,11 @@
 import * as THREE from "three";
 import type { LunationSchedule } from "../catalogue";
-import type { LunationSnapshot } from "../simulation";
+import { lunationMinutes, type LunationSnapshot } from "../simulation";
 
 // The light of the lunar south pole. In Daylight the sun skims the horizon,
 // circling the sky once every Lunation and casting long shadows. At Night the
 // base is dark apart from a faint earthshine.
 
-const MINUTES_PER_EARTH_DAY = 24 * 60;
 const SUN_INTENSITY = 4;
 /** The sun's height above the horizon at the start and end of Daylight, and midway through it. */
 const SUN_ELEVATION_AT_EDGES = THREE.MathUtils.degToRad(4);
@@ -64,9 +63,8 @@ export function createLighting(
   earthshine.name = "Earthshine";
   earthshine.position.copy(earthDirection).setY(0.15).normalize();
 
-  const daylightMinutes = schedule.daylightEarthDays * MINUTES_PER_EARTH_DAY;
-  const lunationMinutes =
-    daylightMinutes + schedule.nightEarthDays * MINUTES_PER_EARTH_DAY;
+  const { daylight: daylightMinutes, lunation: minutesPerLunation } =
+    lunationMinutes(schedule);
   const sunDirection = new THREE.Vector3();
   let shadowRadius = 0;
   let sunFacing: number | undefined;
@@ -91,7 +89,7 @@ export function createLighting(
       const sinceSunrise = daylightMinutes - lunation.minutesRemaining;
       const throughDaylight = sinceSunrise / daylightMinutes;
       const azimuth =
-        SUNRISE_AZIMUTH + (sinceSunrise / lunationMinutes) * Math.PI * 2;
+        SUNRISE_AZIMUTH + (sinceSunrise / minutesPerLunation) * Math.PI * 2;
       const elevation = THREE.MathUtils.lerp(
         SUN_ELEVATION_AT_EDGES,
         SUN_ELEVATION_AT_MIDDLE,

@@ -4,7 +4,7 @@ import {
   type GroundPosition,
   type MapSize,
 } from "../catalogue";
-import { MINUTES_PER_EARTH_DAY, readClock, type ClockSnapshot } from "./clock";
+import { readClock, type ClockSnapshot } from "./clock";
 import {
   checkPlacement,
   chooseWorkSpot,
@@ -17,7 +17,11 @@ import {
   type StructureState,
 } from "./construction";
 import type { GameEvent } from "./events";
-import { readLunation, type LunationSnapshot } from "./lunation";
+import {
+  lunationMinutes,
+  readLunation,
+  type LunationSnapshot,
+} from "./lunation";
 import { seedRandom, type RandomState } from "./random";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 
@@ -155,7 +159,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     },
     advanceToNextEvent() {
       // Daylight or Night always starts within one Lunation, so this ends.
-      for (let tick = 0; tick < minutesPerLunation(); tick++) {
+      const { lunation } = lunationMinutes(catalogue.lunation);
+      for (let tick = 0; tick < lunation; tick++) {
         const events = advanceOneTick(state);
         if (events.length > 0) return deepFreeze(events);
       }
@@ -228,13 +233,6 @@ function stageProgress(construction: ConstructionState): number {
   return required === 0
     ? 0
     : Math.min(construction.workedMinutes / required, 1);
-}
-
-function minutesPerLunation(): number {
-  const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
-  return Math.ceil(
-    (daylightEarthDays + nightEarthDays) * MINUTES_PER_EARTH_DAY,
-  );
 }
 
 /** Copies plain data, so that a snapshot shares nothing with the live state. */

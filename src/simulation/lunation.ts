@@ -14,8 +14,7 @@ export function readLunation(
   elapsedMinutes: number,
   schedule: LunationSchedule,
 ): LunationSnapshot {
-  const daylight = toMinutes(schedule.daylightEarthDays);
-  const lunation = daylight + toMinutes(schedule.nightEarthDays);
+  const { daylight, lunation } = lunationMinutes(schedule);
   // A Campaign begins part-way through Daylight, so count from the start of
   // that Daylight.
   const sinceDaylightBegan =
@@ -26,6 +25,15 @@ export function readLunation(
   return sinceDaylightBegan < daylight
     ? { part: "daylight", minutesRemaining: daylight - sinceDaylightBegan }
     : { part: "night", minutesRemaining: lunation - sinceDaylightBegan };
+}
+
+/** The lengths of Daylight and of a whole Lunation, in game-minutes. */
+export function lunationMinutes(schedule: LunationSchedule): {
+  daylight: number;
+  lunation: number;
+} {
+  const daylight = toMinutes(schedule.daylightEarthDays);
+  return { daylight, lunation: daylight + toMinutes(schedule.nightEarthDays) };
 }
 
 function toMinutes(earthDays: number): number {
