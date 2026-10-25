@@ -34,6 +34,8 @@ test("the game loads with no console errors and the clock advances", async ({
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
     /Earth Day 1, /,
   );
+  // Checked before the canvas, so a WebGL failure reports its reason.
+  expect(errors).toEqual([]);
   await expect(page.locator("canvas")).toBeVisible();
   // At 1x the clock moves on one game-hour every 10 real seconds.
   const start = await readClockHours(page);

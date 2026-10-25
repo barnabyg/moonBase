@@ -1,7 +1,7 @@
 import "./ui/styles.css";
 import { createGameLoop } from "./game/loop";
-import { createRenderer } from "./render/renderer";
-import { createCampaign, MAX_SEED } from "./simulation";
+import { createRenderer, type Renderer } from "./render/renderer";
+import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createStatusPanel } from "./ui/status-panel";
 
 /**
@@ -23,10 +23,34 @@ function chooseSeed(): number {
 const container = document.querySelector<HTMLElement>("#app");
 if (container === null) throw new Error("The page has no #app element.");
 
+/**
+ * Starts the 3D view. If the browser can't give it a WebGL2 context, the
+ * Campaign and status panel keep running and the player is told why the base
+ * map is missing.
+ */
+function startRenderer(
+  container: HTMLElement,
+  snapshot: Snapshot,
+): Renderer | undefined {
+  try {
+    return createRenderer(container, snapshot);
+  } catch (error) {
+    console.error(error);
+    const message = document.createElement("p");
+    message.className = "renderer-unavailable";
+    message.setAttribute("role", "alert");
+    message.textContent =
+      "Moon Base couldn't start the 3D view, because Firefox couldn't create a WebGL2 context. " +
+      "Check that hardware acceleration is turned on in Firefox's settings, then reload the page.";
+    container.append(message);
+    return undefined;
+  }
+}
+
 const campaign = createCampaign({ seed: chooseSeed() });
 const loop = createGameLoop(campaign);
-const renderer = createRenderer(container, campaign.snapshot());
 const statusPanel = createStatusPanel(container, loop);
+const renderer = startRenderer(container, campaign.snapshot());
 
 let lastFrameTime: number | undefined;
 function frame(time: number): void {
@@ -34,7 +58,7 @@ function frame(time: number): void {
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
   statusPanel.update(snapshot);
-  renderer.render(snapshot);
+  renderer?.render(snapshot);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
