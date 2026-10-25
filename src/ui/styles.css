@@ -44,8 +44,15 @@ body {
 }
 
 .status-panel__clock {
-  margin: 0 0 10px;
+  margin: 0 0 2px;
   font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-panel__lunation {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -54,7 +61,8 @@ body {
   gap: 4px;
 }
 
-.status-panel__speeds button {
+.status-panel__speeds button,
+.status-panel__skip {
   flex: 1;
   padding: 4px 8px;
   font: inherit;
@@ -66,7 +74,13 @@ body {
   cursor: pointer;
 }
 
-.status-panel__speeds button:hover {
+.status-panel__skip {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.status-panel__speeds button:hover,
+.status-panel__skip:hover {
   border-color: var(--text-muted);
 }
 
@@ -76,7 +90,8 @@ body {
   border-color: var(--accent);
 }
 
-.status-panel__speeds button:focus-visible {
+.status-panel__speeds button:focus-visible,
+.status-panel__skip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

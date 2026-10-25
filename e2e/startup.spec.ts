@@ -65,3 +65,25 @@ test("pause stops the clock and a faster speed runs it again", async ({
     .poll(() => readClockHours(page), { timeout: 5_000 })
     .toBeGreaterThan(paused + 1);
 });
+
+test("the status panel shows Daylight running out, and skipping jumps to Night", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  await panel
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const lunation = page.getByRole("status", { name: "Lunation" });
+  await expect(lunation).toHaveText(
+    /^Daylight: (8 Earth Days|7 Earth Days \d+ hours?) left$/,
+  );
+
+  await panel.getByRole("button", { name: "Skip to next event" }).click();
+
+  await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
+    "Earth Day 9, 00:00",
+  );
+  await expect(lunation).toHaveText("Night: 9 Earth Days 12 hours left");
+});

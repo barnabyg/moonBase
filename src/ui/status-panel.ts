@@ -1,6 +1,6 @@
 import type { GameLoop } from "../game/loop";
 import type { Snapshot } from "../simulation";
-import { formatClock } from "./format";
+import { formatClock, formatLunation } from "./format";
 
 export interface StatusPanel {
   update(snapshot: Snapshot): void;
@@ -26,6 +26,12 @@ export function createStatusPanel(
   // drown out everything else for screen-reader users.
   clock.setAttribute("aria-live", "off");
 
+  const lunation = document.createElement("p");
+  lunation.className = "status-panel__lunation";
+  lunation.setAttribute("role", "status");
+  lunation.setAttribute("aria-label", "Lunation");
+  lunation.setAttribute("aria-live", "off");
+
   const speedGroup = document.createElement("div");
   speedGroup.className = "status-panel__speeds";
   speedGroup.setAttribute("role", "group");
@@ -44,6 +50,14 @@ export function createStatusPanel(
     return button;
   });
 
+  const skip = document.createElement("button");
+  skip.type = "button";
+  skip.className = "status-panel__skip";
+  skip.textContent = "Skip to next event";
+  skip.addEventListener("click", () => {
+    loop.skipToNextEvent();
+  });
+
   function showSelectedSpeed(): void {
     for (const button of speedButtons) {
       button.setAttribute(
@@ -53,14 +67,19 @@ export function createStatusPanel(
     }
   }
 
-  panel.append(clock, speedGroup);
+  panel.append(clock, lunation, speedGroup, skip);
   container.append(panel);
   showSelectedSpeed();
 
   return {
     update(snapshot) {
-      const text = formatClock(snapshot.clock);
-      if (clock.textContent !== text) clock.textContent = text;
+      setText(clock, formatClock(snapshot.clock));
+      setText(lunation, formatLunation(snapshot.lunation));
     },
   };
+}
+
+/** Changes an element's text only when it differs, to spare the browser needless layout work. */
+function setText(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
 }

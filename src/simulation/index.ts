@@ -10,3 +10,5 @@ export type {
   Snapshot,
 } from "./campaign";
 export type { ClockSnapshot } from "./clock";
+export type { GameEvent } from "./events";
+export type { LunationPart, LunationSnapshot } from "./lunation";

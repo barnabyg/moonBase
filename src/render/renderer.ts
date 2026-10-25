@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
+import { createLighting } from "./lighting";
 import { createLanderModel, createRobotModel } from "./models";
-import { createEarth, createGround, createLighting } from "./scenery";
+import { createEarth, createGround } from "./scenery";
 
 export interface Renderer {
   /** Draws the scene as the given snapshot describes it. It never changes the simulation. */
@@ -35,12 +36,14 @@ export function createRenderer(
   camera.position.copy(lookAt).add(new THREE.Vector3(17, 6, 21));
   camera.lookAt(lookAt);
 
-  const viewDirection = new THREE.Vector3();
-  camera.getWorldDirection(viewDirection);
+  const earthDirection = new THREE.Vector3();
+  camera.getWorldDirection(earthDirection);
+  earthDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12);
+  const lighting = createLighting(catalogue.lunation, earthDirection);
   scene.add(
     createGround(initial.map),
-    createEarth(viewDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12)),
-    ...createLighting(),
+    createEarth(earthDirection),
+    ...lighting.objects,
   );
 
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
@@ -59,6 +62,11 @@ export function createRenderer(
 
   return {
     render(snapshot) {
+      lighting.update(
+        snapshot.lunation,
+        lookAt,
+        camera.position.distanceTo(lookAt),
+      );
       lander.position.copy(toScene(snapshot.lander.position));
       for (const robot of snapshot.robots) {
         let model = robots.get(robot.id);

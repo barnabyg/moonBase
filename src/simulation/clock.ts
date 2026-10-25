@@ -1,5 +1,5 @@
 const MINUTES_PER_HOUR = 60;
-const MINUTES_PER_EARTH_DAY = 24 * MINUTES_PER_HOUR;
+export const MINUTES_PER_EARTH_DAY = 24 * MINUTES_PER_HOUR;
 
 export interface ClockSnapshot {
   /** Game-minutes since the Campaign began. */

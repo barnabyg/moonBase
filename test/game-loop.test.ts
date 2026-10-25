@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
 import { createGameLoop } from "../src/game/loop";
 import { scenario } from "./scenario";
 
@@ -72,5 +73,19 @@ describe("the game loop", () => {
       loop.setSpeed("1000x");
     }).toThrow(RangeError);
     expect(loop.speed.id).toBe("1x");
+  });
+
+  it("skips to the next change between Daylight and Night, keeping the chosen speed", () => {
+    const game = scenario();
+    const loop = createGameLoop(game.campaign);
+    loop.setSpeed("paused");
+
+    loop.skipToNextEvent();
+
+    expect(game.state.clock.elapsedMinutes).toBe(
+      catalogue.lunation.initialDaylightRemainingEarthDays * 24 * 60,
+    );
+    expect(game.state.lunation.part).toBe("night");
+    expect(loop.speed.id).toBe("paused");
   });
 });

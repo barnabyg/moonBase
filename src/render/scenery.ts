@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import type { MapSnapshot } from "../simulation";
 
-// The look of the south pole: grey Regolith, a black sky, a harsh low sun
-// casting long shadows, and Earth low on the horizon.
+// The look of the south pole: grey Regolith, a black sky and Earth low on the
+// horizon. The sun and its long shadows are in lighting.ts.
 
 /** A small, fixed pseudo-random sequence, so the scenery looks the same on every load. */
 function fixedRandom(seed: number): () => number {
@@ -111,25 +111,4 @@ export function createEarth(direction: THREE.Vector3): THREE.Mesh {
   const horizontal = new THREE.Vector3(direction.x, 0, direction.z).normalize();
   earth.position.copy(horizontal.multiplyScalar(5200)).setY(190);
   return earth;
-}
-
-/** The harsh, low sun of the lunar south pole, with only a faint fill from the ground. */
-export function createLighting(): THREE.Object3D[] {
-  const sun = new THREE.DirectionalLight(0xfff6e8, 4);
-  sun.name = "Sun";
-  sun.position.set(120, 24, 40);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.02;
-  const shadowCamera = sun.shadow.camera;
-  shadowCamera.left = -60;
-  shadowCamera.right = 60;
-  shadowCamera.top = 60;
-  shadowCamera.bottom = -60;
-  shadowCamera.near = 1;
-  shadowCamera.far = 400;
-
-  const fill = new THREE.HemisphereLight(0x101418, 0x4a4844, 0.6);
-  return [sun, sun.target, fill];
 }

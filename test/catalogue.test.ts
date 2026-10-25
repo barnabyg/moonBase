@@ -40,6 +40,26 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("schedules Lunations whose parts last a positive, whole number of game-minutes", () => {
+    const {
+      daylightEarthDays,
+      nightEarthDays,
+      initialDaylightRemainingEarthDays,
+    } = catalogue.lunation;
+
+    for (const earthDays of [
+      daylightEarthDays,
+      nightEarthDays,
+      initialDaylightRemainingEarthDays,
+    ]) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+    expect(initialDaylightRemainingEarthDays).toBeLessThanOrEqual(
+      daylightEarthDays,
+    );
+  });
+
   it("lands the Lander with its whole footprint on the map", () => {
     const { footprintRadiusMetres } = catalogue.lander;
 

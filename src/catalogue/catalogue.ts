@@ -19,6 +19,7 @@ export interface Catalogue {
   };
   /** The game speeds the player can choose between, in the order they are offered. */
   readonly gameSpeeds: readonly GameSpeed[];
+  readonly lunation: LunationSchedule;
 }
 
 /** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
@@ -30,6 +31,18 @@ export interface GroundPosition {
 export interface MapSize {
   readonly widthMetres: number;
   readonly depthMetres: number;
+}
+
+/**
+ * The fixed schedule of every Lunation: Daylight, then Night, repeating. A new
+ * Campaign starts part-way through Daylight. Each length must come to a whole
+ * number of game-minutes.
+ */
+export interface LunationSchedule {
+  readonly daylightEarthDays: number;
+  readonly nightEarthDays: number;
+  /** How much of the first Daylight is left when a Campaign begins. */
+  readonly initialDaylightRemainingEarthDays: number;
 }
 
 export interface GameSpeed {
@@ -52,4 +65,9 @@ export const catalogue: Catalogue = {
     { id: "5x", label: "5x", gameMinutesPerRealSecond: 30 },
     { id: "20x", label: "20x", gameMinutesPerRealSecond: 120 },
   ],
+  lunation: {
+    daylightEarthDays: 20,
+    nightEarthDays: 9.5,
+    initialDaylightRemainingEarthDays: 8,
+  },
 };

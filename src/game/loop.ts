@@ -1,5 +1,5 @@
 import { catalogue, type GameSpeed } from "../catalogue";
-import type { Campaign } from "../simulation";
+import type { Campaign, GameEvent } from "../simulation";
 
 /**
  * The longest stretch of real time a single frame may account for. A longer
@@ -19,6 +19,11 @@ export interface GameLoop {
    * advances the Campaign by them. Returns how many game-minutes it advanced.
    */
   update(realElapsedMs: number): number;
+  /**
+   * Jumps the Campaign straight to its next notable event, whatever the
+   * speed, and returns the events that happened then.
+   */
+  skipToNextEvent(): readonly GameEvent[];
 }
 
 export function createGameLoop(campaign: Campaign): GameLoop {
@@ -50,6 +55,9 @@ export function createGameLoop(campaign: Campaign): GameLoop {
       owedScaledMinutes -= gameMinutes * MS_PER_SECOND;
       campaign.advance(gameMinutes);
       return gameMinutes;
+    },
+    skipToNextEvent() {
+      return campaign.advanceToNextEvent();
     },
   };
 }
