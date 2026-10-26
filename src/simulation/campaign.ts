@@ -73,6 +73,7 @@ import {
   type RadiationDoseForecast,
 } from "./radiation";
 import { seedRandom, type RandomState } from "./random";
+import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   readSolarParticleEvent,
   scheduleSolarParticleEvent,
@@ -274,6 +275,15 @@ export interface Snapshot {
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
 }
 
+export type LoadResult =
+  | { readonly ok: true; readonly campaign: Campaign }
+  | {
+      readonly ok: false;
+      readonly reason: LoadRefusal;
+      /** The reason in words the player can read. */
+      readonly message: string;
+    };
+
 export type PlanResult =
   | { readonly ok: true; readonly constructionId: string }
   | {
@@ -319,6 +329,12 @@ export interface Campaign {
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
+  /**
+   * Writes the whole Campaign as the text of a save document, which
+   * `loadCampaign` turns back into a Campaign that carries on exactly as
+   * this one would. It works once the Campaign has ended, too.
+   */
+  save(): string;
 }
 
 export interface CampaignState {
@@ -353,7 +369,7 @@ export interface CampaignState {
 export function createCampaign(options: CampaignOptions): Campaign {
   const { landingSite } = catalogue;
   const random = seedRandom(options.seed);
-  const state: CampaignState = {
+  return campaignFrom({
     random,
     elapsedMinutes: 0,
     nextStructureNumber: 1,
@@ -389,8 +405,24 @@ export function createCampaign(options: CampaignOptions): Campaign {
     dismantlings: [],
     cables: [],
     reconnections: [],
-  };
+  });
+}
 
+/**
+ * Starts a Campaign from the text of a save document, of the current format
+ * version or an older one, restoring everything as it was saved. A file
+ * that isn't a valid save, or comes from a newer format version, is refused
+ * with the reason.
+ */
+export function loadCampaign(text: string): LoadResult {
+  const read = readSaveDocument(text);
+  return read.ok
+    ? { ok: true, campaign: campaignFrom(read.state) }
+    : deepFreeze(read);
+}
+
+/** The Campaign that plays out from the given state, which it alone keeps. */
+function campaignFrom(state: CampaignState): Campaign {
   return {
     advance(gameMinutes) {
       if (!Number.isSafeInteger(gameMinutes) || gameMinutes < 0) {
@@ -568,6 +600,9 @@ export function createCampaign(options: CampaignOptions): Campaign {
           })),
         },
       });
+    },
+    save() {
+      return writeSaveDocument(state);
     },
   };
 }

@@ -7,6 +7,8 @@ const MAX_NOTIFICATIONS = 6;
 export interface NotificationList {
   /** Adds the events to the end of the list, dropping the oldest beyond the latest few. */
   add(events: readonly GameEvent[]): void;
+  /** Clears the list, for a Campaign loaded in place of the last. */
+  startAfresh(): void;
 }
 
 /**
@@ -48,6 +50,10 @@ export function createNotificationList(
         list.firstElementChild?.remove();
       }
       list.hidden = list.childElementCount === 0;
+    },
+    startAfresh() {
+      list.replaceChildren();
+      list.hidden = true;
     },
   };
 }

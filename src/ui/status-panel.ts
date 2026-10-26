@@ -1,4 +1,5 @@
 import type { GameLoop } from "../game/loop";
+import type { LoadFileResult, SaveFiles } from "../game/save-files";
 import type {
   Campaign,
   DismantleResult,
@@ -8,6 +9,7 @@ import type {
   StructureSnapshot,
 } from "../simulation";
 import { setText } from "./dom";
+import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
   formatClock,
@@ -34,12 +36,14 @@ export interface StatusPanel {
  * The HTML status panel. It reads simulation snapshots, sends the player's
  * speed choices to the game loop, and sends a choice to dismantle a Structure
  * or to move the Mission Director into a Habitat to the Campaign, which
- * decides whether it is allowed and says why not.
+ * decides whether it is allowed and says why not. It also saves the Campaign
+ * to a file and loads one from a file.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
   campaign: Pick<Campaign, "dismantleStructure" | "moveMissionDirectorIn">,
+  saveFiles: SaveFiles,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -155,7 +159,9 @@ export function createStatusPanel(
   refusal.setAttribute("role", "alert");
   refusal.hidden = true;
   let refusalTimer: ReturnType<typeof setTimeout> | undefined;
-  const showResult = (result: DismantleResult | MoveInResult) => {
+  const showResult = (
+    result: DismantleResult | MoveInResult | LoadFileResult,
+  ) => {
     clearTimeout(refusalTimer);
     refusal.hidden = result.ok;
     setText(refusal, result.ok ? "" : result.message);
@@ -210,6 +216,7 @@ export function createStatusPanel(
     lunation,
     speedGroup,
     skip,
+    createSaveButtons(saveFiles, showResult),
     power,
     storedPower,
     missionDirector,

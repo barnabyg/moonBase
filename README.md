@@ -20,6 +20,12 @@ In the game, drag with the left mouse button to pan the camera, drag with the ri
 
 Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42>) to replay a Campaign exactly; without it, every new Campaign gets a new seed.
 
+"Save" in the status panel downloads the Campaign as a `.moonbase` file, named after the game clock (for example `moon-base-earth-day-3-0705.moonbase`), and "Load" opens a file picker and carries on from the file you choose, exactly as the saved Campaign would have, in place of the one you're playing. The game-over screen has both buttons too. Nothing is kept in the browser, so a Campaign you haven't saved is lost when you close or reload the page (ADR-0006). A file that isn't a Moon Base save, is damaged, or was saved by a newer version of the game is refused with the reason, and the Campaign you're playing carries on.
+
+## Save files
+
+A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field. Each released format version is a compatibility contract: to change the format, raise the version by adding a migration from the one before to `migrations` in that file (never edit a released one), and check in a sample save of the new version beside the old ones in `test/saves/`, where every file must go on loading. Never edit or regenerate a sample.
+
 ## Verification
 
 `npm run verify` is the single verification command. Run it from the repository's root folder. It changes nothing apart from the ignored `dist/`, `test-results/` and `playwright-report/` folders, and it stops at the first failing check. CI runs the same command (`.github/workflows/verify.yml`) split across two parallel jobs: `npm run verify -- --skip-e2e` runs every check except the end-to-end tests, and `npm run verify -- --e2e-only` runs just those, so a failure in one job can be re-run on its own.
@@ -71,7 +77,7 @@ The cost of a generous limit is that a test that really hangs takes longer to re
 
 - `src/simulation/`: the headless, deterministic game rules. Create a Campaign from a seed, advance it in fixed 1-game-minute ticks, and read immutable snapshots. It never imports the renderer or interface, and never reads the system clock or `Math.random`; lint rules and a separate type check enforce this.
 - `src/catalogue/`: the typed data catalogue holding all content and tuning numbers.
-- `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed.
+- `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed, and the Campaign slot and save files, which load a Campaign from a file in place of the one being played.
 - `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them.

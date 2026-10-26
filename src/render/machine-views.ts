@@ -43,6 +43,13 @@ export function createMachineViews(scene: THREE.Scene) {
   const views = new Map<string, MachineView>();
 
   return {
+    /** Forgets every Machine drawn, for a Campaign loaded in place of the last. */
+    clear(): void {
+      for (const view of views.values()) {
+        scene.remove(view.machine.model.group);
+      }
+      views.clear();
+    },
     update(frame: Frame, realSeconds: number): void {
       for (const machine of frame.current.machines) {
         let view = views.get(machine.id);

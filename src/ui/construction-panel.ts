@@ -12,6 +12,11 @@ import { setText } from "./dom";
 
 export interface ConstructionPanel {
   update(snapshot: Snapshot): void;
+  /**
+   * Forgets every row, for a Campaign loaded in place of the last, which
+   * may give the same ids to other Constructions.
+   */
+  startAfresh(): void;
 }
 
 interface Row {
@@ -128,6 +133,10 @@ export function createConstructionPanel(
           rows.delete(id);
         }
       }
+    },
+    startAfresh() {
+      for (const row of rows.values()) row.item.remove();
+      rows.clear();
     },
   };
 }

@@ -30,6 +30,11 @@ export function createRobotViews(scene: THREE.Scene) {
   const views = new Map<string, RobotView>();
 
   return {
+    /** Forgets every Robot drawn, for a Campaign loaded in place of the last. */
+    clear(): void {
+      for (const view of views.values()) scene.remove(view.model.group);
+      views.clear();
+    },
     update(frame: Frame, realSeconds: number): void {
       for (const robot of frame.current.robots) {
         let view = views.get(robot.id);
