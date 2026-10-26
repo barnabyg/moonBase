@@ -87,8 +87,9 @@ describe("moving the Mission Director in", () => {
 
     const result = game.campaign.moveMissionDirectorIn(habitatId);
 
-    expect(result).toMatchObject({ ok: false, reason: "not-commissioned" });
-    expect(result.ok || result.message.length > 0).toBe(true);
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.reason).toBe("not-commissioned");
+    expect(result.message).toMatch(/commissioned/);
     expect(game.state.missionDirector).toEqual({ residence: "lander" });
     expect(game.state.lander.state).toBe("landed-occupied");
   });
@@ -163,8 +164,8 @@ describe("dismantling a Habitat", () => {
 
     const result = game.campaign.dismantleStructure(habitatId);
 
-    expect(result).toMatchObject({ ok: false });
-    expect(result.ok || result.message).toMatch(/Mission Director/);
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.message).toMatch(/Mission Director/);
     expect(game.state.dismantlings).toEqual([]);
     game.advance({ earthDays: 1 });
     expect(game.state.structures.map((structure) => structure.id)).toContain(
