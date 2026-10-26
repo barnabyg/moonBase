@@ -1,3 +1,4 @@
+import type { ComponentCount } from "../catalogue";
 import type { ManifestLine } from "./launch-manifest";
 import type { PlumeEjectaDamage } from "./plume-ejecta";
 
@@ -91,6 +92,13 @@ export type GameEvent =
       readonly atMinute: number;
       /** Everything on the Launch manifest it brought, in catalogue order. */
       readonly delivered: readonly ManifestLine[];
+    }
+  | {
+      /** The Robot has carried the cargo of the Lander, landed on a landing pad, to the stockpile. */
+      readonly kind: "lander-unloaded";
+      readonly atMinute: number;
+      /** The Components that joined the base's stock. */
+      readonly components: readonly ComponentCount[];
     }
   | {
       /** The Lander's take-off or landing has blasted Plume Ejecta over Structures, wearing down their Condition. */

@@ -33,18 +33,27 @@ import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
 import { findStructureToReconnect } from "./reconnection";
 import { addToStock, stockpileSpot, takeFromStock } from "./stockpile";
+import {
+  cargoHandlingMinutes,
+  cargoSpot,
+  collectCargo,
+  finishUnloading,
+} from "./unloading";
 import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
 
 /**
  * Where a walking Robot is heading: a Construction's site, the base's
- * stockpile, a Machine, or the powered Structure that a cable is laid from.
+ * stockpile, a Machine, the powered Structure that a cable is laid from, or
+ * the Lander, to take its cargo off.
  */
-export type WalkingDestination = "site" | "stockpile" | "machine" | "cable";
+export type WalkingDestination =
+  "site" | "stockpile" | "machine" | "cable" | "lander";
 
 /**
  * What a Robot did during the latest game-minute, and for which Structure: one
  * under Construction (whose id the Structure keeps once commissioned), one
- * being dismantled or one cut off from power.
+ * being dismantled, one cut off from power, or the landing pad the Lander
+ * whose cargo it is unloading landed on.
  */
 export type RobotActivity =
   | { readonly kind: "idle" }
@@ -69,7 +78,11 @@ export type RobotActivity =
         /** Taking a Structure apart. */
         | "dismantling"
         /** Unloading the Components recovered from a Structure at the stockpile. */
-        | "returning-components";
+        | "returning-components"
+        /** Taking the Lander's cargo off it. */
+        | "loading-cargo"
+        /** Unloading the Lander's cargo at the stockpile. */
+        | "unloading-cargo";
       readonly structureId: string;
     };
 
@@ -101,6 +114,7 @@ export function workRobot(
   if (workOrder?.kind === "lay-cable") {
     return layCable(state, robot, workOrder.structureId);
   }
+  if (workOrder?.kind === "unload-lander") return unloadLander(state, robot);
   const dismantling = state.dismantlings.find(
     (candidate) => candidate.id === workOrder?.structureId,
   );
@@ -446,6 +460,42 @@ function finishDismantling(
       structureId: dismantling.id,
       structureTypeId: dismantling.structureTypeId,
     },
+  ];
+}
+
+/**
+ * Lets the Robot do one game-minute of unloading the Lander, landed on a
+ * landing pad: it walks to the Lander and takes the cargo off, then carries
+ * it to the stockpile, where it joins the base's stock.
+ */
+function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
+  const { unloading } = state;
+  if (unloading === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const id = unloading.landingPadId;
+  const { loading, total } = cargoHandlingMinutes();
+  if (!unloading.collected) {
+    if (!walkRobotTo(state, robot, id, cargoSpot(state), "lander")) return [];
+    robot.activity = { kind: "loading-cargo", structureId: id };
+    unloading.workedMinutes += 1;
+    if (unloading.workedMinutes >= loading) {
+      robot.carrying = collectCargo(state, unloading);
+    }
+    return [];
+  }
+  const spot = stockpileSpot(state, { workSpot: cargoSpot(state) });
+  if (!walkRobotTo(state, robot, id, spot, "stockpile")) return [];
+  robot.activity = { kind: "unloading-cargo", structureId: id };
+  unloading.workedMinutes += 1;
+  if (unloading.workedMinutes < total - loading) return [];
+  const components = unloading.cargo.map((count) => ({ ...count }));
+  finishUnloading(state, unloading);
+  robot.carrying = [];
+  return [
+    { kind: "lander-unloaded", atMinute: state.elapsedMinutes, components },
   ];
 }
 

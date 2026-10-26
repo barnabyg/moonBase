@@ -1,6 +1,16 @@
-import { catalogue, type GroundPosition } from "../catalogue";
+import {
+  catalogue,
+  type ComponentCount,
+  type GroundPosition,
+} from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
+import {
+  findStructureType,
+  isBroken,
+  type StructureState,
+} from "./construction";
+import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
 import { deliverLaunch, payForLaunch } from "./launch-manifest";
 import { blastPlumeEjecta } from "./plume-ejecta";
@@ -18,10 +28,15 @@ export interface LanderTrip {
 }
 
 export interface LanderState {
-  /** Where it stands, or stood before it took off, and lands again. */
+  /** Where it stands, or stood before it took off. */
   position: GroundPosition;
   /** The round trip it is on, or undefined while it is landed. */
   trip: LanderTrip | undefined;
+  /**
+   * The Components aboard it, which the Robot has yet to carry to the
+   * stockpile: only ever after it has landed on a landing pad.
+   */
+  cargo: ComponentCount[];
 }
 
 export interface LanderSnapshot {
@@ -30,16 +45,23 @@ export interface LanderSnapshot {
    * have moved into a Habitat, or on one of the legs of its round trip.
    */
   readonly state: "landed-occupied" | "landed-free" | LanderLeg;
-  /** Where it stands, or, while it is away, where it will land. */
+  /** Where it stands, or, while it is away, where it will land as things stand. */
   readonly position: GroundPosition;
+  /**
+   * The landing pad it stands on, or, while it is away, the one it will land
+   * on as things stand; undefined at the landing site.
+   */
+  readonly landingPadId: string | undefined;
   /** The game-minute its current leg began, or undefined while it is landed. */
   readonly legStartedAtMinute: number | undefined;
   /** The game-minute its current leg ends, or undefined while it is landed. */
   readonly legEndsAtMinute: number | undefined;
+  /** The Components aboard it, waiting for the Robot to carry them to the stockpile. */
+  readonly cargo: readonly ComponentCount[];
 }
 
 export type SendLanderRefusal =
-  "mission-director-aboard" | "lander-away" | "campaign-ended";
+  "mission-director-aboard" | "lander-away" | "cargo-aboard" | "campaign-ended";
 
 export type SendLanderResult =
   | { readonly ok: true }
@@ -52,8 +74,8 @@ export type SendLanderResult =
 
 /**
  * Sends the landed Lander on its round trip to Earth and back. It can't
- * leave while the Mission Director lives aboard it. It takes off in the
- * game-minute that follows.
+ * leave while the Mission Director lives aboard it, or before the Robot has
+ * taken its cargo off. It takes off in the game-minute that follows.
  */
 export function sendLander(state: CampaignState): SendLanderResult {
   if (state.missionDirector.residence === "lander") {
@@ -68,6 +90,12 @@ export function sendLander(state: CampaignState): SendLanderResult {
       "The Lander is away, and can only be sent once it has landed.",
     );
   }
+  if (state.lander.cargo.length > 0) {
+    return refuse(
+      "cargo-aboard",
+      "The Lander's cargo hasn't been unloaded yet. The Robot has to carry it to the stockpile first.",
+    );
+  }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);
   return { ok: true };
 }
@@ -75,10 +103,11 @@ export function sendLander(state: CampaignState): SendLanderResult {
 /**
  * Flies the Lander through the game-minute that has just passed: it takes
  * off in the first game-minute after it was sent, and each leg of its round
- * trip gives way to the next as it ends, until it lands where it took off.
- * It pays for the Launch manifest as it leaves Earth, and delivers it as it
- * lands. Taking off and landing blast Plume Ejecta over the Structures
- * round it.
+ * trip gives way to the next as it ends, until it lands: on the landing pad,
+ * if one is working, or else at the landing site. It pays for the Launch
+ * manifest as it leaves Earth, and delivers it as it lands. Taking off or
+ * landing anywhere but on a working landing pad blasts Plume Ejecta over the
+ * Structures round it.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -88,9 +117,10 @@ export function flyLander(state: CampaignState): GameEvent[] {
     trip.leg === "travelling-to-earth" &&
     atMinute === trip.legStartedAtMinute + 1
   ) {
+    const fromPad = padAt(state, state.lander.position) !== undefined;
     return [
       { kind: "lander-took-off", atMinute },
-      ...blastPlumeEjecta(state, state.lander.position),
+      ...(fromPad ? [] : blastPlumeEjecta(state, state.lander.position)),
     ];
   }
   if (atMinute < trip.legEndsAtMinute) return [];
@@ -107,27 +137,96 @@ export function flyLander(state: CampaignState): GameEvent[] {
           chargedMillionDollars: payForLaunch(state),
         },
       ];
-    case "travelling-to-moon":
+    case "travelling-to-moon": {
+      const pad = workingLandingPad(state);
       state.lander.trip = undefined;
+      state.lander.position = { ...landingSpot(state) };
       return [
-        { kind: "lander-landed", atMinute, delivered: deliverLaunch(state) },
-        ...blastPlumeEjecta(state, state.lander.position),
+        {
+          kind: "lander-landed",
+          atMinute,
+          delivered: deliverLaunch(state, pad !== undefined),
+        },
+        ...(pad === undefined
+          ? blastPlumeEjecta(state, state.lander.position)
+          : []),
       ];
+    }
   }
 }
 
 export function readLander(state: CampaignState): LanderSnapshot {
   const { trip } = state.lander;
+  const position =
+    trip === undefined ? state.lander.position : landingSpot(state);
   return {
     state:
       trip?.leg ??
       (state.missionDirector.residence === "lander"
         ? "landed-occupied"
         : "landed-free"),
-    position: { ...state.lander.position },
+    position: { ...position },
+    landingPadId: padAt(state, position)?.id,
     legStartedAtMinute: trip?.legStartedAtMinute,
     legEndsAtMinute: trip?.legEndsAtMinute,
+    cargo: state.lander.cargo.map((count) => ({ ...count })),
   };
+}
+
+/**
+ * Where the Lander's next take-off or landing will be, unless it is on a
+ * working landing pad, which blasts no Plume Ejecta.
+ */
+export function nextPlumeEjectaSpot(
+  state: CampaignState,
+): GroundPosition | undefined {
+  const spot =
+    state.lander.trip === undefined
+      ? state.lander.position
+      : landingSpot(state);
+  return padAt(state, spot) === undefined ? spot : undefined;
+}
+
+/** The landing pad the landed Lander stands on, while it is working. */
+export function padUnderLander(
+  state: CampaignState,
+): StructureState | undefined {
+  return state.lander.trip === undefined
+    ? padAt(state, state.lander.position)
+    : undefined;
+}
+
+/**
+ * The landing pad the Lander lands on: the first commissioned one that
+ * isn't Broken or to be dismantled.
+ */
+function workingLandingPad(state: CampaignState): StructureState | undefined {
+  return state.structures.find(
+    (structure) =>
+      findStructureType(structure.structureTypeId)?.landingPad === true &&
+      !isBroken(structure) &&
+      !isDueToBeDismantled(state, structure.id),
+  );
+}
+
+/** Where the Lander lands, as things stand: on a working landing pad, or at the landing site. */
+function landingSpot(state: CampaignState): GroundPosition {
+  return (
+    workingLandingPad(state)?.position ?? catalogue.landingSite.landerPosition
+  );
+}
+
+/** The working landing pad centred on a spot, if any. */
+function padAt(
+  state: CampaignState,
+  spot: GroundPosition,
+): StructureState | undefined {
+  const pad = workingLandingPad(state);
+  return pad !== undefined &&
+    pad.position.x === spot.x &&
+    pad.position.y === spot.y
+    ? pad
+    : undefined;
 }
 
 function startLeg(leg: LanderLeg, atMinute: number): LanderTrip {

@@ -1,6 +1,6 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { addToStock } from "./stockpile";
+import { addCounts, addToStock } from "./stockpile";
 
 /** How many of a Launch item the manifest asks for. */
 export interface ManifestLine {
@@ -121,17 +121,23 @@ export function payForLaunch(state: CampaignState): number {
 }
 
 /**
- * Unloads everything on the Launch manifest as the Lander lands: Components
- * join the base's stock at the stockpile beside the landing site, and
- * oxygen and water the life support stocks. A new, empty manifest starts,
- * and what was delivered is returned.
+ * Unloads everything on the Launch manifest as the Lander lands: oxygen and
+ * water join the life support stocks, and Components join the base's stock
+ * at the stockpile beside the landing site, or, on a landing pad, stay
+ * aboard for the Robot to carry there. A new, empty manifest starts, and
+ * what was delivered is returned.
  */
-export function deliverLaunch(state: CampaignState): ManifestLine[] {
+export function deliverLaunch(
+  state: CampaignState,
+  onLandingPad: boolean,
+): ManifestLine[] {
   const delivered = state.launchManifest;
   for (const { itemId, count } of delivered) {
     const brings = findLaunchItem(itemId)?.brings;
     if (brings?.kind === "component") {
-      addToStock(state, [{ componentId: brings.componentId, count }]);
+      const components = [{ componentId: brings.componentId, count }];
+      if (onLandingPad) addCounts(state.lander.cargo, components);
+      else addToStock(state, components);
     } else if (brings?.kind === "life-support") {
       const stock = state.lifeSupport.find(
         (candidate) => candidate.stockId === brings.stockId,

@@ -318,6 +318,36 @@ describe("the data catalogue", () => {
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
   });
 
+  it("has a landing pad, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
+    const pads = catalogue.structureTypes.filter((type) => type.landingPad);
+
+    expect(pads).toHaveLength(1);
+    const [pad] = pads;
+    expect(pad?.footprintRadiusMetres).toBeGreaterThan(
+      catalogue.lander.footprintRadiusMetres,
+    );
+    expect(pad?.components.length).toBeGreaterThan(0);
+    for (const need of pad?.components ?? []) {
+      expect(
+        catalogue.launch.items.some(
+          (item) =>
+            item.brings.kind === "component" &&
+            item.brings.componentId === need.componentId,
+        ),
+      ).toBe(true);
+      expect(
+        catalogue.startingStock.some(
+          (stock) => stock.componentId === need.componentId,
+        ),
+      ).toBe(false);
+    }
+    expect(pad?.stageMachines.sitePreparation).toBeDefined();
+    expect(catalogue.lander.cargoHandlingHours).toBeGreaterThan(0);
+    expect(Number.isInteger(catalogue.lander.cargoHandlingHours * 60)).toBe(
+      true,
+    );
+  });
+
   it("has a Habitat the Mission Director can move into", () => {
     expect(
       catalogue.structureTypes

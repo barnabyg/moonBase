@@ -10,6 +10,7 @@ import {
   findStructureType,
   shieldingOver,
 } from "./construction";
+import { padUnderLander } from "./lander";
 import { livesIn } from "./mission-director";
 
 /**
@@ -59,6 +60,13 @@ export function dismantleStructure(
   }
   if (isDueToBeDismantled(state, structureId)) {
     return { ok: false, message: "It is already being dismantled." };
+  }
+  if (padUnderLander(state)?.id === structureId) {
+    return {
+      ok: false,
+      message:
+        "The Lander stands on it. Send the Lander before dismantling it.",
+    };
   }
   if (livesIn(state, structureId)) {
     return {

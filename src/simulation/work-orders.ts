@@ -19,13 +19,15 @@ import { inStock } from "./stockpile";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
- * or on laying cable to a Structure cut off from power. A Robot claims one at
- * a time and carries it out before it looks for another.
+ * on laying cable to a Structure cut off from power, or on unloading the
+ * Lander. A Robot claims one at a time and carries it out before it looks
+ * for another.
  */
 export interface WorkOrder {
   /**
    * The Structure it is for: one under Construction (whose id it keeps once
-   * commissioned), one being dismantled or one cut off from power.
+   * commissioned), one being dismantled, one cut off from power, or the
+   * landing pad the Lander being unloaded landed on.
    */
   readonly structureId: string;
   readonly kind: WorkOrderKind;
@@ -38,7 +40,8 @@ export type WorkOrderKind =
   | "commission"
   | "lay-cable"
   | "dismantle"
-  | "return-components";
+  | "return-components"
+  | "unload-lander";
 
 /** Why nobody can work on a Construction for now. */
 export type ConstructionWait =
@@ -117,8 +120,8 @@ function missingComponents(
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
  * else has claimed and that can be worked on now, taking the Constructions,
- * dismantling and cables to Structures cut off from power in the order they
- * were planned. Each Construction's current stage comes before laying its
+ * dismantling, unloading of the Lander and cables to Structures cut off from
+ * power in the order they were planned. Each Construction's current stage comes before laying its
  * cable, which can be done at any stage before Commissioning.
  */
 export function claimWorkOrder(
@@ -153,6 +156,19 @@ export function claimWorkOrder(
         return free(dismantling.id, kind) ? kind : undefined;
       },
     })),
+    ...(state.unloading === undefined
+      ? []
+      : [
+          {
+            planNumber: state.unloading.planNumber,
+            structureId: state.unloading.landingPadId,
+            next: () =>
+              state.unloading !== undefined &&
+              free(state.unloading.landingPadId, "unload-lander")
+                ? ("unload-lander" as const)
+                : undefined,
+          },
+        ]),
     ...state.reconnections.map((reconnection) => ({
       planNumber: reconnection.planNumber,
       structureId: reconnection.structureId,
@@ -216,6 +232,9 @@ export function needsCable(state: CampaignState, target: CableTarget): boolean {
 
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
+  if (workOrder.kind === "unload-lander") {
+    return state.unloading?.landingPadId === workOrder.structureId;
+  }
   const dismantling = state.dismantlings.find(
     (candidate) => candidate.id === workOrder.structureId,
   );

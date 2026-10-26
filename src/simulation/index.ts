@@ -39,6 +39,7 @@ export type {
 } from "./launch-manifest";
 export type { LoadRefusal } from "./save";
 export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
+export type { UnloadingSnapshot } from "./unloading";
 export type { LanderLeg, SendLanderRefusal, SendLanderResult } from "./lander";
 export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";

@@ -109,9 +109,13 @@ function workTarget(
   }
   if (
     activity.kind === "loading-components" ||
-    activity.kind === "returning-components"
+    activity.kind === "returning-components" ||
+    activity.kind === "unloading-cargo"
   ) {
     return toScene(frame.current.stockpile.position);
+  }
+  if (activity.kind === "loading-cargo") {
+    return toScene(frame.current.lander.position);
   }
   if (activity.kind === "activating-machine") {
     const machine = frame.current.machines.find(
@@ -205,6 +209,9 @@ function poseFor(
     }),
     // Lifting the recovered crates back onto the stockpile.
     "returning-components": () => lifting(work, carrying),
+    // Lifting the Lander's cargo down, and onto the stockpile.
+    "loading-cargo": () => lifting(work, carrying),
+    "unloading-cargo": () => lifting(work, carrying),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({
       legSwing: 0,

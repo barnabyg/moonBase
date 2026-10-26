@@ -100,6 +100,12 @@ import {
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import {
+  planUnloading,
+  readUnloading,
+  type UnloadingSnapshot,
+  type UnloadingState,
+} from "./unloading";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
 
 /** Why every command is refused once the Campaign has ended. */
@@ -308,6 +314,11 @@ export interface Snapshot {
   readonly structures: readonly StructureSnapshot[];
   /** Structures being dismantled, in the order dismantling was planned. */
   readonly dismantlings: readonly DismantlingSnapshot[];
+  /**
+   * The Robot's unloading of the Lander's cargo, once it has landed on a
+   * landing pad with some, until the cargo is in the base's stock.
+   */
+  readonly unloading: UnloadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
 }
@@ -412,6 +423,8 @@ export interface CampaignState {
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
+  /** The planned unloading of the Lander's cargo, once it has landed on a landing pad with some. */
+  unloading: UnloadingState | undefined;
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
@@ -425,7 +438,11 @@ export function createCampaign(options: CampaignOptions): Campaign {
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
-    lander: { position: { ...landingSite.landerPosition }, trip: undefined },
+    lander: {
+      position: { ...landingSite.landerPosition },
+      trip: undefined,
+      cargo: [],
+    },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
@@ -451,6 +468,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     constructions: [],
     structures: [],
     dismantlings: [],
+    unloading: undefined,
     cables: [],
     reconnections: [],
   });
@@ -642,6 +660,7 @@ function campaignFrom(state: CampaignState): Campaign {
           recovered: copy(dismantling.recovered),
           collected: dismantling.collected,
         })),
+        unloading: readUnloading(state),
         cables: state.cables.map((cable) => ({
           fromStructureId: cable.fromStructureId,
           toStructureId: cable.toStructureId,
@@ -684,6 +703,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
   events.push(...flyLander(state));
+  planUnloading(state);
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);

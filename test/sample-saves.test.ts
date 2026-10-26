@@ -202,6 +202,8 @@ describe("the sample saves from before the Lander flew", () => {
       position: catalogue.landingSite.landerPosition,
       legStartedAtMinute: undefined,
       legEndsAtMinute: undefined,
+      landingPadId: undefined,
+      cargo: [],
     });
   });
 });
@@ -215,6 +217,8 @@ describe("the sample save of format version 4", () => {
       position: { x: 0, y: 0 },
       legStartedAtMinute: 29580,
       legEndsAtMinute: 35340,
+      landingPadId: undefined,
+      cargo: [],
     });
     expect(state.missionDirector).toMatchObject({ residence: "habitat" });
   });
@@ -324,5 +328,73 @@ describe("the sample save of format version 6", () => {
         .filter((s) => s.structureTypeId !== "light-mast")
         .map((s) => s.conditionPercent),
     ).toEqual([60, 60]);
+  });
+});
+
+describe("the sample saves from before the landing pad", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+    "version-4.moonbase",
+    "version-5.moonbase",
+    "version-6.moonbase",
+  ])(
+    "%s loads with nothing aboard the Lander or being unloaded, and none of a landing pad's Components in stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.lander.cargo).toEqual([]);
+      expect(state.unloading).toBeUndefined();
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((s) =>
+          s.componentId.startsWith("pad-"),
+        ),
+      ).toEqual([
+        { componentId: "pad-panel", count: 0 },
+        { componentId: "pad-beacon", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 7", () => {
+  it("loads with the Lander landed on the landing pad, and the Robot taking its cargo off", () => {
+    const state = loadSample("version-7.moonbase").snapshot();
+
+    expect(state.lander).toMatchObject({
+      state: "landed-free",
+      position: { x: 40, y: 25 },
+      landingPadId: "structure-4",
+      cargo: [{ componentId: "battery-module", count: 3 }],
+    });
+    expect(state.plumeEjecta).toBeUndefined();
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "loading-cargo",
+      structureId: "structure-4",
+    });
+  });
+
+  it("plays on from where it was saved, until the cargo is in the base's stock", () => {
+    const campaign = loadSample("version-7.moonbase");
+    const modules = () =>
+      campaign
+        .snapshot()
+        .stockpile.components.find((s) => s.componentId === "battery-module")
+        ?.count ?? 0;
+    const before = modules();
+    const kinds: string[] = [];
+
+    for (let hours = 0; campaign.snapshot().unloading !== undefined; hours++) {
+      if (hours > 24) throw new Error("The Lander was never unloaded.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("lander-unloaded");
+    expect(modules()).toBe(before + 3);
+    expect(campaign.snapshot().lander.cargo).toEqual([]);
   });
 });

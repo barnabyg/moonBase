@@ -2,6 +2,7 @@ import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { distance, footprintRadius, isBroken } from "./construction";
 import type { GameEvent } from "./events";
+import { nextPlumeEjectaSpot } from "./lander";
 
 /** Where the next take-off or landing will blast Plume Ejecta, and how far it reaches. */
 export interface PlumeEjectaSnapshot {
@@ -58,12 +59,18 @@ export function blastPlumeEjecta(
     : [{ kind: "plume-ejecta-damage", atMinute, damaged }, ...broken];
 }
 
-/** Where the Lander's next take-off or landing will blast Plume Ejecta. */
+/**
+ * Where the Lander's next take-off or landing will blast Plume Ejecta:
+ * nowhere, if it is on a working landing pad.
+ */
 export function readPlumeEjecta(
   state: CampaignState,
 ): PlumeEjectaSnapshot | undefined {
-  return {
-    position: { ...state.lander.position },
-    radiusMetres: catalogue.plumeEjecta.radiusMetres,
-  };
+  const spot = nextPlumeEjectaSpot(state);
+  return spot === undefined
+    ? undefined
+    : {
+        position: { ...spot },
+        radiusMetres: catalogue.plumeEjecta.radiusMetres,
+      };
 }

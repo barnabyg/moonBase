@@ -108,6 +108,8 @@ describe("sending the Lander", () => {
       position,
       legStartedAtMinute: sentAt,
       legEndsAtMinute: reachesEarth,
+      landingPadId: undefined,
+      cargo: [],
     });
     game.advance({ minutes: legMinutes.toEarth - 1 });
     expect(game.state.lander.state).toBe("travelling-to-earth");
@@ -117,6 +119,8 @@ describe("sending the Lander", () => {
       position,
       legStartedAtMinute: reachesEarth,
       legEndsAtMinute: leavesEarth,
+      landingPadId: undefined,
+      cargo: [],
     });
     game.advance({ minutes: legMinutes.turnaround });
     expect(game.state.lander).toEqual({
@@ -124,6 +128,8 @@ describe("sending the Lander", () => {
       position,
       legStartedAtMinute: leavesEarth,
       legEndsAtMinute: lands,
+      landingPadId: undefined,
+      cargo: [],
     });
     game.advance({ minutes: legMinutes.toMoon });
     expect(game.state.lander).toEqual({
@@ -131,6 +137,8 @@ describe("sending the Lander", () => {
       position,
       legStartedAtMinute: undefined,
       legEndsAtMinute: undefined,
+      landingPadId: undefined,
+      cargo: [],
     });
     expect(game.state.clock.elapsedMinutes).toBe(lands);
   });

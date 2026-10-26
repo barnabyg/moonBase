@@ -125,6 +125,34 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 6 to 7: the landing pad, with two new Components, which the base's
+  // stock keeps a count of after the others. The Lander can land on a pad
+  // with cargo aboard for the Robot to unload, so it has a list of cargo,
+  // and there is a planned unloading. Before, it never had any.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { lander, stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        lander: isRecord(lander) ? { ...lander, cargo: [] } : lander,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "pad-panel", count: 0 },
+                  { componentId: "pad-beacon", count: 0 },
+                ],
+              }
+            : stockpile,
+        unloading: null,
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -431,6 +459,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       "laying-cable": true,
       dismantling: true,
       "returning-components": true,
+      "loading-cargo": true,
+      "unloading-cargo": true,
     }),
     structureId: text,
   });
@@ -444,6 +474,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         stockpile: true,
         machine: true,
         cable: true,
+        lander: true,
       }),
     }),
     "driving-machine": drivingOrActivating,
@@ -455,6 +486,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "laying-cable": working,
     dismantling: working,
     "returning-components": working,
+    "loading-cargo": working,
+    "unloading-cargo": working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
@@ -468,6 +501,7 @@ const workOrder = object({
     "lay-cable": true,
     dismantle: true,
     "return-components": true,
+    "unload-lander": true,
   }),
 });
 
@@ -509,6 +543,7 @@ const simulationState = object({
         legEndsAtMinute: wholeNumber,
       }),
     ),
+    cargo: list(componentCount),
   }),
   missionDirector,
   lifeSupport: list(
@@ -595,6 +630,15 @@ const simulationState = object({
       }),
       workedMinutes: wholeNumber,
       recovered: list(componentCount),
+      collected: boolean,
+    }),
+  ),
+  unloading: optional(
+    object({
+      landingPadId: text,
+      planNumber: wholeNumber,
+      cargo: list(componentCount),
+      workedMinutes: wholeNumber,
       collected: boolean,
     }),
   ),

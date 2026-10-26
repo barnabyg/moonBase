@@ -64,6 +64,17 @@ const materials = {
     roughness: 1,
     flatShading: true,
   }),
+  // Sintered Regolith panels, darker and smoother than the ground round them.
+  padPanel: new THREE.MeshStandardMaterial({
+    color: 0x5d5a55,
+    metalness: 0.05,
+    roughness: 0.75,
+  }),
+  padMarking: new THREE.MeshStandardMaterial({
+    color: 0xe8c33a,
+    metalness: 0,
+    roughness: 0.6,
+  }),
   crate: new THREE.MeshStandardMaterial({
     color: 0xb9b2a2,
     metalness: 0.1,
@@ -474,6 +485,7 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "regolith-shielding") {
     return createRegolithShieldingModel();
   }
+  if (structureTypeId === "landing-pad") return createLandingPadModel();
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -847,6 +859,91 @@ function createBatteryBankModel(): StructureModel {
         light(material, index < lit);
       }
     },
+    setLit: () => undefined,
+  };
+}
+
+/** How many panels a landing pad is laid from, as the data catalogue has it. */
+const PAD_PANELS = 8;
+/** The share of Assembly spent laying the panels, before the beacon goes up. */
+const PAD_PANELS_SHARE = 0.85;
+
+/**
+ * A landing pad: a disc of interlocking panels laid flat on the graded
+ * ground, with a painted ring for the Lander to aim at and a beacon at its
+ * edge. During Assembly the panels go down one by one, then the beacon goes
+ * up. Its radius is the data catalogue's footprint.
+ */
+function createLandingPadModel(): StructureModel {
+  const pad = new THREE.Group();
+  pad.name = "Landing pad";
+  const radius = 6.9;
+  const thickness = 0.12;
+  const panels = Array.from({ length: PAD_PANELS }, (_, index) => {
+    const panel = part(
+      new THREE.CylinderGeometry(
+        radius,
+        radius,
+        thickness,
+        6,
+        1,
+        false,
+        (index / PAD_PANELS) * Math.PI * 2,
+        (Math.PI * 2) / PAD_PANELS - 0.02,
+      ),
+      materials.padPanel,
+      [0, thickness / 2, 0],
+    );
+    pad.add(panel);
+    return panel;
+  });
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(3.6, 3.9, 48),
+    materials.padMarking,
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = thickness + 0.01;
+  pad.add(ring);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  const beacon = new THREE.Group();
+  beacon.position.set(radius - 0.5, thickness, 0);
+  beacon.add(
+    part(
+      new THREE.CylinderGeometry(0.08, 0.1, 1.4, 6),
+      materials.darkMetal,
+      [0, 0.7, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.16, 10, 8),
+      statusLightMaterial,
+      [0, 1.5, 0],
+    ),
+  );
+  pad.add(beacon);
+
+  return {
+    group: pad,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const laid = Math.min(f / PAD_PANELS_SHARE, 1) * PAD_PANELS;
+      for (const [index, panel] of panels.entries()) {
+        panel.visible = laid - index > 0;
+      }
+      ring.visible = laid >= PAD_PANELS;
+      beacon.visible = f > PAD_PANELS_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
     setLit: () => undefined,
   };
 }

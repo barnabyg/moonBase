@@ -28,6 +28,7 @@ import type {
   LunationSnapshot,
   ManifestLine,
   MissionDirectorResidence,
+  UnloadingSnapshot,
   WalkingDestination,
 } from "../simulation";
 
@@ -160,17 +161,20 @@ export function formatLander(
   const left = formatDuration(
     Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
   );
+  const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
   switch (lander.state) {
     case "landed-occupied":
       return "Lander: landed, with the Mission Director aboard";
     case "landed-free":
-      return "Lander: landed, free to fly";
+      return lander.cargo.length === 0
+        ? `Lander: landed${onPad}, free to fly`
+        : `Lander: landed${onPad}, its cargo waiting for the Robot to unload it`;
     case "travelling-to-earth":
       return `Lander: travelling to Earth, arrives in ${left}`;
     case "turnaround":
       return `Lander: in turnaround on Earth, leaves in ${left}`;
     case "travelling-to-moon":
-      return `Lander: travelling to the Moon, lands in ${left}`;
+      return `Lander: travelling to the Moon, lands${onPad} in ${left}`;
   }
 }
 
@@ -237,6 +241,8 @@ export function formatEvent(event: GameEvent): string {
       return event.delivered.length === 0
         ? "Lander landed"
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
+    case "lander-unloaded":
+      return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
     case "plume-ejecta-damage":
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
@@ -525,6 +531,9 @@ function describeRobotWork(
         return "Robot walking to the stockpile for the Components";
       case "cable":
         return `Robot walking to the ${cableSource} to lay power cable`;
+      // Only ever done to unload the Lander.
+      case "lander":
+        return "Waiting for the Robot";
       case "machine": {
         const positioning = snapshot.machines.find(
           (candidate) =>
@@ -562,9 +571,11 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    // Only ever done for a Structure being dismantled.
+    // Only ever done for a Structure being dismantled, or to unload the Lander.
     case "dismantling":
     case "returning-components":
+    case "loading-cargo":
+    case "unloading-cargo":
       return "Waiting for the Robot";
   }
 }
@@ -608,6 +619,37 @@ export function describeDismantling(
       return dismantling.stage === "taking-apart"
         ? "Waiting for the Robot; it keeps working until then"
         : `Waiting for the Robot to carry ${recovered} to the stockpile`;
+  }
+}
+
+/**
+ * Says what is happening on the unloading of the Lander's cargo right now,
+ * for the Work panel: what the Robot is doing with it, or else that it is
+ * waiting for the Robot.
+ */
+export function describeUnloading(
+  unloading: UnloadingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const cargo = formatComponents(unloading.cargo);
+  const robot = snapshot.robots.find(
+    (candidate) =>
+      candidate.activity.kind !== "idle" &&
+      candidate.activity.structureId === unloading.landingPadId,
+  );
+  switch (robot?.activity.kind) {
+    case "walking":
+      return robot.activity.destination === "lander"
+        ? `Robot walking to the Lander for ${cargo}`
+        : `Robot carrying ${cargo} to the stockpile`;
+    case "loading-cargo":
+      return `Robot taking ${cargo} off the Lander`;
+    case "unloading-cargo":
+      return `Robot unloading ${cargo} at the stockpile`;
+    default:
+      return unloading.collected
+        ? `Waiting for the Robot to carry ${cargo} to the stockpile`
+        : `Waiting for the Robot to take ${cargo} off the Lander`;
   }
 }
 

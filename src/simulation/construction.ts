@@ -92,7 +92,11 @@ export function isBroken(
 
 /** The parts of the Campaign state that placement depends on. */
 export interface Site {
-  readonly lander: { readonly position: GroundPosition };
+  /** Where the Lander stands, or stood, and whether it is away. */
+  readonly lander: {
+    readonly position: GroundPosition;
+    readonly trip: object | undefined;
+  };
   readonly stockpile: { readonly position: GroundPosition };
   readonly constructions: readonly ConstructionState[];
   readonly structures: readonly StructureState[];
@@ -231,11 +235,19 @@ function checkFooting(
   ) {
     return refuse("off-map", `${name} must stand wholly on the base map.`);
   }
-  if (
-    distance(position, site.lander.position) <
-    radius + catalogue.lander.footprintRadiusMetres
-  ) {
+  const overlapsLander = (lander: GroundPosition) =>
+    distance(position, lander) <
+    radius + catalogue.lander.footprintRadiusMetres;
+  if (site.lander.trip === undefined && overlapsLander(site.lander.position)) {
     return refuse("overlaps-lander", `${name} would overlap the Lander.`);
+  }
+  // The landing site stays clear for the Lander wherever it is, as it lands
+  // there again if there is no landing pad for it.
+  if (overlapsLander(catalogue.landingSite.landerPosition)) {
+    return refuse(
+      "overlaps-lander",
+      `${name} would overlap the landing site, which is kept clear for the Lander.`,
+    );
   }
   const stockpile = stockpileGround(site);
   if (distance(position, stockpile.position) < radius + stockpile.radius) {
