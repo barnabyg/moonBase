@@ -1,16 +1,32 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { placeOnClearGround } from "./placement";
+
+/**
+ * Waits until the game has drawn a frame. The game updates its interface in
+ * each animation frame, and a callback added now runs after the game's.
+ */
+async function nextFrame(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      }),
+  );
+}
 
 test("oxygen and water run down in the Habitat, warnings come without pausing the game, and running out ends the Campaign", async ({
   page,
 }) => {
+  // Software rendering in CI draws frames several times slower than locally.
+  test.setTimeout(60_000);
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   // Frames come slowly with software rendering in CI, so run at 20x to see
   // the clock move (as in startup.spec.ts).
-  const twentyTimes = panel
-    .getByRole("group", { name: "Game speed" })
-    .getByRole("button", { name: "20x" });
+  const speeds = panel.getByRole("group", { name: "Game speed" });
+  const twentyTimes = speeds.getByRole("button", { name: "20x" });
   await twentyTimes.click();
   const oxygen = panel.getByRole("status", { name: "Oxygen" });
   const water = panel.getByRole("status", { name: "Water" });
@@ -41,24 +57,34 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     /^Water: \d+\.\d kg, runs out in (29|30) Earth Days/,
   );
 
-  // Skip ahead until the first warning.
-  const warning = notifications.getByText(
-    "Oxygen will run out in 7 Earth Days",
+  /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */
+  const skipUntil = async (target: Locator) => {
+    for (let skips = 0; skips < 10 && !(await target.isVisible()); skips++) {
+      await skip.click();
+      await nextFrame(page);
+    }
+    await expect(target).toBeVisible();
+  };
+
+  await skipUntil(
+    notifications.getByText("Oxygen will run out in 7 Earth Days"),
   );
-  for (let skips = 0; skips < 10 && !(await warning.isVisible()); skips++) {
-    await skip.click();
-  }
-  await expect(warning).toBeVisible();
   await expect(twentyTimes).toHaveAttribute("aria-pressed", "true");
   const clock = panel.getByRole("status", { name: "Game clock" });
   const warnedAt = await clock.textContent();
   await expect(clock).not.toHaveText(warnedAt ?? "", { timeout: 15_000 });
 
-  // Skip on until the Mission Director dies.
+  // Paused, so that the death comes from a skip rather than while running
+  // between clicks, when the game-over screen would cover the button.
+  await speeds.getByRole("button", { name: "Pause" }).click();
+  await skipUntil(
+    notifications.getByText("Oxygen will run out in 1 Earth Day"),
+  );
+  // Oxygen runs out before the water's last warning, so the next event is
+  // the death, which comes long before a running game would reach it.
+  await twentyTimes.click();
   const gameOver = page.getByRole("dialog", { name: "Game over" });
-  for (let skips = 0; skips < 10 && !(await gameOver.isVisible()); skips++) {
-    await skip.click();
-  }
+  await skipUntil(gameOver);
   await expect(gameOver).toContainText(
     /The oxygen in the Habitat ran out on Earth Day \d+, \d{2}:\d{2}, and the Mission Director died at once\./,
   );
