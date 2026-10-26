@@ -64,6 +64,8 @@ export const migrations: readonly Migration[] = [
   },
   // 2 to 3: the base programme has Funding, which a Campaign starts with
   // from the Programme Grant, and a Launch manifest, which starts empty.
+  // The grant is the one when format version 3 came in, so that tuning it
+  // later doesn't change what this migration gives.
   (document) => {
     const state = document["state"];
     if (!isRecord(state)) return { ...document };
@@ -71,7 +73,7 @@ export const migrations: readonly Migration[] = [
       ...document,
       state: {
         ...state,
-        fundingMillionDollars: catalogue.programmeGrantMillionDollars,
+        fundingMillionDollars: 400,
         launchManifest: [],
       },
     };
