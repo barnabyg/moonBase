@@ -42,9 +42,11 @@ import {
 import {
   consumptionKilowatts,
   minutesUntilEmpty,
+  planReconnections,
   powerNetworks,
   supplyPower,
   type CableState,
+  type ReconnectionState,
 } from "./power";
 import { seedRandom, type RandomState } from "./random";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
@@ -127,10 +129,16 @@ export interface DismantlingSnapshot {
   readonly collected: boolean;
 }
 
-/** A power cable, laid or being laid, from a powered Structure to a Construction. */
+/**
+ * A power cable, laid or being laid, from a powered Structure to a
+ * Construction or to a commissioned Structure cut off from power.
+ */
 export interface CableSnapshot {
   readonly fromStructureId: string;
-  /** The Construction's id, which its Structure keeps once commissioned. */
+  /**
+   * The Construction's id, which its Structure keeps once commissioned, or
+   * the id of the Structure cut off from power.
+   */
   readonly toStructureId: string;
   /** The cable laid so far, as a line of points from the powered Structure. */
   readonly route: readonly GroundPosition[];
@@ -234,7 +242,10 @@ export interface CampaignState {
   elapsedMinutes: number;
   /** Numbers the next planned Structure. */
   nextStructureNumber: number;
-  /** Numbers the next plan, for a Construction or dismantling, so they are worked on in order. */
+  /**
+   * Numbers the next plan, for a Construction, dismantling or cable to a
+   * Structure cut off from power, so they are worked on in order.
+   */
   nextPlanNumber: number;
   lander: { state: "landed"; position: GroundPosition };
   robots: RobotState[];
@@ -244,6 +255,8 @@ export interface CampaignState {
   structures: StructureState[];
   dismantlings: DismantlingState[];
   cables: CableState[];
+  /** Planned cables to Structures cut off from power. */
+  reconnections: ReconnectionState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -281,6 +294,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     structures: [],
     dismantlings: [],
     cables: [],
+    reconnections: [],
   };
 
   return {
@@ -434,6 +448,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
+  planReconnections(state);
   supplyPower(state, partBefore === "daylight");
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {

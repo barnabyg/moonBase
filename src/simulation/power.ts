@@ -15,40 +15,53 @@ import { lunationMinutes, readLunation } from "./lunation";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
- * two on one power network once the Construction is commissioned.
+ * two on one power network once the Construction is commissioned, or to a
+ * commissioned Structure cut off from power.
  */
 export interface CableState {
   fromStructureId: string;
-  /** The id of the Construction, which its Structure keeps once commissioned. */
+  /**
+   * The id of the Construction, which its Structure keeps once commissioned,
+   * or of the Structure cut off from power.
+   */
   toStructureId: string;
   /** Where the cable leaves the powered Structure's footprint. */
   start: GroundPosition;
-  /** Where the cable reaches the Construction's footprint. */
+  /** Where the cable reaches the footprint of the Structure it goes to. */
   end: GroundPosition;
   /** The cable laid so far, as a line of points from the start. */
   route: GroundPosition[];
   complete: boolean;
 }
 
-/** The cable laid, or being laid, to a Construction, if any. */
+/**
+ * Something a cable can be laid to: a Construction, or a commissioned
+ * Structure cut off from power.
+ */
+export type CableTarget = Pick<
+  ConstructionState | StructureState,
+  "id" | "structureTypeId" | "position"
+>;
+
+/** The cable laid, or being laid, to a Construction or Structure, if any. */
 export function findCable(
   state: CampaignState,
-  constructionId: string,
+  structureId: string,
 ): CableState | undefined {
-  return state.cables.find((cable) => cable.toStructureId === constructionId);
+  return state.cables.find((cable) => cable.toStructureId === structureId);
 }
 
 /**
- * The cable being laid to a Construction, starting one from the nearest
- * powered Structure if there isn't one yet.
+ * The cable being laid to a Construction or Structure, starting one from the
+ * nearest powered Structure if there isn't one yet.
  */
 export function cableTo(
   state: CampaignState,
-  construction: ConstructionState,
+  target: CableTarget,
 ): CableState | undefined {
-  const existing = findCable(state, construction.id);
+  const existing = findCable(state, target.id);
   if (existing !== undefined) return existing;
-  const source = nearestPoweredStructure(state, construction.position);
+  const source = nearestPoweredStructure(state, target.position);
   if (source === undefined) return undefined;
   // From the edge of one footprint to the edge of the other.
   const edge = (
@@ -66,16 +79,16 @@ export function cableTo(
   };
   const cable: CableState = {
     fromStructureId: source.id,
-    toStructureId: construction.id,
+    toStructureId: target.id,
     start: edge(
       source.position,
-      construction.position,
+      target.position,
       footprintRadius(source.structureTypeId),
     ),
     end: edge(
-      construction.position,
+      target.position,
       source.position,
-      footprintRadius(construction.structureTypeId),
+      footprintRadius(target.structureTypeId),
     ),
     route: [],
     complete: false,
@@ -192,11 +205,7 @@ export function nearestPoweredStructure(
   position: GroundPosition,
 ): StructureState | undefined {
   const powered = powerNetworks(state)
-    .filter(
-      (network) =>
-        network.daylightGenerationKilowatts > 0 ||
-        network.storageCapacityKilowattHours > 0,
-    )
+    .filter(hasPowerSource)
     .flatMap((network) => network.structures);
   // Structures are kept in the order they were commissioned, so the earlier
   // one wins a tie and the choice is always the same.
@@ -215,6 +224,75 @@ export function nearestPoweredStructure(
           : best,
       undefined,
     );
+}
+
+/** Whether a network has a power source: a solar array or a battery bank. */
+function hasPowerSource(network: PowerNetwork): boolean {
+  return (
+    network.daylightGenerationKilowatts > 0 ||
+    network.storageCapacityKilowattHours > 0
+  );
+}
+
+/**
+ * A plan to lay cable to a commissioned Structure cut off from power, which
+ * the Robot carries out as a Work Order in plan order, once there is a
+ * powered Structure to lay it from.
+ */
+export interface ReconnectionState {
+  /** The id of the Structure the cable goes to. */
+  structureId: string;
+  /** Where in the Mission Director's plans it comes, as of when the Structure was cut off. */
+  planNumber: number;
+}
+
+/**
+ * Plans a cable to every network of commissioned Structures that uses power
+ * but has no power source, such as one left behind by dismantling the solar
+ * array it drew its power from, and drops the plans for any network that no
+ * longer needs one. One cable joins the whole network, so it goes to the
+ * Structure on it that no cable reaches. A Structure due to be dismantled
+ * isn't cabled; any cable left half-laid to it goes.
+ */
+export function planReconnections(state: CampaignState): void {
+  const cutOff = powerNetworks(state)
+    .filter(
+      (network) =>
+        !hasPowerSource(network) &&
+        (network.daylightConsumptionKilowatts > 0 ||
+          network.nightConsumptionKilowatts > 0),
+    )
+    .flatMap((network) =>
+      network.structures.filter(
+        (structure) =>
+          !state.cables.some(
+            (cable) => cable.complete && cable.toStructureId === structure.id,
+          ),
+      ),
+    )
+    .filter(
+      (structure) =>
+        !state.dismantlings.some((planned) => planned.id === structure.id),
+    )
+    .map((structure) => structure.id);
+  const dropped = state.reconnections
+    .map((reconnection) => reconnection.structureId)
+    .filter((structureId) => !cutOff.includes(structureId));
+  state.reconnections = state.reconnections.filter(
+    (reconnection) => !dropped.includes(reconnection.structureId),
+  );
+  state.cables = state.cables.filter(
+    (cable) => cable.complete || !dropped.includes(cable.toStructureId),
+  );
+  for (const structureId of cutOff) {
+    if (
+      state.reconnections.some((other) => other.structureId === structureId)
+    ) {
+      continue;
+    }
+    state.reconnections.push({ structureId, planNumber: state.nextPlanNumber });
+    state.nextPlanNumber += 1;
+  }
 }
 
 /** What a network's Structures draw in the given part of the Lunation. */
