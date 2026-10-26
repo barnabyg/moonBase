@@ -97,3 +97,49 @@ describe("the sample save of format version 1", () => {
     });
   });
 });
+
+describe("the sample save of format version 2", () => {
+  it("loads with the Mission Director in the Habitat, the printer building its shielding, and the Robot walking to the stockpile for a light mast's Components", () => {
+    const state = loadSample("version-2.moonbase").snapshot();
+
+    expect(state.missionDirector).toEqual({
+      residence: "habitat",
+      habitatId: "structure-2",
+      movedInAtMinute: 2400,
+    });
+    expect(
+      state.constructions.map((c) => [c.structureTypeId, c.stage]),
+    ).toEqual([
+      ["regolith-shielding", "assembly"],
+      ["light-mast", "component-delivery"],
+    ]);
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "walking",
+      structureId: "structure-4",
+      destination: "stockpile",
+    });
+    expect(
+      state.stockpile.components.filter((stock) => stock.count > 0),
+    ).toEqual([
+      { componentId: "battery-module", count: 3 },
+      { componentId: "battery-cabinet", count: 1 },
+      { componentId: "mast-pole", count: 4 },
+      { componentId: "light-head", count: 4 },
+    ]);
+  });
+
+  it("plays on from where it was saved, until the light mast is commissioned and the Habitat shielded", () => {
+    const campaign = loadSample("version-2.moonbase");
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 5 * 24) throw new Error("The Constructions never finished.");
+      campaign.advance(60);
+    }
+
+    const { structures } = campaign.snapshot();
+    expect(structures.map((s) => s.structureTypeId)).toContain("light-mast");
+    expect(structures.find((s) => s.id === "structure-2")).toMatchObject({
+      shielded: true,
+    });
+  });
+});
