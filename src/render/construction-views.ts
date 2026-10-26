@@ -224,9 +224,10 @@ function showConstruction(
 }
 
 /**
- * Switches a Structure's light on or off. The light stays in the scene and is
- * only dimmed, because changing the number of lights makes Three.js recompile
- * every material.
+ * Switches a Structure's light on or off. Its light joins the scene with the
+ * view and is only dimmed between Daylight and Night, because changing the
+ * number of lights makes Three.js recompile every material; that cost then
+ * comes only when a Light Mast is planned or removed.
  */
 function showLit(view: StructureView, lit: boolean): void {
   view.model.setLit(lit);
