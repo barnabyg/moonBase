@@ -34,9 +34,9 @@ import {
   currentStep,
   findWorn,
   finishMaintenance,
+  plannedVisit,
   spareComponentsFor,
   spares,
-  visitFor,
   type MaintenanceState,
 } from "./maintenance";
 import type { ParkingState } from "./parking";
@@ -645,14 +645,18 @@ function maintain(
     if (worn.kind === "machine") {
       maintenance.workSpot = besideMachine(state, worn.machine);
     }
-    const visit = visitFor(worn);
+    let visit = plannedVisit(state, maintenance, worn);
     if (visit.spareComponents > 0) {
       if (!walkTo(stockpileSpot(state, maintenance), "stockpile")) return [];
       if (!takeFromStock(state, spares(visit.spareComponents))) {
-        // Another Robot took them first; this Maintenance now waits.
-        robot.workOrder = undefined;
-        robot.activity = { kind: "idle" };
-        return [];
+        // Another Robot took them first. This Maintenance now waits for
+        // more, unless there is an array to clean meanwhile.
+        if (!visit.cleaning) {
+          robot.workOrder = undefined;
+          robot.activity = { kind: "idle" };
+          return [];
+        }
+        visit = { spareComponents: 0, cleaning: true };
       }
     }
     maintenance.visit = visit;

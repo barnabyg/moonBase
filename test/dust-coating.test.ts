@@ -341,6 +341,38 @@ describe("cleaning", () => {
   });
 });
 
+describe("cleaning without spare Components", () => {
+  it("goes ahead when an array also needs its Condition restored but there are no spares for it, which waits on", () => {
+    const game = buildAll(scenario().plan("solar-array", arraySite));
+    const id = structure(game.state, "solar-array").id;
+    const campaign = coated(worn(game.campaign, id, 50, 0), id, 40);
+    campaign.advance(1);
+    expect(campaign.snapshot().maintenance).toEqual([
+      expect.objectContaining({
+        spareComponents: 0,
+        cleaning: true,
+        waiting: undefined,
+      }),
+    ]);
+
+    const events = advanceUntil(campaign, "maintenance-completed");
+
+    expect(events.at(-1)).toMatchObject({ spareComponents: 0, cleaned: true });
+    expect(array(campaign)).toMatchObject({
+      conditionPercent: 50,
+      dustCoatingPercent: 0,
+    });
+    campaign.advance(1);
+    expect(campaign.snapshot().maintenance).toEqual([
+      expect.objectContaining({
+        spareComponents: 3,
+        cleaning: false,
+        waiting: { reason: "missing-spare-components", missing: 3 },
+      }),
+    ]);
+  });
+});
+
 describe("Dust coating through saving and loading", () => {
   it("is kept", () => {
     const campaign = coatedArray(12.5);

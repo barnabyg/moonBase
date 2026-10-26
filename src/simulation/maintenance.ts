@@ -300,7 +300,8 @@ export function spares(count: number): ComponentCount[] {
  * once it is idle, unless it is Broken. Until the Robot has taken any spare
  * Components it needs, it needs them in the base's stock, where those
  * raised earlier have first claim, so that one that can't be supplied waits
- * from the start.
+ * from the start; but a solar array due for cleaning is cleaned meanwhile,
+ * which uses none (see `plannedVisit`).
  */
 export function findMaintenanceWait(
   state: CampaignState,
@@ -315,6 +316,39 @@ export function findMaintenanceWait(
   ) {
     return { reason: "machine-at-work" };
   }
+  const missing = missingSpareComponents(state, maintenance);
+  return missing > 0 && worn !== undefined && !visitFor(worn).cleaning
+    ? { reason: "missing-spare-components", missing }
+    : undefined;
+}
+
+/**
+ * What a Maintenance visit would do if the Robot started on it now: as
+ * `visitFor` says, except that a solar array due for cleaning, but short of
+ * the spare Components to restore its Condition, is only cleaned. Its
+ * Condition is raised for again once the cleaning is done, and waits for
+ * the spares.
+ */
+export function plannedVisit(
+  state: CampaignState,
+  maintenance: MaintenanceState,
+  worn: Worn,
+): MaintenanceVisit {
+  const visit = visitFor(worn);
+  return visit.cleaning && missingSpareComponents(state, maintenance) > 0
+    ? { spareComponents: 0, cleaning: true }
+    : visit;
+}
+
+/**
+ * How many more spare Components a Maintenance Work Order needs than the
+ * base's stock can give it, once those raised earlier, and not yet
+ * started, have had theirs.
+ */
+function missingSpareComponents(
+  state: CampaignState,
+  maintenance: MaintenanceState,
+): number {
   const claimedEarlier = state.maintenance
     .slice(0, state.maintenance.indexOf(maintenance))
     .filter((other) => other.visit === undefined)
@@ -323,10 +357,7 @@ export function findMaintenanceWait(
     inStock(state, catalogue.maintenance.spareComponentId) - claimedEarlier,
     0,
   );
-  const needed = spareComponentsNeeded(state, maintenance);
-  return needed > left
-    ? { reason: "missing-spare-components", missing: needed - left }
-    : undefined;
+  return Math.max(spareComponentsNeeded(state, maintenance) - left, 0);
 }
 
 /**
@@ -410,7 +441,7 @@ export function readMaintenance(state: CampaignState): MaintenanceSnapshot[] {
   return state.maintenance.flatMap((maintenance) => {
     const worn = findWorn(state, maintenance.target);
     if (worn === undefined) return [];
-    const visit = maintenance.visit ?? visitFor(worn);
+    const visit = maintenance.visit ?? plannedVisit(state, maintenance, worn);
     const [first] = visitSteps(visit);
     const current = currentStep(visit, maintenance.workedMinutes) ?? {
       step: first?.step ?? "cleaning",
