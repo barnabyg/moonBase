@@ -37,7 +37,15 @@ test("the game loads with no console errors and the clock advances", async ({
   // Checked before the canvas, so a WebGL failure reports its reason.
   expect(errors).toEqual([]);
   await expect(page.locator("canvas")).toBeVisible();
-  // At 1x the clock moves on one game-hour every 10 real seconds.
+  const speeds = page.getByRole("group", { name: "Game speed" });
+  await expect(speeds.getByRole("button", { name: "1x" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // A game-hour takes 10 real seconds at 1x only while frames come at least
+  // every 250 ms; with software rendering in CI they come slower, and the
+  // game loop deliberately lets the clock fall behind, so watch it at 20x.
+  await speeds.getByRole("button", { name: "20x" }).click();
   const start = await readClockHours(page);
   await expect
     .poll(() => readClockHours(page), { timeout: 15_000 })
