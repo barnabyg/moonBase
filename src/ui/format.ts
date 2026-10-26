@@ -26,6 +26,7 @@ import type {
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
+  ManifestLine,
   MissionDirectorResidence,
   WalkingDestination,
 } from "../simulation";
@@ -229,9 +230,13 @@ export function formatEvent(event: GameEvent): string {
     case "lander-reached-earth":
       return "Lander reached Earth for turnaround";
     case "lander-left-earth":
-      return "Lander left Earth for the Moon";
+      return event.chargedMillionDollars === 0
+        ? "Lander left Earth for the Moon, with nothing aboard"
+        : `Lander left Earth for the Moon; the Launch cost ${formatMillionDollars(event.chargedMillionDollars)}`;
     case "lander-landed":
-      return "Lander landed";
+      return event.delivered.length === 0
+        ? "Lander landed"
+        : `Lander landed with ${formatManifestLines(event.delivered)}`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -329,6 +334,15 @@ export function formatMillionDollars(value: number): string {
   return `$${Number.isInteger(value) ? value : value.toFixed(1)}M`;
 }
 
+/**
+ * Lists the Components in the base's stock, for example "Stock: 2 solar
+ * panels and 4 mast poles".
+ */
+export function formatStock(stockpile: Snapshot["stockpile"]): string {
+  const held = stockpile.components.filter((stock) => stock.count > 0);
+  return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
+}
+
 /** Says how much Funding the base programme has, for example "Funding: $400M". */
 export function formatFunding(fundingMillionDollars: number): string {
   return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
@@ -340,6 +354,23 @@ export function launchItemLabel(item: LaunchItem): string {
   return brings.kind === "component"
     ? componentLabel(brings.componentId)
     : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+}
+
+/**
+ * Lists what a Launch brings the way a sentence would, for example "2 ×
+ * Solar panel and 1 × Oxygen, 25 kg".
+ */
+export function formatManifestLines(lines: readonly ManifestLine[]): string {
+  const items = lines.map(({ itemId, count }) => {
+    const item = catalogue.launch.items.find(
+      (candidate) => candidate.id === itemId,
+    );
+    return `${count} × ${item === undefined ? itemId : launchItemLabel(item)}`;
+  });
+  const last = items.pop();
+  return items.length === 0
+    ? (last ?? "")
+    : `${items.join(", ")} and ${last ?? ""}`;
 }
 
 /** Says a Launch item's mass and price, for example "60 kg, $4M". */
@@ -358,12 +389,16 @@ export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
 /**
  * Says what the manifest costs against the Funding balance, for example
  * "Cost: $230M of $400M Funding, including the $150M Launch fee". An empty
- * manifest costs nothing, so the fee is left out until it has an item.
+ * manifest costs nothing, so the fee is left out until it has an item. Once
+ * it is locked, it has been paid for.
  */
 export function formatLaunchCost(
   manifest: LaunchManifestSnapshot,
   fundingMillionDollars: number,
 ): string {
+  if (manifest.locked) {
+    return `Cost: ${formatMillionDollars(manifest.costMillionDollars)}, paid as the Lander left Earth`;
+  }
   const funding = `${formatMillionDollars(fundingMillionDollars)} Funding`;
   return manifest.items.length === 0
     ? `Cost: nothing of ${funding}, while the manifest is empty`

@@ -1,0 +1,232 @@
+{
+  "format": "moonbase-save",
+  "version": 5,
+  "random": {
+    "a": 1147868967,
+    "b": 3414756629,
+    "c": 2491368889,
+    "d": 387527258
+  },
+  "state": {
+    "elapsedMinutes": 36830,
+    "nextStructureNumber": 4,
+    "nextPlanNumber": 4,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": {
+        "leg": "travelling-to-moon",
+        "legStartedAtMinute": 35340,
+        "legEndsAtMinute": 39660
+      }
+    },
+    "missionDirector": {
+      "residence": "habitat",
+      "habitatId": "structure-2",
+      "movedInAtMinute": 25260
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 18.25083333331481
+      },
+      {
+        "stockId": "water",
+        "kilograms": 79.8784722223026
+      }
+    ],
+    "radiationDoseMillisieverts": 488.35416666661996,
+    "solarParticleEvent": {
+      "warnsAtMinute": 59493,
+      "startsAtMinute": 59733,
+      "endsAtMinute": 60986
+    },
+    "fundingMillionDollars": 235,
+    "launchManifest": [
+      {
+        "itemId": "solar-panel",
+        "count": 2
+      },
+      {
+        "itemId": "array-mast",
+        "count": 1
+      },
+      {
+        "itemId": "oxygen",
+        "count": 2
+      }
+    ],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 28.904344047215165,
+          "y": -23.12347523777214
+        },
+        "activity": {
+          "kind": "walking",
+          "structureId": "structure-3",
+          "destination": "machine"
+        },
+        "carrying": [],
+        "workOrder": {
+          "structureId": "structure-3",
+          "kind": "prepare-site"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 29.763299737602484,
+          "y": -23.81063979008199
+        },
+        "activity": {
+          "kind": "being-positioned",
+          "constructionId": "structure-3"
+        },
+        "assignment": {
+          "constructionId": "structure-3",
+          "stage": "site-preparation",
+          "destination": {
+            "x": -22.155553024116784,
+            "y": 19.939997721705105
+          },
+          "activationMinutes": 0,
+          "working": false
+        }
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 0
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "airlock",
+          "count": 0
+        }
+      ]
+    },
+    "constructions": [
+      {
+        "id": "structure-3",
+        "structureTypeId": "light-mast",
+        "position": {
+          "x": -20,
+          "y": 18
+        },
+        "planNumber": 3,
+        "workSpot": {
+          "x": -18.6620705367551,
+          "y": 16.79586348307959
+        },
+        "stage": "site-preparation",
+        "workedMinutes": 0,
+        "componentsTaken": false,
+        "failedCommissionings": 0
+      }
+    ],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 25,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0
+      }
+    ],
+    "dismantlings": [],
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 20.46313064082083,
+          "y": 9.035963898746695
+        },
+        "end": {
+          "x": 24.38249247890556,
+          "y": -16.047951864995593
+        },
+        "route": [
+          {
+            "x": 20.46313064082083,
+            "y": 9.035963898746695
+          },
+          {
+            "x": 24.38249247890556,
+            "y": -16.047951864995593
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": []
+  }
+}

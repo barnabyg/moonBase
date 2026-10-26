@@ -94,7 +94,7 @@ export function createLaunchManifestScreen(
     actions.append(remove, add);
     row.append(name, details, count, actions);
     body.append(row);
-    return { item, count, remove };
+    return { item, count, remove, add };
   });
 
   const payloadMass = document.createElement("p");
@@ -132,10 +132,18 @@ export function createLaunchManifestScreen(
     },
     update(snapshot) {
       manifest = snapshot.launchManifest.items;
-      for (const { item, count, remove } of rows) {
+      const { locked } = snapshot.launchManifest;
+      setText(
+        intro,
+        locked
+          ? "Locked: the Lander has left Earth with this manifest, paid for. A new one starts once it has landed."
+          : "Choose what the next Launch brings from Earth.",
+      );
+      for (const { item, count, remove, add } of rows) {
         const onManifest = countOf(item.id);
         setText(count, String(onManifest));
-        remove.disabled = onManifest === 0;
+        remove.disabled = locked || onManifest === 0;
+        add.disabled = locked;
       }
       setText(payloadMass, formatPayloadMass(snapshot.launchManifest));
       setText(

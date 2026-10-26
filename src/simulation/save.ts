@@ -89,6 +89,23 @@ export const migrations: readonly Migration[] = [
       state: { ...state, lander: { ...state["lander"], trip: null } },
     };
   },
+  // 4 to 5: the Lander takes the Launch manifest with it as it leaves Earth,
+  // paying for it then, and delivers it as it lands. A Lander already on its
+  // way back left Earth with nothing aboard, so the manifest it would now
+  // be bringing, which nothing has paid for, is emptied.
+  (document) => {
+    const state = document["state"];
+    const lander = isRecord(state) ? state["lander"] : undefined;
+    const trip = isRecord(lander) ? lander["trip"] : undefined;
+    if (
+      !isRecord(state) ||
+      !isRecord(trip) ||
+      trip["leg"] !== "travelling-to-moon"
+    ) {
+      return { ...document };
+    }
+    return { ...document, state: { ...state, launchManifest: [] } };
+  },
 ];
 
 export type LoadRefusal =

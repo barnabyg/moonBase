@@ -38,6 +38,7 @@ describe("the sample saves from before Funding", () => {
         items: [],
         payloadMassKilograms: 0,
         costMillionDollars: 0,
+        locked: false,
       });
     },
   );
@@ -236,5 +237,44 @@ describe("the sample save of format version 4", () => {
     expect(campaign.snapshot().clock.elapsedMinutes).toBe(
       35340 + catalogue.lander.roundTripEarthDays.toMoon * 24 * 60,
     );
+  });
+});
+
+describe("the sample save of format version 5", () => {
+  it("loads with the Lander on its way back from Earth, its manifest paid for and locked", () => {
+    const state = loadSample("version-5.moonbase").snapshot();
+
+    expect(state.lander).toMatchObject({
+      state: "travelling-to-moon",
+      legEndsAtMinute: 39660,
+    });
+    expect(state.fundingMillionDollars).toBe(235);
+    expect(state.launchManifest).toMatchObject({
+      items: [
+        { itemId: "solar-panel", count: 2 },
+        { itemId: "array-mast", count: 1 },
+        { itemId: "oxygen", count: 2 },
+      ],
+      locked: true,
+    });
+  });
+
+  it("plays on from where it was saved, until the cargo has landed and joined the base's stock", () => {
+    const campaign = loadSample("version-5.moonbase");
+    const panels = () =>
+      campaign
+        .snapshot()
+        .stockpile.components.find(
+          (stock) => stock.componentId === "solar-panel",
+        )?.count ?? 0;
+    const before = panels();
+
+    campaign.advance(39660 - campaign.snapshot().clock.elapsedMinutes);
+
+    const state = campaign.snapshot();
+    expect(state.lander.state).toBe("landed-free");
+    expect(panels()).toBe(before + 2);
+    expect(state.launchManifest).toMatchObject({ items: [], locked: false });
+    expect(state.fundingMillionDollars).toBe(235);
   });
 });

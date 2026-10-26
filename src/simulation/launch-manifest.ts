@@ -1,5 +1,6 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { addToStock } from "./stockpile";
 
 /** How many of a Launch item the manifest asks for. */
 export interface ManifestLine {
@@ -18,6 +19,11 @@ export interface LaunchManifestSnapshot {
    * balance. Nothing while it is empty.
    */
   readonly costMillionDollars: number;
+  /**
+   * Whether it is locked: from the Lander leaving Earth with it, paid for,
+   * until it lands.
+   */
+  readonly locked: boolean;
 }
 
 export type ManifestRefusal =
@@ -25,6 +31,7 @@ export type ManifestRefusal =
   | "invalid-count"
   | "over-payload-mass"
   | "over-funding"
+  | "manifest-locked"
   | "campaign-ended";
 
 export type ManifestResult =
@@ -39,12 +46,19 @@ export type ManifestResult =
 /**
  * Makes the manifest the Launch manifest, if a Launch can carry all of it
  * and the Funding balance can pay for it; otherwise leaves the manifest as
- * it was and says which limit it would go over.
+ * it was and says which limit it would go over. Once the Lander has left
+ * Earth with the manifest, it is locked until the Lander lands.
  */
 export function setLaunchManifest(
   state: CampaignState,
   manifest: readonly ManifestLine[],
 ): ManifestResult {
+  if (isLocked(state)) {
+    return refuse(
+      "manifest-locked",
+      "The manifest is locked: the Lander has left Earth with it. A new one starts once it has landed.",
+    );
+  }
   const lines: { itemId: string; count: number }[] = [];
   for (const { itemId, count } of manifest) {
     if (findLaunchItem(itemId) === undefined) {
@@ -91,7 +105,47 @@ export function readLaunchManifest(
   return {
     items: state.launchManifest.map((line) => ({ ...line })),
     ...totals(state.launchManifest),
+    locked: isLocked(state),
   };
+}
+
+/**
+ * Pays for the Launch manifest as the Lander leaves Earth with it, which
+ * locks it, and returns what it cost: nothing if it is empty. Running out of
+ * Funding never ends the Campaign.
+ */
+export function payForLaunch(state: CampaignState): number {
+  const { costMillionDollars } = totals(state.launchManifest);
+  state.fundingMillionDollars -= costMillionDollars;
+  return costMillionDollars;
+}
+
+/**
+ * Unloads everything on the Launch manifest as the Lander lands: Components
+ * join the base's stock at the stockpile beside the landing site, and
+ * oxygen and water the life support stocks. A new, empty manifest starts,
+ * and what was delivered is returned.
+ */
+export function deliverLaunch(state: CampaignState): ManifestLine[] {
+  const delivered = state.launchManifest;
+  for (const { itemId, count } of delivered) {
+    const brings = findLaunchItem(itemId)?.brings;
+    if (brings?.kind === "component") {
+      addToStock(state, [{ componentId: brings.componentId, count }]);
+    } else if (brings?.kind === "life-support") {
+      const stock = state.lifeSupport.find(
+        (candidate) => candidate.stockId === brings.stockId,
+      );
+      if (stock !== undefined) stock.kilograms += brings.kilograms * count;
+    }
+  }
+  state.launchManifest = [];
+  return delivered;
+}
+
+/** Whether the Lander has left Earth with the manifest and not yet landed. */
+function isLocked(state: CampaignState): boolean {
+  return state.lander.trip?.leg === "travelling-to-moon";
 }
 
 function totals(items: readonly ManifestLine[]): {

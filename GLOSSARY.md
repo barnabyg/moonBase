@@ -69,7 +69,7 @@ The mass a Launch can carry, and the main limit on what can be imported from Ear
 _Avoid_: cargo capacity, weight
 
 **Launch manifest**:
-The list of what the next Launch is to bring from Earth: Components, and oxygen and water in set amounts. Its cost is the Launch fee plus each item's price, or nothing while it is empty, and it must stay within the Payload Mass and the Funding balance.
+The list of what the next Launch is to bring from Earth: Components, and oxygen and water in set amounts. Its cost is the Launch fee plus each item's price, or nothing while it is empty, and it must stay within the Payload Mass and the Funding balance. It is paid for and locked as the Lander leaves Earth, and joins the base's stock as the Lander lands.
 _Avoid_: order, shopping list, cargo list
 
 **Launch fee**:

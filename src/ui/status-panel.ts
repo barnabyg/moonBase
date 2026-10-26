@@ -23,6 +23,7 @@ import {
   formatPower,
   formatRadiationDose,
   formatSolarParticleEvent,
+  formatStock,
   formatStoredPower,
   structureLabel,
 } from "./format";
@@ -117,6 +118,13 @@ export function createStatusPanel(
   manifest.title = "Choose what the next Launch brings from Earth.";
   manifest.addEventListener("click", openLaunchManifest);
   funding.append(fundingText, manifest);
+
+  // The Components in the base's stock at the stockpile.
+  const stock = document.createElement("p");
+  stock.className = "status-panel__components";
+  stock.setAttribute("role", "status");
+  stock.setAttribute("aria-label", "Base's stock");
+  stock.setAttribute("aria-live", "off");
 
   const power = document.createElement("p");
   power.className = "status-panel__power";
@@ -250,6 +258,7 @@ export function createStatusPanel(
     skip,
     createSaveButtons(saveFiles, showResult),
     funding,
+    stock,
     power,
     storedPower,
     missionDirector,
@@ -269,6 +278,7 @@ export function createStatusPanel(
       setText(clock, formatClock(snapshot.clock));
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
+      setText(stock, formatStock(snapshot.stockpile));
       const hasStructures = snapshot.structures.length > 0;
       power.hidden = !hasStructures;
       storedPower.hidden = !hasStructures;

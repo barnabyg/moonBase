@@ -1,3 +1,5 @@
+import type { ManifestLine } from "./launch-manifest";
+
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
  * simulation until one of these happens.
@@ -69,16 +71,25 @@ export type GameEvent =
     }
   | {
       /**
-       * The Lander has taken off for Earth ("lander-took-off"), arrived there
-       * for turnaround ("lander-reached-earth"), left Earth for the Moon
-       * ("lander-left-earth"), or landed at the base ("lander-landed").
+       * The Lander has taken off for Earth ("lander-took-off"), or arrived
+       * there for turnaround ("lander-reached-earth").
        */
-      readonly kind:
-        | "lander-took-off"
-        | "lander-reached-earth"
-        | "lander-left-earth"
-        | "lander-landed";
+      readonly kind: "lander-took-off" | "lander-reached-earth";
       readonly atMinute: number;
+    }
+  | {
+      /** The Lander has left Earth for the Moon, with the Launch manifest paid for and locked. */
+      readonly kind: "lander-left-earth";
+      readonly atMinute: number;
+      /** The Funding the Launch cost: nothing if the manifest was empty. */
+      readonly chargedMillionDollars: number;
+    }
+  | {
+      /** The Lander has landed at the base, and its cargo has joined the base's stock. */
+      readonly kind: "lander-landed";
+      readonly atMinute: number;
+      /** Everything on the Launch manifest it brought, in catalogue order. */
+      readonly delivered: readonly ManifestLine[];
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

@@ -284,6 +284,7 @@ body {
   margin-left: auto;
 }
 
+.status-panel__components,
 .status-panel__residence,
 .status-panel__habitat-power,
 .status-panel__radiation,

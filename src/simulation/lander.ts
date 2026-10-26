@@ -2,6 +2,7 @@ import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
+import { deliverLaunch, payForLaunch } from "./launch-manifest";
 
 /** The legs of the Lander's round trip, in the order it flies them. */
 export type LanderLeg =
@@ -74,6 +75,8 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * Flies the Lander through the game-minute that has just passed: it takes
  * off in the first game-minute after it was sent, and each leg of its round
  * trip gives way to the next as it ends, until it lands where it took off.
+ * It pays for the Launch manifest as it leaves Earth, and delivers it as it
+ * lands.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -92,10 +95,18 @@ export function flyLander(state: CampaignState): GameEvent[] {
       return [{ kind: "lander-reached-earth", atMinute }];
     case "turnaround":
       state.lander.trip = startLeg("travelling-to-moon", atMinute);
-      return [{ kind: "lander-left-earth", atMinute }];
+      return [
+        {
+          kind: "lander-left-earth",
+          atMinute,
+          chargedMillionDollars: payForLaunch(state),
+        },
+      ];
     case "travelling-to-moon":
       state.lander.trip = undefined;
-      return [{ kind: "lander-landed", atMinute }];
+      return [
+        { kind: "lander-landed", atMinute, delivered: deliverLaunch(state) },
+      ];
   }
 }
 
