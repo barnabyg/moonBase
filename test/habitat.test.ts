@@ -24,9 +24,11 @@ function idOfLast(game: Scenario): string {
   return id;
 }
 
-/** A Habitat built on its own, with no power to cable it to. */
+/** A Habitat cabled to a solar array, both commissioned, in Daylight. */
 function commissionedHabitat(): { game: Scenario; habitatId: string } {
-  const game = scenario().plan("habitat", habitatSite);
+  const game = scenario()
+    .plan("solar-array", solarSite)
+    .plan("habitat", habitatSite);
   const habitatId = idOfLast(game);
   runUntil(game, (state) => state.constructions.length === 0);
   return { game, habitatId };
@@ -110,12 +112,12 @@ describe("moving the Mission Director in", () => {
     expect(game.state.missionDirector).toEqual({ residence: "lander" });
   });
 
-  it("happens at once into a commissioned Habitat, even an unpowered one, and frees the Lander", () => {
+  it("happens at once into a commissioned Habitat with power, and frees the Lander", () => {
     const { game, habitatId } = commissionedHabitat();
     expect(
       game.state.structures.find((structure) => structure.id === habitatId)
         ?.powered,
-    ).toBe(false);
+    ).toBe(true);
     const before = game.state.clock;
 
     expect(game.campaign.moveMissionDirectorIn(habitatId)).toEqual({
@@ -126,12 +128,14 @@ describe("moving the Mission Director in", () => {
     expect(game.state.missionDirector).toEqual({
       residence: "habitat",
       habitatId,
+      movedInAtMinute: before.elapsedMinutes,
     });
     expect(game.state.lander.state).toBe("landed-free");
   });
 
   it("can't be undone or repeated", () => {
     const { game, habitatId } = commissionedHabitat();
+    const movedInAtMinute = game.state.clock.elapsedMinutes;
     game.campaign.moveMissionDirectorIn(habitatId);
 
     expect(game.campaign.moveMissionDirectorIn(habitatId)).toMatchObject({
@@ -142,6 +146,7 @@ describe("moving the Mission Director in", () => {
     expect(game.state.missionDirector).toEqual({
       residence: "habitat",
       habitatId,
+      movedInAtMinute,
     });
   });
 

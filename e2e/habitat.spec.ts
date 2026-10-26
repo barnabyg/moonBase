@@ -16,17 +16,24 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
     "Lander: landed, with the Mission Director aboard",
   );
 
-  await page
-    .getByRole("complementary", { name: "Build menu" })
-    .getByRole("button", { name: /Inflatable Habitat/ })
-    .click();
+  // The Habitat needs power, so a solar array comes first and the Robot
+  // cables the Habitat to it.
+  const buildMenu = page.getByRole("complementary", { name: "Build menu" });
+  await buildMenu.getByRole("button", { name: /Solar array/ }).click();
   await placeOnClearGround(page);
-  await page.getByRole("button", { name: "Skip to next event" }).click();
+  await buildMenu.getByRole("button", { name: /Inflatable Habitat/ }).click();
+  await placeOnClearGround(page);
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  const notifications = page.getByRole("log", { name: "Notifications" });
+  await skip.click();
+  await expect(notifications).toContainText("Solar array commissioned");
+  await skip.click();
+  await expect(notifications).toContainText("Inflatable Habitat commissioned");
 
   const structures = page.getByRole("list", { name: "Structures" });
-  // Nothing powers it yet, and moving in is allowed anyway.
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Inflatable Habitat: commissioned, no power/,
+    /^Solar array: commissioned(?!,)/,
+    /^Inflatable Habitat: commissioned(?!,)/,
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 
@@ -35,13 +42,18 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   );
   await expect(lander).toHaveText("Lander: landed, free to fly");
   await expect(structures.getByRole("listitem")).toHaveText([
+    /^Solar array/,
     /, the Mission Director's home/,
   ]);
   await expect(
     structures.getByRole("button", { name: "Move in" }),
   ).toBeHidden();
 
-  await structures.getByRole("button", { name: "Dismantle" }).click();
+  await structures
+    .getByRole("listitem")
+    .filter({ hasText: "Inflatable Habitat" })
+    .getByRole("button", { name: "Dismantle" })
+    .click();
   await expect(page.getByRole("alert")).toHaveText(
     "The Mission Director lives in it, and can't move out.",
   );

@@ -58,7 +58,12 @@ const loop = createGameLoop(campaign, {
     notifications.add(events);
   },
 });
-const statusPanel = createStatusPanel(container, loop, campaign);
+// The status panel above the build menu, scrolling rather than running
+// under it when it grows.
+const leftColumn = document.createElement("div");
+leftColumn.className = "left-column";
+container.append(leftColumn);
+const statusPanel = createStatusPanel(leftColumn, loop, campaign);
 const constructionPanel = createConstructionPanel(container, campaign);
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(container, () => {
@@ -69,7 +74,7 @@ const renderer = startRenderer(container, campaign.snapshot());
 const buildMenu =
   renderer === undefined
     ? undefined
-    : createBuildMenu(container, campaign, renderer);
+    : createBuildMenu(leftColumn, campaign, renderer);
 
 let lastFrameTime: number | undefined;
 function frame(time: number): void {

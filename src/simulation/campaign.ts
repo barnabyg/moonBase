@@ -30,6 +30,12 @@ import {
 } from "./construction";
 import type { DeathCause, GameEvent } from "./events";
 import {
+  forecastHabitatPower,
+  minutesUntilPowerLostAsMinuteStarts,
+  watchHabitatPower,
+  type HabitatPowerForecast,
+} from "./habitat-power";
+import {
   forecastLifeSupport,
   readLifeSupport,
   startingLifeSupport,
@@ -60,6 +66,11 @@ import {
   supplyPower,
   type CableState,
 } from "./power";
+import {
+  absorbRadiationDose,
+  forecastRadiationDose,
+  type RadiationDoseForecast,
+} from "./radiation";
 import { seedRandom, type RandomState } from "./random";
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
@@ -120,7 +131,11 @@ export interface StructureSnapshot {
   readonly id: string;
   readonly structureTypeId: string;
   readonly position: GroundPosition;
-  /** Whether its power network covered what it draws during the latest game-minute. */
+  /**
+   * Whether it had power during the latest game-minute. A network that can't
+   * cover everything supplies Habitats first, then the rest in the order they
+   * were commissioned. A Habitat has power only if all it draws is covered.
+   */
   readonly powered: boolean;
   /** Whether its light was on during the latest game-minute: only at Night, with power. */
   readonly lit: boolean;
@@ -180,6 +195,13 @@ export interface Forecasts {
   readonly power: PowerForecast;
   /** When each life support stock runs out, in catalogue order. */
   readonly lifeSupport: readonly LifeSupportForecast[];
+  /**
+   * When the Habitat the Mission Director lives in loses power, or undefined
+   * while they live aboard the Lander, or once they have died.
+   */
+  readonly habitatPower: HabitatPowerForecast | undefined;
+  /** How fast the Mission Director's Radiation Dose is rising, and when it reaches the limit. */
+  readonly radiationDose: RadiationDoseForecast;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -214,6 +236,11 @@ export interface Snapshot {
   readonly missionDirector: MissionDirectorResidence;
   /** The Mission Director's stocks of oxygen and water, in catalogue order. */
   readonly lifeSupport: readonly LifeSupportSnapshot[];
+  /**
+   * The total radiation the Mission Director has absorbed. The data
+   * catalogue sets the limit.
+   */
+  readonly radiationDoseMillisieverts: number;
   /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
@@ -293,6 +320,7 @@ export interface CampaignState {
   lander: { position: GroundPosition };
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
+  radiationDoseMillisieverts: number;
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -315,6 +343,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lander: { position: { ...landingSite.landerPosition } },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
+    radiationDoseMillisieverts: 0,
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -434,6 +463,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
           })),
         },
         lifeSupport: forecastLifeSupport(state),
+        habitatPower: forecastHabitatPower(state),
+        radiationDose: forecastRadiationDose(state),
       });
     },
     snapshot() {
@@ -451,6 +482,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
         },
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
+        radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -523,6 +555,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes,
     catalogue.lunation,
   ).part;
+  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -535,8 +568,16 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
-  // Last, so that the Mission Director's death ends the game-minute.
-  events.push(...useLifeSupport(state));
+  // Last, so that the Mission Director's death ends the game-minute. It is
+  // then the only one of these events, as any warning that minute would come
+  // too late to matter.
+  const dangers = [
+    ...useLifeSupport(state),
+    ...watchHabitatPower(state, powerLostBefore),
+    ...absorbRadiationDose(state),
+  ];
+  const death = dangers.find((event) => event.kind === "mission-director-died");
+  events.push(...(death === undefined ? dangers : [death]));
   return events;
 }
 

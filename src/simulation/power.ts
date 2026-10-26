@@ -13,6 +13,7 @@ import {
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import { lunationMinutes, readLunation } from "./lunation";
+import { livesIn } from "./mission-director";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
@@ -248,26 +249,33 @@ export function consumptionKilowatts(
 /**
  * Supplies one game-minute of power on every network. Solar arrays generate
  * only in Daylight; any surplus charges the network's battery banks, and they
- * discharge to cover any shortfall. A network whose generation and storage
- * can't cover what its Structures draw leaves them all without power. Lights
- * switch on by themselves at Night, while they have power.
+ * discharge to cover any shortfall. Power goes to the network's Structures by
+ * priority (see `supplyOrder`). A Habitat has power only if the energy left
+ * when its turn comes covers all it draws in the game-minute; part of it is
+ * no use to a Habitat, so it then takes none. Any other Structure has power
+ * while any energy is left when its turn comes, so the last of it may cover
+ * only part of a game-minute, and those after it go without. A Structure
+ * that draws nothing always has power. Lights switch on by themselves at
+ * Night, while they have power.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const network of powerNetworks(state)) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
-    const consumption = consumptionKilowatts(network, daylight);
-    const available = network.storedKilowattHours + generated / 60;
-    const powered = consumption === 0 || available > ENERGY_TOLERANCE_KWH;
-    const remaining = powered ? available - consumption / 60 : available;
-    const stored = Math.min(
-      Math.max(remaining, 0),
-      network.storageCapacityKilowattHours,
-    );
+    let left = network.storedKilowattHours + generated / 60;
+    for (const structure of supplyOrder(state, network.structures)) {
+      const drawn = drawKilowatts(structure, daylight) / 60;
+      structure.powered =
+        drawn === 0 ||
+        (isHabitat(structure)
+          ? left >= drawn - ENERGY_TOLERANCE_KWH
+          : left > ENERGY_TOLERANCE_KWH);
+      if (structure.powered) left = Math.max(left - drawn, 0);
+    }
+    const stored = Math.min(left, network.storageCapacityKilowattHours);
     for (const structure of network.structures) {
-      structure.powered = powered;
       structure.lit =
         !daylight &&
-        powered &&
+        structure.powered &&
         (findStructureType(structure.structureTypeId)?.lightRadiusMetres ?? 0) >
           0;
       // Each battery bank holds its share, in proportion to its capacity.
@@ -282,6 +290,23 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
 }
 
 /**
+ * The order a network supplies its Structures in: the Habitat the Mission
+ * Director lives in first, then any other Habitats, then everything else,
+ * each in the order they were commissioned.
+ */
+function supplyOrder(
+  state: CampaignState,
+  structures: readonly StructureState[],
+): StructureState[] {
+  const rank = (structure: StructureState) => {
+    if (livesIn(state, structure.id)) return 0;
+    return isHabitat(structure) ? 1 : 2;
+  };
+  // Sorting is stable, so each group keeps the order of commissioning.
+  return [...structures].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
  * How many game-minutes a network's stored energy lasts, following the
  * Daylight and Night ahead of it; or undefined if it has no storage or its
  * stored energy doesn't run out within the next few Lunations.
@@ -292,31 +317,93 @@ export function minutesUntilEmpty(
 ): number | undefined {
   const capacity = network.storageCapacityKilowattHours;
   if (capacity === 0) return undefined;
-  const schedule = catalogue.lunation;
-  const { daylight, lunation } = lunationMinutes(schedule);
-  const now = readLunation(elapsedMinutes, schedule);
-  let part = now.part;
-  let length = now.minutesRemaining;
   let stored = network.storedKilowattHours;
-  let start = 0;
-  for (let parts = 0; parts < FORECAST_LUNATION_PARTS; parts++) {
-    const isDaylight = part === "daylight";
-    const generated = isDaylight ? network.daylightGenerationKilowatts : 0;
+  for (const part of partsAhead(elapsedMinutes)) {
+    const generated = part.daylight ? network.daylightGenerationKilowatts : 0;
     const perMinute =
-      (generated - consumptionKilowatts(network, isDaylight)) / 60;
+      (generated - consumptionKilowatts(network, part.daylight)) / 60;
     if (perMinute < 0) {
       const minutes = Math.max(
         Math.ceil((stored - ENERGY_TOLERANCE_KWH) / -perMinute),
         0,
       );
-      if (minutes <= length) return start + minutes;
+      if (minutes <= part.minutes) return part.start + minutes;
     }
-    stored = Math.min(Math.max(stored + perMinute * length, 0), capacity);
-    start += length;
-    part = part === "daylight" ? "night" : "daylight";
-    length = part === "daylight" ? daylight : lunation - daylight;
+    stored = Math.min(Math.max(stored + perMinute * part.minutes, 0), capacity);
   }
   return undefined;
+}
+
+/**
+ * How many game-minutes until a Habitat supplied first on its network goes
+ * without power, following the Daylight and Night ahead: once what is
+ * generated and stored can no longer cover all it draws in a game-minute.
+ * Undefined if that doesn't happen within the next few Lunations.
+ */
+export function minutesUntilPowerLost(
+  network: PowerNetwork,
+  habitat: StructureState,
+  elapsedMinutes: number,
+): number | undefined {
+  let stored = network.storedKilowattHours;
+  for (const part of partsAhead(elapsedMinutes)) {
+    const generated = part.daylight ? network.daylightGenerationKilowatts : 0;
+    const consumption = consumptionKilowatts(network, part.daylight);
+    // What has to be left in storage at the start of a game-minute for the
+    // Habitat to have power in it, on top of what is generated.
+    const needed = (drawKilowatts(habitat, part.daylight) - generated) / 60;
+    if (needed > ENERGY_TOLERANCE_KWH) {
+      // Storage falls by the network's shortfall each game-minute (the
+      // network draws at least what the Habitat does, so there is one) until
+      // it can't cover the Habitat; any last part-minute goes to the rest.
+      const shortfall = (consumption - generated) / 60;
+      const minutesPowered =
+        stored < needed - ENERGY_TOLERANCE_KWH
+          ? 0
+          : Math.floor((stored - needed + ENERGY_TOLERANCE_KWH) / shortfall) +
+            1;
+      if (minutesPowered < part.minutes) {
+        return part.start + minutesPowered + 1;
+      }
+    }
+    stored = Math.min(
+      Math.max(stored + ((generated - consumption) / 60) * part.minutes, 0),
+      network.storageCapacityKilowattHours,
+    );
+  }
+  return undefined;
+}
+
+/**
+ * The parts of the Lunation ahead, starting with what is left of the current
+ * one: whether each is Daylight, how many game-minutes from now it starts,
+ * and how many game-minutes it lasts.
+ */
+function* partsAhead(
+  elapsedMinutes: number,
+): Generator<{ daylight: boolean; start: number; minutes: number }> {
+  const schedule = catalogue.lunation;
+  const { daylight, lunation } = lunationMinutes(schedule);
+  const now = readLunation(elapsedMinutes, schedule);
+  let isDaylight = now.part === "daylight";
+  let minutes = now.minutesRemaining;
+  let start = 0;
+  for (let parts = 0; parts < FORECAST_LUNATION_PARTS; parts++) {
+    yield { daylight: isDaylight, start, minutes };
+    start += minutes;
+    isDaylight = !isDaylight;
+    minutes = isDaylight ? daylight : lunation - daylight;
+  }
+}
+
+function isHabitat(structure: StructureState): boolean {
+  return findStructureType(structure.structureTypeId)?.habitat === true;
+}
+
+/** What a Structure draws in the given part of the Lunation. */
+function drawKilowatts(structure: StructureState, daylight: boolean): number {
+  const power = powerOf(structure.structureTypeId);
+  return power.drawKilowatts + (daylight ? 0 : power.nightDrawKilowatts);
 }
 
 type Power = StructureType["power"];

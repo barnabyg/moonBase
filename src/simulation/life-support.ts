@@ -2,6 +2,7 @@ import { catalogue, type LifeSupportStock } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
+import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 
 /**
  * How far short of a whole game-minute of use a stock may be and still count
@@ -76,10 +77,13 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
       stock.kilograms = 0;
       ranOut ??= stock;
     } else if (
-      type.warningEarthDaysLeft.some((earthDays) => {
-        const warningMinutes = earthDays * MINUTES_PER_EARTH_DAY;
-        return before > warningMinutes && after <= warningMinutes;
-      })
+      fellToWarningLevel(
+        type.warningEarthDaysLeft.map(
+          (earthDays) => earthDays * MINUTES_PER_EARTH_DAY,
+        ),
+        before,
+        after,
+      )
     ) {
       warnings.push({
         kind: "life-support-warning",
@@ -90,11 +94,10 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
     }
   }
   if (ranOut === undefined) return warnings;
-  const cause = { kind: "ran-out", stockId: ranOut.stockId } as const;
-  state.ended = { atMinute: state.elapsedMinutes, cause };
-  return [
-    { kind: "mission-director-died", atMinute: state.elapsedMinutes, cause },
-  ];
+  return killMissionDirector(state, {
+    kind: "ran-out",
+    stockId: ranOut.stockId,
+  });
 }
 
 /**

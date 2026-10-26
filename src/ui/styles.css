@@ -36,29 +36,48 @@ body {
 .status-panel,
 .construction-panel,
 .build-menu {
-  position: absolute;
   padding: 12px 14px;
   background: var(--panel-background);
   border: 1px solid var(--panel-border);
   border-radius: 6px;
 }
 
-.status-panel {
+/* The status panel above the build menu. Only the panels take the pointer,
+   so the map between them can still be dragged and clicked. */
+.left-column {
+  position: absolute;
   top: 16px;
+  bottom: 16px;
   left: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.left-column > * {
+  pointer-events: auto;
+}
+
+.status-panel {
+  flex: 0 1 auto;
+  min-height: 0;
   min-width: 220px;
   max-width: 340px;
+  overflow-y: auto;
 }
 
 .construction-panel {
+  position: absolute;
   top: 16px;
   right: 16px;
   width: 280px;
 }
 
 .build-menu {
-  bottom: 16px;
-  left: 16px;
+  flex: none;
+  margin-top: auto;
   width: 280px;
 }
 
@@ -133,6 +152,7 @@ body {
 .construction-panel[hidden],
 .notifications[hidden],
 .status-panel__stock[hidden],
+.status-panel__habitat-power[hidden],
 .status-panel__structures[hidden] {
   display: none;
 }
@@ -243,15 +263,21 @@ body {
 }
 
 .status-panel__residence,
+.status-panel__habitat-power,
+.status-panel__radiation,
 .status-panel__stock {
   margin: 6px 0 0;
   font-size: 0.9rem;
 }
 
+.status-panel__habitat-power,
+.status-panel__radiation,
 .status-panel__stock {
   font-variant-numeric: tabular-nums;
 }
 
+.status-panel__habitat-power--low,
+.status-panel__radiation--low,
 .status-panel__stock--low {
   color: var(--warning);
 }

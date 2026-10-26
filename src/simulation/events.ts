@@ -28,6 +28,28 @@ export type GameEvent =
       readonly minutesUntilEmpty: number;
     }
   | {
+      /**
+       * The time until the Habitat the Mission Director lives in loses power
+       * has fallen to one of the warning levels set in the data catalogue.
+       */
+      readonly kind: "habitat-power-warning";
+      readonly atMinute: number;
+      readonly habitatId: string;
+      /** Game-minutes until it loses power, as things stand. */
+      readonly minutesUntilPowerLost: number;
+    }
+  | {
+      /**
+       * The time until the Mission Director's Radiation Dose reaches the
+       * limit has fallen to one of the warning levels set in the data
+       * catalogue.
+       */
+      readonly kind: "radiation-dose-warning";
+      readonly atMinute: number;
+      /** Game-minutes until it reaches the limit, at the rate it is rising. */
+      readonly minutesUntilLimit: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;
@@ -35,8 +57,18 @@ export type GameEvent =
     };
 
 /** How the Mission Director died. */
-export interface DeathCause {
-  readonly kind: "ran-out";
-  /** The life support stock that ran out. */
-  readonly stockId: string;
-}
+export type DeathCause =
+  | {
+      readonly kind: "ran-out";
+      /** The life support stock that ran out. */
+      readonly stockId: string;
+    }
+  | {
+      /** The Habitat they lived in lost power. */
+      readonly kind: "habitat-power-failed";
+      readonly habitatId: string;
+    }
+  | {
+      /** Their Radiation Dose reached the limit. */
+      readonly kind: "radiation-dose-limit";
+    };

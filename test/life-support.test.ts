@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import { catalogue, type Catalogue } from "../src/catalogue";
 import type { GameEvent, GroundPosition } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+
+// The Habitat needs no power and lets in no radiation here, so that the
+// Mission Director can live in it until the oxygen runs out.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { safeHabitat } = await import("./safe-habitat");
+  return {
+    ...actual,
+    catalogue: safeHabitat(actual.catalogue, ["power", "radiation"]),
+  };
+});
 
 const habitatSite: GroundPosition = { x: 25, y: -20 };
 
@@ -14,7 +25,7 @@ function runUntil(game: Scenario, done: (game: Scenario) => boolean): void {
   throw new Error("It never happened.");
 }
 
-/** A Mission Director who has just moved into a newly commissioned, unpowered Habitat. */
+/** A Mission Director who has just moved into a newly commissioned Habitat. */
 function movedIn(): Scenario {
   const game = scenario().plan("habitat", habitatSite);
   const habitatId = game.state.constructions[0]?.id ?? "";
@@ -202,7 +213,8 @@ describe("life support warnings", () => {
       .map((event) =>
         event.kind === "life-support-warning"
           ? `${event.stockId} warning, ${event.minutesUntilEmpty / (24 * 60)} Earth Days left`
-          : event.kind === "mission-director-died"
+          : event.kind === "mission-director-died" &&
+              event.cause.kind === "ran-out"
             ? `died: ${event.cause.stockId} ran out`
             : event.kind,
       );

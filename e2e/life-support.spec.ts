@@ -16,7 +16,7 @@ async function nextFrame(page: Page): Promise<void> {
   );
 }
 
-test("oxygen and water run down in the Habitat, warnings come without pausing the game, and running out ends the Campaign", async ({
+test("oxygen and water run down in the Habitat, warnings come without pausing the game, and the battery running flat at Night ends the Campaign", async ({
   page,
 }) => {
   // Software rendering in CI draws frames several times slower than locally.
@@ -30,32 +30,30 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await twentyTimes.click();
   const oxygen = panel.getByRole("status", { name: "Oxygen" });
   const water = panel.getByRole("status", { name: "Water" });
+  const habitatPower = panel.getByRole("status", { name: "Habitat power" });
+  const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
   await expect(oxygen).toHaveText(
     "Oxygen: 25.0 kg, kept safe aboard the Lander",
   );
   await expect(water).toHaveText(
     "Water: 108.0 kg, kept safe aboard the Lander",
   );
+  await expect(habitatPower).toBeHidden();
+  await expect(radiationDose).toHaveText(
+    "Radiation Dose: 0.0 of 600 mSv, none aboard the Lander",
+  );
 
-  await page
-    .getByRole("complementary", { name: "Build menu" })
-    .getByRole("button", { name: /Inflatable Habitat/ })
-    .click();
-  await placeOnClearGround(page);
+  const buildMenu = page.getByRole("complementary", { name: "Build menu" });
+  for (const structure of [
+    /Solar array/,
+    /Battery bank/,
+    /Inflatable Habitat/,
+  ]) {
+    await buildMenu.getByRole("button", { name: structure }).click();
+    await placeOnClearGround(page);
+  }
   const skip = panel.getByRole("button", { name: "Skip to next event" });
-  await skip.click();
   const notifications = page.getByRole("log", { name: "Notifications" });
-  await expect(notifications).toContainText("Inflatable Habitat commissioned");
-  await panel
-    .getByRole("list", { name: "Structures" })
-    .getByRole("button", { name: "Move in" })
-    .click();
-  await expect(oxygen).toHaveText(
-    /^Oxygen: 2\d\.\d kg, runs out in 2[89] Earth Days/,
-  );
-  await expect(water).toHaveText(
-    /^Water: \d+\.\d kg, runs out in (29|30) Earth Days/,
-  );
 
   /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */
   const skipUntil = async (target: Locator) => {
@@ -66,29 +64,45 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     await expect(target).toBeVisible();
   };
 
+  await skipUntil(notifications.getByText("Inflatable Habitat commissioned"));
+  await panel
+    .getByRole("list", { name: "Structures" })
+    .getByRole("button", { name: "Move in" })
+    .click();
+  await expect(oxygen).toHaveText(
+    /^Oxygen: 2\d\.\d kg, runs out in 2[89] Earth Days/,
+  );
+  await expect(water).toHaveText(
+    /^Water: \d+\.\d kg, runs out in (29|30) Earth Days/,
+  );
+  await expect(habitatPower).toHaveText(
+    /^Habitat power: on, fails in \d+ Earth Days/,
+  );
+  await expect(radiationDose).toHaveText(
+    /^Radiation Dose: \d+\.\d of 600 mSv, rising 30\.0 mSv an Earth Day, limit in (19|20) Earth Days/,
+  );
+
   await skipUntil(
-    notifications.getByText("Oxygen will run out in 7 Earth Days"),
+    notifications.getByText("Habitat power will fail in 1 Earth Day"),
   );
   await expect(twentyTimes).toHaveAttribute("aria-pressed", "true");
   const clock = panel.getByRole("status", { name: "Game clock" });
   const warnedAt = await clock.textContent();
   await expect(clock).not.toHaveText(warnedAt ?? "", { timeout: 15_000 });
 
-  // Paused, so that the death comes from a skip rather than while running
-  // between clicks, when the game-over screen would cover the button.
+  // Paused, so that the next warnings come from skips rather than while
+  // running between clicks.
   await speeds.getByRole("button", { name: "Pause" }).click();
-  await skipUntil(
-    notifications.getByText("Oxygen will run out in 1 Earth Day"),
-  );
-  // Oxygen runs out before the water's last warning, so the next event is
-  // the death, which comes long before a running game would reach it.
+  await skipUntil(notifications.getByText("Habitat power will fail in 1 hour"));
+  // Then left to run, without clicking anything the game-over screen could
+  // cover, until the battery runs flat.
   await twentyTimes.click();
   const gameOver = page.getByRole("dialog", { name: "Game over" });
-  await skipUntil(gameOver);
+  await expect(gameOver).toBeVisible();
   await expect(gameOver).toContainText(
-    /The oxygen in the Habitat ran out on Earth Day \d+, \d{2}:\d{2}, and the Mission Director died at once\./,
+    /Habitat power failed on Earth Day \d+, \d{2}:\d{2}, and the Mission Director died at once\./,
   );
-  await expect(oxygen).toHaveText("Oxygen: 0.0 kg, ran out");
+  await expect(habitatPower).toHaveText("Habitat power: failed");
   const diedAt = await clock.textContent();
   await page.waitForTimeout(1_000);
   await expect(clock).toHaveText(diedAt ?? "");
@@ -103,4 +117,5 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(oxygen).toHaveText(
     "Oxygen: 25.0 kg, kept safe aboard the Lander",
   );
+  await expect(habitatPower).toBeHidden();
 });

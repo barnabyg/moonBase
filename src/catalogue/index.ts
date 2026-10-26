@@ -9,5 +9,6 @@ export type {
   LunationSchedule,
   MachineType,
   MapSize,
+  RadiationRules,
   StructureType,
 } from "./catalogue";

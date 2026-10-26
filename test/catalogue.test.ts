@@ -239,6 +239,44 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has a Habitat that draws power, with warnings before it loses it", () => {
+    for (const type of catalogue.structureTypes.filter(
+      (each) => each.habitat,
+    )) {
+      expect(type.power.drawKilowatts).toBeGreaterThan(0);
+    }
+    const warnings = catalogue.habitatPowerWarningHoursLeft;
+    expect(warnings.length).toBeGreaterThan(0);
+    expect([...warnings].sort((a, b) => b - a)).toEqual(warnings);
+    expect(new Set(warnings).size).toBe(warnings.length);
+    for (const hours of warnings) {
+      expect(hours).toBeGreaterThan(0);
+      expect(Number.isInteger(hours * 60)).toBe(true);
+    }
+  });
+
+  it("has no Radiation Dose aboard the Lander, and warnings before an unshielded Habitat's dose reaches the limit", () => {
+    const { radiation } = catalogue;
+
+    expect(radiation.doseRateMillisievertsPerEarthDay.lander).toBe(0);
+    expect(radiation.doseRateMillisievertsPerEarthDay.habitat).toBeGreaterThan(
+      0,
+    );
+    expect(radiation.doseLimitMillisieverts).toBeGreaterThan(0);
+    const reachedInEarthDays =
+      radiation.doseLimitMillisieverts /
+      radiation.doseRateMillisievertsPerEarthDay.habitat;
+    const warnings = radiation.warningEarthDaysLeft;
+    expect(warnings.length).toBeGreaterThan(0);
+    expect([...warnings].sort((a, b) => b - a)).toEqual(warnings);
+    expect(new Set(warnings).size).toBe(warnings.length);
+    for (const earthDays of warnings) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(earthDays).toBeLessThan(reachedInEarthDays);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+  });
+
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {
