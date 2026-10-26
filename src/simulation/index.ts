@@ -8,6 +8,7 @@ export type {
   ConstructionSnapshot,
   GroundPosition,
   LanderSnapshot,
+  MachineSnapshot,
   MapSnapshot,
   PlanResult,
   RobotSnapshot,
@@ -22,6 +23,7 @@ export type {
 } from "./construction";
 export type { RobotActivity } from "./robot";
 export type { ConstructionWait } from "./work-orders";
+export type { MachineActivity } from "./machines";
 export type { ClockSnapshot } from "./clock";
 export type { GameEvent } from "./events";
 export type { LunationPart, LunationSnapshot } from "./lunation";

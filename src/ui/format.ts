@@ -1,12 +1,12 @@
 import { catalogue } from "../catalogue";
 import type {
   ClockSnapshot,
+  Snapshot,
   ComponentCount,
   ConstructionSnapshot,
   ConstructionWait,
   ConstructionStage,
   LunationSnapshot,
-  RobotSnapshot,
 } from "../simulation";
 
 const twoDigits = (value: number): string => String(value).padStart(2, "0");
@@ -73,8 +73,18 @@ export function formatComponents(counts: readonly ComponentCount[]): string {
     : `${items.join(", ")} and ${last ?? ""}`;
 }
 
+export function machineLabel(machineTypeId: string): string {
+  return (
+    catalogue.machineTypes.find((type) => type.id === machineTypeId)?.label ??
+    machineTypeId
+  );
+}
+
 /** Says why a Construction is waiting, for the Construction panel. */
 export function formatWaiting(waiting: ConstructionWait): string {
+  if (waiting.reason === "machine-busy") {
+    return `Waiting for the ${machineLabel(waiting.machineTypeId).toLowerCase()}, which is working on another site`;
+  }
   const missing = formatComponents(waiting.missing);
   const verb =
     waiting.missing.length === 1 && waiting.missing[0]?.count === 1
@@ -86,29 +96,58 @@ export function formatWaiting(waiting: ConstructionWait): string {
 /** Says what is happening on a Construction right now, for the Construction panel. */
 export function describeWork(
   construction: ConstructionSnapshot,
-  robots: readonly RobotSnapshot[],
+  snapshot: Pick<Snapshot, "robots" | "machines">,
 ): string {
   if (construction.waiting !== undefined) {
     return formatWaiting(construction.waiting);
   }
-  const robot = robots.find(
+  const machine = snapshot.machines.find(
+    (candidate) =>
+      candidate.activity.kind === "working" &&
+      candidate.activity.constructionId === construction.id,
+  );
+  if (machine !== undefined) {
+    return `${machineLabel(machine.machineTypeId)} grading the ground by itself`;
+  }
+  const robot = snapshot.robots.find(
     (candidate) =>
       candidate.activity.kind !== "idle" &&
       candidate.activity.constructionId === construction.id,
   );
   if (robot === undefined) return "Waiting for the Robot";
   const { activity } = robot;
+  const machineName = (machineId: string) =>
+    machineLabel(
+      snapshot.machines.find((candidate) => candidate.id === machineId)
+        ?.machineTypeId ?? machineId,
+    ).toLowerCase();
   switch (activity.kind) {
     case "idle":
       return "Waiting for the Robot";
     case "walking":
-      return activity.destination === "lander"
-        ? "Robot walking to the Lander for the Components"
-        : robot.carrying.length > 0
-          ? "Robot carrying the Components to the site"
-          : "Robot walking to the site";
-    case "preparing-site":
-      return "Robot clearing and grading the ground";
+      switch (activity.destination) {
+        case "lander":
+          return "Robot walking to the Lander for the Components";
+        case "machine": {
+          const positioning = snapshot.machines.find(
+            (candidate) =>
+              candidate.activity.kind !== "idle" &&
+              candidate.activity.constructionId === construction.id,
+          );
+          return positioning === undefined
+            ? "Robot walking to the Machine"
+            : `Robot walking to the ${machineName(positioning.id)}`;
+        }
+        case "site":
+          return robot.carrying.length > 0
+            ? "Robot carrying the Components to the site"
+            : "Robot walking to the site";
+      }
+      break;
+    case "driving-machine":
+      return `Robot driving the ${machineName(activity.machineId)} to the site`;
+    case "activating-machine":
+      return `Robot activating the ${machineName(activity.machineId)}`;
     case "loading-components":
       return "Robot loading the Components at the Lander";
     case "unloading-components":

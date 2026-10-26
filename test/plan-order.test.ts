@@ -87,14 +87,14 @@ describe("several Constructions", () => {
     expect(game.state.robots[0]?.activity).toEqual({ kind: "idle" });
   });
 
-  it("don't show a Construction as waiting while it can be worked on", () => {
+  it("don't show a Construction as waiting for Components it can still get", () => {
     const game = scenario()
       .plan("solar-array", sites[0] as GroundPosition)
       .plan("solar-array", sites[1] as GroundPosition);
 
     for (const state of run(game, 6 * 60)) {
       for (const construction of state.constructions) {
-        expect(construction.waiting).toBeUndefined();
+        expect(construction.waiting?.reason).not.toBe("missing-components");
       }
     }
   });

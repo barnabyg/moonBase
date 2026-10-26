@@ -40,6 +40,16 @@ const materials = {
     roughness: 0.25,
     side: THREE.DoubleSide,
   }),
+  machinePaint: new THREE.MeshStandardMaterial({
+    color: 0xd9a520,
+    metalness: 0.3,
+    roughness: 0.55,
+  }),
+  track: new THREE.MeshStandardMaterial({
+    color: 0x2a2a2a,
+    metalness: 0.4,
+    roughness: 0.9,
+  }),
   crate: new THREE.MeshStandardMaterial({
     color: 0xb9b2a2,
     metalness: 0.1,
@@ -127,6 +137,8 @@ export function createLanderModel(footprintRadius: number): THREE.Group {
 export interface RobotPose {
   /** Each leg's swing from the hip; the other leg mirrors it. */
   readonly legSwing: number;
+  /** Sitting, with both legs forward from the hip, as when driving a Machine. */
+  readonly seated: boolean;
   readonly leftArm: number;
   readonly rightArm: number;
   readonly lean: number;
@@ -207,8 +219,8 @@ export function createRobotModel(): RobotModel {
     group: robot,
     pose(pose) {
       // Three.js turns a positive x rotation backwards, so negate to lift forwards.
-      leftLeg.rotation.x = -pose.legSwing;
-      rightLeg.rotation.x = pose.legSwing;
+      leftLeg.rotation.x = pose.seated ? -Math.PI / 2 : -pose.legSwing;
+      rightLeg.rotation.x = pose.seated ? -Math.PI / 2 : pose.legSwing;
       leftArm.rotation.x = -pose.leftArm;
       rightArm.rotation.x = -pose.rightArm;
       upperBody.rotation.x = pose.lean;
@@ -334,4 +346,124 @@ export function createCrateModel(): THREE.Mesh {
   );
   crate.name = "Component crate";
   return crate;
+}
+
+/** The height of the excavator's deck, where a Robot sits to drive it. */
+export const EXCAVATOR_SEAT_HEIGHT = 1.15;
+
+/**
+ * A small tracked excavator, facing along its local +z axis. Its upper body
+ * turns on the tracks, and its boom, stick and bucket reach forward to grade
+ * the ground.
+ */
+export interface ExcavatorModel {
+  readonly group: THREE.Group;
+  /** Turns the upper body relative to the tracks (radians, as for Object3D.rotation.y). */
+  setSlew(angle: number): void;
+  /** From 0, the arm tucked in, to 1, reaching out with the bucket on the ground. */
+  setReach(fraction: number): void;
+  /** The beacon that flashes while the Machine works by itself. */
+  setBeacon(on: boolean): void;
+}
+
+export function createExcavatorModel(): ExcavatorModel {
+  const excavator = new THREE.Group();
+  excavator.name = "Excavator";
+
+  for (const side of [-1, 1]) {
+    excavator.add(
+      part(new THREE.BoxGeometry(0.5, 0.5, 2.8), materials.track, [
+        side * 0.95,
+        0.25,
+        0,
+      ]),
+    );
+  }
+  excavator.add(
+    part(
+      new THREE.CylinderGeometry(0.8, 0.9, 0.3, 12),
+      materials.darkMetal,
+      [0, 0.6, 0],
+    ),
+  );
+
+  // Everything above the turntable turns as one.
+  const upper = new THREE.Group();
+  upper.position.y = 0.75;
+  excavator.add(upper);
+  const beaconMaterial = materials.statusOff.clone();
+  upper.add(
+    part(
+      new THREE.BoxGeometry(1.7, 0.4, 2.0),
+      materials.machinePaint,
+      [0, 0.2, -0.1],
+    ),
+    // The counterweight behind the seat.
+    part(
+      new THREE.BoxGeometry(1.6, 0.6, 0.45),
+      materials.machinePaint,
+      [0, 0.7, -0.9],
+    ),
+    // The seat back.
+    part(
+      new THREE.BoxGeometry(0.5, 0.5, 0.1),
+      materials.darkMetal,
+      [0, 0.65, -0.35],
+    ),
+    part(
+      new THREE.SphereGeometry(0.08, 8, 6),
+      beaconMaterial,
+      [0.6, 1.08, -0.9],
+    ),
+  );
+
+  // The boom rises from the front of the deck, the stick hangs from its end,
+  // and the bucket from the stick's.
+  const boom = new THREE.Group();
+  boom.position.set(0.55, 0.45, 0.8);
+  upper.add(boom);
+  const boomLength = 2.2;
+  const stickLength = 1.5;
+  boom.add(
+    part(
+      new THREE.BoxGeometry(0.22, 0.22, boomLength),
+      materials.machinePaint,
+      [0, 0, boomLength / 2],
+    ),
+  );
+  const stick = new THREE.Group();
+  stick.position.z = boomLength;
+  boom.add(stick);
+  stick.add(
+    part(
+      new THREE.BoxGeometry(0.16, stickLength, 0.16),
+      materials.machinePaint,
+      [0, -stickLength / 2, 0],
+    ),
+  );
+  const bucket = part(
+    new THREE.BoxGeometry(0.7, 0.35, 0.45),
+    materials.darkMetal,
+    [0, -stickLength - 0.1, 0.15],
+  );
+  stick.add(bucket);
+
+  return {
+    group: excavator,
+    setSlew(angle) {
+      upper.rotation.y = angle;
+    },
+    setReach(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      // Tucked: boom raised high and stick folded in. Reaching: boom lowered
+      // towards the ground and the stick swung out.
+      boom.rotation.x = THREE.MathUtils.lerp(-0.9, -0.15, f);
+      stick.rotation.x = THREE.MathUtils.lerp(0.9, -0.35, f);
+    },
+    setBeacon(on) {
+      const source = on ? materials.statusTesting : materials.statusOff;
+      beaconMaterial.color.copy(source.color);
+      beaconMaterial.emissive.copy(source.emissive);
+    },
+  };
 }

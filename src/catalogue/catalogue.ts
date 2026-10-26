@@ -12,10 +12,14 @@ export interface Catalogue {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
   };
-  /** Where the Lander has touched down and its Robots stand when a Campaign begins. */
+  /** Where the Lander has touched down, and its Robots and Machines stand, when a Campaign begins. */
   readonly landingSite: {
     readonly landerPosition: GroundPosition;
     readonly robotPositions: readonly GroundPosition[];
+    readonly machines: readonly {
+      readonly machineTypeId: string;
+      readonly position: GroundPosition;
+    }[];
   };
   /** The game speeds the player can choose between, in the order they are offered. */
   readonly gameSpeeds: readonly GameSpeed[];
@@ -26,6 +30,9 @@ export interface Catalogue {
     /** How far outside a footprint, or beside the Lander, a Robot stands to work. */
     readonly workingGapMetres: number;
   };
+  readonly machineTypes: readonly MachineType[];
+  /** The Machine that grades a Construction's ground during Site Preparation. */
+  readonly sitePreparationMachineTypeId: string;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
@@ -56,6 +63,21 @@ export interface LunationSchedule {
   readonly initialDaylightRemainingEarthDays: number;
 }
 
+/**
+ * Automated equipment that a Robot drives into position and activates, and
+ * which then carries out its process by itself.
+ */
+export interface MachineType {
+  readonly id: string;
+  readonly label: string;
+  /** Radius of the ground the Machine stands on; Structures may not be placed over it. */
+  readonly footprintRadiusMetres: number;
+  /** How far the Machine goes in a game-hour while a Robot drives it. */
+  readonly drivingSpeedMetresPerHour: number;
+  /** The Robot's working time to set the Machine going once it is in position, in game-hours. */
+  readonly activationHours: number;
+}
+
 export interface ComponentType {
   readonly id: string;
   readonly label: string;
@@ -74,9 +96,11 @@ export interface StructureType {
   /** The Components one Structure is assembled from. */
   readonly components: readonly ComponentCount[];
   /**
-   * The Robot's working time for each stage of Construction, in game-hours.
-   * Walking to and from the site comes on top. Component delivery is split
-   * evenly between loading at the Lander and unloading at the site.
+   * The working time for each stage of Construction, in game-hours. Site
+   * Preparation is done by a Machine once a Robot has positioned and
+   * activated it; the other stages are the Robot's own work. Walking, driving
+   * and activating come on top. Component delivery is split evenly between
+   * loading at the Lander and unloading at the site.
    */
   readonly stageHours: {
     readonly sitePreparation: number;
@@ -95,12 +119,13 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 1,
+  version: 2,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
     landerPosition: { x: 0, y: 0 },
     robotPositions: [{ x: 6, y: -3 }],
+    machines: [{ machineTypeId: "excavator", position: { x: -11, y: -4.5 } }],
   },
   gameSpeeds: [
     { id: "paused", label: "Pause", gameMinutesPerRealSecond: 0 },
@@ -114,6 +139,16 @@ export const catalogue: Catalogue = {
     initialDaylightRemainingEarthDays: 8,
   },
   robot: { walkingSpeedMetresPerHour: 12, workingGapMetres: 1 },
+  machineTypes: [
+    {
+      id: "excavator",
+      label: "Excavator",
+      footprintRadiusMetres: 1.6,
+      drivingSpeedMetresPerHour: 30,
+      activationHours: 0.25,
+    },
+  ],
+  sitePreparationMachineTypeId: "excavator",
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },

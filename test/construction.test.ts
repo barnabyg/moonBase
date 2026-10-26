@@ -83,34 +83,29 @@ describe("the Construction of a solar array", () => {
     ]);
   });
 
-  it("has the Robot walk to the site, at its walking speed, before it prepares the site", () => {
-    const start = robotOf(scenario().state).position;
+  it("has the Robot walk at its walking speed, and work standing just outside the site", () => {
     const states = runUntilBuilt(scenario().plan("solar-array", site));
 
-    const firstWork = states.findIndex(
-      (state) => robotOf(state).activity.kind === "preparing-site",
-    );
-    const atWork = robotOf(states[firstWork] as Snapshot).position;
-    expect(distanceBetween(atWork, site)).toBeLessThanOrEqual(
-      solarArray.footprintRadiusMetres +
-        catalogue.robot.workingGapMetres +
-        1e-9,
-    );
-    expect(firstWork).toBeGreaterThanOrEqual(
-      Math.floor(
-        (distanceBetween(start, site) -
-          solarArray.footprintRadiusMetres -
-          catalogue.robot.workingGapMetres) /
-          metresPerMinute,
-      ),
-    );
-    let previous = start;
-    for (const state of states) {
-      const { position } = robotOf(state);
-      expect(distanceBetween(previous, position)).toBeLessThanOrEqual(
-        metresPerMinute + 1e-9,
-      );
-      previous = position;
+    for (const [index, state] of states.entries()) {
+      const robot = robotOf(state);
+      if (robot.activity.kind === "walking") {
+        const before = robotOf(states[index - 1] ?? scenario().state);
+        expect(
+          distanceBetween(before.position, robot.position),
+        ).toBeLessThanOrEqual(metresPerMinute + 1e-9);
+      }
+      if (
+        robot.activity.kind === "assembling" ||
+        robot.activity.kind === "commissioning"
+      ) {
+        const reach = distanceBetween(robot.position, site);
+        expect(reach).toBeGreaterThan(solarArray.footprintRadiusMetres);
+        expect(reach).toBeLessThanOrEqual(
+          solarArray.footprintRadiusMetres +
+            catalogue.robot.workingGapMetres +
+            1e-9,
+        );
+      }
     }
   });
 
@@ -120,9 +115,11 @@ describe("the Construction of a solar array", () => {
     );
     const { stageHours } = solarArray;
 
-    expect(minutesSpent(states, "preparing-site")).toBe(
-      stageHours.sitePreparation * 60,
-    );
+    expect(
+      states.filter((state) =>
+        state.machines.some((machine) => machine.activity.kind === "working"),
+      ),
+    ).toHaveLength(stageHours.sitePreparation * 60);
     expect(
       minutesSpent(states, "loading-components") +
         minutesSpent(states, "unloading-components"),
@@ -216,31 +213,35 @@ describe("the Construction of a solar array", () => {
     },
   );
 
-  it("has the Robot work from clear ground, not from inside a neighbouring Structure", () => {
-    // The side of the second site facing the Lander lies inside the first.
+  it("has the excavator work from clear ground, not from inside a neighbouring Structure", () => {
+    // The side of the first site away from the Lander lies inside the second.
     const first = { x: 20, y: 0 };
     const second = { x: 20 + solarArray.footprintRadiusMetres * 2 + 0.5, y: 0 };
     const game = scenario()
       .plan("solar-array", first)
       .plan("solar-array", second);
+    const firstId = game.state.constructions[0]?.id;
 
-    const secondId = game.state.constructions[1]?.id;
-
-    const preparingSecond: Snapshot[] = [];
-    for (let minute = 0; minute < 2 * 24 * 60; minute++) {
-      const { activity } = robotOf(game.advance({ minutes: 1 }).state);
+    const grading: Snapshot[] = [];
+    for (let minute = 0; minute < 24 * 60; minute++) {
+      const state = game.advance({ minutes: 1 }).state;
       if (
-        activity.kind === "preparing-site" &&
-        activity.constructionId === secondId
+        state.machines.some(
+          (machine) =>
+            machine.activity.kind === "working" &&
+            machine.activity.constructionId === firstId,
+        )
       ) {
-        preparingSecond.push(game.state);
+        grading.push(state);
       }
     }
-    expect(preparingSecond.length).toBeGreaterThan(0);
-    for (const state of preparingSecond) {
-      expect(
-        distanceBetween(robotOf(state).position, first),
-      ).toBeGreaterThanOrEqual(solarArray.footprintRadiusMetres);
+    expect(grading.length).toBeGreaterThan(0);
+    for (const state of grading) {
+      for (const machine of state.machines) {
+        expect(
+          distanceBetween(machine.position, second),
+        ).toBeGreaterThanOrEqual(solarArray.footprintRadiusMetres);
+      }
     }
   });
 

@@ -22,6 +22,11 @@ import {
   readLunation,
   type LunationSnapshot,
 } from "./lunation";
+import {
+  workMachines,
+  type MachineActivity,
+  type MachineState,
+} from "./machines";
 import { seedRandom, type RandomState } from "./random";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
@@ -46,6 +51,13 @@ export interface RobotSnapshot {
   readonly activity: RobotActivity;
   /** The Components the Robot is carrying. */
   readonly carrying: readonly ComponentCount[];
+}
+
+export interface MachineSnapshot {
+  readonly id: string;
+  readonly machineTypeId: string;
+  readonly position: GroundPosition;
+  readonly activity: MachineActivity;
 }
 
 export interface ConstructionSnapshot {
@@ -77,6 +89,7 @@ export interface Snapshot {
   readonly map: MapSnapshot;
   readonly lander: LanderSnapshot;
   readonly robots: readonly RobotSnapshot[];
+  readonly machines: readonly MachineSnapshot[];
   /** The Components in the Lander's cargo stock, in catalogue order. */
   readonly cargo: readonly ComponentCount[];
   /** Unfinished Constructions, in the order they were planned. */
@@ -118,6 +131,7 @@ export interface CampaignState {
   nextStructureNumber: number;
   lander: { state: "landed"; position: GroundPosition };
   robots: RobotState[];
+  machines: MachineState[];
   cargo: { componentId: string; count: number }[];
   constructions: ConstructionState[];
   structures: StructureState[];
@@ -139,6 +153,13 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       carrying: [],
       workOrder: undefined,
+    })),
+    machines: landingSite.machines.map((machine, index) => ({
+      id: `${machine.machineTypeId}-${index + 1}`,
+      machineTypeId: machine.machineTypeId,
+      position: { ...machine.position },
+      activity: { kind: "idle" },
+      task: undefined,
     })),
     cargo: catalogue.componentTypes.map((type) => ({
       componentId: type.id,
@@ -202,6 +223,12 @@ export function createCampaign(options: CampaignOptions): Campaign {
           activity: { ...robot.activity },
           carrying: copy(robot.carrying),
         })),
+        machines: state.machines.map((machine) => ({
+          id: machine.id,
+          machineTypeId: machine.machineTypeId,
+          position: { ...machine.position },
+          activity: { ...machine.activity },
+        })),
         cargo: copy(state.cargo),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
@@ -227,6 +254,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     catalogue.lunation,
   ).part;
   state.elapsedMinutes += 1;
+  workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {

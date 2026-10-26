@@ -86,6 +86,46 @@ describe("the data catalogue", () => {
     expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);
   });
 
+  it("describes Machines that a Robot can drive and activate", () => {
+    const { machineTypes } = catalogue;
+    expect(new Set(machineTypes.map((type) => type.id)).size).toBe(
+      machineTypes.length,
+    );
+
+    for (const type of machineTypes) {
+      expect(type.footprintRadiusMetres).toBeGreaterThan(0);
+      expect(type.drivingSpeedMetresPerHour).toBeGreaterThan(0);
+      expect(type.activationHours).toBeGreaterThan(0);
+      expect(Number.isInteger(type.activationHours * 60)).toBe(true);
+    }
+    expect(machineTypes.map((type) => type.id)).toContain(
+      catalogue.sitePreparationMachineTypeId,
+    );
+  });
+
+  it("lands the Machine that does Site Preparation, on the map and clear of the Lander", () => {
+    const { landerPosition, machines } = catalogue.landingSite;
+
+    expect(machines.map((machine) => machine.machineTypeId)).toContain(
+      catalogue.sitePreparationMachineTypeId,
+    );
+    for (const machine of machines) {
+      const type = catalogue.machineTypes.find(
+        (candidate) => candidate.id === machine.machineTypeId,
+      );
+      if (type === undefined) throw new Error("expected a known Machine");
+      expect(isOnMap(machine.position, type.footprintRadiusMetres)).toBe(true);
+      expect(
+        Math.hypot(
+          machine.position.x - landerPosition.x,
+          machine.position.y - landerPosition.y,
+        ),
+      ).toBeGreaterThan(
+        catalogue.lander.footprintRadiusMetres + type.footprintRadiusMetres,
+      );
+    }
+  });
+
   it("has Components with unique ids and labels", () => {
     const { componentTypes } = catalogue;
 

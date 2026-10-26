@@ -1,10 +1,11 @@
-import type { ComponentCount } from "../catalogue";
+import { catalogue, type ComponentCount } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
   componentsFor,
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
+import { machineOn, nearestFreeMachine } from "./machines";
 
 /**
  * A unit of the Robot's work on a Construction. A Robot claims one at a time
@@ -19,11 +20,17 @@ export type WorkOrderKind =
   "prepare-site" | "deliver-components" | "assemble" | "commission";
 
 /** Why nobody can work on a Construction for now. */
-export type ConstructionWait = {
-  readonly reason: "missing-components";
-  /** How many of each Component the cargo stock is short of. */
-  readonly missing: readonly ComponentCount[];
-};
+export type ConstructionWait =
+  | {
+      readonly reason: "missing-components";
+      /** How many of each Component the cargo stock is short of. */
+      readonly missing: readonly ComponentCount[];
+    }
+  | {
+      /** Every Machine that could do the stage is working on another Construction. */
+      readonly reason: "machine-busy";
+      readonly machineTypeId: string;
+    };
 
 /** The Robot's Work Order at each stage of Construction. */
 const workOrderKinds = {
@@ -38,6 +45,14 @@ export function findWaitingReason(
   state: CampaignState,
   construction: ConstructionState,
 ): ConstructionWait | undefined {
+  if (construction.stage === "site-preparation") {
+    const machineTypeId = catalogue.sitePreparationMachineTypeId;
+    return machineOn(state, construction.id) !== undefined ||
+      nearestFreeMachine(state, machineTypeId, construction.position) !==
+        undefined
+      ? undefined
+      : { reason: "machine-busy", machineTypeId };
+  }
   if (
     construction.stage !== "component-delivery" ||
     construction.componentsTaken
@@ -79,13 +94,27 @@ export function claimWorkOrder(
         (order) =>
           order.constructionId === construction.id && order.kind === kind,
       ) ||
-      findWaitingReason(state, construction) !== undefined
+      !canBeWorkedOn(state, construction)
     ) {
       continue;
     }
     return { constructionId: construction.id, kind };
   }
   return undefined;
+}
+
+/**
+ * Whether a Construction has work for a Robot now: it isn't waiting, and its
+ * site isn't being graded by a Machine that needs no Robot.
+ */
+function canBeWorkedOn(
+  state: CampaignState,
+  construction: ConstructionState,
+): boolean {
+  return (
+    findWaitingReason(state, construction) === undefined &&
+    machineOn(state, construction.id)?.task?.working !== true
+  );
 }
 
 /** Whether a claimed Work Order still has work left in it. */
@@ -95,6 +124,7 @@ export function isOpen(state: CampaignState, order: WorkOrder): boolean {
   );
   return (
     construction !== undefined &&
-    workOrderKinds[construction.stage] === order.kind
+    workOrderKinds[construction.stage] === order.kind &&
+    machineOn(state, construction.id)?.task?.working !== true
   );
 }
