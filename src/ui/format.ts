@@ -176,12 +176,11 @@ export function formatEvent(event: GameEvent): string {
 
 /**
  * Explains how the Mission Director died, for the game-over screen, for
- * example "The oxygen in the Habitat ran out on Earth Day 30 at 18:17, and
+ * example "The oxygen in the Habitat ran out on Earth Day 30, 18:17, and
  * the Mission Director died at once."
  */
 export function formatDeath(end: CampaignEnd): string {
-  const clock = readClock(end.atMinute);
-  return `The ${stockLabel(end.cause.stockId).toLowerCase()} in the Habitat ran out on Earth Day ${clock.earthDay} at ${twoDigits(clock.hour)}:${twoDigits(clock.minute)}, and the Mission Director died at once.`;
+  return `The ${stockLabel(end.cause.stockId).toLowerCase()} in the Habitat ran out on ${formatMoment(end.atMinute)}, and the Mission Director died at once.`;
 }
 
 const stageLabels: Record<ConstructionStage, string> = {

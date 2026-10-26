@@ -60,7 +60,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     await skip.click();
   }
   await expect(gameOver).toContainText(
-    /The oxygen in the Habitat ran out on Earth Day \d+ at \d{2}:\d{2}, and the Mission Director died at once\./,
+    /The oxygen in the Habitat ran out on Earth Day \d+, \d{2}:\d{2}, and the Mission Director died at once\./,
   );
   await expect(oxygen).toHaveText("Oxygen: 0.0 kg, ran out");
   const diedAt = await clock.textContent();
