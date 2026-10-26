@@ -1,6 +1,6 @@
 # Moon Base
 
-A browser-based 3D construction and management game about building a base at the lunar south pole, where nothing appears by magic. See [`GLOSSARY.md`](GLOSSARY.md) for the game's language and [`docs/adr/`](docs/adr/) for the design decisions.
+A browser-based 3D construction and management game about building a base at the lunar south pole, where nothing appears by magic. See the [spec](https://github.com/barnabyg/moonBase/issues/1) for what the game will be and its eight phases, [`GLOSSARY.md`](GLOSSARY.md) for the game's language and [`docs/adr/`](docs/adr/) for the design decisions.
 
 Desktop Firefox is the only supported browser.
 
