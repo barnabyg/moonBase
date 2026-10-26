@@ -24,7 +24,8 @@ export type PlacementRefusal =
   | "off-map"
   | "overlaps-lander"
   | "overlaps-structure"
-  | "overlaps-machine";
+  | "overlaps-machine"
+  | "campaign-ended";
 
 export type PlacementCheck =
   | { readonly ok: true }

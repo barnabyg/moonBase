@@ -28,7 +28,16 @@ import {
   type PlacementRefusal,
   type StructureState,
 } from "./construction";
-import type { GameEvent } from "./events";
+import type { DeathCause, GameEvent } from "./events";
+import {
+  forecastLifeSupport,
+  readLifeSupport,
+  startingLifeSupport,
+  useLifeSupport,
+  type LifeSupportForecast,
+  type LifeSupportSnapshot,
+  type LifeSupportState,
+} from "./life-support";
 import {
   moveMissionDirectorIn,
   type MissionDirectorResidence,
@@ -55,6 +64,9 @@ import { seedRandom, type RandomState } from "./random";
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
+
+/** Why every command is refused once the Campaign has ended. */
+const CAMPAIGN_OVER = "The Campaign is over: the Mission Director has died.";
 
 export interface CampaignOptions {
   /** A whole number from 0 to 2³² − 1. The same seed always plays out the same way. */
@@ -166,6 +178,14 @@ export interface PowerNetworkSnapshot {
 
 export interface Forecasts {
   readonly power: PowerForecast;
+  /** When each life support stock runs out, in catalogue order. */
+  readonly lifeSupport: readonly LifeSupportForecast[];
+}
+
+/** The Mission Director's death, which ends the Campaign. */
+export interface CampaignEnd {
+  readonly atMinute: number;
+  readonly cause: DeathCause;
 }
 
 export interface PowerForecast {
@@ -192,6 +212,13 @@ export interface Snapshot {
   readonly lander: LanderSnapshot;
   /** Where the Mission Director lives. They are never shown on screen. */
   readonly missionDirector: MissionDirectorResidence;
+  /** The Mission Director's stocks of oxygen and water, in catalogue order. */
+  readonly lifeSupport: readonly LifeSupportSnapshot[];
+  /**
+   * How the Campaign ended, or undefined while it goes on. Once it has
+   * ended, the simulation no longer advances and every command is refused.
+   */
+  readonly ended: CampaignEnd | undefined;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
   /** The Components in the Lander's cargo stock, in catalogue order. */
@@ -216,12 +243,16 @@ export type PlanResult =
 export interface Campaign {
   /**
    * Runs the simulation forward by a whole number of game-minutes, one
-   * 1-game-minute tick at a time, whatever the game speed.
+   * 1-game-minute tick at a time, whatever the game speed, and returns the
+   * events that happened, in order. Once the Campaign has ended, it no
+   * longer advances.
    */
-  advance(gameMinutes: number): void;
+  advance(gameMinutes: number): readonly GameEvent[];
   /**
    * Runs the simulation forward until the next notable event, such as Night
-   * starting, and returns the events that happened on that game-minute.
+   * starting or a life support warning, and returns the events that
+   * happened on that game-minute. Once the Campaign has ended, it no longer
+   * advances and returns none.
    */
   advanceToNextEvent(): readonly GameEvent[];
   /** Says whether a Structure could be planned there, without planning it. */
@@ -261,6 +292,8 @@ export interface CampaignState {
   nextPlanNumber: number;
   lander: { position: GroundPosition };
   missionDirector: MissionDirectorResidence;
+  lifeSupport: LifeSupportState[];
+  ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
   cargo: { componentId: string; count: number }[];
@@ -281,6 +314,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     nextPlanNumber: 1,
     lander: { position: { ...landingSite.landerPosition } },
     missionDirector: { residence: "lander" },
+    lifeSupport: startingLifeSupport(),
+    ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
       position: { ...position },
@@ -315,24 +350,30 @@ export function createCampaign(options: CampaignOptions): Campaign {
           `Can only advance by a whole, non-negative number of game-minutes, not ${gameMinutes}.`,
         );
       }
-      for (let tick = 0; tick < gameMinutes; tick++) {
-        advanceOneTick(state);
+      const events: GameEvent[] = [];
+      for (
+        let tick = 0;
+        tick < gameMinutes && state.ended === undefined;
+        tick++
+      ) {
+        events.push(...advanceOneTick(state));
       }
+      return deepFreeze(events);
     },
     advanceToNextEvent() {
       // Daylight or Night always starts within one Lunation, so this ends.
       const { lunation } = lunationMinutes(catalogue.lunation);
-      for (let tick = 0; tick < lunation; tick++) {
+      for (let tick = 0; tick < lunation && state.ended === undefined; tick++) {
         const events = advanceOneTick(state);
         if (events.length > 0) return deepFreeze(events);
       }
       return [];
     },
     checkPlacement(plan) {
-      return deepFreeze(checkPlacement(state, plan));
+      return deepFreeze(checkCampaignPlacement(state, plan));
     },
     planConstruction(plan) {
-      const check = checkPlacement(state, plan);
+      const check = checkCampaignPlacement(state, plan);
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
       state.nextStructureNumber += 1;
@@ -351,12 +392,25 @@ export function createCampaign(options: CampaignOptions): Campaign {
       return deepFreeze({ ok: true, constructionId: id });
     },
     cancelConstruction(constructionId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({ ok: false, message: CAMPAIGN_OVER });
+      }
       return deepFreeze(cancelConstruction(state, constructionId));
     },
     dismantleStructure(structureId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({ ok: false, message: CAMPAIGN_OVER });
+      }
       return deepFreeze(dismantleStructure(state, structureId));
     },
     moveMissionDirectorIn(habitatId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
       return deepFreeze(moveMissionDirectorIn(state, habitatId));
     },
     forecasts() {
@@ -379,6 +433,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
             minutesUntilEmpty,
           })),
         },
+        lifeSupport: forecastLifeSupport(state),
       });
     },
     snapshot() {
@@ -395,6 +450,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
           position: { ...state.lander.position },
         },
         missionDirector: copy(state.missionDirector),
+        lifeSupport: readLifeSupport(state),
+        ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
           position: { ...robot.position },
@@ -478,7 +535,20 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
+  // Last, so that the Mission Director's death ends the game-minute.
+  events.push(...useLifeSupport(state));
   return events;
+}
+
+/** Checks a placement, which is always refused once the Campaign has ended. */
+function checkCampaignPlacement(
+  state: CampaignState,
+  plan: ConstructionPlan,
+): PlacementCheck {
+  if (state.ended !== undefined) {
+    return { ok: false, reason: "campaign-ended", message: CAMPAIGN_OVER };
+  }
+  return checkPlacement(state, plan);
 }
 
 function stageProgress(construction: ConstructionState): number {

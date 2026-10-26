@@ -1,4 +1,11 @@
 import { catalogue } from "../catalogue";
+import {
+  readClock,
+  type CampaignEnd,
+  type GameEvent,
+  type LifeSupportForecast,
+  type LifeSupportSnapshot,
+} from "../simulation";
 import type {
   ClockSnapshot,
   GroundPosition,
@@ -27,6 +34,12 @@ const twoDigits = (value: number): string => String(value).padStart(2, "0");
  */
 export function formatClock(clock: ClockSnapshot): string {
   return `Earth Day ${clock.earthDay}, ${twoDigits(clock.hour)}:00`;
+}
+
+/** Formats a moment in the Campaign to the minute, for example "Earth Day 23, 05:17". */
+export function formatMoment(atMinute: number): string {
+  const clock = readClock(atMinute);
+  return `Earth Day ${clock.earthDay}, ${twoDigits(clock.hour)}:${twoDigits(clock.minute)}`;
 }
 
 const plural = (count: number, unit: string): string =>
@@ -115,6 +128,59 @@ export function formatLander(lander: LanderSnapshot): string {
   return lander.state === "landed-occupied"
     ? "Lander: landed, with the Mission Director aboard"
     : "Lander: landed, free to fly";
+}
+
+export function stockLabel(stockId: string): string {
+  return (
+    catalogue.lifeSupportStocks.find((stock) => stock.id === stockId)?.label ??
+    stockId
+  );
+}
+
+/**
+ * Says how much of a life support stock is left and when it will run out,
+ * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours".
+ */
+export function formatLifeSupport(
+  stock: LifeSupportSnapshot,
+  forecast: LifeSupportForecast | undefined,
+  missionDirector: MissionDirectorResidence,
+): string {
+  const amount = `${stockLabel(stock.stockId)}: ${stock.kilograms.toFixed(1)} kg`;
+  if (stock.kilograms === 0) return `${amount}, ran out`;
+  if (forecast?.minutesUntilEmpty !== undefined) {
+    return `${amount}, runs out in ${formatDuration(forecast.minutesUntilEmpty)}`;
+  }
+  return missionDirector.residence === "lander"
+    ? `${amount}, kept safe aboard the Lander`
+    : amount;
+}
+
+/** Says what happened in an event, for the notification list, for example "Night has fallen". */
+export function formatEvent(event: GameEvent): string {
+  switch (event.kind) {
+    case "night-started":
+      return "Night has fallen";
+    case "daylight-started":
+      return "Daylight has come";
+    case "construction-completed":
+      return `${structureLabel(event.structureTypeId)} commissioned`;
+    case "structure-dismantled":
+      return `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`;
+    case "life-support-warning":
+      return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
+    case "mission-director-died":
+      return `The Mission Director has died: the ${stockLabel(event.cause.stockId).toLowerCase()} ran out`;
+  }
+}
+
+/**
+ * Explains how the Mission Director died, for the game-over screen, for
+ * example "The oxygen in the Habitat ran out on Earth Day 30, 18:17, and
+ * the Mission Director died at once."
+ */
+export function formatDeath(end: CampaignEnd): string {
+  return `The ${stockLabel(end.cause.stockId).toLowerCase()} in the Habitat ran out on ${formatMoment(end.atMinute)}, and the Mission Director died at once.`;
 }
 
 const stageLabels: Record<ConstructionStage, string> = {

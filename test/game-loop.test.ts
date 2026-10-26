@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { createGameLoop } from "../src/game/loop";
+import type { GameEvent } from "../src/simulation";
 import { scenario } from "./scenario";
 
 function runFrames(
@@ -119,5 +120,29 @@ describe("the game loop", () => {
 
     expect(loop.previous).toBeUndefined();
     expect(loop.tickProgress).toBe(0);
+  });
+
+  it("passes on every event as it happens, whether time runs or the player skips, without pausing", () => {
+    const game = scenario();
+    const heard: GameEvent[] = [];
+    const loop = createGameLoop(game.campaign, {
+      onEvents: (events) => heard.push(...events),
+    });
+    loop.setSpeed("20x");
+    const nightFalls =
+      catalogue.lunation.initialDaylightRemainingEarthDays * 24 * 60;
+
+    // 20x is 120 game-minutes a second, so a 250 ms frame is 30 game-minutes.
+    runFrames(loop, nightFalls / 30 + 1, 250);
+
+    expect(heard).toEqual([{ kind: "night-started", atMinute: nightFalls }]);
+    expect(loop.speed.id).toBe("20x");
+
+    loop.skipToNextEvent();
+
+    expect(heard.map((event) => event.kind)).toEqual([
+      "night-started",
+      "daylight-started",
+    ]);
   });
 });

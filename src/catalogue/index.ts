@@ -5,6 +5,7 @@ export type {
   ComponentType,
   GameSpeed,
   GroundPosition,
+  LifeSupportStock,
   LunationSchedule,
   MachineType,
   MapSize,
