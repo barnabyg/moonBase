@@ -112,7 +112,15 @@ export function createConstructionViews(scene: THREE.Scene) {
         for (const crate of view.crates) crate.visible = false;
         view.model.group.visible = true;
         view.model.setAssembled(1);
-        view.model.setStatusLight(structure.powered ? "on" : "off");
+        // A Plant has power only while it runs, so its light shows it is
+        // commissioned and in working order.
+        view.model.setStatusLight(
+          structure.powered ||
+            (structure.plant !== undefined && structure.conditionPercent > 0)
+            ? "on"
+            : "off",
+        );
+        view.model.setRunning?.(structure.plant?.running === true, realSeconds);
         showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(
           view.storageKilowattHours === 0
@@ -186,6 +194,7 @@ function showDismantling(
   view.model.group.visible = takingApart;
   view.model.setAssembled(takingApart ? 1 - progress : 0);
   view.model.setStatusLight("off");
+  view.model.setRunning?.(false, 0);
   showLit(view, false);
   const cratesHere = dismantling.collected
     ? 0

@@ -390,6 +390,39 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 16 to 17: the extraction plant, a Structure that runs a recipe, with
+  // two new Components, which the base's stock keeps a count of after the
+  // others, and metals and silicon, which join Regolith among the bulk
+  // resources. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "extraction-reactor", count: 0 },
+                  { componentId: "oxygen-separator", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? [
+              ...(bulkResources as unknown[]),
+              { resourceId: "metals", kilograms: 0 },
+              { resourceId: "silicon", kilograms: 0 },
+            ]
+          : bulkResources,
+      },
+    };
+  },
 ];
 
 /**

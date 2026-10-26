@@ -43,6 +43,7 @@ export type { LoadRefusal } from "./save";
 export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
 export type { UnloadingSnapshot } from "./unloading";
 export type { ParkingSnapshot } from "./parking";
+export type { PlantSnapshot, PlantStop } from "./plants";
 export type { SelfRepairSnapshot } from "./self-repair";
 export type { StrikeTarget } from "./micrometeorites";
 export type { SpareComponentsForecast } from "./spare-forecast";

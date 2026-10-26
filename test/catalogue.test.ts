@@ -563,6 +563,88 @@ describe("the data catalogue", () => {
     );
   });
 
+  it("has an extraction plant that turns Regolith into oxygen, metals and silicon", () => {
+    const plant = catalogue.structureTypes.find(
+      (type) => type.id === "extraction-plant",
+    )?.plant;
+
+    expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+      { kind: "bulk-resource", resourceId: "regolith" },
+    ]);
+    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      { kind: "life-support", stockId: "oxygen" },
+      { kind: "bulk-resource", resourceId: "metals" },
+      { kind: "bulk-resource", resourceId: "silicon" },
+    ]);
+  });
+
+  describe.each(
+    catalogue.structureTypes.flatMap((type) =>
+      type.plant === undefined ? [] : [[type.label, type] as const],
+    ),
+  )("the Plant %s", (_, type) => {
+    const plant = type.plant;
+
+    it("has a recipe of known resources, at positive rates, putting out less than it takes in", () => {
+      if (plant === undefined) throw new Error("expected a Plant");
+      const known = (flow: (typeof plant.inputs)[number]) =>
+        flow.resource.kind === "bulk-resource"
+          ? catalogue.bulkResources.some(
+              (resource) =>
+                flow.resource.kind === "bulk-resource" &&
+                resource.id === flow.resource.resourceId,
+            )
+          : catalogue.lifeSupportStocks.some(
+              (stock) =>
+                flow.resource.kind === "life-support" &&
+                stock.id === flow.resource.stockId,
+            );
+      expect(plant.inputs.length).toBeGreaterThan(0);
+      expect(plant.outputs.length).toBeGreaterThan(0);
+      for (const flow of [...plant.inputs, ...plant.outputs]) {
+        expect(known(flow)).toBe(true);
+        expect(flow.kilogramsPerHour).toBeGreaterThan(0);
+      }
+      const total = (flows: typeof plant.inputs) =>
+        flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
+      expect(total(plant.outputs)).toBeLessThanOrEqual(total(plant.inputs));
+    });
+
+    it("draws power only while it runs, and wears down by Dust while it operates", () => {
+      expect(plant?.drawKilowatts).toBeGreaterThan(0);
+      expect(type.power).toEqual({
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      });
+      expect(type.dustWearPercentPerHour).toBeGreaterThan(0);
+    });
+
+    it("is built from Components a Launch can bring, a full set within one Launch's Payload Mass, that the starting stock doesn't hold", () => {
+      expect(type.components.length).toBeGreaterThan(0);
+      let mass = 0;
+      for (const need of type.components) {
+        const item = catalogue.launch.items.find(
+          (candidate) =>
+            candidate.brings.kind === "component" &&
+            candidate.brings.componentId === need.componentId,
+        );
+        expect(item).toBeDefined();
+        mass += (item?.massKilograms ?? Infinity) * need.count;
+        expect(
+          catalogue.startingStock.some(
+            (stock) => stock.componentId === need.componentId,
+          ),
+        ).toBe(false);
+      }
+      expect(mass).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
+      expect(type.stageMachines.sitePreparation).toBeDefined();
+    });
+  });
+
   it("has a Habitat the Mission Director can move into", () => {
     expect(
       catalogue.structureTypes

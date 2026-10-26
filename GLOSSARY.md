@@ -79,8 +79,12 @@ _Avoid_: shipping cost, flight cost
 ## Construction
 
 **Structure**:
-Anything built in place on the base, such as a habitat module, a solar array or a landing pad.
+Anything built in place on the base, such as a habitat module, a solar array or a landing pad. One that runs a recipe is a **Plant**.
 _Avoid_: building, facility
+
+**Plant**:
+A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design.
+_Avoid_: factory, facility, Machine
 
 **Construction**:
 The process that turns a planned Structure into a working one through four stages: Site Preparation, Component delivery, Assembly and Commissioning.
@@ -117,7 +121,7 @@ An autonomous humanoid worker that carries out Work Orders by walking to Machine
 _Avoid_: drone, bot, unit, android
 
 **Machine**:
-A piece of automated equipment that carries out a process, such as printing a Structure from Regolith, once a Robot has positioned and activated it.
+A piece of automated equipment that carries out a process, such as printing a Structure from Regolith, once a Robot has positioned and activated it. Equipment built in place that runs by itself is a **Plant**, not a Machine.
 _Avoid_: device, equipment, building
 
 **Rover**:

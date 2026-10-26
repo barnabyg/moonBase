@@ -1,4 +1,4 @@
-import { catalogue, type LaunchItem } from "../catalogue";
+import { catalogue, type LaunchItem, type ResourceRef } from "../catalogue";
 import {
   readClock,
   type CampaignEnd,
@@ -39,6 +39,7 @@ import type {
   MaintenanceWait,
   ManifestLine,
   ParkingSnapshot,
+  PlantSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -199,7 +200,9 @@ export function stockLabel(stockId: string): string {
 
 /**
  * Says how much of a life support stock is left and when it will run out,
- * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours".
+ * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours", or how
+ * fast it is rising while the base's Plants make more than is used, for
+ * example "Oxygen: 24.2 kg, rising 2.8 kg an Earth Day".
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
@@ -207,6 +210,9 @@ export function formatLifeSupport(
   missionDirector: MissionDirectorResidence,
 ): string {
   const amount = `${stockLabel(stock.stockId)}: ${stock.kilograms.toFixed(1)} kg`;
+  if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
+    return `${amount}, rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg an Earth Day`;
+  }
   if (stock.kilograms === 0) return `${amount}, ran out`;
   if (forecast?.minutesUntilEmpty !== undefined) {
     return `${amount}, runs out in ${formatDuration(forecast.minutesUntilEmpty)}`;
@@ -443,6 +449,31 @@ export function formatMillionDollars(value: number): string {
 export function formatStock(stockpile: Snapshot["stockpile"]): string {
   const held = stockpile.components.filter((stock) => stock.count > 0);
   return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
+}
+
+/** Names a bulk resource or life support stock, for example "Regolith" or "Oxygen". */
+export function resourceRefLabel(resource: ResourceRef): string {
+  return resource.kind === "bulk-resource"
+    ? resourceLabel(resource.resourceId)
+    : stockLabel(resource.stockId);
+}
+
+/**
+ * Says whether a Plant is running, and why not, for its line in the status
+ * panel, for example ", running" or ", stopped: out of Regolith"; nothing
+ * once it is Broken, which the line says already.
+ */
+export function formatPlant(plant: PlantSnapshot): string {
+  switch (plant.stoppedFor?.reason) {
+    case undefined:
+      return ", running";
+    case "broken":
+      return "";
+    case "no-input":
+      return `, stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
+    case "no-power":
+      return ", stopped: no power to spare";
+  }
 }
 
 export function resourceLabel(resourceId: string): string {

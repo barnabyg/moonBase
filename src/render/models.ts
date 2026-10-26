@@ -475,6 +475,8 @@ export interface StructureModel {
   setCharge(fraction: number): void;
   /** Switches any light on or off. */
   setLit(on: boolean): void;
+  /** Shows a Plant at work, or standing still; nothing for anything else. */
+  setRunning?(running: boolean, realSeconds: number): void;
 }
 
 /** The model for a type of Structure from the data catalogue. */
@@ -486,6 +488,11 @@ export function createStructureModel(structureTypeId: string): StructureModel {
     return createRegolithShieldingModel();
   }
   if (structureTypeId === "landing-pad") return createLandingPadModel();
+  if (structureTypeId === "water-processing-plant") {
+    return createPlantModel("tank");
+  }
+  if (structureTypeId === "extraction-plant")
+    return createPlantModel("reactor");
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -1325,4 +1332,98 @@ export function createRoverModel(): RoverModel {
     ),
   );
   return { group: rover };
+}
+
+/** How fast a running Plant's cooling fan turns, in turns per real second. */
+const PLANT_FAN_TURNS_PER_SECOND = 1.5;
+
+/**
+ * A Plant: a vessel on a plinth, with the plant that feeds and empties it
+ * beside it, and a cooling fan on top that turns while it runs, when the
+ * vessel glows. A reactor is tall and narrow, a tank squat and wide. During
+ * Assembly the plinth goes down, then the vessel rises.
+ */
+function createPlantModel(vessel: "reactor" | "tank"): StructureModel {
+  const plant = new THREE.Group();
+  plant.name = vessel === "reactor" ? "Extraction plant" : "Water plant";
+  const statusLightMaterial = materials.statusOff.clone();
+  const glow = materials.statusOff.clone();
+  plant.add(
+    part(
+      new THREE.BoxGeometry(4, 0.25, 3.2),
+      materials.darkMetal,
+      [0, 0.12, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.08, 8, 6),
+      statusLightMaterial,
+      [1.8, 0.3, 1.5],
+    ),
+  );
+  const upper = new THREE.Group();
+  const [radius, height] = vessel === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
+  upper.add(
+    part(
+      new THREE.CylinderGeometry(radius, radius, height, 16),
+      vessel === "reactor" ? materials.foil : materials.hull,
+      [-0.7, 0.25 + height / 2, 0],
+    ),
+    // A band round the vessel that glows while it works.
+    part(
+      new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+      glow,
+      [-0.7, 0.25 + height * 0.6, 0],
+    ),
+    part(
+      new THREE.BoxGeometry(1.4, 1.4, 1.8),
+      materials.machinePaint,
+      [1.1, 0.95, 0],
+    ),
+    part(
+      new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8),
+      materials.darkMetal,
+      [0.3, 1.2, 0.6],
+    ),
+  );
+  const fan = new THREE.Group();
+  fan.position.set(1.1, 1.75, 0);
+  for (const angle of [0, Math.PI / 2]) {
+    const blade = part(
+      new THREE.BoxGeometry(1.1, 0.04, 0.16),
+      materials.hull,
+      [0, 0, 0],
+    );
+    blade.rotation.y = angle;
+    fan.add(blade);
+  }
+  upper.add(fan);
+  plant.add(upper);
+  return {
+    group: plant,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      upper.visible = f > 0;
+      upper.scale.y = Math.max(f, 0.01);
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
+    setRunning(running, realSeconds) {
+      if (running) {
+        fan.rotation.y = realSeconds * PLANT_FAN_TURNS_PER_SECOND * Math.PI * 2;
+      }
+      const source = running ? materials.statusTesting : materials.statusOff;
+      glow.color.copy(source.color);
+      glow.emissive.copy(source.emissive);
+    },
+  };
 }

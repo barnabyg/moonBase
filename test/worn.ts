@@ -13,6 +13,8 @@ export interface SavedState {
   rovers: { id: string; conditionPercent: number }[];
   robots: { id: string; conditionPercent: number }[];
   stockpile: { components: { componentId: string; count: number }[] };
+  bulkResources: { resourceId: string; kilograms: number }[];
+  lifeSupport: { stockId: string; kilograms: number }[];
 }
 
 /**

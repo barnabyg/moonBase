@@ -28,6 +28,7 @@ import {
   formatSpareComponents,
   formatMissionDirector,
   formatPerformance,
+  formatPlant,
   formatPower,
   formatRadiationDose,
   formatSolarParticleEvent,
@@ -455,7 +456,7 @@ export function createStatusPanel(
           : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.plant === undefined ? (structure.powered || broken ? "" : ", no power") : formatPlant(structure.plant)}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =

@@ -88,6 +88,7 @@ import {
 } from "./machines";
 import {
   consumptionKilowatts,
+  plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
   powerNetworks,
@@ -116,6 +117,7 @@ import {
   type ParkingSnapshot,
   type ParkingState,
 } from "./parking";
+import { isPlant, readPlant, runPlants, type PlantSnapshot } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -303,6 +305,12 @@ export interface StructureSnapshot {
    * output; always 0% for any other Structure.
    */
   readonly dustCoatingPercent: number;
+  /**
+   * Whether it is running its recipe, and why not, if it is a Plant;
+   * undefined for any other Structure. A Plant has power only while it
+   * runs.
+   */
+  readonly plant: PlantSnapshot | undefined;
 }
 
 /**
@@ -348,11 +356,18 @@ export interface PowerNetworkSnapshot {
    * Dust coating allow: none at Night.
    */
   readonly generationKilowatts: number;
-  /** The power its Structures draw now, including any lights at Night. */
+  /**
+   * The power its Structures draw now, including any lights at Night, and
+   * any Plants that ran during the latest game-minute.
+   */
   readonly consumptionKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
-  /** Whether it covered what its Structures draw during the latest game-minute. */
+  /**
+   * Whether it covered what its Structures draw during the latest
+   * game-minute, leaving out its Plants, which only run on power to spare.
+   */
+
   readonly powered: boolean;
 }
 
@@ -831,6 +846,7 @@ function campaignFrom(state: CampaignState): Campaign {
             ...copy(structure),
             shielded: isShielded(state, structure),
             performance,
+            plant: readPlant(state, structure),
             lightRadiusMetres:
               (findStructureType(structure.structureTypeId)
                 ?.lightRadiusMetres ?? 0) * performance,
@@ -862,13 +878,14 @@ function campaignFrom(state: CampaignState): Campaign {
               lunation.part === "daylight"
                 ? network.daylightGenerationKilowatts
                 : 0,
-            consumptionKilowatts: consumptionKilowatts(
-              network,
-              lunation.part === "daylight",
-            ),
+            consumptionKilowatts:
+              consumptionKilowatts(network, lunation.part === "daylight") +
+              plantConsumptionKilowatts(network),
             storedKilowattHours: network.storedKilowattHours,
             storageCapacityKilowattHours: network.storageCapacityKilowattHours,
-            powered: network.structures.every((structure) => structure.powered),
+            powered: network.structures
+              .filter((structure) => !isPlant(structure))
+              .every((structure) => structure.powered),
           })),
         },
         maintenance: readMaintenance(state),
@@ -913,6 +930,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
+  runPlants(state);
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({

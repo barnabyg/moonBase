@@ -432,10 +432,11 @@ describe("the sample saves from before Maintenance", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.at(-1)).toEqual({
-        componentId: "spare-component",
-        count: 6,
-      });
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === "spare-component",
+        ),
+      ).toEqual({ componentId: "spare-component", count: 6 });
       expect(state.maintenance).toEqual([]);
     },
   );
@@ -489,10 +490,11 @@ describe("the sample save of format version 8", () => {
       },
       carrying: [{ componentId: "spare-component", count: 2 }],
     });
-    expect(state.stockpile.components.at(-1)).toEqual({
-      componentId: "spare-component",
-      count: 4,
-    });
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "spare-component",
+      ),
+    ).toEqual({ componentId: "spare-component", count: 4 });
   });
 
   it("plays on from where it was saved, until the solar array is back to 100%", () => {
@@ -846,9 +848,12 @@ describe("the sample saves from before bulk resources", () => {
   ])("%s loads with no Regolith, and no Machine digging", (name) => {
     const state = loadSample(name).snapshot();
 
-    expect(state.bulkResources).toEqual([
-      { resourceId: "regolith", kilograms: 0 },
-    ]);
+    expect(state.bulkResources).toEqual(
+      catalogue.bulkResources.map((resource) => ({
+        resourceId: resource.id,
+        kilograms: 0,
+      })),
+    );
     expect(
       state.machines.filter((machine) => machine.activity.kind === "digging"),
     ).toEqual([]);
@@ -955,6 +960,68 @@ describe("the sample save of format version 16", () => {
       activity: { kind: "idle" },
       pluggedIn: true,
       powered: true,
+    });
+  });
+});
+
+describe("the sample saves from before Plants", () => {
+  it.each(["version-1.moonbase", "version-14.moonbase", "version-16.moonbase"])(
+    "%s loads with no metals or silicon, and none of the extraction plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(
+        state.bulkResources
+          .filter((stock) => stock.resourceId !== "regolith")
+          .map((stock) => stock.kilograms),
+      ).toEqual([0, 0]);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["extraction-reactor", "oxygen-separator"].includes(
+            stock.componentId,
+          ),
+        ),
+      ).toEqual([
+        { componentId: "extraction-reactor", count: 0 },
+        { componentId: "oxygen-separator", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 17", () => {
+  const plantOf = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+
+  it("loads with the extraction plant turning Regolith into oxygen, metals and silicon", () => {
+    const campaign = loadSample("version-17.moonbase");
+
+    expect(plantOf(campaign)?.plant).toEqual({
+      running: true,
+      stoppedFor: undefined,
+    });
+    expect(campaign.snapshot().bulkResources.map((s) => s.kilograms)).toEqual([
+      expect.closeTo(462.3, 1),
+      expect.closeTo(6.03, 1),
+      expect.closeTo(4.02, 1),
+    ]);
+  });
+
+  it("plays on from where it was saved, the plant making oxygen until Night stops it", () => {
+    const campaign = loadSample("version-17.moonbase");
+    const oxygen = () => campaign.snapshot().lifeSupport[0]?.kilograms ?? 0;
+    const before = oxygen();
+
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
+
+    expect(oxygen()).toBeGreaterThan(before);
+    expect(plantOf(campaign)?.plant).toEqual({
+      running: false,
+      stoppedFor: { reason: "no-power" },
     });
   });
 });

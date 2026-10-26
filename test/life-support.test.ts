@@ -83,8 +83,16 @@ describe("oxygen and water aboard the Lander", () => {
     ]);
     expect(game.state.ended).toBeUndefined();
     expect(game.campaign.forecasts().lifeSupport).toEqual([
-      { stockId: "oxygen", minutesUntilEmpty: undefined },
-      { stockId: "water", minutesUntilEmpty: undefined },
+      {
+        stockId: "oxygen",
+        kilogramsPerEarthDay: 0,
+        minutesUntilEmpty: undefined,
+      },
+      {
+        stockId: "water",
+        kilogramsPerEarthDay: 0,
+        minutesUntilEmpty: undefined,
+      },
     ]);
   });
 });
@@ -159,8 +167,16 @@ describe("running out of oxygen", () => {
 
     expect(events.at(-1)?.kind).toBe("mission-director-died");
     expect(game.campaign.forecasts().lifeSupport).toEqual([
-      { stockId: "oxygen", minutesUntilEmpty: undefined },
-      { stockId: "water", minutesUntilEmpty: undefined },
+      {
+        stockId: "oxygen",
+        kilogramsPerEarthDay: 0,
+        minutesUntilEmpty: undefined,
+      },
+      {
+        stockId: "water",
+        kilogramsPerEarthDay: 0,
+        minutesUntilEmpty: undefined,
+      },
     ]);
   });
 

@@ -24,6 +24,7 @@ import {
 } from "./driven";
 import { lunationMinutes, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
+import { isPlant, plantDrawKilowatts, recipeOf, wantsToRun } from "./plants";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
@@ -329,14 +330,31 @@ export function hasPowerSource(
 
 /**
  * Whether a type of Structure has anything to do with power: it generates,
- * stores or draws some. One that doesn't, such as Regolith shielding, is
- * never cabled.
+ * stores or draws some, if only while it runs, as a Plant does. One that
+ * doesn't, such as Regolith shielding, is never cabled.
  */
 export function usesPower(structureTypeId: string): boolean {
-  return Object.values(powerOf(structureTypeId)).some((value) => value > 0);
+  return (
+    Object.values(powerOf(structureTypeId)).some((value) => value > 0) ||
+    (recipeOf(structureTypeId)?.drawKilowatts ?? 0) > 0
+  );
 }
 
-/** What a network's Structures draw in the given part of the Lunation. */
+/**
+ * What a network's Plants drew during the latest game-minute: those that
+ * ran. They only ever run on power nothing else uses and no battery bank
+ * can store, so no forecast counts them.
+ */
+export function plantConsumptionKilowatts(network: PowerNetwork): number {
+  return network.structures
+    .filter((structure) => isPlant(structure) && structure.powered)
+    .reduce((sum, structure) => sum + plantDrawKilowatts(structure), 0);
+}
+
+/**
+ * What a network's Structures draw in the given part of the Lunation, apart
+ * from its Plants.
+ */
 export function consumptionKilowatts(
   network: PowerNetwork,
   daylight: boolean,
@@ -361,13 +379,21 @@ export function consumptionKilowatts(
  * network come after all its Structures, Machines first, each in their
  * order; each has power while it is plugged in and, at Night, while any
  * energy is left for its heater when its turn comes. Any other has none.
+ * Plants come last of all, in the order they were commissioned: each that
+ * wants to run has power only if what is left over, beyond what the
+ * network's battery banks can store, covers all it draws in the
+ * game-minute, so that no Plant ever takes power from anything else.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const driven of everyDriven(state)) bodyOf(driven).powered = false;
   for (const network of powerNetworks(state)) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
     let left = network.storedKilowattHours + generated / 60;
-    for (const structure of supplyOrder(state, network.structures)) {
+    const plants = network.structures.filter(isPlant);
+    for (const structure of supplyOrder(
+      state,
+      network.structures.filter((structure) => !isPlant(structure)),
+    )) {
       const drawn = drawKilowatts(structure, daylight) / 60;
       structure.powered =
         !isBroken(structure) &&
@@ -384,6 +410,14 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       if (body.powered) left = Math.max(left - drawn, 0);
     }
     const stored = Math.min(left, network.storageCapacityKilowattHours);
+    let spare = left - stored;
+    for (const plant of plants) {
+      const drawn = plantDrawKilowatts(plant) / 60;
+      plant.powered =
+        wantsToRun(state, plant) && spare >= drawn - ENERGY_TOLERANCE_KWH;
+      if (plant.powered) spare = Math.max(spare - drawn, 0);
+    }
+
     for (const structure of network.structures) {
       structure.lit =
         !daylight &&

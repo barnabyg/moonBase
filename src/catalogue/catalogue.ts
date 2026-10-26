@@ -540,7 +540,36 @@ export interface StructureType {
    * Robot carries its cargo from it to the stockpile.
    */
   readonly landingPad: boolean;
+  /**
+   * The recipe it runs if it is a Plant: a Structure that turns resources
+   * into products once it is commissioned.
+   */
+  readonly plant?: PlantRecipe;
 }
+
+/**
+ * What a Plant takes in and puts out for each game-hour it runs at full
+ * performance, and the power it draws while it runs. It runs only while it
+ * has some of every input, isn't Broken and has power; on its network it
+ * is supplied last, only from power that nothing else uses and no battery
+ * bank can store, so it never takes power from anything else.
+ */
+export interface PlantRecipe {
+  readonly inputs: readonly ResourceFlow[];
+  readonly outputs: readonly ResourceFlow[];
+  readonly drawKilowatts: number;
+}
+
+/** A Plant's use or making of a resource, in kilograms for each game-hour it runs. */
+export interface ResourceFlow {
+  readonly resource: ResourceRef;
+  readonly kilogramsPerHour: number;
+}
+
+/** A bulk resource, or a life support stock such as oxygen. */
+export type ResourceRef =
+  | { readonly kind: "bulk-resource"; readonly resourceId: string }
+  | { readonly kind: "life-support"; readonly stockId: string };
 
 export interface GameSpeed {
   readonly id: string;
@@ -549,7 +578,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 25,
+  version: 26,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -633,7 +662,11 @@ export const catalogue: Catalogue = {
     heaterKilowatts: 0.2,
     coldWearPercentPerNightHour: 0.2,
   },
-  bulkResources: [{ id: "regolith", label: "Regolith" }],
+  bulkResources: [
+    { id: "regolith", label: "Regolith" },
+    { id: "metals", label: "Metals" },
+    { id: "silicon", label: "Silicon" },
+  ],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.
   digging: {
@@ -655,6 +688,8 @@ export const catalogue: Catalogue = {
     { id: "pad-panel", label: "Pad panel" },
     { id: "pad-beacon", label: "Pad beacon" },
     { id: "spare-component", label: "Spare Component" },
+    { id: "extraction-reactor", label: "Extraction reactor" },
+    { id: "oxygen-separator", label: "Oxygen separator" },
   ],
   structureTypes: [
     {
@@ -840,6 +875,64 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: true,
     },
+    {
+      id: "extraction-plant",
+      label: "Extraction plant",
+      footprintRadiusMetres: 3,
+      // A reactor that melts Regolith and splits it by electrolysis, and
+      // the plant that draws the oxygen off.
+      components: [
+        { componentId: "extraction-reactor", count: 1 },
+        { componentId: "oxygen-separator", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 3,
+        componentDelivery: 1,
+        assembly: 6,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Regolith is fed through it, so it wears faster than most.
+      dustWearPercentPerHour: 0.05,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // A few percent of the Regolith comes out as oxygen, about four
+      // times what the Mission Director breathes while it runs, and much of
+      // the rest as metals and silicon; what is left is slag.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "regolith" },
+            kilogramsPerHour: 4,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "life-support", stockId: "oxygen" },
+            kilogramsPerHour: 0.15,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.6,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 0.4,
+          },
+        ],
+        drawKilowatts: 4,
+      },
+    },
   ],
   dismantlingLossShare: 0.2,
   startingStock: [
@@ -981,6 +1074,19 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "spare-component" },
         massKilograms: 20,
         priceMillionDollars: 1,
+      },
+      // An extraction plant's worth comes to 1000 kg.
+      {
+        id: "extraction-reactor",
+        brings: { kind: "component", componentId: "extraction-reactor" },
+        massKilograms: 700,
+        priceMillionDollars: 45,
+      },
+      {
+        id: "oxygen-separator",
+        brings: { kind: "component", componentId: "oxygen-separator" },
+        massKilograms: 300,
+        priceMillionDollars: 30,
       },
       // In pressurised tanks, which make up the rest of the mass.
       {

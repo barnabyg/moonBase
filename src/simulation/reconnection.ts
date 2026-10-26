@@ -1,7 +1,7 @@
 import type { CampaignState } from "./campaign";
 import type { StructureState } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
-import { findCable, hasPowerSource, powerNetworks } from "./power";
+import { findCable, hasPowerSource, powerNetworks, usesPower } from "./power";
 
 /**
  * A plan to lay cable to a commissioned Structure cut off from power, which
@@ -31,8 +31,9 @@ export function planReconnections(state: CampaignState): void {
     .filter(
       (network) =>
         !hasPowerSource(network) &&
-        (network.daylightConsumptionKilowatts > 0 ||
-          network.nightConsumptionKilowatts > 0),
+        network.structures.some((structure) =>
+          usesPower(structure.structureTypeId),
+        ),
     )
     .flatMap((network) =>
       network.structures.filter(
