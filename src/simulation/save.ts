@@ -28,7 +28,41 @@ export type Migration = (
  * (ADR-0006): changing the format means adding a migration here, never
  * editing one that has been released.
  */
-export const migrations: readonly Migration[] = [];
+export const migrations: readonly Migration[] = [
+  // 1 to 2: the Lander's cargo stock became the base's stock, kept at a
+  // stockpile beside the landing site, and Robots walk there rather than to
+  // the Lander to load and unload Components.
+  // Anything not as expected is left for reading the document to refuse.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { cargo, robots, ...rest } = state;
+    return {
+      ...document,
+      state: {
+        ...rest,
+        robots: Array.isArray(robots)
+          ? robots.map((robot: unknown) =>
+              isRecord(robot) &&
+              isRecord(robot["activity"]) &&
+              robot["activity"]["kind"] === "walking" &&
+              robot["activity"]["destination"] === "lander"
+                ? {
+                    ...robot,
+                    activity: {
+                      ...robot["activity"],
+                      destination: "stockpile",
+                    },
+                  }
+                : robot,
+            )
+          : robots,
+        // Where the stockpile stood when format version 2 came in.
+        stockpile: { position: { x: 9, y: -10 }, components: cargo },
+      },
+    };
+  },
+];
 
 export type LoadRefusal =
   /** It isn't JSON, or isn't a Moon Base save document. */
@@ -344,7 +378,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       structureId: text,
       destination: oneOf<WalkingDestination>({
         site: true,
-        lander: true,
+        stockpile: true,
         machine: true,
         cable: true,
       }),
@@ -432,7 +466,10 @@ const simulationState = object({
       assignment: optional(machineAssignment),
     }),
   ),
-  cargo: list(componentCount),
+  stockpile: object({
+    position: groundPosition,
+    components: list(componentCount),
+  }),
   constructions: list(
     object({
       id: text,

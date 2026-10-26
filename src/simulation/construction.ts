@@ -23,6 +23,7 @@ export type PlacementRefusal =
   | "unknown-structure-type"
   | "off-map"
   | "overlaps-lander"
+  | "overlaps-stockpile"
   | "overlaps-structure"
   | "overlaps-machine"
   /** Regolith shielding must go over a commissioned Habitat that isn't to be dismantled. */
@@ -59,7 +60,7 @@ export interface ConstructionState {
   stage: ConstructionStage;
   /** The Robot's working time spent on the current stage so far. */
   workedMinutes: number;
-  /** Whether the Components have been taken from the cargo stock. */
+  /** Whether the Components have been taken from the base's stock. */
   componentsTaken: boolean;
   failedCommissionings: number;
 }
@@ -79,6 +80,7 @@ export interface StructureState {
 /** The parts of the Campaign state that placement depends on. */
 export interface Site {
   readonly lander: { readonly position: GroundPosition };
+  readonly stockpile: { readonly position: GroundPosition };
   readonly constructions: readonly ConstructionState[];
   readonly structures: readonly StructureState[];
   /** Structures being dismantled, whose ground stays taken until they are gone. */
@@ -216,6 +218,13 @@ function checkFooting(
   ) {
     return refuse("overlaps-lander", `${name} would overlap the Lander.`);
   }
+  const stockpile = stockpileGround(site);
+  if (distance(position, stockpile.position) < radius + stockpile.radius) {
+    return refuse(
+      "overlaps-stockpile",
+      `${name} would overlap the base's stockpile.`,
+    );
+  }
   const others = footings(site).filter((other) => other.id !== standsOverId);
   if (
     others.some(
@@ -249,6 +258,14 @@ function checkFooting(
 interface Ground {
   readonly position: GroundPosition;
   readonly radius: number;
+}
+
+/** The ground the base's stockpile stands on. */
+function stockpileGround(site: Pick<Site, "stockpile">): Ground {
+  return {
+    position: site.stockpile.position,
+    radius: catalogue.stockpile.footprintRadiusMetres,
+  };
 }
 
 /** The ground a Machine stands on, and the ground it is being driven to. */
@@ -347,8 +364,8 @@ function refuse(reason: PlacementRefusal, message: string): PlacementCheck {
 /**
  * Chooses where the Robot stands to work on a site: just outside its
  * footprint, on the side facing the Lander if that is clear, otherwise turning
- * round the site until it finds ground clear of the Lander, every other
- * Structure, every Machine and the map's edge.
+ * round the site until it finds ground clear of the Lander, the stockpile,
+ * every other Structure, every Machine and the map's edge.
  */
 export function chooseWorkSpot(
   site: Site,
@@ -366,6 +383,7 @@ export function chooseWorkSpot(
       radius: catalogue.lander.footprintRadiusMetres + gap,
     },
     others: [
+      stockpileGround(site),
       ...footings(site).map((other) => ({
         position: other.position,
         radius: footprintRadius(other.structureTypeId),
@@ -379,8 +397,8 @@ export function chooseWorkSpot(
  * Chooses where a Machine stands to work on a Construction's site: just
  * outside its footprint, on the side away from the Lander (where the Robot
  * works) if that is clear, otherwise turning round the site until it finds
- * ground clear of the Lander, every other Structure and Machine, the Robot's
- * working spot and the map's edge.
+ * ground clear of the Lander, the stockpile, every other Structure and
+ * Machine, the Robot's working spot and the map's edge.
  */
 export function chooseMachineSpot(
   site: Site,
@@ -407,6 +425,7 @@ export function chooseMachineSpot(
       radius: catalogue.lander.footprintRadiusMetres + gap,
     },
     others: [
+      stockpileGround(site),
       ...footings(site)
         .filter((other) => other.id !== construction.id)
         .map((other) => ({

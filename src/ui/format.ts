@@ -190,7 +190,7 @@ export function formatEvent(event: GameEvent): string {
       return `${structureLabel(event.structureTypeId)} commissioned`;
     case "structure-dismantled":
       return hasComponents(event.structureTypeId)
-        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`
+        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the base's stock`
         : `${structureLabel(event.structureTypeId)} dismantled`;
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
@@ -328,7 +328,7 @@ export function formatWaiting(waiting: ConstructionWait): string {
     waiting.missing.length === 1 && waiting.missing[0]?.count === 1
       ? "isn't"
       : "aren't";
-  return `Waiting: ${missing} ${verb} in the cargo stock`;
+  return `Waiting: ${missing} ${verb} in the base's stock`;
 }
 
 /**
@@ -394,8 +394,8 @@ function describeRobotWork(
   ).toLowerCase();
   const describeWalk = (destination: WalkingDestination): string => {
     switch (destination) {
-      case "lander":
-        return "Robot walking to the Lander for the Components";
+      case "stockpile":
+        return "Robot walking to the stockpile for the Components";
       case "cable":
         return `Robot walking to the ${cableSource} to lay power cable`;
       case "machine": {
@@ -426,7 +426,7 @@ function describeRobotWork(
     case "activating-machine":
       return `Robot activating the ${machineName(activity.machineId)}`;
     case "loading-components":
-      return "Robot loading the Components at the Lander";
+      return "Robot loading the Components at the stockpile";
     case "unloading-components":
       return "Robot unloading the Components at the site";
     case "assembling":
@@ -467,8 +467,8 @@ export function describeDismantling(
   );
   switch (robot?.activity.kind) {
     case "walking":
-      if (robot.activity.destination === "lander") {
-        return `Robot carrying ${recovered} to the Lander`;
+      if (robot.activity.destination === "stockpile") {
+        return `Robot carrying ${recovered} to the stockpile`;
       }
       return dismantling.stage === "taking-apart"
         ? "Robot walking to the site"
@@ -476,11 +476,11 @@ export function describeDismantling(
     case "dismantling":
       return `Robot taking the ${structureLabel(dismantling.structureTypeId).toLowerCase()} apart`;
     case "returning-components":
-      return `Robot unloading ${recovered} at the Lander`;
+      return `Robot unloading ${recovered} at the stockpile`;
     default:
       return dismantling.stage === "taking-apart"
         ? "Waiting for the Robot; it keeps working until then"
-        : `Waiting for the Robot to carry ${recovered} to the Lander`;
+        : `Waiting for the Robot to carry ${recovered} to the stockpile`;
   }
 }
 

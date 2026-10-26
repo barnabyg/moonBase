@@ -49,6 +49,37 @@ describe("planning a Construction", () => {
     ).toBe(true);
   });
 
+  it("refuses a placement that overlaps the stockpile, and plans nothing", () => {
+    const game = scenario();
+    const { stockpilePosition: stockpile, landerPosition: lander } =
+      catalogue.landingSite;
+    const touching = catalogue.stockpile.footprintRadiusMetres + arrayRadius;
+    // Along the line from the Lander through the stockpile, beyond it.
+    const away = Math.atan2(stockpile.y - lander.y, stockpile.x - lander.x);
+    const at = (distance: number) => ({
+      x: stockpile.x + Math.cos(away) * distance,
+      y: stockpile.y + Math.sin(away) * distance,
+    });
+
+    const result = game.campaign.planConstruction({
+      structureTypeId: "solar-array",
+      position: at(touching - 0.1),
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "overlaps-stockpile",
+      message: "The solar array would overlap the base's stockpile.",
+    });
+    expect(game.state.constructions).toEqual([]);
+    expect(
+      game.campaign.planConstruction({
+        structureTypeId: "solar-array",
+        position: at(touching + 0.1),
+      }).ok,
+    ).toBe(true);
+  });
+
   it("refuses a placement that overlaps another planned Structure", () => {
     const game = scenario().plan("solar-array", { x: 30, y: 30 });
 

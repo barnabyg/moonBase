@@ -35,7 +35,7 @@ function commissionedHabitat(): { game: Scenario; habitatId: string } {
 }
 
 describe("the inflatable Habitat", () => {
-  it("is built by the Robot from the starting cargo through all four stages, and cabled to the power network", () => {
+  it("is built by the Robot from the starting stock through all four stages, and cabled to the power network", () => {
     const game = scenario().plan("solar-array", solarSite);
     const solarId = idOfLast(game);
     game.plan("habitat", habitatSite);

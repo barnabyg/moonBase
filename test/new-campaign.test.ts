@@ -43,6 +43,20 @@ describe("a new Campaign", () => {
     expect(gap).toBeLessThan(10);
   });
 
+  it("keeps the base's starting stock of Components at a stockpile beside the Lander, where the data catalogue puts it", () => {
+    const { lander, stockpile, map } = scenario().state;
+
+    expect(stockpile.position).toEqual(catalogue.landingSite.stockpilePosition);
+    expect(isOnMap(stockpile.position, map)).toBe(true);
+    expect(stockpile.components).toEqual(catalogue.startingStock);
+    const gap =
+      distanceBetween(stockpile.position, lander.position) -
+      catalogue.lander.footprintRadiusMetres -
+      catalogue.stockpile.footprintRadiusMetres;
+    expect(gap).toBeGreaterThan(0);
+    expect(gap).toBeLessThan(10);
+  });
+
   it("returns a snapshot that cannot be changed by its reader", () => {
     const { campaign } = scenario();
     const snapshot = campaign.snapshot();

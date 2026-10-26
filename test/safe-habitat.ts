@@ -8,7 +8,7 @@ export type HabitatDanger =
  * The data catalogue with some of the Habitat's dangers taken away, for a
  * test of another danger that has to keep the Mission Director in the
  * Habitat for longer than they would otherwise live: with the starting
- * cargo, for one, a Habitat can't get through a Night. Taken away, the
+ * stock, for one, a Habitat can't get through a Night. Taken away, the
  * Habitat needs no power, it lets in no radiation, its oxygen and water
  * last a thousand times as long, or no Solar Particle Event comes for
  * thousands of Earth Days. A test file swaps it in for the real one

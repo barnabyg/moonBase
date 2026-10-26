@@ -21,6 +21,7 @@ export type {
   PowerNetworkSnapshot,
   RobotSnapshot,
   Snapshot,
+  StockpileSnapshot,
   StructureSnapshot,
 } from "./campaign";
 export type {

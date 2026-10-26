@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
 import { loadCampaign, type Campaign } from "../src/simulation";
 
 /**
@@ -47,6 +48,25 @@ describe("the sample save of format version 1", () => {
         activity: { kind: "working", constructionId: "structure-4" },
       }),
     );
+  });
+
+  it("loads the Lander's cargo stock as the base's stock at the stockpile, with the Robot walking there for the light mast's Components", () => {
+    const state = loadSample("version-1.moonbase").snapshot();
+
+    expect(state.stockpile.position).toEqual(
+      catalogue.landingSite.stockpilePosition,
+    );
+    expect(
+      state.stockpile.components.filter((stock) => stock.count > 0),
+    ).toEqual([
+      { componentId: "mast-pole", count: 4 },
+      { componentId: "light-head", count: 4 },
+    ]);
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "walking",
+      structureId: "structure-5",
+      destination: "stockpile",
+    });
   });
 
   it("plays on from where it was saved, until the Habitat is shielded", () => {

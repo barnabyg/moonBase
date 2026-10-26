@@ -12,9 +12,22 @@ export interface Catalogue {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
   };
-  /** Where the Lander has touched down, and its Robots and Machines stand, when a Campaign begins. */
+  /**
+   * The base's stock of Components, kept on the ground beside the landing
+   * site. It belongs to the base, not the Lander, and stays when the Lander
+   * leaves.
+   */
+  readonly stockpile: {
+    /** Radius of the ground the stockpile stands on; Structures may not be placed over it. */
+    readonly footprintRadiusMetres: number;
+  };
+  /**
+   * Where the Lander has touched down, and the base's stockpile, Robots and
+   * Machines stand, when a Campaign begins.
+   */
   readonly landingSite: {
     readonly landerPosition: GroundPosition;
+    readonly stockpilePosition: GroundPosition;
     readonly robotPositions: readonly GroundPosition[];
     readonly machines: readonly {
       readonly machineTypeId: string;
@@ -27,7 +40,7 @@ export interface Catalogue {
   readonly robot: {
     /** How far a Robot walks in a game-hour. */
     readonly walkingSpeedMetresPerHour: number;
-    /** How far outside a footprint, or beside the Lander, a Robot stands to work. */
+    /** How far outside a footprint, or beside the stockpile, a Robot stands to work. */
     readonly workingGapMetres: number;
     /** How much power cable a Robot lays in a game-hour, walking along as it pays it out. */
     readonly cableLayingSpeedMetresPerHour: number;
@@ -41,8 +54,8 @@ export interface Catalogue {
    * damaged beyond reuse, rounded to the nearest whole Component.
    */
   readonly dismantlingLossShare: number;
-  /** The Components in the Lander's cargo stock when a Campaign begins. */
-  readonly startingCargo: readonly ComponentCount[];
+  /** The Components in the base's stock, which the Lander brought, when a Campaign begins. */
+  readonly startingStock: readonly ComponentCount[];
   /**
    * What the Mission Director needs to stay alive, in the order the status
    * panel shows them. Running out of any of them kills the Mission Director
@@ -185,7 +198,7 @@ export interface StructureType {
    * The working time for each stage of Construction, in game-hours, whether
    * a Machine or the Robot does the work. Walking, driving and activating
    * come on top. Component delivery is split evenly between loading at the
-   * Lander and unloading at the site, and is 0 for a Structure with no
+   * stockpile and unloading at the site, and is 0 for a Structure with no
    * Components.
    */
   readonly stageHours: {
@@ -243,11 +256,15 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 10,
+  version: 11,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
+  stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
     landerPosition: { x: 0, y: 0 },
+    // On the side the camera first looks from, clear of the ground beside
+    // the Lander.
+    stockpilePosition: { x: 9, y: -10 },
     robotPositions: [{ x: 6, y: -3 }],
     machines: [
       { machineTypeId: "excavator", position: { x: -11, y: -4.5 } },
@@ -438,7 +455,7 @@ export const catalogue: Catalogue = {
     },
   ],
   dismantlingLossShare: 0.2,
-  startingCargo: [
+  startingStock: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
     { componentId: "battery-module", count: 3 },

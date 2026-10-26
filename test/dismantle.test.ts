@@ -41,7 +41,7 @@ function commissionedArray(): { game: Scenario; id: string } {
 describe("dismantling a Structure", () => {
   it("has the Robot take it apart live, then carry most of its Components back into stock", () => {
     const { game, id } = commissionedArray();
-    const stockBefore = game.state.cargo;
+    const stockBefore = game.state.stockpile.components;
 
     expect(game.campaign.dismantleStructure(id)).toEqual({ ok: true });
     const states = runUntil(game, (state) => state.dismantlings.length === 0);
@@ -61,7 +61,7 @@ describe("dismantling a Structure", () => {
       ),
     ).toHaveLength(solarArray.stageHours.assembly * 60);
     expect(game.state.structures).toEqual([]);
-    const recovered = game.state.cargo.map(
+    const recovered = game.state.stockpile.components.map(
       (stock, index) => stock.count - (stockBefore[index]?.count ?? 0),
     );
     const recoveredTotal = recovered.reduce((sum, count) => sum + count, 0);
@@ -70,7 +70,7 @@ describe("dismantling a Structure", () => {
       builtFrom - Math.round(builtFrom * catalogue.dismantlingLossShare),
     );
     expect(recoveredTotal).toBeGreaterThan(builtFrom / 2);
-    for (const [index, stock] of game.state.cargo.entries()) {
+    for (const [index, stock] of game.state.stockpile.components.entries()) {
       const used =
         solarArray.components.find(
           (need) => need.componentId === stock.componentId,
@@ -105,6 +105,37 @@ describe("dismantling a Structure", () => {
     expect(game.state.dismantlings).toEqual([
       expect.objectContaining({ id: solarId, stage: "taking-apart" }),
     ]);
+  });
+
+  it("has the Robot unload the recovered Components beside the stockpile", () => {
+    const { game, id } = commissionedArray();
+    game.campaign.dismantleStructure(id);
+
+    const states = runUntil(game, (state) => state.dismantlings.length === 0);
+
+    const returning = states.filter(
+      (state) => state.robots[0]?.activity.kind === "returning-components",
+    );
+    expect(returning.length).toBeGreaterThan(0);
+    const reach =
+      catalogue.stockpile.footprintRadiusMetres +
+      catalogue.robot.workingGapMetres;
+    for (const state of returning) {
+      const position = state.robots[0]?.position ?? { x: NaN, y: NaN };
+      expect(
+        Math.hypot(
+          position.x - state.stockpile.position.x,
+          position.y - state.stockpile.position.y,
+        ),
+      ).toBeCloseTo(reach);
+    }
+    expect(
+      states.some(
+        (state) =>
+          state.robots[0]?.activity.kind === "walking" &&
+          state.robots[0].activity.destination === "stockpile",
+      ),
+    ).toBe(true);
   });
 
   it("keeps its ground taken until its Components are back in stock", () => {

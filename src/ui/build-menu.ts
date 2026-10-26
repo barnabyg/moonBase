@@ -35,7 +35,7 @@ export function createBuildMenu(
   container.append(panel);
 
   let placing: StructureType | undefined;
-  /** How many more of each Structure the cargo stock can supply, as of the latest snapshot. */
+  /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
   const buttons = catalogue.structureTypes.map((type) => {
     const button = document.createElement("button");
@@ -68,11 +68,11 @@ export function createBuildMenu(
     );
   }
 
-  /** Warns that a Structure's Construction will wait, because the cargo stock can't supply it. */
+  /** Warns that a Structure's Construction will wait, because the base's stock can't supply it. */
   function stockWarning(type: StructureType): string {
     return (available.get(type.id) ?? 0) > 0
       ? ""
-      : " Its Components aren't in the cargo stock, so its Construction will wait for them.";
+      : " Its Components aren't in the base's stock, so its Construction will wait for them.";
   }
 
   function stopPlacing(message: string): void {
@@ -178,7 +178,7 @@ export function createBuildMenu(
 }
 
 /**
- * How many more of a Structure the cargo stock can supply, leaving aside the
+ * How many more of a Structure the base's stock can supply, leaving aside the
  * Components already promised to planned Constructions that haven't taken
  * them yet. Planning more than this leaves a Construction waiting for
  * Components. One with no Components has no limit.
@@ -198,8 +198,9 @@ function setsAvailable(type: StructureType, snapshot: Snapshot): number {
   return Math.min(
     ...type.components.map((need) => {
       const inStock =
-        snapshot.cargo.find((stock) => stock.componentId === need.componentId)
-          ?.count ?? 0;
+        snapshot.stockpile.components.find(
+          (stock) => stock.componentId === need.componentId,
+        )?.count ?? 0;
       return Math.max(
         Math.floor((inStock - promised(need.componentId)) / need.count),
         0,

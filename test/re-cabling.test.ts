@@ -8,7 +8,7 @@ import type {
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
 
-// The starting cargo holds one solar array's Components, and dismantling it
+// The starting stock holds one solar array's Components, and dismantling it
 // loses some, so these scenarios start with enough for a second one.
 vi.mock(import("../src/catalogue"), async (importOriginal) => {
   const original = await importOriginal();
@@ -16,8 +16,8 @@ vi.mock(import("../src/catalogue"), async (importOriginal) => {
     ...original,
     catalogue: {
       ...original.catalogue,
-      startingCargo: [
-        ...original.catalogue.startingCargo,
+      startingStock: [
+        ...original.catalogue.startingStock,
         { componentId: "solar-panel", count: 2 },
         { componentId: "array-mast", count: 1 },
       ],

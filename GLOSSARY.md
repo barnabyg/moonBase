@@ -60,6 +60,10 @@ _Avoid_: spaceship, ship, shuttle
 A single trip of the Lander from Earth to the base, carrying up to a fixed Payload Mass.
 _Avoid_: shipment, supply drop, resupply run
 
+**Stockpile**:
+The base's stock of Components, kept on the ground beside the landing site, where Robots load Components for Construction and unload those recovered by dismantling. It belongs to the base, not the Lander, and stays when the Lander leaves.
+_Avoid_: cargo, cargo stock, inventory
+
 **Payload Mass**:
 The mass a Launch can carry, and the main limit on what can be imported from Earth.
 _Avoid_: cargo capacity, weight

@@ -23,7 +23,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
   await expect(solarArray).toContainText("0 available");
   await solarArray.click();
   await expect(page.getByRole("status", { name: "Placement" })).toContainText(
-    "Its Components aren't in the cargo stock, so its Construction will wait for them.",
+    "Its Components aren't in the base's stock, so its Construction will wait for them.",
   );
   await placeOnClearGround(page);
 
@@ -42,7 +42,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
     "Stored: no battery banks",
   );
   await expect(work).toContainText(
-    "Waiting: 2 solar panels and 1 array mast aren't in the cargo stock",
+    "Waiting: 2 solar panels and 1 array mast aren't in the base's stock",
   );
   await expect(solarArray).toContainText("0 available");
 });

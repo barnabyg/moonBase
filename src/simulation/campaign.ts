@@ -82,6 +82,7 @@ import {
   type SolarParticleEventState,
 } from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
+import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
 
@@ -100,6 +101,16 @@ export interface LanderSnapshot {
   /** Landed with the Mission Director aboard, or landed and free to fly once they have moved into a Habitat. */
   readonly state: "landed-occupied" | "landed-free";
   readonly position: GroundPosition;
+}
+
+/**
+ * The base's stock of Components, kept on the ground beside the landing site.
+ * It belongs to the base rather than the Lander.
+ */
+export interface StockpileSnapshot {
+  readonly position: GroundPosition;
+  /** How many of each Component are in stock, in catalogue order. */
+  readonly components: readonly ComponentCount[];
 }
 
 export interface RobotSnapshot {
@@ -126,10 +137,10 @@ export interface ConstructionSnapshot {
   readonly stage: ConstructionStage;
   /** How much of the current stage's work is done, from 0 to 1. */
   readonly stageProgress: number;
-  /** Whether the Robot has taken this Construction's Components from the cargo stock. */
+  /** Whether the Robot has taken this Construction's Components from the base's stock. */
   readonly componentsTaken: boolean;
   readonly failedCommissionings: number;
-  /** The Components that cancelling it now would return to the cargo stock. */
+  /** The Components that cancelling it now would return to the base's stock. */
   readonly unusedComponents: readonly ComponentCount[];
   /** Why nobody can work on the Construction for now, or undefined if it can be worked on. */
   readonly waiting: ConstructionWait | undefined;
@@ -264,8 +275,7 @@ export interface Snapshot {
   readonly ended: CampaignEnd | undefined;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
-  /** The Components in the Lander's cargo stock, in catalogue order. */
-  readonly cargo: readonly ComponentCount[];
+  readonly stockpile: StockpileSnapshot;
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
@@ -313,7 +323,7 @@ export interface Campaign {
   planConstruction(plan: ConstructionPlan): PlanResult;
   /**
    * Cancels an unfinished Construction at once, returning its unused
-   * Components to the cargo stock.
+   * Components to the base's stock.
    */
   cancelConstruction(constructionId: string): CancelResult;
   /**
@@ -357,7 +367,7 @@ export interface CampaignState {
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
-  cargo: { componentId: string; count: number }[];
+  stockpile: StockpileState;
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
@@ -394,12 +404,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       assignment: undefined,
     })),
-    cargo: catalogue.componentTypes.map((type) => ({
-      componentId: type.id,
-      count: catalogue.startingCargo
-        .filter((stock) => stock.componentId === type.id)
-        .reduce((total, stock) => total + stock.count, 0),
-    })),
+    stockpile: startingStockpile(),
     constructions: [],
     structures: [],
     dismantlings: [],
@@ -549,7 +554,7 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...machine.position },
           activity: { ...machine.activity },
         })),
-        cargo: copy(state.cargo),
+        stockpile: copy(state.stockpile),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
           structureTypeId: construction.structureTypeId,

@@ -192,7 +192,7 @@ export function createStatusPanel(
     dismantle.className = "status-panel__dismantle";
     dismantle.textContent = "Dismantle";
     dismantle.title =
-      "Have the Robot take it apart and carry most of its Components back into the cargo stock.";
+      "Have the Robot take it apart and carry most of its Components back into the base's stock.";
     dismantle.addEventListener("click", () => {
       showResult(campaign.dismantleStructure(structureId));
     });

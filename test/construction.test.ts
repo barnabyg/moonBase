@@ -142,10 +142,10 @@ describe("the Construction of a solar array", () => {
     expect(assembly).toEqual([...assembly].sort((a, b) => a - b));
   });
 
-  it("takes the Components from the Lander's cargo stock during Component delivery", () => {
+  it("takes the Components from the base's stock during Component delivery", () => {
     const game = scenario();
-    const startingStock = game.state.cargo;
-    expect(startingStock).toEqual(catalogue.startingCargo);
+    const startingStock = game.state.stockpile.components;
+    expect(startingStock).toEqual(catalogue.startingStock);
 
     const states = runUntilBuilt(game.plan("solar-array", site));
 
@@ -153,7 +153,7 @@ describe("the Construction of a solar array", () => {
       const [construction] = state.constructions;
       if (construction === undefined) continue;
       expect(construction.componentsTaken).toBe(
-        !state.cargo.every(
+        !state.stockpile.components.every(
           (stock, index) => stock.count === startingStock[index]?.count,
         ),
       );
@@ -161,7 +161,7 @@ describe("the Construction of a solar array", () => {
     const stockDuring = (stage: string) =>
       states.filter((state) => state.constructions[0]?.stage === stage);
     for (const state of stockDuring("site-preparation")) {
-      expect(state.cargo).toEqual(startingStock);
+      expect(state.stockpile.components).toEqual(startingStock);
     }
     const carried = states.filter(
       (state) => robotOf(state).carrying.length > 0,
@@ -171,7 +171,7 @@ describe("the Construction of a solar array", () => {
       expect(state.constructions[0]?.stage).toBe("component-delivery");
       expect(robotOf(state).carrying).toEqual(solarArray.components);
     }
-    expect(game.state.cargo).toEqual(
+    expect(game.state.stockpile.components).toEqual(
       startingStock.map((stock) => ({
         componentId: stock.componentId,
         count:
@@ -181,6 +181,34 @@ describe("the Construction of a solar array", () => {
           )?.count ?? 0),
       })),
     );
+  });
+
+  it("has the Robot load the Components beside the stockpile, facing the site, and carry them there", () => {
+    const states = runUntilBuilt(scenario().plan("solar-array", site));
+
+    const reach =
+      catalogue.stockpile.footprintRadiusMetres +
+      catalogue.robot.workingGapMetres;
+    const loading = states.filter(
+      (state) => robotOf(state).activity.kind === "loading-components",
+    );
+    expect(loading.length).toBeGreaterThan(0);
+    for (const state of loading) {
+      const { position } = robotOf(state);
+      expect(distanceBetween(position, state.stockpile.position)).toBeCloseTo(
+        reach,
+      );
+      expect(distanceBetween(position, site)).toBeLessThan(
+        distanceBetween(state.stockpile.position, site),
+      );
+    }
+    const destinations = withoutRepeats(
+      states.flatMap((state) => {
+        const { activity } = robotOf(state);
+        return activity.kind === "walking" ? [activity.destination] : [];
+      }),
+    );
+    expect(destinations).toEqual(["machine", "stockpile", "site"]);
   });
 
   it("has the Robot walk round the Lander rather than through it", () => {
