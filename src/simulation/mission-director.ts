@@ -6,7 +6,12 @@ import { isDueToBeDismantled } from "./dismantling";
 /** Where the Mission Director lives: aboard the Lander, or in a commissioned Habitat. */
 export type MissionDirectorResidence =
   | { readonly residence: "lander" }
-  | { readonly residence: "habitat"; readonly habitatId: string };
+  | {
+      readonly residence: "habitat";
+      readonly habitatId: string;
+      /** The game-minute they moved in, counted from the start of the Campaign. */
+      readonly movedInAtMinute: number;
+    };
 
 export type MoveInRefusal =
   | "already-moved-in"
@@ -75,7 +80,11 @@ export function moveMissionDirectorIn(
       "The Habitat has no power, and the Mission Director can't live in it without.",
     );
   }
-  state.missionDirector = { residence: "habitat", habitatId };
+  state.missionDirector = {
+    residence: "habitat",
+    habitatId,
+    movedInAtMinute: state.elapsedMinutes,
+  };
   return { ok: true };
 }
 

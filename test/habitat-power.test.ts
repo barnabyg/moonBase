@@ -187,6 +187,27 @@ describe("the Habitat power forecast", () => {
 });
 
 describe("letting the battery run flat at Night with the Mission Director in the Habitat", () => {
+  it("warns on the first game-minute when the Mission Director moves in with less power left than a warning level", () => {
+    const game = poweredBase();
+    runUntil(game, (state) => state.lunation.part === "night");
+    game.advance({ hours: 20 });
+    const habitatId = moveIn(game);
+    const forecast = forecastPowerLost(game);
+    const [firstLevel = 0, secondLevel = 0] =
+      catalogue.habitatPowerWarningHoursLeft.map((hours) => hours * 60);
+    expect(forecast).toBeLessThan(firstLevel);
+    expect(forecast).toBeGreaterThan(secondLevel + 1);
+
+    const events = game.campaign.advance(1);
+
+    expect(events).toContainEqual({
+      kind: "habitat-power-warning",
+      atMinute: game.state.clock.elapsedMinutes,
+      habitatId,
+      minutesUntilPowerLost: forecast - 1,
+    });
+  });
+
   it("warns as the Habitat's power falls to each warning level, stopping each skip to the next event, then kills the Mission Director", () => {
     const game = poweredBase();
     const habitatId = moveIn(game);

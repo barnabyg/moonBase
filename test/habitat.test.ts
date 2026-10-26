@@ -128,12 +128,14 @@ describe("moving the Mission Director in", () => {
     expect(game.state.missionDirector).toEqual({
       residence: "habitat",
       habitatId,
+      movedInAtMinute: before.elapsedMinutes,
     });
     expect(game.state.lander.state).toBe("landed-free");
   });
 
   it("can't be undone or repeated", () => {
     const { game, habitatId } = commissionedHabitat();
+    const movedInAtMinute = game.state.clock.elapsedMinutes;
     game.campaign.moveMissionDirectorIn(habitatId);
 
     expect(game.campaign.moveMissionDirectorIn(habitatId)).toMatchObject({
@@ -144,6 +146,7 @@ describe("moving the Mission Director in", () => {
     expect(game.state.missionDirector).toEqual({
       residence: "habitat",
       habitatId,
+      movedInAtMinute,
     });
   });
 

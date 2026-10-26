@@ -31,6 +31,7 @@ import {
 import type { DeathCause, GameEvent } from "./events";
 import {
   forecastHabitatPower,
+  minutesUntilPowerLostAsMinuteStarts,
   watchHabitatPower,
   type HabitatPowerForecast,
 } from "./habitat-power";
@@ -554,7 +555,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes,
     catalogue.lunation,
   ).part;
-  const powerLostBefore = forecastHabitatPower(state)?.minutesUntilPowerLost;
+  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));

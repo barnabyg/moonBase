@@ -37,11 +37,32 @@ export function forecastHabitatPower(
 }
 
 /**
+ * The forecast to compare with at the end of the game-minute about to start,
+ * for `watchHabitatPower`: the time until the Mission Director's Habitat
+ * loses power as things stand. If they have moved in since the last
+ * game-minute, they had no forecast at its end, so there is none.
+ */
+export function minutesUntilPowerLostAsMinuteStarts(
+  state: CampaignState,
+): number | undefined {
+  const { missionDirector } = state;
+  if (
+    missionDirector.residence === "habitat" &&
+    missionDirector.movedInAtMinute === state.elapsedMinutes
+  ) {
+    return undefined;
+  }
+  return forecastHabitatPower(state)?.minutesUntilPowerLost;
+}
+
+/**
  * Checks the power of the Habitat the Mission Director lives in, once the
  * game-minute's power has been supplied. If it has lost power, the Mission
  * Director dies at once, which ends the Campaign. Otherwise a warning comes
  * as the time until it loses power falls to one of the warning levels set in
- * the data catalogue, given the forecast at the start of the game-minute.
+ * the data catalogue, given the forecast as the game-minute started. With no
+ * forecast then, as on moving in, the highest warning level it is already
+ * under counts as just reached.
  */
 export function watchHabitatPower(
   state: CampaignState,
@@ -56,13 +77,15 @@ export function watchHabitatPower(
     });
   }
   const after = forecastHabitatPower(state)?.minutesUntilPowerLost;
-  if (minutesUntilPowerLostBefore === undefined || after === undefined) {
-    return [];
-  }
+  if (after === undefined) return [];
   const warningMinutes = catalogue.habitatPowerWarningHoursLeft.map(
     (hours) => hours * 60,
   );
-  return fellToWarningLevel(warningMinutes, minutesUntilPowerLostBefore, after)
+  return fellToWarningLevel(
+    warningMinutes,
+    minutesUntilPowerLostBefore ?? Infinity,
+    after,
+  )
     ? [
         {
           kind: "habitat-power-warning",
