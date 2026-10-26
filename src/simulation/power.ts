@@ -185,7 +185,7 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
 /**
  * The commissioned Structure nearest a position that is powered: one on a
  * network with a power source, a solar array or a battery bank, which a
- * cable can carry power from.
+ * cable can carry power from. One due to be dismantled isn't used.
  */
 export function nearestPoweredStructure(
   state: CampaignState,
@@ -201,7 +201,11 @@ export function nearestPoweredStructure(
   // Structures are kept in the order they were commissioned, so the earlier
   // one wins a tie and the choice is always the same.
   return state.structures
-    .filter((structure) => powered.includes(structure))
+    .filter(
+      (structure) =>
+        powered.includes(structure) &&
+        !state.dismantlings.some((planned) => planned.id === structure.id),
+    )
     .reduce<StructureState | undefined>(
       (best, structure) =>
         best === undefined ||

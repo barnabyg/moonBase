@@ -102,7 +102,10 @@ function workTarget(
   ) {
     return undefined;
   }
-  if (activity.kind === "loading-components") {
+  if (
+    activity.kind === "loading-components" ||
+    activity.kind === "returning-components"
+  ) {
     return toScene(frame.current.lander.position);
   }
   if (activity.kind === "activating-machine") {
@@ -117,6 +120,9 @@ function workTarget(
     ) ??
     frame.current.structures.find(
       (structure) => structure.id === activity.structureId,
+    ) ??
+    frame.current.dismantlings.find(
+      (dismantling) => dismantling.id === activity.structureId,
     );
   return site === undefined ? undefined : toScene(site.position);
 }
@@ -183,6 +189,17 @@ function poseFor(
       seated: false,
       carrying,
     }),
+    // Reaching up to unbolt and fold it away.
+    dismantling: () => ({
+      legSwing: 0,
+      leftArm: 2.0 + work * 0.3,
+      rightArm: 2.0 - work * 0.3,
+      lean: 0,
+      seated: false,
+      carrying,
+    }),
+    // Lifting the recovered crates back into the cargo bay.
+    "returning-components": () => lifting(work, carrying),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({
       legSwing: 0,

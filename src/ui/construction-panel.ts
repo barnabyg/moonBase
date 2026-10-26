@@ -1,5 +1,12 @@
-import type { Snapshot } from "../simulation";
-import { describeWork, formatStage, structureLabel } from "./format";
+import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
+import {
+  describeDismantling,
+  describeWork,
+  formatComponents,
+  formatDismantlingStage,
+  formatStage,
+  structureLabel,
+} from "./format";
 import { setText } from "./dom";
 
 export interface ConstructionPanel {
@@ -11,26 +18,30 @@ interface Row {
   readonly stage: HTMLElement;
   readonly progress: HTMLProgressElement;
   readonly work: HTMLElement;
+  readonly cancel: HTMLButtonElement | undefined;
 }
 
 /**
- * The HTML Construction panel: each unfinished Construction's current stage,
- * its progress, and what is happening on it. It only reads snapshots.
+ * The HTML Work panel: each unfinished Construction and each Structure being
+ * dismantled, with its current stage, its progress, and what is happening on
+ * it. The player can cancel a Construction from here; the panel only sends
+ * that choice to the Campaign.
  */
 export function createConstructionPanel(
   container: HTMLElement,
+  campaign: Pick<Campaign, "cancelConstruction">,
 ): ConstructionPanel {
   const panel = document.createElement("aside");
   panel.className = "construction-panel";
-  panel.setAttribute("aria-label", "Constructions");
+  panel.setAttribute("aria-label", "Work");
   const heading = document.createElement("h2");
-  heading.textContent = "Constructions";
+  heading.textContent = "Work";
   const list = document.createElement("ul");
   panel.append(heading, list);
   container.append(panel);
 
   const rows = new Map<string, Row>();
-  const createRow = (title: string): Row => {
+  const createRow = (title: string, cancellable: string | undefined): Row => {
     const item = document.createElement("li");
     const name = document.createElement("p");
     name.className = "construction-panel__name";
@@ -42,27 +53,69 @@ export function createConstructionPanel(
     const work = document.createElement("p");
     work.className = "construction-panel__work";
     item.append(name, stage, progress, work);
+    let cancel: HTMLButtonElement | undefined;
+    if (cancellable !== undefined) {
+      cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "construction-panel__cancel";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => {
+        campaign.cancelConstruction(cancellable);
+      });
+      item.append(cancel);
+    }
     list.append(item);
-    return { item, stage, progress, work };
+    return { item, stage, progress, work, cancel };
+  };
+  const showStage = (row: Row, stage: string, stageProgress: number) => {
+    const percent = Math.floor(stageProgress * 100);
+    setText(row.stage, `${stage}: ${percent}%`);
+    row.progress.value = stageProgress;
+    row.progress.setAttribute("aria-label", `${stage} progress`);
   };
 
   return {
     update(snapshot) {
-      panel.hidden = snapshot.constructions.length === 0;
+      panel.hidden =
+        snapshot.constructions.length === 0 &&
+        snapshot.dismantlings.length === 0;
       const seen = new Set<string>();
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
         let row = rows.get(construction.id);
         if (row === undefined) {
-          row = createRow(structureLabel(construction.structureTypeId));
+          row = createRow(
+            structureLabel(construction.structureTypeId),
+            construction.id,
+          );
           rows.set(construction.id, row);
         }
-        const stage = formatStage(construction.stage);
-        const percent = Math.floor(construction.stageProgress * 100);
-        setText(row.stage, `${stage}: ${percent}%`);
-        row.progress.value = construction.stageProgress;
-        row.progress.setAttribute("aria-label", `${stage} progress`);
+        showStage(
+          row,
+          formatStage(construction.stage),
+          construction.stageProgress,
+        );
         setText(row.work, describeWork(construction, snapshot));
+        if (row.cancel !== undefined) {
+          row.cancel.title = describeCancelling(construction);
+        }
+      }
+      for (const dismantling of snapshot.dismantlings) {
+        seen.add(dismantling.id);
+        let row = rows.get(dismantling.id);
+        if (row === undefined) {
+          row = createRow(
+            `Dismantling the ${structureLabel(dismantling.structureTypeId).toLowerCase()}`,
+            undefined,
+          );
+          rows.set(dismantling.id, row);
+        }
+        showStage(
+          row,
+          formatDismantlingStage(dismantling.stage),
+          dismantling.stageProgress,
+        );
+        setText(row.work, describeDismantling(dismantling, snapshot));
       }
       for (const [id, row] of rows) {
         if (!seen.has(id)) {
@@ -72,4 +125,14 @@ export function createConstructionPanel(
       }
     },
   };
+}
+
+/** Says what cancelling a Construction now would give back. */
+function describeCancelling(construction: ConstructionSnapshot): string {
+  if (!construction.componentsTaken) {
+    return "Cancel it. Its Components haven't left the cargo stock.";
+  }
+  return construction.unusedComponents.length === 0
+    ? "Cancel it. Its Components are all assembled, so none go back into the cargo stock."
+    : `Cancel it, putting ${formatComponents(construction.unusedComponents)} back into the cargo stock.`;
 }

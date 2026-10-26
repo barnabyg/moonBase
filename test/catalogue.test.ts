@@ -171,10 +171,20 @@ describe("the data catalogue", () => {
         expect(Number.isFinite(value)).toBe(true);
         expect(value).toBeGreaterThanOrEqual(0);
       }
+      expect(type.lightRadiusMetres).toBeGreaterThanOrEqual(0);
+      // A light needs power to shine, and only a light draws power at Night only.
+      expect(type.lightRadiusMetres > 0).toBe(
+        type.power.nightDrawKilowatts > 0,
+      );
     }
   });
 
-  it.each(["solar-array", "battery-bank"])(
+  it("loses less than half of a dismantled Structure's Components", () => {
+    expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
+    expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
+  });
+
+  it.each(["solar-array", "battery-bank", "light-mast"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {
       const structureType = catalogue.structureTypes.find(

@@ -10,6 +10,8 @@ import type {
   ConstructionSnapshot,
   ConstructionWait,
   ConstructionStage,
+  DismantlingSnapshot,
+  DismantlingStage,
   LunationSnapshot,
   WalkingDestination,
 } from "../simulation";
@@ -243,6 +245,52 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
+    // Only ever done for a Structure being dismantled.
+    case "dismantling":
+    case "returning-components":
+      return "Waiting for the Robot";
+  }
+}
+
+const dismantlingStageLabels: Record<DismantlingStage, string> = {
+  "taking-apart": "Taking apart",
+  "returning-components": "Returning Components",
+};
+
+export function formatDismantlingStage(stage: DismantlingStage): string {
+  return dismantlingStageLabels[stage];
+}
+
+/**
+ * Says what is happening on a Structure being dismantled right now, for the
+ * Work panel: what the Robot is doing on it, or else what it is waiting for.
+ */
+export function describeDismantling(
+  dismantling: DismantlingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const recovered = formatComponents(dismantling.recovered);
+  const robot = snapshot.robots.find(
+    (candidate) =>
+      candidate.activity.kind !== "idle" &&
+      candidate.activity.structureId === dismantling.id,
+  );
+  switch (robot?.activity.kind) {
+    case "walking":
+      if (robot.activity.destination === "lander") {
+        return `Robot carrying ${recovered} to the Lander`;
+      }
+      return dismantling.stage === "taking-apart"
+        ? "Robot walking to the site"
+        : `Robot walking to the site for ${recovered}`;
+    case "dismantling":
+      return `Robot taking the ${structureLabel(dismantling.structureTypeId).toLowerCase()} apart`;
+    case "returning-components":
+      return `Robot unloading ${recovered} at the Lander`;
+    default:
+      return dismantling.stage === "taking-apart"
+        ? "Waiting for the Robot; it keeps working until then"
+        : `Waiting for the Robot to carry ${recovered} to the Lander`;
   }
 }
 

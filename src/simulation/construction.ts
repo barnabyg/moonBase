@@ -40,6 +40,8 @@ export interface ConstructionState {
   id: string;
   structureTypeId: string;
   position: GroundPosition;
+  /** Where in the Mission Director's plans it comes, among other Constructions and dismantling. */
+  planNumber: number;
   /** Where the Robot stands to work on the site. */
   workSpot: GroundPosition;
   stage: ConstructionStage;
@@ -67,7 +69,21 @@ export interface Site {
   readonly lander: { readonly position: GroundPosition };
   readonly constructions: readonly ConstructionState[];
   readonly structures: readonly StructureState[];
+  /** Structures being dismantled, whose ground stays taken until they are gone. */
+  readonly dismantlings: readonly Footing[];
   readonly machines: readonly MachineState[];
+}
+
+/** Something standing on the base map with a Structure's footprint. */
+interface Footing {
+  readonly id: string;
+  readonly structureTypeId: string;
+  readonly position: GroundPosition;
+}
+
+/** Everything with a Structure's footprint: Structures, Constructions and Structures being dismantled. */
+function footings(site: Site): Footing[] {
+  return [...site.structures, ...site.constructions, ...site.dismantlings];
 }
 
 export function findStructureType(id: string): StructureType | undefined {
@@ -107,7 +123,7 @@ export function checkPlacement(
   ) {
     return refuse("overlaps-lander", `${name} would overlap the Lander.`);
   }
-  const others = [...site.structures, ...site.constructions];
+  const others = footings(site);
   if (
     others.some(
       (other) =>
@@ -206,7 +222,7 @@ export function chooseWorkSpot(
       radius: catalogue.lander.footprintRadiusMetres + gap,
     },
     others: [
-      ...[...site.structures, ...site.constructions].map((other) => ({
+      ...footings(site).map((other) => ({
         position: other.position,
         radius: footprintRadius(other.structureTypeId),
       })),
@@ -247,7 +263,7 @@ export function chooseMachineSpot(
       radius: catalogue.lander.footprintRadiusMetres + gap,
     },
     others: [
-      ...[...site.structures, ...site.constructions]
+      ...footings(site)
         .filter((other) => other.id !== construction.id)
         .map((other) => ({
           position: other.position,

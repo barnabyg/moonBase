@@ -4,7 +4,19 @@ import {
   type GroundPosition,
   type MapSize,
 } from "../catalogue";
+import {
+  cancelConstruction,
+  unusedComponents,
+  type CancelResult,
+} from "./cancel";
 import { readClock, type ClockSnapshot } from "./clock";
+import {
+  dismantleStructure,
+  dismantlingStageMinutes,
+  type DismantleResult,
+  type DismantlingStage,
+  type DismantlingState,
+} from "./dismantling";
 import {
   checkPlacement,
   chooseWorkSpot,
@@ -78,6 +90,8 @@ export interface ConstructionSnapshot {
   /** Whether the Robot has taken this Construction's Components from the cargo stock. */
   readonly componentsTaken: boolean;
   readonly failedCommissionings: number;
+  /** The Components that cancelling it now would return to the cargo stock. */
+  readonly unusedComponents: readonly ComponentCount[];
   /** Why nobody can work on the Construction for now, or undefined if it can be worked on. */
   readonly waiting: ConstructionWait | undefined;
 }
@@ -93,6 +107,24 @@ export interface StructureSnapshot {
   readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
+}
+
+/**
+ * A Structure being dismantled. It stays among the Structures, working, until
+ * the Robot starts taking it apart.
+ */
+export interface DismantlingSnapshot {
+  /** The id of the Structure being dismantled. */
+  readonly id: string;
+  readonly structureTypeId: string;
+  readonly position: GroundPosition;
+  readonly stage: DismantlingStage;
+  /** How much of the current stage's work is done, from 0 to 1. */
+  readonly stageProgress: number;
+  /** The Components recovered once it has been taken apart; none before. */
+  readonly recovered: readonly ComponentCount[];
+  /** Whether the Robot has picked up the recovered Components to carry them away. */
+  readonly collected: boolean;
 }
 
 /** A power cable, laid or being laid, from a powered Structure to a Construction. */
@@ -152,6 +184,8 @@ export interface Snapshot {
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
+  /** Structures being dismantled, in the order dismantling was planned. */
+  readonly dismantlings: readonly DismantlingSnapshot[];
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
 }
@@ -179,6 +213,16 @@ export interface Campaign {
   checkPlacement(plan: ConstructionPlan): PlacementCheck;
   /** Plans a Construction, which the Robot then carries out by itself. */
   planConstruction(plan: ConstructionPlan): PlanResult;
+  /**
+   * Cancels an unfinished Construction at once, returning its unused
+   * Components to the cargo stock.
+   */
+  cancelConstruction(constructionId: string): CancelResult;
+  /**
+   * Plans the dismantling of a commissioned Structure, which the Robot then
+   * carries out by itself, returning most of its Components to stock.
+   */
+  dismantleStructure(structureId: string): DismantleResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -190,12 +234,15 @@ export interface CampaignState {
   elapsedMinutes: number;
   /** Numbers the next planned Structure. */
   nextStructureNumber: number;
+  /** Numbers the next plan, for a Construction or dismantling, so they are worked on in order. */
+  nextPlanNumber: number;
   lander: { state: "landed"; position: GroundPosition };
   robots: RobotState[];
   machines: MachineState[];
   cargo: { componentId: string; count: number }[];
   constructions: ConstructionState[];
   structures: StructureState[];
+  dismantlings: DismantlingState[];
   cables: CableState[];
 }
 
@@ -205,6 +252,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     random: seedRandom(options.seed),
     elapsedMinutes: 0,
     nextStructureNumber: 1,
+    nextPlanNumber: 1,
     lander: {
       state: "landed",
       position: { ...landingSite.landerPosition },
@@ -231,6 +279,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     })),
     constructions: [],
     structures: [],
+    dismantlings: [],
     cables: [],
   };
 
@@ -266,13 +315,21 @@ export function createCampaign(options: CampaignOptions): Campaign {
         id,
         structureTypeId: plan.structureTypeId,
         position: { x: plan.position.x, y: plan.position.y },
+        planNumber: state.nextPlanNumber,
         workSpot: chooseWorkSpot(state, plan),
         stage: "site-preparation",
         workedMinutes: 0,
         componentsTaken: false,
         failedCommissionings: 0,
       });
+      state.nextPlanNumber += 1;
       return deepFreeze({ ok: true, constructionId: id });
+    },
+    cancelConstruction(constructionId) {
+      return deepFreeze(cancelConstruction(state, constructionId));
+    },
+    dismantleStructure(structureId) {
+      return deepFreeze(dismantleStructure(state, structureId));
     },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
@@ -324,9 +381,22 @@ export function createCampaign(options: CampaignOptions): Campaign {
           stageProgress: stageProgress(construction),
           componentsTaken: construction.componentsTaken,
           failedCommissionings: construction.failedCommissionings,
+          unusedComponents: unusedComponents(construction),
           waiting: copy(findWaitingReason(state, construction)),
         })),
         structures: copy(state.structures),
+        dismantlings: state.dismantlings.map((dismantling) => ({
+          id: dismantling.id,
+          structureTypeId: dismantling.structureTypeId,
+          position: { ...dismantling.position },
+          stage: dismantling.stage,
+          stageProgress: progressThrough(
+            dismantling.workedMinutes,
+            dismantlingStageMinutes(dismantling),
+          ),
+          recovered: copy(dismantling.recovered),
+          collected: dismantling.collected,
+        })),
         cables: state.cables.map((cable) => ({
           fromStructureId: cable.fromStructureId,
           toStructureId: cable.toStructureId,
@@ -376,10 +446,14 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
 }
 
 function stageProgress(construction: ConstructionState): number {
-  const required = stageMinutes(construction);
-  return required === 0
-    ? 0
-    : Math.min(construction.workedMinutes / required, 1);
+  return progressThrough(
+    construction.workedMinutes,
+    stageMinutes(construction),
+  );
+}
+
+function progressThrough(workedMinutes: number, required: number): number {
+  return required === 0 ? 0 : Math.min(workedMinutes / required, 1);
 }
 
 /** Copies plain data, so that a snapshot shares nothing with the live state. */

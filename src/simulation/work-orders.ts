@@ -5,15 +5,20 @@ import {
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
+import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
 import { findCable, nearestPoweredStructure } from "./power";
 
 /**
- * A unit of the Robot's work on a Construction. A Robot claims one at a time
- * and carries it out before it looks for another.
+ * A unit of the Robot's work on a Construction or on dismantling a Structure.
+ * A Robot claims one at a time and carries it out before it looks for
+ * another.
  */
 export interface WorkOrder {
-  /** The Structure it is for: one under Construction, whose id it keeps once commissioned. */
+  /**
+   * The Structure it is for: one under Construction (whose id it keeps once
+   * commissioned) or one being dismantled.
+   */
   readonly structureId: string;
   readonly kind: WorkOrderKind;
 }
@@ -23,7 +28,9 @@ export type WorkOrderKind =
   | "deliver-components"
   | "assemble"
   | "commission"
-  | "lay-cable";
+  | "lay-cable"
+  | "dismantle"
+  | "return-components";
 
 /** Why nobody can work on a Construction for now. */
 export type ConstructionWait =
@@ -45,6 +52,12 @@ const workOrderKinds = {
   assembly: "assemble",
   commissioning: "commission",
 } as const satisfies Record<ConstructionStage, WorkOrderKind>;
+
+/** The Robot's Work Order at each stage of dismantling. */
+const dismantlingKinds = {
+  "taking-apart": "dismantle",
+  "returning-components": "return-components",
+} as const satisfies Record<DismantlingStage, WorkOrderKind>;
 
 /** Says why a Construction is waiting, or undefined if it can be worked on. */
 export function findWaitingReason(
@@ -95,9 +108,10 @@ function missingComponents(
 
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
- * else has claimed and that can be worked on now, taking the Constructions in
- * the order they were planned. Each Construction's current stage comes before
- * laying its cable, which can be done at any stage before Commissioning.
+ * else has claimed and that can be worked on now, taking the Constructions
+ * and dismantling in the order they were planned. Each Construction's current
+ * stage comes before laying its cable, which can be done at any stage before
+ * Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -108,21 +122,33 @@ export function claimWorkOrder(
       ? []
       : [robot.workOrder],
   );
-  for (const construction of state.constructions) {
-    for (const kind of [
-      workOrderKinds[construction.stage],
-      "lay-cable",
-    ] as const) {
-      if (
-        !claimed.some(
-          (other) =>
-            other.structureId === construction.id && other.kind === kind,
-        ) &&
-        canBeWorkedOn(state, construction, kind)
-      ) {
-        return { structureId: construction.id, kind };
-      }
-    }
+  const free = (structureId: string, kind: WorkOrderKind) =>
+    !claimed.some(
+      (other) => other.structureId === structureId && other.kind === kind,
+    );
+  const plans = [
+    ...state.constructions.map((construction) => ({
+      planNumber: construction.planNumber,
+      structureId: construction.id,
+      next: () =>
+        [workOrderKinds[construction.stage], "lay-cable" as const].find(
+          (kind) =>
+            free(construction.id, kind) &&
+            canBeWorkedOn(state, construction, kind),
+        ),
+    })),
+    ...state.dismantlings.map((dismantling) => ({
+      planNumber: dismantling.planNumber,
+      structureId: dismantling.id,
+      next: () => {
+        const kind = dismantlingKinds[dismantling.stage];
+        return free(dismantling.id, kind) ? kind : undefined;
+      },
+    })),
+  ].sort((a, b) => a.planNumber - b.planNumber);
+  for (const { structureId, next } of plans) {
+    const kind = next();
+    if (kind !== undefined) return { structureId, kind };
   }
   return undefined;
 }
@@ -131,7 +157,7 @@ export function claimWorkOrder(
 function canBeWorkedOn(
   state: CampaignState,
   construction: ConstructionState,
-  kind: WorkOrderKind,
+  kind: (typeof workOrderKinds)[ConstructionStage] | "lay-cable",
 ): boolean {
   switch (kind) {
     case "lay-cable":
@@ -169,6 +195,12 @@ export function needsCable(
 
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
+  const dismantling = state.dismantlings.find(
+    (candidate) => candidate.id === workOrder.structureId,
+  );
+  if (dismantling !== undefined) {
+    return dismantlingKinds[dismantling.stage] === workOrder.kind;
+  }
   const construction = state.constructions.find(
     (candidate) => candidate.id === workOrder.structureId,
   );

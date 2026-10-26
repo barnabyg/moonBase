@@ -38,6 +38,11 @@ export interface Catalogue {
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
+  /**
+   * The share, from 0 to 1, of a dismantled Structure's Components that are
+   * damaged beyond reuse, rounded to the nearest whole Component.
+   */
+  readonly dismantlingLossShare: number;
   /** The Components in the Lander's cargo stock when a Campaign begins. */
   readonly startingCargo: readonly ComponentCount[];
 }
@@ -254,6 +259,7 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 18,
     },
   ],
+  dismantlingLossShare: 0.2,
   startingCargo: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
