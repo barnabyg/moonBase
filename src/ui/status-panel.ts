@@ -18,6 +18,9 @@ import {
   structureLabel,
 } from "./format";
 
+/** How long a refusal stays on screen, in real milliseconds. */
+const REFUSAL_SHOWN_MS = 8000;
+
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
 }
@@ -108,14 +111,22 @@ export function createStatusPanel(
   lander.setAttribute("role", "status");
   lander.setAttribute("aria-label", "Lander");
 
-  // Why the player's latest choice was refused, until one is allowed.
+  // Why the player's latest choice was refused, for a few seconds, so that
+  // it doesn't linger once things have changed.
   const refusal = document.createElement("p");
   refusal.className = "status-panel__refusal";
   refusal.setAttribute("role", "alert");
   refusal.hidden = true;
+  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
   const showResult = (result: DismantleResult | MoveInResult) => {
+    clearTimeout(refusalTimer);
     refusal.hidden = result.ok;
     setText(refusal, result.ok ? "" : result.message);
+    if (!result.ok) {
+      refusalTimer = setTimeout(() => {
+        refusal.hidden = true;
+      }, REFUSAL_SHOWN_MS);
+    }
   };
 
   const structures = document.createElement("ul");
