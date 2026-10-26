@@ -4,6 +4,9 @@ import { placeOnClearGround } from "./placement";
 test("the Mission Director moves from the Lander into a commissioned Habitat, which then can't be dismantled", async ({
   page,
 }) => {
+  // Software rendering in CI draws frames several times slower than locally,
+  // and the refusal takes a fixed few seconds to go.
+  test.setTimeout(60_000);
   await page.goto("/?seed=1");
   const missionDirector = page.getByRole("status", {
     name: "Mission Director",

@@ -118,11 +118,14 @@ describe("Solar Particle Events", () => {
         .plan("solar-array", { x: 20, y: 12 })
         .advance({ hours: 5 })
         .plan("habitat", { x: 25, y: -20 });
-      return skipThrough(game, 120);
+      // Long enough for at least one whole event, however late it comes.
+      return skipThrough(game, 35);
     };
 
-    expect(play(42)).toEqual(play(42));
-    expect(play(43)).not.toEqual(play(42));
+    const first = play(42);
+    expect(first.length).toBeGreaterThanOrEqual(3);
+    expect(play(42)).toEqual(first);
+    expect(play(43)).not.toEqual(first);
   });
 
   it("are shown in the snapshot from the warning until they end, and not before", () => {
