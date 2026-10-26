@@ -339,6 +339,17 @@ describe("a Habitat's Regolith shielding once it is built", () => {
     expect(game.campaign.dismantleStructure(habitatId)).toEqual({ ok: true });
   });
 
+  it("keeps new shielding off the Habitat, saying why, until it has been dismantled", () => {
+    const { game, shieldingId } = shielded();
+    game.campaign.dismantleStructure(shieldingId);
+
+    expect(planShielding(game, onTheHabitat)).toEqual({
+      ok: false,
+      reason: "already-shielded",
+      message: "The Habitat's Regolith shielding is still being dismantled.",
+    });
+  });
+
   it("can be dismantled, leaving the Habitat unshielded and nothing to carry to the Lander", () => {
     const { game, habitatId, shieldingId } = shielded();
     const cargo = game.state.cargo;

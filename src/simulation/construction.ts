@@ -142,11 +142,14 @@ export function checkPlacement(
   }
   const shielding = shieldingOver(site, habitat);
   if (shielding !== undefined) {
+    const isOne = (other: Footing) => other.id === shielding.id;
     return refuse(
       "already-shielded",
-      site.constructions.some((planned) => planned.id === shielding.id)
+      site.constructions.some(isOne)
         ? `The Habitat's ${type.label} is already planned.`
-        : "The Habitat is already shielded.",
+        : site.dismantlings.some(isOne)
+          ? `The Habitat's ${type.label} is still being dismantled.`
+          : "The Habitat is already shielded.",
     );
   }
   return checkFooting(site, type, habitat.position, habitat.id);
