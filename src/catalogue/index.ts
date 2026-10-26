@@ -24,6 +24,7 @@ export type {
   ResourceFlow,
   ResourceRef,
   RoverType,
+  SelfSufficiencyRules,
   SolarParticleEventRules,
   StructureType,
 } from "./catalogue";

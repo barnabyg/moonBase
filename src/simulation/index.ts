@@ -44,6 +44,7 @@ export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
 export type { UnloadingSnapshot } from "./unloading";
 export type { ParkingSnapshot } from "./parking";
 export type { BulkResourceForecast } from "./bulk-forecast";
+export type { SelfSufficiencySnapshot } from "./self-sufficiency";
 export type {
   ExpeditionSnapshot,
   ExpeditionStage,

@@ -243,6 +243,17 @@ export type GameEvent =
       readonly atMinute: number;
     }
   | {
+      /**
+       * The base has become self-sufficient in a life support stock
+       * ("self-sufficiency-gained"): over the data catalogue's window, its
+       * Plants made at least as much as the Mission Director used; or it
+       * has ceased to be ("self-sufficiency-lost").
+       */
+      readonly kind: "self-sufficiency-gained" | "self-sufficiency-lost";
+      readonly atMinute: number;
+      readonly stockId: string;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
 
       readonly kind: "mission-director-died";

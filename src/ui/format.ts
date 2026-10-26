@@ -9,6 +9,7 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type RadiationDoseForecast,
+  type SelfSufficiencySnapshot,
   type SpareComponentsForecast,
   type SolarParticleEventSnapshot,
 } from "../simulation";
@@ -225,6 +226,35 @@ export function formatLifeSupport(
 }
 
 /**
+ * Says whether the base is self-sufficient in a life support stock, and
+ * what share of the Mission Director's use the base made over the window,
+ * for example "Oxygen self-sufficiency: yes, 140% of use made at the base
+ * over the last Lunation".
+ */
+export function formatSelfSufficiency(
+  selfSufficiency: SelfSufficiencySnapshot,
+  missionDirector: MissionDirectorResidence,
+): string {
+  const label = `${stockLabel(selfSufficiency.stockId)} self-sufficiency`;
+  if (missionDirector.residence === "lander") {
+    return `${label}: no, nothing is used aboard the Lander`;
+  }
+  const { windowLunations } = catalogue.selfSufficiency;
+  const window =
+    windowLunations === 1
+      ? "the last Lunation"
+      : `the last ${windowLunations} Lunations`;
+  const share =
+    selfSufficiency.coveredShare === undefined
+      ? "nothing used yet"
+      : `${Math.round(selfSufficiency.coveredShare * 100)}% of use made at the base`;
+  if (!selfSufficiency.windowComplete) {
+    return `${label}: not yet, ${share} so far, until a whole Lunation has been recorded`;
+  }
+  return `${label}: ${selfSufficiency.selfSufficient ? "yes" : "no"}, ${share} over ${window}`;
+}
+
+/**
  * Formats a Condition to the whole percent, for example "73%". Only a
  * Broken one shows as 0%, and one that has worn down at all shows below
  * 100% once it is half a percentage point down.
@@ -349,6 +379,10 @@ export function formatEvent(event: GameEvent): string {
       return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
+    case "self-sufficiency-gained":
+      return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+    case "self-sufficiency-lost":
+      return `The base is no longer self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":

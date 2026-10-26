@@ -112,6 +112,7 @@ export interface Catalogue {
    * at once.
    */
   readonly lifeSupportStocks: readonly LifeSupportStock[];
+  readonly selfSufficiency: SelfSufficiencyRules;
   /**
    * A warning comes as the time until the Habitat the Mission Director lives
    * in loses power falls to each of these many game-hours, largest first.
@@ -332,6 +333,22 @@ export interface LifeSupportStock {
    * use left, largest first. Each must come to a whole number of game-minutes.
    */
   readonly warningEarthDaysLeft: readonly number[];
+}
+
+/**
+ * When the base counts as self-sufficient in a life support stock: once,
+ * over a trailing window, its Plants have made at least as much of it as
+ * the Mission Director has used.
+ */
+export interface SelfSufficiencyRules {
+  /** How many Lunations the window covers. */
+  readonly windowLunations: number;
+  /**
+   * How long each record of what was made and used covers, in game-hours.
+   * The window must come to a whole number of them, and the rule is
+   * checked as each one ends.
+   */
+  readonly recordHours: number;
 }
 
 /** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
@@ -601,7 +618,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 28,
+  version: 29,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1049,6 +1066,9 @@ export const catalogue: Catalogue = {
       warningEarthDaysLeft: [7, 3, 1],
     },
   ],
+  // A whole Lunation, so that a Night when the Plants stand idle, or the
+  // time between Expeditions, doesn't take self-sufficiency away.
+  selfSufficiency: { windowLunations: 1, recordHours: 6 },
   habitatPowerWarningHoursLeft: [24, 6, 1],
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar

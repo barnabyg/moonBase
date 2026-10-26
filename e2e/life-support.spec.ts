@@ -26,8 +26,8 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   const speeds = panel.getByRole("group", { name: "Game speed" });
   const twentyTimes = speeds.getByRole("button", { name: "20x" });
   await twentyTimes.click();
-  const oxygen = panel.getByRole("status", { name: "Oxygen" });
-  const water = panel.getByRole("status", { name: "Water" });
+  const oxygen = panel.getByRole("status", { name: "Oxygen", exact: true });
+  const water = panel.getByRole("status", { name: "Water", exact: true });
   const habitatPower = panel.getByRole("status", { name: "Habitat power" });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
   await expect(oxygen).toHaveText(

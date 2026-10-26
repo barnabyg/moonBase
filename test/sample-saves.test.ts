@@ -1126,3 +1126,62 @@ describe("the sample save of format version 19", () => {
     expect(waterOf()).toBeGreaterThan(water);
   });
 });
+
+describe("the sample saves from before self-sufficiency", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-19.moonbase"])(
+    "%s loads with no records kept yet, and the base self-sufficient in nothing",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.selfSufficiency).toEqual(
+        catalogue.lifeSupportStocks.map((stock) => ({
+          stockId: stock.id,
+          selfSufficient: false,
+          coveredShare: undefined,
+          windowComplete: false,
+        })),
+      );
+    },
+  );
+});
+
+describe("the sample save of format version 20", () => {
+  it("loads with two Earth Days of records of the water the plant has made", () => {
+    const document = JSON.parse(
+      readFileSync(new URL("version-20.moonbase", samples), "utf8"),
+    ) as {
+      state: {
+        selfSufficiency: {
+          stockId: string;
+          records: { producedKilograms: number }[];
+        }[];
+      };
+    };
+
+    expect(
+      document.state.selfSufficiency.map((history) => [
+        history.stockId,
+        history.records.length,
+      ]),
+    ).toEqual([
+      ["oxygen", 8],
+      ["water", 8],
+    ]);
+    const state = loadSample("version-20.moonbase").snapshot();
+    expect(
+      state.selfSufficiency.map((judged) => judged.selfSufficient),
+    ).toEqual([false, false]);
+  });
+
+  it("plays on from where it was saved, never self-sufficient while the Mission Director lives aboard the Lander", () => {
+    const campaign = loadSample("version-20.moonbase");
+
+    const kinds = campaign.advance(5 * 24 * 60).map((event) => event.kind);
+
+    expect(kinds).not.toContain("self-sufficiency-gained");
+    expect(campaign.snapshot().selfSufficiency[1]).toMatchObject({
+      stockId: "water",
+      selfSufficient: false,
+    });
+  });
+});

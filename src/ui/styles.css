@@ -320,7 +320,10 @@ body {
 .build-menu__options button {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   width: 100%;
+  text-align: left;
   padding: 6px 10px;
   font: inherit;
   color: var(--text);
@@ -346,6 +349,7 @@ body {
 }
 
 .build-menu__stock {
+  flex-shrink: 0;
   font-size: 0.85rem;
   opacity: 0.75;
 }

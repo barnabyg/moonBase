@@ -32,6 +32,7 @@ import {
   formatPlant,
   formatPower,
   formatRadiationDose,
+  formatSelfSufficiency,
   formatSolarParticleEvent,
   formatStock,
   formatStoredPower,
@@ -225,6 +226,20 @@ export function createStatusPanel(
     return { type, line };
   });
 
+  // Whether the base is self-sufficient in oxygen and water.
+  const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
+    const line = document.createElement("p");
+    line.className = "status-panel__stock";
+    line.setAttribute("role", "status");
+    // Not starting with the stock's name, which labels its own line.
+    line.setAttribute(
+      "aria-label",
+      `Self-sufficiency in ${type.label.toLowerCase()}`,
+    );
+    line.setAttribute("aria-live", "off");
+    return { type, line };
+  });
+
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = document.createElement("p");
   radiationDose.className = "status-panel__radiation";
@@ -337,6 +352,7 @@ export function createStatusPanel(
     expeditionLine,
     habitatPower,
     ...stocks.map((stock) => stock.line),
+    ...selfSufficiency.map((stock) => stock.line),
     radiationDose,
     solarParticleEvent,
     structures,
@@ -424,6 +440,14 @@ export function createStatusPanel(
           stock.kilograms === 0 ||
             (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
         );
+      }
+      for (const { type, line } of selfSufficiency) {
+        const judged = snapshot.selfSufficiency.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        line.hidden = judged === undefined;
+        if (judged === undefined) continue;
+        setText(line, formatSelfSufficiency(judged, snapshot.missionDirector));
       }
       setText(
         radiationDose,

@@ -471,6 +471,25 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 19 to 20: the base is self-sufficient in oxygen or water once, over a
+  // trailing window, its Plants have made as much as the Mission Director
+  // used, which is judged on records of both. None was kept before, so a
+  // whole window has to pass after loading before it can be.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        selfSufficiency: ["oxygen", "water"].map((stockId) => ({
+          stockId,
+          current: { producedKilograms: 0, usedKilograms: 0 },
+          records: [],
+        })),
+      },
+    };
+  },
 ];
 
 /**
@@ -1046,6 +1065,11 @@ const machineAssignment = object({
   working: boolean,
 });
 
+const lifeSupportRecord = object({
+  producedKilograms: amount,
+  usedKilograms: amount,
+});
+
 /** The Campaign state apart from the random generator's. */
 const simulationState = object({
   elapsedMinutes: wholeNumber,
@@ -1071,6 +1095,13 @@ const simulationState = object({
     object({
       stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
       kilograms: finiteNumber,
+    }),
+  ),
+  selfSufficiency: list(
+    object({
+      stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
+      current: lifeSupportRecord,
+      records: list(lifeSupportRecord),
     }),
   ),
   radiationDoseMillisieverts: finiteNumber,

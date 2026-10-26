@@ -7,6 +7,7 @@ import {
   isBroken,
   type StructureState,
 } from "./construction";
+import { recordLifeSupport } from "./self-sufficiency";
 
 /** Why a Plant isn't running. */
 export type PlantStop =
@@ -115,7 +116,11 @@ export function runPlants(state: CampaignState): void {
       addTo(state, flow.resource, -flow.kilogramsPerHour * rate * share);
     }
     for (const flow of recipe.outputs) {
-      addTo(state, flow.resource, flow.kilogramsPerHour * rate * share);
+      const made = flow.kilogramsPerHour * rate * share;
+      addTo(state, flow.resource, made);
+      if (flow.resource.kind === "life-support") {
+        recordLifeSupport(state, flow.resource.stockId, { produced: made });
+      }
     }
   }
 }

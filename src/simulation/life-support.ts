@@ -4,6 +4,7 @@ import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import { productionPerHour } from "./plants";
+import { recordLifeSupport } from "./self-sufficiency";
 
 /**
  * How far short of a whole game-minute of use a stock may be and still count
@@ -88,7 +89,9 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
     const type = findStock(stock.stockId);
     const perMinute = netPerMinute(state, stock);
     const before = minutesLeft(stock, perMinute);
-    stock.kilograms = Math.max(stock.kilograms - usePerMinute(type), 0);
+    const used = Math.min(usePerMinute(type), stock.kilograms);
+    stock.kilograms -= used;
+    recordLifeSupport(state, stock.stockId, { used });
     const after = minutesLeft(stock, perMinute);
     if (stock.kilograms === 0 || after === 0) {
       stock.kilograms = 0;

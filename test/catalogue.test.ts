@@ -673,6 +673,18 @@ describe("the data catalogue", () => {
     });
   });
 
+  it("counts self-sufficiency over a window of a whole number of records, one Lunation by default", () => {
+    const { windowLunations, recordHours } = catalogue.selfSufficiency;
+    const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
+    const windowHours =
+      windowLunations * (daylightEarthDays + nightEarthDays) * 24;
+
+    expect(windowLunations).toBe(1);
+    expect(recordHours).toBeGreaterThan(0);
+    expect(Number.isInteger(recordHours * 60)).toBe(true);
+    expect(Number.isInteger(windowHours / recordHours)).toBe(true);
+  });
+
   it("has a Habitat the Mission Director can move into", () => {
     expect(
       catalogue.structureTypes
