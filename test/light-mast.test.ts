@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { catalogue, type StructureType } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import {
+  catalogue,
+  type StructureType,
+  type Catalogue,
+} from "../src/catalogue";
 import type {
   GroundPosition,
   PowerNetworkSnapshot,
@@ -7,6 +11,15 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+
+// No Machine feels the cold or draws power for a heater at Night, and the
+// Robot never has to park one, so that power and time pass as the test
+// expects.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutCold } = await import("./without-cold");
+  return { ...actual, catalogue: withoutCold(actual.catalogue) };
+});
 
 function structureType(id: string): StructureType {
   const type = catalogue.structureTypes.find(

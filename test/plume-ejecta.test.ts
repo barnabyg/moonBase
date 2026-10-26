@@ -11,11 +11,13 @@ import { scenario, type Scenario } from "./scenario";
 
 // The Mission Director has to live in the Habitat for whole round trips.
 // Each take-off and landing takes half a Structure's Condition, so that one
-// round trip breaks what stands near the Lander.
+// round trip breaks what stands near the Lander, and there are no spare
+// Components for Maintenance to repair it with. Dust wears nothing down.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
-  const safe = safeHabitat(actual.catalogue, [
+  const { withoutDust } = await import("./without-dust");
+  const safe = safeHabitat(withoutDust(actual.catalogue), [
     "power",
     "radiation",
     "solar-particle-events",
@@ -25,6 +27,9 @@ vi.mock("../src/catalogue", async (importOriginal) => {
     catalogue: {
       ...safe,
       plumeEjecta: { ...safe.plumeEjecta, conditionLossPercent: 50 },
+      startingStock: safe.startingStock.filter(
+        (stock) => stock.componentId !== safe.maintenance.spareComponentId,
+      ),
     },
   };
 });

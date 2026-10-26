@@ -96,7 +96,7 @@ describe("cancelling a Construction", () => {
     runUntil(game, (state) =>
       state.machines.some(
         (machine) =>
-          machine.activity.kind !== "idle" &&
+          "constructionId" in machine.activity &&
           machine.activity.constructionId === cancelled,
       ),
     );

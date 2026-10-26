@@ -1,6 +1,7 @@
 import type { ComponentCount } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { addToStock } from "./stockpile";
+import { structureOf } from "./work-orders";
 import {
   componentsFor,
   stageMinutes,
@@ -79,7 +80,7 @@ export function cancelConstruction(
     }
   }
   for (const robot of state.robots) {
-    if (robot.workOrder?.structureId === constructionId) {
+    if (structureOf(robot.workOrder) === constructionId) {
       robot.workOrder = undefined;
       robot.carrying = [];
       robot.activity = { kind: "idle" };

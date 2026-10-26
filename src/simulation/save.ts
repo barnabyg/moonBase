@@ -6,9 +6,14 @@ import type { DeathCause } from "./events";
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
-import { MAX_SEED } from "./random";
+import { MAX_SEED, nextFraction } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
-import type { WorkOrderKind } from "./work-orders";
+import type {
+  MachineWorkOrderKind,
+  StructureWorkOrderKind,
+  WorkOrder,
+  WorkOrderKind,
+} from "./work-orders";
 
 /** What every save document says it is, to tell it from any other JSON. */
 const SAVE_FORMAT = "moonbase-save";
@@ -153,6 +158,185 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 7 to 8: Maintenance, which uses up spare Components, a new Component
+  // the base's stock keeps a count of after the others. An older save's
+  // stock gains the starting amount of them, as it stood when format
+  // version 8 came in, and has no Maintenance raised yet: Structures worn
+  // down are raised for in the first game-minute played.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "spare-component", count: 6 },
+                ],
+              }
+            : stockpile,
+        maintenance: [],
+      },
+    };
+  },
+  // 8 to 9: Dust coats solar arrays, and every Structure keeps a Dust
+  // coating, clean until now. A Maintenance visit can clean as well as
+  // restore Condition, so what one under way does becomes a visit: it
+  // restores Condition with the spare Components taken, and doesn't clean.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { structures, maintenance } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: Array.isArray(structures)
+          ? structures.map((structure: unknown) =>
+              isRecord(structure)
+                ? { ...structure, dustCoatingPercent: 0 }
+                : structure,
+            )
+          : structures,
+        maintenance: Array.isArray(maintenance)
+          ? maintenance.map((order: unknown) => {
+              if (!isRecord(order)) return order;
+              const { spareComponents, ...rest } = order;
+              return {
+                ...rest,
+                visit:
+                  spareComponents === null || spareComponents === undefined
+                    ? null
+                    : { spareComponents, cleaning: false },
+              };
+            })
+          : maintenance,
+      },
+    };
+  },
+  // 9 to 10: every Machine has a Condition, which Dust wears down as it
+  // works and is driven, and Maintenance can be for a Machine as well as a
+  // Structure, so it names what it is for. Nothing wore a Machine down
+  // before, so each is at 100%, and Maintenance until now was always for a
+  // Structure.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines, maintenance } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine)
+                ? { ...machine, conditionPercent: 100 }
+                : machine,
+            )
+          : machines,
+        maintenance: Array.isArray(maintenance)
+          ? maintenance.map((order: unknown) => {
+              if (!isRecord(order)) return order;
+              const { structureId, ...rest } = order;
+              return { target: { kind: "structure", structureId }, ...rest };
+            })
+          : maintenance,
+      },
+    };
+  },
+  // 10 to 11: Machines plug in to powered Structures, whose networks
+  // supply their heaters at Night, and the Robot parks them where they can
+  // plug in. A Machine has power as the next game-minute's power is
+  // supplied, and none is being parked yet.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine) ? { ...machine, powered: false } : machine,
+            )
+          : machines,
+        parking: [],
+      },
+    };
+  },
+  // 11 to 12: every Robot has a Condition, which Dust wears down as it
+  // works, and repairs itself when it falls too far. Nothing wore a Robot
+  // down before, so each is at 100%, repairing nothing.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["robots"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        robots: state["robots"].map((robot: unknown) =>
+          isRecord(robot)
+            ? { ...robot, conditionPercent: 100, selfRepair: null }
+            : robot,
+        ),
+      },
+    };
+  },
+  // 12 to 13: Micrometeorites strike at random, one at a time. The first
+  // is scheduled from the saved generator, which moves on with the draw,
+  // from 4 to 20 Earth Days after the game-minute saved, as the strikes'
+  // range stood when format version 13 came in.
+  (document) => {
+    const state = document["state"];
+    const saved = document["random"];
+    if (
+      !isRecord(state) ||
+      !isWholeNumber(state["elapsedMinutes"]) ||
+      !isRecord(saved) ||
+      !isWholeNumber(saved["a"]) ||
+      !isWholeNumber(saved["b"]) ||
+      !isWholeNumber(saved["c"]) ||
+      !isWholeNumber(saved["d"])
+    ) {
+      return { ...document };
+    }
+    const random = {
+      a: saved["a"],
+      b: saved["b"],
+      c: saved["c"],
+      d: saved["d"],
+    };
+    const low = 4 * 24 * 60;
+    const high = 20 * 24 * 60;
+    const strikesAtMinute =
+      state["elapsedMinutes"] +
+      low +
+      Math.floor(nextFraction(random) * (high - low + 1));
+    return {
+      ...document,
+      random,
+      state: { ...state, micrometeorite: { strikesAtMinute } },
+    };
+  },
+  // 13 to 14: warnings that the spare Components will run out, given once
+  // for each level. None has been given yet.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: { ...state, spareComponentsWarnedMinutes: null },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -287,6 +471,14 @@ const finiteNumber: Decoder<number> = (value, path) => {
   return value;
 };
 
+/** A number from 0 up, not necessarily whole, such as working time done at less than full speed. */
+const amount: Decoder<number> = (value, path) => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw refuse(path, "isn't a number from 0 up");
+  }
+  return value;
+};
+
 const wholeNumber: Decoder<number> = (value, path) => {
   if (!isWholeNumber(value) || value < 0) {
     throw refuse(path, "isn't a whole number from 0 up");
@@ -389,6 +581,18 @@ function object<F extends Fields>(fields: F): Decoder<Decoded<F>> {
   };
 }
 
+/** One of two kinds of object, told apart by whether they have a field. */
+function byField<A, B>(
+  key: string,
+  withField: Decoder<A>,
+  withoutField: Decoder<B>,
+): Decoder<A | B> {
+  return (value, path) =>
+    isRecord(value) && Object.hasOwn(value, key)
+      ? withField(value, path)
+      : withoutField(value, path);
+}
+
 /** One of several kinds of object, told apart by the word in one field. */
 function tagged<C extends Record<string, Decoder<unknown>>>(
   key: string,
@@ -461,12 +665,24 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       "returning-components": true,
       "loading-cargo": true,
       "unloading-cargo": true,
+      maintaining: true,
+      cleaning: true,
     }),
     structureId: text,
   });
-  return tagged("kind", {
-    idle: object({ kind: exactly("idle") }),
-    walking: object({
+  // Maintenance of a Machine.
+  const forMachine = object({
+    kind: oneOf({ "loading-components": true, maintaining: true }),
+    machineId: text,
+  });
+  const walking = byField(
+    "machineId",
+    object({
+      kind: exactly("walking"),
+      machineId: text,
+      destination: oneOf({ stockpile: true, machine: true }),
+    }),
+    object({
       kind: exactly("walking"),
       structureId: text,
       destination: oneOf<WalkingDestination>({
@@ -477,9 +693,22 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         lander: true,
       }),
     }),
+  );
+  const repairing = object({
+    kind: oneOf({ "loading-spare-components": true, "repairing-itself": true }),
+  });
+  return tagged("kind", {
+    idle: object({ kind: exactly("idle") }),
+    walking,
+    "walking-to-repair": object({
+      kind: exactly("walking-to-repair"),
+      destination: oneOf({ stockpile: true, habitat: true, lander: true }),
+    }),
+    "loading-spare-components": repairing,
+    "repairing-itself": repairing,
     "driving-machine": drivingOrActivating,
     "activating-machine": drivingOrActivating,
-    "loading-components": working,
+    "loading-components": byField("machineId", forMachine, working),
     "unloading-components": working,
     assembling: working,
     commissioning: working,
@@ -488,22 +717,47 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
+    maintaining: byField("machineId", forMachine, working),
+    cleaning: working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
-const workOrder = object({
-  structureId: text,
-  kind: oneOf<WorkOrderKind>({
-    "prepare-site": true,
-    "deliver-components": true,
-    assemble: true,
-    commission: true,
-    "lay-cable": true,
-    dismantle: true,
-    "return-components": true,
-    "unload-lander": true,
-  }),
-});
+const workOrder: Decoder<WorkOrder> = (() => {
+  const onMachine = object({
+    machineId: text,
+    kind: oneOf<MachineWorkOrderKind>({
+      "maintain-machine": true,
+      "park-machine": true,
+    }),
+  });
+  const onStructure = object({
+    structureId: text,
+    kind: oneOf<StructureWorkOrderKind>({
+      "prepare-site": true,
+      "deliver-components": true,
+      assemble: true,
+      commission: true,
+      "lay-cable": true,
+      dismantle: true,
+      "return-components": true,
+      "unload-lander": true,
+      maintain: true,
+    }),
+  });
+  return tagged("kind", {
+    "prepare-site": onStructure,
+    "deliver-components": onStructure,
+    assemble: onStructure,
+    commission: onStructure,
+    "lay-cable": onStructure,
+    dismantle: onStructure,
+    "return-components": onStructure,
+    "unload-lander": onStructure,
+    maintain: onStructure,
+    "maintain-machine": onMachine,
+    "park-machine": onMachine,
+  } satisfies Record<WorkOrderKind, unknown>);
+})();
 
 const machineActivity: Decoder<MachineActivity> = (() => {
   const busy = object({
@@ -514,6 +768,10 @@ const machineActivity: Decoder<MachineActivity> = (() => {
     idle: object({ kind: exactly("idle") }),
     "being-positioned": busy,
     working: busy,
+    "being-parked": object({
+      kind: exactly("being-parked"),
+      structureId: text,
+    }),
   } satisfies Record<MachineActivity["kind"], unknown>);
 })();
 
@@ -521,7 +779,7 @@ const machineAssignment = object({
   constructionId: text,
   stage: oneOf<MachineStage>({ "site-preparation": true, assembly: true }),
   destination: groundPosition,
-  activationMinutes: wholeNumber,
+  activationMinutes: amount,
   working: boolean,
 });
 
@@ -558,6 +816,8 @@ const simulationState = object({
     startsAtMinute: wholeNumber,
     endsAtMinute: wholeNumber,
   }),
+  micrometeorite: object({ strikesAtMinute: wholeNumber }),
+  spareComponentsWarnedMinutes: optional(wholeNumber),
   fundingMillionDollars: finiteNumber,
   launchManifest: list(
     object({
@@ -573,6 +833,15 @@ const simulationState = object({
       activity: robotActivity,
       carrying: list(componentCount),
       workOrder: optional(workOrder),
+      conditionPercent: finiteNumber,
+      selfRepair: optional(
+        object({
+          home: oneOf({ habitat: true, lander: true }),
+          spot: groundPosition,
+          spareComponents: optional(wholeNumber),
+          workedMinutes: wholeNumber,
+        }),
+      ),
     }),
   ),
   machines: list(
@@ -582,6 +851,8 @@ const simulationState = object({
       position: groundPosition,
       activity: machineActivity,
       assignment: optional(machineAssignment),
+      conditionPercent: finiteNumber,
+      powered: boolean,
     }),
   ),
   stockpile: object({
@@ -601,7 +872,7 @@ const simulationState = object({
         assembly: true,
         commissioning: true,
       }),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       componentsTaken: boolean,
       failedCommissionings: wholeNumber,
     }),
@@ -615,6 +886,7 @@ const simulationState = object({
       lit: boolean,
       storedKilowattHours: finiteNumber,
       conditionPercent: finiteNumber,
+      dustCoatingPercent: finiteNumber,
     }),
   ),
   dismantlings: list(
@@ -628,7 +900,7 @@ const simulationState = object({
         "taking-apart": true,
         "returning-components": true,
       }),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       recovered: list(componentCount),
       collected: boolean,
     }),
@@ -638,7 +910,7 @@ const simulationState = object({
       landingPadId: text,
       planNumber: wholeNumber,
       cargo: list(componentCount),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       collected: boolean,
     }),
   ),
@@ -653,6 +925,26 @@ const simulationState = object({
     }),
   ),
   reconnections: list(object({ structureId: text, planNumber: wholeNumber })),
+  maintenance: list(
+    object({
+      target: tagged("kind", {
+        structure: object({ kind: exactly("structure"), structureId: text }),
+        machine: object({ kind: exactly("machine"), machineId: text }),
+      }),
+      workSpot: groundPosition,
+      visit: optional(
+        object({ spareComponents: wholeNumber, cleaning: boolean }),
+      ),
+      workedMinutes: amount,
+    }),
+  ),
+  parking: list(
+    object({
+      machineId: text,
+      structureId: text,
+      destination: groundPosition,
+    }),
+  ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;
 
 const saveDocument = object({

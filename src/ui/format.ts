@@ -8,6 +8,7 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type RadiationDoseForecast,
+  type SpareComponentsForecast,
   type SolarParticleEventSnapshot,
 } from "../simulation";
 import type {
@@ -15,8 +16,11 @@ import type {
   GroundPosition,
   PowerForecast,
   PowerNetworkSnapshot,
+  RobotActivity,
   RobotSnapshot,
   Snapshot,
+  StrikeTarget,
+  StructureSnapshot,
   ComponentCount,
   ConstructionSnapshot,
   ConstructionWait,
@@ -26,7 +30,13 @@ import type {
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
+  MachineSnapshot,
+  MaintenanceSnapshot,
+  MaintenanceStep,
+  MaintenanceSubject,
+  MaintenanceWait,
   ManifestLine,
+  ParkingSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -204,6 +214,47 @@ export function formatLifeSupport(
     : amount;
 }
 
+/**
+ * Formats a Condition to the whole percent, for example "73%". Only a
+ * Broken one shows as 0%, and one that has worn down at all shows below
+ * 100% once it is half a percentage point down.
+ */
+export function formatCondition(conditionPercent: number): string {
+  if (conditionPercent <= 0) return "0%";
+  return `${Math.min(Math.max(Math.round(conditionPercent), 1), 100)}%`;
+}
+
+/**
+ * Says how well a Structure works, if its Condition has cut its output, for
+ * example ", working at 80%"; nothing at full performance or once Broken.
+ */
+export function formatPerformance(performance: number): string {
+  return performance > 0 && performance < 1
+    ? `, working at ${Math.max(Math.round(performance * 100), 1)}%`
+    : "";
+}
+
+/**
+ * Says how many spare Components the base has and how long they will last
+ * at the current rate of wear, for example "Spare Components: 6 in stock,
+ * last 9 Earth Days 4 hours".
+ */
+export function formatSpareComponents(
+  forecast: SpareComponentsForecast,
+): string {
+  const pending =
+    forecast.forPendingRepairs === 0
+      ? ""
+      : `, ${forecast.forPendingRepairs} needed for repairs waiting`;
+  const amount = `Spare Components: ${forecast.inStock} in stock${pending}`;
+  if (forecast.minutesUntilEmpty === undefined) {
+    return `${amount}, nothing wearing down`;
+  }
+  return forecast.minutesUntilEmpty === 0
+    ? `${amount}, too few for the wear`
+    : `${amount}, last ${formatDuration(forecast.minutesUntilEmpty)}`;
+}
+
 /** Says what happened in an event, for the notification list, for example "Night has fallen". */
 export function formatEvent(event: GameEvent): string {
   switch (event.kind) {
@@ -247,11 +298,43 @@ export function formatEvent(event: GameEvent): string {
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
           (damage) =>
-            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${damage.conditionPercent}%`,
+            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${formatCondition(damage.conditionPercent)}`,
         ),
       )}`;
     case "structure-broken":
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
+    case "machine-broken":
+      return `${machineLabel(event.machineTypeId)} is Broken, and has stopped where it stood`;
+    case "maintenance-needed":
+      return `${subjectLabel(event.target)} needs Maintenance: ${listInWords([
+        ...(event.restoresCondition
+          ? [`Condition down to ${formatCondition(event.conditionPercent)}`]
+          : []),
+        ...(event.cleans
+          ? [`Dust coating up to ${Math.round(event.dustCoatingPercent)}%`]
+          : []),
+      ])}`;
+    case "maintenance-completed":
+      return `${subjectLabel(event.target)} maintained: ${listInWords([
+        ...(event.spareComponents > 0
+          ? [
+              `back to 100% Condition, using ${plural(event.spareComponents, "spare Component")}`,
+            ]
+          : []),
+        ...(event.cleaned ? ["cleaned of Dust"] : []),
+      ])}`;
+    case "robot-self-repair-started":
+      return event.makeshift
+        ? `Robot at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
+        : `Robot at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
+    case "robot-repaired":
+      return event.spareComponents > 0
+        ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
+        : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "spare-components-warning":
+      return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
+    case "micrometeorite-strike":
+      return `Micrometeorite struck the ${strikeTargetLabel(event.target)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -451,10 +534,104 @@ export function machineLabel(machineTypeId: string): string {
   );
 }
 
+/**
+ * Says what a Machine is doing, whether it is plugged in and powered, and
+ * how intact it is, for the status panel, for example "Excavator: idle,
+ * plugged in and powered, Condition 87%" or "Regolith printer: Broken,
+ * Condition 0%, awaiting Maintenance".
+ */
+export function formatMachine(
+  machine: MachineSnapshot,
+  maintenance: readonly MaintenanceSnapshot[],
+): string {
+  const broken = machine.conditionPercent <= 0;
+  const doing = broken
+    ? "Broken"
+    : machine.activity.kind === "working"
+      ? "working"
+      : machine.activity.kind === "being-positioned"
+        ? "being driven to a site"
+        : machine.activity.kind === "being-parked"
+          ? "being parked"
+          : "idle";
+  const plug = broken
+    ? ""
+    : !machine.pluggedIn
+      ? ", not plugged in"
+      : machine.powered
+        ? ", plugged in and powered"
+        : ", plugged in, no power";
+  const order = maintenance.find(
+    ({ target }) =>
+      target.kind === "machine" && target.machineId === machine.id,
+  );
+  const maintained =
+    order === undefined
+      ? ""
+      : order.underWay
+        ? ", undergoing Maintenance"
+        : ", awaiting Maintenance";
+  return `${machineLabel(machine.machineTypeId)}: ${doing}${plug}, Condition ${formatCondition(machine.conditionPercent)}${formatPerformance(machine.performance)}${maintained}`;
+}
+
+/**
+ * Says what a Robot is doing and how intact it is, for the status panel,
+ * for example "Robot: working, Condition 87%" or "Robot: repairing itself
+ * at the Habitat, Condition 9%, working at 18%".
+ */
+export function formatRobot(robot: RobotSnapshot): string {
+  const { activity, selfRepair } = robot;
+  const where =
+    selfRepair === undefined
+      ? ""
+      : ` at the ${selfRepair.home === "habitat" ? "Habitat" : "Lander"}`;
+  const doing =
+    selfRepair === undefined
+      ? activity.kind === "idle"
+        ? "idle"
+        : "working"
+      : activity.kind === "repairing-itself"
+        ? `${selfRepair.makeshift ? "making a makeshift repair" : "repairing itself"}${where}`
+        : `going to repair itself${where}`;
+  return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+}
+
+/** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
+function strikeTargetLabel(target: StrikeTarget): string {
+  switch (target.kind) {
+    case "structure":
+      return structureLabel(target.structureTypeId).toLowerCase();
+    case "machine":
+      return machineLabel(target.machineTypeId).toLowerCase();
+    case "robot":
+      return "Robot";
+  }
+}
+
+/** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
+export function subjectLabel(subject: MaintenanceSubject): string {
+  return subject.kind === "structure"
+    ? structureLabel(subject.structureTypeId)
+    : machineLabel(subject.machineTypeId);
+}
+
+/** Whether a Robot's activity is for a Structure, by its id. */
+export function isFor(activity: RobotActivity, structureId: string): boolean {
+  return "structureId" in activity && activity.structureId === structureId;
+}
+
 /** Says why a Construction is waiting, for the Construction panel. */
 export function formatWaiting(waiting: ConstructionWait): string {
-  if (waiting.reason === "machine-busy") {
-    return `Waiting for the ${machineLabel(waiting.machineTypeId).toLowerCase()}, which is working on another site`;
+  if (waiting.reason !== "missing-components") {
+    const machine = machineLabel(waiting.machineTypeId).toLowerCase();
+    switch (waiting.reason) {
+      case "machine-busy":
+        return `Waiting for the ${machine}, which is working on another site`;
+      case "machine-broken":
+        return `Waiting for the ${machine}, which is Broken until it has been maintained`;
+      case "machine-maintained":
+        return `Waiting for the ${machine}, which is undergoing Maintenance`;
+    }
   }
   const missing = formatComponents(waiting.missing);
   const verb =
@@ -478,10 +655,8 @@ export function describeWork(
       candidate.activity.kind === "working" &&
       candidate.activity.constructionId === construction.id,
   );
-  const robot = snapshot.robots.find(
-    (candidate) =>
-      candidate.activity.kind !== "idle" &&
-      candidate.activity.structureId === construction.id,
+  const robot = snapshot.robots.find((candidate) =>
+    isFor(candidate.activity, construction.id),
   );
   const work = [
     ...(machine === undefined
@@ -537,7 +712,7 @@ function describeRobotWork(
       case "machine": {
         const positioning = snapshot.machines.find(
           (candidate) =>
-            candidate.activity.kind !== "idle" &&
+            "constructionId" in candidate.activity &&
             candidate.activity.constructionId === construction.id,
         );
         return positioning === undefined
@@ -571,11 +746,18 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    // Only ever done for a Structure being dismantled, or to unload the Lander.
+    // Only ever done for a Structure being dismantled or maintained, to
+    // unload the Lander, or for the Robot's repair of itself, when it does
+    // nothing for anything else.
     case "dismantling":
     case "returning-components":
     case "loading-cargo":
     case "unloading-cargo":
+    case "maintaining":
+    case "cleaning":
+    case "walking-to-repair":
+    case "loading-spare-components":
+    case "repairing-itself":
       return "Waiting for the Robot";
   }
 }
@@ -598,10 +780,8 @@ export function describeDismantling(
   snapshot: Pick<Snapshot, "robots">,
 ): string {
   const recovered = formatComponents(dismantling.recovered);
-  const robot = snapshot.robots.find(
-    (candidate) =>
-      candidate.activity.kind !== "idle" &&
-      candidate.activity.structureId === dismantling.id,
+  const robot = snapshot.robots.find((candidate) =>
+    isFor(candidate.activity, dismantling.id),
   );
   switch (robot?.activity.kind) {
     case "walking":
@@ -632,10 +812,8 @@ export function describeUnloading(
   snapshot: Pick<Snapshot, "robots">,
 ): string {
   const cargo = formatComponents(unloading.cargo);
-  const robot = snapshot.robots.find(
-    (candidate) =>
-      candidate.activity.kind !== "idle" &&
-      candidate.activity.structureId === unloading.landingPadId,
+  const robot = snapshot.robots.find((candidate) =>
+    isFor(candidate.activity, unloading.landingPadId),
   );
   switch (robot?.activity.kind) {
     case "walking":
@@ -651,6 +829,105 @@ export function describeUnloading(
         ? `Waiting for the Robot to carry ${cargo} to the stockpile`
         : `Waiting for the Robot to take ${cargo} off the Lander`;
   }
+}
+
+/**
+ * Says what is happening on parking a Machine right now, for the Work
+ * panel: what the Robot is doing with it, or else that it is waiting for
+ * the Robot.
+ */
+export function describeParking(
+  parking: ParkingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const machine = machineLabel(parking.machineTypeId).toLowerCase();
+  const beside = structureLabel(parking.structureTypeId).toLowerCase();
+  const robot = parking.underWay
+    ? snapshot.robots.find(
+        ({ activity }) =>
+          "machineId" in activity && activity.machineId === parking.machineId,
+      )
+    : undefined;
+  switch (robot?.activity.kind) {
+    case "walking":
+      return `Robot walking to the ${machine}`;
+    case "driving-machine":
+      return `Robot driving the ${machine} to the ${beside}, to plug it in`;
+    default:
+      return `Waiting for the Robot to park the ${machine} beside the ${beside}`;
+  }
+}
+
+/** Says why a Maintenance Work Order is waiting, for the Work panel. */
+export function formatMaintenanceWait(waiting: MaintenanceWait): string {
+  return waiting.reason === "machine-at-work"
+    ? "Waiting for the Machine to finish its work on a site"
+    : `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock`;
+}
+
+/**
+ * Says what is happening on a Maintenance Work Order right now, for the Work
+ * panel: what the Robot is doing on it, or else what it is waiting for.
+ */
+export function describeMaintenance(
+  maintenance: MaintenanceSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const spares = plural(maintenance.spareComponents, "spare Component");
+  const { target } = maintenance;
+  const label = subjectLabel(target).toLowerCase();
+  const robot = maintenance.underWay
+    ? snapshot.robots.find(({ activity }) =>
+        target.kind === "structure"
+          ? isFor(activity, target.structureId)
+          : "machineId" in activity && activity.machineId === target.machineId,
+      )
+    : undefined;
+  switch (robot?.activity.kind) {
+    case "walking":
+      if (robot.activity.destination === "stockpile") {
+        return `Robot walking to the stockpile for ${spares}`;
+      }
+      return maintenance.spareComponents > 0
+        ? `Robot carrying ${spares} to the ${label}`
+        : `Robot walking to the ${label} to clean it`;
+    case "loading-components":
+      return `Robot loading ${spares} at the stockpile`;
+    case "maintaining":
+      return `Robot restoring the ${label}'s Condition`;
+    case "cleaning":
+      return `Robot cleaning the Dust off the ${label}`;
+    default:
+      if (maintenance.waiting !== undefined) {
+        return formatMaintenanceWait(maintenance.waiting);
+      }
+      return maintenance.spareComponents > 0
+        ? `Waiting for the Robot, which will use ${spares}`
+        : "Waiting for the Robot, which will clean it";
+  }
+}
+
+const maintenanceStepLabels: Record<MaintenanceStep, string> = {
+  "loading-spare-components": "Loading spare Components",
+  "restoring-condition": "Restoring Condition",
+  cleaning: "Cleaning",
+};
+
+export function formatMaintenanceStep(step: MaintenanceStep): string {
+  return maintenanceStepLabels[step];
+}
+
+/** Says how thickly Dust coats a solar array, for example ", Dust coating 12%"; nothing for anything else. */
+export function formatDustCoating(
+  structure: Pick<StructureSnapshot, "structureTypeId" | "dustCoatingPercent">,
+): string {
+  const generates =
+    (catalogue.structureTypes.find(
+      (type) => type.id === structure.structureTypeId,
+    )?.power.generationKilowatts ?? 0) > 0;
+  return generates
+    ? `, Dust coating ${Math.round(structure.dustCoatingPercent)}%`
+    : "";
 }
 
 /** The length of a line of points on the ground, in metres. */

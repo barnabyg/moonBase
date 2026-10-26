@@ -1,0 +1,179 @@
+{
+  "format": "moonbase-save",
+  "version": 9,
+  "random": {
+    "a": 1909100629,
+    "b": 3757884697,
+    "c": 1610440523,
+    "d": 2291658346
+  },
+  "state": {
+    "elapsedMinutes": 32551,
+    "nextStructureNumber": 2,
+    "nextPlanNumber": 2,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 65246,
+      "startsAtMinute": 65486,
+      "endsAtMinute": 66284
+    },
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 16.570028297149822,
+          "y": 9.942016978289894
+        },
+        "activity": {
+          "kind": "cleaning",
+          "structureId": "structure-1"
+        },
+        "carrying": [],
+        "workOrder": {
+          "structureId": "structure-1",
+          "kind": "maintain"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 24.373213921133974,
+          "y": 14.623928352680386
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        }
+      ]
+    },
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 84.98250000001366,
+        "dustCoatingPercent": 30.034999999988923
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [],
+    "reconnections": [],
+    "maintenance": [
+      {
+        "structureId": "structure-1",
+        "workSpot": {
+          "x": 16.570028297149822,
+          "y": 9.942016978289894
+        },
+        "visit": {
+          "spareComponents": 0,
+          "cleaning": true
+        },
+        "workedMinutes": 21
+      }
+    ]
+  }
+}

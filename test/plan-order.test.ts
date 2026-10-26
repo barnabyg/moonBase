@@ -27,7 +27,7 @@ function run(game: Scenario, minutes: number): Snapshot[] {
 function constructionsWorkedOn(states: Snapshot[]): string[] {
   const ids = states.flatMap((state) =>
     state.robots.flatMap((robot) =>
-      robot.activity.kind === "idle" ? [] : [robot.activity.structureId],
+      "structureId" in robot.activity ? [robot.activity.structureId] : [],
     ),
   );
   return ids.filter((id, index) => ids.indexOf(id) === index);
@@ -49,7 +49,7 @@ describe("several Constructions", () => {
     const secondStarted = states.findIndex((state) =>
       state.robots.some(
         (robot) =>
-          robot.activity.kind !== "idle" &&
+          "structureId" in robot.activity &&
           robot.activity.structureId === second,
       ),
     );

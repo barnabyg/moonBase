@@ -38,6 +38,11 @@ export function createNotificationList(
           event.kind === "solar-particle-event-started" ||
           event.kind === "plume-ejecta-damage" ||
           event.kind === "structure-broken" ||
+          event.kind === "machine-broken" ||
+          event.kind === "robot-self-repair-started" ||
+          event.kind === "micrometeorite-strike" ||
+          event.kind === "spare-components-warning" ||
+          event.kind === "maintenance-needed" ||
           event.kind === "mission-director-died"
         ) {
           item.classList.add("notifications__item--warning");

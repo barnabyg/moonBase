@@ -10,6 +10,8 @@ import {
   type CancelResult,
 } from "./cancel";
 import { readClock, type ClockSnapshot } from "./clock";
+import { structurePerformance, wearStructures } from "./condition";
+import { coatSolarArrays } from "./dust-coating";
 import {
   dismantleStructure,
   dismantlingStageMinutes,
@@ -20,6 +22,7 @@ import {
 import {
   checkPlacement,
   chooseWorkSpot,
+  findStructureType,
   isShielded,
   stageMinutes,
   type ConstructionPlan,
@@ -71,6 +74,8 @@ import {
   type LunationSnapshot,
 } from "./lunation";
 import {
+  chillMachines,
+  machinePerformance,
   workMachines,
   type MachineActivity,
   type MachineState,
@@ -78,6 +83,7 @@ import {
 import {
   consumptionKilowatts,
   minutesUntilEmpty,
+  pluggedIn,
   powerNetworks,
   supplyPower,
   type CableState,
@@ -87,6 +93,23 @@ import {
   forecastRadiationDose,
   type RadiationDoseForecast,
 } from "./radiation";
+import {
+  planMaintenance,
+  readMaintenance,
+  type MaintenanceSnapshot,
+  type MaintenanceState,
+} from "./maintenance";
+import {
+  scheduleMicrometeorite,
+  watchMicrometeorites,
+  type MicrometeoriteState,
+} from "./micrometeorites";
+import {
+  planParking,
+  readParking,
+  type ParkingSnapshot,
+  type ParkingState,
+} from "./parking";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -98,8 +121,18 @@ import {
   type SolarParticleEventState,
 } from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
+import {
+  forecastSpareComponents,
+  watchSpareComponents,
+  type SpareComponentsForecast,
+} from "./spare-forecast";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import {
+  readSelfRepair,
+  robotPerformance,
+  type SelfRepairSnapshot,
+} from "./self-repair";
 import {
   planUnloading,
   readUnloading,
@@ -136,6 +169,15 @@ export interface RobotSnapshot {
   readonly activity: RobotActivity;
   /** The Components the Robot is carrying. */
   readonly carrying: readonly ComponentCount[];
+  /**
+   * How intact it is, from 100% down to the data catalogue's floor: a
+   * Robot is never Broken.
+   */
+  readonly conditionPercent: number;
+  /** How fast it walks and works as its Condition falls, from 1 down. */
+  readonly performance: number;
+  /** Its repair of itself, while it is under way. */
+  readonly selfRepair: SelfRepairSnapshot | undefined;
 }
 
 export interface MachineSnapshot {
@@ -143,6 +185,24 @@ export interface MachineSnapshot {
   readonly machineTypeId: string;
   readonly position: GroundPosition;
   readonly activity: MachineActivity;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and stops
+   * working until it is repaired.
+   */
+  readonly conditionPercent: number;
+  /** How fast it works and drives as its Condition falls, from 1 down to 0 once it is Broken. */
+  readonly performance: number;
+  /**
+   * Whether it stands within plug-in reach of a commissioned Structure on
+   * a network with a power source, one that isn't Broken.
+   */
+  readonly pluggedIn: boolean;
+  /**
+   * Whether it had power during the latest game-minute: it was plugged in
+   * and, at Night, its network supplied its heater. Unpowered at Night, the
+   * cold wears it down.
+   */
+  readonly powered: boolean;
 }
 
 export interface ConstructionSnapshot {
@@ -187,6 +247,20 @@ export interface StructureSnapshot {
    * nothing until it is repaired.
    */
   readonly conditionPercent: number;
+  /**
+   * How well it does its job as its Condition falls, from 1 down to 0 once
+   * it is Broken: how much of its generation, storage capacity or light
+   * radius a solar array, battery bank or Light Mast has left. Anything
+   * else works fully until it is Broken.
+   */
+  readonly performance: number;
+  /** How far round it its light reaches, as its performance allows, or 0 if it has none. */
+  readonly lightRadiusMetres: number;
+  /**
+   * How thickly Dust coats it, from 0% to 100%, cutting a solar array's
+   * output; always 0% for any other Structure.
+   */
+  readonly dustCoatingPercent: number;
 }
 
 /**
@@ -227,7 +301,10 @@ export interface CableSnapshot {
 export interface PowerNetworkSnapshot {
   /** In the order they were commissioned. */
   readonly structureIds: readonly string[];
-  /** The power its solar arrays are generating now: none at Night. */
+  /**
+   * The power its solar arrays are generating now, as their Condition and
+   * Dust coating allow: none at Night.
+   */
   readonly generationKilowatts: number;
   /** The power its Structures draw now, including any lights at Night. */
   readonly consumptionKilowatts: number;
@@ -248,6 +325,8 @@ export interface Forecasts {
   readonly habitatPower: HabitatPowerForecast | undefined;
   /** How fast the Mission Director's Radiation Dose is rising, and when it reaches the limit. */
   readonly radiationDose: RadiationDoseForecast;
+  /** How long the base's spare Components will last, at the current rate of wear. */
+  readonly spareComponents: SpareComponentsForecast;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -321,6 +400,13 @@ export interface Snapshot {
   readonly unloading: UnloadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
+  /**
+   * Maintenance Work Orders awaiting the Robot or under way, in the order
+   * they were raised, which is the order the Robot takes them in.
+   */
+  readonly maintenance: readonly MaintenanceSnapshot[];
+  /** Machines being parked where they can plug in, or waiting for the Robot to park them. */
+  readonly parking: readonly ParkingSnapshot[];
 }
 
 export type LoadResult =
@@ -414,6 +500,15 @@ export interface CampaignState {
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
+  /** The next Micrometeorite strike. */
+  micrometeorite: MicrometeoriteState;
+  /**
+   * The lowest warning level, in game-minutes left, already given for the
+   * spare Components running out, until more arrive in the base's stock or
+   * the forecast is back well clear of them all; undefined when none has
+   * been.
+   */
+  spareComponentsWarnedMinutes: number | undefined;
   fundingMillionDollars: number;
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
@@ -429,6 +524,10 @@ export interface CampaignState {
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
+  /** Maintenance Work Orders, in the order they were raised. */
+  maintenance: MaintenanceState[];
+  /** "Park Machine" Work Orders, in the order they were raised. */
+  parking: ParkingState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -448,6 +547,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
+    micrometeorite: scheduleMicrometeorite(random, 0),
+    spareComponentsWarnedMinutes: undefined,
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
     ended: undefined,
@@ -457,6 +558,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       carrying: [],
       workOrder: undefined,
+      conditionPercent: 100,
+      selfRepair: undefined,
     })),
     machines: landingSite.machines.map((machine, index) => ({
       id: `${machine.machineTypeId}-${index + 1}`,
@@ -464,6 +567,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...machine.position },
       activity: { kind: "idle" },
       assignment: undefined,
+      conditionPercent: 100,
+      powered: false,
     })),
     stockpile: startingStockpile(),
     constructions: [],
@@ -472,6 +577,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     unloading: undefined,
     cables: [],
     reconnections: [],
+    maintenance: [],
+    parking: [],
   });
 }
 
@@ -604,10 +711,12 @@ function campaignFrom(state: CampaignState): Campaign {
         lifeSupport: forecastLifeSupport(state),
         habitatPower: forecastHabitatPower(state),
         radiationDose: forecastRadiationDose(state),
+        spareComponents: forecastSpareComponents(state),
       });
     },
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
+      const plugs = pluggedIn(state);
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
         lunation,
@@ -626,12 +735,19 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...robot.position },
           activity: { ...robot.activity },
           carrying: copy(robot.carrying),
+          conditionPercent: robot.conditionPercent,
+          performance: robotPerformance(robot),
+          selfRepair: readSelfRepair(robot),
         })),
         machines: state.machines.map((machine) => ({
           id: machine.id,
           machineTypeId: machine.machineTypeId,
           position: { ...machine.position },
           activity: { ...machine.activity },
+          conditionPercent: machine.conditionPercent,
+          performance: machinePerformance(machine),
+          pluggedIn: plugs.has(machine.id),
+          powered: machine.powered,
         })),
         stockpile: copy(state.stockpile),
         constructions: state.constructions.map((construction) => ({
@@ -645,10 +761,17 @@ function campaignFrom(state: CampaignState): Campaign {
           unusedComponents: unusedComponents(construction),
           waiting: copy(findWaitingReason(state, construction)),
         })),
-        structures: state.structures.map((structure) => ({
-          ...copy(structure),
-          shielded: isShielded(state, structure),
-        })),
+        structures: state.structures.map((structure) => {
+          const performance = structurePerformance(structure);
+          return {
+            ...copy(structure),
+            shielded: isShielded(state, structure),
+            performance,
+            lightRadiusMetres:
+              (findStructureType(structure.structureTypeId)
+                ?.lightRadiusMetres ?? 0) * performance,
+          };
+        }),
         dismantlings: state.dismantlings.map((dismantling) => ({
           id: dismantling.id,
           structureTypeId: dismantling.structureTypeId,
@@ -684,6 +807,8 @@ function campaignFrom(state: CampaignState): Campaign {
             powered: network.structures.every((structure) => structure.powered),
           })),
         },
+        maintenance: readMaintenance(state),
+        parking: readParking(state),
       });
     },
     save() {
@@ -699,13 +824,26 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes,
     catalogue.lunation,
   ).part;
+  // The part of the Lunation the latest game-minute of power was supplied in.
+  const partSupplied =
+    state.elapsedMinutes === 0
+      ? partBefore
+      : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
+  const sparesBefore = forecastSpareComponents(state);
   state.elapsedMinutes += 1;
+  // First, before anything changes whether they operate.
+  events.push(...wearStructures(state));
+  events.push(...chillMachines(state, partSupplied === "night"));
+  coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
+  events.push(...watchMicrometeorites(state));
   planUnloading(state);
-  workMachines(state);
+  events.push(...planMaintenance(state));
+  planParking(state);
+  events.push(...workMachines(state));
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
@@ -717,6 +855,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     });
   }
   events.push(...watchSolarParticleEvents(state));
+  events.push(...watchSpareComponents(state, sparesBefore));
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.

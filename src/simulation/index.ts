@@ -40,6 +40,16 @@ export type {
 export type { LoadRefusal } from "./save";
 export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
 export type { UnloadingSnapshot } from "./unloading";
+export type { ParkingSnapshot } from "./parking";
+export type { SelfRepairSnapshot } from "./self-repair";
+export type { StrikeTarget } from "./micrometeorites";
+export type { SpareComponentsForecast } from "./spare-forecast";
+export type {
+  MaintenanceSnapshot,
+  MaintenanceStep,
+  MaintenanceSubject,
+  MaintenanceWait,
+} from "./maintenance";
 export type { LanderLeg, SendLanderRefusal, SendLanderResult } from "./lander";
 export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";

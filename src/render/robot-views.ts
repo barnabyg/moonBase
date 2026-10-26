@@ -85,7 +85,9 @@ export function createRobotViews(scene: THREE.Scene) {
 
 function onFoot(robot: RobotSnapshot): boolean {
   return (
-    robot.activity.kind === "walking" || robot.activity.kind === "laying-cable"
+    robot.activity.kind === "walking" ||
+    robot.activity.kind === "walking-to-repair" ||
+    robot.activity.kind === "laying-cable"
   );
 }
 
@@ -109,15 +111,20 @@ function workTarget(
   }
   if (
     activity.kind === "loading-components" ||
+    activity.kind === "loading-spare-components" ||
     activity.kind === "returning-components" ||
     activity.kind === "unloading-cargo"
   ) {
     return toScene(frame.current.stockpile.position);
   }
+  // Repairing itself, it looks down at its own work.
+  if (activity.kind === "walking-to-repair" || !("structureId" in activity)) {
+    return undefined;
+  }
   if (activity.kind === "loading-cargo") {
     return toScene(frame.current.lander.position);
   }
-  if (activity.kind === "activating-machine") {
+  if (activity.kind === "activating-machine" || "machineId" in activity) {
     const machine = frame.current.machines.find(
       (candidate) => candidate.id === activity.machineId,
     );
@@ -207,11 +214,52 @@ function poseFor(
       seated: false,
       carrying,
     }),
+    // Walking, at whatever pace its Condition allows, to repair itself.
+    "walking-to-repair": () => {
+      const swing = Math.sin(strideAngle) * 0.35;
+      return {
+        legSwing: swing,
+        leftArm: carrying ? 1.2 : swing * 0.6,
+        rightArm: carrying ? 1.2 : -swing * 0.6,
+        lean: 0.12,
+        seated: false,
+        carrying,
+      };
+    },
+    // Lifting the spare Components for its own repair off the stockpile.
+    "loading-spare-components": () => lifting(work, carrying),
+    // Kneeling to work on its own leg with both hands.
+    "repairing-itself": () => ({
+      legSwing: 0.4,
+      leftArm: 0.9 + work * 0.2,
+      rightArm: 0.9 - work * 0.2,
+      lean: 0.45,
+      seated: false,
+      carrying,
+    }),
     // Lifting the recovered crates back onto the stockpile.
     "returning-components": () => lifting(work, carrying),
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),
+    // Bent over the Structure, working at it with both hands.
+    maintaining: () => ({
+      legSwing: 0,
+      leftArm: 1.4 + work * 0.25,
+      rightArm: 1.4 - work * 0.25,
+      lean: 0.3,
+      seated: false,
+      carrying,
+    }),
+    // Sweeping the Dust off the panel with a brush, side to side.
+    cleaning: () => ({
+      legSwing: 0,
+      leftArm: 0.4,
+      rightArm: 1.5 + work * 0.6,
+      lean: 0.15,
+      seated: false,
+      carrying,
+    }),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({
       legSwing: 0,

@@ -15,10 +15,11 @@ import { scenario, type Scenario } from "./scenario";
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
+  const { withoutDust } = await import("./without-dust");
   return {
     ...actual,
     catalogue: {
-      ...safeHabitat(actual.catalogue, [
+      ...safeHabitat(withoutDust(actual.catalogue), [
         "power",
         "radiation",
         "life-support",
@@ -230,9 +231,9 @@ describe("the landing pad", () => {
     const [earlier, later] = game.state.constructions.map((c) => c.id);
     const workingOn = () => {
       const activity = game.state.robots[0]?.activity;
-      return activity === undefined || activity.kind === "idle"
-        ? undefined
-        : activity.structureId;
+      return activity !== undefined && "structureId" in activity
+        ? activity.structureId
+        : undefined;
     };
     expect(workingOn()).toBe(earlier);
 

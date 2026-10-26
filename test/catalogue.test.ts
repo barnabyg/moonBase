@@ -173,6 +173,28 @@ describe("the data catalogue", () => {
     expect(catalogue.robot.cableLayingSpeedMetresPerHour).toBeGreaterThan(0);
   });
 
+  it("wears the Robot down by Dust, has it repair itself below a threshold, to a makeshift level above it without spares, and never lets it be Broken", () => {
+    const {
+      dustWearPercentPerHour,
+      performance,
+      selfRepairThresholdPercent,
+      selfRepairHours,
+      makeshiftRepairPercent,
+      conditionFloorPercent,
+    } = catalogue.robot;
+
+    expect(dustWearPercentPerHour).toBeGreaterThanOrEqual(0);
+    expect(performance.thresholdPercent).toBeGreaterThan(0);
+    expect(performance.exponent).toBeGreaterThan(0);
+    expect(conditionFloorPercent).toBeGreaterThan(0);
+    expect(selfRepairThresholdPercent).toBeGreaterThan(conditionFloorPercent);
+    expect(makeshiftRepairPercent).toBeGreaterThan(selfRepairThresholdPercent);
+    // A makeshift repair leaves it working slowly.
+    expect(makeshiftRepairPercent).toBeLessThan(performance.thresholdPercent);
+    expect(selfRepairHours).toBeGreaterThan(0);
+    expect(Number.isInteger(selfRepairHours * 60)).toBe(true);
+  });
+
   it("describes Machines that a Robot can drive and activate", () => {
     const { machineTypes } = catalogue;
     expect(new Set(machineTypes.map((type) => type.id)).size).toBe(
@@ -310,6 +332,128 @@ describe("the data catalogue", () => {
         habitat?.footprintRadiusMetres ?? Infinity,
       );
       for (const value of Object.values(type.power)) expect(value).toBe(0);
+    }
+  });
+
+  it("raises Maintenance below a threshold, using spare Components that are in the starting stock and that a Launch can bring", () => {
+    const {
+      thresholdPercent,
+      spareComponentId,
+      conditionPercentPerSpareComponent,
+      loadingHours,
+      workHours,
+    } = catalogue.maintenance;
+
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThan(100);
+    expect(catalogue.componentTypes.map((type) => type.id)).toContain(
+      spareComponentId,
+    );
+    expect(
+      catalogue.startingStock.find(
+        (stock) => stock.componentId === spareComponentId,
+      )?.count,
+    ).toBeGreaterThan(0);
+    expect(
+      catalogue.launch.items.some(
+        (item) =>
+          item.brings.kind === "component" &&
+          item.brings.componentId === spareComponentId,
+      ),
+    ).toBe(true);
+    // No Structure is built from them.
+    for (const type of catalogue.structureTypes) {
+      expect(type.components.map((need) => need.componentId)).not.toContain(
+        spareComponentId,
+      );
+    }
+    expect(conditionPercentPerSpareComponent).toBeGreaterThan(0);
+    expect(conditionPercentPerSpareComponent).toBeLessThanOrEqual(100);
+    for (const hours of [loadingHours, workHours]) {
+      expect(hours).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(hours * 60)).toBe(true);
+    }
+    expect(workHours).toBeGreaterThan(0);
+  });
+
+  it("wears every Structure down by Dust at a rate that can be 0, and cuts output below a performance threshold", () => {
+    for (const type of catalogue.structureTypes) {
+      expect(type.dustWearPercentPerHour).toBeGreaterThanOrEqual(0);
+      expect(type.dustWearPercentPerHour).toBeLessThan(100);
+    }
+    const solarArray = catalogue.structureTypes.find(
+      (type) => type.id === "solar-array",
+    );
+    expect(solarArray?.dustWearPercentPerHour).toBeGreaterThan(0);
+    const { thresholdPercent, exponent } = catalogue.structurePerformance;
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThanOrEqual(100);
+    expect(exponent).toBeGreaterThan(0);
+  });
+
+  it("coats solar arrays with Dust in Daylight, cutting their output, until they are cleaned past a threshold", () => {
+    const {
+      percentPerDaylightHour,
+      outputLossAtFullCoating,
+      cleaningThresholdPercent,
+      cleaningHours,
+    } = catalogue.dustCoating;
+
+    expect(percentPerDaylightHour).toBeGreaterThan(0);
+    expect(outputLossAtFullCoating).toBeGreaterThan(0);
+    expect(outputLossAtFullCoating).toBeLessThanOrEqual(1);
+    expect(cleaningThresholdPercent).toBeGreaterThan(0);
+    expect(cleaningThresholdPercent).toBeLessThan(100);
+    expect(cleaningHours).toBeGreaterThan(0);
+    expect(Number.isInteger(cleaningHours * 60)).toBe(true);
+  });
+
+  it("wears every Machine down by Dust as it works and is driven, and slows it below a performance threshold", () => {
+    for (const type of catalogue.machineTypes) {
+      expect(type.dustWearPercentPerWorkingHour).toBeGreaterThanOrEqual(0);
+      expect(type.dustWearPercentPerDrivingHour).toBeGreaterThanOrEqual(0);
+    }
+    const { thresholdPercent, exponent } = catalogue.machinePerformance;
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThanOrEqual(100);
+    expect(exponent).toBeGreaterThan(0);
+  });
+
+  it("gives every Machine a heater it draws at Night while plugged in, and a rate the cold wears it down at without power", () => {
+    for (const type of catalogue.machineTypes) {
+      expect(type.heaterKilowatts).toBeGreaterThan(0);
+      expect(type.coldWearPercentPerNightHour).toBeGreaterThanOrEqual(0);
+    }
+    const { plugInReachMetres, parkingLeadHours } = catalogue.cold;
+    expect(plugInReachMetres).toBeGreaterThan(0);
+    expect(parkingLeadHours).toBeGreaterThan(0);
+    expect(Number.isInteger(parkingLeadHours * 60)).toBe(true);
+    expect(parkingLeadHours).toBeLessThan(
+      catalogue.lunation.daylightEarthDays * 24,
+    );
+  });
+
+  it("schedules Micrometeorite strikes some Earth Days apart, each taking off some Condition", () => {
+    const { earthDaysBetween, conditionLossPercent } =
+      catalogue.micrometeorites;
+
+    expect(earthDaysBetween.min).toBeGreaterThan(0);
+    expect(earthDaysBetween.max).toBeGreaterThanOrEqual(earthDaysBetween.min);
+    expect(conditionLossPercent.min).toBeGreaterThan(0);
+    expect(conditionLossPercent.max).toBeGreaterThanOrEqual(
+      conditionLossPercent.min,
+    );
+    expect(conditionLossPercent.max).toBeLessThanOrEqual(100);
+  });
+
+  it("warns as the spare Components near running out, at levels largest first, each a whole number of game-minutes", () => {
+    const levels = catalogue.spareComponentWarningEarthDaysLeft;
+
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels).toEqual(levels.toSorted((a, b) => b - a));
+    for (const earthDays of levels) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
     }
   });
 

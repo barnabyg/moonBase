@@ -39,6 +39,17 @@ export function seedRandom(seed: number): RandomState {
   return state;
 }
 
+/** Draws a whole number of game-minutes evenly from min to max, both included. */
+export function drawMinutes(
+  random: RandomState,
+  min: number,
+  max: number,
+): number {
+  const low = Math.round(min);
+  const high = Math.round(max);
+  return low + Math.floor(nextFraction(random) * (high - low + 1));
+}
+
 /** Draws the next number in [0, 1) and advances the generator. */
 export function nextFraction(state: RandomState): number {
   const t = (((state.a + state.b) >>> 0) + state.d) >>> 0;

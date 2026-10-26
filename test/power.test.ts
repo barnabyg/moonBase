@@ -1,11 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { catalogue, type StructureType } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import {
+  catalogue,
+  type Catalogue,
+  type StructureType,
+} from "../src/catalogue";
 import type {
   GroundPosition,
   PowerNetworkSnapshot,
   Snapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+
+// Dust neither wears down nor coats anything, so that Structures generate
+// and store just what the data catalogue sets, and no Machine draws power
+// for a heater at Night.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutDust } = await import("./without-dust");
+  const { withoutCold } = await import("./without-cold");
+  return {
+    ...actual,
+    catalogue: withoutCold(withoutDust(actual.catalogue)),
+  };
+});
 
 function structureType(id: string): StructureType {
   const type = catalogue.structureTypes.find(

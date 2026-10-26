@@ -1,13 +1,18 @@
 import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
 import {
   describeDismantling,
+  describeMaintenance,
+  describeParking,
   describeUnloading,
   describeWork,
   formatComponents,
   formatDismantlingStage,
+  formatMaintenanceStep,
   formatStage,
   hasComponents,
+  machineLabel,
   structureLabel,
+  subjectLabel,
 } from "./format";
 import { setText } from "./dom";
 
@@ -23,6 +28,12 @@ export interface ConstructionPanel {
 /** The key of the row for unloading the Lander, which no Structure's id can be. */
 const UNLOADING_ROW = "unloading the Lander";
 
+/** The start of the key of a row for maintaining a Structure, which no Structure's id has. */
+const MAINTENANCE_ROW = "maintaining ";
+
+/** The start of the key of a row for parking a Machine, which no Structure's id has. */
+const PARKING_ROW = "parking ";
+
 interface Row {
   readonly item: HTMLLIElement;
   readonly stage: HTMLElement;
@@ -32,8 +43,9 @@ interface Row {
 }
 
 /**
- * The HTML Work panel: each unfinished Construction, each Structure being
- * dismantled and any unloading of the Lander, with its current stage, its
+ * The HTML Work panel: each Maintenance Work Order, each unfinished
+ * Construction, each Structure being dismantled and any unloading of the
+ * Lander, with its current stage, its
  * progress, and what is happening on it. The player can cancel a
  * Construction from here; the panel only sends that choice to the Campaign.
  */
@@ -93,8 +105,63 @@ export function createConstructionPanel(
       panel.hidden =
         snapshot.constructions.length === 0 &&
         snapshot.dismantlings.length === 0 &&
-        snapshot.unloading === undefined;
+        snapshot.unloading === undefined &&
+        snapshot.maintenance.length === 0 &&
+        snapshot.parking.length === 0;
       const seen = new Set<string>();
+      for (const maintenance of snapshot.maintenance) {
+        const { target } = maintenance;
+        const key = `${MAINTENANCE_ROW}${target.kind === "structure" ? target.structureId : target.machineId}`;
+        seen.add(key);
+        let row = rows.get(key);
+        if (row === undefined) {
+          row = createRow(
+            `Maintaining the ${subjectLabel(target).toLowerCase()}`,
+            undefined,
+          );
+          // Maintenance comes before every other Work Order, so it is listed
+          // first, in the order it was raised.
+          const firstOther = [...rows].find(
+            ([other]) => !other.startsWith(MAINTENANCE_ROW),
+          )?.[1];
+          list.insertBefore(row.item, firstOther?.item ?? null);
+          rows.set(key, row);
+        }
+        showStage(
+          row,
+          formatMaintenanceStep(maintenance.step),
+          maintenance.stageProgress,
+        );
+        setText(row.work, describeMaintenance(maintenance, snapshot));
+      }
+      for (const parking of snapshot.parking) {
+        const key = `${PARKING_ROW}${parking.machineId}`;
+        seen.add(key);
+        let row = rows.get(key);
+        if (row === undefined) {
+          row = createRow(
+            `Parking the ${machineLabel(parking.machineTypeId).toLowerCase()}`,
+            undefined,
+          );
+          // Parking comes after Maintenance and before every other Work
+          // Order, so it is listed in between.
+          const firstOther = [...rows].find(
+            ([other]) =>
+              !other.startsWith(MAINTENANCE_ROW) &&
+              !other.startsWith(PARKING_ROW),
+          )?.[1];
+          list.insertBefore(row.item, firstOther?.item ?? null);
+          rows.set(key, row);
+          // How far it has to go isn't known, so it shows no progress.
+          row.progress.removeAttribute("value");
+          row.progress.setAttribute("aria-label", "Parking progress");
+        }
+        setText(
+          row.stage,
+          `Parking beside the ${structureLabel(parking.structureTypeId).toLowerCase()}`,
+        );
+        setText(row.work, describeParking(parking, snapshot));
+      }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
         let row = rows.get(construction.id);

@@ -1,0 +1,198 @@
+{
+  "format": "moonbase-save",
+  "version": 12,
+  "random": {
+    "a": 908271831,
+    "b": 3807178867,
+    "c": 1109870310,
+    "d": 2291658343
+  },
+  "state": {
+    "elapsedMinutes": 483,
+    "nextStructureNumber": 2,
+    "nextPlanNumber": 2,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 6.979289389112158,
+          "y": -7.754765987902398
+        },
+        "activity": {
+          "kind": "walking-to-repair",
+          "destination": "lander"
+        },
+        "carrying": [
+          {
+            "componentId": "mast-pole",
+            "count": 1
+          },
+          {
+            "componentId": "light-head",
+            "count": 1
+          },
+          {
+            "componentId": "spare-component",
+            "count": 5
+          }
+        ],
+        "workOrder": {
+          "structureId": "structure-1",
+          "kind": "deliver-components"
+        },
+        "conditionPercent": 9.408333333333319,
+        "selfRepair": {
+          "home": "lander",
+          "spot": {
+            "x": 3.344823658112248,
+            "y": -3.716470731235831
+          },
+          "spareComponents": 5,
+          "workedMinutes": 15
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": -32.227841710832394,
+          "y": -26.856534759026992
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "conditionPercent": 99.5933333333337,
+        "powered": false
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 2
+        },
+        {
+          "componentId": "array-mast",
+          "count": 1
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 3
+        },
+        {
+          "componentId": "light-head",
+          "count": 3
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 1
+        }
+      ]
+    },
+    "constructions": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "light-mast",
+        "position": {
+          "x": -30,
+          "y": -25
+        },
+        "planNumber": 1,
+        "workSpot": {
+          "x": -28.617201696724724,
+          "y": -23.847668080603935
+        },
+        "stage": "component-delivery",
+        "workedMinutes": 15,
+        "componentsTaken": true,
+        "failedCommissionings": 0
+      }
+    ],
+    "structures": [],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": []
+  }
+}

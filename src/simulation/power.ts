@@ -4,6 +4,8 @@ import {
   type StructureType,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { structurePerformance } from "./condition";
+import { outputUnderCoating } from "./dust-coating";
 import {
   distance,
   findStructureType,
@@ -13,6 +15,12 @@ import {
   type StructureState,
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
+import {
+  findMachineType,
+  isMachineBroken,
+  machineFootprintRadius,
+  type MachineState,
+} from "./machines";
 import { lunationMinutes, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
 
@@ -141,17 +149,112 @@ const ENERGY_TOLERANCE_KWH = 1e-9;
 export interface PowerNetwork {
   /** In the order they were commissioned. */
   readonly structures: readonly StructureState[];
+  /** The Machines plugged in to it, whose heaters it supplies at Night. */
+  readonly machines: readonly MachineState[];
   /** The power generated in Daylight. */
   readonly daylightGenerationKilowatts: number;
   readonly daylightConsumptionKilowatts: number;
-  /** What its Structures draw at Night, including any lights. */
+  /**
+   * What its Structures draw at Night, including any lights, and the
+   * heaters of the Machines plugged in to it.
+   */
   readonly nightConsumptionKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
 }
 
-/** Groups the commissioned Structures into networks joined by complete cables. */
+/**
+ * Groups the commissioned Structures into networks joined by complete
+ * cables, with the Machines plugged in to each (see `pluggedIn`).
+ */
 export function powerNetworks(state: CampaignState): PowerNetwork[] {
+  const networks = structureNetworks(state);
+  const plugs = pluggedIn(state, networks);
+  return networks.map((network) => {
+    const machines = state.machines.filter((machine) => {
+      const plug = plugs.get(machine.id);
+      return plug !== undefined && network.structures.includes(plug);
+    });
+    const heaters = machines.reduce(
+      (sum, machine) => sum + heaterKilowatts(machine),
+      0,
+    );
+    return {
+      ...network,
+      machines,
+      nightConsumptionKilowatts: network.nightConsumptionKilowatts + heaters,
+    };
+  });
+}
+
+/**
+ * The commissioned Structure each Machine is plugged in to, by the
+ * Machine's id: the nearest within the data catalogue's reach of the
+ * Machine's footprint that is on a network with a power source, and isn't
+ * Broken or to be dismantled. A Broken Machine is plugged in to nothing.
+ */
+export function pluggedIn(
+  state: CampaignState,
+  networks: readonly Omit<PowerNetwork, "machines">[] = structureNetworks(
+    state,
+  ),
+): Map<string, StructureState> {
+  const sockets = powerSockets(state, networks);
+  const plugs = new Map<string, StructureState>();
+  for (const machine of state.machines) {
+    if (isMachineBroken(machine)) continue;
+    const gap = (structure: StructureState) =>
+      distance(machine.position, structure.position) -
+      footprintRadius(structure.structureTypeId) -
+      machineFootprintRadius(machine.machineTypeId);
+    // The earlier Structure wins a tie, so the choice is always the same.
+    const nearest = sockets.reduce<StructureState | undefined>(
+      (best, structure) =>
+        best === undefined || gap(structure) < gap(best) ? structure : best,
+      undefined,
+    );
+    if (
+      nearest !== undefined &&
+      gap(nearest) <= catalogue.cold.plugInReachMetres
+    ) {
+      plugs.set(machine.id, nearest);
+    }
+  }
+  return plugs;
+}
+
+/**
+ * The commissioned Structures that are powered, in the order they were
+ * commissioned: those on a network with a power source, a solar array or a
+ * battery bank, that aren't Broken or to be dismantled. A cable can carry
+ * power from one, and a Machine can plug in to one.
+ */
+export function powerSockets(
+  state: CampaignState,
+  networks: readonly Omit<PowerNetwork, "machines">[] = structureNetworks(
+    state,
+  ),
+): StructureState[] {
+  const powered = networks
+    .filter(hasPowerSource)
+    .flatMap((network) => network.structures);
+  return state.structures.filter(
+    (structure) =>
+      powered.includes(structure) &&
+      !isBroken(structure) &&
+      !isDueToBeDismantled(state, structure.id),
+  );
+}
+
+/** What a Machine's heater draws at Night while it is plugged in. */
+function heaterKilowatts(machine: MachineState): number {
+  return findMachineType(machine.machineTypeId)?.heaterKilowatts ?? 0;
+}
+
+/** Groups the commissioned Structures into networks joined by complete cables. */
+function structureNetworks(
+  state: CampaignState,
+): Omit<PowerNetwork, "machines">[] {
   const group = new Map(
     state.structures.map((structure) => [structure.id, structure.id]),
   );
@@ -200,40 +303,30 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
   });
 }
 
-/**
- * The commissioned Structure nearest a position that is powered: one on a
- * network with a power source, a solar array or a battery bank, which a
- * cable can carry power from. One due to be dismantled isn't used.
- */
+/** The powered Structure nearest a position (see `powerSockets`). */
 export function nearestPoweredStructure(
   state: CampaignState,
   position: GroundPosition,
 ): StructureState | undefined {
-  const powered = powerNetworks(state)
-    .filter(hasPowerSource)
-    .flatMap((network) => network.structures);
   // Structures are kept in the order they were commissioned, so the earlier
   // one wins a tie and the choice is always the same.
-  return state.structures
-    .filter(
-      (structure) =>
-        powered.includes(structure) &&
-        !isBroken(structure) &&
-        !isDueToBeDismantled(state, structure.id),
-    )
-    .reduce<StructureState | undefined>(
-      (best, structure) =>
-        best === undefined ||
-        distance(structure.position, position) <
-          distance(best.position, position)
-          ? structure
-          : best,
-      undefined,
-    );
+  return powerSockets(state).reduce<StructureState | undefined>(
+    (best, structure) =>
+      best === undefined ||
+      distance(structure.position, position) < distance(best.position, position)
+        ? structure
+        : best,
+    undefined,
+  );
 }
 
 /** Whether a network has a power source: a solar array or a battery bank. */
-export function hasPowerSource(network: PowerNetwork): boolean {
+export function hasPowerSource(
+  network: Pick<
+    PowerNetwork,
+    "daylightGenerationKilowatts" | "storageCapacityKilowattHours"
+  >,
+): boolean {
   return (
     network.daylightGenerationKilowatts > 0 ||
     network.storageCapacityKilowattHours > 0
@@ -270,9 +363,13 @@ export function consumptionKilowatts(
  * only part of a game-minute, and those after it go without. A Structure
  * that draws nothing always has power, unless it is Broken: then it has
  * none, and stores nothing. Lights switch on by themselves at Night, while
- * they have power.
+ * they have power. The heaters of the Machines plugged in to a network come
+ * after all its Structures, in the order of the Machines; a Machine has
+ * power while it is plugged in and, at Night, while any energy is left for
+ * its heater when its turn comes. Any other Machine has none.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
+  for (const machine of state.machines) machine.powered = false;
   for (const network of powerNetworks(state)) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
     let left = network.storedKilowattHours + generated / 60;
@@ -285,6 +382,11 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
             ? left >= drawn - ENERGY_TOLERANCE_KWH
             : left > ENERGY_TOLERANCE_KWH));
       if (structure.powered) left = Math.max(left - drawn, 0);
+    }
+    for (const machine of network.machines) {
+      const drawn = daylight ? 0 : heaterKilowatts(machine) / 60;
+      machine.powered = drawn === 0 || left > ENERGY_TOLERANCE_KWH;
+      if (machine.powered) left = Math.max(left - drawn, 0);
     }
     const stored = Math.min(left, network.storageCapacityKilowattHours);
     for (const structure of network.structures) {
@@ -434,7 +536,20 @@ function powerOf(structureTypeId: string): Power {
   return findStructureType(structureTypeId)?.power ?? noPower;
 }
 
-/** What a Structure does on the power network: nothing, once it is Broken. */
+/**
+ * What a Structure does on the power network: it generates and stores less
+ * as its performance falls with its Condition, a solar array generates less
+ * under a Dust coating, and it does nothing once it is Broken. What it
+ * draws doesn't change until then.
+ */
 function workingPower(structure: StructureState): Power {
-  return isBroken(structure) ? noPower : powerOf(structure.structureTypeId);
+  if (isBroken(structure)) return noPower;
+  const power = powerOf(structure.structureTypeId);
+  const performance = structurePerformance(structure);
+  return {
+    ...power,
+    generationKilowatts:
+      power.generationKilowatts * performance * outputUnderCoating(structure),
+    storageKilowattHours: power.storageKilowattHours * performance,
+  };
 }

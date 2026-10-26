@@ -14,12 +14,18 @@ import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
   formatClock,
+  formatCondition,
+  formatDustCoating,
   formatFunding,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatLunation,
+  formatMachine,
+  formatRobot,
+  formatSpareComponents,
   formatMissionDirector,
+  formatPerformance,
   formatPower,
   formatRadiationDose,
   formatSolarParticleEvent,
@@ -33,6 +39,11 @@ const REFUSAL_SHOWN_MS = 8000;
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
+  /**
+   * Forgets the Robots and Machines listed, for a Campaign loaded in place
+   * of the last, which may have others.
+   */
+  startAfresh(): void;
 }
 
 /**
@@ -125,6 +136,13 @@ export function createStatusPanel(
   stock.setAttribute("role", "status");
   stock.setAttribute("aria-label", "Base's stock");
   stock.setAttribute("aria-live", "off");
+
+  // How many spare Components there are, and how long they will last.
+  const spareComponents = document.createElement("p");
+  spareComponents.className = "status-panel__stock";
+  spareComponents.setAttribute("role", "status");
+  spareComponents.setAttribute("aria-label", "Spare Components");
+  spareComponents.setAttribute("aria-live", "off");
 
   const power = document.createElement("p");
   power.className = "status-panel__power";
@@ -251,6 +269,20 @@ export function createStatusPanel(
     return { item, text, dismantle, moveIn };
   };
 
+  // What each Robot is doing, its Condition, and whether it is repairing
+  // itself.
+  const robots = document.createElement("ul");
+  robots.className = "status-panel__structures";
+  robots.setAttribute("aria-label", "Robots");
+  const robotItems = new Map<string, HTMLLIElement>();
+
+  // Each Machine's Condition, and whether it is Broken or awaiting
+  // Maintenance.
+  const machines = document.createElement("ul");
+  machines.className = "status-panel__structures";
+  machines.setAttribute("aria-label", "Machines");
+  const machineItems = new Map<string, HTMLLIElement>();
+
   panel.append(
     clock,
     lunation,
@@ -259,6 +291,7 @@ export function createStatusPanel(
     createSaveButtons(saveFiles, showResult),
     funding,
     stock,
+    spareComponents,
     power,
     storedPower,
     missionDirector,
@@ -268,6 +301,8 @@ export function createStatusPanel(
     radiationDose,
     solarParticleEvent,
     structures,
+    robots,
+    machines,
     refusal,
   );
   container.append(panel);
@@ -279,6 +314,18 @@ export function createStatusPanel(
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       setText(stock, formatStock(snapshot.stockpile));
+      setText(
+        spareComponents,
+        formatSpareComponents(forecasts.spareComponents),
+      );
+      // Shown as a warning from the first warning on.
+      const sparesWarnFrom =
+        Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;
+      spareComponents.classList.toggle(
+        "status-panel__stock--low",
+        (forecasts.spareComponents.minutesUntilEmpty ?? Infinity) <=
+          sparesWarnFrom,
+      );
       const hasStructures = snapshot.structures.length > 0;
       power.hidden = !hasStructures;
       storedPower.hidden = !hasStructures;
@@ -373,12 +420,22 @@ export function createStatusPanel(
           snapshot.missionDirector.residence === "habitat" &&
           snapshot.missionDirector.habitatId === structure.id;
         const broken = structure.conditionPercent <= 0;
+        const maintenance = snapshot.maintenance.find(
+          ({ target }) =>
+            target.kind === "structure" && target.structureId === structure.id,
+        );
+        const maintained =
+          maintenance === undefined
+            ? ""
+            : maintenance.underWay
+              ? ", undergoing Maintenance"
+              : ", awaiting Maintenance";
         const shielding = isHabitat(structure.structureTypeId)
           ? `, ${structure.shielded ? "shielded" : "unshielded"}`
           : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${structure.conditionPercent}%`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =
@@ -393,6 +450,30 @@ export function createStatusPanel(
         }
       }
       structures.hidden = structureItems.size === 0;
+      for (const robot of snapshot.robots) {
+        let item = robotItems.get(robot.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          robots.append(item);
+          robotItems.set(robot.id, item);
+        }
+        setText(item, formatRobot(robot));
+      }
+      for (const machine of snapshot.machines) {
+        let item = machineItems.get(machine.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          machines.append(item);
+          machineItems.set(machine.id, item);
+        }
+        setText(item, formatMachine(machine, snapshot.maintenance));
+      }
+    },
+    startAfresh() {
+      for (const items of [robotItems, machineItems]) {
+        for (const item of items.values()) item.remove();
+        items.clear();
+      }
     },
   };
 }

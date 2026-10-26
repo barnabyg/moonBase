@@ -60,6 +60,31 @@ export interface Catalogue {
     readonly workingGapMetres: number;
     /** How much power cable a Robot lays in a game-hour, walking along as it pays it out. */
     readonly cableLayingSpeedMetresPerHour: number;
+    /**
+     * How much Condition Dust wears off a Robot for each game-hour it does
+     * anything but stand idle, in percentage points.
+     */
+    readonly dustWearPercentPerHour: number;
+    /** How fast a Robot walks and works as its Condition falls. */
+    readonly performance: PerformanceCurve;
+    /**
+     * Below this Condition, in percent, a Robot stops what it is doing to
+     * repair itself where the Mission Director lives.
+     */
+    readonly selfRepairThresholdPercent: number;
+    /**
+     * The Robot's working time to repair itself, in game-hours, once it is
+     * there with any spare Components. Must come to a whole number of
+     * game-minutes.
+     */
+    readonly selfRepairHours: number;
+    /**
+     * The Condition, in percent, a makeshift repair brings a Robot back to
+     * when there are too few spare Components for a full one.
+     */
+    readonly makeshiftRepairPercent: number;
+    /** A Robot's Condition never falls below this, in percent, so that it is never Broken. */
+    readonly conditionFloorPercent: number;
   };
   readonly machineTypes: readonly MachineType[];
   readonly componentTypes: readonly ComponentType[];
@@ -95,6 +120,104 @@ export interface Catalogue {
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
   readonly plumeEjecta: PlumeEjectaRules;
+  readonly maintenance: MaintenanceRules;
+  /**
+   * How well a solar array generates, a battery bank stores and a Light
+   * Mast lights as its Condition falls. Other Structures either work or
+   * are Broken.
+   */
+  readonly structurePerformance: PerformanceCurve;
+  readonly dustCoating: DustCoatingRules;
+  /**
+   * How fast a Machine works and drives as its Condition falls; once it is
+   * Broken, it stops.
+   */
+  readonly machinePerformance: PerformanceCurve;
+  readonly cold: ColdRules;
+  readonly micrometeorites: MicrometeoriteRules;
+  /**
+   * A warning comes as the time until the base's spare Components run out,
+   * at the current rate of wear, falls to each of these many Earth Days,
+   * largest first. Each must come to a whole number of game-minutes.
+   */
+  readonly spareComponentWarningEarthDaysLeft: readonly number[];
+}
+
+/**
+ * Micrometeorite strikes, which the Campaign's seeded generator schedules
+ * at random, one at a time, each hitting one commissioned Structure,
+ * Machine or Robot without warning.
+ */
+export interface MicrometeoriteRules {
+  /**
+   * The time from the start of the Campaign, or from one strike, to the
+   * next, drawn evenly between these, to the game-minute.
+   */
+  readonly earthDaysBetween: { readonly min: number; readonly max: number };
+  /** The Condition a strike takes off what it hits, in percentage points, drawn evenly between these. */
+  readonly conditionLossPercent: { readonly min: number; readonly max: number };
+}
+
+/**
+ * Dust settling on solar arrays, which cuts their output until the Robot
+ * cleans it off as Maintenance.
+ */
+export interface DustCoatingRules {
+  /** How much a solar array's coating builds up in each game-hour of Daylight, in percentage points. */
+  readonly percentPerDaylightHour: number;
+  /**
+   * The share of a solar array's output a full coating takes away, from 0
+   * to 1; a partial coating takes away its share of that.
+   */
+  readonly outputLossAtFullCoating: number;
+  /** A Maintenance Work Order is raised once the coating passes this, in percent. */
+  readonly cleaningThresholdPercent: number;
+  /**
+   * The Robot's working time to clean it, in game-hours, on top of any
+   * restoring of Condition on the same visit. It uses no spare Components.
+   */
+  readonly cleaningHours: number;
+}
+
+/**
+ * How well something works as its Condition falls: fully at or above the
+ * threshold, and below it at its Condition's share of the threshold raised
+ * to the exponent, down to nothing once it is Broken.
+ */
+export interface PerformanceCurve {
+  /** In percent of Condition. */
+  readonly thresholdPercent: number;
+  /** 1 falls in a straight line; more falls faster at first, less slower. */
+  readonly exponent: number;
+}
+
+/**
+ * Maintenance: the Work Orders that restore the Condition of what has worn
+ * down, using up spare Components. Each must come to a whole number of
+ * game-minutes.
+ */
+export interface MaintenanceRules {
+  /**
+   * A Maintenance Work Order is raised for a commissioned Structure or a
+   * Machine once its Condition falls below this, in percent, as it always
+   * is once Broken.
+   */
+  readonly thresholdPercent: number;
+  /** The Component that Maintenance uses up. */
+  readonly spareComponentId: string;
+  /**
+   * How much Condition each spare Component restores, in percentage points.
+   * Maintenance uses one for each of these, or part of one, that the
+   * Condition has fallen from 100% as the Robot loads them.
+   */
+  readonly conditionPercentPerSpareComponent: number;
+  /** The Robot's working time to load the spare Components at the stockpile, in game-hours. */
+  readonly loadingHours: number;
+  /**
+   * The Robot's working time at what it maintains, in game-hours, after
+   * which its Condition is back to 100%. Walking comes on top.
+   */
+  readonly workHours: number;
 }
 
 /**
@@ -238,6 +361,42 @@ export interface MachineType {
   readonly drivingSpeedMetresPerHour: number;
   /** The Robot's working time to set the Machine going once it is in position, in game-hours. */
   readonly activationHours: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour it works by
+   * itself on a stage of Construction, in percentage points.
+   */
+  readonly dustWearPercentPerWorkingHour: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour a Robot drives
+   * it, in percentage points.
+   */
+  readonly dustWearPercentPerDrivingHour: number;
+  /** The power its heater draws at Night while it is plugged in. */
+  readonly heaterKilowatts: number;
+  /**
+   * How much Condition the cold wears off it for each game-hour of Night it
+   * goes unpowered, in percentage points, on top of any Dust wear.
+   */
+  readonly coldWearPercentPerNightHour: number;
+}
+
+/**
+ * The cold of Night, which wears down Machines left without power, and how
+ * the Robot parks them where they can plug in.
+ */
+export interface ColdRules {
+  /**
+   * How far a Machine's footprint may stand from the footprint of a
+   * commissioned Structure on a network with a power source, one that
+   * isn't Broken, and still be plugged in to it.
+   */
+  readonly plugInReachMetres: number;
+  /**
+   * How many game-hours before Night falls the Robot starts parking idle
+   * Machines that aren't plugged in. Must come to a whole number of
+   * game-minutes.
+   */
+  readonly parkingLeadHours: number;
 }
 
 export interface ComponentType {
@@ -287,6 +446,12 @@ export interface StructureType {
   };
   /** The chance, from 0 to 1, that a Commissioning attempt fails and has to be retried. */
   readonly commissioningFailureChance: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour it operates, in
+   * percentage points; it may be 0. It operates while it is commissioned,
+   * isn't Broken and, if it has anything to do with power, has power.
+   */
+  readonly dustWearPercentPerHour: number;
   /** What the commissioned Structure does on the power network. */
   readonly power: {
     /** The power it generates in Daylight; nothing generates at Night. */
@@ -328,7 +493,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 15,
+  version: 23,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -362,6 +527,16 @@ export const catalogue: Catalogue = {
     walkingSpeedMetresPerHour: 12,
     workingGapMetres: 1,
     cableLayingSpeedMetresPerHour: 6,
+    // About five weeks of steady work before it needs to repair itself.
+    dustWearPercentPerHour: 0.1,
+    // Falling slowly at first, so that a Robot low enough to need repair
+    // still gets itself there in hours rather than days.
+    performance: { thresholdPercent: 50, exponent: 0.5 },
+    selfRepairThresholdPercent: 10,
+    selfRepairHours: 3,
+    // Enough to keep working, at well under full speed.
+    makeshiftRepairPercent: 30,
+    conditionFloorPercent: 1,
   },
   machineTypes: [
     {
@@ -370,6 +545,12 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 1.6,
       drivingSpeedMetresPerHour: 30,
       activationHours: 0.25,
+      // Its tracks and bucket teeth take the worst of the Dust.
+      dustWearPercentPerWorkingHour: 0.4,
+      dustWearPercentPerDrivingHour: 0.2,
+      // Enough to keep its hydraulics and batteries from freezing.
+      heaterKilowatts: 0.2,
+      coldWearPercentPerNightHour: 0.2,
     },
     {
       id: "regolith-printer",
@@ -377,6 +558,10 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 1.8,
       drivingSpeedMetresPerHour: 20,
       activationHours: 0.5,
+      dustWearPercentPerWorkingHour: 0.3,
+      dustWearPercentPerDrivingHour: 0.2,
+      heaterKilowatts: 0.2,
+      coldWearPercentPerNightHour: 0.2,
     },
   ],
   componentTypes: [
@@ -391,6 +576,7 @@ export const catalogue: Catalogue = {
     { id: "airlock", label: "Airlock" },
     { id: "pad-panel", label: "Pad panel" },
     { id: "pad-beacon", label: "Pad beacon" },
+    { id: "spare-component", label: "Spare Component" },
   ],
   structureTypes: [
     {
@@ -409,6 +595,8 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.25,
+      // Its tracking drive and panel hinges grind on the Dust.
+      dustWearPercentPerHour: 0.05,
       // The drive that keeps the panel turned to the sun.
       power: {
         generationKilowatts: 10,
@@ -437,6 +625,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
       // The heaters that keep the cells warm enough to work.
       power: {
         generationKilowatts: 0,
@@ -465,6 +654,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.02,
       // Its light switches on by itself at Night, and draws nothing in Daylight.
       power: {
         generationKilowatts: 0,
@@ -494,6 +684,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.01,
       // Its life support, heaters and controls.
       power: {
         generationKilowatts: 0,
@@ -525,6 +716,8 @@ export const catalogue: Catalogue = {
         assembly: "regolith-printer",
       },
       commissioningFailureChance: 0.1,
+      // Packed Regolith has nothing for Dust to wear.
+      dustWearPercentPerHour: 0,
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -556,6 +749,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
       // The beacon runs off its own small battery.
       power: {
         generationKilowatts: 0,
@@ -581,6 +775,8 @@ export const catalogue: Catalogue = {
     { componentId: "habitat-core", count: 1 },
     { componentId: "habitat-envelope", count: 1 },
     { componentId: "airlock", count: 1 },
+    // Enough to bring one Structure back from Broken.
+    { componentId: "spare-component", count: 6 },
   ],
   // Enough for about 30 Earth Days at a person's daily use; the oxygen runs
   // out first.
@@ -702,6 +898,12 @@ export const catalogue: Catalogue = {
         massKilograms: 40,
         priceMillionDollars: 6,
       },
+      {
+        id: "spare-component",
+        brings: { kind: "component", componentId: "spare-component" },
+        massKilograms: 20,
+        priceMillionDollars: 1,
+      },
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
@@ -721,4 +923,37 @@ export const catalogue: Catalogue = {
   // to grow away from it. Five take-offs and landings, two and a half round
   // trips, break anything left standing near it.
   plumeEjecta: { radiusMetres: 30, conditionLossPercent: 20 },
+  // Two blasts of Plume Ejecta call for Maintenance. Bringing a Broken
+  // Structure back to 100% takes five spare Components.
+  maintenance: {
+    thresholdPercent: 70,
+    spareComponentId: "spare-component",
+    conditionPercentPerSpareComponent: 20,
+    loadingHours: 0.25,
+    workHours: 2,
+  },
+  // Below half its Condition, a Structure's output falls in step with it.
+  structurePerformance: { thresholdPercent: 50, exponent: 1 },
+  // A clean array is coated past the threshold in under a Lunation's
+  // Daylight, by then losing nearly a fifth of its output.
+  dustCoating: {
+    percentPerDaylightHour: 0.1,
+    outputLossAtFullCoating: 0.6,
+    cleaningThresholdPercent: 30,
+    cleaningHours: 1,
+  },
+  // Below half its Condition, a Machine works and drives slower in step
+  // with it.
+  machinePerformance: { thresholdPercent: 50, exponent: 1 },
+  // A Night unpowered takes nearly half a Machine's Condition.
+  cold: { plugInReachMetres: 3, parkingLeadHours: 6 },
+  // A couple of strikes a Lunation, rarely enough on their own to break
+  // anything at full Condition.
+  micrometeorites: {
+    earthDaysBetween: { min: 4, max: 20 },
+    conditionLossPercent: { min: 5, max: 25 },
+  },
+  // As for oxygen and water. The starting stock lasts longer than the first
+  // at the wear of ordinary work, but not with Machines in the cold.
+  spareComponentWarningEarthDaysLeft: [7, 3, 1],
 };

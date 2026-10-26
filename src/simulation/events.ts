@@ -1,5 +1,7 @@
 import type { ComponentCount } from "../catalogue";
 import type { ManifestLine } from "./launch-manifest";
+import type { MaintenanceSubject } from "./maintenance";
+import type { StrikeTarget } from "./micrometeorites";
 import type { PlumeEjectaDamage } from "./plume-ejecta";
 
 /**
@@ -118,6 +120,96 @@ export type GameEvent =
       readonly atMinute: number;
       readonly structureId: string;
       readonly structureTypeId: string;
+    }
+  | {
+      /**
+       * A Machine's Condition has reached 0%: it is Broken, has stopped
+       * where it stood and has given up any stage of Construction it was
+       * carrying out.
+       */
+      readonly kind: "machine-broken";
+      readonly atMinute: number;
+      readonly machineId: string;
+      readonly machineTypeId: string;
+    }
+  | {
+      /**
+       * The Condition of a Structure or Machine has fallen below the
+       * Maintenance threshold set in the data catalogue, or a solar array's
+       * Dust coating has passed the threshold for cleaning, and a
+       * Maintenance Work Order has been raised for it.
+       */
+      readonly kind: "maintenance-needed";
+      readonly atMinute: number;
+      readonly target: MaintenanceSubject;
+      readonly conditionPercent: number;
+      /** Always 0% for anything but a solar array. */
+      readonly dustCoatingPercent: number;
+      /** Whether it is to restore the Structure's Condition, as things stand. */
+      readonly restoresCondition: boolean;
+      /** Whether it is to clean the Dust coating off a solar array. */
+      readonly cleans: boolean;
+    }
+  | {
+      /**
+       * The Robot has finished Maintenance on a Structure or Machine,
+       * bringing its Condition back to 100% if it used spare Components, so
+       * that something Broken works again, and cleaning the Dust coating
+       * off a solar array if it cleaned it.
+       */
+      readonly kind: "maintenance-completed";
+      readonly atMinute: number;
+      readonly target: MaintenanceSubject;
+      /** The spare Components it used up: none if it only cleaned. */
+      readonly spareComponents: number;
+      readonly cleaned: boolean;
+    }
+  | {
+      /**
+       * A Robot's Condition has fallen below the threshold set in the data
+       * catalogue, and it has stopped what it was doing to repair itself
+       * where the Mission Director lives.
+       */
+      readonly kind: "robot-self-repair-started";
+      readonly atMinute: number;
+      readonly robotId: string;
+      readonly conditionPercent: number;
+      /** Where it is going to repair itself. */
+      readonly home: "habitat" | "lander";
+      /** Whether it will be a makeshift repair, for want of spare Components. */
+      readonly makeshift: boolean;
+    }
+  | {
+      /**
+       * A Robot has repaired itself, back to 100% with spare Components or,
+       * with none, to the makeshift level set in the data catalogue, and
+       * takes up its Work Order again.
+       */
+      readonly kind: "robot-repaired";
+      readonly atMinute: number;
+      readonly robotId: string;
+      readonly conditionPercent: number;
+      /** The spare Components it used up: none for a makeshift repair. */
+      readonly spareComponents: number;
+    }
+  | {
+      /** A Micrometeorite has struck, without warning, wearing down what it hit. */
+      readonly kind: "micrometeorite-strike";
+      readonly atMinute: number;
+      readonly target: StrikeTarget;
+      /** The Condition it left what it hit with. */
+      readonly conditionPercent: number;
+    }
+  | {
+      /**
+       * The time until the base's spare Components run out, at the current
+       * rate of wear, has fallen to one of the warning levels set in the
+       * data catalogue.
+       */
+      readonly kind: "spare-components-warning";
+      readonly atMinute: number;
+      readonly inStock: number;
+      readonly minutesUntilEmpty: number;
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

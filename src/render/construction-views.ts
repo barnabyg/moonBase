@@ -113,7 +113,7 @@ export function createConstructionViews(scene: THREE.Scene) {
         view.model.group.visible = true;
         view.model.setAssembled(1);
         view.model.setStatusLight(structure.powered ? "on" : "off");
-        showLit(view, structure.lit);
+        showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(
           view.storageKilowattHours === 0
             ? 0
@@ -232,15 +232,23 @@ function showConstruction(
 }
 
 /**
- * Switches a Structure's light on or off. Its light joins the scene with the
- * view and is only dimmed between Daylight and Night, because changing the
- * number of lights makes Three.js recompile every material; that cost then
- * comes only when a Light Mast is planned or removed.
+ * Switches a Structure's light on or off, reaching as far as its Condition
+ * allows. Its light joins the scene with the view and is only dimmed
+ * between Daylight and Night, because changing the number of lights makes
+ * Three.js recompile every material; that cost then comes only when a Light
+ * Mast is planned or removed.
  */
-function showLit(view: StructureView, lit: boolean): void {
+function showLit(
+  view: StructureView,
+  lit: boolean,
+  lightRadiusMetres = 0,
+): void {
   view.model.setLit(lit);
   if (view.light !== undefined) {
     view.light.intensity = lit ? MAST_LIGHT_INTENSITY : 0;
+    if (lit) {
+      view.light.distance = Math.hypot(lightRadiusMetres, LIGHT_MAST_HEIGHT);
+    }
   }
 }
 

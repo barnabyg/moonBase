@@ -1,6 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import { catalogue, type Catalogue } from "../src/catalogue";
 import { scenario, toGameMinutes } from "./scenario";
+
+// No Machine feels the cold or draws power for a heater at Night, the
+// Robot never has to park one, and no Micrometeorite strikes, so that
+// power, time and events pass as the test expects.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutCold } = await import("./without-cold");
+  const { withoutMicrometeorites } = await import("./without-micrometeorites");
+  return {
+    ...actual,
+    catalogue: withoutMicrometeorites(withoutCold(actual.catalogue)),
+  };
+});
 
 const { lunation } = catalogue;
 const firstNightStarts = toGameMinutes({
