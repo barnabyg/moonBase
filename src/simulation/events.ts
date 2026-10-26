@@ -87,7 +87,12 @@ export type GameEvent =
       readonly chargedMillionDollars: number;
     }
   | {
-      /** The Lander has landed at the base, and its cargo has joined the base's stock. */
+      /**
+       * The Lander has landed at the base, and its oxygen and water have
+       * joined the life support stocks. Its Components have joined the
+       * base's stock too, unless it landed on a landing pad, where they stay
+       * aboard for the Robot to unload.
+       */
       readonly kind: "lander-landed";
       readonly atMinute: number;
       /** Everything on the Launch manifest it brought, in catalogue order. */

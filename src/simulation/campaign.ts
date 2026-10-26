@@ -376,7 +376,8 @@ export interface Campaign {
   moveMissionDirectorIn(habitatId: string): MoveInResult;
   /**
    * Sends the landed Lander on its round trip to Earth and back, which it
-   * can't make while the Mission Director lives aboard it.
+   * can't make while the Mission Director lives aboard it, or before the
+   * Robot has taken its cargo off.
    */
   sendLander(): SendLanderResult;
   /**
