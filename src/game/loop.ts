@@ -34,7 +34,18 @@ export interface GameLoop {
   readonly tickProgress: number;
 }
 
-export function createGameLoop(campaign: Campaign): GameLoop {
+export interface GameLoopOptions {
+  /**
+   * Hears the events of every game-minute the loop advances, in order,
+   * whether time runs or the player skips. It never pauses the game.
+   */
+  readonly onEvents?: (events: readonly GameEvent[]) => void;
+}
+
+export function createGameLoop(
+  campaign: Campaign,
+  options: GameLoopOptions = {},
+): GameLoop {
   const speeds = catalogue.gameSpeeds;
   const findSpeed = (id: string): GameSpeed => {
     const found = speeds.find((speed) => speed.id === id);
@@ -48,6 +59,10 @@ export function createGameLoop(campaign: Campaign): GameLoop {
   // whole-millisecond frames accumulate exactly.
   let owedScaledMinutes = 0;
   let previous: Snapshot | undefined;
+  const passOn = (events: readonly GameEvent[]): readonly GameEvent[] => {
+    if (events.length > 0) options.onEvents?.(events);
+    return events;
+  };
 
   return {
     get speed() {
@@ -69,9 +84,9 @@ export function createGameLoop(campaign: Campaign): GameLoop {
       const gameMinutes = Math.floor(owedScaledMinutes / MS_PER_SECOND);
       owedScaledMinutes -= gameMinutes * MS_PER_SECOND;
       if (gameMinutes > 0) {
-        campaign.advance(gameMinutes - 1);
+        passOn(campaign.advance(gameMinutes - 1));
         previous = campaign.snapshot();
-        campaign.advance(1);
+        passOn(campaign.advance(1));
       }
       return gameMinutes;
     },
@@ -79,7 +94,7 @@ export function createGameLoop(campaign: Campaign): GameLoop {
       // The jump replaces the part-minute that was building up.
       previous = undefined;
       owedScaledMinutes = 0;
-      return campaign.advanceToNextEvent();
+      return passOn(campaign.advanceToNextEvent());
     },
   };
 }
