@@ -24,6 +24,7 @@ import {
   formatLunation,
   formatMachine,
   formatRobot,
+  formatRover,
   formatSpareComponents,
   formatMissionDirector,
   formatPerformance,
@@ -41,7 +42,8 @@ const REFUSAL_SHOWN_MS = 8000;
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets the Robots and Machines listed, for a Campaign loaded in place
+   * Forgets the Robots, Machines and Rovers listed, for a Campaign loaded in place
+
    * of the last, which may have others.
    */
   startAfresh(): void;
@@ -291,6 +293,13 @@ export function createStatusPanel(
   machines.setAttribute("aria-label", "Machines");
   const machineItems = new Map<string, HTMLLIElement>();
 
+  // Each Rover's Condition, and whether it is plugged in, Broken or
+  // awaiting Maintenance.
+  const rovers = document.createElement("ul");
+  rovers.className = "status-panel__structures";
+  rovers.setAttribute("aria-label", "Rovers");
+  const roverItems = new Map<string, HTMLLIElement>();
+
   panel.append(
     clock,
     lunation,
@@ -312,6 +321,7 @@ export function createStatusPanel(
     structures,
     robots,
     machines,
+    rovers,
     refusal,
   );
   container.append(panel);
@@ -478,9 +488,18 @@ export function createStatusPanel(
         }
         setText(item, formatMachine(machine, snapshot.maintenance));
       }
+      for (const rover of snapshot.rovers) {
+        let item = roverItems.get(rover.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          rovers.append(item);
+          roverItems.set(rover.id, item);
+        }
+        setText(item, formatRover(rover, snapshot.maintenance));
+      }
     },
     startAfresh() {
-      for (const items of [robotItems, machineItems]) {
+      for (const items of [robotItems, machineItems, roverItems]) {
         for (const item of items.values()) item.remove();
         items.clear();
       }

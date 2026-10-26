@@ -19,6 +19,7 @@ export type {
   MicrometeoriteRules,
   PerformanceCurve,
   RadiationRules,
+  RoverType,
   SolarParticleEventRules,
   StructureType,
 } from "./catalogue";

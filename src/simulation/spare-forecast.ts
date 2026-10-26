@@ -6,6 +6,7 @@ import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { readLunation } from "./lunation";
 import { findMachineType, isMachineBroken } from "./machines";
+import { isRoverBroken } from "./rovers";
 import { findWorn, spareComponentsFor, visitFor } from "./maintenance";
 import { inStock } from "./stockpile";
 
@@ -21,8 +22,8 @@ export interface SpareComponentsForecast {
   /**
    * How many spare Components an Earth Day of wear at the current rate
    * calls for, at the Maintenance rate: Dust on what is operating now, the
-   * cold on Machines unpowered at Night, the Robot's wear, and the average
-   * damage Micrometeorites do.
+   * cold on Machines and Rovers unpowered at Night, the Robot's wear, and
+   * the average damage Micrometeorites do.
    */
   readonly perEarthDay: number;
   /**
@@ -110,8 +111,9 @@ export function watchSpareComponents(
 /**
  * How fast everything with a Condition is wearing down now, in percentage
  * points an hour, all added together: Dust on the Structures operating,
- * the Machines working or being driven and the Robots at work, the cold on
- * Machines unpowered at Night, and the average damage of Micrometeorites.
+ * the Machines working or being driven, the Rovers being driven and the
+ * Robots at work, the cold on Machines and Rovers unpowered at Night, and
+ * the average damage of Micrometeorites.
  */
 function wearPercentPerHour(state: CampaignState): number {
   const structures = state.structures
@@ -146,6 +148,21 @@ function wearPercentPerHour(state: CampaignState): number {
           : 0)
       );
     }, 0);
+  const { rover: roverType } = catalogue;
+  const rovers = state.rovers
+    .filter((rover) => !isRoverBroken(rover))
+    .reduce((sum, rover) => {
+      const driven = state.robots.some(
+        (robot) =>
+          robot.activity.kind === "driving-rover" &&
+          robot.activity.roverId === rover.id,
+      );
+      return (
+        sum +
+        (driven ? roverType.dustWearPercentPerDrivingHour : 0) +
+        (night && !rover.powered ? roverType.coldWearPercentPerNightHour : 0)
+      );
+    }, 0);
   const robots = state.robots.filter(
     (robot) =>
       robot.activity.kind !== "idle" &&
@@ -159,6 +176,7 @@ function wearPercentPerHour(state: CampaignState): number {
   return (
     structures +
     machines +
+    rovers +
     robots * catalogue.robot.dustWearPercentPerHour +
     strikes
   );

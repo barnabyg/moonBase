@@ -92,7 +92,10 @@ function onFoot(robot: RobotSnapshot): boolean {
 }
 
 function aboardMachine(robot: RobotSnapshot): boolean {
-  return robot.activity.kind === "driving-machine";
+  return (
+    robot.activity.kind === "driving-machine" ||
+    robot.activity.kind === "driving-rover"
+  );
 }
 
 /** What the Robot faces while it works: the stockpile when loading or unloading there, otherwise the site. */
@@ -122,6 +125,12 @@ function workTarget(
       (candidate) => candidate.id === activity.machineId,
     );
     return machine === undefined ? undefined : toScene(machine.position);
+  }
+  if ("roverId" in activity) {
+    const rover = frame.current.rovers.find(
+      (candidate) => candidate.id === activity.roverId,
+    );
+    return rover === undefined ? undefined : toScene(rover.position);
   }
   // Repairing itself, it looks down at its own work.
   if (activity.kind === "walking-to-repair" || !("structureId" in activity)) {
@@ -177,6 +186,15 @@ function poseFor(
     },
     // Sitting at the controls, steering.
     "driving-machine": () => ({
+      legSwing: 0,
+      seated: true,
+      leftArm: 0.9 + work * 0.1,
+      rightArm: 0.9 - work * 0.1,
+      lean: 0.1,
+      carrying,
+    }),
+    // Sitting at the Rover's controls, steering.
+    "driving-rover": () => ({
       legSwing: 0,
       seated: true,
       leftArm: 0.9 + work * 0.1,

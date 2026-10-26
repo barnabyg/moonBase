@@ -1,0 +1,250 @@
+{
+  "format": "moonbase-save",
+  "version": 16,
+  "random": {
+    "a": -1092797013,
+    "b": 3884491624,
+    "c": 3913181178,
+    "d": 344814475
+  },
+  "state": {
+    "elapsedMinutes": 11536,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 3,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 35395,
+      "startsAtMinute": 35635,
+      "endsAtMinute": 36926
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 18569
+    },
+    "spareComponentsWarnedMinutes": null,
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 3.9950093555113786,
+          "y": 12.80024953222443
+        },
+        "activity": {
+          "kind": "driving-rover",
+          "roverId": "rover-1",
+          "structureId": "structure-1"
+        },
+        "carrying": [],
+        "workOrder": {
+          "roverId": "rover-1",
+          "kind": "park-rover"
+        },
+        "conditionPercent": 95.36166666667089,
+        "selfRepair": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 18.27821104725771,
+          "y": 6.148039405274964
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 89.64666666667608,
+        "powered": true
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -24.70183422742991,
+          "y": 4.139425415067634
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 99.86000000000013,
+        "powered": true
+      }
+    ],
+    "rovers": [
+      {
+        "id": "rover-1",
+        "position": {
+          "x": 3.9950093555113786,
+          "y": 12.80024953222443
+        },
+        "activity": {
+          "kind": "being-parked",
+          "structureId": "structure-1"
+        },
+        "conditionPercent": 99.94833333333338,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        }
+      ]
+    },
+    "bulkResources": [
+      {
+        "resourceId": "regolith",
+        "kilograms": 1000
+      }
+    ],
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 91.0950000000081,
+        "dustCoatingPercent": 17.7833333333334
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": -30,
+          "y": 4
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 59.81333333333338,
+        "conditionPercent": 96.94333333336218,
+        "dustCoatingPercent": 0
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 17.037678104249885,
+          "y": 11.52602849667998
+        },
+        "end": {
+          "x": -28.02511873616659,
+          "y": 4.315981002213346
+        },
+        "route": [
+          {
+            "x": 17.037678104249885,
+            "y": 11.52602849667998
+          },
+          {
+            "x": -28.02511873616659,
+            "y": 4.315981002213346
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": [
+      {
+        "target": {
+          "kind": "rover",
+          "roverId": "rover-1"
+        },
+        "structureId": "structure-1",
+        "destination": {
+          "x": 14.007485966732933,
+          "y": 12.299625701663352
+        }
+      }
+    ]
+  }
+}

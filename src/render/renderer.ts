@@ -14,6 +14,7 @@ import {
   type PlacementPreview,
 } from "./placement-preview";
 import { createRobotViews } from "./robot-views";
+import { createRoverViews } from "./rover-views";
 import { createEarth, createGround } from "./scenery";
 
 export type { Frame, PlacementPreview };
@@ -83,6 +84,7 @@ export function createRenderer(
   scene.add(stockpile.group);
   const robots = createRobotViews(scene);
   const machines = createMachineViews(scene);
+  const rovers = createRoverViews(scene);
   const cables = createCableViews(scene);
   const constructions = createConstructionViews(scene);
   const placementPreview = createPlacementPreview(scene);
@@ -124,6 +126,7 @@ export function createRenderer(
       );
       robots.update(frame, realSeconds);
       machines.update(frame, realSeconds);
+      rovers.update(frame);
       cables.update(frame);
       constructions.update(frame, realSeconds, lighting.sunFacing);
       webgl.render(scene, camera);
@@ -147,6 +150,7 @@ export function createRenderer(
     startAfresh() {
       robots.clear();
       machines.clear();
+      rovers.clear();
       cables.clear();
       constructions.clear();
     },

@@ -1,16 +1,22 @@
-import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
+import type {
+  Campaign,
+  ConstructionSnapshot,
+  MaintenanceSubject,
+  Snapshot,
+} from "../simulation";
 import {
   describeDismantling,
   describeMaintenance,
   describeParking,
   describeUnloading,
   describeWork,
+  drivenLabel,
+  inSentence,
   formatComponents,
   formatDismantlingStage,
   formatMaintenanceStep,
   formatStage,
   hasComponents,
-  machineLabel,
   structureLabel,
   subjectLabel,
 } from "./format";
@@ -111,12 +117,12 @@ export function createConstructionPanel(
       const seen = new Set<string>();
       for (const maintenance of snapshot.maintenance) {
         const { target } = maintenance;
-        const key = `${MAINTENANCE_ROW}${target.kind === "structure" ? target.structureId : target.machineId}`;
+        const key = `${MAINTENANCE_ROW}${subjectId(target)}`;
         seen.add(key);
         let row = rows.get(key);
         if (row === undefined) {
           row = createRow(
-            `Maintaining the ${subjectLabel(target).toLowerCase()}`,
+            `Maintaining the ${inSentence(subjectLabel(target))}`,
             undefined,
           );
           // Maintenance comes before every other Work Order, so it is listed
@@ -135,12 +141,12 @@ export function createConstructionPanel(
         setText(row.work, describeMaintenance(maintenance, snapshot));
       }
       for (const parking of snapshot.parking) {
-        const key = `${PARKING_ROW}${parking.machineId}`;
+        const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
         seen.add(key);
         let row = rows.get(key);
         if (row === undefined) {
           row = createRow(
-            `Parking the ${machineLabel(parking.machineTypeId).toLowerCase()}`,
+            `Parking the ${inSentence(drivenLabel(parking.subject))}`,
             undefined,
           );
           // Parking comes after Maintenance and before every other Work
@@ -228,6 +234,18 @@ export function createConstructionPanel(
       rows.clear();
     },
   };
+}
+
+/** The id of what a Maintenance or parking row is for. */
+function subjectId(subject: MaintenanceSubject): string {
+  switch (subject.kind) {
+    case "structure":
+      return subject.structureId;
+    case "machine":
+      return subject.machineId;
+    case "rover":
+      return subject.roverId;
+  }
 }
 
 /** Says what cancelling a Construction now would give back. */

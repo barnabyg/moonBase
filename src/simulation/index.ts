@@ -21,6 +21,7 @@ export type {
   PowerForecast,
   PowerNetworkSnapshot,
   RobotSnapshot,
+  RoverSnapshot,
   Snapshot,
   StockpileSnapshot,
   StructureSnapshot,
@@ -56,6 +57,8 @@ export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";
 export type { ConstructionWait } from "./work-orders";
 export type { MachineActivity } from "./machines";
+export type { RoverActivity } from "./rovers";
+export type { DrivenSubject } from "./driven";
 export type {
   MissionDirectorResidence,
   MoveInRefusal,

@@ -100,6 +100,51 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("parks one Rover near the Lander, on the map and clear of the Lander, the stockpile, the Robots and the Machines", () => {
+    const { landerPosition, stockpilePosition, robotPositions, machines } =
+      catalogue.landingSite;
+    const { rover } = catalogue;
+    const distance = (a: GroundPosition, b: GroundPosition) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+
+    expect(catalogue.landingSite.roverPositions).toHaveLength(1);
+    for (const position of catalogue.landingSite.roverPositions) {
+      expect(isOnMap(position, rover.footprintRadiusMetres)).toBe(true);
+      // Near the Lander, but clear of it.
+      expect(distance(position, landerPosition)).toBeGreaterThan(
+        catalogue.lander.footprintRadiusMetres + rover.footprintRadiusMetres,
+      );
+      expect(distance(position, landerPosition)).toBeLessThan(15);
+      expect(distance(position, stockpilePosition)).toBeGreaterThan(
+        catalogue.stockpile.footprintRadiusMetres + rover.footprintRadiusMetres,
+      );
+      for (const robot of robotPositions) {
+        expect(distance(position, robot)).toBeGreaterThan(
+          rover.footprintRadiusMetres,
+        );
+      }
+      for (const machine of machines) {
+        const type = catalogue.machineTypes.find(
+          (candidate) => candidate.id === machine.machineTypeId,
+        );
+        expect(distance(position, machine.position)).toBeGreaterThan(
+          rover.footprintRadiusMetres + (type?.footprintRadiusMetres ?? 0),
+        );
+      }
+    }
+  });
+
+  it("gives the Rover a positive size and driving speed, Dust wear as it is driven, a heater and wear from the cold", () => {
+    const { rover } = catalogue;
+
+    expect(rover.label).toBe("Rover");
+    expect(rover.footprintRadiusMetres).toBeGreaterThan(0);
+    expect(rover.drivingSpeedMetresPerHour).toBeGreaterThan(0);
+    expect(rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
+    expect(rover.heaterKilowatts).toBeGreaterThan(0);
+    expect(rover.coldWearPercentPerNightHour).toBeGreaterThan(0);
+  });
+
   it("keeps the base's stock at a stockpile on the map, clear of the Lander, Robots and Machines, with room to walk round it", () => {
     const { landerPosition, stockpilePosition, robotPositions, machines } =
       catalogue.landingSite;

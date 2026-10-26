@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { loadCampaign, type Campaign, type GameEvent } from "../src/simulation";
+import {
+  loadCampaign,
+  type Campaign,
+  type GameEvent,
+  type GroundPosition,
+} from "../src/simulation";
 
 /**
  * Save files written by released format versions, kept so that every one of
@@ -676,8 +681,11 @@ describe("the sample save of format version 11", () => {
     expect(state.lunation.part).toBe("daylight");
     expect(state.parking).toEqual([
       {
-        machineId: "regolith-printer-2",
-        machineTypeId: "regolith-printer",
+        subject: {
+          kind: "machine",
+          machineId: "regolith-printer-2",
+          machineTypeId: "regolith-printer",
+        },
         structureId: "structure-2",
         structureTypeId: "battery-bank",
         underWay: true,
@@ -866,5 +874,87 @@ describe("the sample save of format version 15", () => {
     expect(campaign.snapshot().bulkResources[0]?.kilograms).toBe(
       catalogue.digging.stockLevelKilograms,
     );
+  });
+});
+
+describe("the sample saves from before the Rover", () => {
+  const footprint = (typeId: string): number =>
+    catalogue.structureTypes.find((type) => type.id === typeId)
+      ?.footprintRadiusMetres ??
+    catalogue.machineTypes.find((type) => type.id === typeId)
+      ?.footprintRadiusMetres ??
+    0;
+
+  it.each(
+    readdirSync(samples).filter(
+      (name) =>
+        name.endsWith(".moonbase") &&
+        Number(/version-(\d+)/.exec(name)?.[1]) < 16,
+    ),
+  )(
+    "%s loads with one Rover at full Condition, parked near the Lander clear of everything else",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.rovers).toHaveLength(1);
+      const [rover] = state.rovers;
+      expect(rover).toMatchObject({
+        id: "rover-1",
+        activity: { kind: "idle" },
+        conditionPercent: 100,
+      });
+      if (rover === undefined) return;
+      const clearOf = (position: GroundPosition, radius: number) =>
+        Math.hypot(
+          rover.position.x - position.x,
+          rover.position.y - position.y,
+        ) >=
+        radius + catalogue.rover.footprintRadiusMetres;
+      for (const footing of [
+        ...state.structures,
+        ...state.constructions,
+        ...state.dismantlings,
+      ]) {
+        expect(
+          clearOf(footing.position, footprint(footing.structureTypeId)),
+        ).toBe(true);
+      }
+      for (const machine of state.machines) {
+        expect(
+          clearOf(machine.position, footprint(machine.machineTypeId)),
+        ).toBe(true);
+      }
+      expect(Math.hypot(rover.position.x, rover.position.y)).toBeLessThan(15);
+    },
+  );
+});
+
+describe("the sample save of format version 16", () => {
+  it("loads early in the first Night, with the Robot driving the Rover to park it beside the solar array", () => {
+    const state = loadSample("version-16.moonbase").snapshot();
+
+    expect(state.lunation.part).toBe("night");
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "driving-rover",
+      roverId: "rover-1",
+      structureId: "structure-1",
+    });
+    expect(state.rovers[0]).toMatchObject({
+      activity: { kind: "being-parked", structureId: "structure-1" },
+      pluggedIn: false,
+    });
+  });
+
+  it("plays on from where it was saved, until the Rover is plugged in and powered", () => {
+    const campaign = loadSample("version-16.moonbase");
+
+    campaign.advance(2 * 60);
+
+    expect(campaign.snapshot().lunation.part).toBe("night");
+    expect(campaign.snapshot().rovers[0]).toMatchObject({
+      activity: { kind: "idle" },
+      pluggedIn: true,
+      powered: true,
+    });
   });
 });

@@ -162,8 +162,8 @@ export function nearestFreeMachine(
       machine.assignment === undefined &&
       machine.machineTypeId === machineTypeId &&
       !isMachineBroken(machine) &&
-      !isUnderMaintenance(state, machine.id) &&
-      !isBeingParked(state, machine.id),
+      !isUnderMaintenance(state, { kind: "machine", machineId: machine.id }) &&
+      !isBeingParked(state, { kind: "machine", machineId: machine.id }),
   );
   // The earlier Machine wins a tie, so the choice is always the same.
   return free.reduce<MachineState | undefined>(
@@ -173,29 +173,6 @@ export function nearestFreeMachine(
         ? machine
         : best,
     undefined,
-  );
-}
-
-/**
- * Wears down by the cold every Machine that went without power at Night
- * during the latest game-minute it was supplied power for, at its type's
- * rate in the data catalogue, and returns an event for each one it left
- * Broken. Like Dust wear on Structures, it comes first in a game-minute.
- */
-export function chillMachines(
-  state: CampaignState,
-  night: boolean,
-): GameEvent[] {
-  if (!night) return [];
-  return state.machines.flatMap((machine) =>
-    machine.powered
-      ? []
-      : wearMachine(
-          state,
-          machine,
-          findMachineType(machine.machineTypeId)?.coldWearPercentPerNightHour ??
-            0,
-        ),
   );
 }
 

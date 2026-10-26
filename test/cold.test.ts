@@ -124,7 +124,12 @@ describe("parking", () => {
     });
     expect(drives.size).toBeGreaterThan(0);
     expect(machines(campaign).map((m) => m.pluggedIn)).toEqual([true, true]);
-    expect(campaign.snapshot().parking).toEqual([]);
+    // Only the Rover, parked after the Machines, may still be on its way.
+    expect(
+      campaign
+        .snapshot()
+        .parking.filter((parking) => parking.subject.kind === "machine"),
+    ).toEqual([]);
   });
 
   it("isn't raised when there is no powered Structure to park beside", () => {
@@ -315,7 +320,11 @@ describe("the cold", () => {
       events.push(
         ...campaign
           .advance(60)
-          .filter((event) => event.kind === "maintenance-needed"),
+          .filter(
+            (event) =>
+              event.kind === "maintenance-needed" &&
+              event.target.kind === "machine",
+          ),
       );
     }
 

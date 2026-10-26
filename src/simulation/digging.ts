@@ -42,8 +42,8 @@ export function canDig(state: CampaignState, machine: MachineState): boolean {
     machine.machineTypeId === catalogue.digging.machineTypeId &&
     machine.assignment === undefined &&
     !isMachineBroken(machine) &&
-    !isUnderMaintenance(state, machine.id) &&
-    !isBeingParked(state, machine.id)
+    !isUnderMaintenance(state, { kind: "machine", machineId: machine.id }) &&
+    !isBeingParked(state, { kind: "machine", machineId: machine.id })
   );
 }
 

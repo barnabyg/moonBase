@@ -1267,3 +1267,62 @@ export function createRegolithPrinterModel(): RegolithPrinterModel {
   model.setNozzleHeight(lowest);
   return model;
 }
+
+/** A Rover's model, facing along its local +z axis. */
+export interface RoverModel {
+  readonly group: THREE.Group;
+}
+
+/**
+ * The Rover: an open, four-wheeled chassis with a seat for the Robot at the
+ * same height as a Machine's, a cargo bed behind it and a radio mast.
+ */
+export function createRoverModel(): RoverModel {
+  const rover = new THREE.Group();
+  rover.name = "Rover";
+  const wheelRadius = 0.42;
+  for (const x of [-0.95, 0.95]) {
+    for (const z of [-0.95, 0.95]) {
+      const wheel = part(
+        new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.3, 14),
+        materials.track,
+        [x, wheelRadius, z],
+      );
+      wheel.rotation.z = Math.PI / 2;
+      rover.add(wheel);
+    }
+  }
+  rover.add(
+    // The chassis.
+    part(new THREE.BoxGeometry(1.5, 0.25, 2.5), materials.hull, [0, 0.75, 0]),
+    // The seat, facing forward.
+    part(new THREE.BoxGeometry(0.55, 0.2, 0.5), materials.darkMetal, [
+      0,
+      MACHINE_SEAT_HEIGHT - 0.1,
+      0.35,
+    ]),
+    part(new THREE.BoxGeometry(0.55, 0.55, 0.1), materials.darkMetal, [
+      0,
+      MACHINE_SEAT_HEIGHT + 0.2,
+      0.05,
+    ]),
+    // The cargo bed behind the seat.
+    part(
+      new THREE.BoxGeometry(1.3, 0.35, 0.9),
+      materials.foil,
+      [0, 1.05, -0.7],
+    ),
+    // The radio mast and its dish.
+    part(
+      new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6),
+      materials.darkMetal,
+      [0.55, 1.45, -0.95],
+    ),
+    part(
+      new THREE.SphereGeometry(0.18, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+      materials.hull,
+      [0.55, 2.05, -0.95],
+    ),
+  );
+  return { group: rover };
+}

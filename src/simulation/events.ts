@@ -134,7 +134,16 @@ export type GameEvent =
     }
   | {
       /**
-       * The Condition of a Structure or Machine has fallen below the
+       * A Rover's Condition has reached 0%: it is Broken, has stopped where
+       * it stood, and can't be driven until it has been maintained.
+       */
+      readonly kind: "rover-broken";
+      readonly atMinute: number;
+      readonly roverId: string;
+    }
+  | {
+      /**
+       * The Condition of a Structure, Machine or Rover has fallen below the
        * Maintenance threshold set in the data catalogue, or a solar array's
        * Dust coating has passed the threshold for cleaning, and a
        * Maintenance Work Order has been raised for it.
@@ -152,7 +161,8 @@ export type GameEvent =
     }
   | {
       /**
-       * The Robot has finished Maintenance on a Structure or Machine,
+       * The Robot has finished Maintenance on a Structure, Machine or Rover,
+
        * bringing its Condition back to 100% if it used spare Components, so
        * that something Broken works again, and cleaning the Dust coating
        * off a solar array if it cleaned it.

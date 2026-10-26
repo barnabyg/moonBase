@@ -23,6 +23,7 @@ export function withoutDust(catalogue: Catalogue): Catalogue {
       dustWearPercentPerWorkingHour: 0,
       dustWearPercentPerDrivingHour: 0,
     })),
+    rover: { ...catalogue.rover, dustWearPercentPerDrivingHour: 0 },
     robot: { ...catalogue.robot, dustWearPercentPerHour: 0 },
     dustCoating: { ...catalogue.dustCoating, percentPerDaylightHour: 0 },
   };

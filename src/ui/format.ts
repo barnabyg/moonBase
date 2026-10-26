@@ -25,6 +25,8 @@ import type {
   ConstructionSnapshot,
   ConstructionWait,
   ConstructionStage,
+  DrivenSubject,
+  RoverSnapshot,
   DismantlingSnapshot,
   DismantlingStage,
   LanderSnapshot,
@@ -305,6 +307,8 @@ export function formatEvent(event: GameEvent): string {
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
     case "machine-broken":
       return `${machineLabel(event.machineTypeId)} is Broken, and has stopped where it stood`;
+    case "rover-broken":
+      return `${catalogue.rover.label} is Broken, and has stopped where it stood`;
     case "maintenance-needed":
       return `${subjectLabel(event.target)} needs Maintenance: ${listInWords([
         ...(event.restoresCondition
@@ -634,16 +638,75 @@ function strikeTargetLabel(target: StrikeTarget): string {
       return structureLabel(target.structureTypeId).toLowerCase();
     case "machine":
       return machineLabel(target.machineTypeId).toLowerCase();
+    case "rover":
+      return catalogue.rover.label;
     case "robot":
       return "Robot";
   }
+}
+
+/** Names a Machine or Rover, for example "Excavator" or "Rover". */
+export function drivenLabel(subject: DrivenSubject): string {
+  return subject.kind === "machine"
+    ? machineLabel(subject.machineTypeId)
+    : catalogue.rover.label;
 }
 
 /** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
 export function subjectLabel(subject: MaintenanceSubject): string {
   return subject.kind === "structure"
     ? structureLabel(subject.structureTypeId)
-    : machineLabel(subject.machineTypeId);
+    : drivenLabel(subject);
+}
+
+/** Lowercases a name, except one, such as the Rover, that the glossary always capitalises. */
+export function inSentence(label: string): string {
+  return label === catalogue.rover.label ? label : label.toLowerCase();
+}
+
+/**
+ * Whether a Robot's activity is for a Machine or Rover, by what it is: its
+ * Maintenance, or parking it.
+ */
+function isForDriven(activity: RobotActivity, subject: DrivenSubject): boolean {
+  return subject.kind === "machine"
+    ? "machineId" in activity && activity.machineId === subject.machineId
+    : "roverId" in activity && activity.roverId === subject.roverId;
+}
+
+/**
+ * Says what the Rover is doing, whether it is plugged in and powered, and
+ * how intact it is, for the status panel, for example "Rover: idle, not
+ * plugged in, Condition 100%" or "Rover: Broken, Condition 0%, awaiting
+ * Maintenance".
+ */
+export function formatRover(
+  rover: RoverSnapshot,
+  maintenance: readonly MaintenanceSnapshot[],
+): string {
+  const broken = rover.conditionPercent <= 0;
+  const doing = broken
+    ? "Broken"
+    : rover.activity.kind === "being-parked"
+      ? "being parked"
+      : "parked";
+  const plug = broken
+    ? ""
+    : !rover.pluggedIn
+      ? ", not plugged in"
+      : rover.powered
+        ? ", plugged in and powered"
+        : ", plugged in, no power";
+  const order = maintenance.find(
+    ({ target }) => target.kind === "rover" && target.roverId === rover.id,
+  );
+  const maintained =
+    order === undefined
+      ? ""
+      : order.underWay
+        ? ", undergoing Maintenance"
+        : ", awaiting Maintenance";
+  return `${catalogue.rover.label}: ${doing}${plug}, Condition ${formatCondition(rover.conditionPercent)}${formatPerformance(rover.performance)}${maintained}`;
 }
 
 /** Whether a Robot's activity is for a Structure, by its id. */
@@ -760,7 +823,9 @@ function describeRobotWork(
     case "idle":
       return "Waiting for the Robot";
     case "walking":
-      return describeWalk(activity.destination);
+      return "structureId" in activity
+        ? describeWalk(activity.destination)
+        : "Waiting for the Robot";
     case "laying-cable":
       return `Robot laying power cable from the ${cableSource}: ${Math.floor(routeLength(cable?.route ?? []))} m so far`;
     case "driving-machine":
@@ -780,6 +845,7 @@ function describeRobotWork(
     // Only ever done for a Structure being dismantled or maintained, to
     // unload the Lander, or for the Robot's repair of itself, when it does
     // nothing for anything else.
+    case "driving-rover":
     case "dismantling":
     case "returning-components":
     case "loading-cargo":
@@ -871,18 +937,18 @@ export function describeParking(
   parking: ParkingSnapshot,
   snapshot: Pick<Snapshot, "robots">,
 ): string {
-  const machine = machineLabel(parking.machineTypeId).toLowerCase();
+  const machine = inSentence(drivenLabel(parking.subject));
   const beside = structureLabel(parking.structureTypeId).toLowerCase();
   const robot = parking.underWay
-    ? snapshot.robots.find(
-        ({ activity }) =>
-          "machineId" in activity && activity.machineId === parking.machineId,
+    ? snapshot.robots.find(({ activity }) =>
+        isForDriven(activity, parking.subject),
       )
     : undefined;
   switch (robot?.activity.kind) {
     case "walking":
       return `Robot walking to the ${machine}`;
     case "driving-machine":
+    case "driving-rover":
       return `Robot driving the ${machine} to the ${beside}, to plug it in`;
     default:
       return `Waiting for the Robot to park the ${machine} beside the ${beside}`;
@@ -906,12 +972,12 @@ export function describeMaintenance(
 ): string {
   const spares = plural(maintenance.spareComponents, "spare Component");
   const { target } = maintenance;
-  const label = subjectLabel(target).toLowerCase();
+  const label = inSentence(subjectLabel(target));
   const robot = maintenance.underWay
     ? snapshot.robots.find(({ activity }) =>
         target.kind === "structure"
           ? isFor(activity, target.structureId)
-          : "machineId" in activity && activity.machineId === target.machineId,
+          : isForDriven(activity, target),
       )
     : undefined;
   switch (robot?.activity.kind) {

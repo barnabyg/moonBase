@@ -79,8 +79,8 @@ import {
   readLunation,
   type LunationSnapshot,
 } from "./lunation";
+import { chillDriven } from "./driven";
 import {
-  chillMachines,
   machinePerformance,
   workMachines,
   type MachineActivity,
@@ -134,6 +134,13 @@ import {
 } from "./spare-forecast";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import {
+  idleRovers,
+  roverPerformance,
+  startingRovers,
+  type RoverActivity,
+  type RoverState,
+} from "./rovers";
 import {
   readSelfRepair,
   robotPerformance,
@@ -202,6 +209,30 @@ export interface MachineSnapshot {
    */
   readonly conditionPercent: number;
   /** How fast it works and drives as its Condition falls, from 1 down to 0 once it is Broken. */
+  readonly performance: number;
+  /**
+   * Whether it stands within plug-in reach of a commissioned Structure on
+   * a network with a power source, one that isn't Broken.
+   */
+  readonly pluggedIn: boolean;
+  /**
+   * Whether it had power during the latest game-minute: it was plugged in
+   * and, at Night, its network supplied its heater. Unpowered at Night, the
+   * cold wears it down.
+   */
+  readonly powered: boolean;
+}
+
+export interface RoverSnapshot {
+  readonly id: string;
+  readonly position: GroundPosition;
+  readonly activity: RoverActivity;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and can't be
+   * driven until it is repaired.
+   */
+  readonly conditionPercent: number;
+  /** How fast it drives as its Condition falls, from 1 down to 0 once it is Broken. */
   readonly performance: number;
   /**
    * Whether it stands within plug-in reach of a commissioned Structure on
@@ -398,6 +429,7 @@ export interface Snapshot {
   readonly ended: CampaignEnd | undefined;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
+  readonly rovers: readonly RoverSnapshot[];
   readonly stockpile: StockpileSnapshot;
   /**
    * The base's stock of bulk resources, such as Regolith, kept at the
@@ -421,7 +453,7 @@ export interface Snapshot {
    * they were raised, which is the order the Robot takes them in.
    */
   readonly maintenance: readonly MaintenanceSnapshot[];
-  /** Machines being parked where they can plug in, or waiting for the Robot to park them. */
+  /** Machines and Rovers being parked where they can plug in, or waiting for the Robot to park them. */
   readonly parking: readonly ParkingSnapshot[];
 }
 
@@ -531,6 +563,7 @@ export interface CampaignState {
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
+  rovers: RoverState[];
   stockpile: StockpileState;
   /** One stock for every bulk resource, in catalogue order. */
   bulkResources: BulkResourceState[];
@@ -544,7 +577,7 @@ export interface CampaignState {
   reconnections: ReconnectionState[];
   /** Maintenance Work Orders, in the order they were raised. */
   maintenance: MaintenanceState[];
-  /** "Park Machine" Work Orders, in the order they were raised. */
+  /** "Park" Work Orders, for Machines and Rovers, in the order they were raised. */
   parking: ParkingState[];
 }
 
@@ -589,6 +622,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       conditionPercent: 100,
       powered: false,
     })),
+    rovers: startingRovers(),
     stockpile: startingStockpile(),
     bulkResources: startingBulkResources(),
     constructions: [],
@@ -769,6 +803,15 @@ function campaignFrom(state: CampaignState): Campaign {
           pluggedIn: plugs.has(machine.id),
           powered: machine.powered,
         })),
+        rovers: state.rovers.map((rover) => ({
+          id: rover.id,
+          position: { ...rover.position },
+          activity: { ...rover.activity },
+          conditionPercent: rover.conditionPercent,
+          performance: roverPerformance(rover),
+          pluggedIn: plugs.has(rover.id),
+          powered: rover.powered,
+        })),
         stockpile: copy(state.stockpile),
         bulkResources: readBulkResources(state),
         constructions: state.constructions.map((construction) => ({
@@ -857,7 +900,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
-  events.push(...chillMachines(state, partSupplied === "night"));
+  events.push(...chillDriven(state, partSupplied === "night"));
+
   coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
   events.push(...watchMicrometeorites(state));
@@ -865,6 +909,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...planMaintenance(state));
   planParking(state);
   events.push(...workMachines(state));
+  idleRovers(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");

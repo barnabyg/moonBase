@@ -38,13 +38,14 @@ export interface Catalogue {
     readonly footprintRadiusMetres: number;
   };
   /**
-   * Where the Lander has touched down, and the base's stockpile, Robots and
-   * Machines stand, when a Campaign begins.
+   * Where the Lander has touched down, and the base's stockpile, Robots,
+   * Rovers and Machines stand, when a Campaign begins.
    */
   readonly landingSite: {
     readonly landerPosition: GroundPosition;
     readonly stockpilePosition: GroundPosition;
     readonly robotPositions: readonly GroundPosition[];
+    readonly roverPositions: readonly GroundPosition[];
     readonly machines: readonly {
       readonly machineTypeId: string;
       readonly position: GroundPosition;
@@ -87,6 +88,7 @@ export interface Catalogue {
     readonly conditionFloorPercent: number;
   };
   readonly machineTypes: readonly MachineType[];
+  readonly rover: RoverType;
   /**
    * The bulk resources the base keeps a stock of at the stockpile, measured
    * in kilograms, in the order the status panel shows them.
@@ -386,6 +388,32 @@ export interface MachineType {
   readonly coldWearPercentPerNightHour: number;
 }
 
+/**
+ * The Rover, a vehicle a Robot drives, mainly to go on Expeditions. Like a
+ * Machine, it wears down, feels the cold of Night unless it is plugged in,
+ * and is maintained with spare Components; unlike one, it carries out no
+ * process by itself.
+ */
+export interface RoverType {
+  readonly label: string;
+  /** Radius of the ground it stands on; Structures may not be placed over it. */
+  readonly footprintRadiusMetres: number;
+  /** How far it goes in a game-hour while a Robot drives it, at full performance. */
+  readonly drivingSpeedMetresPerHour: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour a Robot drives
+   * it, in percentage points.
+   */
+  readonly dustWearPercentPerDrivingHour: number;
+  /** The power its heater draws at Night while it is plugged in. */
+  readonly heaterKilowatts: number;
+  /**
+   * How much Condition the cold wears off it for each game-hour of Night it
+   * goes unpowered, in percentage points, on top of any Dust wear.
+   */
+  readonly coldWearPercentPerNightHour: number;
+}
+
 /** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
 export interface BulkResource {
   readonly id: string;
@@ -521,7 +549,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 24,
+  version: 25,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -535,6 +563,9 @@ export const catalogue: Catalogue = {
     // the Lander.
     stockpilePosition: { x: 9, y: -10 },
     robotPositions: [{ x: 6, y: -3 }],
+    // Parked on the far side of the Lander from the stockpile, clear of a
+    // Structure built right beside the Lander.
+    roverPositions: [{ x: 0, y: 13 }],
     machines: [
       { machineTypeId: "excavator", position: { x: -11, y: -4.5 } },
       { machineTypeId: "regolith-printer", position: { x: -11, y: 4.5 } },
@@ -592,6 +623,16 @@ export const catalogue: Catalogue = {
       coldWearPercentPerNightHour: 0.2,
     },
   ],
+  // Built to cover ground, so it drives far faster than the Machines and
+  // wears down less for it.
+  rover: {
+    label: "Rover",
+    footprintRadiusMetres: 1.5,
+    drivingSpeedMetresPerHour: 240,
+    dustWearPercentPerDrivingHour: 0.1,
+    heaterKilowatts: 0.2,
+    coldWearPercentPerNightHour: 0.2,
+  },
   bulkResources: [{ id: "regolith", label: "Regolith" }],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.
