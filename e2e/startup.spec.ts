@@ -47,9 +47,7 @@ test("the game loads with no console errors and the clock advances", async ({
   // game loop deliberately lets the clock fall behind, so watch it at 20x.
   await speeds.getByRole("button", { name: "20x" }).click();
   const start = await readClockHours(page);
-  await expect
-    .poll(() => readClockHours(page), { timeout: 15_000 })
-    .toBeGreaterThan(start);
+  await expect.poll(() => readClockHours(page)).toBeGreaterThan(start);
   expect(errors).toEqual([]);
 });
 
@@ -69,9 +67,7 @@ test("pause stops the clock and a faster speed runs it again", async ({
   expect(await readClockHours(page)).toBe(paused);
 
   await speeds.getByRole("button", { name: "20x" }).click();
-  await expect
-    .poll(() => readClockHours(page), { timeout: 5_000 })
-    .toBeGreaterThan(paused + 1);
+  await expect.poll(() => readClockHours(page)).toBeGreaterThan(paused + 1);
 });
 
 test("the status panel shows Daylight running out, and skipping jumps to Night", async ({

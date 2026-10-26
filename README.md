@@ -48,6 +48,20 @@ Every check applies; none is skipped. Tool versions are pinned exactly in `packa
 
 When Firefox runs headed (`PLAYWRIGHT_HEADED=1`, as in CI), `playwright.config.ts` runs the end-to-end tests one at a time. CI draws with Mesa's software renderer into one virtual display, and two Firefox windows there hold back each other's animation frames. The game updates what it shows only once a frame, so a test whose page gets no frames can't see anything change. With two workers, one test per run took about 20 s longer than usual, and sometimes long enough to time out. In the slowest case its page went 28 s without a frame while its timers ran on time. With one worker no page went more than 1.4 s without a frame, and the whole suite took as long as with two, because both workers compete for the same CPUs. Headless runs on a developer machine still use Playwright's default number of workers.
 
+### Timeouts
+
+A timeout is there to stop a test that hangs, not to check how fast it runs. Each limit is set well above the slowest run seen in CI, so ordinary variation in machine speed can't fail a test. If a test needs to check speed, it should measure it explicitly. Set limits for the whole suite, not for single tests.
+
+| Limit                                 | Where                             | Value  | Slowest seen in CI                                                    | Margin    |
+| ------------------------------------- | --------------------------------- | ------ | --------------------------------------------------------------------- | --------- |
+| Vitest test and hook timeout          | `vitest.config.ts`                | 60 s   | about 6 s (a long scenario test; CI runs Vitest about 2.5× slower)    | 10×       |
+| Playwright test timeout               | `playwright.config.ts`, `timeout` | 120 s  | about 11 s (`construction.spec.ts` and `habitat.spec.ts`, one worker) | about 10× |
+| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`  | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                    | 7.5×      |
+| Playwright web server start           | Playwright's default              | 60 s   | under 1 s (Vite is ready in about 0.2 s)                              | over 60×  |
+| Each CI job                           | `.github/workflows/verify.yml`    | 10 min | about 1.5 min                                                         | about 7×  |
+
+The cost of a generous limit is that a test that really hangs takes longer to report. That is cheaper than a red run that has to be investigated and re-run.
+
 ### Exceptions
 
 - **Vite chunk size limit raised to 700 kB** (`vite.config.ts`, `build.chunkSizeWarningLimit`). Three.js alone is about 530 kB minified, and the single-page game needs all of it before it can draw, so code-splitting would not make anything load sooner. Review if the bundle grows past the limit or the game gains screens that could load on demand.

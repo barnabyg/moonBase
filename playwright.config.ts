@@ -18,6 +18,12 @@ export default defineConfig({
   // default of half the CPU cores.
   workers: headed ? 1 : "50%",
   reporter: "list",
+  // A timeout is there to stop a test that hangs, not to judge its speed (see
+  // README, "Verification"). In CI the slowest test takes about 11 s, and the
+  // longest single wait is about 8 s, for a refusal that hides after a fixed
+  // 8 s. Each limit is seven to ten times those.
+  timeout: 120_000,
+  expect: { timeout: 60_000 },
   use: {
     baseURL: `http://localhost:${port}`,
     headless: !headed,

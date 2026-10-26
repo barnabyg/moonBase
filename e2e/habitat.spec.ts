@@ -59,5 +59,5 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   );
   await expect(page.getByRole("complementary", { name: "Work" })).toBeHidden();
   // It goes away by itself after a few seconds.
-  await expect(page.getByRole("alert")).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByRole("alert")).toBeHidden();
 });
