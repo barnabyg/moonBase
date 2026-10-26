@@ -62,7 +62,11 @@ export type GameEvent =
       readonly atMinute: number;
       readonly endsAtMinute: number;
     }
-  | { readonly kind: "solar-particle-event-ended"; readonly atMinute: number }
+  | {
+      /** A Solar Particle Event has ended, and the dose rate is back to usual. */
+      readonly kind: "solar-particle-event-ended";
+      readonly atMinute: number;
+    }
   | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";

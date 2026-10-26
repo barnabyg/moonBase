@@ -482,9 +482,9 @@ export const catalogue: Catalogue = {
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
   },
-  // Roughly monthly, with a few hours' warning. An event of a day or so
-  // takes half the dose limit in an unshielded Habitat, but a twentieth in
-  // a shielded one.
+  // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
+  // Day or so takes half the dose limit in an unshielded Habitat, but a
+  // twentieth in a shielded one.
   solarParticleEvents: {
     earthDaysBetween: { min: 10, max: 30 },
     durationHours: { min: 6, max: 30 },
