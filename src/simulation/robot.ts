@@ -30,6 +30,7 @@ import {
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
+import { findStructureToReconnect } from "./reconnection";
 import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
 
 /**
@@ -40,8 +41,8 @@ export type WalkingDestination = "site" | "lander" | "machine" | "cable";
 
 /**
  * What a Robot did during the latest game-minute, and for which Structure: one
- * under Construction (whose id the Structure keeps once commissioned) or one
- * being dismantled.
+ * under Construction (whose id the Structure keeps once commissioned), one
+ * being dismantled or one cut off from power.
  */
 export type RobotActivity =
   | { readonly kind: "idle" }
@@ -95,6 +96,9 @@ export function workRobot(
   }
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
+  if (workOrder?.kind === "lay-cable") {
+    return layCable(state, robot, workOrder.structureId);
+  }
   const dismantling = state.dismantlings.find(
     (candidate) => candidate.id === workOrder?.structureId,
   );
@@ -124,30 +128,6 @@ export function workRobot(
     construction.workedMinutes += 1;
     return construction.workedMinutes >= untilMinutes;
   };
-  if (workOrder?.kind === "lay-cable") {
-    // The Robot walks to the powered Structure, then pays the cable out
-    // behind it as it walks to the site.
-    const cable = cableTo(state, construction);
-    if (cable === undefined) {
-      robot.workOrder = undefined;
-      robot.activity = { kind: "idle" };
-      return [];
-    }
-    if (cable.route.length === 0) {
-      if (!walkTo(cable.start, "cable")) return [];
-      cable.route.push({ ...cable.start });
-    }
-    robot.position = stepTowards(
-      robot.position,
-      cable.end,
-      { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
-      catalogue.robot.cableLayingSpeedMetresPerHour / 60,
-    );
-    extendRoute(cable.route, robot.position);
-    robot.activity = { kind: "laying-cable", structureId: id };
-    cable.complete = samePlace(robot.position, cable.end);
-    return [];
-  }
 
   const required = stageMinutes(construction);
   switch (construction.stage) {
@@ -248,6 +228,43 @@ export function workRobot(
       }
       return finishCommissioning(state, construction);
   }
+}
+
+/**
+ * Lets the Robot do one game-minute of laying cable to a Construction or to a
+ * Structure cut off from power: it walks to the powered Structure, then pays
+ * the cable out behind it as it walks to the other one.
+ */
+function layCable(
+  state: CampaignState,
+  robot: RobotState,
+  structureId: string,
+): GameEvent[] {
+  const target =
+    state.constructions.find((candidate) => candidate.id === structureId) ??
+    findStructureToReconnect(state, structureId);
+  const cable = target === undefined ? undefined : cableTo(state, target);
+  if (cable === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  if (cable.route.length === 0) {
+    if (!walkRobotTo(state, robot, structureId, cable.start, "cable")) {
+      return [];
+    }
+    cable.route.push({ ...cable.start });
+  }
+  robot.position = stepTowards(
+    robot.position,
+    cable.end,
+    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    catalogue.robot.cableLayingSpeedMetresPerHour / 60,
+  );
+  extendRoute(cable.route, robot.position);
+  robot.activity = { kind: "laying-cable", structureId };
+  cable.complete = samePlace(robot.position, cable.end);
+  return [];
 }
 
 /** Ends a Commissioning attempt, which may fail and then starts again. */

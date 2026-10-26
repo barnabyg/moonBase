@@ -7,17 +7,18 @@ import {
 } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
-import { findCable, nearestPoweredStructure } from "./power";
+import { findCable, nearestPoweredStructure, type CableTarget } from "./power";
+import { findStructureToReconnect } from "./reconnection";
 
 /**
- * A unit of the Robot's work on a Construction or on dismantling a Structure.
- * A Robot claims one at a time and carries it out before it looks for
- * another.
+ * A unit of the Robot's work on a Construction, on dismantling a Structure,
+ * or on laying cable to a Structure cut off from power. A Robot claims one at
+ * a time and carries it out before it looks for another.
  */
 export interface WorkOrder {
   /**
    * The Structure it is for: one under Construction (whose id it keeps once
-   * commissioned) or one being dismantled.
+   * commissioned), one being dismantled or one cut off from power.
    */
   readonly structureId: string;
   readonly kind: WorkOrderKind;
@@ -108,10 +109,10 @@ function missingComponents(
 
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
- * else has claimed and that can be worked on now, taking the Constructions
- * and dismantling in the order they were planned. Each Construction's current
- * stage comes before laying its cable, which can be done at any stage before
- * Commissioning.
+ * else has claimed and that can be worked on now, taking the Constructions,
+ * dismantling and cables to Structures cut off from power in the order they
+ * were planned. Each Construction's current stage comes before laying its
+ * cable, which can be done at any stage before Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -143,6 +144,21 @@ export function claimWorkOrder(
       next: () => {
         const kind = dismantlingKinds[dismantling.stage];
         return free(dismantling.id, kind) ? kind : undefined;
+      },
+    })),
+    ...state.reconnections.map((reconnection) => ({
+      planNumber: reconnection.planNumber,
+      structureId: reconnection.structureId,
+      next: () => {
+        const structure = findStructureToReconnect(
+          state,
+          reconnection.structureId,
+        );
+        return structure !== undefined &&
+          free(structure.id, "lay-cable") &&
+          needsCable(state, structure)
+          ? ("lay-cable" as const)
+          : undefined;
       },
     })),
   ].sort((a, b) => a.planNumber - b.planNumber);
@@ -180,16 +196,14 @@ function canBeWorkedOn(
 }
 
 /**
- * Whether a Construction still needs its cable laid: it has a cable under way,
- * or none yet and there is a powered Structure to lay one from.
+ * Whether a Construction or Structure still needs its cable laid: it has a
+ * cable under way, or none yet and there is a powered Structure to lay one
+ * from.
  */
-export function needsCable(
-  state: CampaignState,
-  construction: ConstructionState,
-): boolean {
-  const cable = findCable(state, construction.id);
+export function needsCable(state: CampaignState, target: CableTarget): boolean {
+  const cable = findCable(state, target.id);
   return cable === undefined
-    ? nearestPoweredStructure(state, construction.position) !== undefined
+    ? nearestPoweredStructure(state, target.position) !== undefined
     : !cable.complete;
 }
 
@@ -200,6 +214,10 @@ export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
   );
   if (dismantling !== undefined) {
     return dismantlingKinds[dismantling.stage] === workOrder.kind;
+  }
+  const structure = findStructureToReconnect(state, workOrder.structureId);
+  if (structure !== undefined) {
+    return workOrder.kind === "lay-cable" && needsCable(state, structure);
   }
   const construction = state.constructions.find(
     (candidate) => candidate.id === workOrder.structureId,

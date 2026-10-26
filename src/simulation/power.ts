@@ -11,44 +11,58 @@ import {
   type ConstructionState,
   type StructureState,
 } from "./construction";
+import { isDueToBeDismantled } from "./dismantling";
 import { lunationMinutes, readLunation } from "./lunation";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
- * two on one power network once the Construction is commissioned.
+ * two on one power network once the Construction is commissioned, or to a
+ * commissioned Structure cut off from power.
  */
 export interface CableState {
   fromStructureId: string;
-  /** The id of the Construction, which its Structure keeps once commissioned. */
+  /**
+   * The id of the Construction, which its Structure keeps once commissioned,
+   * or of the Structure cut off from power.
+   */
   toStructureId: string;
   /** Where the cable leaves the powered Structure's footprint. */
   start: GroundPosition;
-  /** Where the cable reaches the Construction's footprint. */
+  /** Where the cable reaches the footprint of the Structure it goes to. */
   end: GroundPosition;
   /** The cable laid so far, as a line of points from the start. */
   route: GroundPosition[];
   complete: boolean;
 }
 
-/** The cable laid, or being laid, to a Construction, if any. */
+/**
+ * Something a cable can be laid to: a Construction, or a commissioned
+ * Structure cut off from power.
+ */
+export type CableTarget = Pick<
+  ConstructionState | StructureState,
+  "id" | "structureTypeId" | "position"
+>;
+
+/** The cable laid, or being laid, to a Construction or Structure, if any. */
 export function findCable(
   state: CampaignState,
-  constructionId: string,
+  structureId: string,
 ): CableState | undefined {
-  return state.cables.find((cable) => cable.toStructureId === constructionId);
+  return state.cables.find((cable) => cable.toStructureId === structureId);
 }
 
 /**
- * The cable being laid to a Construction, starting one from the nearest
- * powered Structure if there isn't one yet.
+ * The cable being laid to a Construction or Structure, starting one from the
+ * nearest powered Structure if there isn't one yet.
  */
 export function cableTo(
   state: CampaignState,
-  construction: ConstructionState,
+  target: CableTarget,
 ): CableState | undefined {
-  const existing = findCable(state, construction.id);
+  const existing = findCable(state, target.id);
   if (existing !== undefined) return existing;
-  const source = nearestPoweredStructure(state, construction.position);
+  const source = nearestPoweredStructure(state, target.position);
   if (source === undefined) return undefined;
   // From the edge of one footprint to the edge of the other.
   const edge = (
@@ -66,16 +80,16 @@ export function cableTo(
   };
   const cable: CableState = {
     fromStructureId: source.id,
-    toStructureId: construction.id,
+    toStructureId: target.id,
     start: edge(
       source.position,
-      construction.position,
+      target.position,
       footprintRadius(source.structureTypeId),
     ),
     end: edge(
-      construction.position,
+      target.position,
       source.position,
-      footprintRadius(construction.structureTypeId),
+      footprintRadius(target.structureTypeId),
     ),
     route: [],
     complete: false,
@@ -192,11 +206,7 @@ export function nearestPoweredStructure(
   position: GroundPosition,
 ): StructureState | undefined {
   const powered = powerNetworks(state)
-    .filter(
-      (network) =>
-        network.daylightGenerationKilowatts > 0 ||
-        network.storageCapacityKilowattHours > 0,
-    )
+    .filter(hasPowerSource)
     .flatMap((network) => network.structures);
   // Structures are kept in the order they were commissioned, so the earlier
   // one wins a tie and the choice is always the same.
@@ -204,7 +214,7 @@ export function nearestPoweredStructure(
     .filter(
       (structure) =>
         powered.includes(structure) &&
-        !state.dismantlings.some((planned) => planned.id === structure.id),
+        !isDueToBeDismantled(state, structure.id),
     )
     .reduce<StructureState | undefined>(
       (best, structure) =>
@@ -215,6 +225,14 @@ export function nearestPoweredStructure(
           : best,
       undefined,
     );
+}
+
+/** Whether a network has a power source: a solar array or a battery bank. */
+export function hasPowerSource(network: PowerNetwork): boolean {
+  return (
+    network.daylightGenerationKilowatts > 0 ||
+    network.storageCapacityKilowattHours > 0
+  );
 }
 
 /** What a network's Structures draw in the given part of the Lunation. */
