@@ -8,6 +8,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
+    trace: "on",
     baseURL: `http://localhost:${port}`,
     // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
     // context, so CI runs Firefox with a window inside a virtual X display
@@ -39,5 +40,6 @@ export default defineConfig({
     command: `npx vite --port ${port} --strictPort`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env["CI"],
+    stdout: "pipe",
   },
 });
