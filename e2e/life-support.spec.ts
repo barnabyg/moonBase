@@ -19,8 +19,6 @@ async function nextFrame(page: Page): Promise<void> {
 test("oxygen and water run down in the Habitat, warnings come without pausing the game, and the battery running flat at Night ends the Campaign", async ({
   page,
 }) => {
-  // Software rendering in CI draws frames several times slower than locally.
-  test.setTimeout(60_000);
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   // Frames come slowly with software rendering in CI, so run at 20x to see
@@ -88,7 +86,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(twentyTimes).toHaveAttribute("aria-pressed", "true");
   const clock = panel.getByRole("status", { name: "Game clock" });
   const warnedAt = await clock.textContent();
-  await expect(clock).not.toHaveText(warnedAt ?? "", { timeout: 15_000 });
+  await expect(clock).not.toHaveText(warnedAt ?? "");
 
   // Paused, so that the next warnings come from skips rather than while
   // running between clicks.

@@ -1,18 +1,32 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = 4173;
+// Headless Firefox on a GPU-less Linux machine can't create an OpenGL
+// context, so CI runs Firefox with a window inside a virtual X display
+// (see .github/workflows/verify.yml).
+const headed = process.env["PLAYWRIGHT_HEADED"] === "1";
 
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: !!process.env["CI"],
   retries: 0,
+  // Firefox windows sharing one software-rendered display hold back each
+  // other's animation frames: in CI, with two workers, one test's page went
+  // up to 28 s without a frame while its timers ran on time, and the game
+  // only updates what it shows once a frame. One worker is no slower there
+  // overall, as both contend for the same CPUs. Headless runs keep Playwright's
+  // default of half the CPU cores.
+  workers: headed ? 1 : "50%",
   reporter: "list",
+  // A timeout is there to stop a test that hangs, not to judge its speed (see
+  // README, "Verification"). In CI the slowest test takes about 11 s, and the
+  // longest single wait is about 8 s, for a refusal that hides after a fixed
+  // 8 s. Each limit is seven to ten times those.
+  timeout: 120_000,
+  expect: { timeout: 60_000 },
   use: {
     baseURL: `http://localhost:${port}`,
-    // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
-    // context, so CI runs Firefox with a window inside a virtual X display
-    // (see .github/workflows/verify.yml).
-    headless: process.env["PLAYWRIGHT_HEADED"] !== "1",
+    headless: !headed,
   },
   // Desktop Firefox is the only supported target (ADR-0004).
   projects: [

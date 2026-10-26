@@ -4,7 +4,6 @@ import { placeOnClearGround } from "./placement";
 test("the Robot carries out the Construction of a solar array placed on the map, and a second one waits for Components", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
   await page.goto("/?seed=1");
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const solarArray = buildMenu.getByRole("button", { name: /Solar array/ });
@@ -35,7 +34,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
 
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
-  ).toHaveText([/^Solar array: commissioned(?!,)/], { timeout: 45_000 });
+  ).toHaveText([/^Solar array: commissioned(?!,)/]);
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
   ).toHaveText(/^Power: [1-9]\d*\.\d\d kW generated, \d+\.\d\d kW used$/);
