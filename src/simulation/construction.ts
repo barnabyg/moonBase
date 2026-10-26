@@ -4,7 +4,11 @@ import {
   type GroundPosition,
   type StructureType,
 } from "../catalogue";
-import { findMachineType, type MachineState } from "./machines";
+import {
+  findMachineType,
+  machineFootprintRadius,
+  type MachineState,
+} from "./machines";
 
 export type ConstructionStage =
   "site-preparation" | "component-delivery" | "assembly" | "commissioning";
@@ -138,8 +142,7 @@ interface Ground {
 
 /** The ground a Machine stands on, and the ground it is being driven to. */
 function machineGround(machine: MachineState): Ground[] {
-  const radius =
-    findMachineType(machine.machineTypeId)?.footprintRadiusMetres ?? 0;
+  const radius = machineFootprintRadius(machine.machineTypeId);
   return [
     { position: machine.position, radius },
     ...(machine.assignment === undefined
@@ -222,14 +225,16 @@ export function chooseMachineSpot(
   construction: ConstructionState,
   machine: MachineState,
 ): GroundPosition {
-  const radius =
-    findMachineType(machine.machineTypeId)?.footprintRadiusMetres ?? 0;
+  const radius = machineFootprintRadius(machine.machineTypeId);
   const gap = catalogue.robot.workingGapMetres;
+  // The Machine's arm reaches over the footprint, so it stands closer than a
+  // Robot would, and leaves the Robot that much room at its working spot.
+  const machineGap = gap / 2;
   const centre = construction.position;
   const lander = site.lander.position;
   return chooseSpotAround({
     centre,
-    reach: footprintRadius(construction.structureTypeId) + radius + gap / 2,
+    reach: footprintRadius(construction.structureTypeId) + radius + machineGap,
     towards: {
       x: centre.x * 2 - lander.x,
       y: centre.y * 2 - lander.y,
@@ -249,7 +254,7 @@ export function chooseMachineSpot(
       ...site.machines
         .filter((other) => other.id !== machine.id)
         .flatMap(machineGround),
-      { position: construction.workSpot, radius: gap / 2 },
+      { position: construction.workSpot, radius: machineGap },
     ],
   });
 }

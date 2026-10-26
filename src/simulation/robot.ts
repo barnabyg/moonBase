@@ -7,8 +7,6 @@ import type { CampaignState } from "./campaign";
 import {
   chooseMachineSpot,
   componentsFor,
-  distance,
-  footprintRadius,
   findStructureType,
   stageMinutes,
   type ConstructionStage,
@@ -17,14 +15,21 @@ import {
 import type { GameEvent } from "./events";
 import {
   findMachineType,
+  machineFootprintRadius,
   machineOn,
   nearestFreeMachine,
   type MachineState,
 } from "./machines";
-import { nearestPoweredStructure, type CableState } from "./power";
+import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
 import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
+
+/**
+ * Where a walking Robot is heading: a Construction's site, the Lander, a
+ * Machine, or the powered Structure that a cable is laid from.
+ */
+export type WalkingDestination = "site" | "lander" | "machine" | "cable";
 
 /** What a Robot did during the latest game-minute, and for which Construction. */
 export type RobotActivity =
@@ -32,8 +37,7 @@ export type RobotActivity =
   | {
       readonly kind: "walking";
       readonly constructionId: string;
-      /** "cable" is the powered Structure that a cable is laid from. */
-      readonly destination: "site" | "lander" | "machine" | "cable";
+      readonly destination: WalkingDestination;
     }
   | {
       /** Driving a Machine to the site, aboard it, or setting it going there. */
@@ -87,7 +91,7 @@ export function workRobot(
   const { id } = construction;
   const walkTo = (
     spot: GroundPosition,
-    destination: "site" | "lander" | "machine" | "cable",
+    destination: WalkingDestination,
   ): boolean => {
     if (samePlace(robot.position, spot)) return true;
     robot.position = stepTowards(
@@ -161,7 +165,8 @@ export function workRobot(
           {
             centre: state.lander.position,
             radius:
-              LANDER_CLEARANCE_METRES + (type?.footprintRadiusMetres ?? 0),
+              LANDER_CLEARANCE_METRES +
+              machineFootprintRadius(machine.machineTypeId),
           },
           (type?.drivingSpeedMetresPerHour ?? 0) / 60,
         );
@@ -292,85 +297,13 @@ function assignMachine(
   return machine;
 }
 
-/**
- * The cable being laid to a Construction, starting one from the nearest
- * powered Structure if there isn't one yet.
- */
-function cableTo(
-  state: CampaignState,
-  construction: ConstructionState,
-): CableState | undefined {
-  const existing = state.cables.find(
-    (cable) => cable.toStructureId === construction.id,
-  );
-  if (existing !== undefined) return existing;
-  const source = nearestPoweredStructure(state, construction.position);
-  if (source === undefined) return undefined;
-  // From the edge of one footprint to the edge of the other.
-  const edge = (
-    from: GroundPosition,
-    towards: GroundPosition,
-    radius: number,
-  ) => {
-    const gap = distance(from, towards);
-    return gap === 0
-      ? { ...from }
-      : {
-          x: from.x + ((towards.x - from.x) / gap) * radius,
-          y: from.y + ((towards.y - from.y) / gap) * radius,
-        };
-  };
-  const cable: CableState = {
-    fromStructureId: source.id,
-    toStructureId: construction.id,
-    start: edge(
-      source.position,
-      construction.position,
-      footprintRadius(source.structureTypeId),
-    ),
-    end: edge(
-      construction.position,
-      source.position,
-      footprintRadius(construction.structureTypeId),
-    ),
-    route: [],
-    complete: false,
-  };
-  state.cables.push(cable);
-  return cable;
-}
-
-/**
- * Adds a point to a cable's route, replacing the last point instead when the
- * cable carries straight on, so that a straight run is kept as one segment.
- */
-function extendRoute(route: GroundPosition[], point: GroundPosition): void {
-  const last = route.at(-1);
-  const beforeLast = route.at(-2);
-  if (last !== undefined && samePlace(last, point)) return;
-  if (last !== undefined && beforeLast !== undefined) {
-    const ax = last.x - beforeLast.x;
-    const ay = last.y - beforeLast.y;
-    const bx = point.x - last.x;
-    const by = point.y - last.y;
-    const straightOn =
-      Math.abs(ax * by - ay * bx) <=
-        1e-9 * Math.hypot(ax, ay) * Math.hypot(bx, by) && ax * bx + ay * by > 0;
-    if (straightOn) {
-      route[route.length - 1] = { ...point };
-      return;
-    }
-  }
-  route.push({ ...point });
-}
-
 /** Where a Robot stands to activate a Machine: just outside it, beside the site. */
 function beside(
   machine: MachineState,
   construction: ConstructionState,
 ): GroundPosition {
   const reach =
-    (findMachineType(machine.machineTypeId)?.footprintRadiusMetres ?? 0) +
+    machineFootprintRadius(machine.machineTypeId) +
     catalogue.robot.workingGapMetres / 2;
   // At right angles to the line from the site to the Machine.
   const angle =

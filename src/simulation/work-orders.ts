@@ -6,7 +6,7 @@ import {
   type ConstructionState,
 } from "./construction";
 import { machineOn, nearestFreeMachine } from "./machines";
-import { nearestPoweredStructure } from "./power";
+import { findCable, nearestPoweredStructure } from "./power";
 
 /**
  * A unit of the Robot's work on a Construction. A Robot claims one at a time
@@ -160,9 +160,7 @@ export function needsCable(
   state: CampaignState,
   construction: ConstructionState,
 ): boolean {
-  const cable = state.cables.find(
-    (candidate) => candidate.toStructureId === construction.id,
-  );
+  const cable = findCable(state, construction.id);
   return cable === undefined
     ? nearestPoweredStructure(state, construction.position) !== undefined
     : !cable.complete;

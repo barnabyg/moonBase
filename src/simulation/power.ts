@@ -3,6 +3,8 @@ import type { CampaignState } from "./campaign";
 import {
   distance,
   findStructureType,
+  footprintRadius,
+  type ConstructionState,
   type StructureState,
 } from "./construction";
 import { lunationMinutes, readLunation } from "./lunation";
@@ -23,6 +25,94 @@ export interface CableState {
   route: GroundPosition[];
   complete: boolean;
 }
+
+/** The cable laid, or being laid, to a Construction, if any. */
+export function findCable(
+  state: CampaignState,
+  constructionId: string,
+): CableState | undefined {
+  return state.cables.find((cable) => cable.toStructureId === constructionId);
+}
+
+/**
+ * The cable being laid to a Construction, starting one from the nearest
+ * powered Structure if there isn't one yet.
+ */
+export function cableTo(
+  state: CampaignState,
+  construction: ConstructionState,
+): CableState | undefined {
+  const existing = findCable(state, construction.id);
+  if (existing !== undefined) return existing;
+  const source = nearestPoweredStructure(state, construction.position);
+  if (source === undefined) return undefined;
+  // From the edge of one footprint to the edge of the other.
+  const edge = (
+    from: GroundPosition,
+    towards: GroundPosition,
+    radius: number,
+  ) => {
+    const gap = distance(from, towards);
+    return gap === 0
+      ? { ...from }
+      : {
+          x: from.x + ((towards.x - from.x) / gap) * radius,
+          y: from.y + ((towards.y - from.y) / gap) * radius,
+        };
+  };
+  const cable: CableState = {
+    fromStructureId: source.id,
+    toStructureId: construction.id,
+    start: edge(
+      source.position,
+      construction.position,
+      footprintRadius(source.structureTypeId),
+    ),
+    end: edge(
+      construction.position,
+      source.position,
+      footprintRadius(construction.structureTypeId),
+    ),
+    route: [],
+    complete: false,
+  };
+  state.cables.push(cable);
+  return cable;
+}
+
+/**
+ * Adds a point to a cable's route, replacing the last point instead when the
+ * cable carries straight on, so that a straight run is kept as one segment.
+ */
+export function extendRoute(
+  route: GroundPosition[],
+  point: GroundPosition,
+): void {
+  const last = route.at(-1);
+  const beforeLast = route.at(-2);
+  if (last !== undefined && last.x === point.x && last.y === point.y) return;
+  if (last !== undefined && beforeLast !== undefined) {
+    const ax = last.x - beforeLast.x;
+    const ay = last.y - beforeLast.y;
+    const bx = point.x - last.x;
+    const by = point.y - last.y;
+    const straightOn =
+      Math.abs(ax * by - ay * bx) <=
+        1e-9 * Math.hypot(ax, ay) * Math.hypot(bx, by) && ax * bx + ay * by > 0;
+    if (straightOn) {
+      route[route.length - 1] = { ...point };
+      return;
+    }
+  }
+  route.push({ ...point });
+}
+
+/**
+ * How many parts of a Lunation the power forecast looks ahead. Every Lunation
+ * after the first fills or drains storage the same way, so three are enough
+ * to see whether it ever runs out.
+ */
+const FORECAST_LUNATION_PARTS = 6;
 
 /** Stored energy below this counts as none, so that rounding never leaves a trickle. */
 const ENERGY_TOLERANCE_KWH = 1e-9;
@@ -164,9 +254,7 @@ export function minutesUntilEmpty(
   let length = now.minutesRemaining;
   let stored = network.storedKilowattHours;
   let start = 0;
-  // Every Lunation after the first fills or drains the same way, so a few
-  // are enough to see whether storage ever runs out.
-  for (let parts = 0; parts < 6; parts++) {
+  for (let parts = 0; parts < FORECAST_LUNATION_PARTS; parts++) {
     const generated =
       part === "daylight" ? network.daylightGenerationKilowatts : 0;
     const perMinute = (generated - network.consumptionKilowatts) / 60;

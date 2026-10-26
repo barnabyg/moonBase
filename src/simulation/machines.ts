@@ -6,7 +6,10 @@ import { distance, stageMinutes } from "./construction";
 export type MachineActivity =
   | { readonly kind: "idle" }
   | {
-      /** A Robot is driving it into position or activating it. */
+      /**
+       * "being-positioned": a Robot is driving it into position or activating
+       * it. "working": it is carrying out its work by itself.
+       */
       readonly kind: "being-positioned" | "working";
       readonly constructionId: string;
     };
@@ -32,6 +35,10 @@ export interface MachineState {
 
 export function findMachineType(id: string): MachineType | undefined {
   return catalogue.machineTypes.find((type) => type.id === id);
+}
+
+export function machineFootprintRadius(machineTypeId: string): number {
+  return findMachineType(machineTypeId)?.footprintRadiusMetres ?? 0;
 }
 
 /** The Machine whose assignment is on the given Construction, if any. */

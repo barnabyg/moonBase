@@ -11,6 +11,7 @@ import type {
   ConstructionWait,
   ConstructionStage,
   LunationSnapshot,
+  WalkingDestination,
 } from "../simulation";
 
 const twoDigits = (value: number): string => String(value).padStart(2, "0");
@@ -54,10 +55,18 @@ export function formatDuration(minutes: number): string {
 const kilowatts = (value: number): string => `${value.toFixed(2)} kW`;
 const kilowattHours = (value: number): string => `${value.toFixed(1)} kWh`;
 
+/** Adds up one figure across all the base's power networks. */
+function sumNetworks(
+  power: Snapshot["power"],
+  pick: (network: PowerNetworkSnapshot) => number,
+): number {
+  return power.networks.reduce((sum, network) => sum + pick(network), 0);
+}
+
 /** Sums the base's power networks, for example "Power: 10.00 kW generated, 0.30 kW used". */
 export function formatPower(power: Snapshot["power"]): string {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
-    power.networks.reduce((sum, network) => sum + pick(network), 0);
+    sumNetworks(power, pick);
   return `Power: ${kilowatts(total((network) => network.generationKilowatts))} generated, ${kilowatts(total((network) => network.consumptionKilowatts))} used`;
 }
 
@@ -70,7 +79,7 @@ export function formatStoredPower(
   forecast: PowerForecast,
 ): string {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
-    power.networks.reduce((sum, network) => sum + pick(network), 0);
+    sumNetworks(power, pick);
   const capacity = total((network) => network.storageCapacityKilowattHours);
   if (capacity === 0) return "Stored: no battery banks";
   const storedKilowattHours = total((network) => network.storedKilowattHours);
@@ -191,9 +200,7 @@ function describeRobotWork(
       (structure) => structure.id === cable?.fromStructureId,
     )?.structureTypeId ?? "",
   ).toLowerCase();
-  const describeWalk = (
-    destination: "site" | "lander" | "machine" | "cable",
-  ): string => {
+  const describeWalk = (destination: WalkingDestination): string => {
     switch (destination) {
       case "lander":
         return "Robot walking to the Lander for the Components";

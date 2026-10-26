@@ -25,7 +25,7 @@ export type {
   PlacementCheck,
   PlacementRefusal,
 } from "./construction";
-export type { RobotActivity } from "./robot";
+export type { RobotActivity, WalkingDestination } from "./robot";
 export type { ConstructionWait } from "./work-orders";
 export type { MachineActivity } from "./machines";
 export type { ClockSnapshot } from "./clock";
