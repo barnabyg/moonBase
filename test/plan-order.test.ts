@@ -27,7 +27,7 @@ function run(game: Scenario, minutes: number): Snapshot[] {
 function constructionsWorkedOn(states: Snapshot[]): string[] {
   const ids = states.flatMap((state) =>
     state.robots.flatMap((robot) =>
-      robot.activity.kind === "idle" ? [] : [robot.activity.constructionId],
+      robot.activity.kind === "idle" ? [] : [robot.activity.structureId],
     ),
   );
   return ids.filter((id, index) => ids.indexOf(id) === index);
@@ -50,7 +50,7 @@ describe("several Constructions", () => {
       state.robots.some(
         (robot) =>
           robot.activity.kind !== "idle" &&
-          robot.activity.constructionId === second,
+          robot.activity.structureId === second,
       ),
     );
     expect(secondStarted).toBeGreaterThan(commissioned);

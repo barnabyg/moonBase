@@ -31,18 +31,21 @@ import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
  */
 export type WalkingDestination = "site" | "lander" | "machine" | "cable";
 
-/** What a Robot did during the latest game-minute, and for which Construction. */
+/**
+ * What a Robot did during the latest game-minute, and for which Structure: one
+ * under Construction (whose id the Structure keeps once commissioned).
+ */
 export type RobotActivity =
   | { readonly kind: "idle" }
   | {
       readonly kind: "walking";
-      readonly constructionId: string;
+      readonly structureId: string;
       readonly destination: WalkingDestination;
     }
   | {
       /** Driving a Machine to the site, aboard it, or setting it going there. */
       readonly kind: "driving-machine" | "activating-machine";
-      readonly constructionId: string;
+      readonly structureId: string;
       readonly machineId: string;
     }
   | {
@@ -52,7 +55,7 @@ export type RobotActivity =
         | "assembling"
         | "commissioning"
         | "laying-cable";
-      readonly constructionId: string;
+      readonly structureId: string;
     };
 
 export interface RobotState {
@@ -81,7 +84,7 @@ export function workRobot(
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
   const construction = state.constructions.find(
-    (candidate) => candidate.id === workOrder?.constructionId,
+    (candidate) => candidate.id === workOrder?.structureId,
   );
   if (construction === undefined) {
     robot.workOrder = undefined;
@@ -103,7 +106,7 @@ export function workRobot(
       },
       catalogue.robot.walkingSpeedMetresPerHour / 60,
     );
-    robot.activity = { kind: "walking", constructionId: id, destination };
+    robot.activity = { kind: "walking", structureId: id, destination };
     return false;
   };
   const workFor = (
@@ -114,7 +117,7 @@ export function workRobot(
       | "commissioning",
     untilMinutes: number,
   ): boolean => {
-    robot.activity = { kind, constructionId: id };
+    robot.activity = { kind, structureId: id };
     construction.workedMinutes += 1;
     return construction.workedMinutes >= untilMinutes;
   };
@@ -138,7 +141,7 @@ export function workRobot(
       catalogue.robot.cableLayingSpeedMetresPerHour / 60,
     );
     extendRoute(cable.route, robot.position);
-    robot.activity = { kind: "laying-cable", constructionId: id };
+    robot.activity = { kind: "laying-cable", structureId: id };
     cable.complete = samePlace(robot.position, cable.end);
     return [];
   }
@@ -173,7 +176,7 @@ export function workRobot(
         robot.position = { ...machine.position };
         robot.activity = {
           kind: "driving-machine",
-          constructionId: id,
+          structureId: id,
           machineId: machine.id,
         };
         return [];
@@ -182,7 +185,7 @@ export function workRobot(
       if (!walkTo(beside(machine, construction), "machine")) return [];
       robot.activity = {
         kind: "activating-machine",
-        constructionId: id,
+        structureId: id,
         machineId: machine.id,
       };
       assignment.activationMinutes += 1;

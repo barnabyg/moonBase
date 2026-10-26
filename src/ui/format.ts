@@ -163,7 +163,7 @@ export function describeWork(
   const robot = snapshot.robots.find(
     (candidate) =>
       candidate.activity.kind !== "idle" &&
-      candidate.activity.constructionId === construction.id,
+      candidate.activity.structureId === construction.id,
   );
   const work = [
     ...(machine === undefined

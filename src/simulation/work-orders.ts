@@ -13,7 +13,8 @@ import { findCable, nearestPoweredStructure } from "./power";
  * and carries it out before it looks for another.
  */
 export interface WorkOrder {
-  readonly constructionId: string;
+  /** The Structure it is for: one under Construction, whose id it keeps once commissioned. */
+  readonly structureId: string;
   readonly kind: WorkOrderKind;
 }
 
@@ -115,11 +116,11 @@ export function claimWorkOrder(
       if (
         !claimed.some(
           (other) =>
-            other.constructionId === construction.id && other.kind === kind,
+            other.structureId === construction.id && other.kind === kind,
         ) &&
         canBeWorkedOn(state, construction, kind)
       ) {
-        return { constructionId: construction.id, kind };
+        return { structureId: construction.id, kind };
       }
     }
   }
@@ -169,7 +170,7 @@ export function needsCable(
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
   const construction = state.constructions.find(
-    (candidate) => candidate.id === workOrder.constructionId,
+    (candidate) => candidate.id === workOrder.structureId,
   );
   if (construction === undefined) return false;
   if (workOrder.kind === "lay-cable") return needsCable(state, construction);

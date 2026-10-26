@@ -113,10 +113,10 @@ function workTarget(
   }
   const site =
     frame.current.constructions.find(
-      (construction) => construction.id === activity.constructionId,
+      (construction) => construction.id === activity.structureId,
     ) ??
     frame.current.structures.find(
-      (structure) => structure.id === activity.constructionId,
+      (structure) => structure.id === activity.structureId,
     );
   return site === undefined ? undefined : toScene(site.position);
 }
