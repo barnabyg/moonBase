@@ -67,9 +67,8 @@ jobs:
       # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
       # the WebGL2 context the renderer needs, but only with a display, so the
       # end-to-end tests run Firefox with a window in a virtual X display.
-      - name: Install software OpenGL and a virtual display
-        timeout-minutes: 3
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgles2 xvfb
+      # Mesa's GLX libraries and Xvfb come with the runner image, and
+      # playwright.config.ts has Firefox use GLX, so nothing is installed.
       - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
         env:
           PLAYWRIGHT_HEADED: "1"
