@@ -21,7 +21,19 @@ import {
   takeOffBase,
   type DismantlingState,
 } from "./dismantling";
+import { addBulk } from "./bulk-resources";
 import type { GameEvent } from "./events";
+import {
+  awayMinutes,
+  exitPointFrom,
+  expeditionOf,
+  returnSpot,
+  unloadingMinutes,
+  wearRoverOnExpedition,
+  type ExpeditionState,
+} from "./expeditions";
+import { isRoverBroken, roverPerformance } from "./rovers";
+
 import {
   findMachineType,
   machineFootprintRadius,
@@ -136,6 +148,20 @@ export type RobotActivity =
       readonly structureId: string;
     }
   | {
+      /** Driving a Rover, aboard it, off the map on an Expedition or back. */
+      readonly kind: "driving-rover";
+      readonly roverId: string;
+      readonly purpose: "expedition";
+    }
+  | {
+      /**
+       * "on-expedition": away beyond the base in the Rover.
+       * "unloading-expedition": unloading what an Expedition brought back
+       * at the stockpile.
+       */
+      readonly kind: "on-expedition" | "unloading-expedition";
+    }
+  | {
       /**
        * Walking to repair itself: to the stockpile for spare Components,
        * then to the Habitat or the Lander the Mission Director lives in.
@@ -207,9 +233,12 @@ const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 /**
  * Lets the Robot do one game-minute of work, as fast as its Condition
  * allows: first wearing it down by Dust for the game-minute before, if it
- * wasn't idle. Below the data catalogue's threshold, it repairs itself
- * ahead of everything else; otherwise it works on its Work Order, claiming
- * the next one in plan order when it has none. Returns any events.
+ * wasn't idle. Once it has set off on an Expedition, it does nothing else
+ * until the Expedition is over. Otherwise, below the data catalogue's
+ * threshold, it repairs itself ahead of everything else; then it works on
+ * its Work Order, and once it has none, it sets off on any Expedition it
+ * is to go on, or else claims the next Work Order in plan order. Returns
+ * any events.
  */
 export function workRobot(
   state: CampaignState,
@@ -219,9 +248,16 @@ export function workRobot(
   if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
     robot.workOrder = undefined;
   }
+  const expedition = expeditionOf(state, robot.id);
+  if (expedition !== undefined && expedition.stage !== "boarding") {
+    return goOnExpedition(state, robot, expedition);
+  }
   const started = startSelfRepair(state, robot);
   if (robot.selfRepair !== undefined) {
     return [...started, ...repairItself(state, robot, robot.selfRepair)];
+  }
+  if (expedition !== undefined && robot.workOrder === undefined) {
+    return goOnExpedition(state, robot, expedition);
   }
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
@@ -990,6 +1026,116 @@ function repairItself(
   if (selfRepair.workedMinutes < total) return [];
   removeCounts(robot.carrying, spares(selfRepair.spareComponents));
   return finishSelfRepair(state, robot, selfRepair.spareComponents);
+}
+
+/**
+ * Lets the Robot do one game-minute of an Expedition: it walks to the
+ * Rover, drives it to the nearest map edge and off the map, is away for the
+ * data catalogue's time, then drives back onto the map to the stockpile and
+ * unloads what it brought back, which joins the base's stock. A Rover
+ * Broken before it is driven off calls the Expedition off. Returns any
+ * events.
+ */
+function goOnExpedition(
+  state: CampaignState,
+  robot: RobotState,
+  expedition: ExpeditionState,
+): GameEvent[] {
+  const rover = state.rovers.find(
+    (candidate) => candidate.id === expedition.roverId,
+  );
+  if (rover === undefined) {
+    state.expedition = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const atMinute = state.elapsedMinutes;
+  /** Drives the Rover one game-minute towards a spot, and says whether it is there. */
+  const drive = (spot: GroundPosition): boolean => {
+    rover.position = stepTowards(
+      rover.position,
+      spot,
+      {
+        centre: state.lander.position,
+        radius: LANDER_CLEARANCE_METRES + catalogue.rover.footprintRadiusMetres,
+      },
+      (catalogue.rover.drivingSpeedMetresPerHour * roverPerformance(rover)) /
+        60,
+    );
+    robot.position = { ...rover.position };
+    robot.activity = {
+      kind: "driving-rover",
+      roverId: rover.id,
+      purpose: "expedition",
+    };
+    rover.activity = { kind: "on-expedition" };
+    wearRoverOnExpedition(rover);
+    return samePlace(rover.position, spot);
+  };
+  /** Drives the Rover back onto the map, beside the stockpile, to unload. */
+  const driveBack = (): GameEvent[] => {
+    if (drive(returnSpot(state, expedition.exitPoint ?? rover.position))) {
+      expedition.stage = "unloading";
+    }
+    return [];
+  };
+  switch (expedition.stage) {
+    case "boarding": {
+      if (isRoverBroken(rover)) {
+        state.expedition = undefined;
+        robot.activity = { kind: "idle" };
+        return [{ kind: "expedition-called-off", atMinute }];
+      }
+      const driven: Driven = { kind: "rover", rover };
+      if (
+        !walkRobotToDriven(
+          state,
+          robot,
+          driven,
+          besideDriven(state, driven),
+          "there",
+        )
+      ) {
+        return [];
+      }
+      expedition.stage = "driving-out";
+      expedition.exitPoint = exitPointFrom(rover.position);
+      return [];
+    }
+    case "driving-out": {
+      const exit = expedition.exitPoint ?? exitPointFrom(rover.position);
+      if (!drive(exit)) return [];
+      expedition.stage = "away";
+      expedition.returnsAtMinute = atMinute + awayMinutes();
+      return [
+        {
+          kind: "expedition-left",
+          atMinute,
+          returnsAtMinute: expedition.returnsAtMinute,
+        },
+      ];
+    }
+    case "away":
+      if (atMinute < (expedition.returnsAtMinute ?? atMinute)) {
+        robot.activity = { kind: "on-expedition" };
+        rover.activity = { kind: "on-expedition" };
+        wearRoverOnExpedition(rover);
+        return [];
+      }
+      expedition.stage = "driving-back";
+      return driveBack();
+    case "driving-back":
+      return driveBack();
+    case "unloading": {
+      robot.activity = { kind: "unloading-expedition" };
+      expedition.workedMinutes += robotPerformance(robot);
+      if (expedition.workedMinutes < unloadingMinutes()) return [];
+      const { resourceId, kilograms } = catalogue.expeditions;
+      addBulk(state, resourceId, kilograms);
+      state.expedition = undefined;
+      return [{ kind: "expedition-returned", atMinute, resourceId, kilograms }];
+    }
+  }
 }
 
 /** Takes Components out of a list of counts, dropping any count that comes to none. */

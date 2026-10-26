@@ -7,6 +7,7 @@ export type {
   ComponentType,
   DiggingRules,
   DustCoatingRules,
+  ExpeditionRules,
   GameSpeed,
   GroundPosition,
   LaunchItem,

@@ -6,6 +6,7 @@ import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBuildMenu } from "./ui/build-menu";
 import { createConstructionPanel } from "./ui/construction-panel";
+import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
@@ -75,6 +76,7 @@ const leftColumn = document.createElement("div");
 leftColumn.className = "left-column";
 container.append(leftColumn);
 const launchManifest = createLaunchManifestScreen(container, campaign);
+const expeditions = createExpeditionsScreen(container, campaign);
 const statusPanel = createStatusPanel(
   leftColumn,
   loop,
@@ -82,6 +84,9 @@ const statusPanel = createStatusPanel(
   saveFiles,
   () => {
     launchManifest.open();
+  },
+  () => {
+    expeditions.open();
   },
 );
 const constructionPanel = createConstructionPanel(container, campaign);
@@ -108,6 +113,8 @@ function frame(time: number): void {
   statusPanel.update(snapshot, campaign.forecasts());
   constructionPanel.update(snapshot);
   launchManifest.update(snapshot);
+  expeditions.update(snapshot);
+
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
   renderer?.render({

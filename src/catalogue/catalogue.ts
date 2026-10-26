@@ -89,6 +89,7 @@ export interface Catalogue {
   };
   readonly machineTypes: readonly MachineType[];
   readonly rover: RoverType;
+  readonly expeditions: ExpeditionRules;
   /**
    * The bulk resources the base keeps a stock of at the stockpile, measured
    * in kilograms, in the order the status panel shows them.
@@ -414,6 +415,28 @@ export interface RoverType {
   readonly coldWearPercentPerNightHour: number;
 }
 
+/**
+ * Expeditions: the Robot drives the Rover off the map and comes back some
+ * time later with water ice. The Rover wears down by Dust at its rate for
+ * each game-hour it is driven, there and back as on the map.
+ */
+export interface ExpeditionRules {
+  /**
+   * How long the Robot and the Rover are away, from driving off the map to
+   * driving back onto it. Must come to a whole number of game-minutes.
+   */
+  readonly awayEarthDays: number;
+  /** The bulk resource an Expedition brings back. */
+  readonly resourceId: string;
+  /** How much of it an Expedition brings back. */
+  readonly kilograms: number;
+  /**
+   * The Robot's working time to unload it at the stockpile, in game-hours.
+   * Must come to a whole number of game-minutes.
+   */
+  readonly unloadingHours: number;
+}
+
 /** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
 export interface BulkResource {
   readonly id: string;
@@ -578,7 +601,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 26,
+  version: 27,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -662,10 +685,19 @@ export const catalogue: Catalogue = {
     heaterKilowatts: 0.2,
     coldWearPercentPerNightHour: 0.2,
   },
+  // Three Earth Days away for enough ice to make more water than the
+  // Mission Director drinks in a Lunation.
+  expeditions: {
+    awayEarthDays: 3,
+    resourceId: "water-ice",
+    kilograms: 200,
+    unloadingHours: 1,
+  },
   bulkResources: [
     { id: "regolith", label: "Regolith" },
     { id: "metals", label: "Metals" },
     { id: "silicon", label: "Silicon" },
+    { id: "water-ice", label: "Water ice" },
   ],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.

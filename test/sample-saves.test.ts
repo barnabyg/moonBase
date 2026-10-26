@@ -972,7 +972,7 @@ describe("the sample saves from before Plants", () => {
 
       expect(
         state.bulkResources
-          .filter((stock) => stock.resourceId !== "regolith")
+          .filter((stock) => ["metals", "silicon"].includes(stock.resourceId))
           .map((stock) => stock.kilograms),
       ).toEqual([0, 0]);
       expect(
@@ -1004,7 +1004,12 @@ describe("the sample save of format version 17", () => {
       running: true,
       stoppedFor: undefined,
     });
-    expect(campaign.snapshot().bulkResources.map((s) => s.kilograms)).toEqual([
+    expect(
+      campaign
+        .snapshot()
+        .bulkResources.map((s) => s.kilograms)
+        .slice(0, 3),
+    ).toEqual([
       expect.closeTo(462.3, 1),
       expect.closeTo(6.03, 1),
       expect.closeTo(4.02, 1),
@@ -1023,5 +1028,50 @@ describe("the sample save of format version 17", () => {
       running: false,
       stoppedFor: { reason: "no-power" },
     });
+  });
+});
+
+describe("the sample saves from before Expeditions", () => {
+  it.each(["version-1.moonbase", "version-16.moonbase", "version-17.moonbase"])(
+    "%s loads with no Expedition under way, and no water ice",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.expedition).toBeUndefined();
+      expect(
+        state.bulkResources.find((stock) => stock.resourceId === "water-ice"),
+      ).toEqual({ resourceId: "water-ice", kilograms: 0 });
+    },
+  );
+});
+
+describe("the sample save of format version 18", () => {
+  it("loads with the Robot and the Rover away on an Expedition", () => {
+    const state = loadSample("version-18.moonbase").snapshot();
+
+    expect(state.expedition).toMatchObject({
+      stage: "away",
+      returnsAtMinute: 4761,
+    });
+    expect(state.robots[0]?.activity).toEqual({ kind: "on-expedition" });
+    expect(state.rovers[0]?.activity).toEqual({ kind: "on-expedition" });
+  });
+
+  it("plays on from where it was saved, until the Expedition is back with its water ice", () => {
+    const campaign = loadSample("version-18.moonbase");
+    const kinds: string[] = [];
+
+    for (let hours = 0; campaign.snapshot().expedition !== undefined; hours++) {
+      if (hours > 4 * 24) throw new Error("The Expedition never came back.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("expedition-returned");
+    expect(
+      campaign
+        .snapshot()
+        .bulkResources.find((stock) => stock.resourceId === "water-ice")
+        ?.kilograms,
+    ).toBe(catalogue.expeditions.kilograms);
   });
 });

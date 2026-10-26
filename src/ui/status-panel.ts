@@ -17,6 +17,7 @@ import {
   formatClock,
   formatCondition,
   formatDustCoating,
+  formatExpedition,
   formatFunding,
   formatHabitatPower,
   formatLander,
@@ -67,6 +68,7 @@ export function createStatusPanel(
   >,
   saveFiles: SaveFiles,
   openLaunchManifest: () => void,
+  openExpeditions: () => void,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -188,6 +190,23 @@ export function createStatusPanel(
     showResult(campaign.sendLander());
   });
   landerLine.append(lander, sendLander);
+
+  // The Expedition under way, if any, beside the button that opens the
+  // Expeditions screen.
+  const expeditionLine = document.createElement("p");
+  expeditionLine.className = "status-panel__residence status-panel__lander";
+  const expedition = document.createElement("span");
+  expedition.setAttribute("role", "status");
+  expedition.setAttribute("aria-label", "Expedition");
+  expedition.setAttribute("aria-live", "off");
+  const expeditions = document.createElement("button");
+  expeditions.type = "button";
+  expeditions.className = "status-panel__send-lander";
+  expeditions.textContent = "Expeditions";
+  expeditions.title =
+    "Send the Robot off the map in the Rover, to come back with water ice.";
+  expeditions.addEventListener("click", openExpeditions);
+  expeditionLine.append(expedition, expeditions);
 
   // Whether the Mission Director's Habitat has power, and when it will lose it.
   const habitatPower = document.createElement("p");
@@ -315,6 +334,7 @@ export function createStatusPanel(
     storedPower,
     missionDirector,
     landerLine,
+    expeditionLine,
     habitatPower,
     ...stocks.map((stock) => stock.line),
     radiationDose,
@@ -361,6 +381,10 @@ export function createStatusPanel(
         formatLander(snapshot.lander, snapshot.clock.elapsedMinutes),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
+      setText(
+        expedition,
+        formatExpedition(snapshot.expedition, snapshot.clock.elapsedMinutes),
+      );
       const habitatPowerText = formatHabitatPower(
         snapshot.missionDirector,
         snapshot.structures,
@@ -478,7 +502,7 @@ export function createStatusPanel(
           robots.append(item);
           robotItems.set(robot.id, item);
         }
-        setText(item, formatRobot(robot));
+        setText(item, formatRobot(robot, snapshot.expedition));
       }
       for (const machine of snapshot.machines) {
         let item = machineItems.get(machine.id);

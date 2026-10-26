@@ -254,6 +254,21 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("sends Expeditions away for a positive, whole number of game-minutes, bringing back water ice, which the Robot unloads", () => {
+    const { expeditions } = catalogue;
+
+    expect(expeditions.resourceId).toBe("water-ice");
+    expect(catalogue.bulkResources.map((resource) => resource.id)).toContain(
+      expeditions.resourceId,
+    );
+    expect(expeditions.kilograms).toBeGreaterThan(0);
+    expect(expeditions.awayEarthDays).toBeGreaterThan(0);
+    expect(Number.isInteger(expeditions.awayEarthDays * 24 * 60)).toBe(true);
+    expect(expeditions.unloadingHours).toBeGreaterThan(0);
+    expect(Number.isInteger(expeditions.unloadingHours * 60)).toBe(true);
+    expect(catalogue.rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
+  });
+
   it("has bulk resources with unique ids and labels, Regolith first", () => {
     const { bulkResources } = catalogue;
 

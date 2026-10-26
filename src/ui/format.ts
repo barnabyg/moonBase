@@ -26,6 +26,7 @@ import type {
   ConstructionWait,
   ConstructionStage,
   DrivenSubject,
+  ExpeditionSnapshot,
   RoverSnapshot,
   DismantlingSnapshot,
   DismantlingStage,
@@ -341,6 +342,12 @@ export function formatEvent(event: GameEvent): string {
       return event.spareComponents > 0
         ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
         : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "expedition-left":
+      return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
+    case "expedition-returned":
+      return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
+    case "expedition-called-off":
+      return "Expedition called off: the Rover is Broken";
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
@@ -645,8 +652,14 @@ export function formatMachine(
  * for example "Robot: working, Condition 87%" or "Robot: repairing itself
  * at the Habitat, Condition 9%, working at 18%".
  */
-export function formatRobot(robot: RobotSnapshot): string {
+export function formatRobot(
+  robot: RobotSnapshot,
+  expedition?: ExpeditionSnapshot,
+): string {
   const { activity, selfRepair } = robot;
+  if (isOnExpedition(robot.id, expedition)) {
+    return `Robot: on an Expedition, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+  }
   const where =
     selfRepair === undefined
       ? ""
@@ -660,6 +673,47 @@ export function formatRobot(robot: RobotSnapshot): string {
         ? `${selfRepair.makeshift ? "making a makeshift repair" : "repairing itself"}${where}`
         : `going to repair itself${where}`;
   return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+}
+
+/**
+ * Whether a Robot has set off on an Expedition, so that every Work Order
+ * waits for it: from walking to the Rover until it has unloaded what it
+ * brought back.
+ */
+export function isOnExpedition(
+  robotId: string,
+  expedition: ExpeditionSnapshot | undefined,
+): boolean {
+  return (
+    expedition !== undefined &&
+    expedition.robotId === robotId &&
+    expedition.stage !== "boarding"
+  );
+}
+
+/**
+ * Says how the Expedition under way is going, and when it will be back,
+ * for example "Expedition: away, back in 2 Earth Days 5 hours", or that
+ * there is none.
+ */
+export function formatExpedition(
+  expedition: ExpeditionSnapshot | undefined,
+  elapsedMinutes: number,
+): string {
+  if (expedition === undefined) return "Expedition: none under way";
+  const cargo = `${formatKilograms(expedition.kilograms)} of ${resourceLabel(expedition.resourceId).toLowerCase()}`;
+  switch (expedition.stage) {
+    case "boarding":
+      return "Expedition: leaving once the Robot has finished its Work Order and boarded the Rover";
+    case "driving-out":
+      return "Expedition: the Robot is driving the Rover to the map edge";
+    case "away":
+      return `Expedition: away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
+    case "driving-back":
+      return `Expedition: back on the map with ${cargo}, driving to the stockpile`;
+    case "unloading":
+      return `Expedition: unloading ${cargo} at the stockpile`;
+  }
 }
 
 /** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
@@ -720,7 +774,9 @@ export function formatRover(
     ? "Broken"
     : rover.activity.kind === "being-parked"
       ? "being parked"
-      : "parked";
+      : rover.activity.kind === "on-expedition"
+        ? "on an Expedition"
+        : "parked";
   const plug = broken
     ? ""
     : !rover.pluggedIn
@@ -877,6 +933,8 @@ function describeRobotWork(
     // unload the Lander, or for the Robot's repair of itself, when it does
     // nothing for anything else.
     case "driving-rover":
+    case "on-expedition":
+    case "unloading-expedition":
     case "dismantling":
     case "returning-components":
     case "loading-cargo":

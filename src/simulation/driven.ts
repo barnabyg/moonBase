@@ -1,6 +1,8 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import type { GameEvent } from "./events";
+import { isRoverOnExpedition } from "./expeditions";
+
 import {
   damageMachine,
   findMachineType,
@@ -54,6 +56,14 @@ const noSpec: DrivenSpec = {
   heaterKilowatts: 0,
   coldWearPercentPerNightHour: 0,
 };
+
+/** Whether something is a Rover out on an Expedition, away from every plug. */
+export function isOutOnExpedition(
+  state: CampaignState,
+  driven: Driven,
+): boolean {
+  return driven.kind === "rover" && isRoverOnExpedition(state, driven.rover.id);
+}
 
 /** Every Machine, then every Rover. */
 export function everyDriven(state: CampaignState): Driven[] {
@@ -161,12 +171,13 @@ export function wearDriven(
  * Wears down by the cold every Machine and Rover that went without power at
  * Night during the latest game-minute it was supplied power for, at the
  * data catalogue's rate for it, and returns an event for each one it left
- * Broken. Like Dust wear on Structures, it comes first in a game-minute.
+ * Broken. A Rover out on an Expedition is kept warm as it is driven. Like
+ * Dust wear on Structures, it comes first in a game-minute.
  */
 export function chillDriven(state: CampaignState, night: boolean): GameEvent[] {
   if (!night) return [];
   return everyDriven(state).flatMap((driven) =>
-    bodyOf(driven).powered
+    bodyOf(driven).powered || isOutOnExpedition(state, driven)
       ? []
       : wearDriven(
           state,

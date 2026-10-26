@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import { createRoverModel, type RoverModel } from "./models";
+import { isOnMap } from "./robot-views";
 
 interface RoverView {
   readonly model: RoverModel;
@@ -43,6 +44,7 @@ export function createRoverViews(scene: THREE.Scene) {
           view.heading = facingAngle(view.lastPosition, position);
         }
         view.lastPosition = position.clone();
+        view.model.group.visible = isOnMap(frame, rover.position);
         view.model.group.position.copy(position);
         view.model.group.rotation.y = view.heading;
       }

@@ -2,6 +2,8 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isOperating } from "./condition";
+import { isAway } from "./expeditions";
+
 import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { readLunation } from "./lunation";
@@ -152,11 +154,13 @@ function wearPercentPerHour(state: CampaignState): number {
   const rovers = state.rovers
     .filter((rover) => !isRoverBroken(rover))
     .reduce((sum, rover) => {
-      const driven = state.robots.some(
-        (robot) =>
-          robot.activity.kind === "driving-rover" &&
-          robot.activity.roverId === rover.id,
-      );
+      const driven =
+        isAway(state, { roverId: rover.id }) ||
+        state.robots.some(
+          (robot) =>
+            robot.activity.kind === "driving-rover" &&
+            robot.activity.roverId === rover.id,
+        );
       return (
         sum +
         (driven ? roverType.dustWearPercentPerDrivingHour : 0) +

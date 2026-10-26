@@ -81,6 +81,13 @@ import {
 } from "./lunation";
 import { chillDriven } from "./driven";
 import {
+  readExpedition,
+  startExpedition,
+  type ExpeditionSnapshot,
+  type ExpeditionState,
+  type StartExpeditionResult,
+} from "./expeditions";
+import {
   machinePerformance,
   workMachines,
   type MachineActivity,
@@ -468,6 +475,11 @@ export interface Snapshot {
    * they were raised, which is the order the Robot takes them in.
    */
   readonly maintenance: readonly MaintenanceSnapshot[];
+  /**
+   * The Expedition under way, from the player starting it until what it
+   * brought back is in the base's stock, or undefined if there is none.
+   */
+  readonly expedition: ExpeditionSnapshot | undefined;
   /** Machines and Rovers being parked where they can plug in, or waiting for the Robot to park them. */
   readonly parking: readonly ParkingSnapshot[];
 }
@@ -535,6 +547,12 @@ export interface Campaign {
    * balance can't pay for, is refused with the limit it would go over.
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
+  /**
+   * Starts an Expedition: the Robot finishes the Work Order it holds, then
+   * drives the Rover off the map, and comes back some time later with
+   * water ice. It is refused while one is under way or the Rover is Broken.
+   */
+  startExpedition(): StartExpeditionResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -594,6 +612,8 @@ export interface CampaignState {
   maintenance: MaintenanceState[];
   /** "Park" Work Orders, for Machines and Rovers, in the order they were raised. */
   parking: ParkingState[];
+  /** The Expedition under way, if any. */
+  expedition: ExpeditionState | undefined;
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -648,6 +668,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     reconnections: [],
     maintenance: [],
     parking: [],
+    expedition: undefined,
   });
 }
 
@@ -756,6 +777,16 @@ function campaignFrom(state: CampaignState): Campaign {
         });
       }
       return deepFreeze(setLaunchManifest(state, manifest));
+    },
+    startExpedition() {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(startExpedition(state));
     },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
@@ -890,6 +921,7 @@ function campaignFrom(state: CampaignState): Campaign {
         },
         maintenance: readMaintenance(state),
         parking: readParking(state),
+        expedition: readExpedition(state),
       });
     },
     save() {

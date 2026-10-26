@@ -222,7 +222,29 @@ export type GameEvent =
       readonly minutesUntilEmpty: number;
     }
   | {
+      /** An Expedition has driven off the map, to come back at the given game-minute. */
+      readonly kind: "expedition-left";
+      readonly atMinute: number;
+      readonly returnsAtMinute: number;
+    }
+  | {
+      /**
+       * An Expedition is over: the Robot has unloaded what it brought back
+       * at the stockpile, where it joins the base's stock.
+       */
+      readonly kind: "expedition-returned";
+      readonly atMinute: number;
+      readonly resourceId: string;
+      readonly kilograms: number;
+    }
+  | {
+      /** The Rover was Broken before the Robot could drive it off, so the Expedition is off. */
+      readonly kind: "expedition-called-off";
+      readonly atMinute: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
+
       readonly kind: "mission-director-died";
       readonly atMinute: number;
       readonly cause: DeathCause;

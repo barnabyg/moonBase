@@ -1,5 +1,9 @@
 import * as THREE from "three";
-import type { RobotActivity, RobotSnapshot } from "../simulation";
+import type {
+  GroundPosition,
+  RobotActivity,
+  RobotSnapshot,
+} from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
   createRobotModel,
@@ -65,6 +69,8 @@ export function createRobotViews(scene: THREE.Scene) {
             view.heading = facingAngle(position, target);
         }
         view.lastPosition = position.clone();
+        // Away on an Expedition, it is off the map and out of sight.
+        view.model.group.visible = isOnMap(frame, robot.position);
         view.model.group.position.copy(position);
         // Aboard a Machine, the Robot sits on its deck.
         if (aboardMachine(robot)) {
@@ -81,6 +87,15 @@ export function createRobotViews(scene: THREE.Scene) {
       }
     },
   };
+}
+
+/** Whether a position is on the base map, rather than off it on an Expedition. */
+export function isOnMap(frame: Frame, position: GroundPosition): boolean {
+  const { map } = frame.current;
+  return (
+    Math.abs(position.x) <= map.widthMetres / 2 &&
+    Math.abs(position.y) <= map.depthMetres / 2
+  );
 }
 
 function onFoot(robot: RobotSnapshot): boolean {
@@ -257,6 +272,10 @@ function poseFor(
     }),
     // Lifting the recovered crates back onto the stockpile.
     "returning-components": () => lifting(work, carrying),
+    // Away beyond the base, out of sight.
+    "on-expedition": () => still(carrying),
+    // Lifting what an Expedition brought back off the Rover.
+    "unloading-expedition": () => lifting(work, carrying),
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),

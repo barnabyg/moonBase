@@ -20,6 +20,7 @@ import {
   drivenSpec,
   everyDriven,
   isDrivenBroken,
+  isOutOnExpedition,
   type Driven,
 } from "./driven";
 import { lunationMinutes, readLunation } from "./lunation";
@@ -194,7 +195,9 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
  * The commissioned Structure each Machine and Rover is plugged in to, by
  * its id: the nearest within the data catalogue's reach of its footprint
  * that is on a network with a power source, and isn't Broken or to be
- * dismantled. A Broken Machine or Rover is plugged in to nothing.
+ * dismantled. A Broken Machine or Rover, or a Rover out on an Expedition,
+ * is plugged in to nothing.
+
  */
 export function pluggedIn(
   state: CampaignState,
@@ -203,7 +206,7 @@ export function pluggedIn(
   const sockets = powerSockets(state, networks);
   const plugs = new Map<string, StructureState>();
   for (const driven of everyDriven(state)) {
-    if (isDrivenBroken(driven)) continue;
+    if (isDrivenBroken(driven) || isOutOnExpedition(state, driven)) continue;
     const body = bodyOf(driven);
     const gap = (structure: StructureState) =>
       distance(body.position, structure.position) -

@@ -14,6 +14,7 @@ import {
   type DrivenSubject,
   type DrivenTarget,
 } from "./driven";
+import { isRoverSpokenFor } from "./expeditions";
 import { readLunation } from "./lunation";
 import { isUnderMaintenance } from "./maintenance";
 import { nearestPoweredStructure, pluggedIn, powerSockets } from "./power";
@@ -45,7 +46,9 @@ export interface ParkingSnapshot {
 /**
  * Raises a "park" Work Order, once in the data catalogue's lead time before
  * Night falls and all through Night, for every idle Machine and Rover that
- * isn't plugged in, isn't Broken and isn't being maintained, as long as
+ * isn't plugged in, isn't Broken, isn't being maintained and isn't to go
+ * on an Expedition or out on one, as long as
+
  * there is a powered Structure to park it beside. A Work Order that nobody
  * has claimed goes once what it parks no longer needs parking, or is given
  * other work; one a Robot has claimed goes only if what it parks breaks or
@@ -56,7 +59,9 @@ export function planParking(state: CampaignState): void {
   const parkingTime = isParkingTime(state);
   const needsParking = (driven: Driven) =>
     parkingTime &&
-    (driven.kind === "rover" || driven.machine.assignment === undefined) &&
+    (driven.kind === "rover"
+      ? !isRoverSpokenFor(state, driven.rover.id)
+      : driven.machine.assignment === undefined) &&
     !isDrivenBroken(driven) &&
     !plugs.has(bodyOf(driven).id) &&
     !isUnderMaintenance(state, drivenTarget(driven));

@@ -12,6 +12,7 @@ import {
   describeWork,
   drivenLabel,
   inSentence,
+  isOnExpedition,
   formatComponents,
   formatDismantlingStage,
   formatMaintenanceStep,
@@ -108,6 +109,16 @@ export function createConstructionPanel(
 
   return {
     update(snapshot) {
+      // Every Work Order waits while the Robot is on an Expedition.
+      const away = snapshot.robots.some((robot) =>
+        isOnExpedition(robot.id, snapshot.expedition),
+      );
+      const showWork = (row: Row, work: () => string) => {
+        setText(
+          row.work,
+          away ? "Waiting: the Robot is on an Expedition" : work(),
+        );
+      };
       panel.hidden =
         snapshot.constructions.length === 0 &&
         snapshot.dismantlings.length === 0 &&
@@ -138,7 +149,7 @@ export function createConstructionPanel(
           formatMaintenanceStep(maintenance.step),
           maintenance.stageProgress,
         );
-        setText(row.work, describeMaintenance(maintenance, snapshot));
+        showWork(row, () => describeMaintenance(maintenance, snapshot));
       }
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
@@ -166,7 +177,7 @@ export function createConstructionPanel(
           row.stage,
           `Parking beside the ${structureLabel(parking.structureTypeId).toLowerCase()}`,
         );
-        setText(row.work, describeParking(parking, snapshot));
+        showWork(row, () => describeParking(parking, snapshot));
       }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
@@ -183,7 +194,7 @@ export function createConstructionPanel(
           formatStage(construction.stage),
           construction.stageProgress,
         );
-        setText(row.work, describeWork(construction, snapshot));
+        showWork(row, () => describeWork(construction, snapshot));
         if (row.cancel !== undefined) {
           row.cancel.title = describeCancelling(construction);
         }
@@ -203,7 +214,7 @@ export function createConstructionPanel(
           formatDismantlingStage(dismantling.stage),
           dismantling.stageProgress,
         );
-        setText(row.work, describeDismantling(dismantling, snapshot));
+        showWork(row, () => describeDismantling(dismantling, snapshot));
       }
       const { unloading } = snapshot;
       if (unloading !== undefined) {
@@ -220,7 +231,7 @@ export function createConstructionPanel(
             : "Taking off the Lander",
           unloading.stageProgress,
         );
-        setText(row.work, describeUnloading(unloading, snapshot));
+        showWork(row, () => describeUnloading(unloading, snapshot));
       }
       for (const [id, row] of rows) {
         if (!seen.has(id)) {

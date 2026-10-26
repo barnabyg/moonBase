@@ -10,7 +10,9 @@ export type RoverActivity =
       /** A Robot is driving it to park beside a powered Structure, to plug in. */
       readonly kind: "being-parked";
       readonly structureId: string;
-    };
+    }
+  /** Out on an Expedition, driven by a Robot or away beyond the base. */
+  | { readonly kind: "on-expedition" };
 
 /**
  * A vehicle a Robot drives. Like a Machine, it wears down, feels the cold

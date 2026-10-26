@@ -3,6 +3,8 @@ import type { CampaignEnd, CampaignState } from "./campaign";
 import type { ConstructionStage, MachineStage } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
+import type { ExpeditionStage } from "./expeditions";
+
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
@@ -420,6 +422,27 @@ export const migrations: readonly Migration[] = [
               { resourceId: "silicon", kilograms: 0 },
             ]
           : bulkResources,
+      },
+    };
+  },
+  // 17 to 18: Expeditions, which bring back water ice, a new bulk
+  // resource after the others. None has been under way yet, so there is
+  // no ice.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        bulkResources: Array.isArray(bulkResources)
+          ? [
+              ...(bulkResources as unknown[]),
+              { resourceId: "water-ice", kilograms: 0 },
+            ]
+          : bulkResources,
+        expedition: null,
       },
     };
   },
@@ -885,11 +908,21 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "repairing-itself": repairing,
     "driving-machine": drivingOrActivating,
     "activating-machine": drivingOrActivating,
-    "driving-rover": object({
-      kind: exactly("driving-rover"),
-      roverId: text,
-      structureId: text,
-    }),
+    "driving-rover": byField(
+      "structureId",
+      object({
+        kind: exactly("driving-rover"),
+        roverId: text,
+        structureId: text,
+      }),
+      object({
+        kind: exactly("driving-rover"),
+        roverId: text,
+        purpose: exactly("expedition"),
+      }),
+    ),
+    "on-expedition": object({ kind: exactly("on-expedition") }),
+    "unloading-expedition": object({ kind: exactly("unloading-expedition") }),
     "loading-components": byField(
       "roverId",
       forRover,
@@ -1077,6 +1110,7 @@ const simulationState = object({
           kind: exactly("being-parked"),
           structureId: text,
         }),
+        "on-expedition": object({ kind: exactly("on-expedition") }),
       } satisfies Record<RoverActivity["kind"], unknown>),
       conditionPercent: finiteNumber,
       powered: boolean,
@@ -1181,6 +1215,22 @@ const simulationState = object({
       }),
       structureId: text,
       destination: groundPosition,
+    }),
+  ),
+  expedition: optional(
+    object({
+      robotId: text,
+      roverId: text,
+      stage: oneOf<ExpeditionStage>({
+        boarding: true,
+        "driving-out": true,
+        away: true,
+        "driving-back": true,
+        unloading: true,
+      }),
+      exitPoint: optional(groundPosition),
+      returnsAtMinute: optional(wholeNumber),
+      workedMinutes: amount,
     }),
   ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;
