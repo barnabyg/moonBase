@@ -1,4 +1,4 @@
-export { createCampaign } from "./campaign";
+export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
@@ -13,6 +13,7 @@ export type {
   Forecasts,
   GroundPosition,
   LanderSnapshot,
+  LoadResult,
   MachineSnapshot,
   MapSnapshot,
   PlanResult,
@@ -29,6 +30,7 @@ export type {
   PlacementRefusal,
 } from "./construction";
 export type { CancelResult } from "./cancel";
+export type { LoadRefusal } from "./save";
 export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";
 export type { ConstructionWait } from "./work-orders";

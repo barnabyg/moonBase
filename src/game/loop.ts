@@ -32,6 +32,11 @@ export interface GameLoop {
   readonly previous: Snapshot | undefined;
   /** How far real time has run towards the next game-minute, from 0 to 1. */
   readonly tickProgress: number;
+  /**
+   * Forgets the earlier state and the part-minute building up, for a
+   * Campaign loaded in place of the one it was running. The speed stays.
+   */
+  startAfresh(): void;
 }
 
 export interface GameLoopOptions {
@@ -95,6 +100,10 @@ export function createGameLoop(
       previous = undefined;
       owedScaledMinutes = 0;
       return passOn(campaign.advanceToNextEvent());
+    },
+    startAfresh() {
+      previous = undefined;
+      owedScaledMinutes = 0;
     },
   };
 }

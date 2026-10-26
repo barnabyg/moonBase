@@ -1,5 +1,7 @@
 import "./ui/styles.css";
+import { createCampaignSlot } from "./game/campaign-slot";
 import { createGameLoop } from "./game/loop";
+import { createSaveFiles } from "./game/save-files";
 import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBuildMenu } from "./ui/build-menu";
@@ -51,7 +53,14 @@ function startRenderer(
   }
 }
 
-const campaign = createCampaign({ seed: chooseSeed() });
+// A Campaign loaded from a save file takes the place of the one in the slot.
+const campaign = createCampaignSlot(createCampaign({ seed: chooseSeed() }));
+const saveFiles = createSaveFiles(campaign, () => {
+  loop.startAfresh();
+  notifications.startAfresh();
+  constructionPanel.startAfresh();
+  renderer?.startAfresh();
+});
 const notifications = createNotificationList(container);
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
@@ -63,12 +72,16 @@ const loop = createGameLoop(campaign, {
 const leftColumn = document.createElement("div");
 leftColumn.className = "left-column";
 container.append(leftColumn);
-const statusPanel = createStatusPanel(leftColumn, loop, campaign);
+const statusPanel = createStatusPanel(leftColumn, loop, campaign, saveFiles);
 const constructionPanel = createConstructionPanel(container, campaign);
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
-const gameOver = createGameOverScreen(container, () => {
-  window.location.reload();
-});
+const gameOver = createGameOverScreen(
+  container,
+  () => {
+    window.location.reload();
+  },
+  saveFiles,
+);
 const renderer = startRenderer(container, campaign.snapshot());
 // Placing a Structure needs the 3D view to point at the map.
 const buildMenu =

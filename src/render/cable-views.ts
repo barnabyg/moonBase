@@ -23,6 +23,14 @@ export function createCableViews(scene: THREE.Scene) {
   const views = new Map<string, CableView>();
 
   return {
+    /** Forgets every cable drawn, for a Campaign loaded in place of the last. */
+    clear(): void {
+      for (const view of views.values()) {
+        scene.remove(view.mesh);
+        view.mesh.geometry.dispose();
+      }
+      views.clear();
+    },
     update(frame: Frame): void {
       const seen = new Set<string>();
       for (const cable of frame.current.cables) {

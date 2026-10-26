@@ -1,0 +1,258 @@
+{
+  "format": "moonbase-save",
+  "version": 1,
+  "random": {
+    "a": 1606921615,
+    "b": 3794100123,
+    "c": 948698353,
+    "d": 2291658348
+  },
+  "state": {
+    "elapsedMinutes": 13416,
+    "nextStructureNumber": 6,
+    "nextPlanNumber": 6,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "missionDirector": {
+      "residence": "habitat",
+      "habitatId": "structure-3",
+      "movedInAtMinute": 3280
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 19.087333333317105
+      },
+      {
+        "stockId": "water",
+        "kilograms": 83.36388888895931
+      }
+    ],
+    "radiationDoseMillisieverts": 89.6270833333212,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "ended": {
+      "atMinute": 13416,
+      "cause": {
+        "kind": "habitat-power-failed",
+        "habitatId": "structure-3"
+      }
+    },
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 21.09565595278485,
+          "y": -16.87652476222788
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "carrying": [],
+        "workOrder": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 17.412945853579746,
+          "y": -11.608630569053165
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": 31.2614675284438,
+          "y": -19.30428138572847
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      }
+    ],
+    "cargo": [
+      {
+        "componentId": "solar-panel",
+        "count": 0
+      },
+      {
+        "componentId": "array-mast",
+        "count": 0
+      },
+      {
+        "componentId": "battery-module",
+        "count": 0
+      },
+      {
+        "componentId": "battery-cabinet",
+        "count": 0
+      },
+      {
+        "componentId": "mast-pole",
+        "count": 3
+      },
+      {
+        "componentId": "light-head",
+        "count": 3
+      },
+      {
+        "componentId": "habitat-core",
+        "count": 0
+      },
+      {
+        "componentId": "habitat-envelope",
+        "count": 0
+      },
+      {
+        "componentId": "airlock",
+        "count": 0
+      }
+    ],
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": false,
+        "lit": false,
+        "storedKilowattHours": 0
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": 30,
+          "y": 25
+        },
+        "powered": false,
+        "lit": false,
+        "storedKilowattHours": 0
+      },
+      {
+        "id": "structure-3",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 25,
+          "y": -20
+        },
+        "powered": false,
+        "lit": false,
+        "storedKilowattHours": 0
+      },
+      {
+        "id": "structure-5",
+        "structureTypeId": "light-mast",
+        "position": {
+          "x": 15,
+          "y": -10
+        },
+        "powered": false,
+        "lit": false,
+        "storedKilowattHours": 0
+      },
+      {
+        "id": "structure-4",
+        "structureTypeId": "regolith-shielding",
+        "position": {
+          "x": 25,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0
+      }
+    ],
+    "dismantlings": [],
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 21.82913228254908,
+          "y": 14.377871967313801
+        },
+        "end": {
+          "x": 28.780578478300615,
+          "y": 23.4147520217908
+        },
+        "route": [
+          {
+            "x": 21.82913228254908,
+            "y": 14.377871967313801
+          },
+          {
+            "x": 28.780578478300615,
+            "y": 23.4147520217908
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-3",
+        "start": {
+          "x": 20.46313064082083,
+          "y": 9.035963898746695
+        },
+        "end": {
+          "x": 24.38249247890556,
+          "y": -16.047951864995593
+        },
+        "route": [
+          {
+            "x": 20.46313064082083,
+            "y": 9.035963898746695
+          },
+          {
+            "x": 24.38249247890556,
+            "y": -16.047951864995593
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-3",
+        "toStructureId": "structure-5",
+        "start": {
+          "x": 22.17157287525381,
+          "y": -17.17157287525381
+        },
+        "end": {
+          "x": 15.565685424949239,
+          "y": -10.565685424949239
+        },
+        "route": [
+          {
+            "x": 22.17157287525381,
+            "y": -17.17157287525381
+          },
+          {
+            "x": 15.565685424949239,
+            "y": -10.565685424949239
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": []
+  }
+}

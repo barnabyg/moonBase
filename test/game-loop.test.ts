@@ -122,6 +122,19 @@ describe("the game loop", () => {
     expect(loop.tickProgress).toBe(0);
   });
 
+  it("starts afresh for a Campaign loaded in place of the last, forgetting the earlier state but keeping the speed", () => {
+    const loop = createGameLoop(scenario().campaign);
+    loop.setSpeed("5x");
+    loop.update(250);
+    expect(loop.previous).toBeDefined();
+
+    loop.startAfresh();
+
+    expect(loop.previous).toBeUndefined();
+    expect(loop.tickProgress).toBe(0);
+    expect(loop.speed.id).toBe("5x");
+  });
+
   it("passes on every event as it happens, whether time runs or the player skips, without pausing", () => {
     const game = scenario();
     const heard: GameEvent[] = [];

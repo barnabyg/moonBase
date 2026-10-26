@@ -68,6 +68,14 @@ export function createConstructionViews(scene: THREE.Scene) {
 
   return {
     /**
+     * Forgets every Construction and Structure drawn, for a Campaign loaded
+     * in place of the last, which may give the same ids to others.
+     */
+    clear(): void {
+      for (const view of views.values()) scene.remove(view.group);
+      views.clear();
+    },
+    /**
      * @param sunFacing The angle that turns a panel to face the sun, or
      *   undefined at Night, when panels stay as they are.
      */

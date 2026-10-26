@@ -29,6 +29,11 @@ export interface Renderer {
   pickGround(clientX: number, clientY: number): GroundPosition | undefined;
   /** Shows a Structure the player is about to place, or hides it when undefined. */
   showPlacementPreview(preview: PlacementPreview | undefined): void;
+  /**
+   * Forgets everything drawn on the base map, for a Campaign loaded in place
+   * of the one it was drawing. The camera stays where it is.
+   */
+  startAfresh(): void;
 }
 
 export function createRenderer(
@@ -127,6 +132,12 @@ export function createRenderer(
     },
     showPlacementPreview(preview) {
       placementPreview.show(preview);
+    },
+    startAfresh() {
+      robots.clear();
+      machines.clear();
+      cables.clear();
+      constructions.clear();
     },
   };
 }
