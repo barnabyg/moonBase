@@ -195,13 +195,14 @@ function oneOf<T extends string>(options: Record<T, true>): Decoder<T> {
   const words = Object.keys(options);
   return (value, path) => {
     if (typeof value !== "string" || !words.includes(value)) {
-      throw refuse(
-        path,
-        `isn't one of ${words.map((word) => `"${word}"`).join(", ")}`,
-      );
+      throw refuse(path, `isn't one of ${quoted(words)}`);
     }
     return value as T;
   };
+}
+
+function quoted(words: readonly string[]): string {
+  return words.map((word) => `"${word}"`).join(", ");
 }
 
 function exactly<T extends string>(word: T): Decoder<T> {
@@ -268,13 +269,17 @@ function tagged<C extends Record<string, Decoder<unknown>>>(
   key: string,
   cases: C,
 ): Decoder<Decodes<C[keyof C]>> {
-  const tag = oneOf(
-    Object.fromEntries(Object.keys(cases).map((word) => [word, true])),
-  );
+  const words = Object.keys(cases);
   return (value, path) => {
     if (!isRecord(value)) throw refuse(path, "isn't an object");
-    const decoder = cases[tag(value[key], at(path, key))];
-    if (decoder === undefined) throw refuse(path, "isn't an object");
+    const word = value[key];
+    const decoder =
+      typeof word === "string" && Object.hasOwn(cases, word)
+        ? cases[word]
+        : undefined;
+    if (decoder === undefined) {
+      throw refuse(at(path, key), `isn't one of ${quoted(words)}`);
+    }
     return decoder(value, path) as Decodes<C[keyof C]>;
   };
 }
