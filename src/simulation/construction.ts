@@ -163,12 +163,7 @@ export function shieldingOver(
   site: Pick<Site, "structures" | "constructions" | "dismantlings">,
   habitat: Footing,
 ): Footing | undefined {
-  return footings(site).find(
-    (footing) =>
-      findStructureType(footing.structureTypeId)?.shieldsHabitat === true &&
-      footing.position.x === habitat.position.x &&
-      footing.position.y === habitat.position.y,
-  );
+  return footings(site).find((footing) => isShieldingOver(footing, habitat));
 }
 
 /** Whether a Structure is a Habitat with commissioned Regolith shielding over it. */
@@ -178,10 +173,19 @@ export function isShielded(
 ): boolean {
   return (
     findStructureType(structure.structureTypeId)?.habitat === true &&
-    shieldingOver(
-      { structures: site.structures, constructions: [], dismantlings: [] },
-      structure,
-    ) !== undefined
+    site.structures.some((footing) => isShieldingOver(footing, structure))
+  );
+}
+
+/**
+ * Whether something is Regolith shielding over a Habitat. Only shielding
+ * may overlap a Habitat, and it stands centred on it.
+ */
+function isShieldingOver(footing: Footing, habitat: Footing): boolean {
+  return (
+    findStructureType(footing.structureTypeId)?.shieldsHabitat === true &&
+    footing.position.x === habitat.position.x &&
+    footing.position.y === habitat.position.y
   );
 }
 
