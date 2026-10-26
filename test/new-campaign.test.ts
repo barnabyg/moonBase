@@ -22,10 +22,10 @@ describe("a new Campaign", () => {
     });
   });
 
-  it("begins with the Lander already landed on the map", () => {
+  it("begins with the Lander already landed on the map, with the Mission Director aboard", () => {
     const { lander, map } = scenario().state;
 
-    expect(lander.state).toBe("landed");
+    expect(lander.state).toBe("landed-occupied");
     expect(isOnMap(lander.position, map)).toBe(true);
   });
 

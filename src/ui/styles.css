@@ -5,6 +5,7 @@
   --text: #e8eaee;
   --text-muted: #9aa1ad;
   --accent: #f2c14e;
+  --warning: #ff8a70;
 }
 
 * {
@@ -46,6 +47,7 @@ body {
   top: 16px;
   left: 16px;
   min-width: 220px;
+  max-width: 340px;
 }
 
 .construction-panel {
@@ -131,6 +133,7 @@ body {
 }
 
 .status-panel__dismantle,
+.status-panel__move-in,
 .construction-panel__cancel {
   padding: 2px 8px;
   font: inherit;
@@ -147,18 +150,37 @@ body {
 }
 
 .status-panel__dismantle:hover,
+.status-panel__move-in:hover,
 .construction-panel__cancel:hover {
   border-color: var(--text-muted);
 }
 
 .status-panel__dismantle:focus-visible,
+.status-panel__move-in:focus-visible,
 .construction-panel__cancel:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.status-panel__dismantle[hidden] {
+.status-panel__dismantle[hidden],
+.status-panel__move-in[hidden],
+.status-panel__refusal[hidden] {
   display: none;
+}
+
+.status-panel__move-in {
+  margin-left: auto;
+}
+
+.status-panel__residence {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+.status-panel__refusal {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--warning);
 }
 
 .build-menu__options button {

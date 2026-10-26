@@ -50,6 +50,13 @@ const materials = {
     metalness: 0.4,
     roughness: 0.9,
   }),
+  // The Habitat's inflatable envelope: a woven, coated fabric.
+  envelope: new THREE.MeshStandardMaterial({
+    color: 0xe8e4da,
+    metalness: 0,
+    roughness: 0.85,
+    flatShading: true,
+  }),
   crate: new THREE.MeshStandardMaterial({
     color: 0xb9b2a2,
     metalness: 0.1,
@@ -356,6 +363,7 @@ export interface StructureModel {
 export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "battery-bank") return createBatteryBankModel();
   if (structureTypeId === "light-mast") return createLightMastModel();
+  if (structureTypeId === "habitat") return createHabitatModel();
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -453,6 +461,121 @@ function createLightMastModel(): StructureModel {
       lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
       lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
     },
+  };
+}
+
+/** The share of Assembly spent standing up the rigid core, before the envelope inflates. */
+const CORE_SHARE = 0.25;
+/** The share of Assembly by which the envelope is fully inflated; the airlock goes on after. */
+const INFLATED_SHARE = 0.85;
+
+/**
+ * The inflatable Habitat: a squat fabric dome, held down by straps, round a
+ * rigid core on a plinth, with an airlock on one side. During Assembly the
+ * core goes up, the envelope inflates round it, and then the airlock is
+ * fitted.
+ */
+function createHabitatModel(): StructureModel {
+  const habitat = new THREE.Group();
+  habitat.name = "Inflatable Habitat";
+
+  const statusLightMaterial = materials.statusOff.clone();
+  habitat.add(
+    part(
+      new THREE.CylinderGeometry(3.7, 3.8, 0.3, 8),
+      materials.darkMetal,
+      [0, 0.15, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.09, 8, 6),
+      statusLightMaterial,
+      [2.2, 0.36, 2.2],
+    ),
+  );
+
+  const core = part(
+    new THREE.CylinderGeometry(0.9, 0.9, 1, 8),
+    materials.hull,
+    [0, 0, 0],
+  );
+  habitat.add(core);
+  const coreHeight = 2.6;
+
+  // The envelope, with its restraint straps, inflates from the plinth up.
+  const envelope = new THREE.Group();
+  envelope.position.y = 0.3;
+  const domeHeight = 0.75;
+  const dome = part(
+    new THREE.SphereGeometry(3.4, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
+    materials.envelope,
+    [0, 0, 0],
+  );
+  dome.scale.y = domeHeight;
+  envelope.add(dome);
+  for (const [index, height] of [0.35, 0.75].entries()) {
+    const angle = Math.asin(height);
+    const strap = part(
+      new THREE.TorusGeometry(3.4 * Math.cos(angle) + 0.02, 0.05, 4, 14),
+      materials.foil,
+      [0, 3.4 * height * domeHeight, 0],
+    );
+    strap.rotation.x = Math.PI / 2;
+    strap.name = `Strap ${index + 1}`;
+    envelope.add(strap);
+  }
+  habitat.add(envelope);
+
+  // The airlock: a short rigid tube lying against the envelope, with a hatch.
+  const airlock = new THREE.Group();
+  airlock.position.set(3.3, 1.05, 0);
+  const tube = part(
+    new THREE.CylinderGeometry(0.75, 0.75, 1.6, 8),
+    materials.hull,
+    [0, 0, 0],
+  );
+  tube.rotation.z = Math.PI / 2;
+  const hatch = part(
+    new THREE.CylinderGeometry(0.5, 0.5, 0.08, 8),
+    materials.darkMetal,
+    [0.82, 0, 0],
+  );
+  hatch.rotation.z = Math.PI / 2;
+  airlock.add(tube, hatch);
+  habitat.add(airlock);
+
+  return {
+    group: habitat,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const raised = Math.max(Math.min(f / CORE_SHARE, 1), 0.01);
+      core.scale.y = coreHeight * raised;
+      core.position.y = 0.3 + (coreHeight * raised) / 2;
+      const inflated = THREE.MathUtils.clamp(
+        (f - CORE_SHARE) / (INFLATED_SHARE - CORE_SHARE),
+        0,
+        1,
+      );
+      envelope.visible = inflated > 0;
+      // A slack envelope lies wide and flat, and rounds out as it fills.
+      envelope.scale.set(
+        0.6 + inflated * 0.4,
+        Math.max(inflated, 0.02),
+        0.6 + inflated * 0.4,
+      );
+      airlock.visible = f >= INFLATED_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
   };
 }
 

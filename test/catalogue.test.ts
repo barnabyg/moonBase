@@ -111,7 +111,7 @@ describe("the data catalogue", () => {
     }
   });
 
-  it.each(["solar-array", "battery-bank", "light-mast"])(
+  it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "has the excavator do a %s's Site Preparation, and the Robot the rest",
     (structureTypeId) => {
       const structureType = catalogue.structureTypes.find(
@@ -207,7 +207,15 @@ describe("the data catalogue", () => {
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
   });
 
-  it.each(["solar-array", "battery-bank", "light-mast"])(
+  it("has a Habitat the Mission Director can move into", () => {
+    expect(
+      catalogue.structureTypes
+        .filter((type) => type.habitat)
+        .map((type) => type.id),
+    ).toEqual(["habitat"]);
+  });
+
+  it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {
       const structureType = catalogue.structureTypes.find(

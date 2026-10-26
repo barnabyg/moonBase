@@ -30,6 +30,11 @@ import {
 } from "./construction";
 import type { GameEvent } from "./events";
 import {
+  moveMissionDirectorIn,
+  type MissionDirectorResidence,
+  type MoveInResult,
+} from "./mission-director";
+import {
   lunationMinutes,
   readLunation,
   type LunationSnapshot,
@@ -60,7 +65,8 @@ export type { ComponentCount, GroundPosition };
 export type MapSnapshot = MapSize;
 
 export interface LanderSnapshot {
-  readonly state: "landed";
+  /** Landed with the Mission Director aboard, or landed and free to fly once they have moved into a Habitat. */
+  readonly state: "landed-occupied" | "landed-free";
   readonly position: GroundPosition;
 }
 
@@ -184,6 +190,8 @@ export interface Snapshot {
   readonly lunation: LunationSnapshot;
   readonly map: MapSnapshot;
   readonly lander: LanderSnapshot;
+  /** Where the Mission Director lives. They are never shown on screen. */
+  readonly missionDirector: MissionDirectorResidence;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
   /** The Components in the Lander's cargo stock, in catalogue order. */
@@ -230,6 +238,11 @@ export interface Campaign {
    * carries out by itself, returning most of its Components to stock.
    */
   dismantleStructure(structureId: string): DismantleResult;
+  /**
+   * Moves the Mission Director from the Lander into a commissioned Habitat,
+   * at once and for good, freeing the Lander.
+   */
+  moveMissionDirectorIn(habitatId: string): MoveInResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -246,7 +259,8 @@ export interface CampaignState {
    * Structure cut off from power, so they are worked on in order.
    */
   nextPlanNumber: number;
-  lander: { state: "landed"; position: GroundPosition };
+  lander: { position: GroundPosition };
+  missionDirector: MissionDirectorResidence;
   robots: RobotState[];
   machines: MachineState[];
   cargo: { componentId: string; count: number }[];
@@ -265,10 +279,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
-    lander: {
-      state: "landed",
-      position: { ...landingSite.landerPosition },
-    },
+    lander: { position: { ...landingSite.landerPosition } },
+    missionDirector: { residence: "lander" },
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
       position: { ...position },
@@ -344,6 +356,9 @@ export function createCampaign(options: CampaignOptions): Campaign {
     dismantleStructure(structureId) {
       return deepFreeze(dismantleStructure(state, structureId));
     },
+    moveMissionDirectorIn(habitatId) {
+      return deepFreeze(moveMissionDirectorIn(state, habitatId));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -372,7 +387,14 @@ export function createCampaign(options: CampaignOptions): Campaign {
         clock: readClock(state.elapsedMinutes),
         lunation,
         map: { ...catalogue.map },
-        lander: copy(state.lander),
+        lander: {
+          state:
+            state.missionDirector.residence === "lander"
+              ? "landed-occupied"
+              : "landed-free",
+          position: { ...state.lander.position },
+        },
+        missionDirector: copy(state.missionDirector),
         robots: state.robots.map((robot) => ({
           id: robot.id,
           position: { ...robot.position },

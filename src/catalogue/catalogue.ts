@@ -141,6 +141,8 @@ export interface StructureType {
    * can see; darkness never stops work.
    */
   readonly lightRadiusMetres: number;
+  /** Whether it is a Habitat, which the Mission Director can move into once it is commissioned. */
+  readonly habitat: boolean;
 }
 
 export interface GameSpeed {
@@ -150,7 +152,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 4,
+  version: 5,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -190,6 +192,9 @@ export const catalogue: Catalogue = {
     { id: "battery-cabinet", label: "Battery cabinet" },
     { id: "mast-pole", label: "Mast pole" },
     { id: "light-head", label: "Light head" },
+    { id: "habitat-core", label: "Habitat core" },
+    { id: "habitat-envelope", label: "Habitat envelope" },
+    { id: "airlock", label: "Airlock" },
   ],
   structureTypes: [
     {
@@ -216,6 +221,7 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
+      habitat: false,
     },
     {
       id: "battery-bank",
@@ -241,6 +247,7 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
+      habitat: false,
     },
     {
       id: "light-mast",
@@ -266,6 +273,34 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0.4,
       },
       lightRadiusMetres: 18,
+      habitat: false,
+    },
+    {
+      id: "habitat",
+      label: "Inflatable Habitat",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "habitat-core", count: 1 },
+        { componentId: "habitat-envelope", count: 1 },
+        { componentId: "airlock", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 2,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Its life support, heaters and controls.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 1.2,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: true,
     },
   ],
   dismantlingLossShare: 0.2,
@@ -276,5 +311,9 @@ export const catalogue: Catalogue = {
     { componentId: "battery-cabinet", count: 1 },
     { componentId: "mast-pole", count: 4 },
     { componentId: "light-head", count: 4 },
+    // The inflatable Habitat kit.
+    { componentId: "habitat-core", count: 1 },
+    { componentId: "habitat-envelope", count: 1 },
+    { componentId: "airlock", count: 1 },
   ],
 };

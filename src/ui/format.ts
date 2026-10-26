@@ -12,7 +12,9 @@ import type {
   ConstructionStage,
   DismantlingSnapshot,
   DismantlingStage,
+  LanderSnapshot,
   LunationSnapshot,
+  MissionDirectorResidence,
   WalkingDestination,
 } from "../simulation";
 
@@ -93,6 +95,26 @@ export function formatStoredPower(
   return storedKilowattHours > 0
     ? `${stored}, doesn't run out`
     : `${stored}, empty`;
+}
+
+/** Says where the Mission Director lives, for example "Mission Director: aboard the Lander". */
+export function formatMissionDirector(
+  missionDirector: MissionDirectorResidence,
+  structures: Snapshot["structures"],
+): string {
+  if (missionDirector.residence === "lander") {
+    return "Mission Director: aboard the Lander";
+  }
+  const { habitatId } = missionDirector;
+  const habitat = structures.find((structure) => structure.id === habitatId);
+  return `Mission Director: living in the ${structureLabel(habitat?.structureTypeId ?? "habitat").toLowerCase()}`;
+}
+
+/** Says what state the Lander is in, for example "Lander: landed, free to fly". */
+export function formatLander(lander: LanderSnapshot): string {
+  return lander.state === "landed-occupied"
+    ? "Lander: landed, with the Mission Director aboard"
+    : "Lander: landed, free to fly";
 }
 
 const stageLabels: Record<ConstructionStage, string> = {
