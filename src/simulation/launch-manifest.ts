@@ -112,7 +112,7 @@ function totals(items: readonly ManifestLine[]): {
   };
 }
 
-export function findLaunchItem(id: string): LaunchItem | undefined {
+function findLaunchItem(id: string): LaunchItem | undefined {
   return catalogue.launch.items.find((item) => item.id === id);
 }
 

@@ -38,7 +38,7 @@ export function createLaunchManifestScreen(
   const table = document.createElement("table");
   const head = document.createElement("thead");
   const headings = document.createElement("tr");
-  for (const text of ["Item", "Mass and price", "On it", ""]) {
+  for (const text of ["Item", "Mass and price", "Count", ""]) {
     const cell = document.createElement("th");
     cell.scope = "col";
     cell.textContent = text;
@@ -133,9 +133,9 @@ export function createLaunchManifestScreen(
     update(snapshot) {
       manifest = snapshot.launchManifest.items;
       for (const { item, count, remove } of rows) {
-        const onIt = countOf(item.id);
-        setText(count, String(onIt));
-        remove.disabled = onIt === 0;
+        const onManifest = countOf(item.id);
+        setText(count, String(onManifest));
+        remove.disabled = onManifest === 0;
       }
       setText(payloadMass, formatPayloadMass(snapshot.launchManifest));
       setText(

@@ -311,12 +311,11 @@ export function formatFunding(fundingMillionDollars: number): string {
 export function launchItemLabel(item: LaunchItem): string {
   const { brings } = item;
   return brings.kind === "component"
-    ? (catalogue.componentTypes.find((type) => type.id === brings.componentId)
-        ?.label ?? brings.componentId)
+    ? componentLabel(brings.componentId)
     : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
 }
 
-/** Says how much a Launch item weighs and costs, for example "60 kg, $4M". */
+/** Says a Launch item's mass and price, for example "60 kg, $4M". */
 export function formatLaunchItem(item: LaunchItem): string {
   return `${item.massKilograms} kg, ${formatMillionDollars(item.priceMillionDollars)}`;
 }
@@ -344,13 +343,17 @@ export function formatLaunchCost(
     : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(catalogue.launch.feeMillionDollars)} Launch fee`;
 }
 
+function componentLabel(componentId: string): string {
+  return (
+    catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
+    componentId
+  );
+}
+
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
   const items = counts.map(({ componentId, count }) => {
-    const label = (
-      catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
-      componentId
-    ).toLowerCase();
+    const label = componentLabel(componentId).toLowerCase();
     return `${count} ${label}${count === 1 ? "" : "s"}`;
   });
   const last = items.pop();
