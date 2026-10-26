@@ -4,6 +4,8 @@ import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBuildMenu } from "./ui/build-menu";
 import { createConstructionPanel } from "./ui/construction-panel";
+import { createGameOverScreen } from "./ui/game-over";
+import { createNotificationList } from "./ui/notifications";
 import { createStatusPanel } from "./ui/status-panel";
 
 /**
@@ -50,9 +52,18 @@ function startRenderer(
 }
 
 const campaign = createCampaign({ seed: chooseSeed() });
-const loop = createGameLoop(campaign);
+const notifications = createNotificationList(container);
+const loop = createGameLoop(campaign, {
+  onEvents: (events) => {
+    notifications.add(events);
+  },
+});
 const statusPanel = createStatusPanel(container, loop, campaign);
 const constructionPanel = createConstructionPanel(container, campaign);
+// A new Campaign starts the page afresh, keeping any ?seed= in the address.
+const gameOver = createGameOverScreen(container, () => {
+  window.location.reload();
+});
 const renderer = startRenderer(container, campaign.snapshot());
 // Placing a Structure needs the 3D view to point at the map.
 const buildMenu =
@@ -68,6 +79,7 @@ function frame(time: number): void {
   statusPanel.update(snapshot, campaign.forecasts());
   constructionPanel.update(snapshot);
   buildMenu?.update(snapshot);
+  gameOver.update(snapshot);
   renderer?.render({
     current: snapshot,
     previous: loop.previous,

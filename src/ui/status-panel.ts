@@ -11,6 +11,7 @@ import { catalogue } from "../catalogue";
 import {
   formatClock,
   formatLander,
+  formatLifeSupport,
   formatLunation,
   formatMissionDirector,
   formatPower,
@@ -111,6 +112,16 @@ export function createStatusPanel(
   lander.setAttribute("role", "status");
   lander.setAttribute("aria-label", "Lander");
 
+  // How much oxygen and water is left, and when it will run out.
+  const stocks = catalogue.lifeSupportStocks.map((type) => {
+    const line = document.createElement("p");
+    line.className = "status-panel__stock";
+    line.setAttribute("role", "status");
+    line.setAttribute("aria-label", type.label);
+    line.setAttribute("aria-live", "off");
+    return { type, line };
+  });
+
   // Why the player's latest choice was refused, for a few seconds, so that
   // it doesn't linger once things have changed.
   const refusal = document.createElement("p");
@@ -177,6 +188,7 @@ export function createStatusPanel(
     storedPower,
     missionDirector,
     lander,
+    ...stocks.map((stock) => stock.line),
     structures,
     refusal,
   );
@@ -197,6 +209,27 @@ export function createStatusPanel(
         formatMissionDirector(snapshot.missionDirector, snapshot.structures),
       );
       setText(lander, formatLander(snapshot.lander));
+      for (const { type, line } of stocks) {
+        const stock = snapshot.lifeSupport.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        const forecast = forecasts.lifeSupport.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        line.hidden = stock === undefined;
+        if (stock === undefined) continue;
+        setText(
+          line,
+          formatLifeSupport(stock, forecast, snapshot.missionDirector),
+        );
+        // Shown as a warning from the first warning on, and once it has run out.
+        const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
+        line.classList.toggle(
+          "status-panel__stock--low",
+          stock.kilograms === 0 ||
+            (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
+        );
+      }
       const seen = new Set<string>();
       for (const structure of snapshot.structures) {
         seen.add(structure.id);

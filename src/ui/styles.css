@@ -62,7 +62,77 @@ body {
   width: 280px;
 }
 
+.notifications {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  padding: 8px 12px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.notifications__item {
+  margin: 0;
+}
+
+.notifications__item + .notifications__item {
+  margin-top: 4px;
+}
+
+.notifications__time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.notifications__item--warning {
+  color: var(--warning);
+}
+
+.game-over {
+  max-width: 440px;
+  padding: 20px 22px;
+  color: var(--text);
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.game-over::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.game-over h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: var(--warning);
+}
+
+.game-over p {
+  margin: 0 0 10px;
+}
+
+.game-over button {
+  padding: 6px 12px;
+  font: inherit;
+  color: #000;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.game-over button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 .construction-panel[hidden],
+.notifications[hidden],
+.status-panel__stock[hidden],
 .status-panel__structures[hidden] {
   display: none;
 }
@@ -172,9 +242,18 @@ body {
   margin-left: auto;
 }
 
-.status-panel__residence {
+.status-panel__residence,
+.status-panel__stock {
   margin: 6px 0 0;
   font-size: 0.9rem;
+}
+
+.status-panel__stock {
+  font-variant-numeric: tabular-nums;
+}
+
+.status-panel__stock--low {
+  color: var(--warning);
 }
 
 .status-panel__refusal {

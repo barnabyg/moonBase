@@ -1,4 +1,5 @@
 export { createCampaign } from "./campaign";
+export { readClock } from "./clock";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
 export type {
