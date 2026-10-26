@@ -11,6 +11,22 @@ export interface Catalogue {
   readonly lander: {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
+    /**
+     * How long each leg of the Lander's round trip takes: flying to Earth,
+     * turnaround there, and flying back to land at the base. Each must come
+     * to a whole number of game-minutes.
+     */
+    readonly roundTripEarthDays: {
+      readonly toEarth: number;
+      readonly turnaround: number;
+      readonly toMoon: number;
+    };
+    /**
+     * The Robot's working time to carry the Lander's cargo off it when it
+     * lands on a landing pad, in game-hours: split evenly between loading
+     * at the Lander and unloading at the stockpile. Walking comes on top.
+     */
+    readonly cargoHandlingHours: number;
   };
   /**
    * The base's stock of Components, kept on the ground beside the landing
@@ -78,6 +94,24 @@ export interface Catalogue {
    */
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
+  readonly plumeEjecta: PlumeEjectaRules;
+}
+
+/**
+ * The dust and rock a landing or departing Lander blasts out over the
+ * ground, which wears down the Condition of every Structure near it.
+ */
+export interface PlumeEjectaRules {
+  /**
+   * How far from the Lander's centre it reaches. A Structure with any of its
+   * footprint inside is worn down.
+   */
+  readonly radiusMetres: number;
+  /**
+   * How much Condition each Structure within reach loses at every take-off
+   * and landing, in percentage points of the 100% it starts with.
+   */
+  readonly conditionLossPercent: number;
 }
 
 /** What a Launch of the Lander from Earth can bring, and what it costs. */
@@ -279,6 +313,12 @@ export interface StructureType {
    * shielded.
    */
   readonly shieldsHabitat: boolean;
+  /**
+   * Whether it is a landing pad. Once one is commissioned, the Lander lands
+   * on it, and takes off from it, without blasting Plume Ejecta, and the
+   * Robot carries its cargo from it to the stockpile.
+   */
+  readonly landingPad: boolean;
 }
 
 export interface GameSpeed {
@@ -288,9 +328,13 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 12,
+  version: 15,
   map: { widthMetres: 1000, depthMetres: 1000 },
-  lander: { footprintRadiusMetres: 4 },
+  lander: {
+    footprintRadiusMetres: 4,
+    roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
+    cargoHandlingHours: 1,
+  },
   stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
     landerPosition: { x: 0, y: 0 },
@@ -345,6 +389,8 @@ export const catalogue: Catalogue = {
     { id: "habitat-core", label: "Habitat core" },
     { id: "habitat-envelope", label: "Habitat envelope" },
     { id: "airlock", label: "Airlock" },
+    { id: "pad-panel", label: "Pad panel" },
+    { id: "pad-beacon", label: "Pad beacon" },
   ],
   structureTypes: [
     {
@@ -373,6 +419,7 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 0,
       habitat: false,
       shieldsHabitat: false,
+      landingPad: false,
     },
     {
       id: "battery-bank",
@@ -400,6 +447,7 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 0,
       habitat: false,
       shieldsHabitat: false,
+      landingPad: false,
     },
     {
       id: "light-mast",
@@ -427,6 +475,7 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 18,
       habitat: false,
       shieldsHabitat: false,
+      landingPad: false,
     },
     {
       id: "habitat",
@@ -455,6 +504,7 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 0,
       habitat: true,
       shieldsHabitat: false,
+      landingPad: false,
     },
     {
       id: "regolith-shielding",
@@ -484,6 +534,39 @@ export const catalogue: Catalogue = {
       lightRadiusMetres: 0,
       habitat: false,
       shieldsHabitat: true,
+      landingPad: false,
+    },
+    {
+      id: "landing-pad",
+      label: "Landing pad",
+      // Wide enough for the Lander to stand on with room round it, and for
+      // its engine to blast nothing but the pad.
+      footprintRadiusMetres: 7,
+      // Interlocking panels laid on graded ground, and a beacon to guide
+      // the Lander down.
+      components: [
+        { componentId: "pad-panel", count: 8 },
+        { componentId: "pad-beacon", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 6,
+        componentDelivery: 2,
+        assembly: 8,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      // The beacon runs off its own small battery.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: true,
     },
   ],
   dismantlingLossShare: 0.2,
@@ -605,6 +688,20 @@ export const catalogue: Catalogue = {
         massKilograms: 400,
         priceMillionDollars: 60,
       },
+      // A landing pad's worth comes to 1240 kg, leaving room on the same
+      // Launch for a battery bank's modules.
+      {
+        id: "pad-panel",
+        brings: { kind: "component", componentId: "pad-panel" },
+        massKilograms: 150,
+        priceMillionDollars: 3,
+      },
+      {
+        id: "pad-beacon",
+        brings: { kind: "component", componentId: "pad-beacon" },
+        massKilograms: 40,
+        priceMillionDollars: 6,
+      },
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
@@ -620,4 +717,8 @@ export const catalogue: Catalogue = {
       },
     ],
   },
+  // Reaching past everything that lands beside the Lander, so the base has
+  // to grow away from it. Five take-offs and landings, two and a half round
+  // trips, break anything left standing near it.
+  plumeEjecta: { radiusMetres: 30, conditionLossPercent: 20 },
 };

@@ -1,3 +1,7 @@
+import type { ComponentCount } from "../catalogue";
+import type { ManifestLine } from "./launch-manifest";
+import type { PlumeEjectaDamage } from "./plume-ejecta";
+
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
  * simulation until one of these happens.
@@ -66,6 +70,54 @@ export type GameEvent =
       /** A Solar Particle Event has ended, and the dose rate is back to usual. */
       readonly kind: "solar-particle-event-ended";
       readonly atMinute: number;
+    }
+  | {
+      /**
+       * The Lander has taken off for Earth ("lander-took-off"), or arrived
+       * there for turnaround ("lander-reached-earth").
+       */
+      readonly kind: "lander-took-off" | "lander-reached-earth";
+      readonly atMinute: number;
+    }
+  | {
+      /** The Lander has left Earth for the Moon, with the Launch manifest paid for and locked. */
+      readonly kind: "lander-left-earth";
+      readonly atMinute: number;
+      /** The Funding the Launch cost: nothing if the manifest was empty. */
+      readonly chargedMillionDollars: number;
+    }
+  | {
+      /**
+       * The Lander has landed at the base, and its oxygen and water have
+       * joined the life support stocks. Its Components have joined the
+       * base's stock too, unless it landed on a landing pad, where they stay
+       * aboard for the Robot to unload.
+       */
+      readonly kind: "lander-landed";
+      readonly atMinute: number;
+      /** Everything on the Launch manifest it brought, in catalogue order. */
+      readonly delivered: readonly ManifestLine[];
+    }
+  | {
+      /** The Robot has carried the cargo of the Lander, landed on a landing pad, to the stockpile. */
+      readonly kind: "lander-unloaded";
+      readonly atMinute: number;
+      /** The Components that joined the base's stock. */
+      readonly components: readonly ComponentCount[];
+    }
+  | {
+      /** The Lander's take-off or landing has blasted Plume Ejecta over Structures, wearing down their Condition. */
+      readonly kind: "plume-ejecta-damage";
+      readonly atMinute: number;
+      /** Every Structure worn down, in the order they were commissioned. */
+      readonly damaged: readonly PlumeEjectaDamage[];
+    }
+  | {
+      /** A Structure's Condition has reached 0%: it is Broken, and stops working. */
+      readonly kind: "structure-broken";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

@@ -3,6 +3,7 @@ import type { CampaignEnd, CampaignState } from "./campaign";
 import type { ConstructionStage, MachineStage } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
+import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
 import { MAX_SEED } from "./random";
@@ -75,6 +76,80 @@ export const migrations: readonly Migration[] = [
         ...state,
         fundingMillionDollars: 400,
         launchManifest: [],
+      },
+    };
+  },
+  // 3 to 4: the Lander flies a round trip to Earth and back. Until now it
+  // had never left, so it is landed.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !isRecord(state["lander"])) return { ...document };
+    return {
+      ...document,
+      state: { ...state, lander: { ...state["lander"], trip: null } },
+    };
+  },
+  // 4 to 5: the Lander takes the Launch manifest with it as it leaves Earth,
+  // paying for it then, and delivers it as it lands. A Lander already on its
+  // way back left Earth with nothing aboard, so the manifest it would now
+  // be bringing, which nothing has paid for, is emptied.
+  (document) => {
+    const state = document["state"];
+    const lander = isRecord(state) ? state["lander"] : undefined;
+    const trip = isRecord(lander) ? lander["trip"] : undefined;
+    if (
+      !isRecord(state) ||
+      !isRecord(trip) ||
+      trip["leg"] !== "travelling-to-moon"
+    ) {
+      return { ...document };
+    }
+    return { ...document, state: { ...state, launchManifest: [] } };
+  },
+  // 5 to 6: every Structure has a Condition, which Plume Ejecta wears down.
+  // Nothing wore it down before, so each is at 100%.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: state["structures"].map((structure: unknown) =>
+          isRecord(structure)
+            ? { ...structure, conditionPercent: 100 }
+            : structure,
+        ),
+      },
+    };
+  },
+  // 6 to 7: the landing pad, with two new Components, which the base's
+  // stock keeps a count of after the others. The Lander can land on a pad
+  // with cargo aboard for the Robot to unload, so it has a list of cargo,
+  // and there is a planned unloading. Before, it never had any.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { lander, stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        lander: isRecord(lander) ? { ...lander, cargo: [] } : lander,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "pad-panel", count: 0 },
+                  { componentId: "pad-beacon", count: 0 },
+                ],
+              }
+            : stockpile,
+        unloading: null,
       },
     };
   },
@@ -384,6 +459,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       "laying-cable": true,
       dismantling: true,
       "returning-components": true,
+      "loading-cargo": true,
+      "unloading-cargo": true,
     }),
     structureId: text,
   });
@@ -397,6 +474,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         stockpile: true,
         machine: true,
         cable: true,
+        lander: true,
       }),
     }),
     "driving-machine": drivingOrActivating,
@@ -408,6 +486,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "laying-cable": working,
     dismantling: working,
     "returning-components": working,
+    "loading-cargo": working,
+    "unloading-cargo": working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
@@ -421,6 +501,7 @@ const workOrder = object({
     "lay-cable": true,
     dismantle: true,
     "return-components": true,
+    "unload-lander": true,
   }),
 });
 
@@ -449,7 +530,21 @@ const simulationState = object({
   elapsedMinutes: wholeNumber,
   nextStructureNumber: wholeNumber,
   nextPlanNumber: wholeNumber,
-  lander: object({ position: groundPosition }),
+  lander: object({
+    position: groundPosition,
+    trip: optional(
+      object({
+        leg: oneOf<LanderLeg>({
+          "travelling-to-earth": true,
+          turnaround: true,
+          "travelling-to-moon": true,
+        }),
+        legStartedAtMinute: wholeNumber,
+        legEndsAtMinute: wholeNumber,
+      }),
+    ),
+    cargo: list(componentCount),
+  }),
   missionDirector,
   lifeSupport: list(
     object({
@@ -519,6 +614,7 @@ const simulationState = object({
       powered: boolean,
       lit: boolean,
       storedKilowattHours: finiteNumber,
+      conditionPercent: finiteNumber,
     }),
   ),
   dismantlings: list(
@@ -534,6 +630,15 @@ const simulationState = object({
       }),
       workedMinutes: wholeNumber,
       recovered: list(componentCount),
+      collected: boolean,
+    }),
+  ),
+  unloading: optional(
+    object({
+      landingPadId: text,
+      planNumber: wholeNumber,
+      cargo: list(componentCount),
+      workedMinutes: wholeNumber,
       collected: boolean,
     }),
   ),

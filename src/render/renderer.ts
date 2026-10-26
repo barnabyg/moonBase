@@ -7,7 +7,8 @@ import { createConstructionViews } from "./construction-views";
 import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
 import { createMachineViews } from "./machine-views";
-import { createLanderModel, createStockpileModel } from "./models";
+import { createLanderView } from "./lander-view";
+import { createStockpileModel } from "./models";
 import {
   createPlacementPreview,
   type PlacementPreview,
@@ -75,8 +76,7 @@ export function createRenderer(
     landingSite,
   );
 
-  const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
-  scene.add(lander);
+  const lander = createLanderView(scene);
   const stockpile = createStockpileModel(
     catalogue.stockpile.footprintRadiusMetres,
   );
@@ -114,7 +114,7 @@ export function createRenderer(
         focus,
         camera.position.distanceTo(focus),
       );
-      lander.position.copy(toScene(current.lander.position));
+      lander.update(frame, realSeconds);
       stockpile.group.position.copy(toScene(current.stockpile.position));
       stockpile.showStock(
         current.stockpile.components.reduce(

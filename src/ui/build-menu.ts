@@ -35,6 +35,8 @@ export function createBuildMenu(
   container.append(panel);
 
   let placing: StructureType | undefined;
+  /** Where the next take-off or landing blasts Plume Ejecta, as of the latest snapshot. */
+  let plumeEjecta: Snapshot["plumeEjecta"];
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
   const buttons = catalogue.structureTypes.map((type) => {
@@ -75,6 +77,18 @@ export function createBuildMenu(
       : " Its Components aren't in the base's stock, so its Construction will wait for them.";
   }
 
+  /** Warns that a Structure placed here would be worn down by Plume Ejecta. */
+  function plumeWarning(type: StructureType, position: GroundPosition): string {
+    return plumeEjecta !== undefined &&
+      Math.hypot(
+        position.x - plumeEjecta.position.x,
+        position.y - plumeEjecta.position.y,
+      ) <
+        plumeEjecta.radiusMetres + type.footprintRadiusMetres
+      ? " Plume Ejecta from the Lander's take-offs and landings will wear it down here."
+      : "";
+  }
+
   function stopPlacing(message: string): void {
     placing = undefined;
     showPlacing();
@@ -102,11 +116,12 @@ export function createBuildMenu(
       structureTypeId: placing.id,
       position: check.ok ? check.position : position,
       allowed: check.ok,
+      plumeEjecta,
     });
     setText(
       hint,
       check.ok
-        ? `Click to place the ${placing.label.toLowerCase()} here.${stockWarning(placing)}`
+        ? `Click to place the ${placing.label.toLowerCase()} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };
@@ -162,6 +177,7 @@ export function createBuildMenu(
 
   return {
     update(snapshot) {
+      ({ plumeEjecta } = snapshot);
       for (const { type, stock } of buttons) {
         const sets = setsAvailable(type, snapshot);
         available.set(type.id, sets);

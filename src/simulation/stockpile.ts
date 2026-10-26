@@ -59,6 +59,18 @@ export function addToStock(
   }
 }
 
+/** Adds Components to a list of counts, keeping one count for each Component. */
+export function addCounts(
+  counts: { componentId: string; count: number }[],
+  added: readonly ComponentCount[],
+): void {
+  for (const { componentId, count } of added) {
+    const existing = counts.find((other) => other.componentId === componentId);
+    if (existing === undefined) counts.push({ componentId, count });
+    else existing.count += count;
+  }
+}
+
 /**
  * Where the Robot stands to load or unload Components: beside the stockpile,
  * on the side facing the site.

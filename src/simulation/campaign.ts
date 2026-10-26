@@ -46,6 +46,14 @@ import {
   type LifeSupportState,
 } from "./life-support";
 import {
+  flyLander,
+  readLander,
+  sendLander,
+  type LanderSnapshot,
+  type LanderState,
+  type SendLanderResult,
+} from "./lander";
+import {
   readLaunchManifest,
   setLaunchManifest,
   type LaunchManifestSnapshot,
@@ -79,6 +87,7 @@ import {
   forecastRadiationDose,
   type RadiationDoseForecast,
 } from "./radiation";
+import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
@@ -91,6 +100,12 @@ import {
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import {
+  planUnloading,
+  readUnloading,
+  type UnloadingSnapshot,
+  type UnloadingState,
+} from "./unloading";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
 
 /** Why every command is refused once the Campaign has ended. */
@@ -101,14 +116,8 @@ export interface CampaignOptions {
   readonly seed: number;
 }
 
-export type { ComponentCount, GroundPosition };
+export type { ComponentCount, GroundPosition, LanderSnapshot };
 export type MapSnapshot = MapSize;
-
-export interface LanderSnapshot {
-  /** Landed with the Mission Director aboard, or landed and free to fly once they have moved into a Habitat. */
-  readonly state: "landed-occupied" | "landed-free";
-  readonly position: GroundPosition;
-}
 
 /**
  * The base's stock of Components, kept on the ground beside the landing site.
@@ -168,8 +177,16 @@ export interface StructureSnapshot {
   readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
-  /** Whether it is a Habitat with commissioned Regolith shielding over it. */
+  /**
+   * Whether it is a Habitat with commissioned Regolith shielding over it,
+   * neither of them Broken.
+   */
   readonly shielded: boolean;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and does
+   * nothing until it is repaired.
+   */
+  readonly conditionPercent: number;
 }
 
 /**
@@ -280,6 +297,11 @@ export interface Snapshot {
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
   /**
+   * Where the Lander's next take-off or landing will blast Plume Ejecta,
+   * and how far it reaches, for placing Structures clear of it.
+   */
+  readonly plumeEjecta: PlumeEjectaSnapshot | undefined;
+  /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
    */
@@ -292,6 +314,11 @@ export interface Snapshot {
   readonly structures: readonly StructureSnapshot[];
   /** Structures being dismantled, in the order dismantling was planned. */
   readonly dismantlings: readonly DismantlingSnapshot[];
+  /**
+   * The Robot's unloading of the Lander's cargo, once it has landed on a
+   * landing pad with some, until the cargo is in the base's stock.
+   */
+  readonly unloading: UnloadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
 }
@@ -348,6 +375,12 @@ export interface Campaign {
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
   /**
+   * Sends the landed Lander on its round trip to Earth and back, which it
+   * can't make while the Mission Director lives aboard it, or before the
+   * Robot has taken its cargo off.
+   */
+  sendLander(): SendLanderResult;
+  /**
    * Sets what the next Launch is to bring from Earth, in place of the
    * manifest so far. A manifest the Launch can't carry, or the Funding
    * balance can't pay for, is refused with the limit it would go over.
@@ -375,7 +408,7 @@ export interface CampaignState {
    * Structure cut off from power, so they are worked on in order.
    */
   nextPlanNumber: number;
-  lander: { position: GroundPosition };
+  lander: LanderState;
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
   radiationDoseMillisieverts: number;
@@ -391,6 +424,8 @@ export interface CampaignState {
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
+  /** The planned unloading of the Lander's cargo, once it has landed on a landing pad with some. */
+  unloading: UnloadingState | undefined;
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
@@ -404,7 +439,11 @@ export function createCampaign(options: CampaignOptions): Campaign {
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
-    lander: { position: { ...landingSite.landerPosition } },
+    lander: {
+      position: { ...landingSite.landerPosition },
+      trip: undefined,
+      cargo: [],
+    },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
@@ -430,6 +469,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     constructions: [],
     structures: [],
     dismantlings: [],
+    unloading: undefined,
     cables: [],
     reconnections: [],
   });
@@ -521,6 +561,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(moveMissionDirectorIn(state, habitatId));
     },
+    sendLander() {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(sendLander(state));
+    },
     setLaunchManifest(manifest) {
       if (state.ended !== undefined) {
         return deepFreeze({
@@ -562,19 +612,14 @@ function campaignFrom(state: CampaignState): Campaign {
         clock: readClock(state.elapsedMinutes),
         lunation,
         map: { ...catalogue.map },
-        lander: {
-          state:
-            state.missionDirector.residence === "lander"
-              ? "landed-occupied"
-              : "landed-free",
-          position: { ...state.lander.position },
-        },
+        lander: readLander(state),
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -616,6 +661,7 @@ function campaignFrom(state: CampaignState): Campaign {
           recovered: copy(dismantling.recovered),
           collected: dismantling.collected,
         })),
+        unloading: readUnloading(state),
         cables: state.cables.map((cable) => ({
           fromStructureId: cable.fromStructureId,
           toStructureId: cable.toStructureId,
@@ -657,6 +703,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
+  events.push(...flyLander(state));
+  planUnloading(state);
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);

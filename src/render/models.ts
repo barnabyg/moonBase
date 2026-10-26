@@ -64,6 +64,17 @@ const materials = {
     roughness: 1,
     flatShading: true,
   }),
+  // Sintered Regolith panels, darker and smoother than the ground round them.
+  padPanel: new THREE.MeshStandardMaterial({
+    color: 0x5d5a55,
+    metalness: 0.05,
+    roughness: 0.75,
+  }),
+  padMarking: new THREE.MeshStandardMaterial({
+    color: 0xe8c33a,
+    metalness: 0,
+    roughness: 0.6,
+  }),
   crate: new THREE.MeshStandardMaterial({
     color: 0xb9b2a2,
     metalness: 0.1,
@@ -145,6 +156,106 @@ export function createLanderModel(footprintRadius: number): THREE.Group {
     lander.add(leg);
   }
   return lander;
+}
+
+export interface PlumeModel {
+  readonly group: THREE.Group;
+  /**
+   * Shows the dust blasted out over the ground: its strength from 0 (none)
+   * to 1 (the engine firing right over the ground), how far it has spread,
+   * from 0 to 1, out to the given radius, and how high above the ground the
+   * engine's exhaust starts.
+   */
+  show(
+    strength: number,
+    spread: number,
+    exhaustHeight: number,
+    realSeconds: number,
+  ): void;
+}
+
+const plumeMaterials = {
+  dust: new THREE.MeshStandardMaterial({
+    color: 0xbdb7ac,
+    roughness: 1,
+    metalness: 0,
+    transparent: true,
+    depthWrite: false,
+  }),
+  haze: new THREE.MeshBasicMaterial({
+    color: 0x9d978c,
+    transparent: true,
+    depthWrite: false,
+  }),
+  exhaust: new THREE.MeshBasicMaterial({
+    color: 0xffe2b0,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }),
+};
+
+/** How many billows of dust roll out round the Lander. */
+const PLUME_BILLOWS = 28;
+
+/**
+ * The Plume Ejecta of a Lander taking off or landing: billows of dust
+ * rolling out over the ground from under it, a low haze, and the engine's
+ * glow. It stands on the ground at its origin.
+ */
+export function createPlumeModel(radius: number): PlumeModel {
+  const group = new THREE.Group();
+  group.name = "Plume";
+  const billowGeometry = new THREE.IcosahedronGeometry(1, 1);
+  const billows = Array.from({ length: PLUME_BILLOWS }, (_, index) => {
+    const billow = new THREE.Mesh(billowGeometry, plumeMaterials.dust);
+    group.add(billow);
+    // Each a little different, but the same on every load.
+    return {
+      billow,
+      angle: (index / PLUME_BILLOWS) * Math.PI * 2,
+      size: 0.8 + ((index * 7) % 5) * 0.15,
+      lag: ((index * 11) % 6) / 12,
+    };
+  });
+  const haze = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 32),
+    plumeMaterials.haze,
+  );
+  haze.rotation.x = -Math.PI / 2;
+  haze.position.y = 0.05;
+  const exhaustLength = 6;
+  const exhaust = new THREE.Mesh(
+    new THREE.ConeGeometry(0.7, exhaustLength, 12, 1, true),
+    plumeMaterials.exhaust,
+  );
+  // Pointing down from the engine bell.
+  exhaust.rotation.x = Math.PI;
+  group.add(haze, exhaust);
+  group.visible = false;
+  return {
+    group,
+    show(strength, spread, exhaustHeight, realSeconds) {
+      group.visible = strength > 0;
+      if (!group.visible) return;
+      for (const { billow, angle, size, lag } of billows) {
+        const reach = Math.max(spread - lag * spread, 0.08) * radius;
+        const turn = angle + realSeconds * 0.15;
+        const puff = size * (0.5 + reach * 0.04) * (0.5 + strength * 0.5);
+        billow.position.set(
+          Math.cos(turn) * reach,
+          puff * 0.6,
+          Math.sin(turn) * reach,
+        );
+        billow.scale.set(puff, puff * 0.7, puff);
+      }
+      haze.scale.setScalar(Math.max(spread, 0.08) * radius);
+      exhaust.position.y = exhaustHeight - exhaustLength / 2;
+      plumeMaterials.dust.opacity = 0.4 * strength;
+      plumeMaterials.haze.opacity = 0.35 * strength;
+      plumeMaterials.exhaust.opacity = 0.35 + 0.25 * Math.sin(realSeconds * 40);
+    },
+  };
 }
 
 /** How the Robot holds itself, in radians: positive leans and lifts forward. */
@@ -374,6 +485,7 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "regolith-shielding") {
     return createRegolithShieldingModel();
   }
+  if (structureTypeId === "landing-pad") return createLandingPadModel();
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -747,6 +859,91 @@ function createBatteryBankModel(): StructureModel {
         light(material, index < lit);
       }
     },
+    setLit: () => undefined,
+  };
+}
+
+/** How many panels a landing pad is laid from, as the data catalogue has it. */
+const PAD_PANELS = 8;
+/** The share of Assembly spent laying the panels, before the beacon goes up. */
+const PAD_PANELS_SHARE = 0.85;
+
+/**
+ * A landing pad: a disc of interlocking panels laid flat on the graded
+ * ground, with a painted ring for the Lander to aim at and a beacon at its
+ * edge. During Assembly the panels go down one by one, then the beacon goes
+ * up. Its radius is the data catalogue's footprint.
+ */
+function createLandingPadModel(): StructureModel {
+  const pad = new THREE.Group();
+  pad.name = "Landing pad";
+  const radius = 6.9;
+  const thickness = 0.12;
+  const panels = Array.from({ length: PAD_PANELS }, (_, index) => {
+    const panel = part(
+      new THREE.CylinderGeometry(
+        radius,
+        radius,
+        thickness,
+        6,
+        1,
+        false,
+        (index / PAD_PANELS) * Math.PI * 2,
+        (Math.PI * 2) / PAD_PANELS - 0.02,
+      ),
+      materials.padPanel,
+      [0, thickness / 2, 0],
+    );
+    pad.add(panel);
+    return panel;
+  });
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(3.6, 3.9, 48),
+    materials.padMarking,
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = thickness + 0.01;
+  pad.add(ring);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  const beacon = new THREE.Group();
+  beacon.position.set(radius - 0.5, thickness, 0);
+  beacon.add(
+    part(
+      new THREE.CylinderGeometry(0.08, 0.1, 1.4, 6),
+      materials.darkMetal,
+      [0, 0.7, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.16, 10, 8),
+      statusLightMaterial,
+      [0, 1.5, 0],
+    ),
+  );
+  pad.add(beacon);
+
+  return {
+    group: pad,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const laid = Math.min(f / PAD_PANELS_SHARE, 1) * PAD_PANELS;
+      for (const [index, panel] of panels.entries()) {
+        panel.visible = laid - index > 0;
+      }
+      ring.visible = laid >= PAD_PANELS;
+      beacon.visible = f > PAD_PANELS_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
     setLit: () => undefined,
   };
 }

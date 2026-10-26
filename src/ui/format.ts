@@ -26,7 +26,9 @@ import type {
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
+  ManifestLine,
   MissionDirectorResidence,
+  UnloadingSnapshot,
   WalkingDestination,
 } from "../simulation";
 
@@ -147,11 +149,33 @@ export function formatHabitatPower(
     : `Habitat power: on, fails in ${formatDuration(forecast.minutesUntilPowerLost)}`;
 }
 
-/** Says what state the Lander is in, for example "Lander: landed, free to fly". */
-export function formatLander(lander: LanderSnapshot): string {
-  return lander.state === "landed-occupied"
-    ? "Lander: landed, with the Mission Director aboard"
-    : "Lander: landed, free to fly";
+/**
+ * Says what state the Lander is in and, while it is away, when it next
+ * arrives or leaves, for example "Lander: landed, free to fly" or "Lander:
+ * in turnaround on Earth, leaves in 3 Earth Days 2 hours".
+ */
+export function formatLander(
+  lander: LanderSnapshot,
+  elapsedMinutes: number,
+): string {
+  const left = formatDuration(
+    Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
+  );
+  const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
+  switch (lander.state) {
+    case "landed-occupied":
+      return "Lander: landed, with the Mission Director aboard";
+    case "landed-free":
+      return lander.cargo.length === 0
+        ? `Lander: landed${onPad}, free to fly`
+        : `Lander: landed${onPad}, its cargo waiting for the Robot to unload it`;
+    case "travelling-to-earth":
+      return `Lander: travelling to Earth, arrives in ${left}`;
+    case "turnaround":
+      return `Lander: in turnaround on Earth, leaves in ${left}`;
+    case "travelling-to-moon":
+      return `Lander: travelling to the Moon, lands${onPad} in ${left}`;
+  }
 }
 
 export function stockLabel(stockId: string): string {
@@ -205,6 +229,29 @@ export function formatEvent(event: GameEvent): string {
       return `Solar Particle Event under way, for ${formatDuration(event.endsAtMinute - event.atMinute)}`;
     case "solar-particle-event-ended":
       return "Solar Particle Event over";
+    case "lander-took-off":
+      return "Lander took off for Earth";
+    case "lander-reached-earth":
+      return "Lander reached Earth for turnaround";
+    case "lander-left-earth":
+      return event.chargedMillionDollars === 0
+        ? "Lander left Earth for the Moon, with nothing aboard"
+        : `Lander left Earth for the Moon; the Launch cost ${formatMillionDollars(event.chargedMillionDollars)}`;
+    case "lander-landed":
+      return event.delivered.length === 0
+        ? "Lander landed"
+        : `Lander landed with ${formatManifestLines(event.delivered)}`;
+    case "lander-unloaded":
+      return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
+    case "plume-ejecta-damage":
+      return `Plume Ejecta wore down ${listInWords(
+        event.damaged.map(
+          (damage) =>
+            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${damage.conditionPercent}%`,
+        ),
+      )}`;
+    case "structure-broken":
+      return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -302,6 +349,15 @@ export function formatMillionDollars(value: number): string {
   return `$${Number.isInteger(value) ? value : value.toFixed(1)}M`;
 }
 
+/**
+ * Lists the Components in the base's stock, for example "Stock: 2 solar
+ * panels and 4 mast poles".
+ */
+export function formatStock(stockpile: Snapshot["stockpile"]): string {
+  const held = stockpile.components.filter((stock) => stock.count > 0);
+  return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
+}
+
 /** Says how much Funding the base programme has, for example "Funding: $400M". */
 export function formatFunding(fundingMillionDollars: number): string {
   return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
@@ -313,6 +369,30 @@ export function launchItemLabel(item: LaunchItem): string {
   return brings.kind === "component"
     ? componentLabel(brings.componentId)
     : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+}
+
+/**
+ * Lists what a Launch brings the way a sentence would, for example "2 ×
+ * Solar panel and 1 × Oxygen, 25 kg".
+ */
+export function formatManifestLines(lines: readonly ManifestLine[]): string {
+  return listInWords(
+    lines.map(({ itemId, count }) => {
+      const item = catalogue.launch.items.find(
+        (candidate) => candidate.id === itemId,
+      );
+      return `${count} × ${item === undefined ? itemId : launchItemLabel(item)}`;
+    }),
+  );
+}
+
+/** Joins phrases the way a sentence would, for example "a, b and c". */
+function listInWords(phrases: readonly string[]): string {
+  const items = [...phrases];
+  const last = items.pop();
+  return items.length === 0
+    ? (last ?? "")
+    : `${items.join(", ")} and ${last ?? ""}`;
 }
 
 /** Says a Launch item's mass and price, for example "60 kg, $4M". */
@@ -331,12 +411,16 @@ export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
 /**
  * Says what the manifest costs against the Funding balance, for example
  * "Cost: $230M of $400M Funding, including the $150M Launch fee". An empty
- * manifest costs nothing, so the fee is left out until it has an item.
+ * manifest costs nothing, so the fee is left out until it has an item. Once
+ * it is locked, it has been paid for.
  */
 export function formatLaunchCost(
   manifest: LaunchManifestSnapshot,
   fundingMillionDollars: number,
 ): string {
+  if (manifest.locked) {
+    return `Cost: ${formatMillionDollars(manifest.costMillionDollars)}, paid as the Lander left Earth`;
+  }
   const funding = `${formatMillionDollars(fundingMillionDollars)} Funding`;
   return manifest.items.length === 0
     ? `Cost: nothing of ${funding}, while the manifest is empty`
@@ -352,14 +436,12 @@ function componentLabel(componentId: string): string {
 
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
-  const items = counts.map(({ componentId, count }) => {
-    const label = componentLabel(componentId).toLowerCase();
-    return `${count} ${label}${count === 1 ? "" : "s"}`;
-  });
-  const last = items.pop();
-  return items.length === 0
-    ? (last ?? "")
-    : `${items.join(", ")} and ${last ?? ""}`;
+  return listInWords(
+    counts.map(({ componentId, count }) => {
+      const label = componentLabel(componentId).toLowerCase();
+      return `${count} ${label}${count === 1 ? "" : "s"}`;
+    }),
+  );
 }
 
 export function machineLabel(machineTypeId: string): string {
@@ -449,6 +531,9 @@ function describeRobotWork(
         return "Robot walking to the stockpile for the Components";
       case "cable":
         return `Robot walking to the ${cableSource} to lay power cable`;
+      // Only ever done to unload the Lander.
+      case "lander":
+        return "Waiting for the Robot";
       case "machine": {
         const positioning = snapshot.machines.find(
           (candidate) =>
@@ -486,9 +571,11 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    // Only ever done for a Structure being dismantled.
+    // Only ever done for a Structure being dismantled, or to unload the Lander.
     case "dismantling":
     case "returning-components":
+    case "loading-cargo":
+    case "unloading-cargo":
       return "Waiting for the Robot";
   }
 }
@@ -532,6 +619,37 @@ export function describeDismantling(
       return dismantling.stage === "taking-apart"
         ? "Waiting for the Robot; it keeps working until then"
         : `Waiting for the Robot to carry ${recovered} to the stockpile`;
+  }
+}
+
+/**
+ * Says what is happening on the unloading of the Lander's cargo right now,
+ * for the Work panel: what the Robot is doing with it, or else that it is
+ * waiting for the Robot.
+ */
+export function describeUnloading(
+  unloading: UnloadingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const cargo = formatComponents(unloading.cargo);
+  const robot = snapshot.robots.find(
+    (candidate) =>
+      candidate.activity.kind !== "idle" &&
+      candidate.activity.structureId === unloading.landingPadId,
+  );
+  switch (robot?.activity.kind) {
+    case "walking":
+      return robot.activity.destination === "lander"
+        ? `Robot walking to the Lander for ${cargo}`
+        : `Robot carrying ${cargo} to the stockpile`;
+    case "loading-cargo":
+      return `Robot taking ${cargo} off the Lander`;
+    case "unloading-cargo":
+      return `Robot unloading ${cargo} at the stockpile`;
+    default:
+      return unloading.collected
+        ? `Waiting for the Robot to carry ${cargo} to the stockpile`
+        : `Waiting for the Robot to take ${cargo} off the Lander`;
   }
 }
 

@@ -69,6 +69,25 @@ describe("the data catalogue", () => {
     ).toBe(true);
   });
 
+  it("flies the Lander's round trip in legs that each last a positive, whole number of game-minutes", () => {
+    for (const earthDays of Object.values(
+      catalogue.lander.roundTripEarthDays,
+    )) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+  });
+
+  it("blasts Plume Ejecta out past the Lander's footprint, taking a share of a Structure's Condition at a time", () => {
+    const { radiusMetres, conditionLossPercent } = catalogue.plumeEjecta;
+
+    expect(radiusMetres).toBeGreaterThan(
+      catalogue.lander.footprintRadiusMetres,
+    );
+    expect(conditionLossPercent).toBeGreaterThan(0);
+    expect(conditionLossPercent).toBeLessThanOrEqual(100);
+  });
+
   it("places at least one Robot on the map, outside the Lander's footprint", () => {
     const { landerPosition, robotPositions } = catalogue.landingSite;
 
@@ -297,6 +316,36 @@ describe("the data catalogue", () => {
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
+  });
+
+  it("has a landing pad, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
+    const pads = catalogue.structureTypes.filter((type) => type.landingPad);
+
+    expect(pads).toHaveLength(1);
+    const [pad] = pads;
+    expect(pad?.footprintRadiusMetres).toBeGreaterThan(
+      catalogue.lander.footprintRadiusMetres,
+    );
+    expect(pad?.components.length).toBeGreaterThan(0);
+    for (const need of pad?.components ?? []) {
+      expect(
+        catalogue.launch.items.some(
+          (item) =>
+            item.brings.kind === "component" &&
+            item.brings.componentId === need.componentId,
+        ),
+      ).toBe(true);
+      expect(
+        catalogue.startingStock.some(
+          (stock) => stock.componentId === need.componentId,
+        ),
+      ).toBe(false);
+    }
+    expect(pad?.stageMachines.sitePreparation).toBeDefined();
+    expect(catalogue.lander.cargoHandlingHours).toBeGreaterThan(0);
+    expect(Number.isInteger(catalogue.lander.cargoHandlingHours * 60)).toBe(
+      true,
+    );
   });
 
   it("has a Habitat the Mission Director can move into", () => {

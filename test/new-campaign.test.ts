@@ -48,7 +48,9 @@ describe("a new Campaign", () => {
 
     expect(stockpile.position).toEqual(catalogue.landingSite.stockpilePosition);
     expect(isOnMap(stockpile.position, map)).toBe(true);
-    expect(stockpile.components).toEqual(catalogue.startingStock);
+    expect(stockpile.components.filter((stock) => stock.count > 0)).toEqual(
+      catalogue.startingStock,
+    );
     const gap =
       distanceBetween(stockpile.position, lander.position) -
       catalogue.lander.footprintRadiusMetres -

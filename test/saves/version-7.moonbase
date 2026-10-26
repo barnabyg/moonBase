@@ -1,0 +1,261 @@
+{
+  "format": "moonbase-save",
+  "version": 7,
+  "random": {
+    "a": 1622156250,
+    "b": 4271213972,
+    "c": 1191357616,
+    "d": 2372217184
+  },
+  "state": {
+    "elapsedMinutes": 55760,
+    "nextStructureNumber": 5,
+    "nextPlanNumber": 6,
+    "lander": {
+      "position": {
+        "x": 40,
+        "y": 25
+      },
+      "trip": null,
+      "cargo": [
+        {
+          "componentId": "battery-module",
+          "count": 3
+        }
+      ]
+    },
+    "missionDirector": {
+      "residence": "habitat",
+      "habitatId": "structure-3",
+      "movedInAtMinute": 25260
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 24982.20833330197
+      },
+      {
+        "stockId": "water",
+        "kilograms": 107925.86805553583
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 14399760,
+      "startsAtMinute": 14400000,
+      "endsAtMinute": 14400880
+    },
+    "fundingMillionDollars": 52,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 36.68482377351885,
+          "y": 21.257059099134185
+        },
+        "activity": {
+          "kind": "loading-cargo",
+          "structureId": "structure-4"
+        },
+        "carrying": [],
+        "workOrder": {
+          "structureId": "structure-4",
+          "kind": "unload-lander"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 47.7167845664463,
+          "y": 29.82299035402894
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 0
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "airlock",
+          "count": 0
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        }
+      ]
+    },
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 40
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": -20,
+          "y": 15
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 15.99999999999454,
+        "conditionPercent": 40
+      },
+      {
+        "id": "structure-3",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 25,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 40
+      },
+      {
+        "id": "structure-4",
+        "structureTypeId": "landing-pad",
+        "position": {
+          "x": 40,
+          "y": 25
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 100
+      }
+    ],
+    "dismantlings": [],
+    "unloading": {
+      "landingPadId": "structure-4",
+      "planNumber": 5,
+      "cargo": [
+        {
+          "componentId": "battery-module",
+          "count": 3
+        }
+      ],
+      "workedMinutes": 3,
+      "collected": false
+    },
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 17.008402070334633,
+          "y": 12.224369844724903
+        },
+        "end": {
+          "x": -18.005601380223087,
+          "y": 14.850420103516731
+        },
+        "route": [
+          {
+            "x": 17.008402070334633,
+            "y": 12.224369844724903
+          },
+          {
+            "x": -18.005601380223087,
+            "y": 14.850420103516731
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-3",
+        "start": {
+          "x": 20.46313064082083,
+          "y": 9.035963898746695
+        },
+        "end": {
+          "x": 24.38249247890556,
+          "y": -16.047951864995593
+        },
+        "route": [
+          {
+            "x": 20.46313064082083,
+            "y": 9.035963898746695
+          },
+          {
+            "x": 24.38249247890556,
+            "y": -16.047951864995593
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": []
+  }
+}

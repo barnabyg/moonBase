@@ -145,7 +145,9 @@ describe("the Construction of a solar array", () => {
   it("takes the Components from the base's stock during Component delivery", () => {
     const game = scenario();
     const startingStock = game.state.stockpile.components;
-    expect(startingStock).toEqual(catalogue.startingStock);
+    expect(startingStock.filter((stock) => stock.count > 0)).toEqual(
+      catalogue.startingStock,
+    );
 
     const states = runUntilBuilt(game.plan("solar-array", site));
 

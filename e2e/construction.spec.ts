@@ -34,7 +34,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
 
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
-  ).toHaveText([/^Solar array: commissioned(?!,)/]);
+  ).toHaveText([/^Solar array: commissioned, Condition 100%(?!,)/]);
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
   ).toHaveText(/^Power: [1-9]\d*\.\d\d kW generated, \d+\.\d\d kW used$/);

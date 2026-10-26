@@ -1,6 +1,7 @@
 import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
 import {
   describeDismantling,
+  describeUnloading,
   describeWork,
   formatComponents,
   formatDismantlingStage,
@@ -19,6 +20,9 @@ export interface ConstructionPanel {
   startAfresh(): void;
 }
 
+/** The key of the row for unloading the Lander, which no Structure's id can be. */
+const UNLOADING_ROW = "unloading the Lander";
+
 interface Row {
   readonly item: HTMLLIElement;
   readonly stage: HTMLElement;
@@ -28,10 +32,10 @@ interface Row {
 }
 
 /**
- * The HTML Work panel: each unfinished Construction and each Structure being
- * dismantled, with its current stage, its progress, and what is happening on
- * it. The player can cancel a Construction from here; the panel only sends
- * that choice to the Campaign.
+ * The HTML Work panel: each unfinished Construction, each Structure being
+ * dismantled and any unloading of the Lander, with its current stage, its
+ * progress, and what is happening on it. The player can cancel a
+ * Construction from here; the panel only sends that choice to the Campaign.
  */
 export function createConstructionPanel(
   container: HTMLElement,
@@ -88,7 +92,8 @@ export function createConstructionPanel(
     update(snapshot) {
       panel.hidden =
         snapshot.constructions.length === 0 &&
-        snapshot.dismantlings.length === 0;
+        snapshot.dismantlings.length === 0 &&
+        snapshot.unloading === undefined;
       const seen = new Set<string>();
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
@@ -126,6 +131,23 @@ export function createConstructionPanel(
           dismantling.stageProgress,
         );
         setText(row.work, describeDismantling(dismantling, snapshot));
+      }
+      const { unloading } = snapshot;
+      if (unloading !== undefined) {
+        seen.add(UNLOADING_ROW);
+        let row = rows.get(UNLOADING_ROW);
+        if (row === undefined) {
+          row = createRow("Unloading the Lander", undefined);
+          rows.set(UNLOADING_ROW, row);
+        }
+        showStage(
+          row,
+          unloading.collected
+            ? "Carrying to the stockpile"
+            : "Taking off the Lander",
+          unloading.stageProgress,
+        );
+        setText(row.work, describeUnloading(unloading, snapshot));
       }
       for (const [id, row] of rows) {
         if (!seen.has(id)) {
