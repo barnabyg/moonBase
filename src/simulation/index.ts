@@ -4,6 +4,7 @@ export { MAX_SEED } from "./random";
 export type {
   CableSnapshot,
   Campaign,
+  CampaignEnd,
   CampaignOptions,
   ComponentCount,
   ConstructionSnapshot,
@@ -37,5 +38,6 @@ export type {
   MoveInResult,
 } from "./mission-director";
 export type { ClockSnapshot } from "./clock";
-export type { GameEvent } from "./events";
+export type { DeathCause, GameEvent } from "./events";
+export type { LifeSupportForecast, LifeSupportSnapshot } from "./life-support";
 export type { LunationPart, LunationSnapshot } from "./lunation";

@@ -43,6 +43,31 @@ export interface Catalogue {
   readonly dismantlingLossShare: number;
   /** The Components in the Lander's cargo stock when a Campaign begins. */
   readonly startingCargo: readonly ComponentCount[];
+  /**
+   * What the Mission Director needs to stay alive, in the order the status
+   * panel shows them. Running out of any of them kills the Mission Director
+   * at once.
+   */
+  readonly lifeSupportStocks: readonly LifeSupportStock[];
+}
+
+/**
+ * A stock the Mission Director uses up every Earth Day while they live in a
+ * Habitat. The Lander keeps them safe indefinitely, so nothing is used while
+ * they live aboard it.
+ */
+export interface LifeSupportStock {
+  readonly id: string;
+  readonly label: string;
+  /** How much there is when a Campaign begins. */
+  readonly startingKilograms: number;
+  /** How much the Mission Director uses in an Earth Day, spread evenly over it. */
+  readonly usePerEarthDayKilograms: number;
+  /**
+   * A warning comes as the stock falls to each of these many Earth Days of
+   * use left, largest first. Each must come to a whole number of game-minutes.
+   */
+  readonly warningEarthDaysLeft: readonly number[];
 }
 
 /** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
@@ -154,7 +179,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 5,
+  version: 6,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -317,5 +342,23 @@ export const catalogue: Catalogue = {
     { componentId: "habitat-core", count: 1 },
     { componentId: "habitat-envelope", count: 1 },
     { componentId: "airlock", count: 1 },
+  ],
+  // Enough for about 30 Earth Days at a person's daily use; the oxygen runs
+  // out first.
+  lifeSupportStocks: [
+    {
+      id: "oxygen",
+      label: "Oxygen",
+      startingKilograms: 25,
+      usePerEarthDayKilograms: 0.84,
+      warningEarthDaysLeft: [7, 3, 1],
+    },
+    {
+      id: "water",
+      label: "Water",
+      startingKilograms: 108,
+      usePerEarthDayKilograms: 3.5,
+      warningEarthDaysLeft: [7, 3, 1],
+    },
   ],
 };

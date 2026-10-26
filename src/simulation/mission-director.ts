@@ -11,7 +11,8 @@ export type MoveInRefusal =
   | "already-moved-in"
   | "not-a-habitat"
   | "not-commissioned"
-  | "being-dismantled";
+  | "being-dismantled"
+  | "campaign-ended";
 
 export type MoveInResult =
   | { readonly ok: true }

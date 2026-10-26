@@ -215,6 +215,30 @@ describe("the data catalogue", () => {
     ).toEqual(["habitat"]);
   });
 
+  it("has oxygen and water stocks that are used up, with warnings before they run out", () => {
+    const stocks = catalogue.lifeSupportStocks;
+
+    expect(stocks.map((stock) => stock.id)).toEqual(["oxygen", "water"]);
+    expect(new Set(stocks.map((stock) => stock.label)).size).toBe(
+      stocks.length,
+    );
+    for (const stock of stocks) {
+      expect(stock.startingKilograms).toBeGreaterThan(0);
+      expect(stock.usePerEarthDayKilograms).toBeGreaterThan(0);
+      const lastsEarthDays =
+        stock.startingKilograms / stock.usePerEarthDayKilograms;
+      const warnings = stock.warningEarthDaysLeft;
+      expect(warnings.length).toBeGreaterThan(0);
+      expect([...warnings].sort((a, b) => b - a)).toEqual(warnings);
+      expect(new Set(warnings).size).toBe(warnings.length);
+      for (const earthDays of warnings) {
+        expect(earthDays).toBeGreaterThan(0);
+        expect(earthDays).toBeLessThan(lastsEarthDays);
+        expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+      }
+    }
+  });
+
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {
