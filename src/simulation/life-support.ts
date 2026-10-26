@@ -60,41 +60,41 @@ export function forecastLifeSupport(
 /**
  * Uses up a game-minute of every life support stock while the Mission
  * Director lives in a Habitat. If one runs out, the Mission Director dies at
- * once, which ends the Campaign.
+ * once, which ends the Campaign; the death is then the only event, as any
+ * warning that minute would come too late to matter.
  */
 export function useLifeSupport(state: CampaignState): GameEvent[] {
   if (!isInUse(state)) return [];
-  const events: GameEvent[] = [];
+  const warnings: GameEvent[] = [];
+  let ranOut: LifeSupportState | undefined;
   for (const stock of state.lifeSupport) {
     const type = findStock(stock.stockId);
     const before = minutesLeft(stock);
     stock.kilograms -= usePerMinute(type);
     const after = minutesLeft(stock);
-    const warned = type.warningEarthDaysLeft.some((earthDays) => {
-      const warningMinutes = earthDays * MINUTES_PER_EARTH_DAY;
-      return before > warningMinutes && after <= warningMinutes;
-    });
-    if (warned && after > 0) {
-      events.push({
+    if (after === 0) {
+      stock.kilograms = 0;
+      ranOut ??= stock;
+    } else if (
+      type.warningEarthDaysLeft.some((earthDays) => {
+        const warningMinutes = earthDays * MINUTES_PER_EARTH_DAY;
+        return before > warningMinutes && after <= warningMinutes;
+      })
+    ) {
+      warnings.push({
         kind: "life-support-warning",
         atMinute: state.elapsedMinutes,
         stockId: stock.stockId,
         minutesUntilEmpty: after,
       });
     }
-    if (after > 0) continue;
-    stock.kilograms = 0;
-    if (state.ended === undefined) {
-      const cause = { kind: "ran-out", stockId: stock.stockId } as const;
-      state.ended = { atMinute: state.elapsedMinutes, cause };
-      events.push({
-        kind: "mission-director-died",
-        atMinute: state.elapsedMinutes,
-        cause,
-      });
-    }
   }
-  return events;
+  if (ranOut === undefined) return warnings;
+  const cause = { kind: "ran-out", stockId: ranOut.stockId } as const;
+  state.ended = { atMinute: state.elapsedMinutes, cause };
+  return [
+    { kind: "mission-director-died", atMinute: state.elapsedMinutes, cause },
+  ];
 }
 
 /**

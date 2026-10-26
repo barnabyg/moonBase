@@ -136,6 +136,18 @@ describe("running out of oxygen", () => {
     expect(stocks(game)["water"]).toBeGreaterThan(0);
   });
 
+  it("is the last thing that happens", () => {
+    const game = aMinuteFromDeath();
+
+    const events = game.campaign.advance(1);
+
+    expect(events.at(-1)?.kind).toBe("mission-director-died");
+    expect(game.campaign.forecasts().lifeSupport).toEqual([
+      { stockId: "oxygen", minutesUntilEmpty: undefined },
+      { stockId: "water", minutesUntilEmpty: undefined },
+    ]);
+  });
+
   it("stops the simulation advancing", () => {
     const game = aMinuteFromDeath();
     game.campaign.advance(1);

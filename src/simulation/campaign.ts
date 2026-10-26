@@ -528,7 +528,6 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
-  events.push(...useLifeSupport(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({
@@ -536,6 +535,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
+  // Last, so that the Mission Director's death ends the game-minute.
+  events.push(...useLifeSupport(state));
   return events;
 }
 
