@@ -121,8 +121,9 @@ function missingComponents(
  * Finds the Work Order a Robot should claim next: the first one that nobody
  * else has claimed and that can be worked on now, taking the Constructions,
  * dismantling, unloading of the Lander and cables to Structures cut off from
- * power in the order they were planned. Each Construction's current stage comes before laying its
- * cable, which can be done at any stage before Commissioning.
+ * power in the order they were planned. Each Construction's current stage
+ * comes before laying its cable, which can be done at any stage before
+ * Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,

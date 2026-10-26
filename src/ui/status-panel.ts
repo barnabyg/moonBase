@@ -39,9 +39,9 @@ export interface StatusPanel {
  * The HTML status panel. It reads simulation snapshots, sends the player's
  * speed choices to the game loop, and sends a choice to dismantle a Structure
  * or to move the Mission Director into a Habitat, or to send the Lander, to
- * the Campaign, which decides whether it is allowed and says why not. It also saves the Campaign
- * to a file and loads one from a file, and shows the Funding balance beside
- * a button that opens the Launch manifest screen.
+ * the Campaign, which decides whether it is allowed and says why not. It
+ * also saves the Campaign to a file and loads one from a file, and shows the
+ * Funding balance beside a button that opens the Launch manifest screen.
  */
 export function createStatusPanel(
   container: HTMLElement,

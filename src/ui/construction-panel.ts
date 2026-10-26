@@ -34,8 +34,8 @@ interface Row {
 /**
  * The HTML Work panel: each unfinished Construction, each Structure being
  * dismantled and any unloading of the Lander, with its current stage, its
- * progress, and what is happening on it. The player can cancel a Construction from here; the panel only sends
- * that choice to the Campaign.
+ * progress, and what is happening on it. The player can cancel a
+ * Construction from here; the panel only sends that choice to the Campaign.
  */
 export function createConstructionPanel(
   container: HTMLElement,
