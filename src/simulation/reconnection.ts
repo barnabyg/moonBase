@@ -11,7 +11,10 @@ import { findCable, hasPowerSource, powerNetworks } from "./power";
 export interface ReconnectionState {
   /** The id of the Structure the cable goes to. */
   structureId: string;
-  /** Where in the Mission Director's plans it comes, as of when the Structure was cut off. */
+  /**
+   * Where it comes among the Mission Director's plans: after every plan made
+   * before the Structure was cut off, whose consequence it is.
+   */
   planNumber: number;
 }
 
