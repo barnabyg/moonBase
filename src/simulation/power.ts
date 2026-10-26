@@ -11,6 +11,7 @@ import {
   type ConstructionState,
   type StructureState,
 } from "./construction";
+import { isDueToBeDismantled } from "./dismantling";
 import { lunationMinutes, readLunation } from "./lunation";
 
 /**
@@ -213,7 +214,7 @@ export function nearestPoweredStructure(
     .filter(
       (structure) =>
         powered.includes(structure) &&
-        !state.dismantlings.some((planned) => planned.id === structure.id),
+        !isDueToBeDismantled(state, structure.id),
     )
     .reduce<StructureState | undefined>(
       (best, structure) =>

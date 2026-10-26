@@ -55,7 +55,7 @@ export function dismantleStructure(
       message: `There is no commissioned Structure "${structureId}".`,
     };
   }
-  if (state.dismantlings.some((other) => other.id === structureId)) {
+  if (isDueToBeDismantled(state, structureId)) {
     return { ok: false, message: "It is already being dismantled." };
   }
   state.dismantlings.push({
@@ -71,6 +71,14 @@ export function dismantleStructure(
   });
   state.nextPlanNumber += 1;
   return { ok: true };
+}
+
+/** Whether a Structure's dismantling has been planned, and it isn't gone yet. */
+export function isDueToBeDismantled(
+  state: CampaignState,
+  structureId: string,
+): boolean {
+  return state.dismantlings.some((planned) => planned.id === structureId);
 }
 
 /**

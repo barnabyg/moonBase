@@ -1,6 +1,7 @@
 import type { CampaignState } from "./campaign";
 import type { StructureState } from "./construction";
-import { hasPowerSource, powerNetworks } from "./power";
+import { isDueToBeDismantled } from "./dismantling";
+import { findCable, hasPowerSource, powerNetworks } from "./power";
 
 /**
  * A plan to lay cable to a commissioned Structure cut off from power, which
@@ -32,16 +33,10 @@ export function planReconnections(state: CampaignState): void {
     )
     .flatMap((network) =>
       network.structures.filter(
-        (structure) =>
-          !state.cables.some(
-            (cable) => cable.complete && cable.toStructureId === structure.id,
-          ),
+        (structure) => findCable(state, structure.id)?.complete !== true,
       ),
     )
-    .filter(
-      (structure) =>
-        !state.dismantlings.some((planned) => planned.id === structure.id),
-    )
+    .filter((structure) => !isDueToBeDismantled(state, structure.id))
     .map((structure) => structure.id);
   const dropped = state.reconnections
     .map((reconnection) => reconnection.structureId)
@@ -75,7 +70,7 @@ export function findStructureToReconnect(
     !state.reconnections.some(
       (reconnection) => reconnection.structureId === structureId,
     ) ||
-    state.dismantlings.some((planned) => planned.id === structureId)
+    isDueToBeDismantled(state, structureId)
   ) {
     return undefined;
   }
