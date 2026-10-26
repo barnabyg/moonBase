@@ -50,32 +50,46 @@ export function findWaitingReason(
   state: CampaignState,
   construction: ConstructionState,
 ): ConstructionWait | undefined {
-  if (construction.stage === "site-preparation") {
-    const machineTypeId = catalogue.sitePreparationMachineTypeId;
-    return machineOn(state, construction.id) !== undefined ||
-      nearestFreeMachine(state, machineTypeId, construction.position) !==
-        undefined
-      ? undefined
-      : { reason: "machine-busy", machineTypeId };
-  }
-  if (
-    construction.stage !== "component-delivery" ||
-    construction.componentsTaken
-  ) {
-    return undefined;
-  }
-  const missing = componentsFor(construction.structureTypeId)
-    .map((need) => ({
-      componentId: need.componentId,
-      count:
-        need.count -
-        (state.cargo.find((stock) => stock.componentId === need.componentId)
-          ?.count ?? 0),
-    }))
-    .filter((shortfall) => shortfall.count > 0);
-  return missing.length === 0
+  const missing = missingComponents(state, construction);
+  if (missing.length > 0) return { reason: "missing-components", missing };
+  if (construction.stage !== "site-preparation") return undefined;
+  const machineTypeId = catalogue.sitePreparationMachineTypeId;
+  return machineOn(state, construction.id) !== undefined ||
+    nearestFreeMachine(state, machineTypeId, construction.position) !==
+      undefined
     ? undefined
-    : { reason: "missing-components", missing };
+    : { reason: "machine-busy", machineTypeId };
+}
+
+/**
+ * The Components a Construction can't get from the cargo stock, until it has
+ * taken them. Constructions planned earlier have first claim on the stock, so
+ * one that can't be supplied waits from the start and no work is spent on it.
+ */
+function missingComponents(
+  state: CampaignState,
+  construction: ConstructionState,
+): ComponentCount[] {
+  if (construction.componentsTaken) return [];
+  const earlier = state.constructions.slice(
+    0,
+    state.constructions.indexOf(construction),
+  );
+  const claimedEarlier = (componentId: string) =>
+    earlier
+      .filter((other) => !other.componentsTaken)
+      .flatMap((other) => componentsFor(other.structureTypeId))
+      .filter((need) => need.componentId === componentId)
+      .reduce((total, need) => total + need.count, 0);
+  return componentsFor(construction.structureTypeId)
+    .map((need) => {
+      const inStock =
+        state.cargo.find((stock) => stock.componentId === need.componentId)
+          ?.count ?? 0;
+      const left = Math.max(inStock - claimedEarlier(need.componentId), 0);
+      return { componentId: need.componentId, count: need.count - left };
+    })
+    .filter((shortfall) => shortfall.count > 0);
 }
 
 /**
@@ -120,7 +134,10 @@ function canBeWorkedOn(
 ): boolean {
   switch (kind) {
     case "lay-cable":
-      return needsCable(state, construction);
+      return (
+        needsCable(state, construction) &&
+        missingComponents(state, construction).length === 0
+      );
     case "commission":
       return !needsCable(state, construction);
     case "prepare-site":

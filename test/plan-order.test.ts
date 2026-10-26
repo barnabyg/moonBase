@@ -36,17 +36,13 @@ function constructionsWorkedOn(states: Snapshot[]): string[] {
 describe("several Constructions", () => {
   it("are worked on in the order they were planned", () => {
     const game = scenario()
-      .plan("solar-array", sites[1] as GroundPosition)
+      .plan("battery-bank", sites[1] as GroundPosition)
       .plan("solar-array", sites[0] as GroundPosition);
     const [first, second] = game.state.constructions.map((c) => c.id);
 
     const states = run(game, 3 * 24 * 60);
 
     expect(constructionsWorkedOn(states)).toEqual([first, second]);
-    // The first gets the cargo stock's only solar array, so it is commissioned.
-    expect(game.state.structures).toEqual([
-      expect.objectContaining({ id: first, position: sites[1] }),
-    ]);
     const commissioned = states.findIndex((state) =>
       state.structures.some((structure) => structure.id === first),
     );
@@ -80,37 +76,45 @@ describe("several Constructions", () => {
     },
   );
 
-  it("leave a Construction whose Components aren't in stock waiting, with the reason, while the Robot moves on", () => {
-    const game = scenario();
-    for (const site of sites) game.plan("solar-array", site);
-    const [, waiting, next] = game.state.constructions.map((c) => c.id);
+  it("leave a Construction whose Components aren't in stock waiting, with the reason, while the Robot moves on to the next", () => {
+    const game = scenario()
+      .plan("solar-array", sites[0] as GroundPosition)
+      .plan("solar-array", sites[1] as GroundPosition)
+      .plan("battery-bank", sites[2] as GroundPosition);
+    const [first, waiting, next] = game.state.constructions.map((c) => c.id);
 
-    run(game, 3 * 24 * 60);
+    // The first solar array has first claim on the cargo stock's only set,
+    // so the second waits from the start, and no work is spent on its site.
+    const states = run(game, 3 * 24 * 60);
 
-    const waitingConstruction = game.state.constructions.find(
-      (construction) => construction.id === waiting,
-    );
-    expect(waitingConstruction).toMatchObject({
-      stage: "component-delivery",
-      stageProgress: 0,
-      componentsTaken: false,
-      waiting: { reason: "missing-components", missing: solarArray.components },
-    });
-    // The Robot moved on to the next Construction and prepared its site too.
-    const nextConstruction = game.state.constructions.find(
-      (construction) => construction.id === next,
-    );
-    expect(nextConstruction).toMatchObject({
-      stage: "component-delivery",
-      waiting: { reason: "missing-components" },
-    });
+    for (const state of states) {
+      const waitingConstruction = state.constructions.find(
+        (construction) => construction.id === waiting,
+      );
+      expect(waitingConstruction).toMatchObject({
+        stage: "site-preparation",
+        stageProgress: 0,
+        waiting: {
+          reason: "missing-components",
+          missing: solarArray.components,
+        },
+      });
+      for (const machine of state.machines) {
+        expect(machine.activity).not.toMatchObject({ constructionId: waiting });
+      }
+    }
+    expect(constructionsWorkedOn(states)).toEqual([first, next]);
+    expect(game.state.structures.map((structure) => structure.id)).toEqual([
+      first,
+      next,
+    ]);
     expect(game.state.robots[0]?.activity).toEqual({ kind: "idle" });
   });
 
   it("don't show a Construction as waiting for Components it can still get", () => {
     const game = scenario()
       .plan("solar-array", sites[0] as GroundPosition)
-      .plan("solar-array", sites[1] as GroundPosition);
+      .plan("battery-bank", sites[1] as GroundPosition);
 
     for (const state of run(game, 6 * 60)) {
       for (const construction of state.constructions) {

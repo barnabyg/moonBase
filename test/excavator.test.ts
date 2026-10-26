@@ -14,8 +14,15 @@ const excavatorType = catalogue.machineTypes.find(
 const solarArray = catalogue.structureTypes.find(
   (type) => type.id === "solar-array",
 );
-if (excavatorType === undefined || solarArray === undefined) {
-  throw new Error("expected an excavator and a solar array");
+const batteryBank = catalogue.structureTypes.find(
+  (type) => type.id === "battery-bank",
+);
+if (
+  excavatorType === undefined ||
+  solarArray === undefined ||
+  batteryBank === undefined
+) {
+  throw new Error("expected an excavator, a solar array and a battery bank");
 }
 const site: GroundPosition = { x: 20, y: 12 };
 const otherSite: GroundPosition = { x: -20, y: -15 };
@@ -204,7 +211,7 @@ describe("the excavator", () => {
   it("is driven on to the next site when the next Construction needs it", () => {
     const game = scenario()
       .plan("solar-array", site)
-      .plan("solar-array", otherSite);
+      .plan("battery-bank", otherSite);
     const [first, second] = game.state.constructions.map((c) => c.id);
 
     const states = run(game, 3 * 24 * 60);
@@ -227,16 +234,15 @@ describe("the excavator", () => {
     }
     expect(
       distanceBetween(excavatorOf(game.state).position, otherSite),
-    ).toBeLessThan(
-      solarArray.footprintRadiusMetres +
+    ).toBeLessThanOrEqual(
+      batteryBank.footprintRadiusMetres +
         excavatorType.footprintRadiusMetres +
-        1,
+        catalogue.robot.workingGapMetres,
     );
-    expect(
-      game.state.constructions.find(
-        (construction) => construction.id === second,
-      )?.stage,
-    ).toBe("component-delivery");
+    expect(game.state.structures.map((structure) => structure.id)).toEqual([
+      first,
+      second,
+    ]);
   });
 
   it("can't have a Structure placed over it", () => {
