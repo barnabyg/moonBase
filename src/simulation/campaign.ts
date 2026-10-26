@@ -28,6 +28,7 @@ import {
   type MachineState,
 } from "./machines";
 import {
+  consumptionKilowatts,
   minutesUntilEmpty,
   powerNetworks,
   supplyPower,
@@ -88,6 +89,8 @@ export interface StructureSnapshot {
   readonly position: GroundPosition;
   /** Whether its power network covered what it draws during the latest game-minute. */
   readonly powered: boolean;
+  /** Whether its light was on during the latest game-minute: only at Night, with power. */
+  readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
 }
@@ -108,7 +111,7 @@ export interface PowerNetworkSnapshot {
   readonly structureIds: readonly string[];
   /** The power its solar arrays are generating now: none at Night. */
   readonly generationKilowatts: number;
-  /** The power its Structures draw. */
+  /** The power its Structures draw now, including any lights at Night. */
   readonly consumptionKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
@@ -337,7 +340,10 @@ export function createCampaign(options: CampaignOptions): Campaign {
               lunation.part === "daylight"
                 ? network.daylightGenerationKilowatts
                 : 0,
-            consumptionKilowatts: network.consumptionKilowatts,
+            consumptionKilowatts: consumptionKilowatts(
+              network,
+              lunation.part === "daylight",
+            ),
             storedKilowattHours: network.storedKilowattHours,
             storageCapacityKilowattHours: network.storageCapacityKilowattHours,
             powered: network.structures.every((structure) => structure.powered),

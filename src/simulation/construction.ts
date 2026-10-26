@@ -56,6 +56,8 @@ export interface StructureState {
   position: GroundPosition;
   /** Whether its network covered what it draws during the latest game-minute. */
   powered: boolean;
+  /** Whether its light was on during the latest game-minute: only at Night, with power. */
+  lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   storedKilowattHours: number;
 }

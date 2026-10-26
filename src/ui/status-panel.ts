@@ -121,7 +121,7 @@ export function createStatusPanel(
         }
         setText(
           item,
-          `${structureLabel(structure.structureTypeId)}: commissioned${structure.powered ? "" : ", no power"}`,
+          `${structureLabel(structure.structureTypeId)}: commissioned${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}`,
         );
       }
       structures.hidden = structureItems.size === 0;

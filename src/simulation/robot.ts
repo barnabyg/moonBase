@@ -265,6 +265,7 @@ function finishCommissioning(
     structureTypeId: construction.structureTypeId,
     position: { ...construction.position },
     powered: false,
+    lit: false,
     storedKilowattHours: 0,
   });
   return [

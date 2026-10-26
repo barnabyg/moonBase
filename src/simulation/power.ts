@@ -1,4 +1,8 @@
-import { catalogue, type GroundPosition } from "../catalogue";
+import {
+  catalogue,
+  type GroundPosition,
+  type StructureType,
+} from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
   distance,
@@ -123,7 +127,9 @@ export interface PowerNetwork {
   readonly structures: readonly StructureState[];
   /** The power generated in Daylight. */
   readonly daylightGenerationKilowatts: number;
-  readonly consumptionKilowatts: number;
+  readonly daylightConsumptionKilowatts: number;
+  /** What its Structures draw at Night, including any lights. */
+  readonly nightConsumptionKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
 }
@@ -161,7 +167,10 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
     return {
       structures,
       daylightGenerationKilowatts: total((power) => power.generationKilowatts),
-      consumptionKilowatts: total((power) => power.drawKilowatts),
+      daylightConsumptionKilowatts: total((power) => power.drawKilowatts),
+      nightConsumptionKilowatts: total(
+        (power) => power.drawKilowatts + power.nightDrawKilowatts,
+      ),
       storedKilowattHours: structures.reduce(
         (sum, structure) => sum + structure.storedKilowattHours,
         0,
@@ -204,27 +213,40 @@ export function nearestPoweredStructure(
     );
 }
 
+/** What a network's Structures draw in the given part of the Lunation. */
+export function consumptionKilowatts(
+  network: PowerNetwork,
+  daylight: boolean,
+): number {
+  return daylight
+    ? network.daylightConsumptionKilowatts
+    : network.nightConsumptionKilowatts;
+}
+
 /**
  * Supplies one game-minute of power on every network. Solar arrays generate
  * only in Daylight; any surplus charges the network's battery banks, and they
  * discharge to cover any shortfall. A network whose generation and storage
- * can't cover what its Structures draw leaves them all without power.
+ * can't cover what its Structures draw leaves them all without power. Lights
+ * switch on by themselves at Night, while they have power.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const network of powerNetworks(state)) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
+    const consumption = consumptionKilowatts(network, daylight);
     const available = network.storedKilowattHours + generated / 60;
-    const powered =
-      network.consumptionKilowatts === 0 || available > ENERGY_TOLERANCE_KWH;
-    const remaining = powered
-      ? available - network.consumptionKilowatts / 60
-      : available;
+    const powered = consumption === 0 || available > ENERGY_TOLERANCE_KWH;
+    const remaining = powered ? available - consumption / 60 : available;
     const stored = Math.min(
       Math.max(remaining, 0),
       network.storageCapacityKilowattHours,
     );
     for (const structure of network.structures) {
       structure.powered = powered;
+      structure.lit =
+        !daylight &&
+        powered &&
+        powerOf(structure.structureTypeId).nightDrawKilowatts > 0;
       // Each battery bank holds its share, in proportion to its capacity.
       const capacity = powerOf(structure.structureTypeId).storageKilowattHours;
       structure.storedKilowattHours =
@@ -255,9 +277,10 @@ export function minutesUntilEmpty(
   let stored = network.storedKilowattHours;
   let start = 0;
   for (let parts = 0; parts < FORECAST_LUNATION_PARTS; parts++) {
-    const generated =
-      part === "daylight" ? network.daylightGenerationKilowatts : 0;
-    const perMinute = (generated - network.consumptionKilowatts) / 60;
+    const isDaylight = part === "daylight";
+    const generated = isDaylight ? network.daylightGenerationKilowatts : 0;
+    const perMinute =
+      (generated - consumptionKilowatts(network, isDaylight)) / 60;
     if (perMinute < 0) {
       const minutes = Math.max(
         Math.ceil((stored - ENERGY_TOLERANCE_KWH) / -perMinute),
@@ -273,11 +296,7 @@ export function minutesUntilEmpty(
   return undefined;
 }
 
-interface Power {
-  readonly generationKilowatts: number;
-  readonly storageKilowattHours: number;
-  readonly drawKilowatts: number;
-}
+type Power = StructureType["power"];
 
 function powerOf(structureTypeId: string): Power {
   return (
@@ -285,6 +304,7 @@ function powerOf(structureTypeId: string): Power {
       generationKilowatts: 0,
       storageKilowattHours: 0,
       drawKilowatts: 0,
+      nightDrawKilowatts: 0,
     }
   );
 }
