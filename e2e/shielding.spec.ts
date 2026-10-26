@@ -19,8 +19,6 @@ async function nextFrame(page: Page): Promise<void> {
 test("Regolith shielding is printed over the Habitat the Mission Director lives in, cutting their dose rate", async ({
   page,
 }) => {
-  // Software rendering in CI draws frames several times slower than locally.
-  test.setTimeout(60_000);
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
