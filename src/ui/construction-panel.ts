@@ -62,7 +62,7 @@ export function createConstructionPanel(
         setText(row.stage, `${stage}: ${percent}%`);
         row.progress.value = construction.stageProgress;
         row.progress.setAttribute("aria-label", `${stage} progress`);
-        setText(row.work, describeWork(construction, snapshot.robots));
+        setText(row.work, describeWork(construction, snapshot));
       }
       for (const [id, row] of rows) {
         if (!seen.has(id)) {

@@ -1,12 +1,19 @@
 import * as THREE from "three";
 import type { RobotActivity, RobotSnapshot } from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
-import { createRobotModel, type RobotModel, type RobotPose } from "./models";
+import {
+  createRobotModel,
+  EXCAVATOR_SEAT_HEIGHT,
+  type RobotModel,
+  type RobotPose,
+} from "./models";
 
 /** The distance the Robot covers in one full walking stride, in metres. */
 const STRIDE_METRES = 1.4;
 /** How fast working movements repeat, in cycles per real second. */
 const WORK_CYCLES_PER_SECOND = 1.2;
+/** The height of the Robot's hips above its feet, where it bends to sit. */
+const HIP_HEIGHT = 0.86;
 
 interface RobotView {
   readonly model: RobotModel;
@@ -42,9 +49,11 @@ export function createRobotViews(scene: THREE.Scene) {
           view.lastPosition === undefined
             ? 0
             : position.distanceTo(view.lastPosition);
-        if (robot.activity.kind === "walking" && moved > 1e-6) {
+        if (moved > 1e-6) {
           view.heading = facingAngle(view.lastPosition ?? position, position);
-          view.strideAngle += (moved / STRIDE_METRES) * Math.PI * 2;
+          if (onFoot(robot)) {
+            view.strideAngle += (moved / STRIDE_METRES) * Math.PI * 2;
+          }
         } else {
           const target = workTarget(frame, robot);
           if (target !== undefined)
@@ -52,6 +61,10 @@ export function createRobotViews(scene: THREE.Scene) {
         }
         view.lastPosition = position.clone();
         view.model.group.position.copy(position);
+        // Aboard a Machine, the Robot sits on its deck.
+        if (aboardMachine(robot)) {
+          view.model.group.position.y = EXCAVATOR_SEAT_HEIGHT - HIP_HEIGHT;
+        }
         view.model.group.rotation.y = view.heading;
         view.model.pose(
           poseFor(
@@ -65,18 +78,38 @@ export function createRobotViews(scene: THREE.Scene) {
   };
 }
 
+function onFoot(robot: RobotSnapshot): boolean {
+  return (
+    robot.activity.kind === "walking" || robot.activity.kind === "laying-cable"
+  );
+}
+
+function aboardMachine(robot: RobotSnapshot): boolean {
+  return robot.activity.kind === "driving-machine";
+}
+
 /** What the Robot faces while it works: the Lander when loading, otherwise the site. */
 function workTarget(
   frame: Frame,
   robot: RobotSnapshot,
 ): THREE.Vector3 | undefined {
   const { activity } = robot;
-  if (activity.kind === "idle" || activity.kind === "walking") return undefined;
+  // Aboard a Machine, it faces the way the Machine does.
   if (
-    activity.kind === "loading-components" ||
-    activity.kind === "waiting-for-components"
+    activity.kind === "idle" ||
+    activity.kind === "walking" ||
+    aboardMachine(robot)
   ) {
+    return undefined;
+  }
+  if (activity.kind === "loading-components") {
     return toScene(frame.current.lander.position);
+  }
+  if (activity.kind === "activating-machine") {
+    const machine = frame.current.machines.find(
+      (candidate) => candidate.id === activity.machineId,
+    );
+    return machine === undefined ? undefined : toScene(machine.position);
   }
   const site =
     frame.current.constructions.find(
@@ -97,7 +130,6 @@ function poseFor(
   const work = Math.sin(workCycles * Math.PI * 2);
   const poses: Record<RobotActivity["kind"], () => RobotPose> = {
     idle: () => still(carrying),
-    "waiting-for-components": () => still(carrying),
     walking: () => {
       const swing = Math.sin(strideAngle) * 0.45;
       return {
@@ -105,15 +137,38 @@ function poseFor(
         leftArm: carrying ? 1.2 : swing * 0.8,
         rightArm: carrying ? 1.2 : -swing * 0.8,
         lean: 0.05,
+        seated: false,
         carrying,
       };
     },
-    // Raking and levelling the ground.
-    "preparing-site": () => ({
-      legSwing: 0.1,
-      leftArm: 0.9 + work * 0.35,
-      rightArm: 0.9 + work * 0.35,
-      lean: 0.45,
+    // Walking slowly, paying the cable out from the drum in its hands.
+    "laying-cable": () => {
+      const swing = Math.sin(strideAngle) * 0.3;
+      return {
+        legSwing: swing,
+        seated: false,
+        leftArm: 0.7 + work * 0.1,
+        rightArm: 0.7 - work * 0.1,
+        lean: 0.2,
+        carrying: true,
+      };
+    },
+    // Sitting at the controls, steering.
+    "driving-machine": () => ({
+      legSwing: 0,
+      seated: true,
+      leftArm: 0.9 + work * 0.1,
+      rightArm: 0.9 - work * 0.1,
+      lean: 0.1,
+      carrying,
+    }),
+    // Reaching up to the Machine's controls to programme it and set it going.
+    "activating-machine": () => ({
+      legSwing: 0,
+      seated: false,
+      leftArm: 0.3,
+      rightArm: 1.6 + work * 0.15,
+      lean: 0.1,
       carrying,
     }),
     // Lifting crates in and out of the cargo bay.
@@ -125,6 +180,7 @@ function poseFor(
       leftArm: 2.2 + work * 0.4,
       rightArm: 2.2 - work * 0.4,
       lean: -0.05,
+      seated: false,
       carrying,
     }),
     // Holding a test lead to the array and watching it.
@@ -133,6 +189,7 @@ function poseFor(
       leftArm: 0.1,
       rightArm: 1.3 + work * 0.08,
       lean: 0.1,
+      seated: false,
       carrying,
     }),
   };
@@ -145,6 +202,7 @@ function still(carrying: boolean): RobotPose {
     leftArm: carrying ? 1.2 : 0,
     rightArm: carrying ? 1.2 : 0,
     lean: 0,
+    seated: false,
     carrying,
   };
 }
@@ -155,6 +213,7 @@ function lifting(work: number, carrying: boolean): RobotPose {
     leftArm: 1.1 + work * 0.5,
     rightArm: 1.1 + work * 0.5,
     lean: 0.25 + work * 0.15,
+    seated: false,
     carrying,
   };
 }

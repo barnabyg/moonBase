@@ -3,7 +3,7 @@ import { catalogue } from "../catalogue";
 import type { GroundPosition } from "../simulation";
 import { createFootprintRing } from "./construction-views";
 import { toScene } from "./interpolation";
-import { createSolarArrayModel } from "./models";
+import { createStructureModel } from "./models";
 
 /** A Structure the player is about to place, and whether it may go there. */
 export interface PlacementPreview {
@@ -37,12 +37,12 @@ export function createPlacementPreview(scene: THREE.Scene) {
     const radius =
       catalogue.structureTypes.find((type) => type.id === structureTypeId)
         ?.footprintRadiusMetres ?? 1;
-    const array = createSolarArrayModel();
-    array.setUnfolded(1);
+    const model = createStructureModel(structureTypeId);
+    model.setAssembled(1);
     const group = new THREE.Group();
     group.name = "Placement preview";
     group.add(
-      array.group,
+      model.group,
       createFootprintRing(radius, previewMaterials.allowed),
     );
     const meshes: THREE.Mesh[] = [];

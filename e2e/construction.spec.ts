@@ -27,7 +27,7 @@ async function placeOnClearGround(page: Page): Promise<void> {
   throw new Error("Found no clear ground to place the Structure on.");
 }
 
-test("the Robot carries out the Construction of a solar array placed on the map", async ({
+test("the Robot carries out the Construction of a solar array placed on the map, and a second one waits for Components", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -46,8 +46,13 @@ test("the Robot carries out the Construction of a solar array placed on the map"
     name: "Constructions",
   });
   await expect(constructions).toContainText("Site Preparation");
-  // Its Components are promised, so there are none left to plan another.
-  await expect(solarArray).toBeDisabled();
+  // Its Components are promised, so a second one would have to wait for more.
+  await expect(solarArray).toContainText("0 available");
+  await solarArray.click();
+  await expect(page.getByRole("status", { name: "Placement" })).toContainText(
+    "Its Components aren't in the cargo stock, so its Construction will wait for them.",
+  );
+  await placeOnClearGround(page);
 
   await page
     .getByRole("group", { name: "Game speed" })
@@ -57,8 +62,16 @@ test("the Robot carries out the Construction of a solar array placed on the map"
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
   ).toHaveText(["Solar array: commissioned"], { timeout: 45_000 });
+  await expect(
+    page.getByRole("status", { name: "Power", exact: true }),
+  ).toHaveText(/^Power: [1-9]\d*\.\d\d kW generated, \d+\.\d\d kW used$/);
+  await expect(page.getByRole("status", { name: "Stored power" })).toHaveText(
+    "Stored: no battery banks",
+  );
+  await expect(constructions).toContainText(
+    "Waiting: 2 solar panels and 1 array mast aren't in the cargo stock",
+  );
   await expect(solarArray).toContainText("0 available");
-  await expect(solarArray).toBeDisabled();
 });
 
 test("a solar array can't be placed over the Lander", async ({ page }) => {

@@ -5,6 +5,7 @@ import {
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
+  chooseMachineSpot,
   componentsFor,
   findStructureType,
   stageMinutes,
@@ -12,8 +13,23 @@ import {
   type ConstructionState,
 } from "./construction";
 import type { GameEvent } from "./events";
+import {
+  findMachineType,
+  machineFootprintRadius,
+  machineOn,
+  nearestFreeMachine,
+  type MachineState,
+} from "./machines";
+import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
+import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
+
+/**
+ * Where a walking Robot is heading: a Construction's site, the Lander, a
+ * Machine, or the powered Structure that a cable is laid from.
+ */
+export type WalkingDestination = "site" | "lander" | "machine" | "cable";
 
 /** What a Robot did during the latest game-minute, and for which Construction. */
 export type RobotActivity =
@@ -21,16 +37,21 @@ export type RobotActivity =
   | {
       readonly kind: "walking";
       readonly constructionId: string;
-      readonly destination: "site" | "lander";
+      readonly destination: WalkingDestination;
+    }
+  | {
+      /** Driving a Machine to the site, aboard it, or setting it going there. */
+      readonly kind: "driving-machine" | "activating-machine";
+      readonly constructionId: string;
+      readonly machineId: string;
     }
   | {
       readonly kind:
-        | "preparing-site"
         | "loading-components"
         | "unloading-components"
         | "assembling"
         | "commissioning"
-        | "waiting-for-components";
+        | "laying-cable";
       readonly constructionId: string;
     };
 
@@ -39,30 +60,40 @@ export interface RobotState {
   position: GroundPosition;
   activity: RobotActivity;
   carrying: ComponentCount[];
+  /** The Work Order the Robot has claimed and is carrying out. */
+  workOrder: WorkOrder | undefined;
 }
 
 /** How close to the Lander's centre a Robot may walk. */
 const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 
 /**
- * Lets the Robot do one game-minute of work on the first Construction in plan
- * order, and returns any events.
+ * Lets the Robot do one game-minute of work on its Work Order, claiming the
+ * next one in plan order when it has none, and returns any events.
  */
 export function workRobot(
   state: CampaignState,
   robot: RobotState,
 ): GameEvent[] {
-  const construction = state.constructions[0];
+  if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
+    robot.workOrder = undefined;
+  }
+  robot.workOrder ??= claimWorkOrder(state, robot);
+  const { workOrder } = robot;
+  const construction = state.constructions.find(
+    (candidate) => candidate.id === workOrder?.constructionId,
+  );
   if (construction === undefined) {
+    robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
   }
   const { id } = construction;
   const walkTo = (
     spot: GroundPosition,
-    destination: "site" | "lander",
+    destination: WalkingDestination,
   ): boolean => {
-    if (robot.position.x === spot.x && robot.position.y === spot.y) return true;
+    if (samePlace(robot.position, spot)) return true;
     robot.position = stepTowards(
       robot.position,
       spot,
@@ -77,7 +108,6 @@ export function workRobot(
   };
   const workFor = (
     kind:
-      | "preparing-site"
       | "loading-components"
       | "unloading-components"
       | "assembling"
@@ -88,17 +118,82 @@ export function workRobot(
     construction.workedMinutes += 1;
     return construction.workedMinutes >= untilMinutes;
   };
-  const required = stageMinutes(construction);
+  if (workOrder?.kind === "lay-cable") {
+    // The Robot walks to the powered Structure, then pays the cable out
+    // behind it as it walks to the site.
+    const cable = cableTo(state, construction);
+    if (cable === undefined) {
+      robot.workOrder = undefined;
+      robot.activity = { kind: "idle" };
+      return [];
+    }
+    if (cable.route.length === 0) {
+      if (!walkTo(cable.start, "cable")) return [];
+      cable.route.push({ ...cable.start });
+    }
+    robot.position = stepTowards(
+      robot.position,
+      cable.end,
+      { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+      catalogue.robot.cableLayingSpeedMetresPerHour / 60,
+    );
+    extendRoute(cable.route, robot.position);
+    robot.activity = { kind: "laying-cable", constructionId: id };
+    cable.complete = samePlace(robot.position, cable.end);
+    return [];
+  }
 
+  const required = stageMinutes(construction);
   switch (construction.stage) {
-    case "site-preparation":
+    case "site-preparation": {
+      // The Robot positions and activates a Machine, which then grades the
+      // ground by itself.
+      const machine =
+        machineOn(state, id) ?? assignMachine(state, construction);
+      const assignment = machine?.assignment;
+      if (machine === undefined || assignment === undefined) {
+        robot.workOrder = undefined;
+        robot.activity = { kind: "idle" };
+        return [];
+      }
+      const type = findMachineType(machine.machineTypeId);
+      if (!samePlace(machine.position, assignment.destination)) {
+        if (!walkTo(machine.position, "machine")) return [];
+        machine.position = stepTowards(
+          machine.position,
+          assignment.destination,
+          {
+            centre: state.lander.position,
+            radius:
+              LANDER_CLEARANCE_METRES +
+              machineFootprintRadius(machine.machineTypeId),
+          },
+          (type?.drivingSpeedMetresPerHour ?? 0) / 60,
+        );
+        robot.position = { ...machine.position };
+        robot.activity = {
+          kind: "driving-machine",
+          constructionId: id,
+          machineId: machine.id,
+        };
+        return [];
+      }
+      // Once there, it climbs down and sets the Machine going from beside it.
+      if (!walkTo(beside(machine, construction), "machine")) return [];
+      robot.activity = {
+        kind: "activating-machine",
+        constructionId: id,
+        machineId: machine.id,
+      };
+      assignment.activationMinutes += 1;
       if (
-        walkTo(construction.workSpot, "site") &&
-        workFor("preparing-site", required)
+        assignment.activationMinutes >=
+        Math.round((type?.activationHours ?? 0) * 60)
       ) {
-        moveOn(construction, "component-delivery");
+        assignment.working = true;
       }
       return [];
+    }
 
     case "component-delivery": {
       // Half the handling time is loading at the Lander, half unloading at the site.
@@ -107,10 +202,9 @@ export function workRobot(
         if (!walkTo(landerSpot(state, construction), "lander")) return [];
         const needed = componentsFor(construction.structureTypeId);
         if (!takeFromStock(state, needed)) {
-          robot.activity = {
-            kind: "waiting-for-components",
-            constructionId: id,
-          };
+          // Another Robot took them first; this Construction now waits.
+          robot.workOrder = undefined;
+          robot.activity = { kind: "idle" };
           return [];
         }
         robot.carrying = needed;
@@ -170,6 +264,8 @@ function finishCommissioning(
     id: construction.id,
     structureTypeId: construction.structureTypeId,
     position: { ...construction.position },
+    powered: false,
+    storedKilowattHours: 0,
   });
   return [
     {
@@ -179,6 +275,51 @@ function finishCommissioning(
       structureTypeId: construction.structureTypeId,
     },
   ];
+}
+
+/** Gives a Construction's Site Preparation to the nearest free Machine that can do it. */
+function assignMachine(
+  state: CampaignState,
+  construction: ConstructionState,
+): MachineState | undefined {
+  const machine = nearestFreeMachine(
+    state,
+    catalogue.sitePreparationMachineTypeId,
+    construction.position,
+  );
+  if (machine === undefined) return undefined;
+  machine.assignment = {
+    constructionId: construction.id,
+    destination: chooseMachineSpot(state, construction, machine),
+    activationMinutes: 0,
+    working: false,
+  };
+  return machine;
+}
+
+/** Where a Robot stands to activate a Machine: just outside it, beside the site. */
+function beside(
+  machine: MachineState,
+  construction: ConstructionState,
+): GroundPosition {
+  const reach =
+    machineFootprintRadius(machine.machineTypeId) +
+    catalogue.robot.workingGapMetres / 2;
+  // At right angles to the line from the site to the Machine.
+  const angle =
+    Math.atan2(
+      machine.position.y - construction.position.y,
+      machine.position.x - construction.position.x,
+    ) +
+    Math.PI / 2;
+  return {
+    x: machine.position.x + Math.cos(angle) * reach,
+    y: machine.position.y + Math.sin(angle) * reach,
+  };
+}
+
+function samePlace(a: GroundPosition, b: GroundPosition): boolean {
+  return a.x === b.x && a.y === b.y;
 }
 
 function moveOn(

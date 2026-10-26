@@ -4,8 +4,8 @@ import type { ConstructionSnapshot, GroundPosition } from "../simulation";
 import { toScene, type Frame } from "./interpolation";
 import {
   createCrateModel,
-  createSolarArrayModel,
-  type SolarArrayModel,
+  createStructureModel,
+  type StructureModel,
 } from "./models";
 
 const gradedGround = new THREE.MeshStandardMaterial({
@@ -26,14 +26,17 @@ interface StructureView {
   readonly graded: THREE.Mesh;
   readonly footprint: THREE.Mesh;
   readonly crates: THREE.Mesh[];
-  readonly array: SolarArrayModel;
+  readonly model: StructureModel;
+  /** How much energy the Structure can store, to show how full it is. */
+  readonly storageKilowattHours: number;
 }
 
 /**
  * Draws every Construction as it stands, stage by stage: the ground graded
  * during Site Preparation, the Components' crates delivered and then used up,
- * and the solar array unfolding during Assembly. A commissioned Structure
- * keeps its Construction's id, so the same view carries on.
+ * and the Structure put together during Assembly, such as a solar array
+ * unfolding. A commissioned Structure keeps its Construction's id, so the
+ * same view carries on.
  */
 export function createConstructionViews(scene: THREE.Scene) {
   const views = new Map<string, StructureView>();
@@ -77,7 +80,7 @@ export function createConstructionViews(scene: THREE.Scene) {
           progressOf(frame, construction),
           realSeconds,
         );
-        if (sunFacing !== undefined) view.array.setFacing(sunFacing);
+        if (sunFacing !== undefined) view.model.setFacing(sunFacing);
       }
       for (const structure of frame.current.structures) {
         seen.add(structure.id);
@@ -89,10 +92,15 @@ export function createConstructionViews(scene: THREE.Scene) {
         view.graded.scale.setScalar(1);
         view.footprint.visible = false;
         for (const crate of view.crates) crate.visible = false;
-        view.array.group.visible = true;
-        view.array.setUnfolded(1);
-        view.array.setStatusLight("on");
-        if (sunFacing !== undefined) view.array.setFacing(sunFacing);
+        view.model.group.visible = true;
+        view.model.setAssembled(1);
+        view.model.setStatusLight(structure.powered ? "on" : "off");
+        view.model.setCharge(
+          view.storageKilowattHours === 0
+            ? 0
+            : structure.storedKilowattHours / view.storageKilowattHours,
+        );
+        if (sunFacing !== undefined) view.model.setFacing(sunFacing);
       }
       for (const [id, view] of views) {
         if (!seen.has(id)) {
@@ -145,11 +153,11 @@ function showConstruction(
   }
 
   const assembled = stage === "assembly" || stage === "commissioning";
-  view.array.group.visible = assembled;
-  view.array.setUnfolded(stage === "assembly" ? progress : 1);
+  view.model.group.visible = assembled;
+  view.model.setAssembled(stage === "assembly" ? progress : 1);
   const blinkOn =
     Math.floor(realSeconds * TEST_BLINKS_PER_SECOND * 2) % 2 === 0;
-  view.array.setStatusLight(
+  view.model.setStatusLight(
     stage === "commissioning" && blinkOn ? "testing" : "off",
   );
 }
@@ -187,10 +195,17 @@ function createView(structureTypeId: string): StructureView {
     return crate;
   });
 
-  const array = createSolarArrayModel();
-  array.group.visible = false;
-  group.add(graded, footprint, ...crates, array.group);
-  return { group, graded, footprint, crates, array };
+  const model = createStructureModel(structureTypeId);
+  model.group.visible = false;
+  group.add(graded, footprint, ...crates, model.group);
+  return {
+    group,
+    graded,
+    footprint,
+    crates,
+    model,
+    storageKilowattHours: type?.power.storageKilowattHours ?? 0,
+  };
 }
 
 /** A thin ring marking a footprint's edge on the ground. */

@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
+import { createCableViews } from "./cable-views";
 import { createCameraControls } from "./camera";
 import { createConstructionViews } from "./construction-views";
 import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
+import { createMachineViews } from "./machine-views";
 import { createLanderModel } from "./models";
 import {
   createPlacementPreview,
@@ -71,6 +73,8 @@ export function createRenderer(
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
   scene.add(lander);
   const robots = createRobotViews(scene);
+  const machines = createMachineViews(scene);
+  const cables = createCableViews(scene);
   const constructions = createConstructionViews(scene);
   const placementPreview = createPlacementPreview(scene);
 
@@ -103,6 +107,8 @@ export function createRenderer(
       );
       lander.position.copy(toScene(current.lander.position));
       robots.update(frame, realSeconds);
+      machines.update(frame, realSeconds);
+      cables.update(frame);
       constructions.update(frame, realSeconds, lighting.sunFacing);
       webgl.render(scene, camera);
     },

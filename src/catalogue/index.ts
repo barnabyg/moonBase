@@ -6,6 +6,7 @@ export type {
   GameSpeed,
   GroundPosition,
   LunationSchedule,
+  MachineType,
   MapSize,
   StructureType,
 } from "./catalogue";

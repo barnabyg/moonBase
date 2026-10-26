@@ -35,6 +35,8 @@ export function createBuildMenu(
   container.append(panel);
 
   let placing: StructureType | undefined;
+  /** How many more of each Structure the cargo stock can supply, as of the latest snapshot. */
+  const available = new Map<string, number>();
   const buttons = catalogue.structureTypes.map((type) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -62,8 +64,15 @@ export function createBuildMenu(
     showPlacing();
     setText(
       hint,
-      `Click the map to place the ${type.label.toLowerCase()}. Right-click or press Esc to cancel.`,
+      `Click the map to place the ${type.label.toLowerCase()}. Right-click or press Esc to cancel.${stockWarning(type)}`,
     );
+  }
+
+  /** Warns that a Structure's Construction will wait, because the cargo stock can't supply it. */
+  function stockWarning(type: StructureType): string {
+    return (available.get(type.id) ?? 0) > 0
+      ? ""
+      : " Its Components aren't in the cargo stock, so its Construction will wait for them.";
   }
 
   function stopPlacing(message: string): void {
@@ -96,7 +105,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${placing.label.toLowerCase()} here.`
+        ? `Click to place the ${placing.label.toLowerCase()} here.${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };
@@ -152,11 +161,10 @@ export function createBuildMenu(
 
   return {
     update(snapshot) {
-      for (const { type, button, stock } of buttons) {
-        const available = setsAvailable(type, snapshot);
-        setText(stock, `${available} available`);
-        button.disabled = available === 0;
-        if (available === 0 && placing === type) stopPlacing("");
+      for (const { type, stock } of buttons) {
+        const sets = setsAvailable(type, snapshot);
+        available.set(type.id, sets);
+        setText(stock, `${sets} available`);
       }
     },
   };
@@ -165,8 +173,8 @@ export function createBuildMenu(
 /**
  * How many more of a Structure the cargo stock can supply, leaving aside the
  * Components already promised to planned Constructions that haven't taken
- * them yet. Planning more than this would leave a Construction waiting for
- * Components that will never come.
+ * them yet. Planning more than this leaves a Construction waiting for
+ * Components.
  */
 function setsAvailable(type: StructureType, snapshot: Snapshot): number {
   const promised = (componentId: string) =>
