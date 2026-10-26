@@ -29,9 +29,9 @@ import {
   type MachineState,
 } from "./machines";
 import {
+  currentStep,
   finishMaintenance,
-  maintenanceMinutes,
-  spareComponentsFor,
+  planVisit,
   spares,
   type MaintenanceState,
 } from "./maintenance";
@@ -92,7 +92,9 @@ export type RobotActivity =
         /** Unloading the Lander's cargo at the stockpile. */
         | "unloading-cargo"
         /** Working on a Structure to restore its Condition. */
-        | "maintaining";
+        | "maintaining"
+        /** Cleaning the Dust coating off a solar array. */
+        | "cleaning";
       readonly structureId: string;
     };
 
@@ -349,6 +351,7 @@ function finishCommissioning(
     lit: false,
     storedKilowattHours: 0,
     conditionPercent: 100,
+    dustCoatingPercent: 0,
   });
   return [
     {
@@ -518,10 +521,12 @@ function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
 }
 
 /**
- * Lets the Robot do one game-minute of Maintenance on a Structure: it takes
- * the spare Components it needs from the base's stock and loads them at the
- * stockpile, then carries them to the Structure and works on it until its
- * Condition is back to 100%, using them up.
+ * Lets the Robot do one game-minute of Maintenance on a Structure. To
+ * restore its Condition, it takes the spare Components it needs from the
+ * base's stock and loads them at the stockpile, then carries them to the
+ * Structure and works on it until its Condition is back to 100%, using them
+ * up. To clean a solar array, it walks straight there; after restoring
+ * Condition, it cleans on the same visit.
  */
 function maintainStructure(
   state: CampaignState,
@@ -535,38 +540,51 @@ function maintainStructure(
     robot.activity = { kind: "idle" };
     return [];
   }
-  const { loading, total } = maintenanceMinutes();
-  if (maintenance.spareComponents === undefined) {
-    if (
-      !walkRobotTo(
-        state,
-        robot,
-        id,
-        stockpileSpot(state, maintenance),
-        "stockpile",
-      )
-    ) {
-      return [];
+  if (maintenance.visit === undefined) {
+    const visit = planVisit(structure);
+    if (visit.spareComponents > 0) {
+      if (
+        !walkRobotTo(
+          state,
+          robot,
+          id,
+          stockpileSpot(state, maintenance),
+          "stockpile",
+        )
+      ) {
+        return [];
+      }
+      if (!takeFromStock(state, spares(visit.spareComponents))) {
+        // Another Robot took them first; this Maintenance now waits.
+        robot.workOrder = undefined;
+        robot.activity = { kind: "idle" };
+        return [];
+      }
     }
-    const needed = spareComponentsFor(structure);
-    if (!takeFromStock(state, spares(needed))) {
-      // Another Robot took them first; this Maintenance now waits.
-      robot.workOrder = undefined;
-      robot.activity = { kind: "idle" };
-      return [];
-    }
-    maintenance.spareComponents = needed;
-    robot.carrying = spares(needed);
+    maintenance.visit = visit;
+    robot.carrying = spares(visit.spareComponents);
   }
-  if (maintenance.workedMinutes < loading) {
+  const current = currentStep(maintenance.visit, maintenance.workedMinutes);
+  if (current?.step === "loading-spare-components") {
     robot.activity = { kind: "loading-components", structureId: id };
     maintenance.workedMinutes += 1;
     return [];
   }
-  if (!walkRobotTo(state, robot, id, maintenance.workSpot, "site")) return [];
-  robot.activity = { kind: "maintaining", structureId: id };
-  maintenance.workedMinutes += 1;
-  if (maintenance.workedMinutes < total) return [];
+  if (current !== undefined) {
+    if (!walkRobotTo(state, robot, id, maintenance.workSpot, "site")) {
+      return [];
+    }
+    robot.activity = {
+      kind: current.step === "cleaning" ? "cleaning" : "maintaining",
+      structureId: id,
+    };
+    maintenance.workedMinutes += 1;
+    if (
+      currentStep(maintenance.visit, maintenance.workedMinutes) !== undefined
+    ) {
+      return [];
+    }
+  }
   robot.carrying = [];
   return finishMaintenance(state, maintenance, structure);
 }

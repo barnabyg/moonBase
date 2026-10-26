@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { loadCampaign, type Campaign } from "../src/simulation";
+import { loadCampaign, type Campaign, type GameEvent } from "../src/simulation";
 
 /**
  * Save files written by released format versions, kept so that every one of
@@ -462,8 +462,9 @@ describe("the sample save of format version 8", () => {
         structureId: "structure-1",
         structureTypeId: "solar-array",
         spareComponents: 2,
+        cleaning: false,
         underWay: true,
-        loaded: true,
+        step: "restoring-condition",
         stageProgress: 0,
         waiting: undefined,
       },
@@ -497,5 +498,85 @@ describe("the sample save of format version 8", () => {
 
     expect(kinds).toContain("maintenance-completed");
     expect(campaign.snapshot().structures[0]?.conditionPercent).toBe(100);
+  });
+});
+
+describe("the sample saves from before Dust coating", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+    "version-4.moonbase",
+    "version-5.moonbase",
+    "version-6.moonbase",
+    "version-7.moonbase",
+    "version-8.moonbase",
+  ])("%s loads with no Dust coating on anything", (name) => {
+    const { structures } = loadSample(name).snapshot();
+
+    expect(structures.length).toBeGreaterThan(0);
+    expect(structures.map((s) => s.dustCoatingPercent)).toEqual(
+      structures.map(() => 0),
+    );
+  });
+
+  it("loads the Maintenance under way in version-8.moonbase as a visit that restores Condition and doesn't clean", () => {
+    const campaign = loadSample("version-8.moonbase");
+    const events: GameEvent[] = [];
+
+    for (
+      let minutes = 0;
+      campaign.snapshot().maintenance.length > 0;
+      minutes++
+    ) {
+      if (minutes > 24 * 60) throw new Error("Maintenance never finished.");
+      events.push(...campaign.advance(1));
+    }
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "maintenance-completed",
+        spareComponents: 2,
+        cleaned: false,
+      }),
+    );
+  });
+});
+
+describe("the sample save of format version 9", () => {
+  it("loads with the Robot cleaning the Dust off the solar array", () => {
+    const state = loadSample("version-9.moonbase").snapshot();
+
+    expect(state.structures[0]).toMatchObject({
+      structureTypeId: "solar-array",
+      dustCoatingPercent: expect.closeTo(30, 0) as number,
+    });
+    expect(state.maintenance).toEqual([
+      expect.objectContaining({
+        spareComponents: 0,
+        cleaning: true,
+        step: "cleaning",
+      }),
+    ]);
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "cleaning",
+      structureId: "structure-1",
+    });
+  });
+
+  it("plays on from where it was saved, until the solar array is clean", () => {
+    const campaign = loadSample("version-9.moonbase");
+
+    for (
+      let minutes = 0;
+      campaign.snapshot().maintenance.length > 0;
+      minutes++
+    ) {
+      if (minutes > 24 * 60) throw new Error("Cleaning never finished.");
+      campaign.advance(1);
+    }
+
+    expect(campaign.snapshot().structures[0]?.dustCoatingPercent).toBe(0);
   });
 });

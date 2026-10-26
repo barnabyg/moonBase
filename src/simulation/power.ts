@@ -5,6 +5,7 @@ import {
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
+import { outputUnderCoating } from "./dust-coating";
 import {
   distance,
   findStructureType,
@@ -437,8 +438,9 @@ function powerOf(structureTypeId: string): Power {
 
 /**
  * What a Structure does on the power network: it generates and stores less
- * as its performance falls with its Condition, and does nothing once it is
- * Broken. What it draws doesn't change until then.
+ * as its performance falls with its Condition, a solar array generates less
+ * under a Dust coating, and it does nothing once it is Broken. What it
+ * draws doesn't change until then.
  */
 function workingPower(structure: StructureState): Power {
   if (isBroken(structure)) return noPower;
@@ -446,7 +448,8 @@ function workingPower(structure: StructureState): Power {
   const performance = structurePerformance(structure);
   return {
     ...power,
-    generationKilowatts: power.generationKilowatts * performance,
+    generationKilowatts:
+      power.generationKilowatts * performance * outputUnderCoating(structure),
     storageKilowattHours: power.storageKilowattHours * performance,
   };
 }

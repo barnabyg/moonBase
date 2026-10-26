@@ -180,6 +180,41 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 8 to 9: Dust coats solar arrays, and every Structure keeps a Dust
+  // coating, clean until now. A Maintenance visit can clean as well as
+  // restore Condition, so what one under way does becomes a visit: it
+  // restores Condition with the spare Components taken, and doesn't clean.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { structures, maintenance } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: Array.isArray(structures)
+          ? structures.map((structure: unknown) =>
+              isRecord(structure)
+                ? { ...structure, dustCoatingPercent: 0 }
+                : structure,
+            )
+          : structures,
+        maintenance: Array.isArray(maintenance)
+          ? maintenance.map((order: unknown) => {
+              if (!isRecord(order)) return order;
+              const { spareComponents, ...rest } = order;
+              return {
+                ...rest,
+                visit:
+                  spareComponents === null || spareComponents === undefined
+                    ? null
+                    : { spareComponents, cleaning: false },
+              };
+            })
+          : maintenance,
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -489,6 +524,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       "loading-cargo": true,
       "unloading-cargo": true,
       maintaining: true,
+      cleaning: true,
     }),
     structureId: text,
   });
@@ -517,6 +553,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "loading-cargo": working,
     "unloading-cargo": working,
     maintaining: working,
+    cleaning: working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
@@ -645,6 +682,7 @@ const simulationState = object({
       lit: boolean,
       storedKilowattHours: finiteNumber,
       conditionPercent: finiteNumber,
+      dustCoatingPercent: finiteNumber,
     }),
   ),
   dismantlings: list(
@@ -687,7 +725,9 @@ const simulationState = object({
     object({
       structureId: text,
       workSpot: groundPosition,
-      spareComponents: optional(wholeNumber),
+      visit: optional(
+        object({ spareComponents: wholeNumber, cleaning: boolean }),
+      ),
       workedMinutes: wholeNumber,
     }),
   ),

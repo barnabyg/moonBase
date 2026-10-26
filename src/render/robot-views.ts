@@ -221,6 +221,15 @@ function poseFor(
       seated: false,
       carrying,
     }),
+    // Sweeping the Dust off the panel with a brush, side to side.
+    cleaning: () => ({
+      legSwing: 0,
+      leftArm: 0.4,
+      rightArm: 1.5 + work * 0.6,
+      lean: 0.15,
+      seated: false,
+      carrying,
+    }),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({
       legSwing: 0,

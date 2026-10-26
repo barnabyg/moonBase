@@ -1,11 +1,23 @@
-import { describe, expect, it } from "vitest";
-import { catalogue, type StructureType } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import {
+  catalogue,
+  type Catalogue,
+  type StructureType,
+} from "../src/catalogue";
 import type {
   GroundPosition,
   PowerNetworkSnapshot,
   Snapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+
+// Dust neither wears down nor coats anything, so that Structures generate
+// and store just what the data catalogue sets.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutDust } = await import("./without-dust");
+  return { ...actual, catalogue: withoutDust(actual.catalogue) };
+});
 
 function structureType(id: string): StructureType {
   const type = catalogue.structureTypes.find(

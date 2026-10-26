@@ -11,13 +11,18 @@ import { scenario, type Scenario } from "./scenario";
 import { worn } from "./worn";
 
 // The starting stock holds a landing pad's Components too, for a Structure
-// that has nothing to do with power.
+// that has nothing to do with power. No Dust coats the solar arrays, so
+// that their output changes only with their Condition.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   return {
     ...actual,
     catalogue: {
       ...actual.catalogue,
+      dustCoating: {
+        ...actual.catalogue.dustCoating,
+        percentPerDaylightHour: 0,
+      },
       startingStock: [
         ...actual.catalogue.startingStock,
         { componentId: "pad-panel", count: 8 },

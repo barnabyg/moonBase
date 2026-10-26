@@ -77,6 +77,8 @@ export interface StructureState {
   storedKilowattHours: number;
   /** How intact it is, from 100% down to 0%, when it is Broken. */
   conditionPercent: number;
+  /** How thickly Dust coats it, from 0% to 100%: only ever a solar array. */
+  dustCoatingPercent: number;
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
   PowerNetworkSnapshot,
   RobotSnapshot,
   Snapshot,
+  StructureSnapshot,
   ComponentCount,
   ConstructionSnapshot,
   ConstructionWait,
@@ -27,6 +28,7 @@ import type {
   LaunchManifestSnapshot,
   LunationSnapshot,
   MaintenanceSnapshot,
+  MaintenanceStep,
   MaintenanceWait,
   ManifestLine,
   MissionDirectorResidence,
@@ -275,9 +277,27 @@ export function formatEvent(event: GameEvent): string {
     case "structure-broken":
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
     case "maintenance-needed":
-      return `${structureLabel(event.structureTypeId)} needs Maintenance, at ${formatCondition(event.conditionPercent)} Condition`;
+      return `${structureLabel(event.structureTypeId)} needs Maintenance: ${listInWords(
+        [
+          ...(event.restoresCondition
+            ? [`Condition down to ${formatCondition(event.conditionPercent)}`]
+            : []),
+          ...(event.cleans
+            ? [`Dust coating up to ${Math.round(event.dustCoatingPercent)}%`]
+            : []),
+        ],
+      )}`;
     case "maintenance-completed":
-      return `${structureLabel(event.structureTypeId)} maintained, back to 100% Condition, using ${plural(event.spareComponents, "spare Component")}`;
+      return `${structureLabel(event.structureTypeId)} maintained: ${listInWords(
+        [
+          ...(event.spareComponents > 0
+            ? [
+                `back to 100% Condition, using ${plural(event.spareComponents, "spare Component")}`,
+              ]
+            : []),
+          ...(event.cleaned ? ["cleaned of Dust"] : []),
+        ],
+      )}`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -604,6 +624,7 @@ function describeRobotWork(
     case "loading-cargo":
     case "unloading-cargo":
     case "maintaining":
+    case "cleaning":
       return "Waiting for the Robot";
   }
 }
@@ -705,18 +726,49 @@ export function describeMaintenance(
     : undefined;
   switch (robot?.activity.kind) {
     case "walking":
-      return robot.activity.destination === "stockpile"
-        ? `Robot walking to the stockpile for ${spares}`
-        : `Robot carrying ${spares} to the ${label}`;
+      if (robot.activity.destination === "stockpile") {
+        return `Robot walking to the stockpile for ${spares}`;
+      }
+      return maintenance.spareComponents > 0
+        ? `Robot carrying ${spares} to the ${label}`
+        : `Robot walking to the ${label} to clean it`;
     case "loading-components":
       return `Robot loading ${spares} at the stockpile`;
     case "maintaining":
-      return `Robot maintaining the ${label}`;
+      return `Robot restoring the ${label}'s Condition`;
+    case "cleaning":
+      return `Robot cleaning the Dust off the ${label}`;
     default:
-      return maintenance.waiting === undefined
+      if (maintenance.waiting !== undefined) {
+        return formatMaintenanceWait(maintenance.waiting);
+      }
+      return maintenance.spareComponents > 0
         ? `Waiting for the Robot, which will use ${spares}`
-        : formatMaintenanceWait(maintenance.waiting);
+        : "Waiting for the Robot, which will clean it";
   }
+}
+
+const maintenanceStepLabels: Record<MaintenanceStep, string> = {
+  "loading-spare-components": "Loading spare Components",
+  "restoring-condition": "Restoring Condition",
+  cleaning: "Cleaning",
+};
+
+export function formatMaintenanceStep(step: MaintenanceStep): string {
+  return maintenanceStepLabels[step];
+}
+
+/** Says how thickly Dust coats a solar array, for example ", Dust coating 12%"; nothing for anything else. */
+export function formatDustCoating(
+  structure: Pick<StructureSnapshot, "structureTypeId" | "dustCoatingPercent">,
+): string {
+  const generates =
+    (catalogue.structureTypes.find(
+      (type) => type.id === structure.structureTypeId,
+    )?.power.generationKilowatts ?? 0) > 0;
+  return generates
+    ? `, Dust coating ${Math.round(structure.dustCoatingPercent)}%`
+    : "";
 }
 
 /** The length of a line of points on the ground, in metres. */

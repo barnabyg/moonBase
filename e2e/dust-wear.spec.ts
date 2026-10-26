@@ -38,8 +38,8 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   // At the fastest speed, its Condition soon shows below 100%.
   await expect(array).toHaveText(/Condition 9\d%/);
 
-  // It takes most of a Lunation to wear down to the Maintenance threshold,
-  // so skip ahead from event to event until Maintenance is raised.
+  // It takes most of a Lunation for Dust to call for Maintenance, so skip
+  // ahead from event to event until a Work Order is raised.
   await speeds.getByRole("button", { name: "Pause" }).click();
   const skip = panel.getByRole("button", { name: "Skip to next event" });
   const needed = notifications.getByText(/Solar array needs Maintenance/);
@@ -54,7 +54,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   await skipUntil(needed);
 
   await expect(array).toHaveText(
-    /Condition (69|70)%, (awaiting|undergoing) Maintenance/,
+    /Condition \d+%, Dust coating \d+%, (awaiting|undergoing) Maintenance/,
   );
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
     "Maintaining the solar array",

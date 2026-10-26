@@ -122,26 +122,35 @@ export type GameEvent =
   | {
       /**
        * A Structure's Condition has fallen below the Maintenance threshold
-       * set in the data catalogue, or it is Broken, and a Maintenance Work
-       * Order has been raised for it.
+       * set in the data catalogue, or a solar array's Dust coating has
+       * passed the threshold for cleaning, and a Maintenance Work Order has
+       * been raised for it.
        */
       readonly kind: "maintenance-needed";
       readonly atMinute: number;
       readonly structureId: string;
       readonly structureTypeId: string;
       readonly conditionPercent: number;
+      readonly dustCoatingPercent: number;
+      /** Whether it is to restore the Structure's Condition, as things stand. */
+      readonly restoresCondition: boolean;
+      /** Whether it is to clean the Dust coating off a solar array. */
+      readonly cleans: boolean;
     }
   | {
       /**
        * The Robot has finished Maintenance on a Structure, bringing its
-       * Condition back to 100%, so that a Broken one works again.
+       * Condition back to 100% if it used spare Components, so that a
+       * Broken one works again, and cleaning off its Dust coating if it
+       * cleaned it.
        */
       readonly kind: "maintenance-completed";
       readonly atMinute: number;
       readonly structureId: string;
       readonly structureTypeId: string;
-      /** The spare Components it used up. */
+      /** The spare Components it used up: none if it only cleaned. */
       readonly spareComponents: number;
+      readonly cleaned: boolean;
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

@@ -2,8 +2,8 @@ import type { Catalogue } from "../src/catalogue";
 
 /**
  * The data catalogue with Dust taken away, so that nothing wears down by
- * it, for a test of another Hazard or of Maintenance that needs Condition
- * to change only as the test says. A test file swaps it in with:
+ * it or is coated with it, for a test of another Hazard or of Maintenance
+ * that needs Condition and output to change only as the test says. A test file swaps it in with:
  *
  *     vi.mock("../src/catalogue", async (importOriginal) => {
  *       const actual = await importOriginal<{ catalogue: Catalogue }>();
@@ -18,5 +18,6 @@ export function withoutDust(catalogue: Catalogue): Catalogue {
       ...type,
       dustWearPercentPerHour: 0,
     })),
+    dustCoating: { ...catalogue.dustCoating, percentPerDaylightHour: 0 },
   };
 }

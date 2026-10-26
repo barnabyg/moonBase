@@ -11,6 +11,7 @@ import {
 } from "./cancel";
 import { readClock, type ClockSnapshot } from "./clock";
 import { structurePerformance, wearStructures } from "./condition";
+import { coatSolarArrays } from "./dust-coating";
 import {
   dismantleStructure,
   dismantlingStageMinutes,
@@ -204,6 +205,11 @@ export interface StructureSnapshot {
   readonly performance: number;
   /** How far round it its light reaches, as its performance allows, or 0 if it has none. */
   readonly lightRadiusMetres: number;
+  /**
+   * How thickly Dust coats it, from 0% to 100%, cutting a solar array's
+   * output; always 0% for any other Structure.
+   */
+  readonly dustCoatingPercent: number;
 }
 
 /**
@@ -244,7 +250,10 @@ export interface CableSnapshot {
 export interface PowerNetworkSnapshot {
   /** In the order they were commissioned. */
   readonly structureIds: readonly string[];
-  /** The power its solar arrays are generating now, as their Condition allows: none at Night. */
+  /**
+   * The power its solar arrays are generating now, as their Condition and
+   * Dust coating allow: none at Night.
+   */
   readonly generationKilowatts: number;
   /** The power its Structures draw now, including any lights at Night. */
   readonly consumptionKilowatts: number;
@@ -738,6 +747,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
+  coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
   planUnloading(state);
   events.push(...planMaintenance(state));

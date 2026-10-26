@@ -40,7 +40,11 @@ export type {
 export type { LoadRefusal } from "./save";
 export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
 export type { UnloadingSnapshot } from "./unloading";
-export type { MaintenanceSnapshot, MaintenanceWait } from "./maintenance";
+export type {
+  MaintenanceSnapshot,
+  MaintenanceStep,
+  MaintenanceWait,
+} from "./maintenance";
 export type { LanderLeg, SendLanderRefusal, SendLanderResult } from "./lander";
 export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";

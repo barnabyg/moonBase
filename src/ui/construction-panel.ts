@@ -6,6 +6,7 @@ import {
   describeWork,
   formatComponents,
   formatDismantlingStage,
+  formatMaintenanceStep,
   formatStage,
   hasComponents,
   structureLabel,
@@ -120,7 +121,7 @@ export function createConstructionPanel(
         }
         showStage(
           row,
-          maintenance.loaded ? "Maintenance" : "Loading spare Components",
+          formatMaintenanceStep(maintenance.step),
           maintenance.stageProgress,
         );
         setText(row.work, describeMaintenance(maintenance, snapshot));

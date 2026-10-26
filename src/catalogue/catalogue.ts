@@ -102,6 +102,28 @@ export interface Catalogue {
    * are Broken.
    */
   readonly structurePerformance: PerformanceCurve;
+  readonly dustCoating: DustCoatingRules;
+}
+
+/**
+ * Dust settling on solar arrays, which cuts their output until the Robot
+ * cleans it off as Maintenance.
+ */
+export interface DustCoatingRules {
+  /** How much a solar array's coating builds up in each game-hour of Daylight, in percentage points. */
+  readonly percentPerDaylightHour: number;
+  /**
+   * The share of a solar array's output a full coating takes away, from 0
+   * to 1; a partial coating takes away its share of that.
+   */
+  readonly outputLossAtFullCoating: number;
+  /** A Maintenance Work Order is raised once the coating passes this, in percent. */
+  readonly cleaningThresholdPercent: number;
+  /**
+   * The Robot's working time to clean it, in game-hours, on top of any
+   * restoring of Condition on the same visit. It uses no spare Components.
+   */
+  readonly cleaningHours: number;
 }
 
 /**
@@ -381,7 +403,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 17,
+  version: 18,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -802,4 +824,12 @@ export const catalogue: Catalogue = {
   },
   // Below half its Condition, a Structure's output falls in step with it.
   structurePerformance: { thresholdPercent: 50, exponent: 1 },
+  // A clean array is coated past the threshold in under a Lunation's
+  // Daylight, by then losing nearly a fifth of its output.
+  dustCoating: {
+    percentPerDaylightHour: 0.1,
+    outputLossAtFullCoating: 0.6,
+    cleaningThresholdPercent: 30,
+    cleaningHours: 1,
+  },
 };

@@ -181,6 +181,7 @@ describe("a Maintenance Work Order", () => {
         structureId: array.id,
         structureTypeId: "solar-array",
         spareComponents: spares,
+        cleaned: false,
       },
     ]);
   });

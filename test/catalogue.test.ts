@@ -369,6 +369,23 @@ describe("the data catalogue", () => {
     expect(exponent).toBeGreaterThan(0);
   });
 
+  it("coats solar arrays with Dust in Daylight, cutting their output, until they are cleaned past a threshold", () => {
+    const {
+      percentPerDaylightHour,
+      outputLossAtFullCoating,
+      cleaningThresholdPercent,
+      cleaningHours,
+    } = catalogue.dustCoating;
+
+    expect(percentPerDaylightHour).toBeGreaterThan(0);
+    expect(outputLossAtFullCoating).toBeGreaterThan(0);
+    expect(outputLossAtFullCoating).toBeLessThanOrEqual(1);
+    expect(cleaningThresholdPercent).toBeGreaterThan(0);
+    expect(cleaningThresholdPercent).toBeLessThan(100);
+    expect(cleaningHours).toBeGreaterThan(0);
+    expect(Number.isInteger(cleaningHours * 60)).toBe(true);
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

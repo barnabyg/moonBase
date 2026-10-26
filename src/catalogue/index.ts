@@ -3,6 +3,7 @@ export type {
   Catalogue,
   ComponentCount,
   ComponentType,
+  DustCoatingRules,
   GameSpeed,
   GroundPosition,
   LaunchItem,
