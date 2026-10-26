@@ -11,7 +11,13 @@ import { scenario, type Scenario } from "./scenario";
 const solarSite: GroundPosition = { x: 20, y: 12 };
 const batterySite: GroundPosition = { x: 30, y: 25 };
 const habitatSite: GroundPosition = { x: 25, y: -20 };
-const mastSite: GroundPosition = { x: 15, y: -10 };
+const mastSites: readonly GroundPosition[] = [
+  { x: 15, y: -10 },
+  { x: -20, y: 20 },
+];
+const habitatDrawKilowatts =
+  catalogue.structureTypes.find((type) => type.id === "habitat")?.power
+    .drawKilowatts ?? 0;
 
 /** Runs the game a game-minute at a time until the condition holds. */
 function runUntil(game: Scenario, done: (state: Snapshot) => boolean): void {
@@ -34,16 +40,18 @@ function structureOf(
 }
 
 /**
- * A solar array, a battery bank, a Habitat and a Light Mast, all
+ * A solar array, a battery bank, a Habitat and one or more Light Masts, all
  * commissioned and joined by cable, with the Mission Director still aboard
  * the Lander.
  */
-function poweredBase(): Scenario {
+function poweredBase(lightMasts = 1): Scenario {
   const game = scenario()
     .plan("solar-array", solarSite)
     .plan("battery-bank", batterySite)
-    .plan("habitat", habitatSite)
-    .plan("light-mast", mastSite);
+    .plan("habitat", habitatSite);
+  for (const site of mastSites.slice(0, lightMasts)) {
+    game.plan("light-mast", site);
+  }
   runUntil(game, (state) => state.constructions.length === 0);
   expect(game.state.power.networks).toHaveLength(1);
   return game;
@@ -93,6 +101,25 @@ describe("power by priority", () => {
     };
 
     expect(powered()).toEqual(powered());
+  });
+
+  it("leaves the Habitat without power when the energy left can't cover all it draws, exactly when forecast", () => {
+    // With two Light Masts, the battery's last game-minute of energy falls
+    // short of what the Habitat draws in a game-minute.
+    const game = poweredBase(2);
+    runUntil(game, (state) => state.lunation.part === "night");
+    moveIn(game);
+    const minutes = forecastPowerLost(game);
+    game.campaign.advance(minutes - 1);
+    const storedBefore = game.state.power.networks[0]?.storedKilowattHours ?? 0;
+    expect(structureOf(game.state, "habitat").powered).toBe(true);
+
+    game.campaign.advance(1);
+
+    expect(storedBefore).toBeGreaterThan(0);
+    expect(storedBefore).toBeLessThan(habitatDrawKilowatts / 60);
+    expect(structureOf(game.state, "habitat").powered).toBe(false);
+    expect(game.state.ended?.cause.kind).toBe("habitat-power-failed");
   });
 
   it("kills nobody when the Habitat loses power with nobody in it", () => {

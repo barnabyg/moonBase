@@ -133,7 +133,7 @@ export interface StructureSnapshot {
   /**
    * Whether it had power during the latest game-minute. A network that can't
    * cover everything supplies Habitats first, then the rest in the order they
-   * were commissioned.
+   * were commissioned. A Habitat has power only if all it draws is covered.
    */
   readonly powered: boolean;
   /** Whether its light was on during the latest game-minute: only at Night, with power. */

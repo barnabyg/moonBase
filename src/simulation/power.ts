@@ -250,10 +250,13 @@ export function consumptionKilowatts(
  * Supplies one game-minute of power on every network. Solar arrays generate
  * only in Daylight; any surplus charges the network's battery banks, and they
  * discharge to cover any shortfall. Power goes to the network's Structures by
- * priority (see `supplyOrder`): each has power while any energy is left when
- * its turn comes, so the last of it may cover only part of a game-minute, and
- * those after it go without. A Structure that draws nothing always has power.
- * Lights switch on by themselves at Night, while they have power.
+ * priority (see `supplyOrder`). A Habitat has power only if the energy left
+ * when its turn comes covers all it draws in the game-minute; part of it is
+ * no use to a Habitat, so it then takes none. Any other Structure has power
+ * while any energy is left when its turn comes, so the last of it may cover
+ * only part of a game-minute, and those after it go without. A Structure
+ * that draws nothing always has power. Lights switch on by themselves at
+ * Night, while they have power.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const network of powerNetworks(state)) {
@@ -261,7 +264,11 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     let left = network.storedKilowattHours + generated / 60;
     for (const structure of supplyOrder(state, network.structures)) {
       const drawn = drawKilowatts(structure, daylight) / 60;
-      structure.powered = drawn === 0 || left > ENERGY_TOLERANCE_KWH;
+      structure.powered =
+        drawn === 0 ||
+        (isHabitat(structure)
+          ? left >= drawn - ENERGY_TOLERANCE_KWH
+          : left > ENERGY_TOLERANCE_KWH);
       if (structure.powered) left = Math.max(left - drawn, 0);
     }
     const stored = Math.min(left, network.storageCapacityKilowattHours);
@@ -293,9 +300,7 @@ function supplyOrder(
 ): StructureState[] {
   const rank = (structure: StructureState) => {
     if (livesIn(state, structure.id)) return 0;
-    return findStructureType(structure.structureTypeId)?.habitat === true
-      ? 1
-      : 2;
+    return isHabitat(structure) ? 1 : 2;
   };
   // Sorting is stable, so each group keeps the order of commissioning.
   return [...structures].sort((a, b) => rank(a) - rank(b));
@@ -330,28 +335,35 @@ export function minutesUntilEmpty(
 }
 
 /**
- * How many game-minutes until a Structure supplied first on its network goes
- * without power, following the Daylight and Night ahead: it has power while
- * the network has any energy at all, so only once its stored energy has run
- * out with nothing generating. Undefined if that doesn't happen within the
- * next few Lunations, or if the Structure draws nothing.
+ * How many game-minutes until a Habitat supplied first on its network goes
+ * without power, following the Daylight and Night ahead: once what is
+ * generated and stored can no longer cover all it draws in a game-minute.
+ * Undefined if that doesn't happen within the next few Lunations.
  */
 export function minutesUntilPowerLost(
   network: PowerNetwork,
-  structure: StructureState,
+  habitat: StructureState,
   elapsedMinutes: number,
 ): number | undefined {
   let stored = network.storedKilowattHours;
   for (const part of partsAhead(elapsedMinutes)) {
     const generated = part.daylight ? network.daylightGenerationKilowatts : 0;
     const consumption = consumptionKilowatts(network, part.daylight);
-    if (generated === 0 && drawKilowatts(structure, part.daylight) > 0) {
-      const minutesWithEnergy = Math.max(
-        Math.ceil((stored - ENERGY_TOLERANCE_KWH) / (consumption / 60)),
-        0,
-      );
-      if (minutesWithEnergy < part.minutes) {
-        return part.start + minutesWithEnergy + 1;
+    // What has to be left in storage at the start of a game-minute for the
+    // Habitat to have power in it, on top of what is generated.
+    const needed = (drawKilowatts(habitat, part.daylight) - generated) / 60;
+    if (needed > ENERGY_TOLERANCE_KWH) {
+      // Storage falls by the network's shortfall each game-minute (the
+      // network draws at least what the Habitat does, so there is one) until
+      // it can't cover the Habitat; any last part-minute goes to the rest.
+      const shortfall = (consumption - generated) / 60;
+      const minutesPowered =
+        stored < needed - ENERGY_TOLERANCE_KWH
+          ? 0
+          : Math.floor((stored - needed + ENERGY_TOLERANCE_KWH) / shortfall) +
+            1;
+      if (minutesPowered < part.minutes) {
+        return part.start + minutesPowered + 1;
       }
     }
     stored = Math.min(
@@ -382,6 +394,10 @@ function* partsAhead(
     isDaylight = !isDaylight;
     minutes = isDaylight ? daylight : lunation - daylight;
   }
+}
+
+function isHabitat(structure: StructureState): boolean {
+  return findStructureType(structure.structureTypeId)?.habitat === true;
 }
 
 /** What a Structure draws in the given part of the Lunation. */
