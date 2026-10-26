@@ -26,6 +26,10 @@ export default defineConfig({
             // renderer of GPU-less machines such as the CI runner
             // ("AllowWebgl2:false"). Tests need the 3D view, so bypass it.
             "webgl.force-enabled": true,
+            // On Linux, use Mesa through GLX rather than EGL. The CI runner
+            // image ships Mesa's GLX libraries but not its EGL ones, so this
+            // spares CI an apt-get install. No effect on Windows.
+            "gfx.x11-egl.force-disabled": true,
           },
         },
       },
