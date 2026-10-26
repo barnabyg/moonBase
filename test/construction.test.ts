@@ -240,7 +240,7 @@ describe("the Construction of a solar array", () => {
       const { activity } = robotOf(state);
       return (
         (activity.kind === "assembling" || activity.kind === "commissioning") &&
-        activity.constructionId === workedId
+        activity.structureId === workedId
       );
     });
     expect(working.length).toBeGreaterThan(0);

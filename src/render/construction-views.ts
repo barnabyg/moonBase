@@ -1,10 +1,15 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
-import type { ConstructionSnapshot, GroundPosition } from "../simulation";
+import type {
+  ConstructionSnapshot,
+  DismantlingSnapshot,
+  GroundPosition,
+} from "../simulation";
 import { toScene, type Frame } from "./interpolation";
 import {
   createCrateModel,
   createStructureModel,
+  LIGHT_MAST_HEIGHT,
   type StructureModel,
 } from "./models";
 
@@ -29,14 +34,19 @@ interface StructureView {
   readonly model: StructureModel;
   /** How much energy the Structure can store, to show how full it is. */
   readonly storageKilowattHours: number;
+  /** The light that lights the ground round it at Night, if it has one. */
+  readonly light: THREE.PointLight | undefined;
 }
+
+/** How bright a Light Mast's light is, in candela. */
+const MAST_LIGHT_INTENSITY = 180;
 
 /**
  * Draws every Construction as it stands, stage by stage: the ground graded
  * during Site Preparation, the Components' crates delivered and then used up,
  * and the Structure put together during Assembly, such as a solar array
  * unfolding. A commissioned Structure keeps its Construction's id, so the
- * same view carries on.
+ * same view carries on, until it has been dismantled.
  */
 export function createConstructionViews(scene: THREE.Scene) {
   const views = new Map<string, StructureView>();
@@ -77,7 +87,7 @@ export function createConstructionViews(scene: THREE.Scene) {
         showConstruction(
           view,
           construction,
-          progressOf(frame, construction),
+          progressOf(frame, construction, frame.previous?.constructions),
           realSeconds,
         );
         if (sunFacing !== undefined) view.model.setFacing(sunFacing);
@@ -95,12 +105,28 @@ export function createConstructionViews(scene: THREE.Scene) {
         view.model.group.visible = true;
         view.model.setAssembled(1);
         view.model.setStatusLight(structure.powered ? "on" : "off");
+        showLit(view, structure.lit);
         view.model.setCharge(
           view.storageKilowattHours === 0
             ? 0
             : structure.storedKilowattHours / view.storageKilowattHours,
         );
         if (sunFacing !== undefined) view.model.setFacing(sunFacing);
+      }
+      for (const dismantling of frame.current.dismantlings) {
+        // Until the Robot starts taking it apart, it is drawn as a Structure.
+        if (seen.has(dismantling.id)) continue;
+        seen.add(dismantling.id);
+        const view = viewFor(
+          dismantling.id,
+          dismantling.structureTypeId,
+          dismantling.position,
+        );
+        showDismantling(
+          view,
+          dismantling,
+          progressOf(frame, dismantling, frame.previous?.dismantlings),
+        );
       }
       for (const [id, view] of views) {
         if (!seen.has(id)) {
@@ -112,19 +138,53 @@ export function createConstructionViews(scene: THREE.Scene) {
   };
 }
 
+/** Anything with stages of work, such as a Construction or dismantling. */
+interface StagedWork {
+  readonly id: string;
+  readonly stage: string;
+  readonly stageProgress: number;
+}
+
 /** The stage's progress, interpolated between ticks while the stage carries on. */
-function progressOf(frame: Frame, construction: ConstructionSnapshot): number {
-  const before = frame.previous?.constructions.find(
-    (other) => other.id === construction.id,
-  );
-  if (before === undefined || before.stage !== construction.stage) {
-    return construction.stageProgress;
+function progressOf(
+  frame: Frame,
+  work: StagedWork,
+  previous: readonly StagedWork[] | undefined,
+): number {
+  const before = previous?.find((other) => other.id === work.id);
+  if (before === undefined || before.stage !== work.stage) {
+    return work.stageProgress;
   }
   return THREE.MathUtils.lerp(
     before.stageProgress,
-    construction.stageProgress,
+    work.stageProgress,
     frame.tickProgress,
   );
+}
+
+/**
+ * Draws a Structure being dismantled: it comes apart in the reverse of its
+ * Assembly, then the crates of recovered Components wait on the site until
+ * the Robot picks them up.
+ */
+function showDismantling(
+  view: StructureView,
+  dismantling: DismantlingSnapshot,
+  progress: number,
+): void {
+  view.graded.scale.setScalar(1);
+  view.footprint.visible = true;
+  const takingApart = dismantling.stage === "taking-apart";
+  view.model.group.visible = takingApart;
+  view.model.setAssembled(takingApart ? 1 - progress : 0);
+  view.model.setStatusLight("off");
+  showLit(view, false);
+  const cratesHere = dismantling.collected
+    ? 0
+    : dismantling.recovered.reduce((total, count) => total + count.count, 0);
+  for (const [index, crate] of view.crates.entries()) {
+    crate.visible = index < cratesHere;
+  }
 }
 
 function showConstruction(
@@ -160,6 +220,20 @@ function showConstruction(
   view.model.setStatusLight(
     stage === "commissioning" && blinkOn ? "testing" : "off",
   );
+  showLit(view, false);
+}
+
+/**
+ * Switches a Structure's light on or off. Its light joins the scene with the
+ * view and is only dimmed between Daylight and Night, because changing the
+ * number of lights makes Three.js recompile every material; that cost then
+ * comes only when a Light Mast is planned or removed.
+ */
+function showLit(view: StructureView, lit: boolean): void {
+  view.model.setLit(lit);
+  if (view.light !== undefined) {
+    view.light.intensity = lit ? MAST_LIGHT_INTENSITY : 0;
+  }
 }
 
 function createView(structureTypeId: string): StructureView {
@@ -198,6 +272,22 @@ function createView(structureTypeId: string): StructureView {
   const model = createStructureModel(structureTypeId);
   model.group.visible = false;
   group.add(graded, footprint, ...crates, model.group);
+
+  // Without shadows: a shadow map for every Light Mast would cost too much.
+  const lightRadius = type?.lightRadiusMetres ?? 0;
+  const light =
+    lightRadius > 0
+      ? new THREE.PointLight(
+          0xfff0d6,
+          0,
+          Math.hypot(lightRadius, LIGHT_MAST_HEIGHT),
+        )
+      : undefined;
+  if (light !== undefined) {
+    light.name = "Light mast light";
+    light.position.y = LIGHT_MAST_HEIGHT - 0.3;
+    group.add(light);
+  }
   return {
     group,
     graded,
@@ -205,6 +295,7 @@ function createView(structureTypeId: string): StructureView {
     crates,
     model,
     storageKilowattHours: type?.power.storageKilowattHours ?? 0,
+    light,
   };
 }
 

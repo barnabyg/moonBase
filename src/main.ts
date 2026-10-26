@@ -51,8 +51,8 @@ function startRenderer(
 
 const campaign = createCampaign({ seed: chooseSeed() });
 const loop = createGameLoop(campaign);
-const statusPanel = createStatusPanel(container, loop);
-const constructionPanel = createConstructionPanel(container);
+const statusPanel = createStatusPanel(container, loop, campaign);
+const constructionPanel = createConstructionPanel(container, campaign);
 const renderer = startRenderer(container, campaign.snapshot());
 // Placing a Structure needs the 3D view to point at the map.
 const buildMenu =

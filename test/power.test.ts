@@ -180,7 +180,7 @@ describe("laying cable", () => {
     // The last minute of grading, the Robot may start on something else.
     for (const state of grading.slice(0, -1)) {
       const activity = state.robots[0]?.activity;
-      expect(activity).toMatchObject({ constructionId: batteryId });
+      expect(activity).toMatchObject({ structureId: batteryId });
       expect(
         activity?.kind === "laying-cable" ||
           (activity?.kind === "walking" && activity.destination === "cable"),

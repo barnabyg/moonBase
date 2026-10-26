@@ -4,6 +4,7 @@ import {
   type GroundPosition,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { addToStock, takeFromStock } from "./cargo";
 import {
   chooseMachineSpot,
   componentsFor,
@@ -12,6 +13,12 @@ import {
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
+import {
+  dismantlingStageMinutes,
+  recoveredComponents,
+  takeOffBase,
+  type DismantlingState,
+} from "./dismantling";
 import type { GameEvent } from "./events";
 import {
   findMachineType,
@@ -31,18 +38,22 @@ import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
  */
 export type WalkingDestination = "site" | "lander" | "machine" | "cable";
 
-/** What a Robot did during the latest game-minute, and for which Construction. */
+/**
+ * What a Robot did during the latest game-minute, and for which Structure: one
+ * under Construction (whose id the Structure keeps once commissioned) or one
+ * being dismantled.
+ */
 export type RobotActivity =
   | { readonly kind: "idle" }
   | {
       readonly kind: "walking";
-      readonly constructionId: string;
+      readonly structureId: string;
       readonly destination: WalkingDestination;
     }
   | {
       /** Driving a Machine to the site, aboard it, or setting it going there. */
       readonly kind: "driving-machine" | "activating-machine";
-      readonly constructionId: string;
+      readonly structureId: string;
       readonly machineId: string;
     }
   | {
@@ -51,8 +62,12 @@ export type RobotActivity =
         | "unloading-components"
         | "assembling"
         | "commissioning"
-        | "laying-cable";
-      readonly constructionId: string;
+        | "laying-cable"
+        /** Taking a Structure apart. */
+        | "dismantling"
+        /** Unloading the Components recovered from a Structure at the Lander. */
+        | "returning-components";
+      readonly structureId: string;
     };
 
 export interface RobotState {
@@ -80,8 +95,14 @@ export function workRobot(
   }
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
+  const dismantling = state.dismantlings.find(
+    (candidate) => candidate.id === workOrder?.structureId,
+  );
+  if (dismantling !== undefined) {
+    return workOnDismantling(state, robot, dismantling);
+  }
   const construction = state.constructions.find(
-    (candidate) => candidate.id === workOrder?.constructionId,
+    (candidate) => candidate.id === workOrder?.structureId,
   );
   if (construction === undefined) {
     robot.workOrder = undefined;
@@ -89,23 +110,8 @@ export function workRobot(
     return [];
   }
   const { id } = construction;
-  const walkTo = (
-    spot: GroundPosition,
-    destination: WalkingDestination,
-  ): boolean => {
-    if (samePlace(robot.position, spot)) return true;
-    robot.position = stepTowards(
-      robot.position,
-      spot,
-      {
-        centre: state.lander.position,
-        radius: LANDER_CLEARANCE_METRES,
-      },
-      catalogue.robot.walkingSpeedMetresPerHour / 60,
-    );
-    robot.activity = { kind: "walking", constructionId: id, destination };
-    return false;
-  };
+  const walkTo = (spot: GroundPosition, destination: WalkingDestination) =>
+    walkRobotTo(state, robot, id, spot, destination);
   const workFor = (
     kind:
       | "loading-components"
@@ -114,7 +120,7 @@ export function workRobot(
       | "commissioning",
     untilMinutes: number,
   ): boolean => {
-    robot.activity = { kind, constructionId: id };
+    robot.activity = { kind, structureId: id };
     construction.workedMinutes += 1;
     return construction.workedMinutes >= untilMinutes;
   };
@@ -138,7 +144,7 @@ export function workRobot(
       catalogue.robot.cableLayingSpeedMetresPerHour / 60,
     );
     extendRoute(cable.route, robot.position);
-    robot.activity = { kind: "laying-cable", constructionId: id };
+    robot.activity = { kind: "laying-cable", structureId: id };
     cable.complete = samePlace(robot.position, cable.end);
     return [];
   }
@@ -173,7 +179,7 @@ export function workRobot(
         robot.position = { ...machine.position };
         robot.activity = {
           kind: "driving-machine",
-          constructionId: id,
+          structureId: id,
           machineId: machine.id,
         };
         return [];
@@ -182,7 +188,7 @@ export function workRobot(
       if (!walkTo(beside(machine, construction), "machine")) return [];
       robot.activity = {
         kind: "activating-machine",
-        constructionId: id,
+        structureId: id,
         machineId: machine.id,
       };
       assignment.activationMinutes += 1;
@@ -265,6 +271,7 @@ function finishCommissioning(
     structureTypeId: construction.structureTypeId,
     position: { ...construction.position },
     powered: false,
+    lit: false,
     storedKilowattHours: 0,
   });
   return [
@@ -330,13 +337,91 @@ function moveOn(
   construction.workedMinutes = 0;
 }
 
-/** Where the Robot stands to load Components: beside the Lander, on the side facing the site. */
+/**
+ * Lets the Robot do one game-minute of work on dismantling a Structure: it
+ * takes the Structure apart, then picks up the Components it recovered and
+ * carries them to the Lander, where they go back into the cargo stock.
+ */
+function workOnDismantling(
+  state: CampaignState,
+  robot: RobotState,
+  dismantling: DismantlingState,
+): GameEvent[] {
+  const { id } = dismantling;
+  const walkTo = (spot: GroundPosition, destination: WalkingDestination) =>
+    walkRobotTo(state, robot, id, spot, destination);
+  const required = dismantlingStageMinutes(dismantling);
+  switch (dismantling.stage) {
+    case "taking-apart":
+      if (!walkTo(dismantling.workSpot, "site")) return [];
+      // From the first minute of taking it apart, it no longer works.
+      if (dismantling.workedMinutes === 0) takeOffBase(state, id);
+      robot.activity = { kind: "dismantling", structureId: id };
+      dismantling.workedMinutes += 1;
+      if (dismantling.workedMinutes >= required) {
+        dismantling.stage = "returning-components";
+        dismantling.workedMinutes = 0;
+        dismantling.recovered = recoveredComponents(
+          dismantling.structureTypeId,
+        );
+      }
+      return [];
+
+    case "returning-components":
+      if (!dismantling.collected) {
+        if (!walkTo(dismantling.workSpot, "site")) return [];
+        robot.carrying = dismantling.recovered.map((count) => ({ ...count }));
+        dismantling.collected = true;
+      }
+      if (!walkTo(landerSpot(state, dismantling), "lander")) return [];
+      robot.activity = { kind: "returning-components", structureId: id };
+      dismantling.workedMinutes += 1;
+      if (dismantling.workedMinutes < required) return [];
+      addToStock(state, dismantling.recovered);
+      robot.carrying = [];
+      state.dismantlings = state.dismantlings.filter(
+        (other) => other !== dismantling,
+      );
+      return [
+        {
+          kind: "structure-dismantled",
+          atMinute: state.elapsedMinutes,
+          structureId: id,
+          structureTypeId: dismantling.structureTypeId,
+        },
+      ];
+  }
+}
+
+/**
+ * Walks the Robot one game-minute towards a spot, round the Lander, for work
+ * on a Structure. Says whether it was already there.
+ */
+function walkRobotTo(
+  state: CampaignState,
+  robot: RobotState,
+  structureId: string,
+  spot: GroundPosition,
+  destination: WalkingDestination,
+): boolean {
+  if (samePlace(robot.position, spot)) return true;
+  robot.position = stepTowards(
+    robot.position,
+    spot,
+    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    catalogue.robot.walkingSpeedMetresPerHour / 60,
+  );
+  robot.activity = { kind: "walking", structureId, destination };
+  return false;
+}
+
+/** Where the Robot stands to load or unload Components: beside the Lander, on the side facing the site. */
 function landerSpot(
   state: CampaignState,
-  construction: ConstructionState,
+  site: { readonly workSpot: GroundPosition },
 ): GroundPosition {
   const lander = state.lander.position;
-  const { workSpot } = construction;
+  const { workSpot } = site;
   const angle = Math.atan2(workSpot.y - lander.y, workSpot.x - lander.x);
   const reach =
     catalogue.lander.footprintRadiusMetres + catalogue.robot.workingGapMetres;
@@ -344,23 +429,4 @@ function landerSpot(
     x: lander.x + Math.cos(angle) * reach,
     y: lander.y + Math.sin(angle) * reach,
   };
-}
-
-/** Takes the Components from the cargo stock if they are all there; otherwise takes nothing. */
-function takeFromStock(
-  state: CampaignState,
-  needed: readonly ComponentCount[],
-): boolean {
-  const stockOf = (componentId: string) =>
-    state.cargo.find((stock) => stock.componentId === componentId);
-  if (
-    needed.some((need) => (stockOf(need.componentId)?.count ?? 0) < need.count)
-  ) {
-    return false;
-  }
-  for (const need of needed) {
-    const stock = stockOf(need.componentId);
-    if (stock !== undefined) stock.count -= need.count;
-  }
-  return true;
 }

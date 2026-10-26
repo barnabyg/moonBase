@@ -348,11 +348,14 @@ export interface StructureModel {
   setStatusLight(state: "off" | "testing" | "on"): void;
   /** Shows how full any storage is, from 0 to 1. */
   setCharge(fraction: number): void;
+  /** Switches any light on or off. */
+  setLit(on: boolean): void;
 }
 
 /** The model for a type of Structure from the data catalogue. */
 export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "battery-bank") return createBatteryBankModel();
+  if (structureTypeId === "light-mast") return createLightMastModel();
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -366,6 +369,90 @@ export function createStructureModel(structureTypeId: string): StructureModel {
       array.setStatusLight(state);
     },
     setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}
+
+/** The height of a Light Mast's light above the ground. */
+export const LIGHT_MAST_HEIGHT = 6;
+/** The share of Assembly spent raising the pole, before the light goes on top. */
+const POLE_SHARE = 0.7;
+
+/**
+ * A Light Mast: a tall pole on a weighted base, with a bar of lights on top
+ * that glow while they are on. During Assembly the pole rises and then the
+ * light bar goes on top.
+ */
+function createLightMastModel(): StructureModel {
+  const mast = new THREE.Group();
+  mast.name = "Light mast";
+
+  const statusLightMaterial = materials.statusOff.clone();
+  mast.add(
+    part(
+      new THREE.CylinderGeometry(0.55, 0.65, 0.25, 8),
+      materials.darkMetal,
+      [0, 0.125, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.07, 8, 6),
+      statusLightMaterial,
+      [0.45, 0.3, 0.3],
+    ),
+  );
+
+  const poleLength = LIGHT_MAST_HEIGHT - 0.25;
+  const pole = part(
+    new THREE.CylinderGeometry(0.06, 0.09, 1, 8),
+    materials.hull,
+    [0, 0, 0],
+  );
+  mast.add(pole);
+
+  // The bar of lights faces every way, so the light falls all round.
+  const lightMaterial = materials.statusOff.clone();
+  const head = new THREE.Group();
+  head.position.y = LIGHT_MAST_HEIGHT;
+  head.add(
+    part(
+      new THREE.BoxGeometry(1.2, 0.12, 0.12),
+      materials.darkMetal,
+      [0, 0, 0],
+    ),
+    ...[-0.45, 0.45].map((x) =>
+      part(new THREE.BoxGeometry(0.32, 0.22, 0.32), lightMaterial, [
+        x,
+        -0.1,
+        0,
+      ]),
+    ),
+  );
+  mast.add(head);
+
+  return {
+    group: mast,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const raised = Math.max(Math.min(f / POLE_SHARE, 1), 0.01);
+      pole.scale.y = poleLength * raised;
+      pole.position.y = 0.25 + (poleLength * raised) / 2;
+      head.visible = f > POLE_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit(on) {
+      lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
+      lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
+    },
   };
 }
 
@@ -468,6 +555,7 @@ function createBatteryBankModel(): StructureModel {
         light(material, index < lit);
       }
     },
+    setLit: () => undefined,
   };
 }
 

@@ -7,6 +7,7 @@ export type {
   CampaignOptions,
   ComponentCount,
   ConstructionSnapshot,
+  DismantlingSnapshot,
   Forecasts,
   GroundPosition,
   LanderSnapshot,
@@ -25,6 +26,8 @@ export type {
   PlacementCheck,
   PlacementRefusal,
 } from "./construction";
+export type { CancelResult } from "./cancel";
+export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";
 export type { ConstructionWait } from "./work-orders";
 export type { MachineActivity } from "./machines";

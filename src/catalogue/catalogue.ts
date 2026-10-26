@@ -38,6 +38,11 @@ export interface Catalogue {
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
+  /**
+   * The share, from 0 to 1, of a dismantled Structure's Components that are
+   * damaged beyond reuse, rounded to the nearest whole Component.
+   */
+  readonly dismantlingLossShare: number;
   /** The Components in the Lander's cargo stock when a Campaign begins. */
   readonly startingCargo: readonly ComponentCount[];
 }
@@ -120,7 +125,15 @@ export interface StructureType {
     readonly storageKilowattHours: number;
     /** The power it draws all the time, for its own controls and heaters. */
     readonly drawKilowatts: number;
+    /** The extra power it draws at Night only, while its light is on. */
+    readonly nightDrawKilowatts: number;
   };
+  /**
+   * How far round it a light that switches on by itself at Night lights the
+   * ground, or 0 if it has no light. The light only changes what the player
+   * can see; darkness never stops work.
+   */
+  readonly lightRadiusMetres: number;
 }
 
 export interface GameSpeed {
@@ -130,7 +143,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 2,
+  version: 3,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -169,6 +182,8 @@ export const catalogue: Catalogue = {
     { id: "array-mast", label: "Array mast" },
     { id: "battery-module", label: "Battery module" },
     { id: "battery-cabinet", label: "Battery cabinet" },
+    { id: "mast-pole", label: "Mast pole" },
+    { id: "light-head", label: "Light head" },
   ],
   structureTypes: [
     {
@@ -191,7 +206,9 @@ export const catalogue: Catalogue = {
         generationKilowatts: 10,
         storageKilowattHours: 0,
         drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
       },
+      lightRadiusMetres: 0,
     },
     {
       id: "battery-bank",
@@ -213,13 +230,42 @@ export const catalogue: Catalogue = {
         generationKilowatts: 0,
         storageKilowattHours: 60,
         drawKilowatts: 0.25,
+        nightDrawKilowatts: 0,
       },
+      lightRadiusMetres: 0,
+    },
+    {
+      id: "light-mast",
+      label: "Light mast",
+      footprintRadiusMetres: 0.8,
+      components: [
+        { componentId: "mast-pole", count: 1 },
+        { componentId: "light-head", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 0.5,
+        componentDelivery: 0.5,
+        assembly: 1,
+        commissioning: 0.5,
+      },
+      commissioningFailureChance: 0.1,
+      // Its light switches on by itself at Night, and draws nothing in Daylight.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0.4,
+      },
+      lightRadiusMetres: 18,
     },
   ],
+  dismantlingLossShare: 0.2,
   startingCargo: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
     { componentId: "battery-module", count: 3 },
     { componentId: "battery-cabinet", count: 1 },
+    { componentId: "mast-pole", count: 4 },
+    { componentId: "light-head", count: 4 },
   ],
 };

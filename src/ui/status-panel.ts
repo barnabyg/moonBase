@@ -1,5 +1,5 @@
 import type { GameLoop } from "../game/loop";
-import type { Forecasts, Snapshot } from "../simulation";
+import type { Campaign, Forecasts, Snapshot } from "../simulation";
 import { setText } from "./dom";
 import {
   formatClock,
@@ -14,12 +14,14 @@ export interface StatusPanel {
 }
 
 /**
- * The HTML status panel. It reads simulation snapshots and sends the player's
- * speed choices to the game loop; it never changes the simulation itself.
+ * The HTML status panel. It reads simulation snapshots, sends the player's
+ * speed choices to the game loop, and sends a choice to dismantle a Structure
+ * to the Campaign, which decides whether it is allowed.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
+  campaign: Pick<Campaign, "dismantleStructure">,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -89,7 +91,30 @@ export function createStatusPanel(
   const structures = document.createElement("ul");
   structures.className = "status-panel__structures";
   structures.setAttribute("aria-label", "Structures");
-  const structureItems = new Map<string, HTMLLIElement>();
+  const structureItems = new Map<
+    string,
+    {
+      readonly item: HTMLLIElement;
+      readonly text: HTMLElement;
+      readonly dismantle: HTMLButtonElement;
+    }
+  >();
+  const createStructureItem = (structureId: string) => {
+    const item = document.createElement("li");
+    const text = document.createElement("span");
+    const dismantle = document.createElement("button");
+    dismantle.type = "button";
+    dismantle.className = "status-panel__dismantle";
+    dismantle.textContent = "Dismantle";
+    dismantle.title =
+      "Have the Robot take it apart and carry most of its Components back into the cargo stock.";
+    dismantle.addEventListener("click", () => {
+      campaign.dismantleStructure(structureId);
+    });
+    item.append(text, dismantle);
+    structures.append(item);
+    return { item, text, dismantle };
+  };
 
   panel.append(
     clock,
@@ -112,17 +137,28 @@ export function createStatusPanel(
       storedPower.hidden = !hasStructures;
       setText(power, formatPower(snapshot.power));
       setText(storedPower, formatStoredPower(snapshot.power, forecasts.power));
+      const seen = new Set<string>();
       for (const structure of snapshot.structures) {
-        let item = structureItems.get(structure.id);
-        if (item === undefined) {
-          item = document.createElement("li");
-          structures.append(item);
-          structureItems.set(structure.id, item);
+        seen.add(structure.id);
+        let entry = structureItems.get(structure.id);
+        if (entry === undefined) {
+          entry = createStructureItem(structure.id);
+          structureItems.set(structure.id, entry);
         }
-        setText(
-          item,
-          `${structureLabel(structure.structureTypeId)}: commissioned${structure.powered ? "" : ", no power"}`,
+        const toBeDismantled = snapshot.dismantlings.some(
+          (dismantling) => dismantling.id === structure.id,
         );
+        setText(
+          entry.text,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}`,
+        );
+        entry.dismantle.hidden = toBeDismantled;
+      }
+      for (const [id, entry] of structureItems) {
+        if (!seen.has(id)) {
+          entry.item.remove();
+          structureItems.delete(id);
+        }
       }
       structures.hidden = structureItems.size === 0;
     },
