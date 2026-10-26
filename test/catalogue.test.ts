@@ -99,17 +99,40 @@ describe("the data catalogue", () => {
       expect(type.activationHours).toBeGreaterThan(0);
       expect(Number.isInteger(type.activationHours * 60)).toBe(true);
     }
-    expect(machineTypes.map((type) => type.id)).toContain(
-      catalogue.sitePreparationMachineTypeId,
-    );
   });
 
-  it("lands the Machine that does Site Preparation, on the map and clear of the Lander", () => {
+  it("only names known Machine types to carry out stages of Construction", () => {
+    const known = new Set(catalogue.machineTypes.map((type) => type.id));
+
+    for (const type of catalogue.structureTypes) {
+      for (const machineTypeId of Object.values(type.stageMachines)) {
+        expect(known).toContain(machineTypeId);
+      }
+    }
+  });
+
+  it.each(["solar-array", "battery-bank", "light-mast"])(
+    "has the excavator do a %s's Site Preparation, and the Robot the rest",
+    (structureTypeId) => {
+      const structureType = catalogue.structureTypes.find(
+        (type) => type.id === structureTypeId,
+      );
+
+      expect(structureType?.stageMachines).toEqual({
+        sitePreparation: "excavator",
+      });
+    },
+  );
+
+  it("lands every Machine a Structure needs, on the map and clear of the Lander", () => {
     const { landerPosition, machines } = catalogue.landingSite;
 
-    expect(machines.map((machine) => machine.machineTypeId)).toContain(
-      catalogue.sitePreparationMachineTypeId,
-    );
+    const landed = machines.map((machine) => machine.machineTypeId);
+    for (const type of catalogue.structureTypes) {
+      for (const machineTypeId of Object.values(type.stageMachines)) {
+        expect(landed).toContain(machineTypeId);
+      }
+    }
     for (const machine of machines) {
       const type = catalogue.machineTypes.find(
         (candidate) => candidate.id === machine.machineTypeId,

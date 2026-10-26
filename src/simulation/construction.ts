@@ -196,6 +196,48 @@ export function stageMinutes(construction: ConstructionState): number {
   return Math.round(byStage[construction.stage] * 60);
 }
 
+/** The stages of Construction that a Machine can carry out by itself. */
+export type MachineStage = "site-preparation" | "assembly";
+
+/** The stage each Machine stage of Construction moves on to once it is done. */
+export const stageAfter = {
+  "site-preparation": "component-delivery",
+  assembly: "commissioning",
+} as const satisfies Record<MachineStage, ConstructionStage>;
+
+/** A stage of Construction and the type of Machine that carries it out. */
+export interface StageMachine {
+  readonly stage: MachineStage;
+  readonly machineTypeId: string;
+}
+
+/**
+ * The Machine stage a Construction is at and the type of Machine the data
+ * catalogue has carry it out, or undefined if the current stage is the
+ * Robot's own work.
+ */
+export function stageMachine(
+  construction: ConstructionState,
+): StageMachine | undefined {
+  const machines = findStructureType(
+    construction.structureTypeId,
+  )?.stageMachines;
+  const carriedOutBy = (
+    stage: MachineStage,
+    machineTypeId: string | undefined,
+  ): StageMachine | undefined =>
+    machineTypeId === undefined ? undefined : { stage, machineTypeId };
+  switch (construction.stage) {
+    case "site-preparation":
+      return carriedOutBy("site-preparation", machines?.sitePreparation);
+    case "assembly":
+      return carriedOutBy("assembly", machines?.assembly);
+    case "component-delivery":
+    case "commissioning":
+      return undefined;
+  }
+}
+
 function refuse(reason: PlacementRefusal, message: string): PlacementCheck {
   return { ok: false, reason, message };
 }

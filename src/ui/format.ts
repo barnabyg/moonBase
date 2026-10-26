@@ -171,7 +171,7 @@ export function describeWork(
     ...(machine === undefined
       ? []
       : [
-          `${machineLabel(machine.machineTypeId)} grading the ground by itself`,
+          `${machineLabel(machine.machineTypeId)} ${machineWork(construction)} by itself`,
         ]),
     ...(robot === undefined
       ? []
@@ -181,6 +181,13 @@ export function describeWork(
   return construction.waiting === undefined
     ? "Waiting for the Robot"
     : formatWaiting(construction.waiting);
+}
+
+/** What a Machine carrying out a Construction's current stage is doing. */
+function machineWork(construction: ConstructionSnapshot): string {
+  return construction.stage === "site-preparation"
+    ? "grading the ground"
+    : `building the ${structureLabel(construction.structureTypeId).toLowerCase()}`;
 }
 
 function describeRobotWork(
@@ -235,6 +242,8 @@ function describeRobotWork(
       return `Robot driving the ${machineName(activity.machineId)} to the site`;
     case "activating-machine":
       return `Robot activating the ${machineName(activity.machineId)}`;
+    case "preparing-site":
+      return "Robot clearing and grading the ground";
     case "loading-components":
       return "Robot loading the Components at the Lander";
     case "unloading-components":

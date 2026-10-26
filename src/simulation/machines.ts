@@ -1,6 +1,11 @@
 import { catalogue, type GroundPosition, type MachineType } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { distance, stageMinutes } from "./construction";
+import {
+  distance,
+  stageAfter,
+  stageMinutes,
+  type MachineStage,
+} from "./construction";
 
 /** What a Machine did during the latest game-minute, and for which Construction. */
 export type MachineActivity =
@@ -14,9 +19,11 @@ export type MachineActivity =
       readonly constructionId: string;
     };
 
-/** A Machine's assignment to one Construction, from being driven there until its work there is done. */
+/** A Machine's assignment to one stage of a Construction, from being driven there until its work there is done. */
 export interface MachineAssignment {
   constructionId: string;
+  /** The stage of the Construction it carries out. */
+  stage: MachineStage;
   /** Where the Machine stands to work on the site. */
   destination: GroundPosition;
   /** The Robot's working time spent activating it so far. */
@@ -74,9 +81,10 @@ export function nearestFreeMachine(
 }
 
 /**
- * Lets every activated Machine do one game-minute of its work by itself:
- * grading its Construction's ground. When Site Preparation is done it stays
- * where it is, idle, until it is needed again.
+ * Lets every activated Machine do one game-minute of its work by itself on
+ * the stage of Construction it was assigned, such as grading the ground for
+ * Site Preparation. When the stage is done it stays where it is, idle, until
+ * it is needed again.
  */
 export function workMachines(state: CampaignState): void {
   for (const machine of state.machines) {
@@ -95,7 +103,7 @@ export function workMachines(state: CampaignState): void {
     const construction = state.constructions.find(
       (candidate) => candidate.id === assignment.constructionId,
     );
-    if (construction?.stage !== "site-preparation") {
+    if (construction?.stage !== assignment.stage) {
       machine.assignment = undefined;
       machine.activity = { kind: "idle" };
       continue;
@@ -103,7 +111,7 @@ export function workMachines(state: CampaignState): void {
     machine.activity = { kind: "working", constructionId: construction.id };
     construction.workedMinutes += 1;
     if (construction.workedMinutes >= stageMinutes(construction)) {
-      construction.stage = "component-delivery";
+      construction.stage = stageAfter[assignment.stage];
       construction.workedMinutes = 0;
       machine.assignment = undefined;
     }

@@ -1,7 +1,8 @@
-import { catalogue, type ComponentCount } from "../catalogue";
+import type { ComponentCount } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
   componentsFor,
+  stageMachine,
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
@@ -41,7 +42,7 @@ export type ConstructionWait =
       readonly missing: readonly ComponentCount[];
     }
   | {
-      /** Every Machine that could do the stage is working on another Construction. */
+      /** Every Machine that could carry out the stage is working on another Construction. */
       readonly reason: "machine-busy";
       readonly machineTypeId: string;
     };
@@ -67,8 +68,8 @@ export function findWaitingReason(
 ): ConstructionWait | undefined {
   const missing = missingComponents(state, construction);
   if (missing.length > 0) return { reason: "missing-components", missing };
-  if (construction.stage !== "site-preparation") return undefined;
-  const machineTypeId = catalogue.sitePreparationMachineTypeId;
+  const machineTypeId = stageMachine(construction)?.machineTypeId;
+  if (machineTypeId === undefined) return undefined;
   return machineOn(state, construction.id) !== undefined ||
     nearestFreeMachine(state, machineTypeId, construction.position) !==
       undefined
@@ -184,14 +185,13 @@ function canBeWorkedOn(
     case "commission":
       return !needsCable(state, construction);
     case "prepare-site":
-      // Once activated, the Machine grades the ground without a Robot.
+    case "deliver-components":
+    case "assemble":
+      // Once activated, a Machine carries out its stage without a Robot.
       return (
         findWaitingReason(state, construction) === undefined &&
         machineOn(state, construction.id)?.assignment?.working !== true
       );
-    case "deliver-components":
-    case "assemble":
-      return findWaitingReason(state, construction) === undefined;
   }
 }
 
