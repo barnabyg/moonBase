@@ -134,7 +134,7 @@ export function createStatusPanel(
 
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = document.createElement("p");
-  radiationDose.className = "status-panel__stock";
+  radiationDose.className = "status-panel__radiation";
   radiationDose.setAttribute("role", "status");
   radiationDose.setAttribute("aria-label", "Radiation Dose");
   radiationDose.setAttribute("aria-live", "off");
@@ -277,7 +277,7 @@ export function createStatusPanel(
       const doseWarnFrom =
         Math.max(...catalogue.radiation.warningEarthDaysLeft) * 24 * 60;
       radiationDose.classList.toggle(
-        "status-panel__stock--low",
+        "status-panel__radiation--low",
         snapshot.radiationDoseMillisieverts >=
           catalogue.radiation.doseLimitMillisieverts ||
           (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=

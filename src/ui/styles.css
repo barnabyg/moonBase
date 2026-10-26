@@ -264,17 +264,20 @@ body {
 
 .status-panel__residence,
 .status-panel__habitat-power,
+.status-panel__radiation,
 .status-panel__stock {
   margin: 6px 0 0;
   font-size: 0.9rem;
 }
 
 .status-panel__habitat-power,
+.status-panel__radiation,
 .status-panel__stock {
   font-variant-numeric: tabular-nums;
 }
 
 .status-panel__habitat-power--low,
+.status-panel__radiation--low,
 .status-panel__stock--low {
   color: var(--warning);
 }
