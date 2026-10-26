@@ -268,25 +268,40 @@ describe("the Radiation Dose during a Solar Particle Event", () => {
     expect(rateDuring(shielded)).toBeLessThan(rateDuring(unshielded));
   });
 
-  it("brings the forecast time until the limit forward, with a warning when that passes a warning level", () => {
-    const { game, started, atStart } = inTheHabitatAsAnEventStarts(false);
-    const { minutesUntilLimit } = game.campaign.forecasts().radiationDose;
+  it("is forecast to reach the limit following the event through to its end, from the warning on", () => {
+    const game = buildAll(scenario().plan("habitat", habitatSite));
+    const habitatId = game.state.structures[0]?.id ?? "";
+    const warning = skipTo(game, "solar-particle-event-warning").found;
+    const movedIn = game.campaign.moveMissionDirectorIn(habitatId);
+    if (!movedIn.ok) throw new Error(movedIn.message);
+    const minutesUntilLimit = () => {
+      const minutes = game.campaign.forecasts().radiationDose.minutesUntilLimit;
+      if (minutes === undefined) throw new Error("expected a forecast");
+      return minutes;
+    };
+    const forecastAtWarning = minutesUntilLimit();
+
+    const { events: atStart } = skipTo(game, "solar-particle-event-started");
+    const forecastAtStart = minutesUntilLimit();
+    game.campaign.advance(warning.endsAtMinute - warning.startsAtMinute);
+    const forecastAtEnd = minutesUntilLimit();
+
+    // The event was known of from its warning, so the forecast counted
+    // down a game-minute at a time through it, never jumping.
+    const eventMinutes = warning.endsAtMinute - warning.startsAtMinute;
+    const warningMinutes = warning.startsAtMinute - warning.atMinute;
+    expect(forecastAtStart).toBe(forecastAtWarning - warningMinutes);
+    expect(forecastAtEnd).toBe(forecastAtStart - eventMinutes);
+    // Afterwards it rises at the usual rate again.
     const left =
       catalogue.radiation.doseLimitMillisieverts -
       game.state.radiationDoseMillisieverts;
-
-    expect(minutesUntilLimit).toBe(
-      Math.ceil(
-        (left / (rates.habitat * rules.doseRateMultiplier)) * 24 * 60 - 1e-6,
-      ),
+    expect(forecastAtEnd / (24 * 60)).toBeCloseTo(left / rates.habitat, 3);
+    // An event of a few hours doesn't take a newly arrived Mission Director
+    // to the limit, and nothing warns that it will.
+    expect(forecastAtStart).toBeGreaterThan(eventMinutes);
+    expect(atStart.map((event) => event.kind)).not.toContain(
+      "radiation-dose-warning",
     );
-    // The limit is now nearer than the 3-Earth-Day warning level, which it
-    // passed as the event started.
-    expect(minutesUntilLimit).toBeLessThan(3 * 24 * 60);
-    expect(atStart).toContainEqual({
-      kind: "radiation-dose-warning",
-      atMinute: started.atMinute,
-      minutesUntilLimit,
-    });
   });
 });

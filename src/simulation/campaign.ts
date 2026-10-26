@@ -580,7 +580,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     catalogue.lunation,
   ).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
-  const doseLimitBefore = forecastRadiationDose(state).minutesUntilLimit;
+  const minutesUntilLimitBefore =
+    forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -600,7 +601,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const dangers = [
     ...useLifeSupport(state),
     ...watchHabitatPower(state, powerLostBefore),
-    ...absorbRadiationDose(state, doseLimitBefore),
+    ...absorbRadiationDose(state, minutesUntilLimitBefore),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");
   events.push(...(death === undefined ? dangers : [death]));
