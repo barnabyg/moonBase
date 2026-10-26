@@ -186,3 +186,55 @@ describe("the sample save of format version 3", () => {
     });
   });
 });
+
+describe("the sample saves from before the Lander flew", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+  ])("%s loads with the Lander landed where the Campaign began", (name) => {
+    const { lander } = loadSample(name).snapshot();
+
+    expect(lander).toEqual({
+      state: "landed-free",
+      position: catalogue.landingSite.landerPosition,
+      legStartedAtMinute: undefined,
+      legEndsAtMinute: undefined,
+    });
+  });
+});
+
+describe("the sample save of format version 4", () => {
+  it("loads with the Lander in turnaround on Earth", () => {
+    const state = loadSample("version-4.moonbase").snapshot();
+
+    expect(state.lander).toEqual({
+      state: "turnaround",
+      position: { x: 0, y: 0 },
+      legStartedAtMinute: 29580,
+      legEndsAtMinute: 35340,
+    });
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+  });
+
+  it("plays on from where it was saved, until the Lander has flown back and landed", () => {
+    const campaign = loadSample("version-4.moonbase");
+    const kinds: string[] = [];
+
+    for (
+      let skips = 0;
+      campaign.snapshot().lander.state !== "landed-free";
+      skips++
+    ) {
+      if (skips > 100) throw new Error("The Lander never landed.");
+      kinds.push(...campaign.advanceToNextEvent().map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("lander-left-earth");
+    expect(kinds.at(-1)).toBe("lander-landed");
+    expect(campaign.snapshot().clock.elapsedMinutes).toBe(
+      35340 + catalogue.lander.roundTripEarthDays.toMoon * 24 * 60,
+    );
+  });
+});

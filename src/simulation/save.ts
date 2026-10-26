@@ -3,6 +3,7 @@ import type { CampaignEnd, CampaignState } from "./campaign";
 import type { ConstructionStage, MachineStage } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
+import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
 import { MAX_SEED } from "./random";
@@ -76,6 +77,16 @@ export const migrations: readonly Migration[] = [
         fundingMillionDollars: 400,
         launchManifest: [],
       },
+    };
+  },
+  // 3 to 4: the Lander flies a round trip to Earth and back. Until now it
+  // had never left, so it is landed.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !isRecord(state["lander"])) return { ...document };
+    return {
+      ...document,
+      state: { ...state, lander: { ...state["lander"], trip: null } },
     };
   },
 ];
@@ -449,7 +460,20 @@ const simulationState = object({
   elapsedMinutes: wholeNumber,
   nextStructureNumber: wholeNumber,
   nextPlanNumber: wholeNumber,
-  lander: object({ position: groundPosition }),
+  lander: object({
+    position: groundPosition,
+    trip: optional(
+      object({
+        leg: oneOf<LanderLeg>({
+          "travelling-to-earth": true,
+          turnaround: true,
+          "travelling-to-moon": true,
+        }),
+        legStartedAtMinute: wholeNumber,
+        legEndsAtMinute: wholeNumber,
+      }),
+    ),
+  }),
   missionDirector,
   lifeSupport: list(
     object({

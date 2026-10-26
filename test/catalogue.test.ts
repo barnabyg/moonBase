@@ -69,6 +69,15 @@ describe("the data catalogue", () => {
     ).toBe(true);
   });
 
+  it("flies the Lander's round trip in legs that each last a positive, whole number of game-minutes", () => {
+    for (const earthDays of Object.values(
+      catalogue.lander.roundTripEarthDays,
+    )) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+  });
+
   it("places at least one Robot on the map, outside the Lander's footprint", () => {
     const { landerPosition, robotPositions } = catalogue.landingSite;
 

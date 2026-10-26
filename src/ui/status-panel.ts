@@ -5,6 +5,7 @@ import type {
   DismantleResult,
   Forecasts,
   MoveInResult,
+  SendLanderResult,
   Snapshot,
   StructureSnapshot,
 } from "../simulation";
@@ -36,15 +37,18 @@ export interface StatusPanel {
 /**
  * The HTML status panel. It reads simulation snapshots, sends the player's
  * speed choices to the game loop, and sends a choice to dismantle a Structure
- * or to move the Mission Director into a Habitat to the Campaign, which
- * decides whether it is allowed and says why not. It also saves the Campaign
+ * or to move the Mission Director into a Habitat, or to send the Lander, to
+ * the Campaign, which decides whether it is allowed and says why not. It also saves the Campaign
  * to a file and loads one from a file, and shows the Funding balance beside
  * a button that opens the Launch manifest screen.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
-  campaign: Pick<Campaign, "dismantleStructure" | "moveMissionDirectorIn">,
+  campaign: Pick<
+    Campaign,
+    "dismantleStructure" | "moveMissionDirectorIn" | "sendLander"
+  >,
   saveFiles: SaveFiles,
   openLaunchManifest: () => void,
 ): StatusPanel {
@@ -131,10 +135,22 @@ export function createStatusPanel(
   missionDirector.setAttribute("role", "status");
   missionDirector.setAttribute("aria-label", "Mission Director");
 
-  const lander = document.createElement("p");
-  lander.className = "status-panel__residence";
+  const landerLine = document.createElement("p");
+  landerLine.className = "status-panel__residence status-panel__lander";
+  const lander = document.createElement("span");
   lander.setAttribute("role", "status");
   lander.setAttribute("aria-label", "Lander");
+  lander.setAttribute("aria-live", "off");
+  const sendLander = document.createElement("button");
+  sendLander.type = "button";
+  sendLander.className = "status-panel__send-lander";
+  sendLander.textContent = "Send the Lander";
+  sendLander.title =
+    "Send the Lander to Earth and back, which it can only do once the Mission Director has moved into a Habitat.";
+  sendLander.addEventListener("click", () => {
+    showResult(campaign.sendLander());
+  });
+  landerLine.append(lander, sendLander);
 
   // Whether the Mission Director's Habitat has power, and when it will lose it.
   const habitatPower = document.createElement("p");
@@ -176,7 +192,7 @@ export function createStatusPanel(
   refusal.hidden = true;
   let refusalTimer: ReturnType<typeof setTimeout> | undefined;
   const showResult = (
-    result: DismantleResult | MoveInResult | LoadFileResult,
+    result: DismantleResult | MoveInResult | SendLanderResult | LoadFileResult,
   ) => {
     clearTimeout(refusalTimer);
     refusal.hidden = result.ok;
@@ -237,7 +253,7 @@ export function createStatusPanel(
     power,
     storedPower,
     missionDirector,
-    lander,
+    landerLine,
     habitatPower,
     ...stocks.map((stock) => stock.line),
     radiationDose,
@@ -262,7 +278,11 @@ export function createStatusPanel(
         missionDirector,
         formatMissionDirector(snapshot.missionDirector, snapshot.structures),
       );
-      setText(lander, formatLander(snapshot.lander));
+      setText(
+        lander,
+        formatLander(snapshot.lander, snapshot.clock.elapsedMinutes),
+      );
+      sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
       const habitatPowerText = formatHabitatPower(
         snapshot.missionDirector,
         snapshot.structures,

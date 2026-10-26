@@ -147,11 +147,30 @@ export function formatHabitatPower(
     : `Habitat power: on, fails in ${formatDuration(forecast.minutesUntilPowerLost)}`;
 }
 
-/** Says what state the Lander is in, for example "Lander: landed, free to fly". */
-export function formatLander(lander: LanderSnapshot): string {
-  return lander.state === "landed-occupied"
-    ? "Lander: landed, with the Mission Director aboard"
-    : "Lander: landed, free to fly";
+/**
+ * Says what state the Lander is in and, while it is away, when it next
+ * arrives or leaves, for example "Lander: landed, free to fly" or "Lander:
+ * in turnaround on Earth, leaves in 3 Earth Days 2 hours".
+ */
+export function formatLander(
+  lander: LanderSnapshot,
+  elapsedMinutes: number,
+): string {
+  const left = formatDuration(
+    Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
+  );
+  switch (lander.state) {
+    case "landed-occupied":
+      return "Lander: landed, with the Mission Director aboard";
+    case "landed-free":
+      return "Lander: landed, free to fly";
+    case "travelling-to-earth":
+      return `Lander: travelling to Earth, arrives in ${left}`;
+    case "turnaround":
+      return `Lander: in turnaround on Earth, leaves in ${left}`;
+    case "travelling-to-moon":
+      return `Lander: travelling to the Moon, lands in ${left}`;
+  }
 }
 
 export function stockLabel(stockId: string): string {
@@ -205,6 +224,14 @@ export function formatEvent(event: GameEvent): string {
       return `Solar Particle Event under way, for ${formatDuration(event.endsAtMinute - event.atMinute)}`;
     case "solar-particle-event-ended":
       return "Solar Particle Event over";
+    case "lander-took-off":
+      return "Lander took off for Earth";
+    case "lander-reached-earth":
+      return "Lander reached Earth for turnaround";
+    case "lander-left-earth":
+      return "Lander left Earth for the Moon";
+    case "lander-landed":
+      return "Lander landed";
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }

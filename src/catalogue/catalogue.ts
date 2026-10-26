@@ -11,6 +11,16 @@ export interface Catalogue {
   readonly lander: {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
+    /**
+     * How long each leg of the Lander's round trip takes: flying to Earth,
+     * turnaround there, and flying back to land at the base. Each must come
+     * to a whole number of game-minutes.
+     */
+    readonly roundTripEarthDays: {
+      readonly toEarth: number;
+      readonly turnaround: number;
+      readonly toMoon: number;
+    };
   };
   /**
    * The base's stock of Components, kept on the ground beside the landing
@@ -288,9 +298,12 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 12,
+  version: 13,
   map: { widthMetres: 1000, depthMetres: 1000 },
-  lander: { footprintRadiusMetres: 4 },
+  lander: {
+    footprintRadiusMetres: 4,
+    roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
+  },
   stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
     landerPosition: { x: 0, y: 0 },

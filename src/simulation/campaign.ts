@@ -46,6 +46,14 @@ import {
   type LifeSupportState,
 } from "./life-support";
 import {
+  flyLander,
+  readLander,
+  sendLander,
+  type LanderSnapshot,
+  type LanderState,
+  type SendLanderResult,
+} from "./lander";
+import {
   readLaunchManifest,
   setLaunchManifest,
   type LaunchManifestSnapshot,
@@ -101,14 +109,8 @@ export interface CampaignOptions {
   readonly seed: number;
 }
 
-export type { ComponentCount, GroundPosition };
+export type { ComponentCount, GroundPosition, LanderSnapshot };
 export type MapSnapshot = MapSize;
-
-export interface LanderSnapshot {
-  /** Landed with the Mission Director aboard, or landed and free to fly once they have moved into a Habitat. */
-  readonly state: "landed-occupied" | "landed-free";
-  readonly position: GroundPosition;
-}
 
 /**
  * The base's stock of Components, kept on the ground beside the landing site.
@@ -348,6 +350,11 @@ export interface Campaign {
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
   /**
+   * Sends the landed Lander on its round trip to Earth and back, which it
+   * can't make while the Mission Director lives aboard it.
+   */
+  sendLander(): SendLanderResult;
+  /**
    * Sets what the next Launch is to bring from Earth, in place of the
    * manifest so far. A manifest the Launch can't carry, or the Funding
    * balance can't pay for, is refused with the limit it would go over.
@@ -375,7 +382,7 @@ export interface CampaignState {
    * Structure cut off from power, so they are worked on in order.
    */
   nextPlanNumber: number;
-  lander: { position: GroundPosition };
+  lander: LanderState;
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
   radiationDoseMillisieverts: number;
@@ -404,7 +411,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
-    lander: { position: { ...landingSite.landerPosition } },
+    lander: { position: { ...landingSite.landerPosition }, trip: undefined },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
@@ -521,6 +528,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(moveMissionDirectorIn(state, habitatId));
     },
+    sendLander() {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(sendLander(state));
+    },
     setLaunchManifest(manifest) {
       if (state.ended !== undefined) {
         return deepFreeze({
@@ -562,13 +579,7 @@ function campaignFrom(state: CampaignState): Campaign {
         clock: readClock(state.elapsedMinutes),
         lunation,
         map: { ...catalogue.map },
-        lander: {
-          state:
-            state.missionDirector.residence === "lander"
-              ? "landed-occupied"
-              : "landed-free",
-          position: { ...state.lander.position },
-        },
+        lander: readLander(state),
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
@@ -657,6 +668,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
+  events.push(...flyLander(state));
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);

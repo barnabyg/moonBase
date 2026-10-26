@@ -68,6 +68,19 @@ export type GameEvent =
       readonly atMinute: number;
     }
   | {
+      /**
+       * The Lander has taken off for Earth ("lander-took-off"), arrived there
+       * for turnaround ("lander-reached-earth"), left Earth for the Moon
+       * ("lander-left-earth"), or landed at the base ("lander-landed").
+       */
+      readonly kind:
+        | "lander-took-off"
+        | "lander-reached-earth"
+        | "lander-left-earth"
+        | "lander-landed";
+      readonly atMinute: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;

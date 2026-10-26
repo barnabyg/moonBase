@@ -23,6 +23,7 @@ export function createCampaignSlot(first: Campaign): CampaignSlot {
       current.dismantleStructure(structureId),
     moveMissionDirectorIn: (habitatId) =>
       current.moveMissionDirectorIn(habitatId),
+    sendLander: () => current.sendLander(),
     setLaunchManifest: (manifest) => current.setLaunchManifest(manifest),
     forecasts: () => current.forecasts(),
     snapshot: () => current.snapshot(),
