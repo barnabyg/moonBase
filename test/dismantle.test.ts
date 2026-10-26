@@ -31,7 +31,7 @@ function total(counts: readonly ComponentCount[]): number {
 }
 
 /** A commissioned solar array. */
-function builtArray(): { game: Scenario; id: string } {
+function commissionedArray(): { game: Scenario; id: string } {
   const game = scenario().plan("solar-array", site);
   const id = game.state.constructions[0]?.id ?? "";
   runUntil(game, (state) => state.constructions.length === 0);
@@ -40,7 +40,7 @@ function builtArray(): { game: Scenario; id: string } {
 
 describe("dismantling a Structure", () => {
   it("has the Robot take it apart live, then carry most of its Components back into stock", () => {
-    const { game, id } = builtArray();
+    const { game, id } = commissionedArray();
     const stockBefore = game.state.cargo;
 
     expect(game.campaign.dismantleStructure(id)).toEqual({ ok: true });
@@ -108,7 +108,7 @@ describe("dismantling a Structure", () => {
   });
 
   it("keeps its ground taken until its Components are back in stock", () => {
-    const { game, id } = builtArray();
+    const { game, id } = commissionedArray();
     game.campaign.dismantleStructure(id);
     const placeOverIt = () =>
       game.campaign.checkPlacement({
@@ -133,7 +133,7 @@ describe("dismantling a Structure", () => {
   ] as const)(
     "is worked on in plan order: planned %s a Construction, the Robot starts with %s",
     (when, firstActivity) => {
-      const { game, id } = builtArray();
+      const { game, id } = commissionedArray();
       const later = { x: -20, y: -15 };
       if (when === "before") {
         game.campaign.dismantleStructure(id);
@@ -150,7 +150,7 @@ describe("dismantling a Structure", () => {
   );
 
   it("isn't used to power a new Construction once its dismantling is planned", () => {
-    const { game, id } = builtArray();
+    const { game, id } = commissionedArray();
     game.plan("battery-bank", { x: 30, y: 25 });
     game.campaign.dismantleStructure(id);
 
@@ -169,7 +169,7 @@ describe("dismantling a Structure", () => {
   });
 
   it("counts the Structure being dismantled as an event to skip to", () => {
-    const { game, id } = builtArray();
+    const { game, id } = commissionedArray();
     game.campaign.dismantleStructure(id);
 
     const events = game.campaign.advanceToNextEvent();
@@ -186,7 +186,7 @@ describe("dismantling a Structure", () => {
   });
 
   it("is refused for a Structure that doesn't exist or is already being dismantled", () => {
-    const { game, id } = builtArray();
+    const { game, id } = commissionedArray();
 
     expect(game.campaign.dismantleStructure(id)).toEqual({ ok: true });
     expect(game.campaign.dismantleStructure(id)).toMatchObject({ ok: false });

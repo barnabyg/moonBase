@@ -410,7 +410,7 @@ function createLightMastModel(): StructureModel {
   mast.add(pole);
 
   // The bar of lights faces every way, so the light falls all round.
-  const lampMaterial = materials.statusOff.clone();
+  const lightMaterial = materials.statusOff.clone();
   const head = new THREE.Group();
   head.position.y = LIGHT_MAST_HEIGHT;
   head.add(
@@ -420,7 +420,11 @@ function createLightMastModel(): StructureModel {
       [0, 0, 0],
     ),
     ...[-0.45, 0.45].map((x) =>
-      part(new THREE.BoxGeometry(0.32, 0.22, 0.32), lampMaterial, [x, -0.1, 0]),
+      part(new THREE.BoxGeometry(0.32, 0.22, 0.32), lightMaterial, [
+        x,
+        -0.1,
+        0,
+      ]),
     ),
   );
   mast.add(head);
@@ -446,8 +450,8 @@ function createLightMastModel(): StructureModel {
     },
     setCharge: () => undefined,
     setLit(on) {
-      lampMaterial.color.set(on ? 0xfff4dc : 0x222222);
-      lampMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
+      lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
+      lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
     },
   };
 }
