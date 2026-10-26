@@ -1,4 +1,4 @@
-import { loadCampaign } from "../simulation";
+import { loadCampaign, type LoadResult } from "../simulation";
 import type { CampaignSlot } from "./campaign-slot";
 
 /** The extension of a Moon Base save file. */
@@ -54,7 +54,17 @@ export function createSaveFiles(
           message: `Couldn't load "${file.name}". Firefox couldn't read the file.`,
         };
       }
-      const result = loadCampaign(text);
+      let result: LoadResult;
+      try {
+        result = loadCampaign(text);
+      } catch (error) {
+        // A bug rather than a bad file, but the player should still hear of it.
+        console.error(error);
+        return {
+          ok: false,
+          message: `Couldn't load "${file.name}". Something went wrong while loading it.`,
+        };
+      }
       if (!result.ok) {
         return {
           ok: false,

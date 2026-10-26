@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCampaignSlot } from "../src/game/campaign-slot";
 import { createSaveFiles } from "../src/game/save-files";
+import { loadCampaign } from "../src/simulation";
 import { scenario } from "./scenario";
+
+// The real loadCampaign, which a test can make fail as a bug would.
+vi.mock("../src/simulation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/simulation")>();
+  return { ...actual, loadCampaign: vi.fn(actual.loadCampaign) };
+});
 
 function saveFilesFor(seed: number) {
   const game = scenario(seed);
@@ -61,5 +68,28 @@ describe("loading a file", () => {
     });
     expect(slot.save()).toBe(before);
     expect(files.loads).toBe(0);
+  });
+
+  it("tells the player when loading fails unexpectedly, and leaves the Campaign being played alone", async () => {
+    const files = saveFilesFor(1);
+    const before = files.slot.save();
+    const failure = new Error("a bug in loading");
+    vi.mocked(loadCampaign).mockImplementationOnce(() => {
+      throw failure;
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await files.saveFiles.load(
+      new File([before], "moon-base-earth-day-1-0000.moonbase"),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      message: `Couldn't load "moon-base-earth-day-1-0000.moonbase". Something went wrong while loading it.`,
+    });
+    expect(logged).toHaveBeenCalledWith(failure);
+    expect(files.slot.save()).toBe(before);
+    expect(files.loads).toBe(0);
+    logged.mockRestore();
   });
 });
