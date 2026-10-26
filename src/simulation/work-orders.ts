@@ -8,7 +8,6 @@ import {
 } from "./construction";
 import { isDiggingWanted } from "./digging";
 import { isSameDriven, type DrivenTarget } from "./driven";
-
 import type { DismantlingStage } from "./dismantling";
 import { isMachineBroken, machineOn, nearestFreeMachine } from "./machines";
 import {

@@ -1,8 +1,7 @@
-import { catalogue, type GroundPosition } from "../catalogue";
+import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import type { GameEvent } from "./events";
 import { isRoverOnExpedition } from "./expeditions";
-
 import {
   damageMachine,
   findMachineType,
@@ -120,10 +119,6 @@ export function drivenSpec(driven: Driven): DrivenSpec {
   return driven.kind === "machine"
     ? (findMachineType(driven.machine.machineTypeId) ?? noSpec)
     : catalogue.rover;
-}
-
-export function drivenPosition(driven: Driven): GroundPosition {
-  return bodyOf(driven).position;
 }
 
 export function isDrivenBroken(driven: Driven): boolean {

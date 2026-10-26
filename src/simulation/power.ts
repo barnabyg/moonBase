@@ -197,7 +197,6 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
  * that is on a network with a power source, and isn't Broken or to be
  * dismantled. A Broken Machine or Rover, or a Rover out on an Expedition,
  * is plugged in to nothing.
-
  */
 export function pluggedIn(
   state: CampaignState,

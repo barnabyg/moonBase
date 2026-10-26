@@ -121,7 +121,7 @@ An autonomous humanoid worker that carries out Work Orders by walking to Machine
 _Avoid_: drone, bot, unit, android
 
 **Machine**:
-A piece of automated equipment that carries out a process, such as printing a Structure from Regolith, once a Robot has positioned and activated it. Equipment built in place that runs by itself is a **Plant**, not a Machine.
+A piece of automated equipment that carries out a process, such as printing a Structure from Regolith, once a Robot has positioned and activated it. Anything built in place that runs by itself is a **Plant**, not a Machine.
 _Avoid_: device, equipment, building
 
 **Rover**:

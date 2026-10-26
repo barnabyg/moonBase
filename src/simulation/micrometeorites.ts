@@ -4,7 +4,6 @@ import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isBroken } from "./construction";
 import type { GameEvent } from "./events";
 import { isAway } from "./expeditions";
-
 import { damageMachine } from "./machines";
 import { drawMinutes, nextFraction, type RandomState } from "./random";
 import { damageRover } from "./rovers";

@@ -4,7 +4,6 @@ import type { ConstructionStage, MachineStage } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
 import type { ExpeditionStage } from "./expeditions";
-
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
@@ -1182,7 +1181,6 @@ const simulationState = object({
       kilograms: amount,
     }),
   ),
-
   constructions: list(
     object({
       id: text,

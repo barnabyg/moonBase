@@ -33,7 +33,6 @@ import {
   type ExpeditionState,
 } from "./expeditions";
 import { isRoverBroken, roverPerformance } from "./rovers";
-
 import {
   findMachineType,
   machineFootprintRadius,
@@ -92,7 +91,6 @@ import {
   wearDriven,
   type Driven,
 } from "./driven";
-
 import { isClaimedBy } from "./maintenance";
 
 /**
@@ -463,7 +461,7 @@ function setGoing(
   state: CampaignState,
   robot: RobotState,
   machine: MachineState,
-  job: {
+  positioning: {
     readonly destination: GroundPosition;
     activationMinutes: number;
     working: boolean;
@@ -484,12 +482,12 @@ function setGoing(
     return false;
   };
   const type = findMachineType(machine.machineTypeId);
-  if (!samePlace(machine.position, job.destination)) {
+  if (!samePlace(machine.position, positioning.destination)) {
     if (!walkTo(machine.position)) return [];
     // As fast as its Condition allows, wearing it down by Dust.
     machine.position = stepTowards(
       machine.position,
-      job.destination,
+      positioning.destination,
       {
         centre: state.lander.position,
         radius:
@@ -516,9 +514,12 @@ function setGoing(
   // Once there, it climbs down and sets the Machine going from beside it.
   if (!walkTo(beside(machine, site))) return [];
   robot.activity = activities.activating;
-  job.activationMinutes += robotPerformance(robot);
-  if (job.activationMinutes >= Math.round((type?.activationHours ?? 0) * 60)) {
-    job.working = true;
+  positioning.activationMinutes += robotPerformance(robot);
+  if (
+    positioning.activationMinutes >=
+    Math.round((type?.activationHours ?? 0) * 60)
+  ) {
+    positioning.working = true;
   }
   return [];
 }

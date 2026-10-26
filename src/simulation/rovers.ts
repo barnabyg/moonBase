@@ -15,7 +15,7 @@ export type RoverActivity =
   | { readonly kind: "on-expedition" };
 
 /**
- * A vehicle a Robot drives. Like a Machine, it wears down, feels the cold
+ * What a Robot drives, mainly to go on Expeditions. Like a Machine, it wears down, feels the cold
  * of Night unless it is plugged in, and is maintained with spare Components.
  */
 export interface RoverState {

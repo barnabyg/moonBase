@@ -3,7 +3,6 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isOperating } from "./condition";
 import { isAway, isRoverOnExpedition } from "./expeditions";
-
 import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { readLunation } from "./lunation";

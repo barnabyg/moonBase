@@ -198,8 +198,9 @@ export function returnSpot(
 }
 
 /**
- * Wears the Rover down by Dust for a game-minute it is driven on an
- * Expedition, never below 1%, so that it always comes back.
+ * Wears the Rover down by Dust for a game-minute of an Expedition, on
+ * which it is driven all the way, out to the map edge, while it is away
+ * and back; never below 1%, so that it always comes back.
  */
 export function wearRoverOnExpedition(rover: RoverState): void {
   rover.conditionPercent = Math.max(
