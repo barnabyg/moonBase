@@ -287,6 +287,36 @@ describe("while an Expedition is away", () => {
   });
 });
 
+describe("the spare Components forecast", () => {
+  it("counts no cold on the Rover while it is out on an Expedition at Night", () => {
+    const { campaign } = scenario();
+    // Leaving just before Night, so that it is away through it.
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining - 6 * 60);
+    start(campaign);
+    while (campaign.snapshot().expedition?.stage !== "away") {
+      campaign.advance(60);
+    }
+    campaign.advance(12 * 60);
+    expect(campaign.snapshot().lunation.part).toBe("night");
+
+    const { perEarthDay } = campaign.forecasts().spareComponents;
+
+    // The Machines left in the cold, the Rover driven and the Robot at work.
+    const machineCold = catalogue.machineTypes.reduce(
+      (sum, type) => sum + type.coldWearPercentPerNightHour,
+      0,
+    );
+    expect(perEarthDay).toBeCloseTo(
+      ((machineCold +
+        catalogue.rover.dustWearPercentPerDrivingHour +
+        catalogue.robot.dustWearPercentPerHour) *
+        24) /
+        catalogue.maintenance.conditionPercentPerSpareComponent,
+      6,
+    );
+  });
+});
+
 describe("skipping to the next event", () => {
   it("stops as the Expedition leaves and as it returns", () => {
     const { campaign } = scenario();

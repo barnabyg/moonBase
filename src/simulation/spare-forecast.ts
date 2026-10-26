@@ -2,7 +2,7 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isOperating } from "./condition";
-import { isAway } from "./expeditions";
+import { isAway, isRoverOnExpedition } from "./expeditions";
 
 import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
@@ -164,7 +164,10 @@ function wearPercentPerHour(state: CampaignState): number {
       return (
         sum +
         (driven ? roverType.dustWearPercentPerDrivingHour : 0) +
-        (night && !rover.powered ? roverType.coldWearPercentPerNightHour : 0)
+        // Out on an Expedition, it is kept warm as it is driven.
+        (night && !rover.powered && !isRoverOnExpedition(state, rover.id)
+          ? roverType.coldWearPercentPerNightHour
+          : 0)
       );
     }, 0);
   const robots = state.robots.filter(
