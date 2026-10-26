@@ -1075,3 +1075,54 @@ describe("the sample save of format version 18", () => {
     ).toBe(catalogue.expeditions.kilograms);
   });
 });
+
+describe("the sample saves from before the water-processing plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-18.moonbase"])(
+    "%s loads with none of the water-processing plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["ice-melter", "water-purifier"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "ice-melter", count: 0 },
+        { componentId: "water-purifier", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 19", () => {
+  const iceOf = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === "water-ice")
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with the water-processing plant turning an Expedition's water ice into water", () => {
+    const campaign = loadSample("version-19.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.find(
+          (structure) => structure.structureTypeId === "water-processing-plant",
+        )?.plant,
+    ).toEqual({ running: true, stoppedFor: undefined });
+    expect(iceOf(campaign)).toBeCloseTo(196.2, 1);
+  });
+
+  it("plays on from where it was saved, the ice falling as the water rises", () => {
+    const campaign = loadSample("version-19.moonbase");
+    const waterOf = () => campaign.snapshot().lifeSupport[1]?.kilograms ?? 0;
+    const ice = iceOf(campaign);
+    const water = waterOf();
+
+    campaign.advance(10 * 60);
+
+    expect(iceOf(campaign)).toBeLessThan(ice);
+    expect(waterOf()).toBeGreaterThan(water);
+  });
+});

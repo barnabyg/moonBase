@@ -593,6 +593,19 @@ describe("the data catalogue", () => {
     ]);
   });
 
+  it("has a water-processing plant that turns water ice into water", () => {
+    const plant = catalogue.structureTypes.find(
+      (type) => type.id === "water-processing-plant",
+    )?.plant;
+
+    expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+      { kind: "bulk-resource", resourceId: "water-ice" },
+    ]);
+    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      { kind: "life-support", stockId: "water" },
+    ]);
+  });
+
   describe.each(
     catalogue.structureTypes.flatMap((type) =>
       type.plant === undefined ? [] : [[type.label, type] as const],

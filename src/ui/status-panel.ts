@@ -354,7 +354,10 @@ export function createStatusPanel(
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       setText(stock, formatStock(snapshot.stockpile));
-      setText(bulkResources, formatBulkResources(snapshot.bulkResources));
+      setText(
+        bulkResources,
+        formatBulkResources(snapshot.bulkResources, forecasts.bulkResources),
+      );
       setText(
         spareComponents,
         formatSpareComponents(forecasts.spareComponents),

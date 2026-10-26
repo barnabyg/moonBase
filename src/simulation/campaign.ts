@@ -15,6 +15,10 @@ import {
   type BulkResourceSnapshot,
   type BulkResourceState,
 } from "./bulk-resources";
+import {
+  forecastBulkResources,
+  type BulkResourceForecast,
+} from "./bulk-forecast";
 import { readClock, type ClockSnapshot } from "./clock";
 import { structurePerformance, wearStructures } from "./condition";
 import { coatSolarArrays } from "./dust-coating";
@@ -391,6 +395,8 @@ export interface Forecasts {
   readonly radiationDose: RadiationDoseForecast;
   /** How long the base's spare Components will last, at the current rate of wear. */
   readonly spareComponents: SpareComponentsForecast;
+  /** How long each of the base's bulk resources will last, in catalogue order. */
+  readonly bulkResources: readonly BulkResourceForecast[];
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -812,6 +818,7 @@ function campaignFrom(state: CampaignState): Campaign {
         habitatPower: forecastHabitatPower(state),
         radiationDose: forecastRadiationDose(state),
         spareComponents: forecastSpareComponents(state),
+        bulkResources: forecastBulkResources(state),
       });
     },
     snapshot() {

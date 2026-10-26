@@ -128,13 +128,32 @@ export function productionPerHour(
   state: CampaignState,
   resource: ResourceRef,
 ): number {
+  return flowPerHour(state, resource, (recipe) => recipe.outputs);
+}
+
+/**
+ * How many kilograms an hour of a resource the base's Plants are using up
+ * now, as they ran during the latest game-minute.
+ */
+export function consumptionPerHour(
+  state: CampaignState,
+  resource: ResourceRef,
+): number {
+  return flowPerHour(state, resource, (recipe) => recipe.inputs);
+}
+
+function flowPerHour(
+  state: CampaignState,
+  resource: ResourceRef,
+  flows: (recipe: PlantRecipe) => PlantRecipe["inputs"],
+): number {
   return state.structures.reduce((sum, structure) => {
     const recipe = recipeOf(structure.structureTypeId);
     if (recipe === undefined || !structure.powered) return sum;
-    const made = recipe.outputs
+    const moved = flows(recipe)
       .filter((flow) => isSameResource(flow.resource, resource))
       .reduce((total, flow) => total + flow.kilogramsPerHour, 0);
-    return sum + made * structurePerformance(structure);
+    return sum + moved * structurePerformance(structure);
   }, 0);
 }
 

@@ -601,7 +601,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 27,
+  version: 28,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -722,6 +722,8 @@ export const catalogue: Catalogue = {
     { id: "spare-component", label: "Spare Component" },
     { id: "extraction-reactor", label: "Extraction reactor" },
     { id: "oxygen-separator", label: "Oxygen separator" },
+    { id: "ice-melter", label: "Ice melter" },
+    { id: "water-purifier", label: "Water purifier" },
   ],
   structureTypes: [
     {
@@ -965,6 +967,54 @@ export const catalogue: Catalogue = {
         drawKilowatts: 4,
       },
     },
+    {
+      id: "water-processing-plant",
+      label: "Water-processing plant",
+      footprintRadiusMetres: 2.5,
+      // A heated tank that melts the ice, and a still that cleans the water.
+      components: [
+        { componentId: "ice-melter", count: 1 },
+        { componentId: "water-purifier", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 4,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.15,
+      dustWearPercentPerHour: 0.03,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // Most of the ice comes out as water; the rest is the dust and grit
+      // frozen in with it. Running, it makes six times what the Mission
+      // Director drinks, so an Expedition's ice lasts over a week.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "water-ice" },
+            kilogramsPerHour: 1,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 0.9,
+          },
+        ],
+        drawKilowatts: 2,
+      },
+    },
   ],
   dismantlingLossShare: 0.2,
   startingStock: [
@@ -1119,6 +1169,19 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "oxygen-separator" },
         massKilograms: 300,
         priceMillionDollars: 30,
+      },
+      // A water-processing plant's worth comes to 400 kg.
+      {
+        id: "ice-melter",
+        brings: { kind: "component", componentId: "ice-melter" },
+        massKilograms: 250,
+        priceMillionDollars: 15,
+      },
+      {
+        id: "water-purifier",
+        brings: { kind: "component", componentId: "water-purifier" },
+        massKilograms: 150,
+        priceMillionDollars: 20,
       },
       // In pressurised tanks, which make up the rest of the mass.
       {

@@ -1,6 +1,7 @@
 import { catalogue, type LaunchItem, type ResourceRef } from "../catalogue";
 import {
   readClock,
+  type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
   type GameEvent,
@@ -496,18 +497,25 @@ export function formatKilograms(kilograms: number): string {
 }
 
 /**
- * Lists the base's stock of bulk resources, for example "Regolith: 340
- * kg".
+ * Lists the base's stock of bulk resources, and roughly how long any that
+ * is falling will last at the current rate, for example "Regolith: 340 kg;
+ * Water ice: 190 kg, lasts about 7 Earth Days 22 hours".
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
+  forecasts: readonly BulkResourceForecast[],
 ): string {
   return bulkResources
-    .map(
-      (stock) =>
-        `${resourceLabel(stock.resourceId)}: ${formatKilograms(stock.kilograms)}`,
-    )
-    .join(", ");
+    .map((stock) => {
+      const amount = `${resourceLabel(stock.resourceId)}: ${formatKilograms(stock.kilograms)}`;
+      const minutes = forecasts.find(
+        (forecast) => forecast.resourceId === stock.resourceId,
+      )?.minutesUntilEmpty;
+      return minutes === undefined || stock.kilograms === 0
+        ? amount
+        : `${amount}, lasts about ${formatDuration(minutes)}`;
+    })
+    .join("; ");
 }
 
 /** Says how much Funding the base programme has, for example "Funding: $400M". */

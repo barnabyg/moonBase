@@ -446,6 +446,31 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 18 to 19: the water-processing plant, with two new Components, which
+  // the base's stock keeps a count of after the others. None was there
+  // before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "ice-melter", count: 0 },
+                  { componentId: "water-purifier", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**
