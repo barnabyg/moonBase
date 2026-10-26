@@ -84,7 +84,7 @@ describe("a save document", () => {
 
     expect(document).toMatchObject({
       format: "moonbase-save",
-      version: 2,
+      version: 3,
       random: {
         a: expect.any(Number) as number,
         b: expect.any(Number) as number,
@@ -98,6 +98,20 @@ describe("a save document", () => {
         solarParticleEvent: expect.any(Object) as unknown,
       }) as unknown,
     });
+  });
+
+  it("keeps the Funding balance and the Launch manifest", () => {
+    const game = scenario();
+    game.campaign.setLaunchManifest([
+      { itemId: "habitat-envelope", count: 1 },
+      { itemId: "oxygen", count: 2 },
+    ]);
+
+    const loaded = load(game.campaign.save()).snapshot();
+
+    expect(loaded.fundingMillionDollars).toBe(game.state.fundingMillionDollars);
+    expect(loaded.launchManifest).toEqual(game.state.launchManifest);
+    expect(loaded.launchManifest.items).toHaveLength(2);
   });
 
   it("starts a Campaign identical to the one saved", () => {
@@ -199,14 +213,14 @@ describe("loading a file", () => {
 
   it("is refused when it comes from a newer format version", () => {
     const text = edited(valid(), (document) => {
-      document.version = 3;
+      document.version = 4;
     });
 
     expect(loadCampaign(text)).toEqual({
       ok: false,
       reason: "newer-version",
       message:
-        "It was saved by a newer version of Moon Base, in save format version 3. This version can load up to version 2.",
+        "It was saved by a newer version of Moon Base, in save format version 4. This version can load up to version 3.",
     });
   });
 

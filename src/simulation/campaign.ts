@@ -46,6 +46,13 @@ import {
   type LifeSupportState,
 } from "./life-support";
 import {
+  readLaunchManifest,
+  setLaunchManifest,
+  type LaunchManifestSnapshot,
+  type ManifestLine,
+  type ManifestResult,
+} from "./launch-manifest";
+import {
   moveMissionDirectorIn,
   type MissionDirectorResidence,
   type MoveInResult,
@@ -268,6 +275,10 @@ export interface Snapshot {
    * has come, until it ends. Undefined otherwise.
    */
   readonly solarParticleEvent: SolarParticleEventSnapshot | undefined;
+  /** The money the base programme has to spend. */
+  readonly fundingMillionDollars: number;
+  /** What the next Launch is to bring from Earth, and what that comes to. */
+  readonly launchManifest: LaunchManifestSnapshot;
   /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
@@ -336,6 +347,12 @@ export interface Campaign {
    * at once and for good, freeing the Lander.
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
+  /**
+   * Sets what the next Launch is to bring from Earth, in place of the
+   * manifest so far. A manifest the Launch can't carry, or the Funding
+   * balance can't pay for, is refused with the limit it would go over.
+   */
+  setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -364,6 +381,9 @@ export interface CampaignState {
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
+  fundingMillionDollars: number;
+  /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
+  launchManifest: { itemId: string; count: number }[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -389,6 +409,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
+    fundingMillionDollars: catalogue.programmeGrantMillionDollars,
+    launchManifest: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -499,6 +521,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(moveMissionDirectorIn(state, habitatId));
     },
+    setLaunchManifest(manifest) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(setLaunchManifest(state, manifest));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -541,6 +573,8 @@ function campaignFrom(state: CampaignState): Campaign {
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
+        fundingMillionDollars: state.fundingMillionDollars,
+        launchManifest: readLaunchManifest(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,

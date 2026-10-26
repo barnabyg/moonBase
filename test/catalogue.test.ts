@@ -109,6 +109,45 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("starts the Campaign with a Programme Grant, and sets a Payload Mass limit and a Launch fee", () => {
+    expect(catalogue.programmeGrantMillionDollars).toBeGreaterThan(0);
+    expect(catalogue.launch.payloadMassLimitKilograms).toBeGreaterThan(0);
+    expect(catalogue.launch.feeMillionDollars).toBeGreaterThan(0);
+    expect(catalogue.launch.feeMillionDollars).toBeLessThan(
+      catalogue.programmeGrantMillionDollars,
+    );
+  });
+
+  it("can ship every Component, and oxygen and water in set amounts, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
+    const { items, payloadMassLimitKilograms, feeMillionDollars } =
+      catalogue.launch;
+
+    expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
+    const shipped = items.map(({ brings }) =>
+      brings.kind === "component" ? brings.componentId : brings.stockId,
+    );
+    expect(shipped.toSorted()).toEqual(
+      [
+        ...catalogue.componentTypes.map((type) => type.id),
+        ...catalogue.lifeSupportStocks.map((stock) => stock.id),
+      ].toSorted(),
+    );
+    for (const item of items) {
+      if (item.brings.kind === "life-support") {
+        expect(item.brings.kilograms).toBeGreaterThan(0);
+        expect(item.massKilograms).toBeGreaterThanOrEqual(
+          item.brings.kilograms,
+        );
+      }
+      expect(item.massKilograms).toBeGreaterThan(0);
+      expect(item.massKilograms).toBeLessThanOrEqual(payloadMassLimitKilograms);
+      expect(item.priceMillionDollars).toBeGreaterThan(0);
+      expect(feeMillionDollars + item.priceMillionDollars).toBeLessThanOrEqual(
+        catalogue.programmeGrantMillionDollars,
+      );
+    }
+  });
+
   it("gives the Robot a positive walking speed, working gap and cable laying speed", () => {
     expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
     expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);

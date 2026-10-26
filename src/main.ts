@@ -7,6 +7,7 @@ import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBuildMenu } from "./ui/build-menu";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createGameOverScreen } from "./ui/game-over";
+import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createStatusPanel } from "./ui/status-panel";
 
@@ -72,7 +73,16 @@ const loop = createGameLoop(campaign, {
 const leftColumn = document.createElement("div");
 leftColumn.className = "left-column";
 container.append(leftColumn);
-const statusPanel = createStatusPanel(leftColumn, loop, campaign, saveFiles);
+const launchManifest = createLaunchManifestScreen(container, campaign);
+const statusPanel = createStatusPanel(
+  leftColumn,
+  loop,
+  campaign,
+  saveFiles,
+  () => {
+    launchManifest.open();
+  },
+);
 const constructionPanel = createConstructionPanel(container, campaign);
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(
@@ -96,6 +106,7 @@ function frame(time: number): void {
   const snapshot = campaign.snapshot();
   statusPanel.update(snapshot, campaign.forecasts());
   constructionPanel.update(snapshot);
+  launchManifest.update(snapshot);
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
   renderer?.render({

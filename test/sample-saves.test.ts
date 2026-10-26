@@ -25,6 +25,24 @@ describe("the sample saves", () => {
   );
 });
 
+describe("the sample saves from before Funding", () => {
+  it.each(["version-1.moonbase", "version-2.moonbase"])(
+    "%s loads with the Programme Grant as its Funding, and an empty Launch manifest",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.fundingMillionDollars).toBe(
+        catalogue.programmeGrantMillionDollars,
+      );
+      expect(state.launchManifest).toEqual({
+        items: [],
+        payloadMassKilograms: 0,
+        costMillionDollars: 0,
+      });
+    },
+  );
+});
+
 describe("the sample save of format version 1", () => {
   it("loads with the Mission Director in the Habitat, and the printer building its shielding", () => {
     const state = loadSample("version-1.moonbase").snapshot();
@@ -95,6 +113,13 @@ describe("the sample save of format version 1", () => {
     expect(campaign.dismantleStructure("structure-1")).toMatchObject({
       ok: false,
     });
+    expect(campaign.setLaunchManifest([{ itemId: "water", count: 1 }])).toEqual(
+      {
+        ok: false,
+        reason: "campaign-ended",
+        message: "The Campaign is over: the Mission Director has died.",
+      },
+    );
   });
 });
 
@@ -140,6 +165,24 @@ describe("the sample save of format version 2", () => {
     expect(structures.map((s) => s.structureTypeId)).toContain("light-mast");
     expect(structures.find((s) => s.id === "structure-2")).toMatchObject({
       shielded: true,
+    });
+  });
+});
+
+describe("the sample save of format version 3", () => {
+  it("loads with its Funding and its Launch manifest", () => {
+    const state = loadSample("version-3.moonbase").snapshot();
+
+    expect(state.fundingMillionDollars).toBe(400);
+    expect(state.launchManifest.items).toEqual([
+      { itemId: "habitat-envelope", count: 1 },
+      { itemId: "oxygen", count: 4 },
+      { itemId: "water", count: 2 },
+    ]);
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "walking",
+      structureId: "structure-4",
+      destination: "stockpile",
     });
   });
 });

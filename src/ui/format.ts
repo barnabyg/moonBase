@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type LaunchItem } from "../catalogue";
 import {
   readClock,
   type CampaignEnd,
@@ -24,6 +24,7 @@ import type {
   DismantlingSnapshot,
   DismantlingStage,
   LanderSnapshot,
+  LaunchManifestSnapshot,
   LunationSnapshot,
   MissionDirectorResidence,
   WalkingDestination,
@@ -294,6 +295,53 @@ export function structureLabel(structureTypeId: string): string {
     catalogue.structureTypes.find((type) => type.id === structureTypeId)
       ?.label ?? structureTypeId
   );
+}
+
+/** Formats an amount of money, for example "$12.5M" for 12.5 million dollars. */
+export function formatMillionDollars(value: number): string {
+  return `$${Number.isInteger(value) ? value : value.toFixed(1)}M`;
+}
+
+/** Says how much Funding the base programme has, for example "Funding: $400M". */
+export function formatFunding(fundingMillionDollars: number): string {
+  return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
+}
+
+/** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */
+export function launchItemLabel(item: LaunchItem): string {
+  const { brings } = item;
+  return brings.kind === "component"
+    ? (catalogue.componentTypes.find((type) => type.id === brings.componentId)
+        ?.label ?? brings.componentId)
+    : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+}
+
+/** Says how much a Launch item weighs and costs, for example "60 kg, $4M". */
+export function formatLaunchItem(item: LaunchItem): string {
+  return `${item.massKilograms} kg, ${formatMillionDollars(item.priceMillionDollars)}`;
+}
+
+/**
+ * Says the manifest's Payload Mass against the Launch's limit, for example
+ * "Payload Mass: 230 of 2000 kg".
+ */
+export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
+  return `Payload Mass: ${manifest.payloadMassKilograms} of ${catalogue.launch.payloadMassLimitKilograms} kg`;
+}
+
+/**
+ * Says what the manifest costs against the Funding balance, for example
+ * "Cost: $230M of $400M Funding, including the $150M Launch fee". An empty
+ * manifest costs nothing, so the fee is left out until it has an item.
+ */
+export function formatLaunchCost(
+  manifest: LaunchManifestSnapshot,
+  fundingMillionDollars: number,
+): string {
+  const funding = `${formatMillionDollars(fundingMillionDollars)} Funding`;
+  return manifest.items.length === 0
+    ? `Cost: nothing of ${funding}, while the manifest is empty`
+    : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(catalogue.launch.feeMillionDollars)} Launch fee`;
 }
 
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */

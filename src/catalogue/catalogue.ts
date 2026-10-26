@@ -72,6 +72,38 @@ export interface Catalogue {
   readonly habitatPowerWarningHoursLeft: readonly number[];
   readonly radiation: RadiationRules;
   readonly solarParticleEvents: SolarParticleEventRules;
+  /**
+   * The fixed lump of Funding the Mission Director starts the Campaign with,
+   * the only money there is until Exports earn more.
+   */
+  readonly programmeGrantMillionDollars: number;
+  readonly launch: LaunchRules;
+}
+
+/** What a Launch of the Lander from Earth can bring, and what it costs. */
+export interface LaunchRules {
+  /** The most mass one Launch can carry. */
+  readonly payloadMassLimitKilograms: number;
+  /** What every Launch costs on top of the price of what it brings. */
+  readonly feeMillionDollars: number;
+  /** Everything a Launch can bring, in the order the Launch manifest screen lists it. */
+  readonly items: readonly LaunchItem[];
+}
+
+/** Something a Launch can bring from Earth, as many times over as the player chooses. */
+export interface LaunchItem {
+  readonly id: string;
+  /** What one of it brings: a Component, or a set amount of oxygen or water. */
+  readonly brings:
+    | { readonly kind: "component"; readonly componentId: string }
+    | {
+        readonly kind: "life-support";
+        readonly stockId: string;
+        readonly kilograms: number;
+      };
+  /** Its mass, packing and any tank included, which counts towards the Payload Mass. */
+  readonly massKilograms: number;
+  readonly priceMillionDollars: number;
 }
 
 /**
@@ -256,7 +288,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 11,
+  version: 12,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   stockpile: { footprintRadiusMetres: 1.5 },
@@ -507,5 +539,85 @@ export const catalogue: Catalogue = {
     durationHours: { min: 6, max: 30 },
     warningHours: 4,
     doseRateMultiplier: 10,
+  },
+  // Enough for one well-filled Launch, so the first one has to count.
+  // Exports earn more later.
+  programmeGrantMillionDollars: 400,
+  // Each Launch carries two tonnes and costs a fixed fee for the flight, on
+  // top of the price of what it brings. The Habitat kit is by far the
+  // dearest, so the Funding runs out before the Payload Mass does if a
+  // Launch brings two.
+  launch: {
+    payloadMassLimitKilograms: 2000,
+    feeMillionDollars: 150,
+    items: [
+      {
+        id: "solar-panel",
+        brings: { kind: "component", componentId: "solar-panel" },
+        massKilograms: 60,
+        priceMillionDollars: 4,
+      },
+      {
+        id: "array-mast",
+        brings: { kind: "component", componentId: "array-mast" },
+        massKilograms: 80,
+        priceMillionDollars: 3,
+      },
+      {
+        id: "battery-module",
+        brings: { kind: "component", componentId: "battery-module" },
+        massKilograms: 120,
+        priceMillionDollars: 6,
+      },
+      {
+        id: "battery-cabinet",
+        brings: { kind: "component", componentId: "battery-cabinet" },
+        massKilograms: 70,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "mast-pole",
+        brings: { kind: "component", componentId: "mast-pole" },
+        massKilograms: 25,
+        priceMillionDollars: 1,
+      },
+      {
+        id: "light-head",
+        brings: { kind: "component", componentId: "light-head" },
+        massKilograms: 15,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "habitat-core",
+        brings: { kind: "component", componentId: "habitat-core" },
+        massKilograms: 900,
+        priceMillionDollars: 200,
+      },
+      {
+        id: "habitat-envelope",
+        brings: { kind: "component", componentId: "habitat-envelope" },
+        massKilograms: 350,
+        priceMillionDollars: 80,
+      },
+      {
+        id: "airlock",
+        brings: { kind: "component", componentId: "airlock" },
+        massKilograms: 400,
+        priceMillionDollars: 60,
+      },
+      // In pressurised tanks, which make up the rest of the mass.
+      {
+        id: "oxygen",
+        brings: { kind: "life-support", stockId: "oxygen", kilograms: 25 },
+        massKilograms: 40,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "water",
+        brings: { kind: "life-support", stockId: "water", kilograms: 50 },
+        massKilograms: 60,
+        priceMillionDollars: 2,
+      },
+    ],
   },
 };

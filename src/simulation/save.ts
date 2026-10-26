@@ -62,6 +62,20 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 2 to 3: the base programme has Funding, which a Campaign starts with
+  // from the Programme Grant, and a Launch manifest, which starts empty.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        fundingMillionDollars: catalogue.programmeGrantMillionDollars,
+        launchManifest: [],
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -447,6 +461,13 @@ const simulationState = object({
     startsAtMinute: wholeNumber,
     endsAtMinute: wholeNumber,
   }),
+  fundingMillionDollars: finiteNumber,
+  launchManifest: list(
+    object({
+      itemId: catalogueId(catalogue.launch.items, "Launch item"),
+      count: wholeNumber,
+    }),
+  ),
   ended: optional(campaignEnd),
   robots: list(
     object({
