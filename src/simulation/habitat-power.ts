@@ -2,6 +2,7 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import type { StructureState } from "./construction";
 import type { GameEvent } from "./events";
+import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import { minutesUntilPowerLost, powerNetworks } from "./power";
 
 export interface HabitatPowerForecast {
@@ -49,26 +50,19 @@ export function watchHabitatPower(
   const habitat = homeHabitat(state);
   if (habitat === undefined) return [];
   if (!habitat.powered) {
-    const cause = {
+    return killMissionDirector(state, {
       kind: "habitat-power-failed",
       habitatId: habitat.id,
-    } as const;
-    state.ended = { atMinute: state.elapsedMinutes, cause };
-    return [
-      { kind: "mission-director-died", atMinute: state.elapsedMinutes, cause },
-    ];
+    });
   }
   const after = forecastHabitatPower(state)?.minutesUntilPowerLost;
   if (minutesUntilPowerLostBefore === undefined || after === undefined) {
     return [];
   }
-  const crossed = catalogue.habitatPowerWarningHoursLeft.some((hours) => {
-    const warningMinutes = hours * 60;
-    return (
-      minutesUntilPowerLostBefore > warningMinutes && after <= warningMinutes
-    );
-  });
-  return crossed
+  const warningMinutes = catalogue.habitatPowerWarningHoursLeft.map(
+    (hours) => hours * 60,
+  );
+  return fellToWarningLevel(warningMinutes, minutesUntilPowerLostBefore, after)
     ? [
         {
           kind: "habitat-power-warning",

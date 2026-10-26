@@ -1,4 +1,5 @@
 import type { CampaignState } from "./campaign";
+import type { DeathCause, GameEvent } from "./events";
 import { findStructureType } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 
@@ -84,6 +85,32 @@ export function livesIn(state: CampaignState, structureId: string): boolean {
     state.missionDirector.residence === "habitat" &&
     state.missionDirector.habitatId === structureId
   );
+}
+
+/**
+ * Kills the Mission Director at once, which ends the Campaign, and returns
+ * the event that records it.
+ */
+export function killMissionDirector(
+  state: CampaignState,
+  cause: DeathCause,
+): GameEvent[] {
+  state.ended = { atMinute: state.elapsedMinutes, cause };
+  return [
+    { kind: "mission-director-died", atMinute: state.elapsedMinutes, cause },
+  ];
+}
+
+/**
+ * Whether the time left before something kills the Mission Director fell to
+ * one of the warning levels during the game-minute, all in game-minutes.
+ */
+export function fellToWarningLevel(
+  warningMinutes: readonly number[],
+  before: number,
+  after: number,
+): boolean {
+  return warningMinutes.some((level) => before > level && after <= level);
 }
 
 function refuse(reason: MoveInRefusal, message: string): MoveInResult {

@@ -2,6 +2,7 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
+import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 
 /**
  * How far short of a whole game-minute the dose may be and still count as
@@ -48,17 +49,12 @@ export function absorbRadiationDose(state: CampaignState): GameEvent[] {
       state.radiationDoseMillisieverts,
       doseLimitMillisieverts,
     );
-    const cause = { kind: "radiation-dose-limit" } as const;
-    state.ended = { atMinute: state.elapsedMinutes, cause };
-    return [
-      { kind: "mission-director-died", atMinute: state.elapsedMinutes, cause },
-    ];
+    return killMissionDirector(state, { kind: "radiation-dose-limit" });
   }
-  const crossed = catalogue.radiation.warningEarthDaysLeft.some((earthDays) => {
-    const warningMinutes = earthDays * MINUTES_PER_EARTH_DAY;
-    return before > warningMinutes && after <= warningMinutes;
-  });
-  return crossed
+  const warningMinutes = catalogue.radiation.warningEarthDaysLeft.map(
+    (earthDays) => earthDays * MINUTES_PER_EARTH_DAY,
+  );
+  return fellToWarningLevel(warningMinutes, before, after)
     ? [
         {
           kind: "radiation-dose-warning",
