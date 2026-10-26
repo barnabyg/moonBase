@@ -113,13 +113,15 @@ export interface StructureType {
     readonly commissioning: number;
   };
   /**
-   * The Machine type, if any, that carries out each stage of Construction by
-   * itself, once a Robot has driven it into position and activated it. A
-   * stage with no Machine is the Robot's own work, as Component delivery and
+   * The Machine types that carry out stages of Construction by themselves,
+   * once a Robot has driven one into position and activated it. A Machine
+   * always grades the ground for Site Preparation, and may carry out
+   * Assembly, such as printing a Structure from Regolith; without one,
+   * Assembly is the Robot's own work, as Component delivery and
    * Commissioning always are.
    */
   readonly stageMachines: {
-    readonly sitePreparation?: string;
+    readonly sitePreparation: string;
     readonly assembly?: string;
   };
   /** The chance, from 0 to 1, that a Commissioning attempt fails and has to be retried. */

@@ -177,15 +177,6 @@ function poseFor(
       lean: 0.1,
       carrying,
     }),
-    // Bent over, raking the ground level.
-    "preparing-site": () => ({
-      legSwing: 0.1,
-      leftArm: 0.9 + work * 0.3,
-      rightArm: 0.9 + work * 0.3,
-      lean: 0.35,
-      seated: false,
-      carrying,
-    }),
     // Lifting crates in and out of the cargo bay.
     "loading-components": () => lifting(work, carrying),
     "unloading-components": () => lifting(work, carrying),

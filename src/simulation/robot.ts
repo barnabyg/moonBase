@@ -61,8 +61,6 @@ export type RobotActivity =
     }
   | {
       readonly kind:
-        /** Clearing and grading the ground, when no Machine does it. */
-        | "preparing-site"
         | "loading-components"
         | "unloading-components"
         | "assembling"
@@ -126,7 +124,6 @@ export function workRobot(
     walkRobotTo(state, robot, id, spot, destination);
   const workFor = (
     kind:
-      | "preparing-site"
       | "loading-components"
       | "unloading-components"
       | "assembling"
@@ -141,12 +138,9 @@ export function workRobot(
   const required = stageMinutes(construction);
   switch (construction.stage) {
     case "site-preparation":
-      if (
-        walkTo(construction.workSpot, "site") &&
-        workFor("preparing-site", required)
-      ) {
-        moveOn(construction, "component-delivery");
-      }
+      // Always a Machine's work, which the Robot only sets going (above).
+      robot.workOrder = undefined;
+      robot.activity = { kind: "idle" };
       return [];
 
     case "component-delivery": {

@@ -264,8 +264,6 @@ function describeRobotWork(
       return `Robot driving the ${machineName(activity.machineId)} to the site`;
     case "activating-machine":
       return `Robot activating the ${machineName(activity.machineId)}`;
-    case "preparing-site":
-      return "Robot clearing and grading the ground";
     case "loading-components":
       return "Robot loading the Components at the Lander";
     case "unloading-components":
