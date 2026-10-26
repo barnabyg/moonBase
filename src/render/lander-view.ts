@@ -13,8 +13,6 @@ const FLIGHT_MINUTES = 20;
 const FLIGHT_CEILING_METRES = 300;
 /** Above this height its engine no longer blasts dust off the ground, in metres. */
 const PLUME_HEIGHT_METRES = 60;
-/** How far the dust rolls out over the ground, in metres. */
-const PLUME_RADIUS_METRES = 22;
 /** Where the engine bell's exhaust starts, above the Lander's feet. */
 const EXHAUST_TOP_METRES = 0.55;
 
@@ -25,7 +23,8 @@ const EXHAUST_TOP_METRES = 0.55;
  */
 export function createLanderView(scene: THREE.Scene) {
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
-  const plume = createPlumeModel(PLUME_RADIUS_METRES);
+  // The dust rolls out as far as the Plume Ejecta reaches.
+  const plume = createPlumeModel(catalogue.plumeEjecta.radiusMetres);
   scene.add(lander, plume.group);
 
   return {
