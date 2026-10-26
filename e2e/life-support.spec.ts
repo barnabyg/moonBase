@@ -66,6 +66,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   const diedAt = await clock.textContent();
   await page.waitForTimeout(1_000);
   await expect(clock).toHaveText(diedAt ?? "");
+  // Nothing can go on after a death, so Escape leaves the screen up.
+  await page.keyboard.press("Escape");
+  await expect(gameOver).toBeVisible();
 
   await gameOver.getByRole("button", { name: "Start a new Campaign" }).click();
 

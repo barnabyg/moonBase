@@ -32,13 +32,17 @@ export function createGameOverScreen(
   restart.addEventListener("click", startNewCampaign);
 
   dialog.append(title, death, ended, restart);
+  // Escape would close a modal dialog, but nothing can go on after a death.
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+  });
   container.append(dialog);
 
   return {
     update(snapshot) {
       if (snapshot.ended === undefined) return;
       setText(death, formatDeath(snapshot.ended));
-      // Escape closes a modal dialog, but nothing can go on after a death.
+      // Firefox closes it anyway on a second Escape with no click between.
       if (!dialog.open) dialog.showModal();
     },
   };
