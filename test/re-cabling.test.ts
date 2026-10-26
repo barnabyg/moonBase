@@ -214,6 +214,33 @@ describe("a Structure cut off from power", () => {
     ]);
   });
 
+  it("is cabled later if it was commissioned with no cable because the only power source was due to be dismantled", () => {
+    const game = scenario();
+    const [firstSolarId] = planAll(game, [["solar-array", solarSite]]);
+    runUntilIdle(game);
+    const [mastId] = planAll(game, [["light-mast", mastSite]]);
+    game.campaign.dismantleStructure(firstSolarId ?? "");
+    runUntil(game, (state) =>
+      state.structures.some((structure) => structure.id === mastId),
+    );
+    expect(game.state.cables).toEqual([]);
+
+    const [secondSolarId] = planAll(game, [["solar-array", secondSolarSite]]);
+    runUntilIdle(game);
+    runUntil(game, (state) =>
+      state.cables.some(
+        (cable) => cable.toStructureId === mastId && cable.complete,
+      ),
+    );
+
+    expect(game.state.cables).toEqual([
+      expect.objectContaining({
+        fromStructureId: secondSolarId,
+        toStructureId: mastId,
+      }),
+    ]);
+  });
+
   it("gets one cable for all the Structures cut off with it, laid to the one that had none", () => {
     const game = scenario();
     const [solarId, batteryId, mastId, secondMastId] = planAll(game, [
