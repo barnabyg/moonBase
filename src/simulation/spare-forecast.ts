@@ -71,28 +71,29 @@ export function forecastSpareComponents(
  * Gives a warning as the time until the base's spare Components run out
  * falls to each of the data catalogue's warning levels. The rate of wear
  * changes from one game-minute to the next as the Robot and the Machines
- * start and stop work, so each level is given only once, until the
- * forecast is back above twice the highest level, as after a Launch brings
- * more. `minutesUntilEmptyBefore` is the forecast as the game-minute
- * started.
+ * start and stop work, so each level is given only once, until spare
+ * Components arrive in the base's stock, as when a Launch brings more, or
+ * the forecast is back above twice the highest level. `before` is the
+ * forecast as the game-minute started.
  */
 export function watchSpareComponents(
   state: CampaignState,
-  minutesUntilEmptyBefore: number | undefined,
+  before: SpareComponentsForecast,
 ): GameEvent[] {
   const forecast = forecastSpareComponents(state);
   const after = forecast.minutesUntilEmpty ?? Infinity;
   const levels = catalogue.spareComponentWarningEarthDaysLeft.map(
     (earthDays) => earthDays * MINUTES_PER_EARTH_DAY,
   );
-  if (after > 2 * Math.max(...levels)) {
+  if (forecast.inStock > before.inStock || after > 2 * Math.max(...levels)) {
     state.spareComponentsWarnedMinutes = undefined;
-    return [];
   }
-  const before = minutesUntilEmptyBefore ?? Infinity;
   const warned = state.spareComponentsWarnedMinutes ?? Infinity;
   const reached = levels.filter(
-    (level) => before > level && after <= level && level < warned,
+    (level) =>
+      (before.minutesUntilEmpty ?? Infinity) > level &&
+      after <= level &&
+      level < warned,
   );
   if (reached.length === 0) return [];
   state.spareComponentsWarnedMinutes = Math.min(...reached);

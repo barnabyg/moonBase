@@ -5,6 +5,12 @@ import {
   type GameEvent,
   type GroundPosition,
 } from "../src/simulation";
+import type { CampaignState } from "../src/simulation/campaign";
+import { readSaveDocument } from "../src/simulation/save";
+import {
+  forecastSpareComponents,
+  watchSpareComponents,
+} from "../src/simulation/spare-forecast";
 import { scenario, type Scenario } from "./scenario";
 import { changed, withSpares } from "./worn";
 
@@ -196,5 +202,77 @@ describe("spare Component warnings", () => {
       .filter((event) => event.kind === "spare-components-warning");
     const below = levels.filter((level) => level < left);
     expect(more.length).toBeLessThanOrEqual(below.length);
+  });
+
+  it("are given again once spare Components arrive, as the time left falls to a level once more", () => {
+    // The excavator and the Robot at work, wearing through a spare
+    // Component every couple of Earth Days.
+    const game = scenario().plan("light-mast", mastSite);
+    for (let minutes = 0; ; minutes++) {
+      if (minutes > 24 * 60) throw new Error("The excavator never worked.");
+      if (game.state.machines[0]?.activity.kind === "working") break;
+      game.advance({ minutes: 1 });
+    }
+    const read = readSaveDocument(game.campaign.save());
+    if (!read.ok) throw new Error(read.message);
+    const { state } = read;
+    const setStock = (state: CampaignState, count: number) => {
+      const stock = state.stockpile.components.find(
+        (s) => s.componentId === "spare-component",
+      );
+      if (stock !== undefined) stock.count = count;
+    };
+    const sevenDays = 7 * 24 * 60;
+    const perEarthDay = forecastSpareComponents(state).perEarthDay;
+    // Enough for ten Earth Days, then for five: past the 7-day level.
+    const plenty = Math.ceil(10 * perEarthDay);
+    const fewer = Math.floor(5 * perEarthDay);
+    expect(fewer).toBeGreaterThan(0);
+
+    // Every warning given, with one spare Component left.
+    setStock(state, 1);
+    state.spareComponentsWarnedMinutes = 24 * 60;
+    const scarce = forecastSpareComponents(state);
+    // Spares arrive: no warning, as the time left rises.
+    setStock(state, plenty);
+    expect(watchSpareComponents(state, scarce)).toEqual([]);
+    expect(state.spareComponentsWarnedMinutes).toBeUndefined();
+    const restocked = forecastSpareComponents(state);
+    expect(restocked.minutesUntilEmpty).toBeGreaterThan(sevenDays);
+    expect(restocked.minutesUntilEmpty).toBeLessThan(2 * sevenDays);
+
+    // They are used up, and the time left falls to the 7-day level again.
+    setStock(state, fewer);
+    expect(watchSpareComponents(state, restocked)).toEqual([
+      expect.objectContaining({
+        kind: "spare-components-warning",
+        inStock: fewer,
+      }),
+    ]);
+  });
+
+  it("aren't given again as the time left swings back and forth with nothing arriving", () => {
+    const game = scenario().plan("light-mast", mastSite);
+    for (let minutes = 0; ; minutes++) {
+      if (minutes > 24 * 60) throw new Error("The excavator never worked.");
+      if (game.state.machines[0]?.activity.kind === "working") break;
+      game.advance({ minutes: 1 });
+    }
+    const read = readSaveDocument(game.campaign.save());
+    if (!read.ok) throw new Error(read.message);
+    const { state } = read;
+    const perEarthDay = forecastSpareComponents(state).perEarthDay;
+    const stock = state.stockpile.components.find(
+      (s) => s.componentId === "spare-component",
+    );
+    if (stock === undefined) throw new Error("expected spare Components");
+    stock.count = Math.ceil(10 * perEarthDay);
+    const above = forecastSpareComponents(state);
+    stock.count = Math.floor(5 * perEarthDay);
+
+    // Given once; with the stock the same, a swing back over the level
+    // and down again brings no second warning.
+    expect(watchSpareComponents(state, above)).toHaveLength(1);
+    expect(watchSpareComponents(state, above)).toEqual([]);
   });
 });

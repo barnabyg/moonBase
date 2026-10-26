@@ -504,8 +504,9 @@ export interface CampaignState {
   micrometeorite: MicrometeoriteState;
   /**
    * The lowest warning level, in game-minutes left, already given for the
-   * spare Components running out, until the forecast is back well clear
-   * of them all; undefined when none has been.
+   * spare Components running out, until more arrive in the base's stock or
+   * the forecast is back well clear of them all; undefined when none has
+   * been.
    */
   spareComponentsWarnedMinutes: number | undefined;
   fundingMillionDollars: number;
@@ -831,7 +832,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
-  const sparesRunOutBefore = forecastSpareComponents(state).minutesUntilEmpty;
+  const sparesBefore = forecastSpareComponents(state);
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
@@ -854,7 +855,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     });
   }
   events.push(...watchSolarParticleEvents(state));
-  events.push(...watchSpareComponents(state, sparesRunOutBefore));
+  events.push(...watchSpareComponents(state, sparesBefore));
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.
