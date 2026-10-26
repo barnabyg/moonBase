@@ -157,8 +157,7 @@ export function flyLander(state: CampaignState): GameEvent[] {
 
 export function readLander(state: CampaignState): LanderSnapshot {
   const { trip } = state.lander;
-  const position =
-    trip === undefined ? state.lander.position : landingSpot(state);
+  const position = nextSpot(state);
   return {
     state:
       trip?.leg ??
@@ -180,11 +179,18 @@ export function readLander(state: CampaignState): LanderSnapshot {
 export function nextPlumeEjectaSpot(
   state: CampaignState,
 ): GroundPosition | undefined {
-  const spot =
-    state.lander.trip === undefined
-      ? state.lander.position
-      : landingSpot(state);
+  const spot = nextSpot(state);
   return padAt(state, spot) === undefined ? spot : undefined;
+}
+
+/**
+ * Where the Lander next takes off or lands: where it stands, or, while it
+ * is away, where it will land as things stand.
+ */
+function nextSpot(state: CampaignState): GroundPosition {
+  return state.lander.trip === undefined
+    ? state.lander.position
+    : landingSpot(state);
 }
 
 /** The landing pad the landed Lander stands on, while it is working. */
