@@ -31,6 +31,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   const oxygen = panel.getByRole("status", { name: "Oxygen" });
   const water = panel.getByRole("status", { name: "Water" });
   const habitatPower = panel.getByRole("status", { name: "Habitat power" });
+  const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
   await expect(oxygen).toHaveText(
     "Oxygen: 25.0 kg, kept safe aboard the Lander",
   );
@@ -38,6 +39,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     "Water: 108.0 kg, kept safe aboard the Lander",
   );
   await expect(habitatPower).toBeHidden();
+  await expect(radiationDose).toHaveText(
+    "Radiation Dose: 0.0 of 600 mSv, none aboard the Lander",
+  );
 
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   for (const structure of [
@@ -73,6 +77,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   );
   await expect(habitatPower).toHaveText(
     /^Habitat power: on, fails in \d+ Earth Days/,
+  );
+  await expect(radiationDose).toHaveText(
+    /^Radiation Dose: \d+\.\d of 600 mSv, rising 30\.0 mSv an Earth Day, limit in (19|20) Earth Days/,
   );
 
   await skipUntil(

@@ -31,6 +31,7 @@ export function createNotificationList(
         if (
           event.kind === "life-support-warning" ||
           event.kind === "habitat-power-warning" ||
+          event.kind === "radiation-dose-warning" ||
           event.kind === "mission-director-died"
         ) {
           item.classList.add("notifications__item--warning");

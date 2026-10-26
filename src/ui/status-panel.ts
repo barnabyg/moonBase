@@ -17,6 +17,7 @@ import {
   formatLunation,
   formatMissionDirector,
   formatPower,
+  formatRadiationDose,
   formatStoredPower,
   structureLabel,
 } from "./format";
@@ -131,6 +132,13 @@ export function createStatusPanel(
     return { type, line };
   });
 
+  // How much radiation the Mission Director has absorbed, and how fast.
+  const radiationDose = document.createElement("p");
+  radiationDose.className = "status-panel__stock";
+  radiationDose.setAttribute("role", "status");
+  radiationDose.setAttribute("aria-label", "Radiation Dose");
+  radiationDose.setAttribute("aria-live", "off");
+
   // Why the player's latest choice was refused, for a few seconds, so that
   // it doesn't linger once things have changed.
   const refusal = document.createElement("p");
@@ -199,6 +207,7 @@ export function createStatusPanel(
     lander,
     habitatPower,
     ...stocks.map((stock) => stock.line),
+    radiationDose,
     structures,
     refusal,
   );
@@ -256,6 +265,24 @@ export function createStatusPanel(
             (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
         );
       }
+      setText(
+        radiationDose,
+        formatRadiationDose(
+          snapshot.radiationDoseMillisieverts,
+          forecasts.radiationDose,
+          snapshot.missionDirector,
+        ),
+      );
+      // Shown as a warning from the first warning on, and once it is reached.
+      const doseWarnFrom =
+        Math.max(...catalogue.radiation.warningEarthDaysLeft) * 24 * 60;
+      radiationDose.classList.toggle(
+        "status-panel__stock--low",
+        snapshot.radiationDoseMillisieverts >=
+          catalogue.radiation.doseLimitMillisieverts ||
+          (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=
+            doseWarnFrom,
+      );
       const seen = new Set<string>();
       for (const structure of snapshot.structures) {
         seen.add(structure.id);

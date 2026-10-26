@@ -3,12 +3,15 @@ import { catalogue, type Catalogue } from "../src/catalogue";
 import type { GameEvent, GroundPosition } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
 
-// The Habitat needs no power here, so that the Mission Director can live in
-// it until the oxygen runs out.
+// The Habitat needs no power and lets in no radiation here, so that the
+// Mission Director can live in it until the oxygen runs out.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
-  return { ...actual, catalogue: safeHabitat(actual.catalogue) };
+  return {
+    ...actual,
+    catalogue: safeHabitat(actual.catalogue, ["power", "radiation"]),
+  };
 });
 
 const habitatSite: GroundPosition = { x: 25, y: -20 };

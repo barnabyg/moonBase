@@ -7,6 +7,7 @@ import {
   type HabitatPowerForecast,
   type LifeSupportForecast,
   type LifeSupportSnapshot,
+  type RadiationDoseForecast,
 } from "../simulation";
 import type {
   ClockSnapshot,
@@ -192,6 +193,8 @@ export function formatEvent(event: GameEvent): string {
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
     case "habitat-power-warning":
       return `Habitat power will fail in ${formatDuration(event.minutesUntilPowerLost)}`;
+    case "radiation-dose-warning":
+      return `Radiation Dose will reach the limit in ${formatDuration(event.minutesUntilLimit)}`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -214,7 +217,33 @@ function describeCause(cause: DeathCause): string {
       return `the ${stockLabel(cause.stockId).toLowerCase()} in the Habitat ran out`;
     case "habitat-power-failed":
       return "Habitat power failed";
+    case "radiation-dose-limit":
+      return `Radiation Dose reached the ${millisieverts(catalogue.radiation.doseLimitMillisieverts, 0)} limit`;
   }
+}
+
+const millisieverts = (value: number, digits: number): string =>
+  `${value.toFixed(digits)} mSv`;
+
+/**
+ * Says how much radiation the Mission Director has absorbed against the
+ * limit, and how fast it is rising, for example "Radiation Dose: 64.0 of
+ * 600 mSv, rising 30.0 mSv an Earth Day, limit in 17 Earth Days 21 hours".
+ */
+export function formatRadiationDose(
+  doseMillisieverts: number,
+  forecast: RadiationDoseForecast,
+  missionDirector: MissionDirectorResidence,
+): string {
+  const limit = catalogue.radiation.doseLimitMillisieverts;
+  const dose = `Radiation Dose: ${doseMillisieverts.toFixed(1)} of ${millisieverts(limit, 0)}`;
+  if (doseMillisieverts >= limit) return `${dose}, limit reached`;
+  if (forecast.minutesUntilLimit !== undefined) {
+    return `${dose}, rising ${millisieverts(forecast.millisievertsPerEarthDay, 1)} an Earth Day, limit in ${formatDuration(forecast.minutesUntilLimit)}`;
+  }
+  return missionDirector.residence === "lander"
+    ? `${dose}, none aboard the Lander`
+    : dose;
 }
 
 const stageLabels: Record<ConstructionStage, string> = {

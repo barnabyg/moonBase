@@ -57,6 +57,28 @@ export interface Catalogue {
    * the Mission Director at once.
    */
   readonly habitatPowerWarningHoursLeft: readonly number[];
+  readonly radiation: RadiationRules;
+}
+
+/**
+ * The Radiation Dose the Mission Director absorbs. It builds up at a rate
+ * that depends on where they live, and reaching the limit kills them at once.
+ */
+export interface RadiationRules {
+  /** The dose rate where the Mission Director lives. */
+  readonly doseRateMillisievertsPerEarthDay: {
+    /** Aboard the Lander, which keeps them safe: zero. */
+    readonly lander: number;
+    /** In a Habitat with no shielding over it. */
+    readonly habitat: number;
+  };
+  readonly doseLimitMillisieverts: number;
+  /**
+   * A warning comes as the time until the dose reaches the limit, at the
+   * rate it is rising, falls to each of these many Earth Days, largest
+   * first. Each must come to a whole number of game-minutes.
+   */
+  readonly warningEarthDaysLeft: readonly number[];
 }
 
 /**
@@ -187,7 +209,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 7,
+  version: 8,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -370,4 +392,13 @@ export const catalogue: Catalogue = {
     },
   ],
   habitatPowerWarningHoursLeft: [24, 6, 1],
+  // The limit is a career limit for astronauts. Unshielded, the dose rate is
+  // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
+  // surface, so that the limit comes in 20 Earth Days and shielding the
+  // Habitat is urgent.
+  radiation: {
+    doseRateMillisievertsPerEarthDay: { lander: 0, habitat: 30 },
+    doseLimitMillisieverts: 600,
+    warningEarthDaysLeft: [7, 3, 1],
+  },
 };

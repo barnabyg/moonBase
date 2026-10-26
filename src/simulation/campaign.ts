@@ -65,6 +65,11 @@ import {
   supplyPower,
   type CableState,
 } from "./power";
+import {
+  absorbRadiationDose,
+  forecastRadiationDose,
+  type RadiationDoseForecast,
+} from "./radiation";
 import { seedRandom, type RandomState } from "./random";
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
@@ -194,6 +199,8 @@ export interface Forecasts {
    * while they live aboard the Lander, or once they have died.
    */
   readonly habitatPower: HabitatPowerForecast | undefined;
+  /** How fast the Mission Director's Radiation Dose is rising, and when it reaches the limit. */
+  readonly radiationDose: RadiationDoseForecast;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -228,6 +235,11 @@ export interface Snapshot {
   readonly missionDirector: MissionDirectorResidence;
   /** The Mission Director's stocks of oxygen and water, in catalogue order. */
   readonly lifeSupport: readonly LifeSupportSnapshot[];
+  /**
+   * The total radiation the Mission Director has absorbed. The data
+   * catalogue sets the limit.
+   */
+  readonly radiationDoseMillisieverts: number;
   /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
@@ -307,6 +319,7 @@ export interface CampaignState {
   lander: { position: GroundPosition };
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
+  radiationDoseMillisieverts: number;
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -329,6 +342,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lander: { position: { ...landingSite.landerPosition } },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
+    radiationDoseMillisieverts: 0,
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -449,6 +463,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
         },
         lifeSupport: forecastLifeSupport(state),
         habitatPower: forecastHabitatPower(state),
+        radiationDose: forecastRadiationDose(state),
       });
     },
     snapshot() {
@@ -466,6 +481,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
         },
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
+        radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -557,6 +573,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const dangers = [
     ...useLifeSupport(state),
     ...watchHabitatPower(state, powerLostBefore),
+    ...absorbRadiationDose(state),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");
   events.push(...(death === undefined ? dangers : [death]));
