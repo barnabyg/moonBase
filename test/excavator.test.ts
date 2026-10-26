@@ -70,14 +70,15 @@ function withoutRepeats<T>(values: T[]): T[] {
 }
 
 describe("the excavator", () => {
-  it("is in the starting cargo, standing beside the Lander and idle", () => {
+  it("has landed with the Lander, and stands idle where the data catalogue puts it", () => {
     const { state } = scenario();
 
-    const excavator = excavatorOf(state);
-    expect(excavator.activity).toEqual({ kind: "idle" });
-    expect(
-      distanceBetween(excavator.position, state.lander.position),
-    ).toBeLessThan(15);
+    expect(excavatorOf(state)).toMatchObject({
+      activity: { kind: "idle" },
+      position: catalogue.landingSite.machines.find(
+        (machine) => machine.machineTypeId === "excavator",
+      )?.position,
+    });
   });
 
   it("is walked to, driven to the site and activated by the Robot during Site Preparation", () => {
@@ -122,10 +123,10 @@ describe("the excavator", () => {
     expect(distanceBetween(parked, site)).toBeGreaterThanOrEqual(
       solarArray.footprintRadiusMetres + excavatorType.footprintRadiusMetres,
     );
-    expect(distanceBetween(parked, site)).toBeLessThan(
+    expect(distanceBetween(parked, site)).toBeLessThanOrEqual(
       solarArray.footprintRadiusMetres +
         excavatorType.footprintRadiusMetres +
-        1,
+        catalogue.robot.workingGapMetres,
     );
   });
 

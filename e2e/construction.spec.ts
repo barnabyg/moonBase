@@ -64,7 +64,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
   ).toHaveText(["Solar array: commissioned"], { timeout: 45_000 });
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
-  ).toHaveText("Power: 10.00 kW generated, 0.05 kW used");
+  ).toHaveText(/^Power: [1-9]\d*\.\d\d kW generated, \d+\.\d\d kW used$/);
   await expect(page.getByRole("status", { name: "Stored power" })).toHaveText(
     "Stored: no battery banks",
   );

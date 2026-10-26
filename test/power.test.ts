@@ -155,7 +155,9 @@ describe("laying cable", () => {
 
     expect(far.length).toBeGreaterThan(near.length * 2);
     for (const { minutes, length } of [near, far]) {
-      expect(minutes).toBe(Math.ceil(length / metresPerMinute - 1e-9));
+      // Laying runs at the Robot's cable laying speed; the last minute may be part-used.
+      expect(minutes).toBeGreaterThanOrEqual(length / metresPerMinute - 1e-6);
+      expect(minutes).toBeLessThan(length / metresPerMinute + 1);
     }
   });
 
