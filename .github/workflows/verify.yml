@@ -38,6 +38,10 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: ["1", "2"]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,12 +73,13 @@ jobs:
       # end-to-end tests run Firefox with a window in a virtual X display.
       # Mesa's GLX libraries and Xvfb come with the runner image, and
       # playwright.config.ts has Firefox use GLX, so nothing is installed.
-      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" sh -c "nproc; npm run verify -- --e2e-only"
         env:
           PLAYWRIGHT_HEADED: "1"
-          DEBUG: "vite:deps,vite:time"
+          PW_WORKERS: ${{ matrix.workers }}
+          DEBUG: "vite:deps"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ matrix.workers }}
           path: test-results/

@@ -12,6 +12,9 @@ test.beforeEach(async ({ page }) => {
       requestAnimationFrame(f);
     };
     requestAnimationFrame(f);
+    let lastTick = performance.now();
+    (w.__probe as unknown as { timer: number[] }).timer = [];
+    setInterval(() => { const n = performance.now(); (w.__probe as unknown as { timer: number[] }).timer.push(n - lastTick); lastTick = n; }, 50);
     document.addEventListener("visibilitychange", () => {
       w.__probe.vis.push(`${document.visibilityState}@${Math.round(performance.now())}`);
     });
@@ -29,7 +32,8 @@ test.afterEach(async ({ page }, info) => {
     const buckets: number[] = [];
     let t = 0;
     for (const x of p.gaps) { t += x; const b = Math.floor(t / 2000); buckets[b] = (buckets[b] ?? 0) + 1; }
-    return `frames=${p.gaps.length} span=${(total / 1000).toFixed(1)}s median=${g[Math.floor(g.length / 2)]?.toFixed(0)}ms max=${g.at(-1)?.toFixed(0)}ms >250ms:${slow.length} (${(slow.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}s) vis=[${p.vis.join(",")}] per2s=[${Array.from(buckets, (x) => x ?? 0).join(",")}] visible=${document.visibilityState} focus=${document.hasFocus()}`;
+    const tm = ((p as unknown as { timer: number[] }).timer ?? []); const tmax = Math.max(...tm); const tslow = tm.filter((x) => x > 250);
+    return `timerMax=${tmax.toFixed(0)}ms timer>250ms:${tslow.length} (${(tslow.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}s) frames=${p.gaps.length} span=${(total / 1000).toFixed(1)}s median=${g[Math.floor(g.length / 2)]?.toFixed(0)}ms max=${g.at(-1)?.toFixed(0)}ms >250ms:${slow.length} (${(slow.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}s) vis=[${p.vis.join(",")}] per2s=[${Array.from(buckets, (x) => x ?? 0).join(",")}] visible=${document.visibilityState} focus=${document.hasFocus()}`;
   }).catch((e: unknown) => `probe failed: ${String(e)}`);
   console.log(`PROBE w${info.workerIndex} ${info.title.slice(0, 40)} (${(info.duration / 1000).toFixed(1)}s): ${s}`);
 });

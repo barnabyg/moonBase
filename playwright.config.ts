@@ -6,6 +6,7 @@ export default defineConfig({
   testDir: "e2e",
   forbidOnly: !!process.env["CI"],
   retries: 0,
+  workers: process.env["PW_WORKERS"] ? Number(process.env["PW_WORKERS"]) : undefined,
   reporter: "list",
   use: {
     baseURL: `http://localhost:${port}`,
