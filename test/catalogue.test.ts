@@ -433,6 +433,19 @@ describe("the data catalogue", () => {
     );
   });
 
+  it("schedules Micrometeorite strikes some Earth Days apart, each taking off some Condition", () => {
+    const { earthDaysBetween, conditionLossPercent } =
+      catalogue.micrometeorites;
+
+    expect(earthDaysBetween.min).toBeGreaterThan(0);
+    expect(earthDaysBetween.max).toBeGreaterThanOrEqual(earthDaysBetween.min);
+    expect(conditionLossPercent.min).toBeGreaterThan(0);
+    expect(conditionLossPercent.max).toBeGreaterThanOrEqual(
+      conditionLossPercent.min,
+    );
+    expect(conditionLossPercent.max).toBeLessThanOrEqual(100);
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

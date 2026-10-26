@@ -9,13 +9,13 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
   const { withoutCold } = await import("./without-cold");
+  const { withoutMicrometeorites } = await import("./without-micrometeorites");
   return {
     ...actual,
-    catalogue: safeHabitat(withoutCold(actual.catalogue), [
-      "power",
-      "radiation",
-      "solar-particle-events",
-    ]),
+    catalogue: safeHabitat(
+      withoutMicrometeorites(withoutCold(actual.catalogue)),
+      ["power", "radiation", "solar-particle-events"],
+    ),
   };
 });
 

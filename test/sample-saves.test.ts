@@ -752,3 +752,53 @@ describe("the sample save of format version 12", () => {
     expect(campaign.snapshot().robots[0]?.conditionPercent).toBeGreaterThan(99);
   });
 });
+
+describe("the sample saves from before Micrometeorites", () => {
+  /** The Micrometeorite strikes in the next given Earth Days of play. */
+  const strikesAhead = (campaign: Campaign, earthDays: number) =>
+    campaign
+      .advance(earthDays * 24 * 60)
+      .filter((event) => event.kind === "micrometeorite-strike");
+
+  // Samples in which the Mission Director lives through the next 20 Earth
+  // Days, so that play goes on.
+  it.each([
+    "version-4.moonbase",
+    "version-9.moonbase",
+    "version-11.moonbase",
+    "version-12.moonbase",
+  ])(
+    "%s loads with a first strike scheduled from its saved generator, 4 to 20 Earth Days on, the same every time",
+    (name) => {
+      const saved = loadSample(name);
+      const savedAt = saved.snapshot().clock.elapsedMinutes;
+
+      const first = strikesAhead(saved, 21)[0];
+
+      expect(first).toBeDefined();
+      expect(first?.atMinute).toBeGreaterThanOrEqual(savedAt + 4 * 24 * 60);
+      expect(first?.atMinute).toBeLessThanOrEqual(savedAt + 20 * 24 * 60);
+      expect(strikesAhead(loadSample(name), 21)[0]).toEqual(first);
+    },
+  );
+});
+
+describe("the sample save of format version 13", () => {
+  it("loads with the Robot just struck by a Micrometeorite", () => {
+    const state = loadSample("version-13.moonbase").snapshot();
+
+    expect(state.robots[0]?.conditionPercent).toBeCloseTo(74.5, 0);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "light-mast",
+    ]);
+  });
+
+  it("plays on from where it was saved, with more strikes to come", () => {
+    const campaign = loadSample("version-13.moonbase");
+
+    const kinds = campaign.advance(30 * 24 * 60).map((event) => event.kind);
+
+    expect(kinds).toContain("micrometeorite-strike");
+  });
+});

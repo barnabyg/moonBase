@@ -74,21 +74,32 @@ export function machinePerformance(
 }
 
 /**
- * Wears a Machine down by Dust for a game-minute of work or driving, at a
- * rate in percentage points for each game-hour. At 0% it is Broken: it
- * stops where it stands and gives up the stage of Construction it was
- * assigned, whose work so far stays done. Returns the event if it broke.
+ * Wears a Machine down for a game-minute of work, driving or the cold, at
+ * a rate in percentage points for each game-hour (see `damageMachine`).
+ * Returns the event if it broke.
  */
 export function wearMachine(
   state: CampaignState,
   machine: MachineState,
   percentPerHour: number,
 ): GameEvent[] {
-  if (isMachineBroken(machine) || percentPerHour === 0) return [];
-  machine.conditionPercent = Math.max(
-    machine.conditionPercent - percentPerHour / 60,
-    0,
-  );
+  return percentPerHour === 0
+    ? []
+    : damageMachine(state, machine, percentPerHour / 60);
+}
+
+/**
+ * Takes Condition off a Machine, in percentage points. At 0% it is Broken:
+ * it stops where it stands and gives up the stage of Construction it was
+ * assigned, whose work so far stays done. Returns the event if it broke.
+ */
+export function damageMachine(
+  state: CampaignState,
+  machine: MachineState,
+  percent: number,
+): GameEvent[] {
+  if (isMachineBroken(machine)) return [];
+  machine.conditionPercent = Math.max(machine.conditionPercent - percent, 0);
   if (!isMachineBroken(machine)) return [];
   machine.assignment = undefined;
   machine.activity = { kind: "idle" };

@@ -100,6 +100,11 @@ import {
   type MaintenanceState,
 } from "./maintenance";
 import {
+  scheduleMicrometeorite,
+  watchMicrometeorites,
+  type MicrometeoriteState,
+} from "./micrometeorites";
+import {
   planParking,
   readParking,
   type ParkingSnapshot,
@@ -488,6 +493,8 @@ export interface CampaignState {
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
+  /** The next Micrometeorite strike. */
+  micrometeorite: MicrometeoriteState;
   fundingMillionDollars: number;
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
@@ -526,6 +533,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
+    micrometeorite: scheduleMicrometeorite(random, 0),
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
     ended: undefined,
@@ -814,6 +822,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...chillMachines(state, partSupplied === "night"));
   coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
+  events.push(...watchMicrometeorites(state));
   planUnloading(state);
   events.push(...planMaintenance(state));
   planParking(state);

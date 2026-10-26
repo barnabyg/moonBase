@@ -1,6 +1,7 @@
 import type { ComponentCount } from "../catalogue";
 import type { ManifestLine } from "./launch-manifest";
 import type { MaintenanceSubject } from "./maintenance";
+import type { StrikeTarget } from "./micrometeorites";
 import type { PlumeEjectaDamage } from "./plume-ejecta";
 
 /**
@@ -190,6 +191,14 @@ export type GameEvent =
       readonly conditionPercent: number;
       /** The spare Components it used up: none for a makeshift repair. */
       readonly spareComponents: number;
+    }
+  | {
+      /** A Micrometeorite has struck, without warning, wearing down what it hit. */
+      readonly kind: "micrometeorite-strike";
+      readonly atMinute: number;
+      readonly target: StrikeTarget;
+      /** The Condition it left what it hit with. */
+      readonly conditionPercent: number;
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

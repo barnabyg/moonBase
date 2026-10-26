@@ -14,6 +14,7 @@ export type {
   MaintenanceRules,
   MachineType,
   MapSize,
+  MicrometeoriteRules,
   PerformanceCurve,
   RadiationRules,
   SolarParticleEventRules,

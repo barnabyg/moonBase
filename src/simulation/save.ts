@@ -6,7 +6,7 @@ import type { DeathCause } from "./events";
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
-import { MAX_SEED } from "./random";
+import { MAX_SEED, nextFraction } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
 import type {
   MachineWorkOrderKind,
@@ -289,6 +289,42 @@ export const migrations: readonly Migration[] = [
             : robot,
         ),
       },
+    };
+  },
+  // 12 to 13: Micrometeorites strike at random, one at a time. The first
+  // is scheduled from the saved generator, which moves on with the draw,
+  // from 4 to 20 Earth Days after the game-minute saved, as the strikes'
+  // range stood when format version 13 came in.
+  (document) => {
+    const state = document["state"];
+    const saved = document["random"];
+    if (
+      !isRecord(state) ||
+      !isWholeNumber(state["elapsedMinutes"]) ||
+      !isRecord(saved) ||
+      !isWholeNumber(saved["a"]) ||
+      !isWholeNumber(saved["b"]) ||
+      !isWholeNumber(saved["c"]) ||
+      !isWholeNumber(saved["d"])
+    ) {
+      return { ...document };
+    }
+    const random = {
+      a: saved["a"],
+      b: saved["b"],
+      c: saved["c"],
+      d: saved["d"],
+    };
+    const low = 4 * 24 * 60;
+    const high = 20 * 24 * 60;
+    const strikesAtMinute =
+      state["elapsedMinutes"] +
+      low +
+      Math.floor(nextFraction(random) * (high - low + 1));
+    return {
+      ...document,
+      random,
+      state: { ...state, micrometeorite: { strikesAtMinute } },
     };
   },
 ];
@@ -770,6 +806,7 @@ const simulationState = object({
     startsAtMinute: wholeNumber,
     endsAtMinute: wholeNumber,
   }),
+  micrometeorite: object({ strikesAtMinute: wholeNumber }),
   fundingMillionDollars: finiteNumber,
   launchManifest: list(
     object({

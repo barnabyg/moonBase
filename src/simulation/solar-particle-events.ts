@@ -2,7 +2,7 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
-import { nextFraction, type RandomState } from "./random";
+import { drawMinutes, type RandomState } from "./random";
 
 /**
  * The next Solar Particle Event, or the one under way, as scheduled. Once
@@ -125,11 +125,4 @@ export function doseRateMultiplier(
 function isUnderWay(state: CampaignState, minute: number): boolean {
   const event = state.solarParticleEvent;
   return event.startsAtMinute <= minute && minute < event.endsAtMinute;
-}
-
-/** Draws a whole number of game-minutes evenly from min to max, both included. */
-function drawMinutes(random: RandomState, min: number, max: number): number {
-  const low = Math.round(min);
-  const high = Math.round(max);
-  return low + Math.floor(nextFraction(random) * (high - low + 1));
 }

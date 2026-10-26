@@ -134,6 +134,22 @@ export interface Catalogue {
    */
   readonly machinePerformance: PerformanceCurve;
   readonly cold: ColdRules;
+  readonly micrometeorites: MicrometeoriteRules;
+}
+
+/**
+ * Micrometeorite strikes, which the Campaign's seeded generator schedules
+ * at random, one at a time, each hitting one commissioned Structure,
+ * Machine or Robot without warning.
+ */
+export interface MicrometeoriteRules {
+  /**
+   * The time from the start of the Campaign, or from one strike, to the
+   * next, drawn evenly between these, to the game-minute.
+   */
+  readonly earthDaysBetween: { readonly min: number; readonly max: number };
+  /** The Condition a strike takes off what it hits, in percentage points, drawn evenly between these. */
+  readonly conditionLossPercent: { readonly min: number; readonly max: number };
 }
 
 /**
@@ -471,7 +487,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 21,
+  version: 22,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -925,4 +941,10 @@ export const catalogue: Catalogue = {
   machinePerformance: { thresholdPercent: 50, exponent: 1 },
   // A Night unpowered takes nearly half a Machine's Condition.
   cold: { plugInReachMetres: 3, parkingLeadHours: 6 },
+  // A couple of strikes a Lunation, rarely enough on their own to break
+  // anything at full Condition.
+  micrometeorites: {
+    earthDaysBetween: { min: 4, max: 20 },
+    conditionLossPercent: { min: 5, max: 25 },
+  },
 };

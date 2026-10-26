@@ -18,6 +18,7 @@ import type {
   RobotActivity,
   RobotSnapshot,
   Snapshot,
+  StrikeTarget,
   StructureSnapshot,
   ComponentCount,
   ConstructionSnapshot,
@@ -308,6 +309,8 @@ export function formatEvent(event: GameEvent): string {
       return event.spareComponents > 0
         ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
         : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "micrometeorite-strike":
+      return `Micrometeorite struck the ${strikeTargetLabel(event.target)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -567,6 +570,18 @@ export function formatRobot(robot: RobotSnapshot): string {
         ? `${selfRepair.makeshift ? "making a makeshift repair" : "repairing itself"}${where}`
         : `going to repair itself${where}`;
   return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+}
+
+/** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
+function strikeTargetLabel(target: StrikeTarget): string {
+  switch (target.kind) {
+    case "structure":
+      return structureLabel(target.structureTypeId).toLowerCase();
+    case "machine":
+      return machineLabel(target.machineTypeId).toLowerCase();
+    case "robot":
+      return "Robot";
+  }
 }
 
 /** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
