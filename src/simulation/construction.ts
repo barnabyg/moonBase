@@ -25,10 +25,21 @@ export type PlacementRefusal =
   | "overlaps-lander"
   | "overlaps-structure"
   | "overlaps-machine"
+  /** Regolith shielding must go over a commissioned Habitat that isn't to be dismantled. */
+  | "not-on-habitat"
+  /** The Habitat has Regolith shielding over it already, or planned. */
+  | "already-shielded"
   | "campaign-ended";
 
 export type PlacementCheck =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      /**
+       * Where the Structure would stand: where it was planned, except that
+       * Regolith shielding stands centred on the Habitat it goes over.
+       */
+      readonly position: GroundPosition;
+    }
   | {
       readonly ok: false;
       readonly reason: PlacementRefusal;
@@ -76,14 +87,16 @@ export interface Site {
 }
 
 /** Something standing on the base map with a Structure's footprint. */
-interface Footing {
+export interface Footing {
   readonly id: string;
   readonly structureTypeId: string;
   readonly position: GroundPosition;
 }
 
 /** Everything with a Structure's footprint: Structures, Constructions and Structures being dismantled. */
-function footings(site: Site): Footing[] {
+function footings(
+  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
+): Footing[] {
   return [...site.structures, ...site.constructions, ...site.dismantlings];
 }
 
@@ -92,8 +105,10 @@ export function findStructureType(id: string): StructureType | undefined {
 }
 
 /**
- * Checks whether a Structure may be placed: the only rule is that its
- * footprint lies wholly on the map and overlaps nothing else.
+ * Checks whether a Structure may be placed: its footprint must lie wholly on
+ * the map and overlap nothing else. Regolith shielding is the exception: it
+ * goes over a commissioned Habitat that isn't shielded yet, standing centred
+ * on it, and may overlap that Habitat but nothing else.
  */
 export function checkPlacement(
   site: Site,
@@ -106,9 +121,79 @@ export function checkPlacement(
       `There is no Structure called "${plan.structureTypeId}".`,
     );
   }
+  if (!type.shieldsHabitat) return checkFooting(site, type, plan.position);
+  const habitat = site.structures.find(
+    (structure) =>
+      findStructureType(structure.structureTypeId)?.habitat === true &&
+      distance(plan.position, structure.position) <
+        footprintRadius(structure.structureTypeId),
+  );
+  if (habitat === undefined) {
+    return refuse(
+      "not-on-habitat",
+      `${type.label} can only be printed over a commissioned Habitat.`,
+    );
+  }
+  if (site.dismantlings.some((planned) => planned.id === habitat.id)) {
+    return refuse(
+      "not-on-habitat",
+      "The Habitat is to be dismantled, so it can't be shielded.",
+    );
+  }
+  const shielding = shieldingOver(site, habitat);
+  if (shielding !== undefined) {
+    return refuse(
+      "already-shielded",
+      site.constructions.some((planned) => planned.id === shielding.id)
+        ? `The Habitat's ${type.label} is already planned.`
+        : "The Habitat is already shielded.",
+    );
+  }
+  return checkFooting(site, type, habitat.position, habitat.id);
+}
+
+/**
+ * The Regolith shielding over a Habitat, whether commissioned, under
+ * Construction or being dismantled, if there is any.
+ */
+export function shieldingOver(
+  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
+  habitat: Footing,
+): Footing | undefined {
+  return footings(site).find(
+    (footing) =>
+      findStructureType(footing.structureTypeId)?.shieldsHabitat === true &&
+      footing.position.x === habitat.position.x &&
+      footing.position.y === habitat.position.y,
+  );
+}
+
+/** Whether a Structure is a Habitat with commissioned Regolith shielding over it. */
+export function isShielded(
+  site: Pick<Site, "structures">,
+  structure: Footing,
+): boolean {
+  return (
+    findStructureType(structure.structureTypeId)?.habitat === true &&
+    shieldingOver(
+      { structures: site.structures, constructions: [], dismantlings: [] },
+      structure,
+    ) !== undefined
+  );
+}
+
+/**
+ * Checks that a Structure's footprint, at a position, lies wholly on the map
+ * and overlaps nothing but the Structure it may stand over, if any.
+ */
+function checkFooting(
+  site: Site,
+  type: StructureType,
+  position: GroundPosition,
+  standsOverId?: string,
+): PlacementCheck {
   const name = `The ${type.label.toLowerCase()}`;
   const radius = type.footprintRadiusMetres;
-  const { position } = plan;
   const halfWidth = catalogue.map.widthMetres / 2;
   const halfDepth = catalogue.map.depthMetres / 2;
   // Written so that a position that isn't a number is refused too.
@@ -124,7 +209,7 @@ export function checkPlacement(
   ) {
     return refuse("overlaps-lander", `${name} would overlap the Lander.`);
   }
-  const others = footings(site);
+  const others = footings(site).filter((other) => other.id !== standsOverId);
   if (
     others.some(
       (other) =>
@@ -150,7 +235,7 @@ export function checkPlacement(
       `${name} would overlap the ${label.toLowerCase()}.`,
     );
   }
-  return { ok: true };
+  return { ok: true, position: { x: position.x, y: position.y } };
 }
 
 /** A round patch of ground something stands on. */
@@ -200,11 +285,20 @@ export function stageMinutes(construction: ConstructionState): number {
 /** The stages of Construction that a Machine can carry out by itself. */
 export type MachineStage = "site-preparation" | "assembly";
 
-/** The stage each Machine stage of Construction moves on to once it is done. */
-export const stageAfter = {
-  "site-preparation": "component-delivery",
-  assembly: "commissioning",
-} as const satisfies Record<MachineStage, ConstructionStage>;
+/**
+ * The stage a Construction moves on to once a Machine stage is done. A
+ * Structure with no Components has none to deliver, so it goes straight
+ * from Site Preparation to Assembly.
+ */
+export function stageAfter(
+  construction: ConstructionState,
+  stage: MachineStage,
+): ConstructionStage {
+  if (stage === "assembly") return "commissioning";
+  return componentsFor(construction.structureTypeId).length === 0
+    ? "assembly"
+    : "component-delivery";
+}
 
 /** A stage of Construction and the type of Machine that carries it out. */
 export interface StageMachine {

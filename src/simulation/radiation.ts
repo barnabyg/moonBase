@@ -1,6 +1,7 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
+import { isShielded } from "./construction";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 
@@ -67,14 +68,19 @@ export function absorbRadiationDose(state: CampaignState): GameEvent[] {
 
 /**
  * The dose rate where the Mission Director lives, in millisieverts an Earth
- * Day, while they are alive.
+ * Day, while they are alive: less in a Habitat once it is shielded.
  */
 function doseRate(state: CampaignState): number {
   if (state.ended !== undefined) return 0;
   const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
-  return state.missionDirector.residence === "habitat"
-    ? rates.habitat
-    : rates.lander;
+  const { missionDirector } = state;
+  if (missionDirector.residence === "lander") return rates.lander;
+  const habitat = state.structures.find(
+    (structure) => structure.id === missionDirector.habitatId,
+  );
+  return habitat !== undefined && isShielded(state, habitat)
+    ? rates.shieldedHabitat
+    : rates.habitat;
 }
 
 /** The whole game-minutes until the dose reaches the limit at the given rate. */

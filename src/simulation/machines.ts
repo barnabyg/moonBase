@@ -111,7 +111,7 @@ export function workMachines(state: CampaignState): void {
     machine.activity = { kind: "working", constructionId: construction.id };
     construction.workedMinutes += 1;
     if (construction.workedMinutes >= stageMinutes(construction)) {
-      construction.stage = stageAfter[assignment.stage];
+      construction.stage = stageAfter(construction, assignment.stage);
       construction.workedMinutes = 0;
       machine.assignment = undefined;
     }

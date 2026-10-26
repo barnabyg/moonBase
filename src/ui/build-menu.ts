@@ -97,9 +97,10 @@ export function createBuildMenu(
       structureTypeId: placing.id,
       position,
     });
+    // Shown where it would stand, such as centred on the Habitat it shields.
     renderer.showPlacementPreview({
       structureTypeId: placing.id,
-      position,
+      position: check.ok ? check.position : position,
       allowed: check.ok,
     });
     setText(
@@ -164,7 +165,13 @@ export function createBuildMenu(
       for (const { type, stock } of buttons) {
         const sets = setsAvailable(type, snapshot);
         available.set(type.id, sets);
-        setText(stock, `${sets} available`);
+        // One made from Regolith alone never runs short.
+        setText(
+          stock,
+          type.components.length === 0
+            ? "no Components needed"
+            : `${sets} available`,
+        );
       }
     },
   };
@@ -174,7 +181,7 @@ export function createBuildMenu(
  * How many more of a Structure the cargo stock can supply, leaving aside the
  * Components already promised to planned Constructions that haven't taken
  * them yet. Planning more than this leaves a Construction waiting for
- * Components.
+ * Components. One with no Components has no limit.
  */
 function setsAvailable(type: StructureType, snapshot: Snapshot): number {
   const promised = (componentId: string) =>

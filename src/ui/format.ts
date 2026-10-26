@@ -188,7 +188,9 @@ export function formatEvent(event: GameEvent): string {
     case "construction-completed":
       return `${structureLabel(event.structureTypeId)} commissioned`;
     case "structure-dismantled":
-      return `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`;
+      return hasComponents(event.structureTypeId)
+        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`
+        : `${structureLabel(event.structureTypeId)} dismantled`;
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
     case "habitat-power-warning":
@@ -255,6 +257,14 @@ const stageLabels: Record<ConstructionStage, string> = {
 
 export function formatStage(stage: ConstructionStage): string {
   return stageLabels[stage];
+}
+
+/** Whether a Structure is assembled from Components, rather than from Regolith alone. */
+export function hasComponents(structureTypeId: string): boolean {
+  return (
+    (catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.components.length ?? 0) > 0
+  );
 }
 
 export function structureLabel(structureTypeId: string): string {

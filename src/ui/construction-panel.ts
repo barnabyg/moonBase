@@ -5,6 +5,7 @@ import {
   formatComponents,
   formatDismantlingStage,
   formatStage,
+  hasComponents,
   structureLabel,
 } from "./format";
 import { setText } from "./dom";
@@ -133,6 +134,9 @@ export function createConstructionPanel(
 
 /** Says what cancelling a Construction now would give back. */
 function describeCancelling(construction: ConstructionSnapshot): string {
+  if (!hasComponents(construction.structureTypeId)) {
+    return "Cancel it. It uses no Components.";
+  }
   if (!construction.componentsTaken) {
     return "Cancel it. Its Components haven't left the cargo stock.";
   }

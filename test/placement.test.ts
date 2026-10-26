@@ -118,7 +118,7 @@ describe("planning a Construction", () => {
     });
     expect(
       game.campaign.checkPlacement({ ...plan, position: { x: 40, y: 0 } }),
-    ).toEqual({ ok: true });
+    ).toEqual({ ok: true, position: { x: 40, y: 0 } });
     expect(game.state.constructions).toEqual([]);
   });
 });

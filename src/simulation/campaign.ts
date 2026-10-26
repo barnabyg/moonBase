@@ -20,6 +20,7 @@ import {
 import {
   checkPlacement,
   chooseWorkSpot,
+  isShielded,
   stageMinutes,
   type ConstructionPlan,
   type ConstructionStage,
@@ -141,6 +142,8 @@ export interface StructureSnapshot {
   readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
+  /** Whether it is a Habitat with commissioned Regolith shielding over it. */
+  readonly shielded: boolean;
 }
 
 /**
@@ -406,12 +409,13 @@ export function createCampaign(options: CampaignOptions): Campaign {
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
       state.nextStructureNumber += 1;
+      const placed = { ...plan, position: check.position };
       state.constructions.push({
         id,
         structureTypeId: plan.structureTypeId,
-        position: { x: plan.position.x, y: plan.position.y },
+        position: { ...check.position },
         planNumber: state.nextPlanNumber,
-        workSpot: chooseWorkSpot(state, plan),
+        workSpot: chooseWorkSpot(state, placed),
         stage: "site-preparation",
         workedMinutes: 0,
         componentsTaken: false,
@@ -508,7 +512,10 @@ export function createCampaign(options: CampaignOptions): Campaign {
           unusedComponents: unusedComponents(construction),
           waiting: copy(findWaitingReason(state, construction)),
         })),
-        structures: copy(state.structures),
+        structures: state.structures.map((structure) => ({
+          ...copy(structure),
+          shielded: isShielded(state, structure),
+        })),
         dismantlings: state.dismantlings.map((dismantling) => ({
           id: dismantling.id,
           structureTypeId: dismantling.structureTypeId,

@@ -3,7 +3,7 @@ import type { RobotActivity, RobotSnapshot } from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
   createRobotModel,
-  EXCAVATOR_SEAT_HEIGHT,
+  MACHINE_SEAT_HEIGHT,
   type RobotModel,
   type RobotPose,
 } from "./models";
@@ -63,7 +63,7 @@ export function createRobotViews(scene: THREE.Scene) {
         view.model.group.position.copy(position);
         // Aboard a Machine, the Robot sits on its deck.
         if (aboardMachine(robot)) {
-          view.model.group.position.y = EXCAVATOR_SEAT_HEIGHT - HIP_HEIGHT;
+          view.model.group.position.y = MACHINE_SEAT_HEIGHT - HIP_HEIGHT;
         }
         view.model.group.rotation.y = view.heading;
         view.model.pose(
