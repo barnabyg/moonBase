@@ -142,9 +142,9 @@ function machineGround(machine: MachineState): Ground[] {
     findMachineType(machine.machineTypeId)?.footprintRadiusMetres ?? 0;
   return [
     { position: machine.position, radius },
-    ...(machine.task === undefined
+    ...(machine.assignment === undefined
       ? []
-      : [{ position: machine.task.destination, radius }]),
+      : [{ position: machine.assignment.destination, radius }]),
   ];
 }
 

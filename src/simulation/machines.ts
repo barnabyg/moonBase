@@ -11,8 +11,8 @@ export type MachineActivity =
       readonly constructionId: string;
     };
 
-/** A Machine's job on one Construction, from being driven there until its process is done. */
-export interface MachineTask {
+/** A Machine's assignment to one Construction, from being driven there until its work there is done. */
+export interface MachineAssignment {
   constructionId: string;
   /** Where the Machine stands to work on the site. */
   destination: GroundPosition;
@@ -27,24 +27,24 @@ export interface MachineState {
   machineTypeId: string;
   position: GroundPosition;
   activity: MachineActivity;
-  task: MachineTask | undefined;
+  assignment: MachineAssignment | undefined;
 }
 
 export function findMachineType(id: string): MachineType | undefined {
   return catalogue.machineTypes.find((type) => type.id === id);
 }
 
-/** The Machine whose task is on the given Construction, if any. */
+/** The Machine whose assignment is on the given Construction, if any. */
 export function machineOn(
   state: CampaignState,
   constructionId: string,
 ): MachineState | undefined {
   return state.machines.find(
-    (machine) => machine.task?.constructionId === constructionId,
+    (machine) => machine.assignment?.constructionId === constructionId,
   );
 }
 
-/** The nearest Machine of a type that has no task. */
+/** The nearest Machine of a type that has no assignment. */
 export function nearestFreeMachine(
   state: CampaignState,
   machineTypeId: string,
@@ -52,7 +52,8 @@ export function nearestFreeMachine(
 ): MachineState | undefined {
   const free = state.machines.filter(
     (machine) =>
-      machine.task === undefined && machine.machineTypeId === machineTypeId,
+      machine.assignment === undefined &&
+      machine.machineTypeId === machineTypeId,
   );
   // The earlier Machine wins a tie, so the choice is always the same.
   return free.reduce<MachineState | undefined>(
@@ -72,23 +73,23 @@ export function nearestFreeMachine(
  */
 export function workMachines(state: CampaignState): void {
   for (const machine of state.machines) {
-    const { task } = machine;
-    if (task === undefined) {
+    const { assignment } = machine;
+    if (assignment === undefined) {
       machine.activity = { kind: "idle" };
       continue;
     }
-    if (!task.working) {
+    if (!assignment.working) {
       machine.activity = {
         kind: "being-positioned",
-        constructionId: task.constructionId,
+        constructionId: assignment.constructionId,
       };
       continue;
     }
     const construction = state.constructions.find(
-      (candidate) => candidate.id === task.constructionId,
+      (candidate) => candidate.id === assignment.constructionId,
     );
     if (construction?.stage !== "site-preparation") {
-      machine.task = undefined;
+      machine.assignment = undefined;
       machine.activity = { kind: "idle" };
       continue;
     }
@@ -97,7 +98,7 @@ export function workMachines(state: CampaignState): void {
     if (construction.workedMinutes >= stageMinutes(construction)) {
       construction.stage = "component-delivery";
       construction.workedMinutes = 0;
-      machine.task = undefined;
+      machine.assignment = undefined;
     }
   }
 }

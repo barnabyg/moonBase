@@ -218,7 +218,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       machineTypeId: machine.machineTypeId,
       position: { ...machine.position },
       activity: { kind: "idle" },
-      task: undefined,
+      assignment: undefined,
     })),
     cargo: catalogue.componentTypes.map((type) => ({
       componentId: type.id,

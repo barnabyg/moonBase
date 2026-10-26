@@ -114,8 +114,8 @@ export function claimWorkOrder(
     ] as const) {
       if (
         !claimed.some(
-          (order) =>
-            order.constructionId === construction.id && order.kind === kind,
+          (other) =>
+            other.constructionId === construction.id && other.kind === kind,
         ) &&
         canBeWorkedOn(state, construction, kind)
       ) {
@@ -144,7 +144,7 @@ function canBeWorkedOn(
       // Once activated, the Machine grades the ground without a Robot.
       return (
         findWaitingReason(state, construction) === undefined &&
-        machineOn(state, construction.id)?.task?.working !== true
+        machineOn(state, construction.id)?.assignment?.working !== true
       );
     case "deliver-components":
     case "assemble":
@@ -169,14 +169,14 @@ export function needsCable(
 }
 
 /** Whether a claimed Work Order still has work left in it. */
-export function isOpen(state: CampaignState, order: WorkOrder): boolean {
+export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
   const construction = state.constructions.find(
-    (candidate) => candidate.id === order.constructionId,
+    (candidate) => candidate.id === workOrder.constructionId,
   );
   if (construction === undefined) return false;
-  if (order.kind === "lay-cable") return needsCable(state, construction);
+  if (workOrder.kind === "lay-cable") return needsCable(state, construction);
   return (
-    workOrderKinds[construction.stage] === order.kind &&
-    machineOn(state, construction.id)?.task?.working !== true
+    workOrderKinds[construction.stage] === workOrder.kind &&
+    machineOn(state, construction.id)?.assignment?.working !== true
   );
 }

@@ -146,18 +146,18 @@ export function workRobot(
       // ground by itself.
       const machine =
         machineOn(state, id) ?? assignMachine(state, construction);
-      const task = machine?.task;
-      if (machine === undefined || task === undefined) {
+      const assignment = machine?.assignment;
+      if (machine === undefined || assignment === undefined) {
         robot.workOrder = undefined;
         robot.activity = { kind: "idle" };
         return [];
       }
       const type = findMachineType(machine.machineTypeId);
-      if (!samePlace(machine.position, task.destination)) {
+      if (!samePlace(machine.position, assignment.destination)) {
         if (!walkTo(machine.position, "machine")) return [];
         machine.position = stepTowards(
           machine.position,
-          task.destination,
+          assignment.destination,
           {
             centre: state.lander.position,
             radius:
@@ -180,11 +180,12 @@ export function workRobot(
         constructionId: id,
         machineId: machine.id,
       };
-      task.activationMinutes += 1;
+      assignment.activationMinutes += 1;
       if (
-        task.activationMinutes >= Math.round((type?.activationHours ?? 0) * 60)
+        assignment.activationMinutes >=
+        Math.round((type?.activationHours ?? 0) * 60)
       ) {
-        task.working = true;
+        assignment.working = true;
       }
       return [];
     }
@@ -282,7 +283,7 @@ function assignMachine(
     construction.position,
   );
   if (machine === undefined) return undefined;
-  machine.task = {
+  machine.assignment = {
     constructionId: construction.id,
     destination: chooseMachineSpot(state, construction, machine),
     activationMinutes: 0,
