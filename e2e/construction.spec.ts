@@ -1,31 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-
-/**
- * Moves the pointer over the 3D view until the build menu says the
- * Structure may be placed there, then clicks to place it.
- */
-async function placeOnClearGround(page: Page): Promise<void> {
-  const box = await page.locator("canvas").boundingBox();
-  if (box === null) throw new Error("The 3D view has no size.");
-  const placement = page.getByRole("status", { name: "Placement" });
-  for (const [across, down] of [
-    [0.3, 0.75],
-    [0.7, 0.75],
-    [0.25, 0.6],
-    [0.75, 0.6],
-    [0.5, 0.85],
-  ] as const) {
-    const x = box.x + box.width * across;
-    const y = box.y + box.height * down;
-    await page.mouse.move(x, y);
-    const text = await placement.textContent();
-    if (text?.startsWith("Click to place") === true) {
-      await page.mouse.click(x, y);
-      return;
-    }
-  }
-  throw new Error("Found no clear ground to place the Structure on.");
-}
+import { placeOnClearGround } from "./placement";
 
 test("the Robot carries out the Construction of a solar array placed on the map, and a second one waits for Components", async ({
   page,

@@ -1,13 +1,25 @@
 import type { GameLoop } from "../game/loop";
-import type { Campaign, Forecasts, Snapshot } from "../simulation";
+import type {
+  Campaign,
+  DismantleResult,
+  Forecasts,
+  MoveInResult,
+  Snapshot,
+} from "../simulation";
 import { setText } from "./dom";
+import { catalogue } from "../catalogue";
 import {
   formatClock,
+  formatLander,
   formatLunation,
+  formatMissionDirector,
   formatPower,
   formatStoredPower,
   structureLabel,
 } from "./format";
+
+/** How long a refusal stays on screen, in real milliseconds. */
+const REFUSAL_SHOWN_MS = 8000;
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
@@ -16,12 +28,13 @@ export interface StatusPanel {
 /**
  * The HTML status panel. It reads simulation snapshots, sends the player's
  * speed choices to the game loop, and sends a choice to dismantle a Structure
- * to the Campaign, which decides whether it is allowed.
+ * or to move the Mission Director into a Habitat to the Campaign, which
+ * decides whether it is allowed and says why not.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
-  campaign: Pick<Campaign, "dismantleStructure">,
+  campaign: Pick<Campaign, "dismantleStructure" | "moveMissionDirectorIn">,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -88,6 +101,34 @@ export function createStatusPanel(
   storedPower.setAttribute("aria-label", "Stored power");
   storedPower.setAttribute("aria-live", "off");
 
+  const missionDirector = document.createElement("p");
+  missionDirector.className = "status-panel__residence";
+  missionDirector.setAttribute("role", "status");
+  missionDirector.setAttribute("aria-label", "Mission Director");
+
+  const lander = document.createElement("p");
+  lander.className = "status-panel__residence";
+  lander.setAttribute("role", "status");
+  lander.setAttribute("aria-label", "Lander");
+
+  // Why the player's latest choice was refused, for a few seconds, so that
+  // it doesn't linger once things have changed.
+  const refusal = document.createElement("p");
+  refusal.className = "status-panel__refusal";
+  refusal.setAttribute("role", "alert");
+  refusal.hidden = true;
+  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
+  const showResult = (result: DismantleResult | MoveInResult) => {
+    clearTimeout(refusalTimer);
+    refusal.hidden = result.ok;
+    setText(refusal, result.ok ? "" : result.message);
+    if (!result.ok) {
+      refusalTimer = setTimeout(() => {
+        refusal.hidden = true;
+      }, REFUSAL_SHOWN_MS);
+    }
+  };
+
   const structures = document.createElement("ul");
   structures.className = "status-panel__structures";
   structures.setAttribute("aria-label", "Structures");
@@ -97,6 +138,7 @@ export function createStatusPanel(
       readonly item: HTMLLIElement;
       readonly text: HTMLElement;
       readonly dismantle: HTMLButtonElement;
+      readonly moveIn: HTMLButtonElement;
     }
   >();
   const createStructureItem = (structureId: string) => {
@@ -109,11 +151,21 @@ export function createStatusPanel(
     dismantle.title =
       "Have the Robot take it apart and carry most of its Components back into the cargo stock.";
     dismantle.addEventListener("click", () => {
-      campaign.dismantleStructure(structureId);
+      showResult(campaign.dismantleStructure(structureId));
     });
-    item.append(text, dismantle);
+    const moveIn = document.createElement("button");
+    moveIn.type = "button";
+    moveIn.className = "status-panel__move-in";
+    moveIn.textContent = "Move in";
+    moveIn.title =
+      "Move the Mission Director from the Lander into this Habitat. It happens at once and can't be undone.";
+    moveIn.hidden = true;
+    moveIn.addEventListener("click", () => {
+      showResult(campaign.moveMissionDirectorIn(structureId));
+    });
+    item.append(text, moveIn, dismantle);
     structures.append(item);
-    return { item, text, dismantle };
+    return { item, text, dismantle, moveIn };
   };
 
   panel.append(
@@ -123,7 +175,10 @@ export function createStatusPanel(
     skip,
     power,
     storedPower,
+    missionDirector,
+    lander,
     structures,
+    refusal,
   );
   container.append(panel);
   showSelectedSpeed();
@@ -137,6 +192,11 @@ export function createStatusPanel(
       storedPower.hidden = !hasStructures;
       setText(power, formatPower(snapshot.power));
       setText(storedPower, formatStoredPower(snapshot.power, forecasts.power));
+      setText(
+        missionDirector,
+        formatMissionDirector(snapshot.missionDirector, snapshot.structures),
+      );
+      setText(lander, formatLander(snapshot.lander));
       const seen = new Set<string>();
       for (const structure of snapshot.structures) {
         seen.add(structure.id);
@@ -148,11 +208,18 @@ export function createStatusPanel(
         const toBeDismantled = snapshot.dismantlings.some(
           (dismantling) => dismantling.id === structure.id,
         );
+        const home =
+          snapshot.missionDirector.residence === "habitat" &&
+          snapshot.missionDirector.habitatId === structure.id;
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}${home ? ", the Mission Director's home" : ""}`,
         );
         entry.dismantle.hidden = toBeDismantled;
+        entry.moveIn.hidden =
+          toBeDismantled ||
+          snapshot.missionDirector.residence !== "lander" ||
+          !isHabitat(structure.structureTypeId);
       }
       for (const [id, entry] of structureItems) {
         if (!seen.has(id)) {
@@ -163,4 +230,11 @@ export function createStatusPanel(
       structures.hidden = structureItems.size === 0;
     },
   };
+}
+
+function isHabitat(structureTypeId: string): boolean {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.habitat === true
+  );
 }

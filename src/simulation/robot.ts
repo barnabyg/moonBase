@@ -9,9 +9,11 @@ import {
   chooseMachineSpot,
   componentsFor,
   findStructureType,
+  stageMachine,
   stageMinutes,
   type ConstructionStage,
   type ConstructionState,
+  type StageMachine,
 } from "./construction";
 import {
   dismantlingStageMinutes,
@@ -113,6 +115,10 @@ export function workRobot(
     robot.activity = { kind: "idle" };
     return [];
   }
+  const machineStage = stageMachine(construction);
+  if (machineStage !== undefined) {
+    return positionMachine(state, robot, construction, machineStage);
+  }
   const { id } = construction;
   const walkTo = (spot: GroundPosition, destination: WalkingDestination) =>
     walkRobotTo(state, robot, id, spot, destination);
@@ -131,55 +137,11 @@ export function workRobot(
 
   const required = stageMinutes(construction);
   switch (construction.stage) {
-    case "site-preparation": {
-      // The Robot positions and activates a Machine, which then grades the
-      // ground by itself.
-      const machine =
-        machineOn(state, id) ?? assignMachine(state, construction);
-      const assignment = machine?.assignment;
-      if (machine === undefined || assignment === undefined) {
-        robot.workOrder = undefined;
-        robot.activity = { kind: "idle" };
-        return [];
-      }
-      const type = findMachineType(machine.machineTypeId);
-      if (!samePlace(machine.position, assignment.destination)) {
-        if (!walkTo(machine.position, "machine")) return [];
-        machine.position = stepTowards(
-          machine.position,
-          assignment.destination,
-          {
-            centre: state.lander.position,
-            radius:
-              LANDER_CLEARANCE_METRES +
-              machineFootprintRadius(machine.machineTypeId),
-          },
-          (type?.drivingSpeedMetresPerHour ?? 0) / 60,
-        );
-        robot.position = { ...machine.position };
-        robot.activity = {
-          kind: "driving-machine",
-          structureId: id,
-          machineId: machine.id,
-        };
-        return [];
-      }
-      // Once there, it climbs down and sets the Machine going from beside it.
-      if (!walkTo(beside(machine, construction), "machine")) return [];
-      robot.activity = {
-        kind: "activating-machine",
-        structureId: id,
-        machineId: machine.id,
-      };
-      assignment.activationMinutes += 1;
-      if (
-        assignment.activationMinutes >=
-        Math.round((type?.activationHours ?? 0) * 60)
-      ) {
-        assignment.working = true;
-      }
+    case "site-preparation":
+      // Always a Machine's work, which the Robot only sets going (above).
+      robot.workOrder = undefined;
+      robot.activity = { kind: "idle" };
       return [];
-    }
 
     case "component-delivery": {
       // Half the handling time is loading at the Lander, half unloading at the site.
@@ -228,6 +190,68 @@ export function workRobot(
       }
       return finishCommissioning(state, construction);
   }
+}
+
+/**
+ * Lets the Robot do one game-minute of work on a stage of Construction that a
+ * Machine carries out: it drives the nearest free Machine of the right type
+ * to the site and activates it, and the Machine then does the stage by
+ * itself.
+ */
+function positionMachine(
+  state: CampaignState,
+  robot: RobotState,
+  construction: ConstructionState,
+  machineStage: StageMachine,
+): GameEvent[] {
+  const { id } = construction;
+  const walkTo = (spot: GroundPosition) =>
+    walkRobotTo(state, robot, id, spot, "machine");
+  const machine =
+    machineOn(state, id) ?? assignMachine(state, construction, machineStage);
+  const assignment = machine?.assignment;
+  if (machine === undefined || assignment === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const type = findMachineType(machine.machineTypeId);
+  if (!samePlace(machine.position, assignment.destination)) {
+    if (!walkTo(machine.position)) return [];
+    machine.position = stepTowards(
+      machine.position,
+      assignment.destination,
+      {
+        centre: state.lander.position,
+        radius:
+          LANDER_CLEARANCE_METRES +
+          machineFootprintRadius(machine.machineTypeId),
+      },
+      (type?.drivingSpeedMetresPerHour ?? 0) / 60,
+    );
+    robot.position = { ...machine.position };
+    robot.activity = {
+      kind: "driving-machine",
+      structureId: id,
+      machineId: machine.id,
+    };
+    return [];
+  }
+  // Once there, it climbs down and sets the Machine going from beside it.
+  if (!walkTo(beside(machine, construction))) return [];
+  robot.activity = {
+    kind: "activating-machine",
+    structureId: id,
+    machineId: machine.id,
+  };
+  assignment.activationMinutes += 1;
+  if (
+    assignment.activationMinutes >=
+    Math.round((type?.activationHours ?? 0) * 60)
+  ) {
+    assignment.working = true;
+  }
+  return [];
 }
 
 /**
@@ -301,19 +325,21 @@ function finishCommissioning(
   ];
 }
 
-/** Gives a Construction's Site Preparation to the nearest free Machine that can do it. */
+/** Gives a stage of a Construction to the nearest free Machine of the type that carries it out. */
 function assignMachine(
   state: CampaignState,
   construction: ConstructionState,
+  { stage, machineTypeId }: StageMachine,
 ): MachineState | undefined {
   const machine = nearestFreeMachine(
     state,
-    catalogue.sitePreparationMachineTypeId,
+    machineTypeId,
     construction.position,
   );
   if (machine === undefined) return undefined;
   machine.assignment = {
     constructionId: construction.id,
+    stage,
     destination: chooseMachineSpot(state, construction, machine),
     activationMinutes: 0,
     working: false,

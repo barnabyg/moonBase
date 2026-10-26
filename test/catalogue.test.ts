@@ -99,17 +99,40 @@ describe("the data catalogue", () => {
       expect(type.activationHours).toBeGreaterThan(0);
       expect(Number.isInteger(type.activationHours * 60)).toBe(true);
     }
-    expect(machineTypes.map((type) => type.id)).toContain(
-      catalogue.sitePreparationMachineTypeId,
-    );
   });
 
-  it("lands the Machine that does Site Preparation, on the map and clear of the Lander", () => {
+  it("only names known Machine types to carry out stages of Construction", () => {
+    const known = new Set(catalogue.machineTypes.map((type) => type.id));
+
+    for (const type of catalogue.structureTypes) {
+      for (const machineTypeId of Object.values(type.stageMachines)) {
+        expect(known).toContain(machineTypeId);
+      }
+    }
+  });
+
+  it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
+    "has the excavator do a %s's Site Preparation, and the Robot the rest",
+    (structureTypeId) => {
+      const structureType = catalogue.structureTypes.find(
+        (type) => type.id === structureTypeId,
+      );
+
+      expect(structureType?.stageMachines).toEqual({
+        sitePreparation: "excavator",
+      });
+    },
+  );
+
+  it("lands every Machine a Structure needs, on the map and clear of the Lander", () => {
     const { landerPosition, machines } = catalogue.landingSite;
 
-    expect(machines.map((machine) => machine.machineTypeId)).toContain(
-      catalogue.sitePreparationMachineTypeId,
-    );
+    const landed = machines.map((machine) => machine.machineTypeId);
+    for (const type of catalogue.structureTypes) {
+      for (const machineTypeId of Object.values(type.stageMachines)) {
+        expect(landed).toContain(machineTypeId);
+      }
+    }
     for (const machine of machines) {
       const type = catalogue.machineTypes.find(
         (candidate) => candidate.id === machine.machineTypeId,
@@ -184,7 +207,15 @@ describe("the data catalogue", () => {
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
   });
 
-  it.each(["solar-array", "battery-bank", "light-mast"])(
+  it("has a Habitat the Mission Director can move into", () => {
+    expect(
+      catalogue.structureTypes
+        .filter((type) => type.habitat)
+        .map((type) => type.id),
+    ).toEqual(["habitat"]);
+  });
+
+  it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {
       const structureType = catalogue.structureTypes.find(

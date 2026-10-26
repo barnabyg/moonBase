@@ -33,8 +33,6 @@ export interface Catalogue {
     readonly cableLayingSpeedMetresPerHour: number;
   };
   readonly machineTypes: readonly MachineType[];
-  /** The Machine that grades a Construction's ground during Site Preparation. */
-  readonly sitePreparationMachineTypeId: string;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
@@ -103,17 +101,28 @@ export interface StructureType {
   /** The Components one Structure is assembled from. */
   readonly components: readonly ComponentCount[];
   /**
-   * The working time for each stage of Construction, in game-hours. Site
-   * Preparation is done by a Machine once a Robot has positioned and
-   * activated it; the other stages are the Robot's own work. Walking, driving
-   * and activating come on top. Component delivery is split evenly between
-   * loading at the Lander and unloading at the site.
+   * The working time for each stage of Construction, in game-hours, whether
+   * a Machine or the Robot does the work. Walking, driving and activating
+   * come on top. Component delivery is split evenly between loading at the
+   * Lander and unloading at the site.
    */
   readonly stageHours: {
     readonly sitePreparation: number;
     readonly componentDelivery: number;
     readonly assembly: number;
     readonly commissioning: number;
+  };
+  /**
+   * The Machine types that carry out stages of Construction by themselves,
+   * once a Robot has driven one into position and activated it. A Machine
+   * always grades the ground for Site Preparation, and may carry out
+   * Assembly, such as printing a Structure from Regolith; without one,
+   * Assembly is the Robot's own work, as Component delivery and
+   * Commissioning always are.
+   */
+  readonly stageMachines: {
+    readonly sitePreparation: string;
+    readonly assembly?: string;
   };
   /** The chance, from 0 to 1, that a Commissioning attempt fails and has to be retried. */
   readonly commissioningFailureChance: number;
@@ -134,6 +143,8 @@ export interface StructureType {
    * can see; darkness never stops work.
    */
   readonly lightRadiusMetres: number;
+  /** Whether it is a Habitat, which the Mission Director can move into once it is commissioned. */
+  readonly habitat: boolean;
 }
 
 export interface GameSpeed {
@@ -143,7 +154,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 3,
+  version: 5,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -176,7 +187,6 @@ export const catalogue: Catalogue = {
       activationHours: 0.25,
     },
   ],
-  sitePreparationMachineTypeId: "excavator",
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },
@@ -184,6 +194,9 @@ export const catalogue: Catalogue = {
     { id: "battery-cabinet", label: "Battery cabinet" },
     { id: "mast-pole", label: "Mast pole" },
     { id: "light-head", label: "Light head" },
+    { id: "habitat-core", label: "Habitat core" },
+    { id: "habitat-envelope", label: "Habitat envelope" },
+    { id: "airlock", label: "Airlock" },
   ],
   structureTypes: [
     {
@@ -200,6 +213,7 @@ export const catalogue: Catalogue = {
         assembly: 3,
         commissioning: 1,
       },
+      stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.25,
       // The drive that keeps the panel turned to the sun.
       power: {
@@ -209,6 +223,7 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
+      habitat: false,
     },
     {
       id: "battery-bank",
@@ -224,6 +239,7 @@ export const catalogue: Catalogue = {
         assembly: 2,
         commissioning: 1,
       },
+      stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       // The heaters that keep the cells warm enough to work.
       power: {
@@ -233,6 +249,7 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
+      habitat: false,
     },
     {
       id: "light-mast",
@@ -248,6 +265,7 @@ export const catalogue: Catalogue = {
         assembly: 1,
         commissioning: 0.5,
       },
+      stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
       // Its light switches on by itself at Night, and draws nothing in Daylight.
       power: {
@@ -257,6 +275,34 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0.4,
       },
       lightRadiusMetres: 18,
+      habitat: false,
+    },
+    {
+      id: "habitat",
+      label: "Inflatable Habitat",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "habitat-core", count: 1 },
+        { componentId: "habitat-envelope", count: 1 },
+        { componentId: "airlock", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 2,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Its life support, heaters and controls.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 1.2,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: true,
     },
   ],
   dismantlingLossShare: 0.2,
@@ -267,5 +313,9 @@ export const catalogue: Catalogue = {
     { componentId: "battery-cabinet", count: 1 },
     { componentId: "mast-pole", count: 4 },
     { componentId: "light-head", count: 4 },
+    // The inflatable Habitat kit.
+    { componentId: "habitat-core", count: 1 },
+    { componentId: "habitat-envelope", count: 1 },
+    { componentId: "airlock", count: 1 },
   ],
 };

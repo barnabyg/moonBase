@@ -31,6 +31,11 @@ export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";
 export type { ConstructionWait } from "./work-orders";
 export type { MachineActivity } from "./machines";
+export type {
+  MissionDirectorResidence,
+  MoveInRefusal,
+  MoveInResult,
+} from "./mission-director";
 export type { ClockSnapshot } from "./clock";
 export type { GameEvent } from "./events";
 export type { LunationPart, LunationSnapshot } from "./lunation";

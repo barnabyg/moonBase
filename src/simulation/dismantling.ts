@@ -9,6 +9,7 @@ import {
   componentsFor,
   findStructureType,
 } from "./construction";
+import { livesIn } from "./mission-director";
 
 /**
  * The stages of dismantling a Structure: the Robot takes it apart, then
@@ -57,6 +58,12 @@ export function dismantleStructure(
   }
   if (isDueToBeDismantled(state, structureId)) {
     return { ok: false, message: "It is already being dismantled." };
+  }
+  if (livesIn(state, structureId)) {
+    return {
+      ok: false,
+      message: "The Mission Director lives in it, and can't move out.",
+    };
   }
   state.dismantlings.push({
     id: structure.id,
