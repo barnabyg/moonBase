@@ -18,10 +18,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDust } = await import("./without-dust");
   const { withoutCold } = await import("./without-cold");
+  const { withoutDigging } = await import("./without-digging");
   return {
     ...actual,
     catalogue: {
-      ...withoutCold(withoutDust(actual.catalogue)),
+      ...withoutDigging(withoutCold(withoutDust(actual.catalogue))),
       robot: actual.catalogue.robot,
     },
   };

@@ -209,6 +209,32 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has bulk resources with unique ids and labels, Regolith first", () => {
+    const { bulkResources } = catalogue;
+
+    expect(bulkResources[0]).toEqual({ id: "regolith", label: "Regolith" });
+    expect(new Set(bulkResources.map((resource) => resource.id)).size).toBe(
+      bulkResources.length,
+    );
+    expect(new Set(bulkResources.map((resource) => resource.label)).size).toBe(
+      bulkResources.length,
+    );
+  });
+
+  it("has the excavator, which lands with the Lander, dig Regolith up to a level at a positive rate", () => {
+    const { digging } = catalogue;
+
+    expect(digging).toMatchObject({
+      machineTypeId: "excavator",
+      resourceId: "regolith",
+    });
+    expect(
+      catalogue.landingSite.machines.map((machine) => machine.machineTypeId),
+    ).toContain(digging.machineTypeId);
+    expect(digging.stockLevelKilograms).toBeGreaterThan(0);
+    expect(digging.kilogramsPerWorkingHour).toBeGreaterThan(0);
+  });
+
   it("only names known Machine types to carry out stages of Construction", () => {
     const known = new Set(catalogue.machineTypes.map((type) => type.id));
 

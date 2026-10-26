@@ -304,11 +304,11 @@ function stockpileGround(site: Pick<Site, "stockpile">): Ground {
 /** The ground a Machine stands on, and the ground it is being driven to. */
 function machineGround(machine: MachineState): Ground[] {
   const radius = machineFootprintRadius(machine.machineTypeId);
+  const destination =
+    machine.assignment?.destination ?? machine.digging?.destination;
   return [
     { position: machine.position, radius },
-    ...(machine.assignment === undefined
-      ? []
-      : [{ position: machine.assignment.destination, radius }]),
+    ...(destination === undefined ? [] : [{ position: destination, radius }]),
   ];
 }
 
@@ -515,6 +515,42 @@ export function chooseMachineSpot(
         .filter((other) => other.id !== machine.id)
         .flatMap(machineGround),
       { position: construction.workSpot, radius: machineGap },
+    ],
+  });
+}
+
+/**
+ * Chooses where a Machine stands to dig: beside the stockpile, a little way
+ * out from where the Robot loads and unloads, on the side away from the
+ * Lander if that is clear, otherwise turning round the stockpile until it
+ * finds ground clear of the Lander, every Structure and every other Machine
+ * and the map's edge.
+ */
+export function chooseDiggingSpot(
+  site: Site,
+  machine: MachineState,
+): GroundPosition {
+  const radius = machineFootprintRadius(machine.machineTypeId);
+  const gap = catalogue.robot.workingGapMetres;
+  const centre = site.stockpile.position;
+  const lander = site.lander.position;
+  return chooseSpotAround({
+    centre,
+    reach: catalogue.stockpile.footprintRadiusMetres + gap * 2 + radius,
+    towards: { x: centre.x * 2 - lander.x, y: centre.y * 2 - lander.y },
+    clearance: radius,
+    lander: {
+      position: lander,
+      radius: catalogue.lander.footprintRadiusMetres + gap,
+    },
+    others: [
+      ...footings(site).map((other) => ({
+        position: other.position,
+        radius: footprintRadius(other.structureTypeId),
+      })),
+      ...site.machines
+        .filter((other) => other.id !== machine.id)
+        .flatMap(machineGround),
     ],
   });
 }

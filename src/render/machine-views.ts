@@ -1,5 +1,9 @@
 import * as THREE from "three";
-import type { ConstructionSnapshot, MachineSnapshot } from "../simulation";
+import type {
+  ConstructionSnapshot,
+  GroundPosition,
+  MachineSnapshot,
+} from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
   createExcavatorModel,
@@ -22,6 +26,8 @@ const PRINT_SWEEPS_PER_SECOND = 0.15;
 const PRINT_LINE_SHARE = 0.85;
 /** How far out the printer's head is while it is parked, in metres. */
 const PRINTER_PARKED_REACH = 1.7;
+/** How far from its centre the excavator digs, on the side away from the stockpile, in metres. */
+const DIGGING_REACH = 3;
 
 type MachineModel =
   | { readonly kind: "excavator"; readonly model: ExcavatorModel }
@@ -37,7 +43,8 @@ interface MachineView {
  * Draws each Machine where the simulation says it is, interpolated between
  * ticks: turning to face the way it is driven, and working over the site
  * while it carries out its stage by itself, the excavator grading the ground
- * and the regolith printer laying Regolith shielding down layer by layer.
+ * or digging Regolith beside the stockpile, and the regolith printer laying
+ * Regolith shielding down layer by layer.
  */
 export function createMachineViews(scene: THREE.Scene) {
   const views = new Map<string, MachineView>();
@@ -77,14 +84,19 @@ export function createMachineViews(scene: THREE.Scene) {
         model.group.rotation.y = view.heading;
 
         const site = workSite(frame, machine);
+        const digging = diggingSpot(frame, machine);
         const beaconOn =
-          site !== undefined &&
+          (site !== undefined || digging !== undefined) &&
           Math.floor(realSeconds * BEACON_FLASHES_PER_SECOND * 2) % 2 === 0;
         model.setBeacon(beaconOn);
         if (view.machine.kind === "excavator") {
-          showGrading(view.machine.model, view.heading, position, site, {
-            realSeconds,
-          });
+          showGrading(
+            view.machine.model,
+            view.heading,
+            position,
+            site?.position ?? digging,
+            { realSeconds },
+          );
         } else {
           showPrinting(view.machine.model, view.heading, position, site, {
             realSeconds,
@@ -102,22 +114,25 @@ function createMachineModel(machineTypeId: string): MachineModel {
     : { kind: "excavator", model: createExcavatorModel() };
 }
 
-/** Works the excavator's arm over the site while it grades the ground, or tucks it in. */
+/**
+ * Works the excavator's arm over the ground it grades or digs, or tucks it
+ * in.
+ */
 function showGrading(
   model: ExcavatorModel,
   heading: number,
   position: THREE.Vector3,
-  site: ConstructionSnapshot | undefined,
+  ground: GroundPosition | undefined,
   { realSeconds }: { readonly realSeconds: number },
 ): void {
-  if (site === undefined) {
+  if (ground === undefined) {
     model.setSlew(0);
     model.setReach(0);
     return;
   }
   const cycle = realSeconds * DIG_CYCLES_PER_SECOND * Math.PI * 2;
   model.setSlew(
-    facingAngle(position, toScene(site.position)) -
+    facingAngle(position, toScene(ground)) -
       heading +
       Math.sin(cycle / 3) * SWEEP_ANGLE,
   );
@@ -173,6 +188,23 @@ function workSite(
   return frame.current.constructions.find(
     (candidate) => candidate.id === activity.constructionId,
   );
+}
+
+/** Where a Machine digging by itself digs: just beside it, on the side away from the stockpile. */
+function diggingSpot(
+  frame: Frame,
+  machine: MachineSnapshot,
+): GroundPosition | undefined {
+  if (machine.activity.kind !== "digging") return undefined;
+  const stockpile = frame.current.stockpile.position;
+  const angle = Math.atan2(
+    machine.position.y - stockpile.y,
+    machine.position.x - stockpile.x,
+  );
+  return {
+    x: machine.position.x + Math.cos(angle) * DIGGING_REACH,
+    y: machine.position.y + Math.sin(angle) * DIGGING_REACH,
+  };
 }
 
 /** A Construction's stage progress, interpolated between ticks while the stage carries on. */

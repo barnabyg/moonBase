@@ -9,6 +9,12 @@ import {
   unusedComponents,
   type CancelResult,
 } from "./cancel";
+import {
+  readBulkResources,
+  startingBulkResources,
+  type BulkResourceSnapshot,
+  type BulkResourceState,
+} from "./bulk-resources";
 import { readClock, type ClockSnapshot } from "./clock";
 import { structurePerformance, wearStructures } from "./condition";
 import { coatSolarArrays } from "./dust-coating";
@@ -149,7 +155,12 @@ export interface CampaignOptions {
   readonly seed: number;
 }
 
-export type { ComponentCount, GroundPosition, LanderSnapshot };
+export type {
+  BulkResourceSnapshot,
+  ComponentCount,
+  GroundPosition,
+  LanderSnapshot,
+};
 export type MapSnapshot = MapSize;
 
 /**
@@ -388,6 +399,11 @@ export interface Snapshot {
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
   readonly stockpile: StockpileSnapshot;
+  /**
+   * The base's stock of bulk resources, such as Regolith, kept at the
+   * stockpile, in kilograms, in catalogue order.
+   */
+  readonly bulkResources: readonly BulkResourceSnapshot[];
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
@@ -516,6 +532,8 @@ export interface CampaignState {
   robots: RobotState[];
   machines: MachineState[];
   stockpile: StockpileState;
+  /** One stock for every bulk resource, in catalogue order. */
+  bulkResources: BulkResourceState[];
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
@@ -567,10 +585,12 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...machine.position },
       activity: { kind: "idle" },
       assignment: undefined,
+      digging: undefined,
       conditionPercent: 100,
       powered: false,
     })),
     stockpile: startingStockpile(),
+    bulkResources: startingBulkResources(),
     constructions: [],
     structures: [],
     dismantlings: [],
@@ -750,6 +770,7 @@ function campaignFrom(state: CampaignState): Campaign {
           powered: machine.powered,
         })),
         stockpile: copy(state.stockpile),
+        bulkResources: readBulkResources(state),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
           structureTypeId: construction.structureTypeId,

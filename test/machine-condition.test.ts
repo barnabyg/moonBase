@@ -14,10 +14,11 @@ import { changed, withSpares, worn } from "./worn";
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDust } = await import("./without-dust");
+  const { withoutDigging } = await import("./without-digging");
   return {
     ...actual,
     catalogue: {
-      ...withoutDust(actual.catalogue),
+      ...withoutDigging(withoutDust(actual.catalogue)),
       machineTypes: actual.catalogue.machineTypes,
     },
   };

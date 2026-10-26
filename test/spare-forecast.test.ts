@@ -22,10 +22,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const { safeHabitat } = await import("./safe-habitat");
   const { withoutCold } = await import("./without-cold");
   const { withoutMicrometeorites } = await import("./without-micrometeorites");
+  const { withoutDigging } = await import("./without-digging");
   return {
     ...actual,
     catalogue: safeHabitat(
-      withoutMicrometeorites(withoutCold(actual.catalogue)),
+      withoutDigging(withoutMicrometeorites(withoutCold(actual.catalogue))),
       ["power", "radiation", "life-support", "solar-particle-events"],
     ),
   };

@@ -337,6 +337,26 @@ export const migrations: readonly Migration[] = [
       state: { ...state, spareComponentsWarnedMinutes: null },
     };
   },
+  // 14 to 15: the base keeps a stock of bulk resources, Regolith alone so
+  // far, which the excavator digs beside the stockpile. Nothing was dug
+  // before, so there is none, and no Machine is digging.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine) ? { ...machine, digging: null } : machine,
+            )
+          : machines,
+        bulkResources: [{ resourceId: "regolith", kilograms: 0 }],
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -649,11 +669,19 @@ const campaignEnd: Decoder<CampaignEnd> = object({
 });
 
 const robotActivity: Decoder<RobotActivity> = (() => {
-  const drivingOrActivating = object({
-    kind: oneOf({ "driving-machine": true, "activating-machine": true }),
-    structureId: text,
-    machineId: text,
-  });
+  const drivingOrActivating = byField(
+    "structureId",
+    object({
+      kind: oneOf({ "driving-machine": true, "activating-machine": true }),
+      structureId: text,
+      machineId: text,
+    }),
+    object({
+      kind: oneOf({ "driving-machine": true, "activating-machine": true }),
+      machineId: text,
+      purpose: exactly("digging"),
+    }),
+  );
   const working = object({
     kind: oneOf({
       "loading-components": true,
@@ -728,6 +756,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
     kind: oneOf<MachineWorkOrderKind>({
       "maintain-machine": true,
       "park-machine": true,
+      dig: true,
     }),
   });
   const onStructure = object({
@@ -756,6 +785,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
     maintain: onStructure,
     "maintain-machine": onMachine,
     "park-machine": onMachine,
+    dig: onMachine,
   } satisfies Record<WorkOrderKind, unknown>);
 })();
 
@@ -772,6 +802,10 @@ const machineActivity: Decoder<MachineActivity> = (() => {
       kind: exactly("being-parked"),
       structureId: text,
     }),
+    "being-positioned-to-dig": object({
+      kind: exactly("being-positioned-to-dig"),
+    }),
+    digging: object({ kind: exactly("digging") }),
   } satisfies Record<MachineActivity["kind"], unknown>);
 })();
 
@@ -851,6 +885,13 @@ const simulationState = object({
       position: groundPosition,
       activity: machineActivity,
       assignment: optional(machineAssignment),
+      digging: optional(
+        object({
+          destination: groundPosition,
+          activationMinutes: amount,
+          working: boolean,
+        }),
+      ),
       conditionPercent: finiteNumber,
       powered: boolean,
     }),
@@ -859,6 +900,13 @@ const simulationState = object({
     position: groundPosition,
     components: list(componentCount),
   }),
+  bulkResources: list(
+    object({
+      resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
+      kilograms: amount,
+    }),
+  ),
+
   constructions: list(
     object({
       id: text,

@@ -441,6 +441,33 @@ export function formatStock(stockpile: Snapshot["stockpile"]): string {
   return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
 }
 
+export function resourceLabel(resourceId: string): string {
+  return (
+    catalogue.bulkResources.find((resource) => resource.id === resourceId)
+      ?.label ?? resourceId
+  );
+}
+
+/** Formats an amount in kilograms, rounded down to the whole kilogram, for example "1250 kg". */
+export function formatKilograms(kilograms: number): string {
+  return `${Math.floor(kilograms)} kg`;
+}
+
+/**
+ * Lists the base's stock of bulk resources, for example "Regolith: 340
+ * kg".
+ */
+export function formatBulkResources(
+  bulkResources: Snapshot["bulkResources"],
+): string {
+  return bulkResources
+    .map(
+      (stock) =>
+        `${resourceLabel(stock.resourceId)}: ${formatKilograms(stock.kilograms)}`,
+    )
+    .join(", ");
+}
+
 /** Says how much Funding the base programme has, for example "Funding: $400M". */
 export function formatFunding(fundingMillionDollars: number): string {
   return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
@@ -553,7 +580,11 @@ export function formatMachine(
         ? "being driven to a site"
         : machine.activity.kind === "being-parked"
           ? "being parked"
-          : "idle";
+          : machine.activity.kind === "being-positioned-to-dig"
+            ? "being set digging"
+            : machine.activity.kind === "digging"
+              ? `digging ${resourceLabel(catalogue.digging.resourceId)}`
+              : "idle";
   const plug = broken
     ? ""
     : !machine.pluggedIn

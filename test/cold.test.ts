@@ -108,7 +108,7 @@ describe("parking", () => {
     for (let minutes = 0; minutes < parkingLeadHours * 60; minutes++) {
       campaign.advance(1);
       const activity = campaign.snapshot().robots[0]?.activity;
-      if (activity?.kind === "driving-machine") {
+      if (activity?.kind === "driving-machine" && "structureId" in activity) {
         drives.add(`${activity.machineId} to ${activity.structureId}`);
         const machine = machines(campaign).find(
           (m) => m.id === activity.machineId,
@@ -144,7 +144,7 @@ describe("parking", () => {
     const campaign = worn(game.campaign, bankId, 40);
     const work = (activity: RobotActivity | undefined): string | undefined => {
       if (activity === undefined || activity.kind === "idle") return undefined;
-      if (activity.kind === "driving-machine") {
+      if (activity.kind === "driving-machine" && "structureId" in activity) {
         return activity.structureId === mastId ? "construction" : "parking";
       }
       if ("machineId" in activity) return "parking";

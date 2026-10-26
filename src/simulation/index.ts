@@ -3,6 +3,7 @@ export { readClock } from "./clock";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
 export type {
+  BulkResourceSnapshot,
   CableSnapshot,
   Campaign,
   CampaignEnd,

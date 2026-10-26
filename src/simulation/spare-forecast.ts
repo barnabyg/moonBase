@@ -136,7 +136,8 @@ function wearPercentPerHour(state: CampaignState): number {
       );
       return (
         sum +
-        (machine.activity.kind === "working"
+        (machine.activity.kind === "working" ||
+        machine.activity.kind === "digging"
           ? (type?.dustWearPercentPerWorkingHour ?? 0)
           : 0) +
         (driven ? (type?.dustWearPercentPerDrivingHour ?? 0) : 0) +

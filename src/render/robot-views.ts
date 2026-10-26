@@ -117,18 +117,18 @@ function workTarget(
   ) {
     return toScene(frame.current.stockpile.position);
   }
+  if ("machineId" in activity) {
+    const machine = frame.current.machines.find(
+      (candidate) => candidate.id === activity.machineId,
+    );
+    return machine === undefined ? undefined : toScene(machine.position);
+  }
   // Repairing itself, it looks down at its own work.
   if (activity.kind === "walking-to-repair" || !("structureId" in activity)) {
     return undefined;
   }
   if (activity.kind === "loading-cargo") {
     return toScene(frame.current.lander.position);
-  }
-  if (activity.kind === "activating-machine" || "machineId" in activity) {
-    const machine = frame.current.machines.find(
-      (candidate) => candidate.id === activity.machineId,
-    );
-    return machine === undefined ? undefined : toScene(machine.position);
   }
   const site =
     frame.current.constructions.find(

@@ -7,6 +7,7 @@ import {
   stageMinutes,
   type MachineStage,
 } from "./construction";
+import { dig, type MachineDigging } from "./digging";
 import type { GameEvent } from "./events";
 import { isUnderMaintenance } from "./maintenance";
 import { isBeingParked } from "./parking";
@@ -26,6 +27,14 @@ export type MachineActivity =
       /** A Robot is driving it to park beside a powered Structure, to plug in. */
       readonly kind: "being-parked";
       readonly structureId: string;
+    }
+  | {
+      /**
+       * "being-positioned-to-dig": a Robot is driving it beside the
+       * stockpile to dig, or activating it there. "digging": it is digging
+       * by itself, adding to the base's stock.
+       */
+      readonly kind: "being-positioned-to-dig" | "digging";
     };
 
 /** A Machine's assignment to one stage of a Construction, from being driven there until its work there is done. */
@@ -47,6 +56,11 @@ export interface MachineState {
   position: GroundPosition;
   activity: MachineActivity;
   assignment: MachineAssignment | undefined;
+  /**
+   * Its digging beside the stockpile, from the Robot setting off to set it
+   * going until it stops; never while it has an assignment.
+   */
+  digging: MachineDigging | undefined;
   /** How intact it is, from 100% down to 0%, when it is Broken and stops working. */
   conditionPercent: number;
   /**
@@ -102,6 +116,7 @@ export function damageMachine(
   machine.conditionPercent = Math.max(machine.conditionPercent - percent, 0);
   if (!isMachineBroken(machine)) return [];
   machine.assignment = undefined;
+  machine.digging = undefined;
   machine.activity = { kind: "idle" };
   return [
     {
@@ -133,8 +148,9 @@ export function machineOn(
 
 /**
  * The nearest Machine of a type that is free to be assigned a stage of
- * Construction: it has no assignment, isn't Broken and isn't undergoing
- * Maintenance.
+ * Construction: it has no assignment, isn't Broken, isn't undergoing
+ * Maintenance and isn't being parked. Digging gives way, so a Machine
+ * digging is free.
  */
 export function nearestFreeMachine(
   state: CampaignState,
@@ -186,16 +202,17 @@ export function chillMachines(
 /**
  * Lets every activated Machine do one game-minute of its work by itself on
  * the stage of Construction it was assigned, such as grading the ground for
- * Site Preparation, as fast as its Condition allows, and wears it down by
- * Dust as it works. When the stage is done it stays where it is, idle,
- * until it is needed again. Returns an event for each Machine that broke.
+ * Site Preparation, or else on digging, as fast as its Condition allows, and
+ * wears it down by Dust as it works. When the stage is done it stays where
+ * it is, idle, until it is needed again. Returns an event for each Machine
+ * that broke.
  */
 export function workMachines(state: CampaignState): GameEvent[] {
   const events: GameEvent[] = [];
   for (const machine of state.machines) {
     const { assignment } = machine;
     if (assignment === undefined) {
-      machine.activity = { kind: "idle" };
+      events.push(...dig(state, machine));
       continue;
     }
     if (!assignment.working) {

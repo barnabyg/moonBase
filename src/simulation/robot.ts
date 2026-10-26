@@ -5,6 +5,7 @@ import {
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
+  chooseDiggingSpot,
   chooseMachineSpot,
   componentsFor,
   findStructureType,
@@ -91,7 +92,7 @@ export type RobotActivity =
     }
   | {
       readonly kind: "walking";
-      /** The Machine it is to maintain. */
+      /** The Machine it is to maintain, or to set digging. */
       readonly machineId: string;
       /** Fetching spare Components from the stockpile for it, or walking to it. */
       readonly destination: "stockpile" | "machine";
@@ -118,6 +119,12 @@ export type RobotActivity =
       readonly kind: "driving-machine" | "activating-machine";
       readonly structureId: string;
       readonly machineId: string;
+    }
+  | {
+      /** Driving a Machine beside the stockpile, aboard it, or setting it digging there. */
+      readonly kind: "driving-machine" | "activating-machine";
+      readonly machineId: string;
+      readonly purpose: "digging";
     }
   | {
       readonly kind:
@@ -199,6 +206,9 @@ export function workRobot(
       candidate.machineId === workOrder.machineId,
   );
   if (parking !== undefined) return parkMachine(state, robot, parking);
+  if (workOrder?.kind === "dig") {
+    return setDigging(state, robot, workOrder.machineId);
+  }
   if (workOrder !== undefined && "machineId" in workOrder) {
     robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
@@ -310,8 +320,6 @@ function positionMachine(
   machineStage: StageMachine,
 ): GameEvent[] {
   const { id } = construction;
-  const walkTo = (spot: GroundPosition) =>
-    walkRobotTo(state, robot, id, spot, "machine");
   const machine =
     machineOn(state, id) ?? assignMachine(state, construction, machineStage);
   const assignment = machine?.assignment;
@@ -320,13 +328,95 @@ function positionMachine(
     robot.activity = { kind: "idle" };
     return [];
   }
+  return setGoing(state, robot, machine, assignment, construction.position, {
+    walking: { kind: "walking", structureId: id, destination: "machine" },
+    driving: {
+      kind: "driving-machine",
+      structureId: id,
+      machineId: machine.id,
+    },
+    activating: {
+      kind: "activating-machine",
+      structureId: id,
+      machineId: machine.id,
+    },
+  });
+}
+
+/**
+ * Lets the Robot do one game-minute of setting a Machine digging: it drives
+ * the Machine to clear ground beside the stockpile and activates it, and
+ * the Machine then digs by itself.
+ */
+function setDigging(
+  state: CampaignState,
+  robot: RobotState,
+  machineId: string,
+): GameEvent[] {
+  const machine = state.machines.find(
+    (candidate) => candidate.id === machineId,
+  );
+  if (machine === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  machine.digging ??= {
+    destination: chooseDiggingSpot(state, machine),
+    activationMinutes: 0,
+    working: false,
+  };
+  return setGoing(
+    state,
+    robot,
+    machine,
+    machine.digging,
+    state.stockpile.position,
+    {
+      walking: { kind: "walking", machineId, destination: "machine" },
+      driving: { kind: "driving-machine", machineId, purpose: "digging" },
+      activating: { kind: "activating-machine", machineId, purpose: "digging" },
+    },
+  );
+}
+
+/**
+ * Lets the Robot do one game-minute of setting a Machine going: it walks to
+ * the Machine and drives it to where it works, as fast as the Machine's
+ * Condition allows, then climbs down and activates it from beside it,
+ * doing each with the activity given for it.
+ */
+function setGoing(
+  state: CampaignState,
+  robot: RobotState,
+  machine: MachineState,
+  job: {
+    readonly destination: GroundPosition;
+    activationMinutes: number;
+    working: boolean;
+  },
+  site: GroundPosition,
+  activities: {
+    readonly walking: RobotActivity & { readonly kind: "walking" };
+    readonly driving: RobotActivity & { readonly kind: "driving-machine" };
+    readonly activating: RobotActivity & {
+      readonly kind: "activating-machine";
+    };
+  },
+): GameEvent[] {
+  const walkTo = (spot: GroundPosition): boolean => {
+    if (samePlace(robot.position, spot)) return true;
+    stepRobot(state, robot, spot);
+    robot.activity = activities.walking;
+    return false;
+  };
   const type = findMachineType(machine.machineTypeId);
-  if (!samePlace(machine.position, assignment.destination)) {
+  if (!samePlace(machine.position, job.destination)) {
     if (!walkTo(machine.position)) return [];
     // As fast as its Condition allows, wearing it down by Dust.
     machine.position = stepTowards(
       machine.position,
-      assignment.destination,
+      job.destination,
       {
         centre: state.lander.position,
         radius:
@@ -337,11 +427,7 @@ function positionMachine(
         60,
     );
     robot.position = { ...machine.position };
-    robot.activity = {
-      kind: "driving-machine",
-      structureId: id,
-      machineId: machine.id,
-    };
+    robot.activity = activities.driving;
     const broken = wearMachine(
       state,
       machine,
@@ -355,18 +441,11 @@ function positionMachine(
     return broken;
   }
   // Once there, it climbs down and sets the Machine going from beside it.
-  if (!walkTo(beside(machine, construction))) return [];
-  robot.activity = {
-    kind: "activating-machine",
-    structureId: id,
-    machineId: machine.id,
-  };
-  assignment.activationMinutes += robotPerformance(robot);
-  if (
-    assignment.activationMinutes >=
-    Math.round((type?.activationHours ?? 0) * 60)
-  ) {
-    assignment.working = true;
+  if (!walkTo(beside(machine, site))) return [];
+  robot.activity = activities.activating;
+  job.activationMinutes += robotPerformance(robot);
+  if (job.activationMinutes >= Math.round((type?.activationHours ?? 0) * 60)) {
+    job.working = true;
   }
   return [];
 }
@@ -460,6 +539,8 @@ function assignMachine(
     construction.position,
   );
   if (machine === undefined) return undefined;
+  // Digging gives way to Construction.
+  machine.digging = undefined;
   machine.assignment = {
     constructionId: construction.id,
     stage,
@@ -471,19 +552,13 @@ function assignMachine(
 }
 
 /** Where a Robot stands to activate a Machine: just outside it, beside the site. */
-function beside(
-  machine: MachineState,
-  construction: ConstructionState,
-): GroundPosition {
+function beside(machine: MachineState, site: GroundPosition): GroundPosition {
   const reach =
     machineFootprintRadius(machine.machineTypeId) +
     catalogue.robot.workingGapMetres / 2;
   // At right angles to the line from the site to the Machine.
   const angle =
-    Math.atan2(
-      machine.position.y - construction.position.y,
-      machine.position.x - construction.position.x,
-    ) +
+    Math.atan2(machine.position.y - site.y, machine.position.x - site.x) +
     Math.PI / 2;
   return {
     x: machine.position.x + Math.cos(angle) * reach,

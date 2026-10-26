@@ -828,3 +828,43 @@ describe("the sample save of format version 14", () => {
     }
   });
 });
+
+describe("the sample saves from before bulk resources", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-7.moonbase",
+    "version-13.moonbase",
+    "version-14.moonbase",
+  ])("%s loads with no Regolith, and no Machine digging", (name) => {
+    const state = loadSample(name).snapshot();
+
+    expect(state.bulkResources).toEqual([
+      { resourceId: "regolith", kilograms: 0 },
+    ]);
+    expect(
+      state.machines.filter((machine) => machine.activity.kind === "digging"),
+    ).toEqual([]);
+  });
+});
+
+describe("the sample save of format version 15", () => {
+  it("loads with the excavator digging Regolith beside the stockpile", () => {
+    const state = loadSample("version-15.moonbase").snapshot();
+
+    expect(
+      state.machines.find((machine) => machine.machineTypeId === "excavator")
+        ?.activity,
+    ).toEqual({ kind: "digging" });
+    expect(state.bulkResources[0]?.kilograms).toBeCloseTo(163.3, 1);
+  });
+
+  it("plays on from where it was saved, until the Regolith reaches its level", () => {
+    const campaign = loadSample("version-15.moonbase");
+
+    campaign.advance(24 * 60);
+
+    expect(campaign.snapshot().bulkResources[0]?.kilograms).toBe(
+      catalogue.digging.stockLevelKilograms,
+    );
+  });
+});

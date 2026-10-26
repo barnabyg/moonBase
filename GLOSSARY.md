@@ -61,7 +61,7 @@ A single trip of the Lander from Earth to the base, carrying up to a fixed Paylo
 _Avoid_: shipment, supply drop, resupply run
 
 **Stockpile**:
-The base's stock of Components, kept on the ground beside the landing site, where Robots load Components for Construction and unload those recovered by dismantling or carried off the Lander from a landing pad. It belongs to the base, not the Lander, and stays when the Lander leaves.
+The base's stock of Components, and of bulk resources such as Regolith measured in kilograms, kept on the ground beside the landing site, where Robots load Components for Construction and unload those recovered by dismantling or carried off the Lander from a landing pad. It belongs to the base, not the Lander, and stays when the Lander leaves.
 _Avoid_: cargo, cargo stock, inventory
 
 **Payload Mass**:

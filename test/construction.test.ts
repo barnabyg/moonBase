@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import { catalogue, type Catalogue } from "../src/catalogue";
 import type {
   GroundPosition,
   RobotActivity,
   Snapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+
+// The Robot and the excavator stand idle when no other Work Order wants
+// them, rather than digging Regolith.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutDigging } = await import("./without-digging");
+  return { ...actual, catalogue: withoutDigging(actual.catalogue) };
+});
 
 const solarArray = catalogue.structureTypes.find(
   (type) => type.id === "solar-array",

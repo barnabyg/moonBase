@@ -13,6 +13,7 @@ import { setText } from "./dom";
 import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
+  formatBulkResources,
   formatClock,
   formatCondition,
   formatDustCoating,
@@ -136,6 +137,13 @@ export function createStatusPanel(
   stock.setAttribute("role", "status");
   stock.setAttribute("aria-label", "Base's stock");
   stock.setAttribute("aria-live", "off");
+
+  // The base's stock of bulk resources, such as Regolith.
+  const bulkResources = document.createElement("p");
+  bulkResources.className = "status-panel__components";
+  bulkResources.setAttribute("role", "status");
+  bulkResources.setAttribute("aria-label", "Bulk resources");
+  bulkResources.setAttribute("aria-live", "off");
 
   // How many spare Components there are, and how long they will last.
   const spareComponents = document.createElement("p");
@@ -291,6 +299,7 @@ export function createStatusPanel(
     createSaveButtons(saveFiles, showResult),
     funding,
     stock,
+    bulkResources,
     spareComponents,
     power,
     storedPower,
@@ -314,6 +323,7 @@ export function createStatusPanel(
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       setText(stock, formatStock(snapshot.stockpile));
+      setText(bulkResources, formatBulkResources(snapshot.bulkResources));
       setText(
         spareComponents,
         formatSpareComponents(forecasts.spareComponents),

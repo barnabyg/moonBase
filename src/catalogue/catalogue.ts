@@ -87,6 +87,12 @@ export interface Catalogue {
     readonly conditionFloorPercent: number;
   };
   readonly machineTypes: readonly MachineType[];
+  /**
+   * The bulk resources the base keeps a stock of at the stockpile, measured
+   * in kilograms, in the order the status panel shows them.
+   */
+  readonly bulkResources: readonly BulkResource[];
+  readonly digging: DiggingRules;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
@@ -363,7 +369,7 @@ export interface MachineType {
   readonly activationHours: number;
   /**
    * How much Condition Dust wears off it for each game-hour it works by
-   * itself on a stage of Construction, in percentage points.
+   * itself, on a stage of Construction or digging, in percentage points.
    */
   readonly dustWearPercentPerWorkingHour: number;
   /**
@@ -378,6 +384,28 @@ export interface MachineType {
    * goes unpowered, in percentage points, on top of any Dust wear.
    */
   readonly coldWearPercentPerNightHour: number;
+}
+
+/** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
+export interface BulkResource {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * Digging: whenever no Construction needs it, a Machine digs a bulk
+ * resource from the ground beside the stockpile, until the base's stock of
+ * it reaches a level.
+ */
+export interface DiggingRules {
+  /** The type of Machine that digs. */
+  readonly machineTypeId: string;
+  /** The bulk resource it digs. */
+  readonly resourceId: string;
+  /** It digs while the base has less than this, and stops once it has this much. */
+  readonly stockLevelKilograms: number;
+  /** How much it digs in a game-hour at full performance; less as its Condition falls. */
+  readonly kilogramsPerWorkingHour: number;
 }
 
 /**
@@ -493,7 +521,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 23,
+  version: 24,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -564,6 +592,15 @@ export const catalogue: Catalogue = {
       coldWearPercentPerNightHour: 0.2,
     },
   ],
+  bulkResources: [{ id: "regolith", label: "Regolith" }],
+  // About a day's digging fills it, wearing the excavator down by some 8
+  // percentage points.
+  digging: {
+    machineTypeId: "excavator",
+    resourceId: "regolith",
+    stockLevelKilograms: 1000,
+    kilogramsPerWorkingHour: 50,
+  },
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },
