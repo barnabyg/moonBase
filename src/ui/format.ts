@@ -8,6 +8,7 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type RadiationDoseForecast,
+  type SolarParticleEventSnapshot,
 } from "../simulation";
 import type {
   ClockSnapshot,
@@ -188,13 +189,21 @@ export function formatEvent(event: GameEvent): string {
     case "construction-completed":
       return `${structureLabel(event.structureTypeId)} commissioned`;
     case "structure-dismantled":
-      return `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`;
+      return hasComponents(event.structureTypeId)
+        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`
+        : `${structureLabel(event.structureTypeId)} dismantled`;
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
     case "habitat-power-warning":
       return `Habitat power will fail in ${formatDuration(event.minutesUntilPowerLost)}`;
     case "radiation-dose-warning":
       return `Radiation Dose will reach the limit in ${formatDuration(event.minutesUntilLimit)}`;
+    case "solar-particle-event-warning":
+      return `Solar Particle Event coming in ${formatDuration(event.startsAtMinute - event.atMinute)}, lasting ${formatDuration(event.endsAtMinute - event.startsAtMinute)}`;
+    case "solar-particle-event-started":
+      return `Solar Particle Event under way, for ${formatDuration(event.endsAtMinute - event.atMinute)}`;
+    case "solar-particle-event-ended":
+      return "Solar Particle Event over";
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -246,6 +255,21 @@ export function formatRadiationDose(
     : dose;
 }
 
+/**
+ * Says when a Solar Particle Event the Mission Director knows of starts or
+ * ends, and how much it multiplies their dose rate, for example "Solar
+ * Particle Event: starts in 4 hours, lasts 18 hours, 10× the dose rate".
+ */
+export function formatSolarParticleEvent(
+  event: SolarParticleEventSnapshot,
+  elapsedMinutes: number,
+): string {
+  const multiplied = `${event.doseRateMultiplier}× the dose rate`;
+  return event.state === "coming"
+    ? `Solar Particle Event: starts in ${formatDuration(event.startsAtMinute - elapsedMinutes)}, lasts ${formatDuration(event.endsAtMinute - event.startsAtMinute)}, ${multiplied}`
+    : `Solar Particle Event: under way, ends in ${formatDuration(event.endsAtMinute - elapsedMinutes)}, ${multiplied}`;
+}
+
 const stageLabels: Record<ConstructionStage, string> = {
   "site-preparation": "Site Preparation",
   "component-delivery": "Component delivery",
@@ -255,6 +279,14 @@ const stageLabels: Record<ConstructionStage, string> = {
 
 export function formatStage(stage: ConstructionStage): string {
   return stageLabels[stage];
+}
+
+/** Whether a Structure is assembled from Components, rather than from Regolith alone. */
+export function hasComponents(structureTypeId: string): boolean {
+  return (
+    (catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.components.length ?? 0) > 0
+  );
 }
 
 export function structureLabel(structureTypeId: string): string {

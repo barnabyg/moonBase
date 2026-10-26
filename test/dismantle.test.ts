@@ -124,7 +124,7 @@ describe("dismantling a Structure", () => {
     });
 
     runUntil(game, (state) => state.dismantlings.length === 0);
-    expect(placeOverIt()).toEqual({ ok: true });
+    expect(placeOverIt()).toEqual({ ok: true, position: site });
   });
 
   it.each([

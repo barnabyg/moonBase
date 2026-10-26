@@ -236,6 +236,15 @@ export function hasPowerSource(network: PowerNetwork): boolean {
   );
 }
 
+/**
+ * Whether a type of Structure has anything to do with power: it generates,
+ * stores or draws some. One that doesn't, such as Regolith shielding, is
+ * never cabled.
+ */
+export function usesPower(structureTypeId: string): boolean {
+  return Object.values(powerOf(structureTypeId)).some((value) => value > 0);
+}
+
 /** What a network's Structures draw in the given part of the Lunation. */
 export function consumptionKilowatts(
   network: PowerNetwork,

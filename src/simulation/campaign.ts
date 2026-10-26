@@ -20,6 +20,7 @@ import {
 import {
   checkPlacement,
   chooseWorkSpot,
+  isShielded,
   stageMinutes,
   type ConstructionPlan,
   type ConstructionStage,
@@ -72,6 +73,13 @@ import {
   type RadiationDoseForecast,
 } from "./radiation";
 import { seedRandom, type RandomState } from "./random";
+import {
+  readSolarParticleEvent,
+  scheduleSolarParticleEvent,
+  watchSolarParticleEvents,
+  type SolarParticleEventSnapshot,
+  type SolarParticleEventState,
+} from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
@@ -141,6 +149,8 @@ export interface StructureSnapshot {
   readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
+  /** Whether it is a Habitat with commissioned Regolith shielding over it. */
+  readonly shielded: boolean;
 }
 
 /**
@@ -242,6 +252,11 @@ export interface Snapshot {
    */
   readonly radiationDoseMillisieverts: number;
   /**
+   * The Solar Particle Event the Mission Director knows of: one whose warning
+   * has come, until it ends. Undefined otherwise.
+   */
+  readonly solarParticleEvent: SolarParticleEventSnapshot | undefined;
+  /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
    */
@@ -321,6 +336,8 @@ export interface CampaignState {
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
   radiationDoseMillisieverts: number;
+  /** The next Solar Particle Event, or the one under way. */
+  solarParticleEvent: SolarParticleEventState;
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -335,8 +352,9 @@ export interface CampaignState {
 
 export function createCampaign(options: CampaignOptions): Campaign {
   const { landingSite } = catalogue;
+  const random = seedRandom(options.seed);
   const state: CampaignState = {
-    random: seedRandom(options.seed),
+    random,
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
@@ -344,6 +362,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
+    solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -406,12 +425,13 @@ export function createCampaign(options: CampaignOptions): Campaign {
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
       state.nextStructureNumber += 1;
+      const placed = { ...plan, position: check.position };
       state.constructions.push({
         id,
         structureTypeId: plan.structureTypeId,
-        position: { x: plan.position.x, y: plan.position.y },
+        position: { ...check.position },
         planNumber: state.nextPlanNumber,
-        workSpot: chooseWorkSpot(state, plan),
+        workSpot: chooseWorkSpot(state, placed),
         stage: "site-preparation",
         workedMinutes: 0,
         componentsTaken: false,
@@ -483,6 +503,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
+        solarParticleEvent: readSolarParticleEvent(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -508,7 +529,10 @@ export function createCampaign(options: CampaignOptions): Campaign {
           unusedComponents: unusedComponents(construction),
           waiting: copy(findWaitingReason(state, construction)),
         })),
-        structures: copy(state.structures),
+        structures: state.structures.map((structure) => ({
+          ...copy(structure),
+          shielded: isShielded(state, structure),
+        })),
         dismantlings: state.dismantlings.map((dismantling) => ({
           id: dismantling.id,
           structureTypeId: dismantling.structureTypeId,
@@ -556,6 +580,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     catalogue.lunation,
   ).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
+  const minutesUntilLimitBefore =
+    forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -568,13 +594,14 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
+  events.push(...watchSolarParticleEvents(state));
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.
   const dangers = [
     ...useLifeSupport(state),
     ...watchHabitatPower(state, powerLostBefore),
-    ...absorbRadiationDose(state),
+    ...absorbRadiationDose(state, minutesUntilLimitBefore),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");
   events.push(...(death === undefined ? dangers : [death]));

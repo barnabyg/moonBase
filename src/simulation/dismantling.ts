@@ -8,6 +8,7 @@ import {
   chooseWorkSpot,
   componentsFor,
   findStructureType,
+  shieldingOver,
 } from "./construction";
 import { livesIn } from "./mission-director";
 
@@ -63,6 +64,16 @@ export function dismantleStructure(
     return {
       ok: false,
       message: "The Mission Director lives in it, and can't move out.",
+    };
+  }
+  if (
+    findStructureType(structure.structureTypeId)?.habitat === true &&
+    shieldingOver(state, structure) !== undefined
+  ) {
+    return {
+      ok: false,
+      message:
+        "Its Regolith shielding is over it, and must be dismantled first.",
     };
   }
   state.dismantlings.push({

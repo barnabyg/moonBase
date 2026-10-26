@@ -44,3 +44,4 @@ export type { HabitatPowerForecast } from "./habitat-power";
 export type { LifeSupportForecast, LifeSupportSnapshot } from "./life-support";
 export type { LunationPart, LunationSnapshot } from "./lunation";
 export type { RadiationDoseForecast } from "./radiation";
+export type { SolarParticleEventSnapshot } from "./solar-particle-events";
