@@ -4,6 +4,7 @@ import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isShielded } from "./construction";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
+import { doseRateMultiplier } from "./solar-particle-events";
 
 /**
  * How far short of a whole game-minute the dose may be and still count as
@@ -22,10 +23,14 @@ export interface RadiationDoseForecast {
   readonly minutesUntilLimit: number | undefined;
 }
 
+/**
+ * How fast the Mission Director's Radiation Dose is rising, in the
+ * game-minute about to start, and when it reaches the limit at that rate.
+ */
 export function forecastRadiationDose(
   state: CampaignState,
 ): RadiationDoseForecast {
-  const rate = doseRate(state);
+  const rate = doseRate(state, state.elapsedMinutes);
   return {
     millisievertsPerEarthDay: rate,
     minutesUntilLimit: rate > 0 ? minutesUntilLimit(state, rate) : undefined,
@@ -33,15 +38,19 @@ export function forecastRadiationDose(
 }
 
 /**
- * Adds a game-minute of Radiation Dose where the Mission Director lives. If
- * it reaches the limit, they die at once, which ends the Campaign; otherwise
- * a warning comes as the time until it would falls to one of the warning
- * levels set in the data catalogue.
+ * Adds the game-minute that has just passed's Radiation Dose where the
+ * Mission Director lives. If it reaches the limit, they die at once, which
+ * ends the Campaign; otherwise a warning comes as the time until it would
+ * falls to one of the warning levels set in the data catalogue, given the
+ * forecast as the game-minute started. So a Solar Particle Event that
+ * brings the limit nearer all at once gives a warning as it starts.
  */
-export function absorbRadiationDose(state: CampaignState): GameEvent[] {
-  const rate = doseRate(state);
+export function absorbRadiationDose(
+  state: CampaignState,
+  minutesUntilLimitBefore: number | undefined,
+): GameEvent[] {
+  const rate = doseRate(state, state.elapsedMinutes - 1);
   if (rate === 0) return [];
-  const before = minutesUntilLimit(state, rate);
   state.radiationDoseMillisieverts += rate / MINUTES_PER_EARTH_DAY;
   const after = minutesUntilLimit(state, rate);
   if (after === 0) {
@@ -55,32 +64,43 @@ export function absorbRadiationDose(state: CampaignState): GameEvent[] {
   const warningMinutes = catalogue.radiation.warningEarthDaysLeft.map(
     (earthDays) => earthDays * MINUTES_PER_EARTH_DAY,
   );
-  return fellToWarningLevel(warningMinutes, before, after)
+  const nowRate = doseRate(state, state.elapsedMinutes);
+  const now = nowRate > 0 ? minutesUntilLimit(state, nowRate) : undefined;
+  return now !== undefined &&
+    fellToWarningLevel(warningMinutes, minutesUntilLimitBefore ?? Infinity, now)
     ? [
         {
           kind: "radiation-dose-warning",
           atMinute: state.elapsedMinutes,
-          minutesUntilLimit: after,
+          minutesUntilLimit: now,
         },
       ]
     : [];
 }
 
 /**
- * The dose rate where the Mission Director lives, in millisieverts an Earth
- * Day, while they are alive: less in a Habitat once it is shielded.
+ * The dose rate where the Mission Director lives in the game-minute
+ * starting at the given minute, in millisieverts an Earth Day, while they
+ * are alive: less in a Habitat once it is shielded, and multiplied during a
+ * Solar Particle Event.
  */
-function doseRate(state: CampaignState): number {
+function doseRate(state: CampaignState, minute: number): number {
   if (state.ended !== undefined) return 0;
   const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
   const { missionDirector } = state;
-  if (missionDirector.residence === "lander") return rates.lander;
-  const habitat = state.structures.find(
-    (structure) => structure.id === missionDirector.habitatId,
-  );
-  return habitat !== undefined && isShielded(state, habitat)
-    ? rates.shieldedHabitat
-    : rates.habitat;
+  const habitat =
+    missionDirector.residence === "habitat"
+      ? state.structures.find(
+          (structure) => structure.id === missionDirector.habitatId,
+        )
+      : undefined;
+  const usual =
+    missionDirector.residence === "lander"
+      ? rates.lander
+      : habitat !== undefined && isShielded(state, habitat)
+        ? rates.shieldedHabitat
+        : rates.habitat;
+  return usual * doseRateMultiplier(state, minute);
 }
 
 /** The whole game-minutes until the dose reaches the limit at the given rate. */

@@ -73,6 +73,13 @@ import {
   type RadiationDoseForecast,
 } from "./radiation";
 import { seedRandom, type RandomState } from "./random";
+import {
+  readSolarParticleEvent,
+  scheduleSolarParticleEvent,
+  watchSolarParticleEvents,
+  type SolarParticleEventSnapshot,
+  type SolarParticleEventState,
+} from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
@@ -245,6 +252,11 @@ export interface Snapshot {
    */
   readonly radiationDoseMillisieverts: number;
   /**
+   * The Solar Particle Event the Mission Director knows of: one whose warning
+   * has come, until it ends. Undefined otherwise.
+   */
+  readonly solarParticleEvent: SolarParticleEventSnapshot | undefined;
+  /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
    */
@@ -324,6 +336,8 @@ export interface CampaignState {
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
   radiationDoseMillisieverts: number;
+  /** The next Solar Particle Event, or the one under way. */
+  solarParticleEvent: SolarParticleEventState;
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -338,8 +352,9 @@ export interface CampaignState {
 
 export function createCampaign(options: CampaignOptions): Campaign {
   const { landingSite } = catalogue;
+  const random = seedRandom(options.seed);
   const state: CampaignState = {
-    random: seedRandom(options.seed),
+    random,
     elapsedMinutes: 0,
     nextStructureNumber: 1,
     nextPlanNumber: 1,
@@ -347,6 +362,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
+    solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -487,6 +503,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
+        solarParticleEvent: readSolarParticleEvent(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -563,6 +580,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     catalogue.lunation,
   ).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
+  const doseLimitBefore = forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -575,13 +593,14 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
+  events.push(...watchSolarParticleEvents(state));
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.
   const dangers = [
     ...useLifeSupport(state),
     ...watchHabitatPower(state, powerLostBefore),
-    ...absorbRadiationDose(state),
+    ...absorbRadiationDose(state, doseLimitBefore),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");
   events.push(...(death === undefined ? dangers : [death]));

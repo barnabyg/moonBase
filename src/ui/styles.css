@@ -265,6 +265,7 @@ body {
 .status-panel__residence,
 .status-panel__habitat-power,
 .status-panel__radiation,
+.status-panel__solar-particle-event,
 .status-panel__stock {
   margin: 6px 0 0;
   font-size: 0.9rem;
@@ -272,12 +273,15 @@ body {
 
 .status-panel__habitat-power,
 .status-panel__radiation,
+.status-panel__solar-particle-event,
 .status-panel__stock {
   font-variant-numeric: tabular-nums;
 }
 
+/* An event coming or under way is always a warning. */
 .status-panel__habitat-power--low,
 .status-panel__radiation--low,
+.status-panel__solar-particle-event,
 .status-panel__stock--low {
   color: var(--warning);
 }

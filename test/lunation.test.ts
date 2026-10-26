@@ -85,7 +85,22 @@ describe("skip to next event", () => {
   it("goes on to the next change each time, rather than staying on the current one", () => {
     const { campaign } = scenario();
 
-    const changes = [1, 2, 3].map(() => campaign.advanceToNextEvent());
+    // Skipping past anything else, such as a Solar Particle Event.
+    const nextChange = () => {
+      for (;;) {
+        const events = campaign.advanceToNextEvent();
+        if (
+          events.some(
+            (event) =>
+              event.kind === "night-started" ||
+              event.kind === "daylight-started",
+          )
+        ) {
+          return events;
+        }
+      }
+    };
+    const changes = [1, 2, 3].map(() => nextChange());
 
     expect(changes).toEqual([
       [{ kind: "night-started", atMinute: firstNightStarts }],

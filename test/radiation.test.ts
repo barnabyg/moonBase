@@ -5,13 +5,17 @@ import { scenario, type Scenario } from "./scenario";
 
 // The Habitat needs no power and its oxygen and water last, so that the
 // Mission Director can live in it until their Radiation Dose reaches the
-// limit.
+// limit, and no Solar Particle Event changes how fast it rises.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
   return {
     ...actual,
-    catalogue: safeHabitat(actual.catalogue, ["power", "life-support"]),
+    catalogue: safeHabitat(actual.catalogue, [
+      "power",
+      "life-support",
+      "solar-particle-events",
+    ]),
   };
 });
 

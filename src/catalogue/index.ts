@@ -10,5 +10,6 @@ export type {
   MachineType,
   MapSize,
   RadiationRules,
+  SolarParticleEventRules,
   StructureType,
 } from "./catalogue";

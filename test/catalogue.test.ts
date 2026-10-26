@@ -308,6 +308,30 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("schedules Solar Particle Events that are warned of a few hours ahead, one at a time, and multiply the dose rate", () => {
+    const {
+      earthDaysBetween,
+      durationHours,
+      warningHours,
+      doseRateMultiplier,
+    } = catalogue.solarParticleEvents;
+
+    for (const [min, max, minutesPerUnit] of [
+      [earthDaysBetween.min, earthDaysBetween.max, 24 * 60],
+      [durationHours.min, durationHours.max, 60],
+    ] as const) {
+      expect(min).toBeGreaterThan(0);
+      expect(max).toBeGreaterThanOrEqual(min);
+      expect(Number.isInteger(min * minutesPerUnit)).toBe(true);
+      expect(Number.isInteger(max * minutesPerUnit)).toBe(true);
+    }
+    expect(warningHours).toBeGreaterThan(0);
+    expect(Number.isInteger(warningHours * 60)).toBe(true);
+    // The next event's warning comes only after the last has ended.
+    expect(earthDaysBetween.min * 24).toBeGreaterThan(warningHours);
+    expect(doseRateMultiplier).toBeGreaterThan(1);
+  });
+
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {

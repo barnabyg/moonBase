@@ -58,6 +58,27 @@ export interface Catalogue {
    */
   readonly habitatPowerWarningHoursLeft: readonly number[];
   readonly radiation: RadiationRules;
+  readonly solarParticleEvents: SolarParticleEventRules;
+}
+
+/**
+ * Solar Particle Events, which the Campaign's seeded generator schedules at
+ * random, one at a time. Every length must come to a whole number of
+ * game-minutes.
+ */
+export interface SolarParticleEventRules {
+  /**
+   * The time from the start of the Campaign, or from the end of one event,
+   * to the start of the next, drawn evenly between these, to the
+   * game-minute. The shortest must be longer than the warning.
+   */
+  readonly earthDaysBetween: { readonly min: number; readonly max: number };
+  /** How long an event lasts, drawn evenly between these, to the game-minute. */
+  readonly durationHours: { readonly min: number; readonly max: number };
+  /** How long before an event starts its warning comes. */
+  readonly warningHours: number;
+  /** How many times the usual dose rate where the Mission Director lives an event gives them. */
+  readonly doseRateMultiplier: number;
 }
 
 /**
@@ -222,7 +243,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 9,
+  version: 10,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -460,5 +481,14 @@ export const catalogue: Catalogue = {
     },
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
+  },
+  // Roughly monthly, with a few hours' warning. An event of a day or so
+  // takes half the dose limit in an unshielded Habitat, but a twentieth in
+  // a shielded one.
+  solarParticleEvents: {
+    earthDaysBetween: { min: 10, max: 30 },
+    durationHours: { min: 6, max: 30 },
+    warningHours: 4,
+    doseRateMultiplier: 10,
   },
 };
