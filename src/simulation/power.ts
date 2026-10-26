@@ -85,14 +85,19 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
 
 /**
  * The commissioned Structure nearest a position that is powered: one on a
- * network with a solar array, which a cable can carry power from.
+ * network with a power source, a solar array or a battery bank, which a
+ * cable can carry power from.
  */
 export function nearestPoweredStructure(
   state: CampaignState,
   position: GroundPosition,
 ): StructureState | undefined {
   const powered = powerNetworks(state)
-    .filter((network) => network.daylightGenerationKilowatts > 0)
+    .filter(
+      (network) =>
+        network.daylightGenerationKilowatts > 0 ||
+        network.storageCapacityKilowattHours > 0,
+    )
     .flatMap((network) => network.structures);
   // Structures are kept in the order they were commissioned, so the earlier
   // one wins a tie and the choice is always the same.

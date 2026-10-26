@@ -252,15 +252,15 @@ describe("the power network", () => {
     }
   });
 
-  it("gives an unconnected Structure no power", () => {
+  it("gives an unconnected Structure no power, until a cable joins it to a solar array", () => {
     // Nothing is powered when the battery bank is commissioned, so no cable
-    // is laid to it, and the solar array has nothing powered to connect from.
+    // is laid to it; the solar array's cable then joins the two.
     const game = scenario()
       .plan("battery-bank", batterySite)
       .plan("solar-array", solarSite);
     const [batteryId, solarId] = game.state.constructions.map((c) => c.id);
-    runUntilBuilt(game);
-    game.advance({ hours: 6 });
+    while (game.state.structures.length === 0) game.advance({ minutes: 1 });
+    game.advance({ hours: 1 });
 
     expect(game.state.cables).toEqual([]);
     expect(networkOf(game.state, batteryId ?? "")).toMatchObject({
@@ -268,13 +268,27 @@ describe("the power network", () => {
       storedKilowattHours: 0,
       powered: false,
     });
-    expect(networkOf(game.state, solarId ?? "")).toMatchObject({
-      structureIds: [solarId],
-      powered: true,
-    });
     expect(
       game.state.structures.find((structure) => structure.id === batteryId),
     ).toMatchObject({ powered: false });
+
+    runUntilBuilt(game);
+    game.advance({ hours: 1 });
+
+    expect(game.state.cables).toEqual([
+      expect.objectContaining({
+        fromStructureId: batteryId,
+        toStructureId: solarId,
+        complete: true,
+      }),
+    ]);
+    expect(networkOf(game.state, batteryId ?? "")).toMatchObject({
+      structureIds: [batteryId, solarId],
+      powered: true,
+    });
+    expect(
+      networkOf(game.state, batteryId ?? "").storedKilowattHours,
+    ).toBeGreaterThan(0);
   });
 });
 
