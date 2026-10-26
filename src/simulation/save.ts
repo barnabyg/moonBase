@@ -8,7 +8,11 @@ import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
 import { MAX_SEED } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
-import type { WorkOrderKind } from "./work-orders";
+import type {
+  StructureWorkOrderKind,
+  WorkOrder,
+  WorkOrderKind,
+} from "./work-orders";
 
 /** What every save document says it is, to tell it from any other JSON. */
 const SAVE_FORMAT = "moonbase-save";
@@ -215,6 +219,36 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 9 to 10: every Machine has a Condition, which Dust wears down as it
+  // works and is driven, and Maintenance can be for a Machine as well as a
+  // Structure, so it names what it is for. Nothing wore a Machine down
+  // before, so each is at 100%, and Maintenance until now was always for a
+  // Structure.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines, maintenance } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine)
+                ? { ...machine, conditionPercent: 100 }
+                : machine,
+            )
+          : machines,
+        maintenance: Array.isArray(maintenance)
+          ? maintenance.map((order: unknown) => {
+              if (!isRecord(order)) return order;
+              const { structureId, ...rest } = order;
+              return { target: { kind: "structure", structureId }, ...rest };
+            })
+          : maintenance,
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -349,6 +383,14 @@ const finiteNumber: Decoder<number> = (value, path) => {
   return value;
 };
 
+/** A number from 0 up, not necessarily whole, such as working time done at less than full speed. */
+const amount: Decoder<number> = (value, path) => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw refuse(path, "isn't a number from 0 up");
+  }
+  return value;
+};
+
 const wholeNumber: Decoder<number> = (value, path) => {
   if (!isWholeNumber(value) || value < 0) {
     throw refuse(path, "isn't a whole number from 0 up");
@@ -451,6 +493,18 @@ function object<F extends Fields>(fields: F): Decoder<Decoded<F>> {
   };
 }
 
+/** One of two kinds of object, told apart by whether they have a field. */
+function byField<A, B>(
+  key: string,
+  withField: Decoder<A>,
+  withoutField: Decoder<B>,
+): Decoder<A | B> {
+  return (value, path) =>
+    isRecord(value) && Object.hasOwn(value, key)
+      ? withField(value, path)
+      : withoutField(value, path);
+}
+
 /** One of several kinds of object, told apart by the word in one field. */
 function tagged<C extends Record<string, Decoder<unknown>>>(
   key: string,
@@ -528,9 +582,19 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     }),
     structureId: text,
   });
-  return tagged("kind", {
-    idle: object({ kind: exactly("idle") }),
-    walking: object({
+  // Maintenance of a Machine.
+  const forMachine = object({
+    kind: oneOf({ "loading-components": true, maintaining: true }),
+    machineId: text,
+  });
+  const walking = byField(
+    "machineId",
+    object({
+      kind: exactly("walking"),
+      machineId: text,
+      destination: oneOf({ stockpile: true, machine: true }),
+    }),
+    object({
       kind: exactly("walking"),
       structureId: text,
       destination: oneOf<WalkingDestination>({
@@ -541,9 +605,13 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         lander: true,
       }),
     }),
+  );
+  return tagged("kind", {
+    idle: object({ kind: exactly("idle") }),
+    walking,
     "driving-machine": drivingOrActivating,
     "activating-machine": drivingOrActivating,
-    "loading-components": working,
+    "loading-components": byField("machineId", forMachine, working),
     "unloading-components": working,
     assembling: working,
     commissioning: working,
@@ -552,25 +620,42 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
-    maintaining: working,
+    maintaining: byField("machineId", forMachine, working),
     cleaning: working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
-const workOrder = object({
-  structureId: text,
-  kind: oneOf<WorkOrderKind>({
-    "prepare-site": true,
-    "deliver-components": true,
-    assemble: true,
-    commission: true,
-    "lay-cable": true,
-    dismantle: true,
-    "return-components": true,
-    "unload-lander": true,
-    maintain: true,
-  }),
-});
+const workOrder: Decoder<WorkOrder> = (() => {
+  const onStructure = object({
+    structureId: text,
+    kind: oneOf<StructureWorkOrderKind>({
+      "prepare-site": true,
+      "deliver-components": true,
+      assemble: true,
+      commission: true,
+      "lay-cable": true,
+      dismantle: true,
+      "return-components": true,
+      "unload-lander": true,
+      maintain: true,
+    }),
+  });
+  return tagged("kind", {
+    "prepare-site": onStructure,
+    "deliver-components": onStructure,
+    assemble: onStructure,
+    commission: onStructure,
+    "lay-cable": onStructure,
+    dismantle: onStructure,
+    "return-components": onStructure,
+    "unload-lander": onStructure,
+    maintain: onStructure,
+    "maintain-machine": object({
+      machineId: text,
+      kind: exactly("maintain-machine"),
+    }),
+  } satisfies Record<WorkOrderKind, unknown>);
+})();
 
 const machineActivity: Decoder<MachineActivity> = (() => {
   const busy = object({
@@ -649,6 +734,7 @@ const simulationState = object({
       position: groundPosition,
       activity: machineActivity,
       assignment: optional(machineAssignment),
+      conditionPercent: finiteNumber,
     }),
   ),
   stockpile: object({
@@ -668,7 +754,7 @@ const simulationState = object({
         assembly: true,
         commissioning: true,
       }),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       componentsTaken: boolean,
       failedCommissionings: wholeNumber,
     }),
@@ -723,7 +809,10 @@ const simulationState = object({
   reconnections: list(object({ structureId: text, planNumber: wholeNumber })),
   maintenance: list(
     object({
-      structureId: text,
+      target: tagged("kind", {
+        structure: object({ kind: exactly("structure"), structureId: text }),
+        machine: object({ kind: exactly("machine"), machineId: text }),
+      }),
       workSpot: groundPosition,
       visit: optional(
         object({ spareComponents: wholeNumber, cleaning: boolean }),

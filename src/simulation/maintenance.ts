@@ -8,21 +8,42 @@ import { chooseWorkSpot, type StructureState } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import { isDueForCleaning } from "./dust-coating";
 import type { GameEvent } from "./events";
+import type { MachineState } from "./machines";
 import { addToStock, inStock } from "./stockpile";
 
+/** What a Maintenance Work Order is for: a commissioned Structure or a Machine. */
+export type MaintenanceTarget =
+  | { readonly kind: "structure"; readonly structureId: string }
+  | { readonly kind: "machine"; readonly machineId: string };
+
+/** What a Maintenance Work Order is for, with its type, for the interface. */
+export type MaintenanceSubject =
+  | {
+      readonly kind: "structure";
+      readonly structureId: string;
+      readonly structureTypeId: string;
+    }
+  | {
+      readonly kind: "machine";
+      readonly machineId: string;
+      readonly machineTypeId: string;
+    };
+
 /**
- * A Maintenance Work Order for a commissioned Structure, raised once its
- * Condition falls below the data catalogue's threshold or, for a solar
- * array, once its Dust coating passes the threshold for cleaning. To
- * restore Condition, the Robot loads spare Components at the stockpile,
- * walks to the Structure and works on it until its Condition is back to
- * 100%; to clean it, the Robot walks straight there. One visit does both
- * when both are due.
+ * A Maintenance Work Order, raised once the Condition of a commissioned
+ * Structure or a Machine falls below the data catalogue's threshold or,
+ * for a solar array, once its Dust coating passes the threshold for
+ * cleaning. To restore Condition, the Robot loads spare Components at the
+ * stockpile, walks to what it maintains and works on it until its Condition
+ * is back to 100%; to clean a solar array, it walks straight there. One
+ * visit does both when both are due.
  */
 export interface MaintenanceState {
-  /** The Structure to be maintained. */
-  structureId: string;
-  /** Where the Robot stands to work on it. */
+  target: MaintenanceTarget;
+  /**
+   * Where the Robot stands to work: beside a Structure, chosen as the Work
+   * Order is raised, or beside a Machine, chosen as the Robot starts on it.
+   */
   workSpot: GroundPosition;
   /** What the Robot's visit does, settled as it starts on it; undefined until then. */
   visit: MaintenanceVisit | undefined;
@@ -38,7 +59,7 @@ export interface MaintenanceState {
 export interface MaintenanceVisit {
   /**
    * The spare Components the Robot takes from the base's stock to restore
-   * the Structure's Condition, or 0 if it doesn't restore it.
+   * Condition, or 0 if it doesn't restore it.
    */
   spareComponents: number;
   /** Whether it cleans the Dust coating off a solar array. */
@@ -50,17 +71,20 @@ export type MaintenanceStep =
   "loading-spare-components" | "restoring-condition" | "cleaning";
 
 /** Why nobody can carry out a Maintenance Work Order for now. */
-export interface MaintenanceWait {
-  readonly reason: "missing-spare-components";
-  /** How many spare Components the base's stock is short of. */
-  readonly missing: number;
-}
+export type MaintenanceWait =
+  | {
+      readonly reason: "missing-spare-components";
+      /** How many spare Components the base's stock is short of. */
+      readonly missing: number;
+    }
+  | {
+      /** The Machine is carrying out a stage of Construction, and is maintained once it is idle. */
+      readonly reason: "machine-at-work";
+    };
 
 /** A Maintenance Work Order, awaiting the Robot or under way. */
 export interface MaintenanceSnapshot {
-  /** The Structure to be maintained. */
-  readonly structureId: string;
-  readonly structureTypeId: string;
+  readonly target: MaintenanceSubject;
   /**
    * The spare Components it uses up to restore Condition: those the Robot
    * has taken from the base's stock, or else those it needs as things
@@ -79,30 +103,35 @@ export interface MaintenanceSnapshot {
   readonly waiting: MaintenanceWait | undefined;
 }
 
+/** Something with a Condition that Maintenance restores. */
+type Worn =
+  | { readonly kind: "structure"; readonly structure: StructureState }
+  | { readonly kind: "machine"; readonly machine: MachineState };
+
 /** Below this, a Condition counts as 0%, so that rounding never leaves a sliver. */
 const CONDITION_TOLERANCE = 1e-9;
 
 /**
  * Raises a Maintenance Work Order, in the order they are raised, for every
- * commissioned Structure due for it (see `planVisit`), unless it is to be
- * dismantled, never more than one for each. A Structure that is gone, or
- * is to be dismantled, is not maintained: its Work Order goes, and any
- * spare Components taken for it go straight back into the base's stock.
- * Returns an event for each Work Order raised.
+ * commissioned Structure and Machine due for it (see `planVisit`), unless
+ * it is a Structure to be dismantled, never more than one for each. A
+ * Structure that is gone, or is to be dismantled, is not maintained: its
+ * Work Order goes, and any spare Components taken for it go straight back
+ * into the base's stock. Returns an event for each Work Order raised.
  */
 export function planMaintenance(state: CampaignState): GameEvent[] {
-  const wanted = (structureId: string) =>
-    !isDueToBeDismantled(state, structureId) &&
-    state.structures.some((structure) => structure.id === structureId);
+  const wanted = (target: MaintenanceTarget) =>
+    target.kind === "machine" ||
+    (!isDueToBeDismantled(state, target.structureId) &&
+      state.structures.some(
+        (structure) => structure.id === target.structureId,
+      ));
   for (const dropped of state.maintenance.filter(
-    (maintenance) => !wanted(maintenance.structureId),
+    (maintenance) => !wanted(maintenance.target),
   )) {
     addToStock(state, spares(dropped.visit?.spareComponents ?? 0));
     for (const robot of state.robots) {
-      if (
-        robot.workOrder?.kind === "maintain" &&
-        robot.workOrder.structureId === dropped.structureId
-      ) {
+      if (isClaimedBy(robot, dropped.target)) {
         robot.workOrder = undefined;
         robot.carrying = [];
         robot.activity = { kind: "idle" };
@@ -110,29 +139,40 @@ export function planMaintenance(state: CampaignState): GameEvent[] {
     }
   }
   state.maintenance = state.maintenance.filter((maintenance) =>
-    wanted(maintenance.structureId),
+    wanted(maintenance.target),
   );
   const events: GameEvent[] = [];
-  for (const structure of state.structures) {
-    const due = planVisit(structure);
+  const candidates: Worn[] = [
+    ...state.structures.map((structure) => ({
+      kind: "structure" as const,
+      structure,
+    })),
+    ...state.machines.map((machine) => ({ kind: "machine" as const, machine })),
+  ];
+  for (const worn of candidates) {
+    const target = targetOf(worn);
+    const due = visitFor(worn);
     if (
       (due.spareComponents > 0 || due.cleaning) &&
-      wanted(structure.id) &&
-      findMaintenance(state, structure.id) === undefined
+      wanted(target) &&
+      findMaintenance(state, target) === undefined
     ) {
       state.maintenance.push({
-        structureId: structure.id,
-        workSpot: chooseWorkSpot(state, structure),
+        target,
+        workSpot:
+          worn.kind === "structure"
+            ? chooseWorkSpot(state, worn.structure)
+            : { ...worn.machine.position },
         visit: undefined,
         workedMinutes: 0,
       });
       events.push({
         kind: "maintenance-needed",
         atMinute: state.elapsedMinutes,
-        structureId: structure.id,
-        structureTypeId: structure.structureTypeId,
-        conditionPercent: structure.conditionPercent,
-        dustCoatingPercent: structure.dustCoatingPercent,
+        target: subjectOf(worn),
+        conditionPercent: conditionOf(worn),
+        dustCoatingPercent:
+          worn.kind === "structure" ? worn.structure.dustCoatingPercent : 0,
         restoresCondition: due.spareComponents > 0,
         cleans: due.cleaning,
       });
@@ -141,41 +181,103 @@ export function planMaintenance(state: CampaignState): GameEvent[] {
   return events;
 }
 
-/**
- * What a Maintenance visit to a Structure does as things stand: it restores
- * Condition once that has fallen below the data catalogue's threshold,
- * using the spare Components that takes, and it cleans a solar array once
- * its Dust coating has passed the threshold for cleaning.
- */
-export function planVisit(structure: StructureState): MaintenanceVisit {
-  return {
-    spareComponents:
-      structure.conditionPercent < catalogue.maintenance.thresholdPercent
-        ? spareComponentsFor(structure)
-        : 0,
-    cleaning: isDueForCleaning(structure),
-  };
-}
-
-/** The Maintenance Work Order for a Structure, if one has been raised. */
+/** The Maintenance Work Order for a Structure or Machine, if one has been raised. */
 export function findMaintenance(
   state: CampaignState,
-  structureId: string,
+  target: MaintenanceTarget,
 ): MaintenanceState | undefined {
-  return state.maintenance.find(
-    (maintenance) => maintenance.structureId === structureId,
+  return state.maintenance.find((maintenance) =>
+    isSameTarget(maintenance.target, target),
   );
 }
 
+export function isSameTarget(
+  a: MaintenanceTarget,
+  b: MaintenanceTarget,
+): boolean {
+  return a.kind === "structure"
+    ? b.kind === "structure" && a.structureId === b.structureId
+    : b.kind === "machine" && a.machineId === b.machineId;
+}
+
 /**
- * How many spare Components it takes to bring a Structure's Condition back
- * to 100%: one for each share of Condition the data catalogue sets, or part
- * of one, that it has lost.
+ * Whether a Machine is undergoing Maintenance, so that it can't be assigned
+ * a stage of Construction: a Robot has claimed its Work Order, or started
+ * on it.
  */
-export function spareComponentsFor(
-  structure: Pick<StructureState, "conditionPercent">,
-): number {
-  const lost = 100 - structure.conditionPercent;
+export function isUnderMaintenance(
+  state: CampaignState,
+  machineId: string,
+): boolean {
+  const target: MaintenanceTarget = { kind: "machine", machineId };
+  return (
+    findMaintenance(state, target)?.visit !== undefined ||
+    state.robots.some((robot) => isClaimedBy(robot, target))
+  );
+}
+
+/** Whether a Robot holds the Maintenance Work Order for a Structure or Machine. */
+export function isClaimedBy(
+  robot: Pick<CampaignState["robots"][number], "workOrder">,
+  target: MaintenanceTarget,
+): boolean {
+  const { workOrder } = robot;
+  if (workOrder === undefined) return false;
+  return target.kind === "structure"
+    ? workOrder.kind === "maintain" &&
+        workOrder.structureId === target.structureId
+    : workOrder.kind === "maintain-machine" &&
+        workOrder.machineId === target.machineId;
+}
+
+/**
+ * The commissioned Structure or the Machine a Maintenance Work Order is
+ * for, or undefined if it is gone.
+ */
+export function findWorn(
+  state: CampaignState,
+  target: MaintenanceTarget,
+): Worn | undefined {
+  if (target.kind === "structure") {
+    const structure = state.structures.find(
+      (candidate) => candidate.id === target.structureId,
+    );
+    return structure === undefined
+      ? undefined
+      : { kind: "structure", structure };
+  }
+  const machine = state.machines.find(
+    (candidate) => candidate.id === target.machineId,
+  );
+  return machine === undefined ? undefined : { kind: "machine", machine };
+}
+
+/**
+ * What a Maintenance visit does as things stand: it restores Condition once
+ * that has fallen below the data catalogue's threshold, using the spare
+ * Components that takes, and it cleans a solar array once its Dust coating
+ * has passed the threshold for cleaning.
+ */
+export function visitFor(worn: Worn): MaintenanceVisit {
+  const conditionPercent = conditionOf(worn);
+  return {
+    spareComponents:
+      conditionPercent < catalogue.maintenance.thresholdPercent
+        ? spareComponentsFor({ conditionPercent })
+        : 0,
+    cleaning: worn.kind === "structure" && isDueForCleaning(worn.structure),
+  };
+}
+
+/**
+ * How many spare Components it takes to bring a Condition back to 100%: one
+ * for each share of Condition the data catalogue sets, or part of one,
+ * that has been lost.
+ */
+export function spareComponentsFor(worn: {
+  readonly conditionPercent: number;
+}): number {
+  const lost = 100 - worn.conditionPercent;
   return Math.max(
     Math.ceil(
       lost / catalogue.maintenance.conditionPercentPerSpareComponent -
@@ -194,15 +296,25 @@ export function spares(count: number): ComponentCount[] {
 
 /**
  * Says why a Maintenance Work Order is waiting, or undefined if it can be
- * carried out. Until the Robot has taken any spare Components it needs, it
- * needs them in the base's stock, where those raised earlier have first
- * claim, so that one that can't be supplied waits from the start.
+ * carried out. A Machine carrying out a stage of Construction is maintained
+ * once it is idle, unless it is Broken. Until the Robot has taken any spare
+ * Components it needs, it needs them in the base's stock, where those
+ * raised earlier have first claim, so that one that can't be supplied waits
+ * from the start.
  */
 export function findMaintenanceWait(
   state: CampaignState,
   maintenance: MaintenanceState,
 ): MaintenanceWait | undefined {
   if (maintenance.visit !== undefined) return undefined;
+  const worn = findWorn(state, maintenance.target);
+  if (
+    worn?.kind === "machine" &&
+    worn.machine.assignment !== undefined &&
+    worn.machine.conditionPercent > 0
+  ) {
+    return { reason: "machine-at-work" };
+  }
   const claimedEarlier = state.maintenance
     .slice(0, state.maintenance.indexOf(maintenance))
     .filter((other) => other.visit === undefined)
@@ -264,18 +376,22 @@ export function currentStep(
 
 /**
  * Ends Maintenance as the Robot finishes its visit: if it used spare
- * Components, the Structure's Condition is back to 100%, so that a Broken
- * one works again, and if it cleaned, the Dust coating is gone.
+ * Components, the Condition is back to 100%, so that something Broken works
+ * again, and if it cleaned a solar array, the Dust coating is gone.
  */
 export function finishMaintenance(
   state: CampaignState,
   maintenance: MaintenanceState,
-  structure: StructureState,
+  worn: Worn,
 ): GameEvent[] {
-  const { spareComponents, cleaning } =
-    maintenance.visit ?? planVisit(structure);
-  if (spareComponents > 0) structure.conditionPercent = 100;
-  if (cleaning) structure.dustCoatingPercent = 0;
+  const { spareComponents, cleaning } = maintenance.visit ?? visitFor(worn);
+  if (spareComponents > 0) {
+    if (worn.kind === "structure") worn.structure.conditionPercent = 100;
+    else worn.machine.conditionPercent = 100;
+  }
+  if (cleaning && worn.kind === "structure") {
+    worn.structure.dustCoatingPercent = 0;
+  }
   state.maintenance = state.maintenance.filter(
     (other) => other !== maintenance,
   );
@@ -283,8 +399,7 @@ export function finishMaintenance(
     {
       kind: "maintenance-completed",
       atMinute: state.elapsedMinutes,
-      structureId: structure.id,
-      structureTypeId: structure.structureTypeId,
+      target: subjectOf(worn),
       spareComponents,
       cleaned: cleaning,
     },
@@ -293,11 +408,9 @@ export function finishMaintenance(
 
 export function readMaintenance(state: CampaignState): MaintenanceSnapshot[] {
   return state.maintenance.flatMap((maintenance) => {
-    const structure = state.structures.find(
-      (candidate) => candidate.id === maintenance.structureId,
-    );
-    if (structure === undefined) return [];
-    const visit = maintenance.visit ?? planVisit(structure);
+    const worn = findWorn(state, maintenance.target);
+    if (worn === undefined) return [];
+    const visit = maintenance.visit ?? visitFor(worn);
     const [first] = visitSteps(visit);
     const current = currentStep(visit, maintenance.workedMinutes) ?? {
       step: first?.step ?? "cleaning",
@@ -306,14 +419,11 @@ export function readMaintenance(state: CampaignState): MaintenanceSnapshot[] {
     };
     return [
       {
-        structureId: structure.id,
-        structureTypeId: structure.structureTypeId,
+        target: subjectOf(worn),
         spareComponents: visit.spareComponents,
         cleaning: visit.cleaning,
-        underWay: state.robots.some(
-          (robot) =>
-            robot.workOrder?.kind === "maintain" &&
-            robot.workOrder.structureId === structure.id,
+        underWay: state.robots.some((robot) =>
+          isClaimedBy(robot, maintenance.target),
         ),
         step: current.step,
         stageProgress:
@@ -326,13 +436,37 @@ export function readMaintenance(state: CampaignState): MaintenanceSnapshot[] {
   });
 }
 
+function targetOf(worn: Worn): MaintenanceTarget {
+  return worn.kind === "structure"
+    ? { kind: "structure", structureId: worn.structure.id }
+    : { kind: "machine", machineId: worn.machine.id };
+}
+
+function subjectOf(worn: Worn): MaintenanceSubject {
+  return worn.kind === "structure"
+    ? {
+        kind: "structure",
+        structureId: worn.structure.id,
+        structureTypeId: worn.structure.structureTypeId,
+      }
+    : {
+        kind: "machine",
+        machineId: worn.machine.id,
+        machineTypeId: worn.machine.machineTypeId,
+      };
+}
+
+function conditionOf(worn: Worn): number {
+  return worn.kind === "structure"
+    ? worn.structure.conditionPercent
+    : worn.machine.conditionPercent;
+}
+
 /** The spare Components a Maintenance Work Order needs as things stand. */
 function spareComponentsNeeded(
   state: CampaignState,
   maintenance: MaintenanceState,
 ): number {
-  const structure = state.structures.find(
-    (candidate) => candidate.id === maintenance.structureId,
-  );
-  return structure === undefined ? 0 : planVisit(structure).spareComponents;
+  const worn = findWorn(state, maintenance.target);
+  return worn === undefined ? 0 : visitFor(worn).spareComponents;
 }

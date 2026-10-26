@@ -94,8 +94,11 @@ describe("a Maintenance Work Order", () => {
 
     expect(campaign.snapshot().maintenance).toEqual([
       expect.objectContaining({
-        structureId: arrayId,
-        structureTypeId: "solar-array",
+        target: {
+          kind: "structure",
+          structureId: arrayId,
+          structureTypeId: "solar-array",
+        },
         waiting: undefined,
       }),
     ]);
@@ -133,7 +136,13 @@ describe("a Maintenance Work Order", () => {
       100 - 2 * catalogue.plumeEjecta.conditionLossPercent,
     );
     expect(mast.conditionPercent).toBeLessThan(thresholdPercent);
-    expect(game.state.maintenance.map((m) => m.structureId)).toEqual([mast.id]);
+    expect(game.state.maintenance.map((m) => m.target)).toEqual([
+      {
+        kind: "structure",
+        structureId: mast.id,
+        structureTypeId: "light-mast",
+      },
+    ]);
   });
 
   it("has the Robot load spare Components at the stockpile, carry them to the Structure and work on it, back to 100%", () => {
@@ -178,8 +187,11 @@ describe("a Maintenance Work Order", () => {
       {
         kind: "maintenance-completed",
         atMinute: state.clock.elapsedMinutes,
-        structureId: array.id,
-        structureTypeId: "solar-array",
+        target: {
+          kind: "structure",
+          structureId: array.id,
+          structureTypeId: "solar-array",
+        },
         spareComponents: spares,
         cleaned: false,
       },

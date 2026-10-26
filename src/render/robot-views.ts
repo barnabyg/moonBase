@@ -117,7 +117,7 @@ function workTarget(
   if (activity.kind === "loading-cargo") {
     return toScene(frame.current.lander.position);
   }
-  if (activity.kind === "activating-machine") {
+  if (activity.kind === "activating-machine" || "machineId" in activity) {
     const machine = frame.current.machines.find(
       (candidate) => candidate.id === activity.machineId,
     );

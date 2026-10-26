@@ -10,6 +10,7 @@ import {
   formatStage,
   hasComponents,
   structureLabel,
+  subjectLabel,
 } from "./format";
 import { setText } from "./dom";
 
@@ -103,12 +104,13 @@ export function createConstructionPanel(
         snapshot.maintenance.length === 0;
       const seen = new Set<string>();
       for (const maintenance of snapshot.maintenance) {
-        const key = `${MAINTENANCE_ROW}${maintenance.structureId}`;
+        const { target } = maintenance;
+        const key = `${MAINTENANCE_ROW}${target.kind === "structure" ? target.structureId : target.machineId}`;
         seen.add(key);
         let row = rows.get(key);
         if (row === undefined) {
           row = createRow(
-            `Maintaining the ${structureLabel(maintenance.structureTypeId).toLowerCase()}`,
+            `Maintaining the ${subjectLabel(target).toLowerCase()}`,
             undefined,
           );
           // Maintenance comes before every other Work Order, so it is listed

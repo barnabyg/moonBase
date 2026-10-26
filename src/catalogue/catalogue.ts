@@ -103,6 +103,11 @@ export interface Catalogue {
    */
   readonly structurePerformance: PerformanceCurve;
   readonly dustCoating: DustCoatingRules;
+  /**
+   * How fast a Machine works and drives as its Condition falls; once it is
+   * Broken, it stops.
+   */
+  readonly machinePerformance: PerformanceCurve;
 }
 
 /**
@@ -145,8 +150,9 @@ export interface PerformanceCurve {
  */
 export interface MaintenanceRules {
   /**
-   * A Maintenance Work Order is raised for a commissioned Structure once its
-   * Condition falls below this, in percent, as it always is once Broken.
+   * A Maintenance Work Order is raised for a commissioned Structure or a
+   * Machine once its Condition falls below this, in percent, as it always
+   * is once Broken.
    */
   readonly thresholdPercent: number;
   /** The Component that Maintenance uses up. */
@@ -307,6 +313,16 @@ export interface MachineType {
   readonly drivingSpeedMetresPerHour: number;
   /** The Robot's working time to set the Machine going once it is in position, in game-hours. */
   readonly activationHours: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour it works by
+   * itself on a stage of Construction, in percentage points.
+   */
+  readonly dustWearPercentPerWorkingHour: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour a Robot drives
+   * it, in percentage points.
+   */
+  readonly dustWearPercentPerDrivingHour: number;
 }
 
 export interface ComponentType {
@@ -403,7 +419,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 18,
+  version: 19,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -445,6 +461,9 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 1.6,
       drivingSpeedMetresPerHour: 30,
       activationHours: 0.25,
+      // Its tracks and bucket teeth take the worst of the Dust.
+      dustWearPercentPerWorkingHour: 0.4,
+      dustWearPercentPerDrivingHour: 0.2,
     },
     {
       id: "regolith-printer",
@@ -452,6 +471,8 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 1.8,
       drivingSpeedMetresPerHour: 20,
       activationHours: 0.5,
+      dustWearPercentPerWorkingHour: 0.3,
+      dustWearPercentPerDrivingHour: 0.2,
     },
   ],
   componentTypes: [
@@ -832,4 +853,7 @@ export const catalogue: Catalogue = {
     cleaningThresholdPercent: 30,
     cleaningHours: 1,
   },
+  // Below half its Condition, a Machine works and drives slower in step
+  // with it.
+  machinePerformance: { thresholdPercent: 50, exponent: 1 },
 };

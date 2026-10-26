@@ -60,6 +60,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
   notifications.startAfresh();
   constructionPanel.startAfresh();
+  statusPanel.startAfresh();
   renderer?.startAfresh();
 });
 const notifications = createNotificationList(container);

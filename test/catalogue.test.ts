@@ -386,6 +386,17 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(cleaningHours * 60)).toBe(true);
   });
 
+  it("wears every Machine down by Dust as it works and is driven, and slows it below a performance threshold", () => {
+    for (const type of catalogue.machineTypes) {
+      expect(type.dustWearPercentPerWorkingHour).toBeGreaterThanOrEqual(0);
+      expect(type.dustWearPercentPerDrivingHour).toBeGreaterThanOrEqual(0);
+    }
+    const { thresholdPercent, exponent } = catalogue.machinePerformance;
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThanOrEqual(100);
+    expect(exponent).toBeGreaterThan(0);
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

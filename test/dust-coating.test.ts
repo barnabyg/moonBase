@@ -240,7 +240,7 @@ describe("cleaning", () => {
 
     expect(events.at(-1)).toMatchObject({
       kind: "maintenance-needed",
-      structureId: array(campaign).id,
+      target: { kind: "structure", structureId: array(campaign).id },
       restoresCondition: false,
       cleans: true,
     });

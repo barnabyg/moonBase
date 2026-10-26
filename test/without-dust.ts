@@ -18,6 +18,11 @@ export function withoutDust(catalogue: Catalogue): Catalogue {
       ...type,
       dustWearPercentPerHour: 0,
     })),
+    machineTypes: catalogue.machineTypes.map((type) => ({
+      ...type,
+      dustWearPercentPerWorkingHour: 0,
+      dustWearPercentPerDrivingHour: 0,
+    })),
     dustCoating: { ...catalogue.dustCoating, percentPerDaylightHour: 0 },
   };
 }

@@ -1,11 +1,14 @@
 import { catalogue, type GroundPosition, type MachineType } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { performanceAt } from "./condition";
 import {
   distance,
   stageAfter,
   stageMinutes,
   type MachineStage,
 } from "./construction";
+import type { GameEvent } from "./events";
+import { isUnderMaintenance } from "./maintenance";
 
 /** What a Machine did during the latest game-minute, and for which Construction. */
 export type MachineActivity =
@@ -38,6 +41,54 @@ export interface MachineState {
   position: GroundPosition;
   activity: MachineActivity;
   assignment: MachineAssignment | undefined;
+  /** How intact it is, from 100% down to 0%, when it is Broken and stops working. */
+  conditionPercent: number;
+}
+
+/** Whether a Machine is Broken, its Condition worn down to 0%: it does nothing until it is repaired. */
+export function isMachineBroken(
+  machine: Pick<MachineState, "conditionPercent">,
+): boolean {
+  return machine.conditionPercent <= 0;
+}
+
+/**
+ * How fast a Machine works and drives as its Condition falls, from 1 down
+ * to 0 once it is Broken, along the data catalogue's curve.
+ */
+export function machinePerformance(
+  machine: Pick<MachineState, "conditionPercent">,
+): number {
+  return performanceAt(catalogue.machinePerformance, machine.conditionPercent);
+}
+
+/**
+ * Wears a Machine down by Dust for a game-minute of work or driving, at a
+ * rate in percentage points for each game-hour. At 0% it is Broken: it
+ * stops where it stands and gives up the stage of Construction it was
+ * assigned, whose work so far stays done. Returns the event if it broke.
+ */
+export function wearMachine(
+  state: CampaignState,
+  machine: MachineState,
+  percentPerHour: number,
+): GameEvent[] {
+  if (isMachineBroken(machine) || percentPerHour === 0) return [];
+  machine.conditionPercent = Math.max(
+    machine.conditionPercent - percentPerHour / 60,
+    0,
+  );
+  if (!isMachineBroken(machine)) return [];
+  machine.assignment = undefined;
+  machine.activity = { kind: "idle" };
+  return [
+    {
+      kind: "machine-broken",
+      atMinute: state.elapsedMinutes,
+      machineId: machine.id,
+      machineTypeId: machine.machineTypeId,
+    },
+  ];
 }
 
 export function findMachineType(id: string): MachineType | undefined {
@@ -58,7 +109,11 @@ export function machineOn(
   );
 }
 
-/** The nearest Machine of a type that has no assignment. */
+/**
+ * The nearest Machine of a type that is free to be assigned a stage of
+ * Construction: it has no assignment, isn't Broken and isn't undergoing
+ * Maintenance.
+ */
 export function nearestFreeMachine(
   state: CampaignState,
   machineTypeId: string,
@@ -67,7 +122,9 @@ export function nearestFreeMachine(
   const free = state.machines.filter(
     (machine) =>
       machine.assignment === undefined &&
-      machine.machineTypeId === machineTypeId,
+      machine.machineTypeId === machineTypeId &&
+      !isMachineBroken(machine) &&
+      !isUnderMaintenance(state, machine.id),
   );
   // The earlier Machine wins a tie, so the choice is always the same.
   return free.reduce<MachineState | undefined>(
@@ -83,10 +140,12 @@ export function nearestFreeMachine(
 /**
  * Lets every activated Machine do one game-minute of its work by itself on
  * the stage of Construction it was assigned, such as grading the ground for
- * Site Preparation. When the stage is done it stays where it is, idle, until
- * it is needed again.
+ * Site Preparation, as fast as its Condition allows, and wears it down by
+ * Dust as it works. When the stage is done it stays where it is, idle,
+ * until it is needed again. Returns an event for each Machine that broke.
  */
-export function workMachines(state: CampaignState): void {
+export function workMachines(state: CampaignState): GameEvent[] {
+  const events: GameEvent[] = [];
   for (const machine of state.machines) {
     const { assignment } = machine;
     if (assignment === undefined) {
@@ -109,11 +168,20 @@ export function workMachines(state: CampaignState): void {
       continue;
     }
     machine.activity = { kind: "working", constructionId: construction.id };
-    construction.workedMinutes += 1;
+    construction.workedMinutes += machinePerformance(machine);
     if (construction.workedMinutes >= stageMinutes(construction)) {
       construction.stage = stageAfter(construction, assignment.stage);
       construction.workedMinutes = 0;
       machine.assignment = undefined;
     }
+    events.push(
+      ...wearMachine(
+        state,
+        machine,
+        findMachineType(machine.machineTypeId)?.dustWearPercentPerWorkingHour ??
+          0,
+      ),
+    );
   }
+  return events;
 }

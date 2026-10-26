@@ -43,6 +43,7 @@ export type { UnloadingSnapshot } from "./unloading";
 export type {
   MaintenanceSnapshot,
   MaintenanceStep,
+  MaintenanceSubject,
   MaintenanceWait,
 } from "./maintenance";
 export type { LanderLeg, SendLanderRefusal, SendLanderResult } from "./lander";

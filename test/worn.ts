@@ -9,6 +9,7 @@ export interface SavedState {
     dustCoatingPercent: number;
     storedKilowattHours: number;
   }[];
+  machines: { id: string; conditionPercent: number }[];
   stockpile: { components: { componentId: string; count: number }[] };
 }
 
@@ -28,28 +29,31 @@ export function changed(
 }
 
 /**
- * The Campaign as saved, but with a Structure worn down to a Condition and,
- * if given, a number of spare Components in the base's stock.
+ * The Campaign as saved, but with a Structure or Machine worn down to a
+ * Condition and, if given, a number of spare Components in the base's
+ * stock.
  */
 export function worn(
   campaign: Campaign,
-  structureId: string,
+  id: string,
   conditionPercent: number,
   spares?: number,
 ): Campaign {
   return changed(campaign, (state) => {
-    for (const saved of state.structures) {
-      if (saved.id === structureId) saved.conditionPercent = conditionPercent;
+    for (const saved of [...state.structures, ...state.machines]) {
+      if (saved.id === id) saved.conditionPercent = conditionPercent;
     }
-    for (const stock of state.stockpile.components) {
-      if (
-        stock.componentId === catalogue.maintenance.spareComponentId &&
-        spares !== undefined
-      ) {
-        stock.count = spares;
-      }
-    }
+    if (spares !== undefined) withSpares(state, spares);
   });
+}
+
+/** Sets the number of spare Components in a saved base's stock. */
+export function withSpares(state: SavedState, spares: number): void {
+  for (const stock of state.stockpile.components) {
+    if (stock.componentId === catalogue.maintenance.spareComponentId) {
+      stock.count = spares;
+    }
+  }
 }
 
 /** The Campaign as saved, but with a solar array coated with Dust to a percentage. */

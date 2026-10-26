@@ -231,9 +231,9 @@ describe("the landing pad", () => {
     const [earlier, later] = game.state.constructions.map((c) => c.id);
     const workingOn = () => {
       const activity = game.state.robots[0]?.activity;
-      return activity === undefined || activity.kind === "idle"
-        ? undefined
-        : activity.structureId;
+      return activity !== undefined && "structureId" in activity
+        ? activity.structureId
+        : undefined;
     };
     expect(workingOn()).toBe(earlier);
 

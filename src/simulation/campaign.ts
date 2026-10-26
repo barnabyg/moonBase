@@ -74,6 +74,7 @@ import {
   type LunationSnapshot,
 } from "./lunation";
 import {
+  machinePerformance,
   workMachines,
   type MachineActivity,
   type MachineState,
@@ -152,6 +153,13 @@ export interface MachineSnapshot {
   readonly machineTypeId: string;
   readonly position: GroundPosition;
   readonly activity: MachineActivity;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and stops
+   * working until it is repaired.
+   */
+  readonly conditionPercent: number;
+  /** How fast it works and drives as its Condition falls, from 1 down to 0 once it is Broken. */
+  readonly performance: number;
 }
 
 export interface ConstructionSnapshot {
@@ -497,6 +505,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...machine.position },
       activity: { kind: "idle" },
       assignment: undefined,
+      conditionPercent: 100,
     })),
     stockpile: startingStockpile(),
     constructions: [],
@@ -666,6 +675,8 @@ function campaignFrom(state: CampaignState): Campaign {
           machineTypeId: machine.machineTypeId,
           position: { ...machine.position },
           activity: { ...machine.activity },
+          conditionPercent: machine.conditionPercent,
+          performance: machinePerformance(machine),
         })),
         stockpile: copy(state.stockpile),
         constructions: state.constructions.map((construction) => ({
@@ -751,7 +762,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...flyLander(state));
   planUnloading(state);
   events.push(...planMaintenance(state));
-  workMachines(state);
+  events.push(...workMachines(state));
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");

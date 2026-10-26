@@ -21,6 +21,7 @@ import {
   formatLander,
   formatLifeSupport,
   formatLunation,
+  formatMachine,
   formatMissionDirector,
   formatPerformance,
   formatPower,
@@ -36,6 +37,11 @@ const REFUSAL_SHOWN_MS = 8000;
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
+  /**
+   * Forgets the Machines listed, for a Campaign loaded in place of the
+   * last, which may have other Machines.
+   */
+  startAfresh(): void;
 }
 
 /**
@@ -254,6 +260,13 @@ export function createStatusPanel(
     return { item, text, dismantle, moveIn };
   };
 
+  // Each Machine's Condition, and whether it is Broken or awaiting
+  // Maintenance. The Machines never change, so the list is made once.
+  const machines = document.createElement("ul");
+  machines.className = "status-panel__structures";
+  machines.setAttribute("aria-label", "Machines");
+  const machineItems = new Map<string, HTMLLIElement>();
+
   panel.append(
     clock,
     lunation,
@@ -271,6 +284,7 @@ export function createStatusPanel(
     radiationDose,
     solarParticleEvent,
     structures,
+    machines,
     refusal,
   );
   container.append(panel);
@@ -377,7 +391,8 @@ export function createStatusPanel(
           snapshot.missionDirector.habitatId === structure.id;
         const broken = structure.conditionPercent <= 0;
         const maintenance = snapshot.maintenance.find(
-          (candidate) => candidate.structureId === structure.id,
+          ({ target }) =>
+            target.kind === "structure" && target.structureId === structure.id,
         );
         const maintained =
           maintenance === undefined
@@ -405,6 +420,19 @@ export function createStatusPanel(
         }
       }
       structures.hidden = structureItems.size === 0;
+      for (const machine of snapshot.machines) {
+        let item = machineItems.get(machine.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          machines.append(item);
+          machineItems.set(machine.id, item);
+        }
+        setText(item, formatMachine(machine, snapshot.maintenance));
+      }
+    },
+    startAfresh() {
+      for (const item of machineItems.values()) item.remove();
+      machineItems.clear();
     },
   };
 }

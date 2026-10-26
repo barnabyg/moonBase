@@ -158,7 +158,7 @@ describe("a Structure cut off from power", () => {
       building.some((state) =>
         state.robots.some(
           (robot) =>
-            robot.activity.kind !== "idle" &&
+            "structureId" in robot.activity &&
             robot.activity.structureId === mastId,
         ),
       ),
@@ -303,11 +303,14 @@ describe("a Structure cut off from power", () => {
     const laterMastCommissioned = firstMinute((state) =>
       state.structures.some((structure) => structure.id === laterMastId),
     );
-    const recablingStarted = firstMinute(
-      (state) =>
-        state.robots[0]?.activity.kind !== "idle" &&
-        state.robots[0]?.activity.structureId === mastId,
-    );
+    const recablingStarted = firstMinute((state) => {
+      const activity = state.robots[0]?.activity;
+      return (
+        activity !== undefined &&
+        "structureId" in activity &&
+        activity.structureId === mastId
+      );
+    });
     expect(laterMastCommissioned).toBeGreaterThan(0);
     expect(recablingStarted).toBeGreaterThan(laterMastCommissioned);
   });

@@ -1,5 +1,6 @@
 import type { ComponentCount } from "../catalogue";
 import type { ManifestLine } from "./launch-manifest";
+import type { MaintenanceSubject } from "./maintenance";
 import type { PlumeEjectaDamage } from "./plume-ejecta";
 
 /**
@@ -121,16 +122,27 @@ export type GameEvent =
     }
   | {
       /**
-       * A Structure's Condition has fallen below the Maintenance threshold
-       * set in the data catalogue, or a solar array's Dust coating has
-       * passed the threshold for cleaning, and a Maintenance Work Order has
-       * been raised for it.
+       * A Machine's Condition has reached 0%: it is Broken, has stopped
+       * where it stood and has given up any stage of Construction it was
+       * carrying out.
+       */
+      readonly kind: "machine-broken";
+      readonly atMinute: number;
+      readonly machineId: string;
+      readonly machineTypeId: string;
+    }
+  | {
+      /**
+       * The Condition of a Structure or Machine has fallen below the
+       * Maintenance threshold set in the data catalogue, or a solar array's
+       * Dust coating has passed the threshold for cleaning, and a
+       * Maintenance Work Order has been raised for it.
        */
       readonly kind: "maintenance-needed";
       readonly atMinute: number;
-      readonly structureId: string;
-      readonly structureTypeId: string;
+      readonly target: MaintenanceSubject;
       readonly conditionPercent: number;
+      /** Always 0% for anything but a solar array. */
       readonly dustCoatingPercent: number;
       /** Whether it is to restore the Structure's Condition, as things stand. */
       readonly restoresCondition: boolean;
@@ -139,15 +151,14 @@ export type GameEvent =
     }
   | {
       /**
-       * The Robot has finished Maintenance on a Structure, bringing its
-       * Condition back to 100% if it used spare Components, so that a
-       * Broken one works again, and cleaning off its Dust coating if it
-       * cleaned it.
+       * The Robot has finished Maintenance on a Structure or Machine,
+       * bringing its Condition back to 100% if it used spare Components, so
+       * that something Broken works again, and cleaning the Dust coating
+       * off a solar array if it cleaned it.
        */
       readonly kind: "maintenance-completed";
       readonly atMinute: number;
-      readonly structureId: string;
-      readonly structureTypeId: string;
+      readonly target: MaintenanceSubject;
       /** The spare Components it used up: none if it only cleaned. */
       readonly spareComponents: number;
       readonly cleaned: boolean;

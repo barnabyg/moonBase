@@ -444,7 +444,11 @@ describe("the sample saves from before Maintenance", () => {
     campaign.advance(1);
 
     expect(
-      campaign.snapshot().maintenance.map((m) => m.structureTypeId),
+      campaign
+        .snapshot()
+        .maintenance.map((m) =>
+          m.target.kind === "structure" ? m.target.structureTypeId : undefined,
+        ),
     ).toEqual(["solar-array", "habitat"]);
   });
 });
@@ -459,8 +463,11 @@ describe("the sample save of format version 8", () => {
     ]);
     expect(state.maintenance).toEqual([
       {
-        structureId: "structure-1",
-        structureTypeId: "solar-array",
+        target: {
+          kind: "structure",
+          structureId: "structure-1",
+          structureTypeId: "solar-array",
+        },
         spareComponents: 2,
         cleaning: false,
         underWay: true,
@@ -578,5 +585,65 @@ describe("the sample save of format version 9", () => {
     }
 
     expect(campaign.snapshot().structures[0]?.dustCoatingPercent).toBe(0);
+  });
+});
+
+describe("the sample saves from before Machines had a Condition", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+    "version-4.moonbase",
+    "version-5.moonbase",
+    "version-6.moonbase",
+    "version-7.moonbase",
+    "version-8.moonbase",
+    "version-9.moonbase",
+  ])("%s loads with every Machine at 100%", (name) => {
+    const { machines } = loadSample(name).snapshot();
+
+    expect(machines.length).toBeGreaterThan(0);
+    expect(machines.map((m) => m.conditionPercent)).toEqual(
+      machines.map(() => 100),
+    );
+  });
+});
+
+describe("the sample save of format version 10", () => {
+  it("loads with the regolith printer worn down as it prints the Habitat's shielding", () => {
+    const state = loadSample("version-10.moonbase").snapshot();
+
+    expect(
+      state.machines.map((m) => [
+        m.machineTypeId,
+        Math.round(m.conditionPercent),
+      ]),
+    ).toEqual([
+      ["excavator", 97],
+      ["regolith-printer", 92],
+    ]);
+    expect(state.machines[1]?.activity).toEqual({
+      kind: "working",
+      constructionId: "structure-2",
+    });
+  });
+
+  it("plays on from where it was saved, the printer wearing down further until the shielding is printed", () => {
+    const campaign = loadSample("version-10.moonbase");
+    const printer = () => campaign.snapshot().machines[1];
+    const before = printer()?.conditionPercent ?? 0;
+
+    for (
+      let hours = 0;
+      campaign.snapshot().constructions[0]?.stage === "assembly";
+      hours++
+    ) {
+      if (hours > 48) throw new Error("The shielding was never printed.");
+      campaign.advance(60);
+    }
+
+    expect(printer()?.conditionPercent).toBeLessThan(before);
+    expect(printer()?.activity).toEqual({ kind: "idle" });
   });
 });

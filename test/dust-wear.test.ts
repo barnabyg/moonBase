@@ -309,7 +309,7 @@ describe("Dust wear and Maintenance", () => {
     }
     expect(raised).toEqual([
       expect.objectContaining({
-        structureId: array.id,
+        target: expect.objectContaining({ structureId: array.id }) as unknown,
         conditionPercent: expect.closeTo(maintenanceThreshold, 1) as number,
       }),
     ]);

@@ -1,0 +1,197 @@
+{
+  "format": "moonbase-save",
+  "version": 10,
+  "random": {
+    "a": -492993013,
+    "b": 1398898198,
+    "c": 2121286809,
+    "d": 2291658344
+  },
+  "state": {
+    "elapsedMinutes": 3772,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 4,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 36.3,
+          "y": -27.7
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "carrying": [],
+        "workOrder": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 34.31335136523794,
+          "y": -34.31335136523794
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "conditionPercent": 96.83666666666954
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": 36.3,
+          "y": -30
+        },
+        "activity": {
+          "kind": "working",
+          "constructionId": "structure-2"
+        },
+        "assignment": {
+          "constructionId": "structure-2",
+          "stage": "assembly",
+          "destination": {
+            "x": 36.3,
+            "y": -30
+          },
+          "activationMinutes": 30,
+          "working": true
+        },
+        "conditionPercent": 92.20166666667376
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 2
+        },
+        {
+          "componentId": "array-mast",
+          "count": 1
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 0
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "airlock",
+          "count": 0
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        }
+      ]
+    },
+    "constructions": [
+      {
+        "id": "structure-2",
+        "structureTypeId": "regolith-shielding",
+        "position": {
+          "x": 30,
+          "y": -30
+        },
+        "planNumber": 3,
+        "workSpot": {
+          "x": 26.464466094067262,
+          "y": -26.464466094067262
+        },
+        "stage": "assembly",
+        "workedMinutes": 1441,
+        "componentsTaken": false,
+        "failedCommissionings": 0
+      }
+    ],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 30,
+          "y": -30
+        },
+        "powered": false,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 100,
+        "dustCoatingPercent": 0
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [],
+    "reconnections": [
+      {
+        "structureId": "structure-1",
+        "planNumber": 2
+      }
+    ],
+    "maintenance": []
+  }
+}
