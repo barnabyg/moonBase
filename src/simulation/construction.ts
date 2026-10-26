@@ -82,7 +82,7 @@ export interface StructureState {
 /**
  * Whether a Structure is Broken, its Condition worn down to 0%: it stays on
  * the map but does nothing, generating, storing or drawing no power, giving
- * no light and no shielding, until it is rebuilt.
+ * no light and no shielding, until it is repaired.
  */
 export function isBroken(
   structure: Pick<StructureState, "conditionPercent">,

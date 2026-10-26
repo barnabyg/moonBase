@@ -184,7 +184,7 @@ export interface StructureSnapshot {
   readonly shielded: boolean;
   /**
    * How intact it is, from 100% down to 0%, when it is Broken and does
-   * nothing until it is rebuilt.
+   * nothing until it is repaired.
    */
   readonly conditionPercent: number;
 }
