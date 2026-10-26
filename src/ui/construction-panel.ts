@@ -41,7 +41,11 @@ export function createConstructionPanel(
   container.append(panel);
 
   const rows = new Map<string, Row>();
-  const createRow = (title: string, cancellable: string | undefined): Row => {
+  /** A row, with a Cancel button if given the id of a Construction it cancels. */
+  const createRow = (
+    title: string,
+    constructionId: string | undefined,
+  ): Row => {
     const item = document.createElement("li");
     const name = document.createElement("p");
     name.className = "construction-panel__name";
@@ -54,13 +58,13 @@ export function createConstructionPanel(
     work.className = "construction-panel__work";
     item.append(name, stage, progress, work);
     let cancel: HTMLButtonElement | undefined;
-    if (cancellable !== undefined) {
+    if (constructionId !== undefined) {
       cancel = document.createElement("button");
       cancel.type = "button";
       cancel.className = "construction-panel__cancel";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => {
-        campaign.cancelConstruction(cancellable);
+        campaign.cancelConstruction(constructionId);
       });
       item.append(cancel);
     }
