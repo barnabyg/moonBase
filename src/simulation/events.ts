@@ -120,6 +120,18 @@ export type GameEvent =
       readonly structureTypeId: string;
     }
   | {
+      /**
+       * The Robot has finished Maintenance on a Structure, bringing its
+       * Condition back to 100%, so that a Broken one works again.
+       */
+      readonly kind: "maintenance-completed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      /** The spare Components it used up. */
+      readonly spareComponents: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;

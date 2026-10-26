@@ -95,6 +95,35 @@ export interface Catalogue {
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
   readonly plumeEjecta: PlumeEjectaRules;
+  readonly maintenance: MaintenanceRules;
+}
+
+/**
+ * Maintenance: the Work Orders that restore the Condition of what has worn
+ * down, using up spare Components. Each must come to a whole number of
+ * game-minutes.
+ */
+export interface MaintenanceRules {
+  /**
+   * A Maintenance Work Order is raised for a commissioned Structure once its
+   * Condition falls below this, in percent, as it always is once Broken.
+   */
+  readonly thresholdPercent: number;
+  /** The Component that Maintenance uses up. */
+  readonly spareComponentId: string;
+  /**
+   * How much Condition each spare Component restores, in percentage points.
+   * Maintenance uses one for each of these, or part of one, that the
+   * Condition has fallen from 100% as the Robot loads them.
+   */
+  readonly conditionPercentPerSpareComponent: number;
+  /** The Robot's working time to load the spare Components at the stockpile, in game-hours. */
+  readonly loadingHours: number;
+  /**
+   * The Robot's working time at what it maintains, in game-hours, after
+   * which its Condition is back to 100%. Walking comes on top.
+   */
+  readonly workHours: number;
 }
 
 /**
@@ -328,7 +357,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 15,
+  version: 16,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -391,6 +420,7 @@ export const catalogue: Catalogue = {
     { id: "airlock", label: "Airlock" },
     { id: "pad-panel", label: "Pad panel" },
     { id: "pad-beacon", label: "Pad beacon" },
+    { id: "spare-component", label: "Spare Component" },
   ],
   structureTypes: [
     {
@@ -581,6 +611,8 @@ export const catalogue: Catalogue = {
     { componentId: "habitat-core", count: 1 },
     { componentId: "habitat-envelope", count: 1 },
     { componentId: "airlock", count: 1 },
+    // Enough to bring one Structure back from Broken.
+    { componentId: "spare-component", count: 6 },
   ],
   // Enough for about 30 Earth Days at a person's daily use; the oxygen runs
   // out first.
@@ -702,6 +734,12 @@ export const catalogue: Catalogue = {
         massKilograms: 40,
         priceMillionDollars: 6,
       },
+      {
+        id: "spare-component",
+        brings: { kind: "component", componentId: "spare-component" },
+        massKilograms: 20,
+        priceMillionDollars: 1,
+      },
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
@@ -721,4 +759,13 @@ export const catalogue: Catalogue = {
   // to grow away from it. Five take-offs and landings, two and a half round
   // trips, break anything left standing near it.
   plumeEjecta: { radiusMetres: 30, conditionLossPercent: 20 },
+  // Two blasts of Plume Ejecta call for Maintenance. Bringing a Broken
+  // Structure back to 100% takes five spare Components.
+  maintenance: {
+    thresholdPercent: 70,
+    spareComponentId: "spare-component",
+    conditionPercentPerSpareComponent: 20,
+    loadingHours: 0.25,
+    workHours: 2,
+  },
 };

@@ -313,6 +313,47 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("raises Maintenance below a threshold, using spare Components that are in the starting stock and that a Launch can bring", () => {
+    const {
+      thresholdPercent,
+      spareComponentId,
+      conditionPercentPerSpareComponent,
+      loadingHours,
+      workHours,
+    } = catalogue.maintenance;
+
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThan(100);
+    expect(catalogue.componentTypes.map((type) => type.id)).toContain(
+      spareComponentId,
+    );
+    expect(
+      catalogue.startingStock.find(
+        (stock) => stock.componentId === spareComponentId,
+      )?.count,
+    ).toBeGreaterThan(0);
+    expect(
+      catalogue.launch.items.some(
+        (item) =>
+          item.brings.kind === "component" &&
+          item.brings.componentId === spareComponentId,
+      ),
+    ).toBe(true);
+    // No Structure is built from them.
+    for (const type of catalogue.structureTypes) {
+      expect(type.components.map((need) => need.componentId)).not.toContain(
+        spareComponentId,
+      );
+    }
+    expect(conditionPercentPerSpareComponent).toBeGreaterThan(0);
+    expect(conditionPercentPerSpareComponent).toBeLessThanOrEqual(100);
+    for (const hours of [loadingHours, workHours]) {
+      expect(hours).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(hours * 60)).toBe(true);
+    }
+    expect(workHours).toBeGreaterThan(0);
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

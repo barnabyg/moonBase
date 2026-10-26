@@ -42,7 +42,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
 
   const stock = page.getByRole("status", { name: "Base's stock" });
   await expect(stock).toHaveText(
-    "Stock: 3 battery modules, 1 battery cabinet, 4 mast poles and 4 light heads",
+    "Stock: 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and 6 spare components",
   );
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
@@ -69,7 +69,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
     "Funding: $239M",
   );
   await expect(stock).toHaveText(
-    "Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles and 4 light heads",
+    "Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and 6 spare components",
   );
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
     "Lander landed with 2 × Solar panel and 1 × Array mast",

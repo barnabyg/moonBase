@@ -1,0 +1,219 @@
+{
+  "format": "moonbase-save",
+  "version": 8,
+  "random": {
+    "a": -543999109,
+    "b": 1609062819,
+    "c": 3284878211,
+    "d": 2291658347
+  },
+  "state": {
+    "elapsedMinutes": 39777,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 3,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "habitat",
+      "habitatId": "structure-2",
+      "movedInAtMinute": 25201
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 16.497333333309996
+      },
+      {
+        "stockId": "water",
+        "kilograms": 72.57222222232349
+      }
+    ],
+    "radiationDoseMillisieverts": 589.2291666666812,
+    "solarParticleEvent": {
+      "warnsAtMinute": 52559,
+      "startsAtMinute": 52799,
+      "endsAtMinute": 54388
+    },
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 9.468367296473884,
+          "y": -13.266593344080917
+        },
+        "activity": {
+          "kind": "walking",
+          "structureId": "structure-1",
+          "destination": "site"
+        },
+        "carrying": [
+          {
+            "componentId": "spare-component",
+            "count": 2
+          }
+        ],
+        "workOrder": {
+          "structureId": "structure-1",
+          "kind": "maintain"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 50.57425044658357,
+          "y": -22.47744464292603
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 0
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "airlock",
+          "count": 0
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 4
+        }
+      ]
+    },
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 12,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 60
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 45,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 100
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 15,
+          "y": -20
+        },
+        "end": {
+          "x": 41,
+          "y": -20
+        },
+        "route": [
+          {
+            "x": 15,
+            "y": -20
+          },
+          {
+            "x": 41,
+            "y": -20
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [
+      {
+        "structureId": "structure-1",
+        "workSpot": {
+          "x": 9.942016978289894,
+          "y": -16.570028297149822
+        },
+        "spareComponents": 2,
+        "workedMinutes": 15
+      }
+    ]
+  }
+}

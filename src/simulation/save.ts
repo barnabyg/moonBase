@@ -153,6 +153,33 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 7 to 8: Maintenance, which uses up spare Components, a new Component
+  // the base's stock keeps a count of after the others. An older save's
+  // stock gains the starting amount of them, as it stood when format
+  // version 8 came in, and has no Maintenance raised yet: Structures worn
+  // down are raised for in the first game-minute played.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "spare-component", count: 6 },
+                ],
+              }
+            : stockpile,
+        maintenance: [],
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -461,6 +488,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       "returning-components": true,
       "loading-cargo": true,
       "unloading-cargo": true,
+      maintaining: true,
     }),
     structureId: text,
   });
@@ -488,6 +516,7 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
+    maintaining: working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
@@ -502,6 +531,7 @@ const workOrder = object({
     dismantle: true,
     "return-components": true,
     "unload-lander": true,
+    maintain: true,
   }),
 });
 
@@ -653,6 +683,14 @@ const simulationState = object({
     }),
   ),
   reconnections: list(object({ structureId: text, planNumber: wholeNumber })),
+  maintenance: list(
+    object({
+      structureId: text,
+      workSpot: groundPosition,
+      spareComponents: optional(wholeNumber),
+      workedMinutes: wholeNumber,
+    }),
+  ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;
 
 const saveDocument = object({

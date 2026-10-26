@@ -80,6 +80,7 @@ describe("the sample save of format version 1", () => {
     ).toEqual([
       { componentId: "mast-pole", count: 4 },
       { componentId: "light-head", count: 4 },
+      { componentId: "spare-component", count: 6 },
     ]);
     expect(state.robots[0]?.activity).toEqual({
       kind: "walking",
@@ -151,6 +152,7 @@ describe("the sample save of format version 2", () => {
       { componentId: "battery-cabinet", count: 1 },
       { componentId: "mast-pole", count: 4 },
       { componentId: "light-head", count: 4 },
+      { componentId: "spare-component", count: 6 },
     ]);
   });
 
@@ -396,5 +398,92 @@ describe("the sample save of format version 7", () => {
     expect(kinds).toContain("lander-unloaded");
     expect(modules()).toBe(before + 3);
     expect(campaign.snapshot().lander.cargo).toEqual([]);
+  });
+});
+
+describe("the sample saves from before Maintenance", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+    "version-4.moonbase",
+    "version-5.moonbase",
+    "version-6.moonbase",
+    "version-7.moonbase",
+  ])(
+    "%s loads with the starting amount of spare Components added to the base's stock, and no Maintenance",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.at(-1)).toEqual({
+        componentId: "spare-component",
+        count: 6,
+      });
+      expect(state.maintenance).toEqual([]);
+    },
+  );
+
+  it("raises Maintenance for a Structure already worn down below the threshold as play goes on", () => {
+    const campaign = loadSample("version-6.moonbase");
+    campaign.advance(
+      35340 + 3 * 24 * 60 - campaign.snapshot().clock.elapsedMinutes,
+    );
+
+    campaign.advance(1);
+
+    expect(
+      campaign.snapshot().maintenance.map((m) => m.structureTypeId),
+    ).toEqual(["solar-array", "habitat"]);
+  });
+});
+
+describe("the sample save of format version 8", () => {
+  it("loads with the Robot carrying spare Components to the solar array worn down by Plume Ejecta", () => {
+    const state = loadSample("version-8.moonbase").snapshot();
+
+    expect(state.structures.map((s) => [s.id, s.conditionPercent])).toEqual([
+      ["structure-1", 60],
+      ["structure-2", 100],
+    ]);
+    expect(state.maintenance).toEqual([
+      {
+        structureId: "structure-1",
+        structureTypeId: "solar-array",
+        spareComponents: 2,
+        underWay: true,
+        loaded: true,
+        stageProgress: 0,
+        waiting: undefined,
+      },
+    ]);
+    expect(state.robots[0]).toMatchObject({
+      activity: {
+        kind: "walking",
+        structureId: "structure-1",
+        destination: "site",
+      },
+      carrying: [{ componentId: "spare-component", count: 2 }],
+    });
+    expect(state.stockpile.components.at(-1)).toEqual({
+      componentId: "spare-component",
+      count: 4,
+    });
+  });
+
+  it("plays on from where it was saved, until the solar array is back to 100%", () => {
+    const campaign = loadSample("version-8.moonbase");
+    const kinds: string[] = [];
+
+    for (let hours = 0; campaign.snapshot().maintenance.length > 0; hours++) {
+      if (hours > 24) throw new Error("Maintenance never finished.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("maintenance-completed");
+    expect(campaign.snapshot().structures[0]?.conditionPercent).toBe(100);
   });
 });

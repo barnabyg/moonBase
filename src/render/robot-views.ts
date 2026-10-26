@@ -212,6 +212,15 @@ function poseFor(
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),
+    // Bent over the Structure, working at it with both hands.
+    maintaining: () => ({
+      legSwing: 0,
+      leftArm: 1.4 + work * 0.25,
+      rightArm: 1.4 - work * 0.25,
+      lean: 0.3,
+      seated: false,
+      carrying,
+    }),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({
       legSwing: 0,

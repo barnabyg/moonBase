@@ -28,6 +28,13 @@ import {
   nearestFreeMachine,
   type MachineState,
 } from "./machines";
+import {
+  finishMaintenance,
+  maintenanceMinutes,
+  spareComponentsFor,
+  spares,
+  type MaintenanceState,
+} from "./maintenance";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
@@ -52,8 +59,8 @@ export type WalkingDestination =
 /**
  * What a Robot did during the latest game-minute, and for which Structure: one
  * under Construction (whose id the Structure keeps once commissioned), one
- * being dismantled, one cut off from power, or the landing pad the Lander
- * whose cargo it is unloading landed on.
+ * being dismantled, one cut off from power, the landing pad the Lander
+ * whose cargo it is unloading landed on, or one it is maintaining.
  */
 export type RobotActivity =
   | { readonly kind: "idle" }
@@ -70,6 +77,7 @@ export type RobotActivity =
     }
   | {
       readonly kind:
+        /** Loading Components at the stockpile, for a Construction or, spare ones, for Maintenance. */
         | "loading-components"
         | "unloading-components"
         | "assembling"
@@ -82,7 +90,9 @@ export type RobotActivity =
         /** Taking the Lander's cargo off it. */
         | "loading-cargo"
         /** Unloading the Lander's cargo at the stockpile. */
-        | "unloading-cargo";
+        | "unloading-cargo"
+        /** Working on a Structure to restore its Condition. */
+        | "maintaining";
       readonly structureId: string;
     };
 
@@ -115,6 +125,14 @@ export function workRobot(
     return layCable(state, robot, workOrder.structureId);
   }
   if (workOrder?.kind === "unload-lander") return unloadLander(state, robot);
+  const maintenance = state.maintenance.find(
+    (candidate) =>
+      workOrder?.kind === "maintain" &&
+      candidate.structureId === workOrder.structureId,
+  );
+  if (maintenance !== undefined) {
+    return maintainStructure(state, robot, maintenance);
+  }
   const dismantling = state.dismantlings.find(
     (candidate) => candidate.id === workOrder?.structureId,
   );
@@ -497,6 +515,60 @@ function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
   return [
     { kind: "lander-unloaded", atMinute: state.elapsedMinutes, components },
   ];
+}
+
+/**
+ * Lets the Robot do one game-minute of Maintenance on a Structure: it takes
+ * the spare Components it needs from the base's stock and loads them at the
+ * stockpile, then carries them to the Structure and works on it until its
+ * Condition is back to 100%, using them up.
+ */
+function maintainStructure(
+  state: CampaignState,
+  robot: RobotState,
+  maintenance: MaintenanceState,
+): GameEvent[] {
+  const id = maintenance.structureId;
+  const structure = state.structures.find((candidate) => candidate.id === id);
+  if (structure === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const { loading, total } = maintenanceMinutes();
+  if (maintenance.spareComponents === undefined) {
+    if (
+      !walkRobotTo(
+        state,
+        robot,
+        id,
+        stockpileSpot(state, maintenance),
+        "stockpile",
+      )
+    ) {
+      return [];
+    }
+    const needed = spareComponentsFor(structure);
+    if (!takeFromStock(state, spares(needed))) {
+      // Another Robot took them first; this Maintenance now waits.
+      robot.workOrder = undefined;
+      robot.activity = { kind: "idle" };
+      return [];
+    }
+    maintenance.spareComponents = needed;
+    robot.carrying = spares(needed);
+  }
+  if (maintenance.workedMinutes < loading) {
+    robot.activity = { kind: "loading-components", structureId: id };
+    maintenance.workedMinutes += 1;
+    return [];
+  }
+  if (!walkRobotTo(state, robot, id, maintenance.workSpot, "site")) return [];
+  robot.activity = { kind: "maintaining", structureId: id };
+  maintenance.workedMinutes += 1;
+  if (maintenance.workedMinutes < total) return [];
+  robot.carrying = [];
+  return finishMaintenance(state, maintenance, structure);
 }
 
 /**

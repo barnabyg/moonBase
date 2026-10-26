@@ -9,6 +9,7 @@ export type {
   LaunchRules,
   LifeSupportStock,
   LunationSchedule,
+  MaintenanceRules,
   MachineType,
   MapSize,
   RadiationRules,

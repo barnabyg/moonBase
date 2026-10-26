@@ -26,6 +26,8 @@ import type {
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
+  MaintenanceSnapshot,
+  MaintenanceWait,
   ManifestLine,
   MissionDirectorResidence,
   UnloadingSnapshot,
@@ -252,6 +254,8 @@ export function formatEvent(event: GameEvent): string {
       )}`;
     case "structure-broken":
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
+    case "maintenance-completed":
+      return `${structureLabel(event.structureTypeId)} maintained, back to 100% Condition, using ${plural(event.spareComponents, "spare Component")}`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -571,11 +575,13 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    // Only ever done for a Structure being dismantled, or to unload the Lander.
+    // Only ever done for a Structure being dismantled or maintained, or to
+    // unload the Lander.
     case "dismantling":
     case "returning-components":
     case "loading-cargo":
     case "unloading-cargo":
+    case "maintaining":
       return "Waiting for the Robot";
   }
 }
@@ -650,6 +656,44 @@ export function describeUnloading(
       return unloading.collected
         ? `Waiting for the Robot to carry ${cargo} to the stockpile`
         : `Waiting for the Robot to take ${cargo} off the Lander`;
+  }
+}
+
+/** Says why a Maintenance Work Order is waiting, for the Work panel. */
+export function formatMaintenanceWait(waiting: MaintenanceWait): string {
+  return `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock`;
+}
+
+/**
+ * Says what is happening on a Maintenance Work Order right now, for the Work
+ * panel: what the Robot is doing on it, or else what it is waiting for.
+ */
+export function describeMaintenance(
+  maintenance: MaintenanceSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const spares = plural(maintenance.spareComponents, "spare Component");
+  const label = structureLabel(maintenance.structureTypeId).toLowerCase();
+  const robot = maintenance.underWay
+    ? snapshot.robots.find(
+        (candidate) =>
+          candidate.activity.kind !== "idle" &&
+          candidate.activity.structureId === maintenance.structureId,
+      )
+    : undefined;
+  switch (robot?.activity.kind) {
+    case "walking":
+      return robot.activity.destination === "stockpile"
+        ? `Robot walking to the stockpile for ${spares}`
+        : `Robot carrying ${spares} to the ${label}`;
+    case "loading-components":
+      return `Robot loading ${spares} at the stockpile`;
+    case "maintaining":
+      return `Robot maintaining the ${label}`;
+    default:
+      return maintenance.waiting === undefined
+        ? `Waiting for the Robot, which will use ${spares}`
+        : formatMaintenanceWait(maintenance.waiting);
   }
 }
 

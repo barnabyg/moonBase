@@ -1,6 +1,7 @@
 import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
 import {
   describeDismantling,
+  describeMaintenance,
   describeUnloading,
   describeWork,
   formatComponents,
@@ -23,6 +24,9 @@ export interface ConstructionPanel {
 /** The key of the row for unloading the Lander, which no Structure's id can be. */
 const UNLOADING_ROW = "unloading the Lander";
 
+/** The start of the key of a row for maintaining a Structure, which no Structure's id has. */
+const MAINTENANCE_ROW = "maintaining ";
+
 interface Row {
   readonly item: HTMLLIElement;
   readonly stage: HTMLElement;
@@ -32,8 +36,9 @@ interface Row {
 }
 
 /**
- * The HTML Work panel: each unfinished Construction, each Structure being
- * dismantled and any unloading of the Lander, with its current stage, its
+ * The HTML Work panel: each Maintenance Work Order, each unfinished
+ * Construction, each Structure being dismantled and any unloading of the
+ * Lander, with its current stage, its
  * progress, and what is happening on it. The player can cancel a
  * Construction from here; the panel only sends that choice to the Campaign.
  */
@@ -93,8 +98,33 @@ export function createConstructionPanel(
       panel.hidden =
         snapshot.constructions.length === 0 &&
         snapshot.dismantlings.length === 0 &&
-        snapshot.unloading === undefined;
+        snapshot.unloading === undefined &&
+        snapshot.maintenance.length === 0;
       const seen = new Set<string>();
+      for (const maintenance of snapshot.maintenance) {
+        const key = `${MAINTENANCE_ROW}${maintenance.structureId}`;
+        seen.add(key);
+        let row = rows.get(key);
+        if (row === undefined) {
+          row = createRow(
+            `Maintaining the ${structureLabel(maintenance.structureTypeId).toLowerCase()}`,
+            undefined,
+          );
+          // Maintenance comes before every other Work Order, so it is listed
+          // first, in the order it was raised.
+          const firstOther = [...rows].find(
+            ([other]) => !other.startsWith(MAINTENANCE_ROW),
+          )?.[1];
+          list.insertBefore(row.item, firstOther?.item ?? null);
+          rows.set(key, row);
+        }
+        showStage(
+          row,
+          maintenance.loaded ? "Maintenance" : "Loading spare Components",
+          maintenance.stageProgress,
+        );
+        setText(row.work, describeMaintenance(maintenance, snapshot));
+      }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
         let row = rows.get(construction.id);

@@ -87,6 +87,12 @@ import {
   forecastRadiationDose,
   type RadiationDoseForecast,
 } from "./radiation";
+import {
+  planMaintenance,
+  readMaintenance,
+  type MaintenanceSnapshot,
+  type MaintenanceState,
+} from "./maintenance";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -321,6 +327,11 @@ export interface Snapshot {
   readonly unloading: UnloadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
+  /**
+   * Maintenance Work Orders awaiting the Robot or under way, in the order
+   * they were raised, which is the order the Robot takes them in.
+   */
+  readonly maintenance: readonly MaintenanceSnapshot[];
 }
 
 export type LoadResult =
@@ -429,6 +440,8 @@ export interface CampaignState {
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
+  /** Maintenance Work Orders, in the order they were raised. */
+  maintenance: MaintenanceState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -472,6 +485,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     unloading: undefined,
     cables: [],
     reconnections: [],
+    maintenance: [],
   });
 }
 
@@ -684,6 +698,7 @@ function campaignFrom(state: CampaignState): Campaign {
             powered: network.structures.every((structure) => structure.powered),
           })),
         },
+        maintenance: readMaintenance(state),
       });
     },
     save() {
@@ -705,6 +720,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   state.elapsedMinutes += 1;
   events.push(...flyLander(state));
   planUnloading(state);
+  planMaintenance(state);
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);

@@ -8,6 +8,7 @@ import {
 } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
+import { findMaintenance, findMaintenanceWait } from "./maintenance";
 import {
   findCable,
   nearestPoweredStructure,
@@ -19,15 +20,16 @@ import { inStock } from "./stockpile";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
- * on laying cable to a Structure cut off from power, or on unloading the
- * Lander. A Robot claims one at a time and carries it out before it looks
- * for another.
+ * on laying cable to a Structure cut off from power, on unloading the
+ * Lander, or on Maintenance. A Robot claims one at a time and carries it
+ * out before it looks for another.
  */
 export interface WorkOrder {
   /**
    * The Structure it is for: one under Construction (whose id it keeps once
-   * commissioned), one being dismantled, one cut off from power, or the
-   * landing pad the Lander being unloaded landed on.
+   * commissioned), one being dismantled, one cut off from power, the
+   * landing pad the Lander being unloaded landed on, or one to be
+   * maintained.
    */
   readonly structureId: string;
   readonly kind: WorkOrderKind;
@@ -41,7 +43,8 @@ export type WorkOrderKind =
   | "lay-cable"
   | "dismantle"
   | "return-components"
-  | "unload-lander";
+  | "unload-lander"
+  | "maintain";
 
 /** Why nobody can work on a Construction for now. */
 export type ConstructionWait =
@@ -119,10 +122,11 @@ function missingComponents(
 
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
- * else has claimed and that can be worked on now, taking the Constructions,
- * dismantling, unloading of the Lander and cables to Structures cut off from
- * power in the order they were planned. Each Construction's current stage
- * comes before laying its cable, which can be done at any stage before
+ * else has claimed and that can be worked on now. Maintenance comes first,
+ * in the order it was raised; then the Constructions, dismantling,
+ * unloading of the Lander and cables to Structures cut off from power, in
+ * the order they were planned. Each Construction's current stage comes
+ * before laying its cable, which can be done at any stage before
  * Commissioning.
  */
 export function claimWorkOrder(
@@ -138,6 +142,14 @@ export function claimWorkOrder(
     !claimed.some(
       (other) => other.structureId === structureId && other.kind === kind,
     );
+  const maintenance = state.maintenance.find(
+    (candidate) =>
+      free(candidate.structureId, "maintain") &&
+      findMaintenanceWait(state, candidate) === undefined,
+  );
+  if (maintenance !== undefined) {
+    return { structureId: maintenance.structureId, kind: "maintain" };
+  }
   const plans = [
     ...state.constructions.map((construction) => ({
       planNumber: construction.planNumber,
@@ -233,6 +245,9 @@ export function needsCable(state: CampaignState, target: CableTarget): boolean {
 
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
+  if (workOrder.kind === "maintain") {
+    return findMaintenance(state, workOrder.structureId) !== undefined;
+  }
   if (workOrder.kind === "unload-lander") {
     return state.unloading?.landingPadId === workOrder.structureId;
   }
