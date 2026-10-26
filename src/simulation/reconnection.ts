@@ -23,7 +23,7 @@ export interface ReconnectionState {
  * isn't cabled; any cable left half-laid to it goes.
  */
 export function planReconnections(state: CampaignState): void {
-  const cutOff = powerNetworks(state)
+  const toReconnect = powerNetworks(state)
     .filter(
       (network) =>
         !hasPowerSource(network) &&
@@ -45,14 +45,14 @@ export function planReconnections(state: CampaignState): void {
     .map((structure) => structure.id);
   const dropped = state.reconnections
     .map((reconnection) => reconnection.structureId)
-    .filter((structureId) => !cutOff.includes(structureId));
+    .filter((structureId) => !toReconnect.includes(structureId));
   state.reconnections = state.reconnections.filter(
     (reconnection) => !dropped.includes(reconnection.structureId),
   );
   state.cables = state.cables.filter(
     (cable) => cable.complete || !dropped.includes(cable.toStructureId),
   );
-  for (const structureId of cutOff) {
+  for (const structureId of toReconnect) {
     if (
       state.reconnections.some((other) => other.structureId === structureId)
     ) {
@@ -67,7 +67,7 @@ export function planReconnections(state: CampaignState): void {
  * The commissioned Structure cut off from power that a cable is planned to,
  * unless it is due to be dismantled.
  */
-export function reconnecting(
+export function findStructureToReconnect(
   state: CampaignState,
   structureId: string,
 ): StructureState | undefined {

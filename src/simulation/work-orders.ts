@@ -8,7 +8,7 @@ import {
 import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
 import { findCable, nearestPoweredStructure, type CableTarget } from "./power";
-import { reconnecting } from "./reconnection";
+import { findStructureToReconnect } from "./reconnection";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
@@ -150,7 +150,10 @@ export function claimWorkOrder(
       planNumber: reconnection.planNumber,
       structureId: reconnection.structureId,
       next: () => {
-        const structure = reconnecting(state, reconnection.structureId);
+        const structure = findStructureToReconnect(
+          state,
+          reconnection.structureId,
+        );
         return structure !== undefined &&
           free(structure.id, "lay-cable") &&
           needsCable(state, structure)
@@ -212,7 +215,7 @@ export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
   if (dismantling !== undefined) {
     return dismantlingKinds[dismantling.stage] === workOrder.kind;
   }
-  const structure = reconnecting(state, workOrder.structureId);
+  const structure = findStructureToReconnect(state, workOrder.structureId);
   if (structure !== undefined) {
     return workOrder.kind === "lay-cable" && needsCable(state, structure);
   }

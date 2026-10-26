@@ -30,7 +30,7 @@ import {
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
-import { reconnecting } from "./reconnection";
+import { findStructureToReconnect } from "./reconnection";
 import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
 
 /**
@@ -242,7 +242,7 @@ function layCable(
 ): GameEvent[] {
   const target =
     state.constructions.find((candidate) => candidate.id === structureId) ??
-    reconnecting(state, structureId);
+    findStructureToReconnect(state, structureId);
   const cable = target === undefined ? undefined : cableTo(state, target);
   if (cable === undefined) {
     robot.workOrder = undefined;
