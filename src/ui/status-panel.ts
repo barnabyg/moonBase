@@ -16,7 +16,7 @@ export interface StatusPanel {
 /**
  * The HTML status panel. It reads simulation snapshots, sends the player's
  * speed choices to the game loop, and sends a choice to dismantle a Structure
- * to the Campaign; it never changes the simulation itself.
+ * to the Campaign, which decides whether it is allowed.
  */
 export function createStatusPanel(
   container: HTMLElement,
