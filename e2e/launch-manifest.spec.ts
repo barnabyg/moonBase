@@ -48,3 +48,27 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(screen).toBeHidden();
 });
+
+test("the Launch manifest screen refuses an item that would go over the Payload Mass limit", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  const screen = page.getByRole("dialog", { name: "Launch manifest" });
+  const payloadMass = screen.getByRole("status", { name: "Payload Mass" });
+  const addWater = screen.getByRole("button", { name: "Add one Water, 50 kg" });
+
+  // 33 tanks of 60 kg come to 1980 kg, and cost far less than the Funding.
+  for (let tanks = 1; tanks <= 33; tanks++) {
+    await addWater.click();
+    await expect(payloadMass).toHaveText(
+      `Payload Mass: ${tanks * 60} of 2000 kg`,
+    );
+  }
+  await addWater.click();
+
+  await expect(screen.getByRole("alert")).toHaveText(
+    "That would bring the manifest's Payload Mass to 2040 kg, over the Launch's limit of 2000 kg.",
+  );
+  await expect(payloadMass).toHaveText("Payload Mass: 1980 of 2000 kg");
+});
