@@ -427,6 +427,52 @@ export function chooseWorkSpot(
 }
 
 /**
+ * Chooses where to park a Machine beside a Structure, within the data
+ * catalogue's plug-in reach: just outside the Structure's footprint, on the
+ * side facing the Machine if that is clear, otherwise turning round the
+ * Structure until it finds ground clear of the Lander, the stockpile, every
+ * other Structure and Machine, every spot another Machine is being parked
+ * on and the map's edge.
+ */
+export function chooseParkingSpot(
+  site: Site,
+  structure: Footing,
+  machine: MachineState,
+  parked: readonly {
+    readonly position: GroundPosition;
+    readonly radius: number;
+  }[],
+): GroundPosition {
+  const radius = machineFootprintRadius(machine.machineTypeId);
+  return chooseSpotAround({
+    centre: structure.position,
+    reach:
+      footprintRadius(structure.structureTypeId) +
+      radius +
+      catalogue.cold.plugInReachMetres / 2,
+    towards: machine.position,
+    clearance: radius,
+    lander: {
+      position: site.lander.position,
+      radius:
+        catalogue.lander.footprintRadiusMetres +
+        catalogue.robot.workingGapMetres,
+    },
+    others: [
+      stockpileGround(site),
+      ...footings(site).map((other) => ({
+        position: other.position,
+        radius: footprintRadius(other.structureTypeId),
+      })),
+      ...site.machines
+        .filter((other) => other.id !== machine.id)
+        .flatMap(machineGround),
+      ...parked,
+    ],
+  });
+}
+
+/**
  * Chooses where a Machine stands to work on a Construction's site: just
  * outside its footprint, on the side away from the Lander (where the Robot
  * works) if that is clear, otherwise turning round the site until it finds

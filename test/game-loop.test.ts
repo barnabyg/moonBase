@@ -1,8 +1,17 @@
-import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { describe, expect, it, vi } from "vitest";
+import { catalogue, type Catalogue } from "../src/catalogue";
 import { createGameLoop } from "../src/game/loop";
 import type { GameEvent } from "../src/simulation";
 import { scenario } from "./scenario";
+
+// No Machine feels the cold or draws power for a heater at Night, and the
+// Robot never has to park one, so that power and time pass as the test
+// expects.
+vi.mock("../src/catalogue", async (importOriginal) => {
+  const actual = await importOriginal<{ catalogue: Catalogue }>();
+  const { withoutCold } = await import("./without-cold");
+  return { ...actual, catalogue: withoutCold(actual.catalogue) };
+});
 
 function runFrames(
   loop: ReturnType<typeof createGameLoop>,

@@ -25,8 +25,9 @@ import { inStock } from "./stockpile";
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
  * on laying cable to a Structure cut off from power, on unloading the
- * Lander, or on Maintenance of a Structure or Machine. A Robot claims one
- * at a time and carries it out before it looks for another.
+ * Lander, on Maintenance of a Structure or Machine, or on parking a
+ * Machine. A Robot claims one at a time and carries it out before it looks
+ * for another.
  */
 export type WorkOrder =
   | {
@@ -45,8 +46,8 @@ export type WorkOrder =
       readonly kind: MachineWorkOrderKind;
     };
 
-/** The kinds of Work Order on a Machine. */
-export type MachineWorkOrderKind = "maintain-machine";
+/** The kinds of Work Order on a Machine: Maintenance, or parking it where it can plug in. */
+export type MachineWorkOrderKind = "maintain-machine" | "park-machine";
 
 export type WorkOrderKind = StructureWorkOrderKind | MachineWorkOrderKind;
 
@@ -157,7 +158,8 @@ function missingComponents(
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
  * else has claimed and that can be worked on now. Maintenance comes first,
- * in the order it was raised; then the Constructions, dismantling,
+ * in the order it was raised, then parking Machines; then the
+ * Constructions, dismantling,
  * unloading of the Lander and cables to Structures cut off from power, in
  * the order they were planned. Each Construction's current stage comes
  * before laying its cable, which can be done at any stage before
@@ -188,6 +190,13 @@ export function claimWorkOrder(
     ) {
       return workOrder;
     }
+  }
+  for (const parking of state.parking) {
+    const workOrder: WorkOrder = {
+      machineId: parking.machineId,
+      kind: "park-machine",
+    };
+    if (isFree(workOrder)) return workOrder;
   }
   const plans = [
     ...state.constructions.map((construction) => ({
@@ -301,13 +310,11 @@ export function structureOf(
 
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
-  if (workOrder.kind === "maintain-machine") {
-    return (
-      findMaintenance(state, {
-        kind: "machine",
-        machineId: workOrder.machineId,
-      }) !== undefined
-    );
+  if ("machineId" in workOrder) {
+    const { machineId } = workOrder;
+    return workOrder.kind === "park-machine"
+      ? state.parking.some((parking) => parking.machineId === machineId)
+      : findMaintenance(state, { kind: "machine", machineId }) !== undefined;
   }
   if (workOrder.kind === "maintain") {
     return (

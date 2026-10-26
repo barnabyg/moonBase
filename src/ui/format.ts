@@ -34,6 +34,7 @@ import type {
   MaintenanceSubject,
   MaintenanceWait,
   ManifestLine,
+  ParkingSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -499,9 +500,10 @@ export function machineLabel(machineTypeId: string): string {
 }
 
 /**
- * Says what a Machine is doing and how intact it is, for the status panel,
- * for example "Excavator: working, Condition 87%" or "Regolith printer:
- * Broken, Condition 0%, awaiting Maintenance".
+ * Says what a Machine is doing, whether it is plugged in and powered, and
+ * how intact it is, for the status panel, for example "Excavator: idle,
+ * plugged in and powered, Condition 87%" or "Regolith printer: Broken,
+ * Condition 0%, awaiting Maintenance".
  */
 export function formatMachine(
   machine: MachineSnapshot,
@@ -514,7 +516,16 @@ export function formatMachine(
       ? "working"
       : machine.activity.kind === "being-positioned"
         ? "being driven to a site"
-        : "idle";
+        : machine.activity.kind === "being-parked"
+          ? "being parked"
+          : "idle";
+  const plug = broken
+    ? ""
+    : !machine.pluggedIn
+      ? ", not plugged in"
+      : machine.powered
+        ? ", plugged in and powered"
+        : ", plugged in, no power";
   const order = maintenance.find(
     ({ target }) =>
       target.kind === "machine" && target.machineId === machine.id,
@@ -525,7 +536,7 @@ export function formatMachine(
       : order.underWay
         ? ", undergoing Maintenance"
         : ", awaiting Maintenance";
-  return `${machineLabel(machine.machineTypeId)}: ${doing}, Condition ${formatCondition(machine.conditionPercent)}${formatPerformance(machine.performance)}${maintained}`;
+  return `${machineLabel(machine.machineTypeId)}: ${doing}${plug}, Condition ${formatCondition(machine.conditionPercent)}${formatPerformance(machine.performance)}${maintained}`;
 }
 
 /** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
@@ -632,7 +643,7 @@ function describeRobotWork(
       case "machine": {
         const positioning = snapshot.machines.find(
           (candidate) =>
-            candidate.activity.kind !== "idle" &&
+            "constructionId" in candidate.activity &&
             candidate.activity.constructionId === construction.id,
         );
         return positioning === undefined
@@ -744,6 +755,33 @@ export function describeUnloading(
       return unloading.collected
         ? `Waiting for the Robot to carry ${cargo} to the stockpile`
         : `Waiting for the Robot to take ${cargo} off the Lander`;
+  }
+}
+
+/**
+ * Says what is happening on parking a Machine right now, for the Work
+ * panel: what the Robot is doing with it, or else that it is waiting for
+ * the Robot.
+ */
+export function describeParking(
+  parking: ParkingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const machine = machineLabel(parking.machineTypeId).toLowerCase();
+  const beside = structureLabel(parking.structureTypeId).toLowerCase();
+  const robot = parking.underWay
+    ? snapshot.robots.find(
+        ({ activity }) =>
+          "machineId" in activity && activity.machineId === parking.machineId,
+      )
+    : undefined;
+  switch (robot?.activity.kind) {
+    case "walking":
+      return `Robot walking to the ${machine}`;
+    case "driving-machine":
+      return `Robot driving the ${machine} to the ${beside}, to plug it in`;
+    default:
+      return `Waiting for the Robot to park the ${machine} beside the ${beside}`;
   }
 }
 

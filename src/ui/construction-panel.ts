@@ -2,6 +2,7 @@ import type { Campaign, ConstructionSnapshot, Snapshot } from "../simulation";
 import {
   describeDismantling,
   describeMaintenance,
+  describeParking,
   describeUnloading,
   describeWork,
   formatComponents,
@@ -9,6 +10,7 @@ import {
   formatMaintenanceStep,
   formatStage,
   hasComponents,
+  machineLabel,
   structureLabel,
   subjectLabel,
 } from "./format";
@@ -28,6 +30,9 @@ const UNLOADING_ROW = "unloading the Lander";
 
 /** The start of the key of a row for maintaining a Structure, which no Structure's id has. */
 const MAINTENANCE_ROW = "maintaining ";
+
+/** The start of the key of a row for parking a Machine, which no Structure's id has. */
+const PARKING_ROW = "parking ";
 
 interface Row {
   readonly item: HTMLLIElement;
@@ -101,7 +106,8 @@ export function createConstructionPanel(
         snapshot.constructions.length === 0 &&
         snapshot.dismantlings.length === 0 &&
         snapshot.unloading === undefined &&
-        snapshot.maintenance.length === 0;
+        snapshot.maintenance.length === 0 &&
+        snapshot.parking.length === 0;
       const seen = new Set<string>();
       for (const maintenance of snapshot.maintenance) {
         const { target } = maintenance;
@@ -127,6 +133,34 @@ export function createConstructionPanel(
           maintenance.stageProgress,
         );
         setText(row.work, describeMaintenance(maintenance, snapshot));
+      }
+      for (const parking of snapshot.parking) {
+        const key = `${PARKING_ROW}${parking.machineId}`;
+        seen.add(key);
+        let row = rows.get(key);
+        if (row === undefined) {
+          row = createRow(
+            `Parking the ${machineLabel(parking.machineTypeId).toLowerCase()}`,
+            undefined,
+          );
+          // Parking comes after Maintenance and before every other Work
+          // Order, so it is listed in between.
+          const firstOther = [...rows].find(
+            ([other]) =>
+              !other.startsWith(MAINTENANCE_ROW) &&
+              !other.startsWith(PARKING_ROW),
+          )?.[1];
+          list.insertBefore(row.item, firstOther?.item ?? null);
+          rows.set(key, row);
+          // How far it has to go isn't known, so it shows no progress.
+          row.progress.removeAttribute("value");
+          row.progress.setAttribute("aria-label", "Parking progress");
+        }
+        setText(
+          row.stage,
+          `Parking beside the ${structureLabel(parking.structureTypeId).toLowerCase()}`,
+        );
+        setText(row.work, describeParking(parking, snapshot));
       }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);

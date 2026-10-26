@@ -1,6 +1,7 @@
 export { catalogue } from "./catalogue";
 export type {
   Catalogue,
+  ColdRules,
   ComponentCount,
   ComponentType,
   DustCoatingRules,

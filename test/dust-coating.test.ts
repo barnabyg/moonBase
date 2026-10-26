@@ -12,14 +12,16 @@ import { scenario, type Scenario } from "./scenario";
 import { changed, coated, worn } from "./worn";
 
 // Dust coats solar arrays but wears nothing down, so that output changes
-// only with the coating, or with a Condition a test sets.
+// only with the coating, or with a Condition a test sets; no Machine draws
+// power for a heater at Night.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDust } = await import("./without-dust");
+  const { withoutCold } = await import("./without-cold");
   return {
     ...actual,
     catalogue: {
-      ...withoutDust(actual.catalogue),
+      ...withoutCold(withoutDust(actual.catalogue)),
       dustCoating: actual.catalogue.dustCoating,
     },
   };

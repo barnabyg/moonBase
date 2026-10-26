@@ -9,6 +9,7 @@ import type { MissionDirectorResidence } from "./mission-director";
 import { MAX_SEED } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
 import type {
+  MachineWorkOrderKind,
   StructureWorkOrderKind,
   WorkOrder,
   WorkOrderKind,
@@ -246,6 +247,27 @@ export const migrations: readonly Migration[] = [
               return { target: { kind: "structure", structureId }, ...rest };
             })
           : maintenance,
+      },
+    };
+  },
+  // 10 to 11: Machines plug in to powered Structures, whose networks
+  // supply their heaters at Night, and the Robot parks them where they can
+  // plug in. A Machine has power as the next game-minute's power is
+  // supplied, and none is being parked yet.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine) ? { ...machine, powered: false } : machine,
+            )
+          : machines,
+        parking: [],
       },
     };
   },
@@ -626,6 +648,13 @@ const robotActivity: Decoder<RobotActivity> = (() => {
 })();
 
 const workOrder: Decoder<WorkOrder> = (() => {
+  const onMachine = object({
+    machineId: text,
+    kind: oneOf<MachineWorkOrderKind>({
+      "maintain-machine": true,
+      "park-machine": true,
+    }),
+  });
   const onStructure = object({
     structureId: text,
     kind: oneOf<StructureWorkOrderKind>({
@@ -650,10 +679,8 @@ const workOrder: Decoder<WorkOrder> = (() => {
     "return-components": onStructure,
     "unload-lander": onStructure,
     maintain: onStructure,
-    "maintain-machine": object({
-      machineId: text,
-      kind: exactly("maintain-machine"),
-    }),
+    "maintain-machine": onMachine,
+    "park-machine": onMachine,
   } satisfies Record<WorkOrderKind, unknown>);
 })();
 
@@ -666,6 +693,10 @@ const machineActivity: Decoder<MachineActivity> = (() => {
     idle: object({ kind: exactly("idle") }),
     "being-positioned": busy,
     working: busy,
+    "being-parked": object({
+      kind: exactly("being-parked"),
+      structureId: text,
+    }),
   } satisfies Record<MachineActivity["kind"], unknown>);
 })();
 
@@ -735,6 +766,7 @@ const simulationState = object({
       activity: machineActivity,
       assignment: optional(machineAssignment),
       conditionPercent: finiteNumber,
+      powered: boolean,
     }),
   ),
   stockpile: object({
@@ -818,6 +850,13 @@ const simulationState = object({
         object({ spareComponents: wholeNumber, cleaning: boolean }),
       ),
       workedMinutes: wholeNumber,
+    }),
+  ),
+  parking: list(
+    object({
+      machineId: text,
+      structureId: text,
+      destination: groundPosition,
     }),
   ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;

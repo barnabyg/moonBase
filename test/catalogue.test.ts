@@ -397,6 +397,20 @@ describe("the data catalogue", () => {
     expect(exponent).toBeGreaterThan(0);
   });
 
+  it("gives every Machine a heater it draws at Night while plugged in, and a rate the cold wears it down at without power", () => {
+    for (const type of catalogue.machineTypes) {
+      expect(type.heaterKilowatts).toBeGreaterThan(0);
+      expect(type.coldWearPercentPerNightHour).toBeGreaterThanOrEqual(0);
+    }
+    const { plugInReachMetres, parkingLeadHours } = catalogue.cold;
+    expect(plugInReachMetres).toBeGreaterThan(0);
+    expect(parkingLeadHours).toBeGreaterThan(0);
+    expect(Number.isInteger(parkingLeadHours * 60)).toBe(true);
+    expect(parkingLeadHours).toBeLessThan(
+      catalogue.lunation.daylightEarthDays * 24,
+    );
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

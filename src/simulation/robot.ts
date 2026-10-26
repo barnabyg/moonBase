@@ -38,6 +38,7 @@ import {
   visitFor,
   type MaintenanceState,
 } from "./maintenance";
+import type { ParkingState } from "./parking";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
@@ -148,7 +149,13 @@ export function workRobot(
     isClaimedBy(robot, candidate.target),
   );
   if (maintenance !== undefined) return maintain(state, robot, maintenance);
-  if (workOrder?.kind === "maintain-machine") {
+  const parking = state.parking.find(
+    (candidate) =>
+      workOrder?.kind === "park-machine" &&
+      candidate.machineId === workOrder.machineId,
+  );
+  if (parking !== undefined) return parkMachine(state, robot, parking);
+  if (workOrder !== undefined && "machineId" in workOrder) {
     robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
@@ -624,6 +631,66 @@ function maintain(
   }
   robot.carrying = [];
   return finishMaintenance(state, maintenance, worn);
+}
+
+/**
+ * Lets the Robot do one game-minute of parking a Machine: it walks to the
+ * Machine, then drives it, as fast as its Condition allows, to its spot
+ * beside a powered Structure, where it plugs in.
+ */
+function parkMachine(
+  state: CampaignState,
+  robot: RobotState,
+  parking: ParkingState,
+): GameEvent[] {
+  const machine = state.machines.find(
+    (candidate) => candidate.id === parking.machineId,
+  );
+  if (machine === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  if (samePlace(machine.position, parking.destination)) {
+    state.parking = state.parking.filter((other) => other !== parking);
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  if (
+    !walkRobotToMachine(state, robot, machine.id, machine.position, "machine")
+  ) {
+    return [];
+  }
+  const type = findMachineType(machine.machineTypeId);
+  machine.position = stepTowards(
+    machine.position,
+    parking.destination,
+    {
+      centre: state.lander.position,
+      radius:
+        LANDER_CLEARANCE_METRES + machineFootprintRadius(machine.machineTypeId),
+    },
+    ((type?.drivingSpeedMetresPerHour ?? 0) * machinePerformance(machine)) / 60,
+  );
+  robot.position = { ...machine.position };
+  robot.activity = {
+    kind: "driving-machine",
+    structureId: parking.structureId,
+    machineId: machine.id,
+  };
+  machine.activity = { kind: "being-parked", structureId: parking.structureId };
+  const broken = wearMachine(
+    state,
+    machine,
+    type?.dustWearPercentPerDrivingHour ?? 0,
+  );
+  if (broken.length > 0) {
+    state.parking = state.parking.filter((other) => other !== parking);
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+  }
+  return broken;
 }
 
 /** Where a Robot stands to maintain a Machine: just outside it, on the side facing the stockpile. */

@@ -1,0 +1,219 @@
+{
+  "format": "moonbase-save",
+  "version": 11,
+  "random": {
+    "a": 1397280425,
+    "b": 1911712097,
+    "c": 1371979921,
+    "d": 2291658345
+  },
+  "state": {
+    "elapsedMinutes": 11244,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 3,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": -12.332871892470465,
+          "y": 4.464924423882355
+        },
+        "activity": {
+          "kind": "driving-machine",
+          "structureId": "structure-2",
+          "machineId": "regolith-printer-2"
+        },
+        "carrying": [],
+        "workOrder": {
+          "machineId": "regolith-printer-2",
+          "kind": "park-machine"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": -34.0640343927988,
+          "y": 4.541871252373173
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "conditionPercent": 98.12000000000171,
+        "powered": true
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -12.332871892470465,
+          "y": 4.464924423882355
+        },
+        "activity": {
+          "kind": "being-parked",
+          "structureId": "structure-2"
+        },
+        "assignment": null,
+        "conditionPercent": 99.98666666666668,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        }
+      ]
+    },
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 91.33833333334121,
+        "dustCoatingPercent": 17.323333333333817
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": -30,
+          "y": 4
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 60,
+        "conditionPercent": 97.04066666669459,
+        "dustCoatingPercent": 0
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 17.037678104249885,
+          "y": 11.52602849667998
+        },
+        "end": {
+          "x": -28.02511873616659,
+          "y": 4.315981002213346
+        },
+        "route": [
+          {
+            "x": 17.037678104249885,
+            "y": 11.52602849667998
+          },
+          {
+            "x": -28.02511873616659,
+            "y": 4.315981002213346
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": [
+      {
+        "machineId": "regolith-printer-2",
+        "structureId": "structure-2",
+        "destination": {
+          "x": -24.70183422742991,
+          "y": 4.139425415067634
+        }
+      }
+    ]
+  }
+}

@@ -647,3 +647,55 @@ describe("the sample save of format version 10", () => {
     expect(printer()?.activity).toEqual({ kind: "idle" });
   });
 });
+
+describe("the sample saves from before Machines plugged in", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-2.moonbase",
+    "version-6.moonbase",
+    "version-8.moonbase",
+    "version-10.moonbase",
+  ])(
+    "%s loads with no Machine being parked, and plays on through the next game-minute's power",
+    (name) => {
+      const campaign = loadSample(name);
+
+      expect(campaign.snapshot().parking).toEqual([]);
+      expect(campaign.snapshot().machines.map((m) => m.powered)).toEqual(
+        campaign.snapshot().machines.map(() => false),
+      );
+      expect(() => campaign.advance(60)).not.toThrow();
+    },
+  );
+});
+
+describe("the sample save of format version 11", () => {
+  it("loads with the Robot parking the regolith printer beside the battery bank before Night", () => {
+    const state = loadSample("version-11.moonbase").snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.parking).toEqual([
+      {
+        machineId: "regolith-printer-2",
+        machineTypeId: "regolith-printer",
+        structureId: "structure-2",
+        structureTypeId: "battery-bank",
+        underWay: true,
+      },
+    ]);
+    expect(state.machines.map((m) => m.pluggedIn)).toEqual([true, false]);
+  });
+
+  it("plays on from where it was saved, until both Machines are plugged in and powered at Night", () => {
+    const campaign = loadSample("version-11.moonbase");
+
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 1);
+
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("night");
+    expect(state.machines.map((m) => [m.pluggedIn, m.powered])).toEqual([
+      [true, true],
+      [true, true],
+    ]);
+  });
+});

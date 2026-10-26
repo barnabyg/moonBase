@@ -9,6 +9,7 @@ import {
 } from "./construction";
 import type { GameEvent } from "./events";
 import { isUnderMaintenance } from "./maintenance";
+import { isBeingParked } from "./parking";
 
 /** What a Machine did during the latest game-minute, and for which Construction. */
 export type MachineActivity =
@@ -20,6 +21,11 @@ export type MachineActivity =
        */
       readonly kind: "being-positioned" | "working";
       readonly constructionId: string;
+    }
+  | {
+      /** A Robot is driving it to park beside a powered Structure, to plug in. */
+      readonly kind: "being-parked";
+      readonly structureId: string;
     };
 
 /** A Machine's assignment to one stage of a Construction, from being driven there until its work there is done. */
@@ -43,6 +49,11 @@ export interface MachineState {
   assignment: MachineAssignment | undefined;
   /** How intact it is, from 100% down to 0%, when it is Broken and stops working. */
   conditionPercent: number;
+  /**
+   * Whether it had power during the latest game-minute: it was plugged in
+   * and, at Night, its network supplied its heater.
+   */
+  powered: boolean;
 }
 
 /** Whether a Machine is Broken, its Condition worn down to 0%: it does nothing until it is repaired. */
@@ -124,7 +135,8 @@ export function nearestFreeMachine(
       machine.assignment === undefined &&
       machine.machineTypeId === machineTypeId &&
       !isMachineBroken(machine) &&
-      !isUnderMaintenance(state, machine.id),
+      !isUnderMaintenance(state, machine.id) &&
+      !isBeingParked(state, machine.id),
   );
   // The earlier Machine wins a tie, so the choice is always the same.
   return free.reduce<MachineState | undefined>(
@@ -134,6 +146,29 @@ export function nearestFreeMachine(
         ? machine
         : best,
     undefined,
+  );
+}
+
+/**
+ * Wears down by the cold every Machine that went without power at Night
+ * during the latest game-minute it was supplied power for, at its type's
+ * rate in the data catalogue, and returns an event for each one it left
+ * Broken. Like Dust wear on Structures, it comes first in a game-minute.
+ */
+export function chillMachines(
+  state: CampaignState,
+  night: boolean,
+): GameEvent[] {
+  if (!night) return [];
+  return state.machines.flatMap((machine) =>
+    machine.powered
+      ? []
+      : wearMachine(
+          state,
+          machine,
+          findMachineType(machine.machineTypeId)?.coldWearPercentPerNightHour ??
+            0,
+        ),
   );
 }
 

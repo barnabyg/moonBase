@@ -41,8 +41,10 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   ).toHaveText("Mission Director: living in the inflatable habitat");
 
   const stock = page.getByRole("status", { name: "Base's stock" });
+  // The Machines' Maintenance after the cold of Night has used some or all
+  // of the spare Components.
   await expect(stock).toHaveText(
-    "Stock: 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and 6 spare components",
+    /^Stock: 3 battery modules, 1 battery cabinet, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
   );
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
@@ -68,9 +70,9 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
     "Funding: $239M",
   );
-  // Maintenance may have used some spare Components meanwhile.
+  // Maintenance may have used more spare Components meanwhile.
   await expect(stock).toHaveText(
-    /^Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and \d+ spare components$/,
+    /^Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
   );
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
     "Lander landed with 2 × Solar panel and 1 × Array mast",

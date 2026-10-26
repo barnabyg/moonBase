@@ -108,6 +108,7 @@ export interface Catalogue {
    * Broken, it stops.
    */
   readonly machinePerformance: PerformanceCurve;
+  readonly cold: ColdRules;
 }
 
 /**
@@ -323,6 +324,32 @@ export interface MachineType {
    * it, in percentage points.
    */
   readonly dustWearPercentPerDrivingHour: number;
+  /** The power its heater draws at Night while it is plugged in. */
+  readonly heaterKilowatts: number;
+  /**
+   * How much Condition the cold wears off it for each game-hour of Night it
+   * goes unpowered, in percentage points, on top of any Dust wear.
+   */
+  readonly coldWearPercentPerNightHour: number;
+}
+
+/**
+ * The cold of Night, which wears down Machines left without power, and how
+ * the Robot parks them where they can plug in.
+ */
+export interface ColdRules {
+  /**
+   * How far a Machine's footprint may stand from the footprint of a
+   * commissioned Structure on a network with a power source, one that
+   * isn't Broken, and still be plugged in to it.
+   */
+  readonly plugInReachMetres: number;
+  /**
+   * How many game-hours before Night falls the Robot starts parking idle
+   * Machines that aren't plugged in. Must come to a whole number of
+   * game-minutes.
+   */
+  readonly parkingLeadHours: number;
 }
 
 export interface ComponentType {
@@ -419,7 +446,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 19,
+  version: 20,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -464,6 +491,9 @@ export const catalogue: Catalogue = {
       // Its tracks and bucket teeth take the worst of the Dust.
       dustWearPercentPerWorkingHour: 0.4,
       dustWearPercentPerDrivingHour: 0.2,
+      // Enough to keep its hydraulics and batteries from freezing.
+      heaterKilowatts: 0.2,
+      coldWearPercentPerNightHour: 0.2,
     },
     {
       id: "regolith-printer",
@@ -473,6 +503,8 @@ export const catalogue: Catalogue = {
       activationHours: 0.5,
       dustWearPercentPerWorkingHour: 0.3,
       dustWearPercentPerDrivingHour: 0.2,
+      heaterKilowatts: 0.2,
+      coldWearPercentPerNightHour: 0.2,
     },
   ],
   componentTypes: [
@@ -856,4 +888,6 @@ export const catalogue: Catalogue = {
   // Below half its Condition, a Machine works and drives slower in step
   // with it.
   machinePerformance: { thresholdPercent: 50, exponent: 1 },
+  // A Night unpowered takes nearly half a Machine's Condition.
+  cold: { plugInReachMetres: 3, parkingLeadHours: 6 },
 };

@@ -74,6 +74,7 @@ import {
   type LunationSnapshot,
 } from "./lunation";
 import {
+  chillMachines,
   machinePerformance,
   workMachines,
   type MachineActivity,
@@ -82,6 +83,7 @@ import {
 import {
   consumptionKilowatts,
   minutesUntilEmpty,
+  pluggedIn,
   powerNetworks,
   supplyPower,
   type CableState,
@@ -97,6 +99,12 @@ import {
   type MaintenanceSnapshot,
   type MaintenanceState,
 } from "./maintenance";
+import {
+  planParking,
+  readParking,
+  type ParkingSnapshot,
+  type ParkingState,
+} from "./parking";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -160,6 +168,17 @@ export interface MachineSnapshot {
   readonly conditionPercent: number;
   /** How fast it works and drives as its Condition falls, from 1 down to 0 once it is Broken. */
   readonly performance: number;
+  /**
+   * Whether it stands within plug-in reach of a commissioned Structure on
+   * a network with a power source, one that isn't Broken.
+   */
+  readonly pluggedIn: boolean;
+  /**
+   * Whether it had power during the latest game-minute: it was plugged in
+   * and, at Night, its network supplied its heater. Unpowered at Night, the
+   * cold wears it down.
+   */
+  readonly powered: boolean;
 }
 
 export interface ConstructionSnapshot {
@@ -360,6 +379,8 @@ export interface Snapshot {
    * they were raised, which is the order the Robot takes them in.
    */
   readonly maintenance: readonly MaintenanceSnapshot[];
+  /** Machines being parked where they can plug in, or waiting for the Robot to park them. */
+  readonly parking: readonly ParkingSnapshot[];
 }
 
 export type LoadResult =
@@ -470,6 +491,8 @@ export interface CampaignState {
   reconnections: ReconnectionState[];
   /** Maintenance Work Orders, in the order they were raised. */
   maintenance: MaintenanceState[];
+  /** "Park Machine" Work Orders, in the order they were raised. */
+  parking: ParkingState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -506,6 +529,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       assignment: undefined,
       conditionPercent: 100,
+      powered: false,
     })),
     stockpile: startingStockpile(),
     constructions: [],
@@ -515,6 +539,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     cables: [],
     reconnections: [],
     maintenance: [],
+    parking: [],
   });
 }
 
@@ -651,6 +676,7 @@ function campaignFrom(state: CampaignState): Campaign {
     },
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
+      const plugs = pluggedIn(state);
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
         lunation,
@@ -677,6 +703,8 @@ function campaignFrom(state: CampaignState): Campaign {
           activity: { ...machine.activity },
           conditionPercent: machine.conditionPercent,
           performance: machinePerformance(machine),
+          pluggedIn: plugs.has(machine.id),
+          powered: machine.powered,
         })),
         stockpile: copy(state.stockpile),
         constructions: state.constructions.map((construction) => ({
@@ -737,6 +765,7 @@ function campaignFrom(state: CampaignState): Campaign {
           })),
         },
         maintenance: readMaintenance(state),
+        parking: readParking(state),
       });
     },
     save() {
@@ -752,16 +781,23 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes,
     catalogue.lunation,
   ).part;
+  // The part of the Lunation the latest game-minute of power was supplied in.
+  const partSupplied =
+    state.elapsedMinutes === 0
+      ? partBefore
+      : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
+  events.push(...chillMachines(state, partSupplied === "night"));
   coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
   planUnloading(state);
   events.push(...planMaintenance(state));
+  planParking(state);
   events.push(...workMachines(state));
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
