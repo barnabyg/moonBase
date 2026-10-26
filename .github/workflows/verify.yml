@@ -8,11 +8,30 @@ on:
 permissions:
   contents: read
 
+# Two jobs run side by side and together cover every check in
+# `npm run verify`. Only the end-to-end job needs a browser, so a lint, type
+# or unit test failure reports without waiting for browser setup, and
+# "Re-run failed jobs" repeats only the job that failed.
 jobs:
-  verify:
+  checks:
+    name: Checks (all but end-to-end)
     runs-on: ubuntu-24.04
-    # A normal run takes under 2 minutes. Fail a stalled download quickly, so
+    # A normal run takes about a minute. Fail a stalled download quickly, so
     # the run can be retried, rather than waiting for GitHub's 6-hour default.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        timeout-minutes: 3
+      - run: npm run verify -- --skip-e2e
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,6 +64,6 @@ jobs:
       - name: Install software OpenGL and a virtual display
         timeout-minutes: 3
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgles2 xvfb
-      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
         env:
           PLAYWRIGHT_HEADED: "1"

@@ -22,7 +22,7 @@ Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42
 
 ## Verification
 
-`npm run verify` is the single verification command. Run it from the repository's root folder. It changes nothing apart from the ignored `dist/`, `test-results/` and `playwright-report/` folders, and it stops at the first failing check. CI runs the same command (`.github/workflows/verify.yml`).
+`npm run verify` is the single verification command. Run it from the repository's root folder. It changes nothing apart from the ignored `dist/`, `test-results/` and `playwright-report/` folders, and it stops at the first failing check. CI runs the same command (`.github/workflows/verify.yml`) split across two parallel jobs: `npm run verify -- --skip-e2e` runs every check except the end-to-end tests, and `npm run verify -- --e2e-only` runs just those, so a failure in one job can be re-run on its own.
 
 Before the first run on a machine, install Playwright's Firefox once:
 
