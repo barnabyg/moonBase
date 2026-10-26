@@ -250,7 +250,8 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       structure.lit =
         !daylight &&
         powered &&
-        powerOf(structure.structureTypeId).nightDrawKilowatts > 0;
+        (findStructureType(structure.structureTypeId)?.lightRadiusMetres ?? 0) >
+          0;
       // Each battery bank holds its share, in proportion to its capacity.
       const capacity = powerOf(structure.structureTypeId).storageKilowattHours;
       structure.storedKilowattHours =
