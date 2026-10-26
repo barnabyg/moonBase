@@ -8,6 +8,7 @@ import {
   distance,
   findStructureType,
   footprintRadius,
+  isBroken,
   type ConstructionState,
   type StructureState,
 } from "./construction";
@@ -176,7 +177,7 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
   return [...members.values()].map((structures) => {
     const total = (pick: (power: Power) => number) =>
       structures.reduce(
-        (sum, structure) => sum + pick(powerOf(structure.structureTypeId)),
+        (sum, structure) => sum + pick(workingPower(structure)),
         0,
       );
     return {
@@ -186,8 +187,10 @@ export function powerNetworks(state: CampaignState): PowerNetwork[] {
       nightConsumptionKilowatts: total(
         (power) => power.drawKilowatts + power.nightDrawKilowatts,
       ),
+      // A Broken battery bank's energy is lost with it.
       storedKilowattHours: structures.reduce(
-        (sum, structure) => sum + structure.storedKilowattHours,
+        (sum, structure) =>
+          sum + (isBroken(structure) ? 0 : structure.storedKilowattHours),
         0,
       ),
       storageCapacityKilowattHours: total(
@@ -215,6 +218,7 @@ export function nearestPoweredStructure(
     .filter(
       (structure) =>
         powered.includes(structure) &&
+        !isBroken(structure) &&
         !isDueToBeDismantled(state, structure.id),
     )
     .reduce<StructureState | undefined>(
@@ -264,8 +268,9 @@ export function consumptionKilowatts(
  * no use to a Habitat, so it then takes none. Any other Structure has power
  * while any energy is left when its turn comes, so the last of it may cover
  * only part of a game-minute, and those after it go without. A Structure
- * that draws nothing always has power. Lights switch on by themselves at
- * Night, while they have power.
+ * that draws nothing always has power, unless it is Broken: then it has
+ * none, and stores nothing. Lights switch on by themselves at Night, while
+ * they have power.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const network of powerNetworks(state)) {
@@ -274,10 +279,11 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     for (const structure of supplyOrder(state, network.structures)) {
       const drawn = drawKilowatts(structure, daylight) / 60;
       structure.powered =
-        drawn === 0 ||
-        (isHabitat(structure)
-          ? left >= drawn - ENERGY_TOLERANCE_KWH
-          : left > ENERGY_TOLERANCE_KWH);
+        !isBroken(structure) &&
+        (drawn === 0 ||
+          (isHabitat(structure)
+            ? left >= drawn - ENERGY_TOLERANCE_KWH
+            : left > ENERGY_TOLERANCE_KWH));
       if (structure.powered) left = Math.max(left - drawn, 0);
     }
     const stored = Math.min(left, network.storageCapacityKilowattHours);
@@ -288,7 +294,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
         (findStructureType(structure.structureTypeId)?.lightRadiusMetres ?? 0) >
           0;
       // Each battery bank holds its share, in proportion to its capacity.
-      const capacity = powerOf(structure.structureTypeId).storageKilowattHours;
+      const capacity = workingPower(structure).storageKilowattHours;
       structure.storedKilowattHours =
         stored <= ENERGY_TOLERANCE_KWH ||
         network.storageCapacityKilowattHours === 0
@@ -411,19 +417,24 @@ function isHabitat(structure: StructureState): boolean {
 
 /** What a Structure draws in the given part of the Lunation. */
 function drawKilowatts(structure: StructureState, daylight: boolean): number {
-  const power = powerOf(structure.structureTypeId);
+  const power = workingPower(structure);
   return power.drawKilowatts + (daylight ? 0 : power.nightDrawKilowatts);
 }
 
 type Power = StructureType["power"];
 
+const noPower: Power = {
+  generationKilowatts: 0,
+  storageKilowattHours: 0,
+  drawKilowatts: 0,
+  nightDrawKilowatts: 0,
+};
+
 function powerOf(structureTypeId: string): Power {
-  return (
-    findStructureType(structureTypeId)?.power ?? {
-      generationKilowatts: 0,
-      storageKilowattHours: 0,
-      drawKilowatts: 0,
-      nightDrawKilowatts: 0,
-    }
-  );
+  return findStructureType(structureTypeId)?.power ?? noPower;
+}
+
+/** What a Structure does on the power network: nothing, once it is Broken. */
+function workingPower(structure: StructureState): Power {
+  return isBroken(structure) ? noPower : powerOf(structure.structureTypeId);
 }

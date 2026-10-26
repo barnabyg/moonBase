@@ -32,8 +32,8 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
 
   const structures = page.getByRole("list", { name: "Structures" });
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array: commissioned(?!,)/,
-    /^Inflatable Habitat: commissioned, unshielded(?!,)/,
+    /^Solar array: commissioned, Condition 100%(?!,)/,
+    /^Inflatable Habitat: commissioned, unshielded, Condition 100%(?!,)/,
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 

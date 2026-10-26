@@ -106,6 +106,25 @@ export const migrations: readonly Migration[] = [
     }
     return { ...document, state: { ...state, launchManifest: [] } };
   },
+  // 5 to 6: every Structure has a Condition, which Plume Ejecta wears down.
+  // Nothing wore it down before, so each is at 100%.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: state["structures"].map((structure: unknown) =>
+          isRecord(structure)
+            ? { ...structure, conditionPercent: 100 }
+            : structure,
+        ),
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -560,6 +579,7 @@ const simulationState = object({
       powered: boolean,
       lit: boolean,
       storedKilowattHours: finiteNumber,
+      conditionPercent: finiteNumber,
     }),
   ),
   dismantlings: list(

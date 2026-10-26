@@ -36,6 +36,8 @@ export function createNotificationList(
           event.kind === "radiation-dose-warning" ||
           event.kind === "solar-particle-event-warning" ||
           event.kind === "solar-particle-event-started" ||
+          event.kind === "plume-ejecta-damage" ||
+          event.kind === "structure-broken" ||
           event.kind === "mission-director-died"
         ) {
           item.classList.add("notifications__item--warning");

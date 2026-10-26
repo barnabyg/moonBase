@@ -1,4 +1,5 @@
 import type { ManifestLine } from "./launch-manifest";
+import type { PlumeEjectaDamage } from "./plume-ejecta";
 
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
@@ -90,6 +91,20 @@ export type GameEvent =
       readonly atMinute: number;
       /** Everything on the Launch manifest it brought, in catalogue order. */
       readonly delivered: readonly ManifestLine[];
+    }
+  | {
+      /** The Lander's take-off or landing has blasted Plume Ejecta over Structures, wearing down their Condition. */
+      readonly kind: "plume-ejecta-damage";
+      readonly atMinute: number;
+      /** Every Structure worn down, in the order they were commissioned. */
+      readonly damaged: readonly PlumeEjectaDamage[];
+    }
+  | {
+      /** A Structure's Condition has reached 0%: it is Broken, and stops working. */
+      readonly kind: "structure-broken";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
     }
   | {
       /** The Mission Director has died, which ends the Campaign. */

@@ -87,6 +87,7 @@ import {
   forecastRadiationDose,
   type RadiationDoseForecast,
 } from "./radiation";
+import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
@@ -170,8 +171,16 @@ export interface StructureSnapshot {
   readonly lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
-  /** Whether it is a Habitat with commissioned Regolith shielding over it. */
+  /**
+   * Whether it is a Habitat with commissioned Regolith shielding over it,
+   * neither of them Broken.
+   */
   readonly shielded: boolean;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and does
+   * nothing until it is rebuilt.
+   */
+  readonly conditionPercent: number;
 }
 
 /**
@@ -281,6 +290,11 @@ export interface Snapshot {
   readonly fundingMillionDollars: number;
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
+  /**
+   * Where the Lander's next take-off or landing will blast Plume Ejecta,
+   * and how far it reaches, for placing Structures clear of it.
+   */
+  readonly plumeEjecta: PlumeEjectaSnapshot | undefined;
   /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
@@ -586,6 +600,7 @@ function campaignFrom(state: CampaignState): Campaign {
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,

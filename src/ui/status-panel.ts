@@ -372,12 +372,13 @@ export function createStatusPanel(
         const home =
           snapshot.missionDirector.residence === "habitat" &&
           snapshot.missionDirector.habitatId === structure.id;
+        const broken = structure.conditionPercent <= 0;
         const shielding = isHabitat(structure.structureTypeId)
           ? `, ${structure.shielded ? "shielded" : "unshielded"}`
           : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${structure.conditionPercent}%`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =

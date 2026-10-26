@@ -3,6 +3,7 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { deliverLaunch, payForLaunch } from "./launch-manifest";
+import { blastPlumeEjecta } from "./plume-ejecta";
 
 /** The legs of the Lander's round trip, in the order it flies them. */
 export type LanderLeg =
@@ -76,7 +77,8 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * off in the first game-minute after it was sent, and each leg of its round
  * trip gives way to the next as it ends, until it lands where it took off.
  * It pays for the Launch manifest as it leaves Earth, and delivers it as it
- * lands.
+ * lands. Taking off and landing blast Plume Ejecta over the Structures
+ * round it.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -86,7 +88,10 @@ export function flyLander(state: CampaignState): GameEvent[] {
     trip.leg === "travelling-to-earth" &&
     atMinute === trip.legStartedAtMinute + 1
   ) {
-    return [{ kind: "lander-took-off", atMinute }];
+    return [
+      { kind: "lander-took-off", atMinute },
+      ...blastPlumeEjecta(state, state.lander.position),
+    ];
   }
   if (atMinute < trip.legEndsAtMinute) return [];
   switch (trip.leg) {
@@ -106,6 +111,7 @@ export function flyLander(state: CampaignState): GameEvent[] {
       state.lander.trip = undefined;
       return [
         { kind: "lander-landed", atMinute, delivered: deliverLaunch(state) },
+        ...blastPlumeEjecta(state, state.lander.position),
       ];
   }
 }

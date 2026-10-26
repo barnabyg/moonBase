@@ -88,6 +88,24 @@ export interface Catalogue {
    */
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
+  readonly plumeEjecta: PlumeEjectaRules;
+}
+
+/**
+ * The dust and rock a landing or departing Lander blasts out over the
+ * ground, which wears down the Condition of every Structure near it.
+ */
+export interface PlumeEjectaRules {
+  /**
+   * How far from the Lander's centre it reaches. A Structure with any of its
+   * footprint inside is worn down.
+   */
+  readonly radiusMetres: number;
+  /**
+   * How much Condition each Structure within reach loses at every take-off
+   * and landing, in percentage points of the 100% it starts with.
+   */
+  readonly conditionLossPercent: number;
 }
 
 /** What a Launch of the Lander from Earth can bring, and what it costs. */
@@ -298,7 +316,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 13,
+  version: 14,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -633,4 +651,8 @@ export const catalogue: Catalogue = {
       },
     ],
   },
+  // Reaching past everything that lands beside the Lander, so the base has
+  // to grow away from it. Five take-offs and landings, two and a half round
+  // trips, break anything left standing near it.
+  plumeEjecta: { radiusMetres: 30, conditionLossPercent: 20 },
 };

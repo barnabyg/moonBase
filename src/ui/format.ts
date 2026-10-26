@@ -237,6 +237,15 @@ export function formatEvent(event: GameEvent): string {
       return event.delivered.length === 0
         ? "Lander landed"
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
+    case "plume-ejecta-damage":
+      return `Plume Ejecta wore down ${listInWords(
+        event.damaged.map(
+          (damage) =>
+            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${damage.conditionPercent}%`,
+        ),
+      )}`;
+    case "structure-broken":
+      return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -361,12 +370,19 @@ export function launchItemLabel(item: LaunchItem): string {
  * Solar panel and 1 × Oxygen, 25 kg".
  */
 export function formatManifestLines(lines: readonly ManifestLine[]): string {
-  const items = lines.map(({ itemId, count }) => {
-    const item = catalogue.launch.items.find(
-      (candidate) => candidate.id === itemId,
-    );
-    return `${count} × ${item === undefined ? itemId : launchItemLabel(item)}`;
-  });
+  return listInWords(
+    lines.map(({ itemId, count }) => {
+      const item = catalogue.launch.items.find(
+        (candidate) => candidate.id === itemId,
+      );
+      return `${count} × ${item === undefined ? itemId : launchItemLabel(item)}`;
+    }),
+  );
+}
+
+/** Joins phrases the way a sentence would, for example "a, b and c". */
+function listInWords(phrases: readonly string[]): string {
+  const items = [...phrases];
   const last = items.pop();
   return items.length === 0
     ? (last ?? "")
@@ -414,14 +430,12 @@ function componentLabel(componentId: string): string {
 
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
-  const items = counts.map(({ componentId, count }) => {
-    const label = componentLabel(componentId).toLowerCase();
-    return `${count} ${label}${count === 1 ? "" : "s"}`;
-  });
-  const last = items.pop();
-  return items.length === 0
-    ? (last ?? "")
-    : `${items.join(", ")} and ${last ?? ""}`;
+  return listInWords(
+    counts.map(({ componentId, count }) => {
+      const label = componentLabel(componentId).toLowerCase();
+      return `${count} ${label}${count === 1 ? "" : "s"}`;
+    }),
+  );
 }
 
 export function machineLabel(machineTypeId: string): string {

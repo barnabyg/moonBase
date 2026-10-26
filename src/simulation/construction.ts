@@ -75,6 +75,19 @@ export interface StructureState {
   lit: boolean;
   /** The energy stored in it, if it is a battery bank. */
   storedKilowattHours: number;
+  /** How intact it is, from 100% down to 0%, when it is Broken. */
+  conditionPercent: number;
+}
+
+/**
+ * Whether a Structure is Broken, its Condition worn down to 0%: it stays on
+ * the map but does nothing, generating, storing or drawing no power, giving
+ * no light and no shielding, until it is rebuilt.
+ */
+export function isBroken(
+  structure: Pick<StructureState, "conditionPercent">,
+): boolean {
+  return structure.conditionPercent <= 0;
 }
 
 /** The parts of the Campaign state that placement depends on. */
@@ -168,14 +181,20 @@ export function shieldingOver(
   return footings(site).find((footing) => isShieldingOver(footing, habitat));
 }
 
-/** Whether a Structure is a Habitat with commissioned Regolith shielding over it. */
+/**
+ * Whether a Structure is a Habitat with commissioned Regolith shielding over
+ * it, neither of them Broken.
+ */
 export function isShielded(
   site: Pick<Site, "structures">,
-  structure: Footing,
+  structure: StructureState,
 ): boolean {
   return (
     findStructureType(structure.structureTypeId)?.habitat === true &&
-    site.structures.some((footing) => isShieldingOver(footing, structure))
+    !isBroken(structure) &&
+    site.structures.some(
+      (footing) => isShieldingOver(footing, structure) && !isBroken(footing),
+    )
   );
 }
 

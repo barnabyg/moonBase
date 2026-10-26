@@ -1,6 +1,6 @@
 import type { CampaignState } from "./campaign";
 import type { DeathCause, GameEvent } from "./events";
-import { findStructureType } from "./construction";
+import { findStructureType, isBroken } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 
 /** Where the Mission Director lives: aboard the Lander, or in a commissioned Habitat. */
@@ -18,6 +18,7 @@ export type MoveInRefusal =
   | "not-a-habitat"
   | "not-commissioned"
   | "being-dismantled"
+  | "broken"
   | "no-power"
   | "campaign-ended";
 
@@ -72,6 +73,12 @@ export function moveMissionDirectorIn(
     return refuse(
       "being-dismantled",
       "The Mission Director can't move into a Habitat that is to be dismantled.",
+    );
+  }
+  if (isBroken(structure)) {
+    return refuse(
+      "broken",
+      "The Habitat is Broken, and can't keep the Mission Director alive.",
     );
   }
   if (!structure.powered) {

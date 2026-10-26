@@ -316,6 +316,7 @@ function finishCommissioning(
     powered: false,
     lit: false,
     storedKilowattHours: 0,
+    conditionPercent: 100,
   });
   return [
     {

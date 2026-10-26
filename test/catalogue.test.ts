@@ -78,6 +78,16 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("blasts Plume Ejecta out past the Lander's footprint, taking a share of a Structure's Condition at a time", () => {
+    const { radiusMetres, conditionLossPercent } = catalogue.plumeEjecta;
+
+    expect(radiusMetres).toBeGreaterThan(
+      catalogue.lander.footprintRadiusMetres,
+    );
+    expect(conditionLossPercent).toBeGreaterThan(0);
+    expect(conditionLossPercent).toBeLessThanOrEqual(100);
+  });
+
   it("places at least one Robot on the map, outside the Lander's footprint", () => {
     const { landerPosition, robotPositions } = catalogue.landingSite;
 

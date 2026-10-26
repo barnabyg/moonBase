@@ -233,7 +233,7 @@ describe("the sample save of format version 4", () => {
     }
 
     expect(kinds).toContain("lander-left-earth");
-    expect(kinds.at(-1)).toBe("lander-landed");
+    expect(kinds).toContain("lander-landed");
     expect(campaign.snapshot().clock.elapsedMinutes).toBe(
       35340 + catalogue.lander.roundTripEarthDays.toMoon * 24 * 60,
     );
@@ -276,5 +276,53 @@ describe("the sample save of format version 5", () => {
     expect(panels()).toBe(before + 2);
     expect(state.launchManifest).toMatchObject({ items: [], locked: false });
     expect(state.fundingMillionDollars).toBe(235);
+  });
+});
+
+describe("the sample saves from before Condition", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-2.moonbase",
+    "version-3.moonbase",
+    "version-4.moonbase",
+    "version-5.moonbase",
+  ])("%s loads with every Structure at 100%", (name) => {
+    const { structures } = loadSample(name).snapshot();
+
+    expect(structures.length).toBeGreaterThan(0);
+    expect(structures.map((s) => s.conditionPercent)).toEqual(
+      structures.map(() => 100),
+    );
+  });
+});
+
+describe("the sample save of format version 6", () => {
+  it("loads with the Structures near the Lander worn down by its take-off", () => {
+    const state = loadSample("version-6.moonbase").snapshot();
+
+    expect(state.lander.state).toBe("turnaround");
+    expect(
+      state.structures.map((s) => [s.structureTypeId, s.conditionPercent]),
+    ).toEqual([
+      ["solar-array", 80],
+      ["habitat", 80],
+    ]);
+  });
+
+  it("plays on from where it was saved, until the Lander's landing wears them down again", () => {
+    const campaign = loadSample("version-6.moonbase");
+
+    campaign.advance(
+      35340 + 3 * 24 * 60 - campaign.snapshot().clock.elapsedMinutes,
+    );
+
+    const state = campaign.snapshot();
+    expect(state.lander.state).toBe("landed-free");
+    expect(
+      state.structures
+        .filter((s) => s.structureTypeId !== "light-mast")
+        .map((s) => s.conditionPercent),
+    ).toEqual([60, 60]);
   });
 });

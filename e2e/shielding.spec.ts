@@ -73,7 +73,7 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array/,
     /^Inflatable Habitat: commissioned, shielded, the Mission Director's home/,
-    /^Regolith shielding: commissioned(?!,)/,
+    /^Regolith shielding: commissioned, Condition 100%(?!,)/,
   ]);
   await expect(radiationDose).toHaveText(/rising 3\.0 mSv an Earth Day/);
 });
