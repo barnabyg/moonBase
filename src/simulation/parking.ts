@@ -1,28 +1,41 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { chooseParkingSpot } from "./construction";
+import {
+  bodyOf,
+  drivenSpec,
+  drivenSubject,
+  drivenTarget,
+  everyDriven,
+  findDriven,
+  isDrivenBroken,
+  isSameDriven,
+  type Driven,
+  type DrivenSubject,
+  type DrivenTarget,
+} from "./driven";
+import { isRoverSpokenFor } from "./expeditions";
 import { readLunation } from "./lunation";
-import { isMachineBroken, machineFootprintRadius } from "./machines";
 import { isUnderMaintenance } from "./maintenance";
 import { nearestPoweredStructure, pluggedIn, powerSockets } from "./power";
 
 /**
- * A "park Machine" Work Order: the Robot drives an idle Machine that isn't
+ * A "park" Work Order: the Robot drives an idle Machine or Rover that isn't
  * plugged in to a free spot beside the nearest powered Structure, where it
  * plugs in and its heater keeps the cold of Night off it.
  */
 export interface ParkingState {
-  machineId: string;
+  /** The Machine or Rover to park. */
+  target: DrivenTarget;
   /** The Structure it is parked beside, on a network with a power source. */
   structureId: string;
-  /** Where the Machine is to stand, within plug-in reach of the Structure. */
+  /** Where it is to stand, within plug-in reach of the Structure. */
   destination: GroundPosition;
 }
 
-/** A Machine being parked, or waiting for the Robot to park it. */
+/** A Machine or Rover being parked, or waiting for the Robot to park it. */
 export interface ParkingSnapshot {
-  readonly machineId: string;
-  readonly machineTypeId: string;
+  readonly subject: DrivenSubject;
   /** The Structure it is to be parked beside. */
   readonly structureId: string;
   readonly structureTypeId: string;
@@ -31,74 +44,76 @@ export interface ParkingSnapshot {
 }
 
 /**
- * Raises a "park Machine" Work Order, once in the data catalogue's lead
- * time before Night falls and all through Night, for every idle Machine
- * that isn't plugged in, isn't Broken and isn't being maintained, as long
- * as there is a powered Structure to park it beside. A Work Order that
- * nobody has claimed goes once its Machine no longer needs parking, or is
- * given other work; one a Robot has claimed goes only if its Machine
- * breaks or its Structure can no longer take a plug.
+ * Raises a "park" Work Order, once in the data catalogue's lead time before
+ * Night falls and all through Night, for every idle Machine and Rover that
+ * isn't plugged in, isn't Broken, isn't being maintained and isn't to go
+ * on an Expedition or out on one, as long as
+
+ * there is a powered Structure to park it beside. A Work Order that nobody
+ * has claimed goes once what it parks no longer needs parking, or is given
+ * other work; one a Robot has claimed goes only if what it parks breaks or
+ * its Structure can no longer take a plug.
  */
 export function planParking(state: CampaignState): void {
   const plugs = pluggedIn(state);
   const parkingTime = isParkingTime(state);
-  const needsParking = (machineId: string) => {
-    const machine = state.machines.find(
-      (candidate) => candidate.id === machineId,
-    );
-    return (
-      machine !== undefined &&
-      parkingTime &&
-      machine.assignment === undefined &&
-      !isMachineBroken(machine) &&
-      !plugs.has(machine.id) &&
-      !isUnderMaintenance(state, machine.id)
-    );
-  };
+  const needsParking = (driven: Driven) =>
+    parkingTime &&
+    (driven.kind === "rover"
+      ? !isRoverSpokenFor(state, driven.rover.id)
+      : driven.machine.assignment === undefined) &&
+    !isDrivenBroken(driven) &&
+    !plugs.has(bodyOf(driven).id) &&
+    !isUnderMaintenance(state, drivenTarget(driven));
   const sockets = powerSockets(state);
   const stillPowered = (parking: ParkingState) =>
     sockets.some((structure) => structure.id === parking.structureId);
   state.parking = state.parking.filter((parking) => {
-    const machine = state.machines.find(
-      (candidate) => candidate.id === parking.machineId,
-    );
-    if (machine === undefined || isMachineBroken(machine)) return false;
+    const driven = findDriven(state, parking.target);
+    if (driven === undefined || isDrivenBroken(driven)) return false;
     if (!stillPowered(parking)) return false;
-    return isBeingParked(state, parking.machineId)
-      ? true
-      : needsParking(parking.machineId);
+    return isBeingParked(state, parking.target) ? true : needsParking(driven);
   });
-  for (const machine of state.machines) {
+  for (const driven of everyDriven(state)) {
+    const target = drivenTarget(driven);
     if (
-      !needsParking(machine.id) ||
-      state.parking.some((parking) => parking.machineId === machine.id)
+      !needsParking(driven) ||
+      state.parking.some((parking) => isSameDriven(parking.target, target))
     ) {
       continue;
     }
-    const structure = nearestPoweredStructure(state, machine.position);
+    const body = bodyOf(driven);
+    const structure = nearestPoweredStructure(state, body.position);
     if (structure === undefined) continue;
     state.parking.push({
-      machineId: machine.id,
+      target,
       structureId: structure.id,
       destination: chooseParkingSpot(
         state,
         structure,
-        machine,
-        state.parking.map((other) => ({
-          position: other.destination,
-          radius: machineFootprintRadius(
-            state.machines.find((candidate) => candidate.id === other.machineId)
-              ?.machineTypeId ?? "",
-          ),
-        })),
+        {
+          id: body.id,
+          position: body.position,
+          radius: drivenSpec(driven).footprintRadiusMetres,
+        },
+        state.parking.map((other) => {
+          const parked = findDriven(state, other.target);
+          return {
+            position: other.destination,
+            radius:
+              parked === undefined
+                ? 0
+                : drivenSpec(parked).footprintRadiusMetres,
+          };
+        }),
       ),
     });
   }
 }
 
 /**
- * Whether Machines are parked now: from the data catalogue's lead time
- * before Night falls until Night ends.
+ * Whether Machines and Rovers are parked now: from the data catalogue's
+ * lead time before Night falls until Night ends.
  */
 export function isParkingTime(state: CampaignState): boolean {
   const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
@@ -109,34 +124,33 @@ export function isParkingTime(state: CampaignState): boolean {
   );
 }
 
-/** Whether a Robot has claimed the Work Order to park a Machine, and is parking it. */
+/** Whether a Robot has claimed the Work Order to park a Machine or Rover, and is parking it. */
 export function isBeingParked(
   state: CampaignState,
-  machineId: string,
+  target: DrivenTarget,
 ): boolean {
-  return state.robots.some(
-    (robot) =>
-      robot.workOrder?.kind === "park-machine" &&
-      robot.workOrder.machineId === machineId,
+  return state.robots.some(({ workOrder }) =>
+    target.kind === "machine"
+      ? workOrder?.kind === "park-machine" &&
+        workOrder.machineId === target.machineId
+      : workOrder?.kind === "park-rover" &&
+        workOrder.roverId === target.roverId,
   );
 }
 
 export function readParking(state: CampaignState): ParkingSnapshot[] {
   return state.parking.flatMap((parking) => {
-    const machine = state.machines.find(
-      (candidate) => candidate.id === parking.machineId,
-    );
+    const driven = findDriven(state, parking.target);
     const structure = state.structures.find(
       (candidate) => candidate.id === parking.structureId,
     );
-    if (machine === undefined || structure === undefined) return [];
+    if (driven === undefined || structure === undefined) return [];
     return [
       {
-        machineId: machine.id,
-        machineTypeId: machine.machineTypeId,
+        subject: drivenSubject(driven),
         structureId: structure.id,
         structureTypeId: structure.structureTypeId,
-        underWay: isBeingParked(state, machine.id),
+        underWay: isBeingParked(state, parking.target),
       },
     ];
   });

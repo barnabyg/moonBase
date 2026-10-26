@@ -18,9 +18,10 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
   const { withoutDust } = await import("./without-dust");
+  const { withoutDigging } = await import("./without-digging");
   return {
     ...actual,
-    catalogue: safeHabitat(withoutDust(actual.catalogue), [
+    catalogue: safeHabitat(withoutDigging(withoutDust(actual.catalogue)), [
       "power",
       "radiation",
       "solar-particle-events",

@@ -3,13 +3,16 @@ import type { CampaignEnd, CampaignState } from "./campaign";
 import type { ConstructionStage, MachineStage } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
+import type { ExpeditionStage } from "./expeditions";
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
 import { MAX_SEED, nextFraction } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
+import type { RoverActivity } from "./rovers";
 import type {
   MachineWorkOrderKind,
+  RoverWorkOrderKind,
   StructureWorkOrderKind,
   WorkOrder,
   WorkOrderKind,
@@ -337,7 +340,226 @@ export const migrations: readonly Migration[] = [
       state: { ...state, spareComponentsWarnedMinutes: null },
     };
   },
+  // 14 to 15: the base keeps a stock of bulk resources, Regolith alone so
+  // far, which the excavator digs beside the stockpile. Nothing was dug
+  // before, so there is none, and no Machine is digging.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { machines } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        machines: Array.isArray(machines)
+          ? machines.map((machine: unknown) =>
+              isRecord(machine) ? { ...machine, digging: null } : machine,
+            )
+          : machines,
+        bulkResources: [{ resourceId: "regolith", kilograms: 0 }],
+      },
+    };
+  },
+  // 15 to 16: a Rover comes in the starting cargo, and "park" Work Orders
+  // can be for a Rover as well as a Machine, so they name what they park;
+  // until now each was for a Machine. An older save gains the Rover at full
+  // Condition, parked near the Lander (see `roverSpotForVersion16`).
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { parking } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        rovers: [
+          {
+            id: "rover-1",
+            position: roverSpotForVersion16(state),
+            activity: { kind: "idle" },
+            conditionPercent: 100,
+            powered: false,
+          },
+        ],
+        parking: Array.isArray(parking)
+          ? parking.map((order: unknown) => {
+              if (!isRecord(order)) return order;
+              const { machineId, ...rest } = order;
+              return { target: { kind: "machine", machineId }, ...rest };
+            })
+          : parking,
+      },
+    };
+  },
+  // 16 to 17: the extraction plant, a Structure that runs a recipe, with
+  // two new Components, which the base's stock keeps a count of after the
+  // others, and metals and silicon, which join Regolith among the bulk
+  // resources. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "extraction-reactor", count: 0 },
+                  { componentId: "oxygen-separator", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? [
+              ...(bulkResources as unknown[]),
+              { resourceId: "metals", kilograms: 0 },
+              { resourceId: "silicon", kilograms: 0 },
+            ]
+          : bulkResources,
+      },
+    };
+  },
+  // 17 to 18: Expeditions, which bring back water ice, a new bulk
+  // resource after the others. None has been under way yet, so there is
+  // no ice.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        bulkResources: Array.isArray(bulkResources)
+          ? [
+              ...(bulkResources as unknown[]),
+              { resourceId: "water-ice", kilograms: 0 },
+            ]
+          : bulkResources,
+        expedition: null,
+      },
+    };
+  },
+  // 18 to 19: the water-processing plant, with two new Components, which
+  // the base's stock keeps a count of after the others. None was there
+  // before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "ice-melter", count: 0 },
+                  { componentId: "water-purifier", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
+  // 19 to 20: the base is self-sufficient in oxygen or water once, over a
+  // trailing window, its Plants have made as much as the Mission Director
+  // used, which is judged on records of both. None was kept before, so a
+  // whole window has to pass after loading before it can be.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        selfSufficiency: ["oxygen", "water"].map((stockId) => ({
+          stockId,
+          current: { producedKilograms: 0, usedKilograms: 0 },
+          records: [],
+        })),
+      },
+    };
+  },
 ];
+
+/**
+ * Where the migration to format version 16 parks the Rover: where a new
+ * Campaign had it then, or, if something has been built or parked over
+ * that ground since, the first of a few spots round the Lander that is
+ * clear. The footprints are as they were when format version 16 came in,
+ * so that tuning them later doesn't change what the migration gives.
+ */
+function roverSpotForVersion16(state: Record<string, unknown>): {
+  x: number;
+  y: number;
+} {
+  const roverRadius = 1.5;
+  const radii: Record<string, number> = {
+    "solar-array": 3,
+    "battery-bank": 2,
+    "light-mast": 0.8,
+    habitat: 4,
+    "regolith-shielding": 4,
+    "landing-pad": 7,
+    excavator: 1.6,
+    "regolith-printer": 1.8,
+  };
+  const taken: { x: number; y: number; radius: number }[] = [];
+  const take = (position: unknown, radius: number) => {
+    if (
+      isRecord(position) &&
+      typeof position["x"] === "number" &&
+      typeof position["y"] === "number"
+    ) {
+      taken.push({ x: position["x"], y: position["y"], radius });
+    }
+  };
+  const radiusOf = (type: unknown) =>
+    typeof type === "string" ? (radii[type] ?? 0) : 0;
+  for (const key of ["structures", "constructions", "dismantlings"]) {
+    const items = state[key];
+    if (!Array.isArray(items)) continue;
+    for (const item of items as unknown[]) {
+      if (isRecord(item))
+        take(item["position"], radiusOf(item["structureTypeId"]));
+    }
+  }
+  const machines = state["machines"];
+  if (Array.isArray(machines)) {
+    for (const machine of machines as unknown[]) {
+      if (isRecord(machine)) {
+        take(machine["position"], radiusOf(machine["machineTypeId"]));
+      }
+    }
+  }
+  const stockpile = state["stockpile"];
+  if (isRecord(stockpile)) take(stockpile["position"], 1.5);
+  const spots = [
+    { x: 0, y: 13 },
+    { x: -13, y: 4 },
+    { x: 13, y: 2 },
+    { x: -5, y: -13 },
+    { x: 7, y: 13 },
+  ];
+  return (
+    spots.find((spot) =>
+      taken.every(
+        (other) =>
+          Math.hypot(spot.x - other.x, spot.y - other.y) >=
+          other.radius + roverRadius,
+      ),
+    ) ?? { x: 0, y: 13 }
+  );
+}
 
 export type LoadRefusal =
   /** It isn't JSON, or isn't a Moon Base save document. */
@@ -649,11 +871,19 @@ const campaignEnd: Decoder<CampaignEnd> = object({
 });
 
 const robotActivity: Decoder<RobotActivity> = (() => {
-  const drivingOrActivating = object({
-    kind: oneOf({ "driving-machine": true, "activating-machine": true }),
-    structureId: text,
-    machineId: text,
-  });
+  const drivingOrActivating = byField(
+    "structureId",
+    object({
+      kind: oneOf({ "driving-machine": true, "activating-machine": true }),
+      structureId: text,
+      machineId: text,
+    }),
+    object({
+      kind: oneOf({ "driving-machine": true, "activating-machine": true }),
+      machineId: text,
+      purpose: exactly("digging"),
+    }),
+  );
   const working = object({
     kind: oneOf({
       "loading-components": true,
@@ -675,24 +905,37 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     kind: oneOf({ "loading-components": true, maintaining: true }),
     machineId: text,
   });
+  // Maintenance of a Rover.
+  const forRover = object({
+    kind: oneOf({ "loading-components": true, maintaining: true }),
+    roverId: text,
+  });
   const walking = byField(
-    "machineId",
+    "roverId",
     object({
       kind: exactly("walking"),
-      machineId: text,
-      destination: oneOf({ stockpile: true, machine: true }),
+      roverId: text,
+      destination: oneOf({ stockpile: true, rover: true }),
     }),
-    object({
-      kind: exactly("walking"),
-      structureId: text,
-      destination: oneOf<WalkingDestination>({
-        site: true,
-        stockpile: true,
-        machine: true,
-        cable: true,
-        lander: true,
+    byField(
+      "machineId",
+      object({
+        kind: exactly("walking"),
+        machineId: text,
+        destination: oneOf({ stockpile: true, machine: true }),
       }),
-    }),
+      object({
+        kind: exactly("walking"),
+        structureId: text,
+        destination: oneOf<WalkingDestination>({
+          site: true,
+          stockpile: true,
+          machine: true,
+          cable: true,
+          lander: true,
+        }),
+      }),
+    ),
   );
   const repairing = object({
     kind: oneOf({ "loading-spare-components": true, "repairing-itself": true }),
@@ -708,7 +951,26 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "repairing-itself": repairing,
     "driving-machine": drivingOrActivating,
     "activating-machine": drivingOrActivating,
-    "loading-components": byField("machineId", forMachine, working),
+    "driving-rover": byField(
+      "structureId",
+      object({
+        kind: exactly("driving-rover"),
+        roverId: text,
+        structureId: text,
+      }),
+      object({
+        kind: exactly("driving-rover"),
+        roverId: text,
+        purpose: exactly("expedition"),
+      }),
+    ),
+    "on-expedition": object({ kind: exactly("on-expedition") }),
+    "unloading-expedition": object({ kind: exactly("unloading-expedition") }),
+    "loading-components": byField(
+      "roverId",
+      forRover,
+      byField("machineId", forMachine, working),
+    ),
     "unloading-components": working,
     assembling: working,
     commissioning: working,
@@ -717,17 +979,29 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
-    maintaining: byField("machineId", forMachine, working),
+    maintaining: byField(
+      "roverId",
+      forRover,
+      byField("machineId", forMachine, working),
+    ),
     cleaning: working,
   } satisfies Record<RobotActivity["kind"], unknown>);
 })();
 
 const workOrder: Decoder<WorkOrder> = (() => {
+  const onRover = object({
+    roverId: text,
+    kind: oneOf<RoverWorkOrderKind>({
+      "maintain-rover": true,
+      "park-rover": true,
+    }),
+  });
   const onMachine = object({
     machineId: text,
     kind: oneOf<MachineWorkOrderKind>({
       "maintain-machine": true,
       "park-machine": true,
+      dig: true,
     }),
   });
   const onStructure = object({
@@ -756,6 +1030,9 @@ const workOrder: Decoder<WorkOrder> = (() => {
     maintain: onStructure,
     "maintain-machine": onMachine,
     "park-machine": onMachine,
+    dig: onMachine,
+    "maintain-rover": onRover,
+    "park-rover": onRover,
   } satisfies Record<WorkOrderKind, unknown>);
 })();
 
@@ -772,6 +1049,10 @@ const machineActivity: Decoder<MachineActivity> = (() => {
       kind: exactly("being-parked"),
       structureId: text,
     }),
+    "being-positioned-to-dig": object({
+      kind: exactly("being-positioned-to-dig"),
+    }),
+    digging: object({ kind: exactly("digging") }),
   } satisfies Record<MachineActivity["kind"], unknown>);
 })();
 
@@ -781,6 +1062,11 @@ const machineAssignment = object({
   destination: groundPosition,
   activationMinutes: amount,
   working: boolean,
+});
+
+const lifeSupportRecord = object({
+  producedKilograms: amount,
+  usedKilograms: amount,
 });
 
 /** The Campaign state apart from the random generator's. */
@@ -808,6 +1094,13 @@ const simulationState = object({
     object({
       stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
       kilograms: finiteNumber,
+    }),
+  ),
+  selfSufficiency: list(
+    object({
+      stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
+      current: lifeSupportRecord,
+      records: list(lifeSupportRecord),
     }),
   ),
   radiationDoseMillisieverts: finiteNumber,
@@ -851,6 +1144,29 @@ const simulationState = object({
       position: groundPosition,
       activity: machineActivity,
       assignment: optional(machineAssignment),
+      digging: optional(
+        object({
+          destination: groundPosition,
+          activationMinutes: amount,
+          working: boolean,
+        }),
+      ),
+      conditionPercent: finiteNumber,
+      powered: boolean,
+    }),
+  ),
+  rovers: list(
+    object({
+      id: text,
+      position: groundPosition,
+      activity: tagged("kind", {
+        idle: object({ kind: exactly("idle") }),
+        "being-parked": object({
+          kind: exactly("being-parked"),
+          structureId: text,
+        }),
+        "on-expedition": object({ kind: exactly("on-expedition") }),
+      } satisfies Record<RoverActivity["kind"], unknown>),
       conditionPercent: finiteNumber,
       powered: boolean,
     }),
@@ -859,6 +1175,12 @@ const simulationState = object({
     position: groundPosition,
     components: list(componentCount),
   }),
+  bulkResources: list(
+    object({
+      resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
+      kilograms: amount,
+    }),
+  ),
   constructions: list(
     object({
       id: text,
@@ -930,6 +1252,7 @@ const simulationState = object({
       target: tagged("kind", {
         structure: object({ kind: exactly("structure"), structureId: text }),
         machine: object({ kind: exactly("machine"), machineId: text }),
+        rover: object({ kind: exactly("rover"), roverId: text }),
       }),
       workSpot: groundPosition,
       visit: optional(
@@ -940,9 +1263,28 @@ const simulationState = object({
   ),
   parking: list(
     object({
-      machineId: text,
+      target: tagged("kind", {
+        machine: object({ kind: exactly("machine"), machineId: text }),
+        rover: object({ kind: exactly("rover"), roverId: text }),
+      }),
       structureId: text,
       destination: groundPosition,
+    }),
+  ),
+  expedition: optional(
+    object({
+      robotId: text,
+      roverId: text,
+      stage: oneOf<ExpeditionStage>({
+        boarding: true,
+        "driving-out": true,
+        away: true,
+        "driving-back": true,
+        unloading: true,
+      }),
+      exitPoint: optional(groundPosition),
+      returnsAtMinute: optional(wholeNumber),
+      workedMinutes: amount,
     }),
   ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;

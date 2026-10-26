@@ -100,6 +100,51 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("parks one Rover near the Lander, on the map and clear of the Lander, the stockpile, the Robots and the Machines", () => {
+    const { landerPosition, stockpilePosition, robotPositions, machines } =
+      catalogue.landingSite;
+    const { rover } = catalogue;
+    const distance = (a: GroundPosition, b: GroundPosition) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+
+    expect(catalogue.landingSite.roverPositions).toHaveLength(1);
+    for (const position of catalogue.landingSite.roverPositions) {
+      expect(isOnMap(position, rover.footprintRadiusMetres)).toBe(true);
+      // Near the Lander, but clear of it.
+      expect(distance(position, landerPosition)).toBeGreaterThan(
+        catalogue.lander.footprintRadiusMetres + rover.footprintRadiusMetres,
+      );
+      expect(distance(position, landerPosition)).toBeLessThan(15);
+      expect(distance(position, stockpilePosition)).toBeGreaterThan(
+        catalogue.stockpile.footprintRadiusMetres + rover.footprintRadiusMetres,
+      );
+      for (const robot of robotPositions) {
+        expect(distance(position, robot)).toBeGreaterThan(
+          rover.footprintRadiusMetres,
+        );
+      }
+      for (const machine of machines) {
+        const type = catalogue.machineTypes.find(
+          (candidate) => candidate.id === machine.machineTypeId,
+        );
+        expect(distance(position, machine.position)).toBeGreaterThan(
+          rover.footprintRadiusMetres + (type?.footprintRadiusMetres ?? 0),
+        );
+      }
+    }
+  });
+
+  it("gives the Rover a positive size and driving speed, Dust wear as it is driven, a heater and wear from the cold", () => {
+    const { rover } = catalogue;
+
+    expect(rover.label).toBe("Rover");
+    expect(rover.footprintRadiusMetres).toBeGreaterThan(0);
+    expect(rover.drivingSpeedMetresPerHour).toBeGreaterThan(0);
+    expect(rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
+    expect(rover.heaterKilowatts).toBeGreaterThan(0);
+    expect(rover.coldWearPercentPerNightHour).toBeGreaterThan(0);
+  });
+
   it("keeps the base's stock at a stockpile on the map, clear of the Lander, Robots and Machines, with room to walk round it", () => {
     const { landerPosition, stockpilePosition, robotPositions, machines } =
       catalogue.landingSite;
@@ -207,6 +252,47 @@ describe("the data catalogue", () => {
       expect(type.activationHours).toBeGreaterThan(0);
       expect(Number.isInteger(type.activationHours * 60)).toBe(true);
     }
+  });
+
+  it("sends Expeditions away for a positive, whole number of game-minutes, bringing back water ice, which the Robot unloads", () => {
+    const { expeditions } = catalogue;
+
+    expect(expeditions.resourceId).toBe("water-ice");
+    expect(catalogue.bulkResources.map((resource) => resource.id)).toContain(
+      expeditions.resourceId,
+    );
+    expect(expeditions.kilograms).toBeGreaterThan(0);
+    expect(expeditions.awayEarthDays).toBeGreaterThan(0);
+    expect(Number.isInteger(expeditions.awayEarthDays * 24 * 60)).toBe(true);
+    expect(expeditions.unloadingHours).toBeGreaterThan(0);
+    expect(Number.isInteger(expeditions.unloadingHours * 60)).toBe(true);
+    expect(catalogue.rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
+  });
+
+  it("has bulk resources with unique ids and labels, Regolith first", () => {
+    const { bulkResources } = catalogue;
+
+    expect(bulkResources[0]).toEqual({ id: "regolith", label: "Regolith" });
+    expect(new Set(bulkResources.map((resource) => resource.id)).size).toBe(
+      bulkResources.length,
+    );
+    expect(new Set(bulkResources.map((resource) => resource.label)).size).toBe(
+      bulkResources.length,
+    );
+  });
+
+  it("has the excavator, which lands with the Lander, dig Regolith up to a level at a positive rate", () => {
+    const { digging } = catalogue;
+
+    expect(digging).toMatchObject({
+      machineTypeId: "excavator",
+      resourceId: "regolith",
+    });
+    expect(
+      catalogue.landingSite.machines.map((machine) => machine.machineTypeId),
+    ).toContain(digging.machineTypeId);
+    expect(digging.stockLevelKilograms).toBeGreaterThan(0);
+    expect(digging.kilogramsPerWorkingHour).toBeGreaterThan(0);
   });
 
   it("only names known Machine types to carry out stages of Construction", () => {
@@ -490,6 +576,113 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(catalogue.lander.cargoHandlingHours * 60)).toBe(
       true,
     );
+  });
+
+  it("has an extraction plant that turns Regolith into oxygen, metals and silicon", () => {
+    const plant = catalogue.structureTypes.find(
+      (type) => type.id === "extraction-plant",
+    )?.plant;
+
+    expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+      { kind: "bulk-resource", resourceId: "regolith" },
+    ]);
+    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      { kind: "life-support", stockId: "oxygen" },
+      { kind: "bulk-resource", resourceId: "metals" },
+      { kind: "bulk-resource", resourceId: "silicon" },
+    ]);
+  });
+
+  it("has a water-processing plant that turns water ice into water", () => {
+    const plant = catalogue.structureTypes.find(
+      (type) => type.id === "water-processing-plant",
+    )?.plant;
+
+    expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+      { kind: "bulk-resource", resourceId: "water-ice" },
+    ]);
+    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      { kind: "life-support", stockId: "water" },
+    ]);
+  });
+
+  describe.each(
+    catalogue.structureTypes.flatMap((type) =>
+      type.plant === undefined ? [] : [[type.label, type] as const],
+    ),
+  )("the Plant %s", (_, type) => {
+    const plant = type.plant;
+
+    it("has a recipe of known resources, at positive rates, putting out less than it takes in", () => {
+      if (plant === undefined) throw new Error("expected a Plant");
+      const known = (flow: (typeof plant.inputs)[number]) =>
+        flow.resource.kind === "bulk-resource"
+          ? catalogue.bulkResources.some(
+              (resource) =>
+                flow.resource.kind === "bulk-resource" &&
+                resource.id === flow.resource.resourceId,
+            )
+          : catalogue.lifeSupportStocks.some(
+              (stock) =>
+                flow.resource.kind === "life-support" &&
+                stock.id === flow.resource.stockId,
+            );
+      expect(plant.inputs.length).toBeGreaterThan(0);
+      expect(plant.outputs.length).toBeGreaterThan(0);
+      for (const flow of [...plant.inputs, ...plant.outputs]) {
+        expect(known(flow)).toBe(true);
+        expect(flow.kilogramsPerHour).toBeGreaterThan(0);
+      }
+      const total = (flows: typeof plant.inputs) =>
+        flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
+      expect(total(plant.outputs)).toBeLessThanOrEqual(total(plant.inputs));
+    });
+
+    it("draws power only while it runs, and wears down by Dust while it operates", () => {
+      expect(plant?.drawKilowatts).toBeGreaterThan(0);
+      expect(type.power).toEqual({
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      });
+      expect(type.dustWearPercentPerHour).toBeGreaterThan(0);
+    });
+
+    it("is built from Components a Launch can bring, a full set within one Launch's Payload Mass, that the starting stock doesn't hold", () => {
+      expect(type.components.length).toBeGreaterThan(0);
+      let mass = 0;
+      for (const need of type.components) {
+        const item = catalogue.launch.items.find(
+          (candidate) =>
+            candidate.brings.kind === "component" &&
+            candidate.brings.componentId === need.componentId,
+        );
+        expect(item).toBeDefined();
+        mass += (item?.massKilograms ?? Infinity) * need.count;
+        expect(
+          catalogue.startingStock.some(
+            (stock) => stock.componentId === need.componentId,
+          ),
+        ).toBe(false);
+      }
+      expect(mass).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
+      expect(type.stageMachines.sitePreparation).toBeDefined();
+    });
+  });
+
+  it("counts self-sufficiency over a window of a whole number of records, one Lunation by default", () => {
+    const { windowLunations, recordHours } = catalogue.selfSufficiency;
+    const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
+    const windowHours =
+      windowLunations * (daylightEarthDays + nightEarthDays) * 24;
+
+    expect(windowLunations).toBe(1);
+    expect(recordHours).toBeGreaterThan(0);
+    expect(Number.isInteger(recordHours * 60)).toBe(true);
+    expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
   it("has a Habitat the Mission Director can move into", () => {

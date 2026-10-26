@@ -1,5 +1,9 @@
 import * as THREE from "three";
-import type { RobotActivity, RobotSnapshot } from "../simulation";
+import type {
+  GroundPosition,
+  RobotActivity,
+  RobotSnapshot,
+} from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
   createRobotModel,
@@ -65,6 +69,8 @@ export function createRobotViews(scene: THREE.Scene) {
             view.heading = facingAngle(position, target);
         }
         view.lastPosition = position.clone();
+        // Away on an Expedition, it is off the map and out of sight.
+        view.model.group.visible = isOnMap(frame, robot.position);
         view.model.group.position.copy(position);
         // Aboard a Machine, the Robot sits on its deck.
         if (aboardMachine(robot)) {
@@ -83,6 +89,15 @@ export function createRobotViews(scene: THREE.Scene) {
   };
 }
 
+/** Whether a position is on the base map, rather than off it on an Expedition. */
+export function isOnMap(frame: Frame, position: GroundPosition): boolean {
+  const { map } = frame.current;
+  return (
+    Math.abs(position.x) <= map.widthMetres / 2 &&
+    Math.abs(position.y) <= map.depthMetres / 2
+  );
+}
+
 function onFoot(robot: RobotSnapshot): boolean {
   return (
     robot.activity.kind === "walking" ||
@@ -92,7 +107,10 @@ function onFoot(robot: RobotSnapshot): boolean {
 }
 
 function aboardMachine(robot: RobotSnapshot): boolean {
-  return robot.activity.kind === "driving-machine";
+  return (
+    robot.activity.kind === "driving-machine" ||
+    robot.activity.kind === "driving-rover"
+  );
 }
 
 /** What the Robot faces while it works: the stockpile when loading or unloading there, otherwise the site. */
@@ -117,18 +135,24 @@ function workTarget(
   ) {
     return toScene(frame.current.stockpile.position);
   }
+  if ("machineId" in activity) {
+    const machine = frame.current.machines.find(
+      (candidate) => candidate.id === activity.machineId,
+    );
+    return machine === undefined ? undefined : toScene(machine.position);
+  }
+  if ("roverId" in activity) {
+    const rover = frame.current.rovers.find(
+      (candidate) => candidate.id === activity.roverId,
+    );
+    return rover === undefined ? undefined : toScene(rover.position);
+  }
   // Repairing itself, it looks down at its own work.
   if (activity.kind === "walking-to-repair" || !("structureId" in activity)) {
     return undefined;
   }
   if (activity.kind === "loading-cargo") {
     return toScene(frame.current.lander.position);
-  }
-  if (activity.kind === "activating-machine" || "machineId" in activity) {
-    const machine = frame.current.machines.find(
-      (candidate) => candidate.id === activity.machineId,
-    );
-    return machine === undefined ? undefined : toScene(machine.position);
   }
   const site =
     frame.current.constructions.find(
@@ -177,6 +201,15 @@ function poseFor(
     },
     // Sitting at the controls, steering.
     "driving-machine": () => ({
+      legSwing: 0,
+      seated: true,
+      leftArm: 0.9 + work * 0.1,
+      rightArm: 0.9 - work * 0.1,
+      lean: 0.1,
+      carrying,
+    }),
+    // Sitting at the Rover's controls, steering.
+    "driving-rover": () => ({
       legSwing: 0,
       seated: true,
       leftArm: 0.9 + work * 0.1,
@@ -239,6 +272,10 @@ function poseFor(
     }),
     // Lifting the recovered crates back onto the stockpile.
     "returning-components": () => lifting(work, carrying),
+    // Away beyond the base, out of sight.
+    "on-expedition": () => still(carrying),
+    // Lifting what an Expedition brought back off the Rover.
+    "unloading-expedition": () => lifting(work, carrying),
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),

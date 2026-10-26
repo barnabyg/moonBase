@@ -9,6 +9,16 @@ import {
   unusedComponents,
   type CancelResult,
 } from "./cancel";
+import {
+  readBulkResources,
+  startingBulkResources,
+  type BulkResourceSnapshot,
+  type BulkResourceState,
+} from "./bulk-resources";
+import {
+  forecastBulkResources,
+  type BulkResourceForecast,
+} from "./bulk-forecast";
 import { readClock, type ClockSnapshot } from "./clock";
 import { structurePerformance, wearStructures } from "./condition";
 import { coatSolarArrays } from "./dust-coating";
@@ -73,8 +83,15 @@ import {
   readLunation,
   type LunationSnapshot,
 } from "./lunation";
+import { chillDriven } from "./driven";
 import {
-  chillMachines,
+  readExpedition,
+  startExpedition,
+  type ExpeditionSnapshot,
+  type ExpeditionState,
+  type StartExpeditionResult,
+} from "./expeditions";
+import {
   machinePerformance,
   workMachines,
   type MachineActivity,
@@ -82,6 +99,7 @@ import {
 } from "./machines";
 import {
   consumptionKilowatts,
+  plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
   powerNetworks,
@@ -110,6 +128,7 @@ import {
   type ParkingSnapshot,
   type ParkingState,
 } from "./parking";
+import { isPlant, readPlant, runPlants, type PlantSnapshot } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -126,8 +145,22 @@ import {
   watchSpareComponents,
   type SpareComponentsForecast,
 } from "./spare-forecast";
+import {
+  readSelfSufficiency,
+  startingSelfSufficiency,
+  watchSelfSufficiency,
+  type SelfSufficiencySnapshot,
+  type SelfSufficiencyState,
+} from "./self-sufficiency";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import {
+  idleRovers,
+  roverPerformance,
+  startingRovers,
+  type RoverActivity,
+  type RoverState,
+} from "./rovers";
 import {
   readSelfRepair,
   robotPerformance,
@@ -149,7 +182,12 @@ export interface CampaignOptions {
   readonly seed: number;
 }
 
-export type { ComponentCount, GroundPosition, LanderSnapshot };
+export type {
+  BulkResourceSnapshot,
+  ComponentCount,
+  GroundPosition,
+  LanderSnapshot,
+};
 export type MapSnapshot = MapSize;
 
 /**
@@ -191,6 +229,30 @@ export interface MachineSnapshot {
    */
   readonly conditionPercent: number;
   /** How fast it works and drives as its Condition falls, from 1 down to 0 once it is Broken. */
+  readonly performance: number;
+  /**
+   * Whether it stands within plug-in reach of a commissioned Structure on
+   * a network with a power source, one that isn't Broken.
+   */
+  readonly pluggedIn: boolean;
+  /**
+   * Whether it had power during the latest game-minute: it was plugged in
+   * and, at Night, its network supplied its heater. Unpowered at Night, the
+   * cold wears it down.
+   */
+  readonly powered: boolean;
+}
+
+export interface RoverSnapshot {
+  readonly id: string;
+  readonly position: GroundPosition;
+  readonly activity: RoverActivity;
+  /**
+   * How intact it is, from 100% down to 0%, when it is Broken and can't be
+   * driven until it is repaired.
+   */
+  readonly conditionPercent: number;
+  /** How fast it drives as its Condition falls, from 1 down to 0 once it is Broken. */
   readonly performance: number;
   /**
    * Whether it stands within plug-in reach of a commissioned Structure on
@@ -261,6 +323,12 @@ export interface StructureSnapshot {
    * output; always 0% for any other Structure.
    */
   readonly dustCoatingPercent: number;
+  /**
+   * Whether it is running its recipe, and why not, if it is a Plant;
+   * undefined for any other Structure. A Plant has power only while it
+   * runs.
+   */
+  readonly plant: PlantSnapshot | undefined;
 }
 
 /**
@@ -306,11 +374,18 @@ export interface PowerNetworkSnapshot {
    * Dust coating allow: none at Night.
    */
   readonly generationKilowatts: number;
-  /** The power its Structures draw now, including any lights at Night. */
+  /**
+   * The power its Structures draw now, including any lights at Night, and
+   * any Plants that ran during the latest game-minute.
+   */
   readonly consumptionKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
-  /** Whether it covered what its Structures draw during the latest game-minute. */
+  /**
+   * Whether it covered what its Structures draw during the latest
+   * game-minute, leaving out its Plants, which only run on power to spare.
+   */
+
   readonly powered: boolean;
 }
 
@@ -327,6 +402,8 @@ export interface Forecasts {
   readonly radiationDose: RadiationDoseForecast;
   /** How long the base's spare Components will last, at the current rate of wear. */
   readonly spareComponents: SpareComponentsForecast;
+  /** How long each of the base's bulk resources will last, in catalogue order. */
+  readonly bulkResources: readonly BulkResourceForecast[];
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -362,6 +439,12 @@ export interface Snapshot {
   /** The Mission Director's stocks of oxygen and water, in catalogue order. */
   readonly lifeSupport: readonly LifeSupportSnapshot[];
   /**
+   * Whether the base is self-sufficient in each life support stock, and how
+   * much of what the Mission Director used its Plants made over the data
+   * catalogue's window, in catalogue order.
+   */
+  readonly selfSufficiency: readonly SelfSufficiencySnapshot[];
+  /**
    * The total radiation the Mission Director has absorbed. The data
    * catalogue sets the limit.
    */
@@ -387,7 +470,13 @@ export interface Snapshot {
   readonly ended: CampaignEnd | undefined;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
+  readonly rovers: readonly RoverSnapshot[];
   readonly stockpile: StockpileSnapshot;
+  /**
+   * The base's stock of bulk resources, such as Regolith, kept at the
+   * stockpile, in kilograms, in catalogue order.
+   */
+  readonly bulkResources: readonly BulkResourceSnapshot[];
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
@@ -405,7 +494,12 @@ export interface Snapshot {
    * they were raised, which is the order the Robot takes them in.
    */
   readonly maintenance: readonly MaintenanceSnapshot[];
-  /** Machines being parked where they can plug in, or waiting for the Robot to park them. */
+  /**
+   * The Expedition under way, from the player starting it until what it
+   * brought back is in the base's stock, or undefined if there is none.
+   */
+  readonly expedition: ExpeditionSnapshot | undefined;
+  /** Machines and Rovers being parked where they can plug in, or waiting for the Robot to park them. */
   readonly parking: readonly ParkingSnapshot[];
 }
 
@@ -472,6 +566,12 @@ export interface Campaign {
    * balance can't pay for, is refused with the limit it would go over.
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
+  /**
+   * Starts an Expedition: the Robot finishes the Work Order it holds, then
+   * drives the Rover off the map, and comes back some time later with
+   * water ice. It is refused while one is under way or the Rover is Broken.
+   */
+  startExpedition(): StartExpeditionResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -497,6 +597,8 @@ export interface CampaignState {
   lander: LanderState;
   missionDirector: MissionDirectorResidence;
   lifeSupport: LifeSupportState[];
+  /** What the base's Plants made of each life support stock, and the Mission Director used, lately. */
+  selfSufficiency: SelfSufficiencyState[];
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
@@ -515,7 +617,10 @@ export interface CampaignState {
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
+  rovers: RoverState[];
   stockpile: StockpileState;
+  /** One stock for every bulk resource, in catalogue order. */
+  bulkResources: BulkResourceState[];
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
@@ -526,8 +631,10 @@ export interface CampaignState {
   reconnections: ReconnectionState[];
   /** Maintenance Work Orders, in the order they were raised. */
   maintenance: MaintenanceState[];
-  /** "Park Machine" Work Orders, in the order they were raised. */
+  /** "Park" Work Orders, for Machines and Rovers, in the order they were raised. */
   parking: ParkingState[];
+  /** The Expedition under way, if any. */
+  expedition: ExpeditionState | undefined;
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -545,6 +652,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
+    selfSufficiency: startingSelfSufficiency(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     micrometeorite: scheduleMicrometeorite(random, 0),
@@ -567,10 +675,13 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...machine.position },
       activity: { kind: "idle" },
       assignment: undefined,
+      digging: undefined,
       conditionPercent: 100,
       powered: false,
     })),
+    rovers: startingRovers(),
     stockpile: startingStockpile(),
+    bulkResources: startingBulkResources(),
     constructions: [],
     structures: [],
     dismantlings: [],
@@ -579,6 +690,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     reconnections: [],
     maintenance: [],
     parking: [],
+    expedition: undefined,
   });
 }
 
@@ -688,6 +800,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(setLaunchManifest(state, manifest));
     },
+    startExpedition() {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(startExpedition(state));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -712,6 +834,7 @@ function campaignFrom(state: CampaignState): Campaign {
         habitatPower: forecastHabitatPower(state),
         radiationDose: forecastRadiationDose(state),
         spareComponents: forecastSpareComponents(state),
+        bulkResources: forecastBulkResources(state),
       });
     },
     snapshot() {
@@ -724,6 +847,7 @@ function campaignFrom(state: CampaignState): Campaign {
         lander: readLander(state),
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
+        selfSufficiency: readSelfSufficiency(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
@@ -749,7 +873,17 @@ function campaignFrom(state: CampaignState): Campaign {
           pluggedIn: plugs.has(machine.id),
           powered: machine.powered,
         })),
+        rovers: state.rovers.map((rover) => ({
+          id: rover.id,
+          position: { ...rover.position },
+          activity: { ...rover.activity },
+          conditionPercent: rover.conditionPercent,
+          performance: roverPerformance(rover),
+          pluggedIn: plugs.has(rover.id),
+          powered: rover.powered,
+        })),
         stockpile: copy(state.stockpile),
+        bulkResources: readBulkResources(state),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
           structureTypeId: construction.structureTypeId,
@@ -767,6 +901,7 @@ function campaignFrom(state: CampaignState): Campaign {
             ...copy(structure),
             shielded: isShielded(state, structure),
             performance,
+            plant: readPlant(state, structure),
             lightRadiusMetres:
               (findStructureType(structure.structureTypeId)
                 ?.lightRadiusMetres ?? 0) * performance,
@@ -798,17 +933,19 @@ function campaignFrom(state: CampaignState): Campaign {
               lunation.part === "daylight"
                 ? network.daylightGenerationKilowatts
                 : 0,
-            consumptionKilowatts: consumptionKilowatts(
-              network,
-              lunation.part === "daylight",
-            ),
+            consumptionKilowatts:
+              consumptionKilowatts(network, lunation.part === "daylight") +
+              plantConsumptionKilowatts(network),
             storedKilowattHours: network.storedKilowattHours,
             storageCapacityKilowattHours: network.storageCapacityKilowattHours,
-            powered: network.structures.every((structure) => structure.powered),
+            powered: network.structures
+              .filter((structure) => !isPlant(structure))
+              .every((structure) => structure.powered),
           })),
         },
         maintenance: readMaintenance(state),
         parking: readParking(state),
+        expedition: readExpedition(state),
       });
     },
     save() {
@@ -833,10 +970,12 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   const sparesBefore = forecastSpareComponents(state);
+  const selfSufficiencyBefore = readSelfSufficiency(state);
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
-  events.push(...chillMachines(state, partSupplied === "night"));
+  events.push(...chillDriven(state, partSupplied === "night"));
+
   coatSolarArrays(state, partBefore === "daylight");
   events.push(...flyLander(state));
   events.push(...watchMicrometeorites(state));
@@ -844,9 +983,11 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...planMaintenance(state));
   planParking(state);
   events.push(...workMachines(state));
+  idleRovers(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
+  runPlants(state);
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({
@@ -866,6 +1007,9 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");
   events.push(...(death === undefined ? dangers : [death]));
+  if (death === undefined) {
+    events.push(...watchSelfSufficiency(state, selfSufficiencyBefore));
+  }
   return events;
 }
 

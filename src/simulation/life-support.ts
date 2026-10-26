@@ -3,6 +3,8 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
+import { productionPerHour } from "./plants";
+import { recordLifeSupport } from "./self-sufficiency";
 
 /**
  * How far short of a whole game-minute of use a stock may be and still count
@@ -28,7 +30,15 @@ export interface LifeSupportSnapshot {
 
 export interface LifeSupportForecast {
   readonly stockId: string;
-  /** Game-minutes until it runs out, or undefined while it isn't being used up. */
+  /**
+   * How fast it is changing now: what the base's Plants are making, less
+   * what the Mission Director uses. Positive while it is rising.
+   */
+  readonly kilogramsPerEarthDay: number;
+  /**
+   * Game-minutes until it runs out at that rate, or undefined while it
+   * isn't falling.
+   */
   readonly minutesUntilEmpty: number | undefined;
 }
 
@@ -51,18 +61,25 @@ export function readLifeSupport(state: CampaignState): LifeSupportSnapshot[] {
 export function forecastLifeSupport(
   state: CampaignState,
 ): LifeSupportForecast[] {
-  const inUse = isInUse(state);
-  return state.lifeSupport.map((stock) => ({
-    stockId: stock.stockId,
-    minutesUntilEmpty: inUse ? minutesLeft(stock) : undefined,
-  }));
+  return state.lifeSupport.map((stock) => {
+    const perMinute = netPerMinute(state, stock);
+    return {
+      stockId: stock.stockId,
+      kilogramsPerEarthDay: perMinute * MINUTES_PER_EARTH_DAY,
+      minutesUntilEmpty:
+        perMinute < 0 ? minutesLeft(stock, perMinute) : undefined,
+    };
+  });
 }
 
 /**
  * Uses up a game-minute of every life support stock while the Mission
- * Director lives in a Habitat. If one runs out, the Mission Director dies at
- * once, which ends the Campaign; the death is then the only event, as any
- * warning that minute would come too late to matter.
+ * Director lives in a Habitat, after the base's Plants have made their
+ * game-minute's worth. A warning comes as the time until a stock runs out,
+ * at the rate it is falling, reaches a warning level; while the Plants make
+ * as much as is used, it isn't falling and none comes. If one runs out, the
+ * Mission Director dies at once, which ends the Campaign; the death is then
+ * the only event, as any warning that minute would come too late to matter.
  */
 export function useLifeSupport(state: CampaignState): GameEvent[] {
   if (!isInUse(state)) return [];
@@ -70,10 +87,13 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
   let ranOut: LifeSupportState | undefined;
   for (const stock of state.lifeSupport) {
     const type = findStock(stock.stockId);
-    const before = minutesLeft(stock);
-    stock.kilograms -= usePerMinute(type);
-    const after = minutesLeft(stock);
-    if (after === 0) {
+    const perMinute = netPerMinute(state, stock);
+    const before = minutesLeft(stock, perMinute);
+    const used = Math.min(usePerMinute(type), stock.kilograms);
+    stock.kilograms -= used;
+    recordLifeSupport(state, stock.stockId, { used });
+    const after = minutesLeft(stock, perMinute);
+    if (stock.kilograms === 0 || after === 0) {
       stock.kilograms = 0;
       ranOut ??= stock;
     } else if (
@@ -110,10 +130,26 @@ function isInUse(state: CampaignState): boolean {
   );
 }
 
-/** The whole game-minutes of use left in a stock. */
-function minutesLeft(stock: LifeSupportState): number {
-  const minutes =
-    stock.kilograms / usePerMinute(findStock(stock.stockId)) - MINUTE_TOLERANCE;
+/**
+ * How many kilograms a stock is changing by in a game-minute now: what the
+ * base's Plants made in the latest one, less what the Mission Director uses.
+ */
+function netPerMinute(state: CampaignState, stock: LifeSupportState): number {
+  const made =
+    productionPerHour(state, {
+      kind: "life-support",
+      stockId: stock.stockId,
+    }) / 60;
+  return made - (isInUse(state) ? usePerMinute(findStock(stock.stockId)) : 0);
+}
+
+/**
+ * The whole game-minutes left in a stock at a rate of change, or Infinity
+ * while it isn't falling.
+ */
+function minutesLeft(stock: LifeSupportState, perMinute: number): number {
+  if (perMinute >= 0) return Infinity;
+  const minutes = stock.kilograms / -perMinute - MINUTE_TOLERANCE;
   return Math.max(Math.ceil(minutes), 0);
 }
 

@@ -38,13 +38,14 @@ export interface Catalogue {
     readonly footprintRadiusMetres: number;
   };
   /**
-   * Where the Lander has touched down, and the base's stockpile, Robots and
-   * Machines stand, when a Campaign begins.
+   * Where the Lander has touched down, and the base's stockpile, Robots,
+   * Rovers and Machines stand, when a Campaign begins.
    */
   readonly landingSite: {
     readonly landerPosition: GroundPosition;
     readonly stockpilePosition: GroundPosition;
     readonly robotPositions: readonly GroundPosition[];
+    readonly roverPositions: readonly GroundPosition[];
     readonly machines: readonly {
       readonly machineTypeId: string;
       readonly position: GroundPosition;
@@ -87,6 +88,14 @@ export interface Catalogue {
     readonly conditionFloorPercent: number;
   };
   readonly machineTypes: readonly MachineType[];
+  readonly rover: RoverType;
+  readonly expeditions: ExpeditionRules;
+  /**
+   * The bulk resources the base keeps a stock of at the stockpile, measured
+   * in kilograms, in the order the status panel shows them.
+   */
+  readonly bulkResources: readonly BulkResource[];
+  readonly digging: DiggingRules;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
@@ -103,6 +112,7 @@ export interface Catalogue {
    * at once.
    */
   readonly lifeSupportStocks: readonly LifeSupportStock[];
+  readonly selfSufficiency: SelfSufficiencyRules;
   /**
    * A warning comes as the time until the Habitat the Mission Director lives
    * in loses power falls to each of these many game-hours, largest first.
@@ -325,6 +335,22 @@ export interface LifeSupportStock {
   readonly warningEarthDaysLeft: readonly number[];
 }
 
+/**
+ * When the base counts as self-sufficient in a life support stock: once,
+ * over a trailing window, its Plants have made at least as much of it as
+ * the Mission Director has used.
+ */
+export interface SelfSufficiencyRules {
+  /** How many Lunations the window covers. */
+  readonly windowLunations: number;
+  /**
+   * How long each record of what was made and used covers, in game-hours.
+   * The window must come to a whole number of them, and the rule is
+   * checked as each one ends.
+   */
+  readonly recordHours: number;
+}
+
 /** A point on the base map's ground plane, in metres from the map's centre (x east, y north). */
 export interface GroundPosition {
   readonly x: number;
@@ -363,7 +389,7 @@ export interface MachineType {
   readonly activationHours: number;
   /**
    * How much Condition Dust wears off it for each game-hour it works by
-   * itself on a stage of Construction, in percentage points.
+   * itself, on a stage of Construction or digging, in percentage points.
    */
   readonly dustWearPercentPerWorkingHour: number;
   /**
@@ -378,6 +404,76 @@ export interface MachineType {
    * goes unpowered, in percentage points, on top of any Dust wear.
    */
   readonly coldWearPercentPerNightHour: number;
+}
+
+/**
+ * The Rover, which a Robot drives, mainly to go on Expeditions. Like a
+ * Machine, it wears down, feels the cold of Night unless it is plugged in,
+ * and is maintained with spare Components; unlike one, it carries out no
+ * process by itself.
+ */
+export interface RoverType {
+  readonly label: string;
+  /** Radius of the ground it stands on; Structures may not be placed over it. */
+  readonly footprintRadiusMetres: number;
+  /** How far it goes in a game-hour while a Robot drives it, at full performance. */
+  readonly drivingSpeedMetresPerHour: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour a Robot drives
+   * it, in percentage points.
+   */
+  readonly dustWearPercentPerDrivingHour: number;
+  /** The power its heater draws at Night while it is plugged in. */
+  readonly heaterKilowatts: number;
+  /**
+   * How much Condition the cold wears off it for each game-hour of Night it
+   * goes unpowered, in percentage points, on top of any Dust wear.
+   */
+  readonly coldWearPercentPerNightHour: number;
+}
+
+/**
+ * Expeditions: the Robot drives the Rover off the map and comes back some
+ * time later with water ice. The Rover wears down by Dust at its rate for
+ * each game-hour it is driven, there and back as on the map.
+ */
+export interface ExpeditionRules {
+  /**
+   * How long the Robot and the Rover are away, from driving off the map to
+   * driving back onto it. Must come to a whole number of game-minutes.
+   */
+  readonly awayEarthDays: number;
+  /** The bulk resource an Expedition brings back. */
+  readonly resourceId: string;
+  /** How much of it an Expedition brings back. */
+  readonly kilograms: number;
+  /**
+   * The Robot's working time to unload it at the stockpile, in game-hours.
+   * Must come to a whole number of game-minutes.
+   */
+  readonly unloadingHours: number;
+}
+
+/** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
+export interface BulkResource {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * Digging: whenever no Construction needs it, a Machine digs a bulk
+ * resource from the ground beside the stockpile, until the base's stock of
+ * it reaches a level.
+ */
+export interface DiggingRules {
+  /** The type of Machine that digs. */
+  readonly machineTypeId: string;
+  /** The bulk resource it digs. */
+  readonly resourceId: string;
+  /** It digs while the base has less than this, and stops once it has this much. */
+  readonly stockLevelKilograms: number;
+  /** How much it digs in a game-hour at full performance; less as its Condition falls. */
+  readonly kilogramsPerWorkingHour: number;
 }
 
 /**
@@ -484,7 +580,36 @@ export interface StructureType {
    * Robot carries its cargo from it to the stockpile.
    */
   readonly landingPad: boolean;
+  /**
+   * The recipe it runs if it is a Plant: a Structure that turns resources
+   * into products once it is commissioned.
+   */
+  readonly plant?: PlantRecipe;
 }
+
+/**
+ * What a Plant takes in and puts out for each game-hour it runs at full
+ * performance, and the power it draws while it runs. It runs only while it
+ * has some of every input, isn't Broken and has power; on its network it
+ * is supplied last, only from power that nothing else uses and no battery
+ * bank can store, so it never takes power from anything else.
+ */
+export interface PlantRecipe {
+  readonly inputs: readonly ResourceFlow[];
+  readonly outputs: readonly ResourceFlow[];
+  readonly drawKilowatts: number;
+}
+
+/** A Plant's use or making of a resource, in kilograms for each game-hour it runs. */
+export interface ResourceFlow {
+  readonly resource: ResourceRef;
+  readonly kilogramsPerHour: number;
+}
+
+/** A bulk resource, or a life support stock such as oxygen. */
+export type ResourceRef =
+  | { readonly kind: "bulk-resource"; readonly resourceId: string }
+  | { readonly kind: "life-support"; readonly stockId: string };
 
 export interface GameSpeed {
   readonly id: string;
@@ -493,7 +618,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 23,
+  version: 29,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -507,6 +632,9 @@ export const catalogue: Catalogue = {
     // the Lander.
     stockpilePosition: { x: 9, y: -10 },
     robotPositions: [{ x: 6, y: -3 }],
+    // Parked on the far side of the Lander from the stockpile, clear of a
+    // Structure built right beside the Lander.
+    roverPositions: [{ x: 0, y: 13 }],
     machines: [
       { machineTypeId: "excavator", position: { x: -11, y: -4.5 } },
       { machineTypeId: "regolith-printer", position: { x: -11, y: 4.5 } },
@@ -564,6 +692,38 @@ export const catalogue: Catalogue = {
       coldWearPercentPerNightHour: 0.2,
     },
   ],
+  // Built to cover ground, so it drives far faster than the Machines and
+  // wears down less for it.
+  rover: {
+    label: "Rover",
+    footprintRadiusMetres: 1.5,
+    drivingSpeedMetresPerHour: 240,
+    dustWearPercentPerDrivingHour: 0.1,
+    heaterKilowatts: 0.2,
+    coldWearPercentPerNightHour: 0.2,
+  },
+  // Three Earth Days away for enough ice to make more water than the
+  // Mission Director drinks in a Lunation.
+  expeditions: {
+    awayEarthDays: 3,
+    resourceId: "water-ice",
+    kilograms: 200,
+    unloadingHours: 1,
+  },
+  bulkResources: [
+    { id: "regolith", label: "Regolith" },
+    { id: "metals", label: "Metals" },
+    { id: "silicon", label: "Silicon" },
+    { id: "water-ice", label: "Water ice" },
+  ],
+  // About a day's digging fills it, wearing the excavator down by some 8
+  // percentage points.
+  digging: {
+    machineTypeId: "excavator",
+    resourceId: "regolith",
+    stockLevelKilograms: 1000,
+    kilogramsPerWorkingHour: 50,
+  },
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },
@@ -577,6 +737,10 @@ export const catalogue: Catalogue = {
     { id: "pad-panel", label: "Pad panel" },
     { id: "pad-beacon", label: "Pad beacon" },
     { id: "spare-component", label: "Spare Component" },
+    { id: "extraction-reactor", label: "Extraction reactor" },
+    { id: "oxygen-separator", label: "Oxygen separator" },
+    { id: "ice-melter", label: "Ice melter" },
+    { id: "water-purifier", label: "Water purifier" },
   ],
   structureTypes: [
     {
@@ -762,6 +926,112 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: true,
     },
+    {
+      id: "extraction-plant",
+      label: "Extraction plant",
+      footprintRadiusMetres: 3,
+      // A reactor that melts Regolith and splits it by electrolysis, and
+      // the plant that draws the oxygen off.
+      components: [
+        { componentId: "extraction-reactor", count: 1 },
+        { componentId: "oxygen-separator", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 3,
+        componentDelivery: 1,
+        assembly: 6,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Regolith is fed through it, so it wears faster than most.
+      dustWearPercentPerHour: 0.05,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // A few percent of the Regolith comes out as oxygen, about four
+      // times what the Mission Director breathes while it runs, and much of
+      // the rest as metals and silicon; what is left is slag.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "regolith" },
+            kilogramsPerHour: 4,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "life-support", stockId: "oxygen" },
+            kilogramsPerHour: 0.15,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.6,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 0.4,
+          },
+        ],
+        drawKilowatts: 4,
+      },
+    },
+    {
+      id: "water-processing-plant",
+      label: "Water-processing plant",
+      footprintRadiusMetres: 2.5,
+      // A heated tank that melts the ice, and a still that cleans the water.
+      components: [
+        { componentId: "ice-melter", count: 1 },
+        { componentId: "water-purifier", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 4,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.15,
+      dustWearPercentPerHour: 0.03,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // Most of the ice comes out as water; the rest is the dust and grit
+      // frozen in with it. Running, it makes six times what the Mission
+      // Director drinks, so an Expedition's ice lasts over a week.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "water-ice" },
+            kilogramsPerHour: 1,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 0.9,
+          },
+        ],
+        drawKilowatts: 2,
+      },
+    },
   ],
   dismantlingLossShare: 0.2,
   startingStock: [
@@ -796,6 +1066,9 @@ export const catalogue: Catalogue = {
       warningEarthDaysLeft: [7, 3, 1],
     },
   ],
+  // A whole Lunation, so that a Night when the Plants stand idle, or the
+  // time between Expeditions, doesn't take self-sufficiency away.
+  selfSufficiency: { windowLunations: 1, recordHours: 6 },
   habitatPowerWarningHoursLeft: [24, 6, 1],
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
@@ -903,6 +1176,32 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "spare-component" },
         massKilograms: 20,
         priceMillionDollars: 1,
+      },
+      // An extraction plant's worth comes to 1000 kg.
+      {
+        id: "extraction-reactor",
+        brings: { kind: "component", componentId: "extraction-reactor" },
+        massKilograms: 700,
+        priceMillionDollars: 45,
+      },
+      {
+        id: "oxygen-separator",
+        brings: { kind: "component", componentId: "oxygen-separator" },
+        massKilograms: 300,
+        priceMillionDollars: 30,
+      },
+      // A water-processing plant's worth comes to 400 kg.
+      {
+        id: "ice-melter",
+        brings: { kind: "component", componentId: "ice-melter" },
+        massKilograms: 250,
+        priceMillionDollars: 15,
+      },
+      {
+        id: "water-purifier",
+        brings: { kind: "component", componentId: "water-purifier" },
+        massKilograms: 150,
+        priceMillionDollars: 20,
       },
       // In pressurised tanks, which make up the rest of the mass.
       {

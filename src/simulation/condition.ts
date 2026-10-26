@@ -24,9 +24,10 @@ export function performanceAt(
 
 /**
  * How well a Structure does its job, from 1 down to 0 once it is Broken. A
- * solar array's generation, a battery bank's storage capacity and a Light
- * Mast's light fall along the data catalogue's curve; anything else, such
- * as a Habitat or Regolith shielding, works fully until it is Broken.
+ * solar array's generation, a battery bank's storage capacity, a Light
+ * Mast's light and a Plant's rate fall along the data catalogue's curve;
+ * anything else, such as a Habitat or Regolith shielding, works fully
+ * until it is Broken.
  */
 export function structurePerformance(
   structure: Pick<StructureState, "structureTypeId" | "conditionPercent">,
@@ -37,7 +38,9 @@ export function structurePerformance(
     type !== undefined &&
     (type.power.generationKilowatts > 0 ||
       type.power.storageKilowattHours > 0 ||
-      type.lightRadiusMetres > 0);
+      type.lightRadiusMetres > 0 ||
+      type.plant !== undefined);
+
   return partial
     ? performanceAt(catalogue.structurePerformance, structure.conditionPercent)
     : 1;

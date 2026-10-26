@@ -5,6 +5,7 @@ import {
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
+  chooseDiggingSpot,
   chooseMachineSpot,
   componentsFor,
   findStructureType,
@@ -20,7 +21,18 @@ import {
   takeOffBase,
   type DismantlingState,
 } from "./dismantling";
+import { addBulk } from "./bulk-resources";
 import type { GameEvent } from "./events";
+import {
+  awayMinutes,
+  exitPointFrom,
+  expeditionOf,
+  returnSpot,
+  unloadingMinutes,
+  wearRoverOnExpedition,
+  type ExpeditionState,
+} from "./expeditions";
+import { isRoverBroken, roverPerformance } from "./rovers";
 import {
   findMachineType,
   machineFootprintRadius,
@@ -64,7 +76,21 @@ import {
   collectCargo,
   finishUnloading,
 } from "./unloading";
-import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
+import {
+  claimWorkOrder,
+  drivenWorkOrder,
+  isOpen,
+  isSameWorkOrder,
+  type WorkOrder,
+} from "./work-orders";
+import {
+  bodyOf,
+  drivenPerformance,
+  drivenSpec,
+  findDriven,
+  wearDriven,
+  type Driven,
+} from "./driven";
 import { isClaimedBy } from "./maintenance";
 
 /**
@@ -91,15 +117,47 @@ export type RobotActivity =
     }
   | {
       readonly kind: "walking";
-      /** The Machine it is to maintain. */
+      /** The Machine it is to maintain, park or set digging. */
       readonly machineId: string;
       /** Fetching spare Components from the stockpile for it, or walking to it. */
       readonly destination: "stockpile" | "machine";
     }
   | {
+      readonly kind: "walking";
+      /** The Rover it is to maintain or park. */
+      readonly roverId: string;
+      /** Fetching spare Components from the stockpile for it, or walking to it. */
+      readonly destination: "stockpile" | "rover";
+    }
+  | {
       /** Loading spare Components at the stockpile to maintain a Machine, or restoring the Machine's Condition. */
       readonly kind: "loading-components" | "maintaining";
       readonly machineId: string;
+    }
+  | {
+      /** Loading spare Components at the stockpile to maintain a Rover, or restoring the Rover's Condition. */
+      readonly kind: "loading-components" | "maintaining";
+      readonly roverId: string;
+    }
+  | {
+      /** Driving a Rover, aboard it, to park it beside a powered Structure. */
+      readonly kind: "driving-rover";
+      readonly roverId: string;
+      readonly structureId: string;
+    }
+  | {
+      /** Driving a Rover, aboard it, off the map on an Expedition or back. */
+      readonly kind: "driving-rover";
+      readonly roverId: string;
+      readonly purpose: "expedition";
+    }
+  | {
+      /**
+       * "on-expedition": away beyond the base in the Rover.
+       * "unloading-expedition": unloading what an Expedition brought back
+       * at the stockpile.
+       */
+      readonly kind: "on-expedition" | "unloading-expedition";
     }
   | {
       /**
@@ -118,6 +176,12 @@ export type RobotActivity =
       readonly kind: "driving-machine" | "activating-machine";
       readonly structureId: string;
       readonly machineId: string;
+    }
+  | {
+      /** Driving a Machine beside the stockpile, aboard it, or setting it digging there. */
+      readonly kind: "driving-machine" | "activating-machine";
+      readonly machineId: string;
+      readonly purpose: "digging";
     }
   | {
       readonly kind:
@@ -167,9 +231,12 @@ const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 /**
  * Lets the Robot do one game-minute of work, as fast as its Condition
  * allows: first wearing it down by Dust for the game-minute before, if it
- * wasn't idle. Below the data catalogue's threshold, it repairs itself
- * ahead of everything else; otherwise it works on its Work Order, claiming
- * the next one in plan order when it has none. Returns any events.
+ * wasn't idle. Once it has set off on an Expedition, it does nothing else
+ * until the Expedition is over. Otherwise, below the data catalogue's
+ * threshold, it repairs itself ahead of everything else; then it works on
+ * its Work Order, and once it has none, it sets off on any Expedition it
+ * is to go on, or else claims the next Work Order in plan order. Returns
+ * any events.
  */
 export function workRobot(
   state: CampaignState,
@@ -179,9 +246,16 @@ export function workRobot(
   if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
     robot.workOrder = undefined;
   }
+  const expedition = expeditionOf(state, robot.id);
+  if (expedition !== undefined && expedition.stage !== "boarding") {
+    return goOnExpedition(state, robot, expedition);
+  }
   const started = startSelfRepair(state, robot);
   if (robot.selfRepair !== undefined) {
     return [...started, ...repairItself(state, robot, robot.selfRepair)];
+  }
+  if (expedition !== undefined && robot.workOrder === undefined) {
+    return goOnExpedition(state, robot, expedition);
   }
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
@@ -193,13 +267,20 @@ export function workRobot(
     isClaimedBy(robot, candidate.target),
   );
   if (maintenance !== undefined) return maintain(state, robot, maintenance);
-  const parking = state.parking.find(
-    (candidate) =>
-      workOrder?.kind === "park-machine" &&
-      candidate.machineId === workOrder.machineId,
-  );
-  if (parking !== undefined) return parkMachine(state, robot, parking);
-  if (workOrder !== undefined && "machineId" in workOrder) {
+  const parking =
+    workOrder?.kind === "park-machine" || workOrder?.kind === "park-rover"
+      ? state.parking.find((candidate) =>
+          isSameWorkOrder(drivenWorkOrder(candidate.target, "park"), workOrder),
+        )
+      : undefined;
+  if (parking !== undefined) return park(state, robot, parking);
+  if (workOrder?.kind === "dig") {
+    return setDigging(state, robot, workOrder.machineId);
+  }
+  if (
+    workOrder !== undefined &&
+    ("machineId" in workOrder || "roverId" in workOrder)
+  ) {
     robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
@@ -310,8 +391,6 @@ function positionMachine(
   machineStage: StageMachine,
 ): GameEvent[] {
   const { id } = construction;
-  const walkTo = (spot: GroundPosition) =>
-    walkRobotTo(state, robot, id, spot, "machine");
   const machine =
     machineOn(state, id) ?? assignMachine(state, construction, machineStage);
   const assignment = machine?.assignment;
@@ -320,13 +399,95 @@ function positionMachine(
     robot.activity = { kind: "idle" };
     return [];
   }
+  return setGoing(state, robot, machine, assignment, construction.position, {
+    walking: { kind: "walking", structureId: id, destination: "machine" },
+    driving: {
+      kind: "driving-machine",
+      structureId: id,
+      machineId: machine.id,
+    },
+    activating: {
+      kind: "activating-machine",
+      structureId: id,
+      machineId: machine.id,
+    },
+  });
+}
+
+/**
+ * Lets the Robot do one game-minute of setting a Machine digging: it drives
+ * the Machine to clear ground beside the stockpile and activates it, and
+ * the Machine then digs by itself.
+ */
+function setDigging(
+  state: CampaignState,
+  robot: RobotState,
+  machineId: string,
+): GameEvent[] {
+  const machine = state.machines.find(
+    (candidate) => candidate.id === machineId,
+  );
+  if (machine === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  machine.digging ??= {
+    destination: chooseDiggingSpot(state, machine),
+    activationMinutes: 0,
+    working: false,
+  };
+  return setGoing(
+    state,
+    robot,
+    machine,
+    machine.digging,
+    state.stockpile.position,
+    {
+      walking: { kind: "walking", machineId, destination: "machine" },
+      driving: { kind: "driving-machine", machineId, purpose: "digging" },
+      activating: { kind: "activating-machine", machineId, purpose: "digging" },
+    },
+  );
+}
+
+/**
+ * Lets the Robot do one game-minute of setting a Machine going: it walks to
+ * the Machine and drives it to where it works, as fast as the Machine's
+ * Condition allows, then climbs down and activates it from beside it,
+ * doing each with the activity given for it.
+ */
+function setGoing(
+  state: CampaignState,
+  robot: RobotState,
+  machine: MachineState,
+  positioning: {
+    readonly destination: GroundPosition;
+    activationMinutes: number;
+    working: boolean;
+  },
+  site: GroundPosition,
+  activities: {
+    readonly walking: RobotActivity & { readonly kind: "walking" };
+    readonly driving: RobotActivity & { readonly kind: "driving-machine" };
+    readonly activating: RobotActivity & {
+      readonly kind: "activating-machine";
+    };
+  },
+): GameEvent[] {
+  const walkTo = (spot: GroundPosition): boolean => {
+    if (samePlace(robot.position, spot)) return true;
+    stepRobot(state, robot, spot);
+    robot.activity = activities.walking;
+    return false;
+  };
   const type = findMachineType(machine.machineTypeId);
-  if (!samePlace(machine.position, assignment.destination)) {
+  if (!samePlace(machine.position, positioning.destination)) {
     if (!walkTo(machine.position)) return [];
     // As fast as its Condition allows, wearing it down by Dust.
     machine.position = stepTowards(
       machine.position,
-      assignment.destination,
+      positioning.destination,
       {
         centre: state.lander.position,
         radius:
@@ -337,11 +498,7 @@ function positionMachine(
         60,
     );
     robot.position = { ...machine.position };
-    robot.activity = {
-      kind: "driving-machine",
-      structureId: id,
-      machineId: machine.id,
-    };
+    robot.activity = activities.driving;
     const broken = wearMachine(
       state,
       machine,
@@ -355,18 +512,14 @@ function positionMachine(
     return broken;
   }
   // Once there, it climbs down and sets the Machine going from beside it.
-  if (!walkTo(beside(machine, construction))) return [];
-  robot.activity = {
-    kind: "activating-machine",
-    structureId: id,
-    machineId: machine.id,
-  };
-  assignment.activationMinutes += robotPerformance(robot);
+  if (!walkTo(beside(machine, site))) return [];
+  robot.activity = activities.activating;
+  positioning.activationMinutes += robotPerformance(robot);
   if (
-    assignment.activationMinutes >=
+    positioning.activationMinutes >=
     Math.round((type?.activationHours ?? 0) * 60)
   ) {
-    assignment.working = true;
+    positioning.working = true;
   }
   return [];
 }
@@ -460,6 +613,8 @@ function assignMachine(
     construction.position,
   );
   if (machine === undefined) return undefined;
+  // Digging gives way to Construction.
+  machine.digging = undefined;
   machine.assignment = {
     constructionId: construction.id,
     stage,
@@ -471,19 +626,13 @@ function assignMachine(
 }
 
 /** Where a Robot stands to activate a Machine: just outside it, beside the site. */
-function beside(
-  machine: MachineState,
-  construction: ConstructionState,
-): GroundPosition {
+function beside(machine: MachineState, site: GroundPosition): GroundPosition {
   const reach =
     machineFootprintRadius(machine.machineTypeId) +
     catalogue.robot.workingGapMetres / 2;
   // At right angles to the line from the site to the Machine.
   const angle =
-    Math.atan2(
-      machine.position.y - construction.position.y,
-      machine.position.x - construction.position.x,
-    ) +
+    Math.atan2(machine.position.y - site.y, machine.position.x - site.x) +
     Math.PI / 2;
   return {
     x: machine.position.x + Math.cos(angle) * reach,
@@ -627,23 +776,29 @@ function maintain(
   const walkTo = (spot: GroundPosition, destination: "stockpile" | "site") =>
     worn.kind === "structure"
       ? walkRobotTo(state, robot, worn.structure.id, spot, destination)
-      : walkRobotToMachine(
+      : walkRobotToDriven(
           state,
           robot,
-          worn.machine.id,
+          worn,
           spot,
-          destination === "site" ? "machine" : "stockpile",
+          destination === "site" ? "there" : "stockpile",
         );
   const working = (
     kind: "loading-components" | "maintaining",
-  ): RobotActivity =>
-    worn.kind === "structure"
-      ? { kind, structureId: worn.structure.id }
-      : { kind, machineId: worn.machine.id };
+  ): RobotActivity => {
+    switch (worn.kind) {
+      case "structure":
+        return { kind, structureId: worn.structure.id };
+      case "machine":
+        return { kind, machineId: worn.machine.id };
+      case "rover":
+        return { kind, roverId: worn.rover.id };
+    }
+  };
   if (maintenance.visit === undefined) {
-    // A Machine stays where it is once it is being maintained.
-    if (worn.kind === "machine") {
-      maintenance.workSpot = besideMachine(state, worn.machine);
+    // A Machine or Rover stays where it is once it is being maintained.
+    if (worn.kind !== "structure") {
+      maintenance.workSpot = besideDriven(state, worn);
     }
     let visit = plannedVisit(state, maintenance, worn);
     if (visit.spareComponents > 0) {
@@ -686,57 +841,59 @@ function maintain(
 }
 
 /**
- * Lets the Robot do one game-minute of parking a Machine: it walks to the
- * Machine, then drives it, as fast as its Condition allows, to its spot
+ * Lets the Robot do one game-minute of parking a Machine or Rover: it walks
+ * to it, then drives it, as fast as its Condition allows, to its spot
  * beside a powered Structure, where it plugs in.
  */
-function parkMachine(
+function park(
   state: CampaignState,
   robot: RobotState,
   parking: ParkingState,
 ): GameEvent[] {
-  const machine = state.machines.find(
-    (candidate) => candidate.id === parking.machineId,
-  );
-  if (machine === undefined) {
+  const driven = findDriven(state, parking.target);
+  if (driven === undefined) {
     robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
   }
-  if (samePlace(machine.position, parking.destination)) {
+  const body = bodyOf(driven);
+  if (samePlace(body.position, parking.destination)) {
     state.parking = state.parking.filter((other) => other !== parking);
     robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
   }
-  if (
-    !walkRobotToMachine(state, robot, machine.id, machine.position, "machine")
-  ) {
+  if (!walkRobotToDriven(state, robot, driven, body.position, "there")) {
     return [];
   }
-  const type = findMachineType(machine.machineTypeId);
-  machine.position = stepTowards(
-    machine.position,
+  const spec = drivenSpec(driven);
+  body.position = stepTowards(
+    body.position,
     parking.destination,
     {
       centre: state.lander.position,
-      radius:
-        LANDER_CLEARANCE_METRES + machineFootprintRadius(machine.machineTypeId),
+      radius: LANDER_CLEARANCE_METRES + spec.footprintRadiusMetres,
     },
-    ((type?.drivingSpeedMetresPerHour ?? 0) * machinePerformance(machine)) / 60,
+    (spec.drivingSpeedMetresPerHour * drivenPerformance(driven)) / 60,
   );
-  robot.position = { ...machine.position };
-  robot.activity = {
-    kind: "driving-machine",
-    structureId: parking.structureId,
-    machineId: machine.id,
-  };
-  machine.activity = { kind: "being-parked", structureId: parking.structureId };
-  const broken = wearMachine(
-    state,
-    machine,
-    type?.dustWearPercentPerDrivingHour ?? 0,
-  );
+  robot.position = { ...body.position };
+  const { structureId } = parking;
+  if (driven.kind === "machine") {
+    robot.activity = {
+      kind: "driving-machine",
+      structureId,
+      machineId: driven.machine.id,
+    };
+    driven.machine.activity = { kind: "being-parked", structureId };
+  } else {
+    robot.activity = {
+      kind: "driving-rover",
+      roverId: driven.rover.id,
+      structureId,
+    };
+    driven.rover.activity = { kind: "being-parked", structureId };
+  }
+  const broken = wearDriven(state, driven, spec.dustWearPercentPerDrivingHour);
   if (broken.length > 0) {
     state.parking = state.parking.filter((other) => other !== parking);
     robot.workOrder = undefined;
@@ -745,38 +902,48 @@ function parkMachine(
   return broken;
 }
 
-/** Where a Robot stands to maintain a Machine: just outside it, on the side facing the stockpile. */
-function besideMachine(
-  state: CampaignState,
-  machine: MachineState,
-): GroundPosition {
+/** Where a Robot stands to maintain a Machine or Rover: just outside it, on the side facing the stockpile. */
+function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
+  const { position } = bodyOf(driven);
   const reach =
-    machineFootprintRadius(machine.machineTypeId) +
+    drivenSpec(driven).footprintRadiusMetres +
     catalogue.robot.workingGapMetres / 2;
   const angle = Math.atan2(
-    state.stockpile.position.y - machine.position.y,
-    state.stockpile.position.x - machine.position.x,
+    state.stockpile.position.y - position.y,
+    state.stockpile.position.x - position.x,
   );
   return {
-    x: machine.position.x + Math.cos(angle) * reach,
-    y: machine.position.y + Math.sin(angle) * reach,
+    x: position.x + Math.cos(angle) * reach,
+    y: position.y + Math.sin(angle) * reach,
   };
 }
 
 /**
  * Walks the Robot one game-minute towards a spot, round the Lander, for
- * Maintenance of a Machine. Says whether it was already there.
+ * Maintenance or parking of a Machine or Rover: to the stockpile, or to
+ * the Machine or Rover itself. Says whether it was already there.
  */
-function walkRobotToMachine(
+function walkRobotToDriven(
   state: CampaignState,
   robot: RobotState,
-  machineId: string,
+  driven: Driven,
   spot: GroundPosition,
-  destination: "stockpile" | "machine",
+  destination: "stockpile" | "there",
 ): boolean {
   if (samePlace(robot.position, spot)) return true;
   stepRobot(state, robot, spot);
-  robot.activity = { kind: "walking", machineId, destination };
+  robot.activity =
+    driven.kind === "machine"
+      ? {
+          kind: "walking",
+          machineId: driven.machine.id,
+          destination: destination === "there" ? "machine" : "stockpile",
+        }
+      : {
+          kind: "walking",
+          roverId: driven.rover.id,
+          destination: destination === "there" ? "rover" : "stockpile",
+        };
   return false;
 }
 
@@ -860,6 +1027,116 @@ function repairItself(
   if (selfRepair.workedMinutes < total) return [];
   removeCounts(robot.carrying, spares(selfRepair.spareComponents));
   return finishSelfRepair(state, robot, selfRepair.spareComponents);
+}
+
+/**
+ * Lets the Robot do one game-minute of an Expedition: it walks to the
+ * Rover, drives it to the nearest map edge and off the map, is away for the
+ * data catalogue's time, then drives back onto the map to the stockpile and
+ * unloads what it brought back, which joins the base's stock. A Rover
+ * Broken before it is driven off calls the Expedition off. Returns any
+ * events.
+ */
+function goOnExpedition(
+  state: CampaignState,
+  robot: RobotState,
+  expedition: ExpeditionState,
+): GameEvent[] {
+  const rover = state.rovers.find(
+    (candidate) => candidate.id === expedition.roverId,
+  );
+  if (rover === undefined) {
+    state.expedition = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const atMinute = state.elapsedMinutes;
+  /** Drives the Rover one game-minute towards a spot, and says whether it is there. */
+  const drive = (spot: GroundPosition): boolean => {
+    rover.position = stepTowards(
+      rover.position,
+      spot,
+      {
+        centre: state.lander.position,
+        radius: LANDER_CLEARANCE_METRES + catalogue.rover.footprintRadiusMetres,
+      },
+      (catalogue.rover.drivingSpeedMetresPerHour * roverPerformance(rover)) /
+        60,
+    );
+    robot.position = { ...rover.position };
+    robot.activity = {
+      kind: "driving-rover",
+      roverId: rover.id,
+      purpose: "expedition",
+    };
+    rover.activity = { kind: "on-expedition" };
+    wearRoverOnExpedition(rover);
+    return samePlace(rover.position, spot);
+  };
+  /** Drives the Rover back onto the map, beside the stockpile, to unload. */
+  const driveBack = (): GameEvent[] => {
+    if (drive(returnSpot(state, expedition.exitPoint ?? rover.position))) {
+      expedition.stage = "unloading";
+    }
+    return [];
+  };
+  switch (expedition.stage) {
+    case "boarding": {
+      if (isRoverBroken(rover)) {
+        state.expedition = undefined;
+        robot.activity = { kind: "idle" };
+        return [{ kind: "expedition-called-off", atMinute }];
+      }
+      const driven: Driven = { kind: "rover", rover };
+      if (
+        !walkRobotToDriven(
+          state,
+          robot,
+          driven,
+          besideDriven(state, driven),
+          "there",
+        )
+      ) {
+        return [];
+      }
+      expedition.stage = "driving-out";
+      expedition.exitPoint = exitPointFrom(rover.position);
+      return [];
+    }
+    case "driving-out": {
+      const exit = expedition.exitPoint ?? exitPointFrom(rover.position);
+      if (!drive(exit)) return [];
+      expedition.stage = "away";
+      expedition.returnsAtMinute = atMinute + awayMinutes();
+      return [
+        {
+          kind: "expedition-left",
+          atMinute,
+          returnsAtMinute: expedition.returnsAtMinute,
+        },
+      ];
+    }
+    case "away":
+      if (atMinute < (expedition.returnsAtMinute ?? atMinute)) {
+        robot.activity = { kind: "on-expedition" };
+        rover.activity = { kind: "on-expedition" };
+        wearRoverOnExpedition(rover);
+        return [];
+      }
+      expedition.stage = "driving-back";
+      return driveBack();
+    case "driving-back":
+      return driveBack();
+    case "unloading": {
+      robot.activity = { kind: "unloading-expedition" };
+      expedition.workedMinutes += robotPerformance(robot);
+      if (expedition.workedMinutes < unloadingMinutes()) return [];
+      const { resourceId, kilograms } = catalogue.expeditions;
+      addBulk(state, resourceId, kilograms);
+      state.expedition = undefined;
+      return [{ kind: "expedition-returned", atMinute, resourceId, kilograms }];
+    }
+  }
 }
 
 /** Takes Components out of a list of counts, dropping any count that comes to none. */

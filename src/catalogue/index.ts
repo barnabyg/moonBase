@@ -1,10 +1,13 @@
 export { catalogue } from "./catalogue";
 export type {
+  BulkResource,
   Catalogue,
   ColdRules,
   ComponentCount,
   ComponentType,
+  DiggingRules,
   DustCoatingRules,
+  ExpeditionRules,
   GameSpeed,
   GroundPosition,
   LaunchItem,
@@ -16,7 +19,12 @@ export type {
   MapSize,
   MicrometeoriteRules,
   PerformanceCurve,
+  PlantRecipe,
   RadiationRules,
+  ResourceFlow,
+  ResourceRef,
+  RoverType,
+  SelfSufficiencyRules,
   SolarParticleEventRules,
   StructureType,
 } from "./catalogue";

@@ -2,10 +2,12 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isOperating } from "./condition";
+import { isAway, isRoverOnExpedition } from "./expeditions";
 import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { readLunation } from "./lunation";
 import { findMachineType, isMachineBroken } from "./machines";
+import { isRoverBroken } from "./rovers";
 import { findWorn, spareComponentsFor, visitFor } from "./maintenance";
 import { inStock } from "./stockpile";
 
@@ -21,8 +23,8 @@ export interface SpareComponentsForecast {
   /**
    * How many spare Components an Earth Day of wear at the current rate
    * calls for, at the Maintenance rate: Dust on what is operating now, the
-   * cold on Machines unpowered at Night, the Robot's wear, and the average
-   * damage Micrometeorites do.
+   * cold on Machines and Rovers unpowered at Night, the Robot's wear, and
+   * the average damage Micrometeorites do.
    */
   readonly perEarthDay: number;
   /**
@@ -110,8 +112,9 @@ export function watchSpareComponents(
 /**
  * How fast everything with a Condition is wearing down now, in percentage
  * points an hour, all added together: Dust on the Structures operating,
- * the Machines working or being driven and the Robots at work, the cold on
- * Machines unpowered at Night, and the average damage of Micrometeorites.
+ * the Machines working or being driven, the Rovers being driven and the
+ * Robots at work, the cold on Machines and Rovers unpowered at Night, and
+ * the average damage of Micrometeorites.
  */
 function wearPercentPerHour(state: CampaignState): number {
   const structures = state.structures
@@ -136,12 +139,33 @@ function wearPercentPerHour(state: CampaignState): number {
       );
       return (
         sum +
-        (machine.activity.kind === "working"
+        (machine.activity.kind === "working" ||
+        machine.activity.kind === "digging"
           ? (type?.dustWearPercentPerWorkingHour ?? 0)
           : 0) +
         (driven ? (type?.dustWearPercentPerDrivingHour ?? 0) : 0) +
         (night && !machine.powered
           ? (type?.coldWearPercentPerNightHour ?? 0)
+          : 0)
+      );
+    }, 0);
+  const { rover: roverType } = catalogue;
+  const rovers = state.rovers
+    .filter((rover) => !isRoverBroken(rover))
+    .reduce((sum, rover) => {
+      const driven =
+        isAway(state, { roverId: rover.id }) ||
+        state.robots.some(
+          (robot) =>
+            robot.activity.kind === "driving-rover" &&
+            robot.activity.roverId === rover.id,
+        );
+      return (
+        sum +
+        (driven ? roverType.dustWearPercentPerDrivingHour : 0) +
+        // Out on an Expedition, it is kept warm as it is driven.
+        (night && !rover.powered && !isRoverOnExpedition(state, rover.id)
+          ? roverType.coldWearPercentPerNightHour
           : 0)
       );
     }, 0);
@@ -158,6 +182,7 @@ function wearPercentPerHour(state: CampaignState): number {
   return (
     structures +
     machines +
+    rovers +
     robots * catalogue.robot.dustWearPercentPerHour +
     strikes
   );

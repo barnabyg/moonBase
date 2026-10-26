@@ -1,0 +1,255 @@
+{
+  "format": "moonbase-save",
+  "version": 17,
+  "random": {
+    "a": -1072533893,
+    "b": 3107833674,
+    "c": 3617153313,
+    "d": 2933813591
+  },
+  "state": {
+    "elapsedMinutes": 2880,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 3,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 26.50750000000077
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 35144,
+      "startsAtMinute": 35384,
+      "endsAtMinute": 37024
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 16989
+    },
+    "spareComponentsWarnedMinutes": null,
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 13.972637838393542,
+          "y": -12.385974209453403
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "carrying": [],
+        "workOrder": null,
+        "conditionPercent": 96.42666666666992,
+        "selfRepair": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 12.411720131274492,
+          "y": -13.790800145860548
+        },
+        "activity": {
+          "kind": "digging"
+        },
+        "assignment": null,
+        "digging": {
+          "destination": {
+            "x": 12.411720131274492,
+            "y": -13.790800145860548
+          },
+          "activationMinutes": 15,
+          "working": true
+        },
+        "conditionPercent": 93.30333333333942,
+        "powered": false
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "rovers": [
+      {
+        "id": "rover-1",
+        "position": {
+          "x": 0,
+          "y": 13
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        },
+        {
+          "componentId": "extraction-reactor",
+          "count": 0
+        },
+        {
+          "componentId": "oxygen-separator",
+          "count": 0
+        }
+      ]
+    },
+    "bulkResources": [
+      {
+        "resourceId": "regolith",
+        "kilograms": 462.299999999998
+      },
+      {
+        "resourceId": "metals",
+        "kilograms": 6.029999999999916
+      },
+      {
+        "resourceId": "silicon",
+        "kilograms": 4.020000000000039
+      }
+    ],
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 98.40833333333478,
+        "dustCoatingPercent": 3.1833333333332354
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "extraction-plant",
+        "position": {
+          "x": 30,
+          "y": 22
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 99.49833333333379,
+        "dustCoatingPercent": 0
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 22.121320343559642,
+          "y": 14.121320343559642
+        },
+        "end": {
+          "x": 27.878679656440358,
+          "y": 19.878679656440358
+        },
+        "route": [
+          {
+            "x": 22.121320343559642,
+            "y": 14.121320343559642
+          },
+          {
+            "x": 27.878679656440358,
+            "y": 19.878679656440358
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": []
+  }
+}

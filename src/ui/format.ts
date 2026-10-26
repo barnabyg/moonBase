@@ -1,6 +1,7 @@
-import { catalogue, type LaunchItem } from "../catalogue";
+import { catalogue, type LaunchItem, type ResourceRef } from "../catalogue";
 import {
   readClock,
+  type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
   type GameEvent,
@@ -8,6 +9,7 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type RadiationDoseForecast,
+  type SelfSufficiencySnapshot,
   type SpareComponentsForecast,
   type SolarParticleEventSnapshot,
 } from "../simulation";
@@ -25,6 +27,9 @@ import type {
   ConstructionSnapshot,
   ConstructionWait,
   ConstructionStage,
+  DrivenSubject,
+  ExpeditionSnapshot,
+  RoverSnapshot,
   DismantlingSnapshot,
   DismantlingStage,
   LanderSnapshot,
@@ -37,6 +42,7 @@ import type {
   MaintenanceWait,
   ManifestLine,
   ParkingSnapshot,
+  PlantSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -197,7 +203,9 @@ export function stockLabel(stockId: string): string {
 
 /**
  * Says how much of a life support stock is left and when it will run out,
- * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours".
+ * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours", or how
+ * fast it is rising while the base's Plants make more than is used, for
+ * example "Oxygen: 24.2 kg, rising 2.8 kg an Earth Day".
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
@@ -205,6 +213,9 @@ export function formatLifeSupport(
   missionDirector: MissionDirectorResidence,
 ): string {
   const amount = `${stockLabel(stock.stockId)}: ${stock.kilograms.toFixed(1)} kg`;
+  if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
+    return `${amount}, rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg an Earth Day`;
+  }
   if (stock.kilograms === 0) return `${amount}, ran out`;
   if (forecast?.minutesUntilEmpty !== undefined) {
     return `${amount}, runs out in ${formatDuration(forecast.minutesUntilEmpty)}`;
@@ -212,6 +223,35 @@ export function formatLifeSupport(
   return missionDirector.residence === "lander"
     ? `${amount}, kept safe aboard the Lander`
     : amount;
+}
+
+/**
+ * Says whether the base is self-sufficient in a life support stock, and
+ * what share of the Mission Director's use the base made over the window,
+ * for example "Oxygen self-sufficiency: yes, 140% of use made at the base
+ * over the last Lunation".
+ */
+export function formatSelfSufficiency(
+  selfSufficiency: SelfSufficiencySnapshot,
+  missionDirector: MissionDirectorResidence,
+): string {
+  const label = `${stockLabel(selfSufficiency.stockId)} self-sufficiency`;
+  if (missionDirector.residence === "lander") {
+    return `${label}: no, nothing is used aboard the Lander`;
+  }
+  const { windowLunations } = catalogue.selfSufficiency;
+  const window =
+    windowLunations === 1
+      ? "the last Lunation"
+      : `the last ${windowLunations} Lunations`;
+  const share =
+    selfSufficiency.coveredShare === undefined
+      ? "nothing used yet"
+      : `${Math.round(selfSufficiency.coveredShare * 100)}% of use made at the base`;
+  if (!selfSufficiency.windowComplete) {
+    return `${label}: not yet, ${share} so far, until a whole Lunation has been recorded`;
+  }
+  return `${label}: ${selfSufficiency.selfSufficient ? "yes" : "no"}, ${share} over ${window}`;
 }
 
 /**
@@ -305,6 +345,8 @@ export function formatEvent(event: GameEvent): string {
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
     case "machine-broken":
       return `${machineLabel(event.machineTypeId)} is Broken, and has stopped where it stood`;
+    case "rover-broken":
+      return `${catalogue.rover.label} is Broken, and has stopped where it stood`;
     case "maintenance-needed":
       return `${subjectLabel(event.target)} needs Maintenance: ${listInWords([
         ...(event.restoresCondition
@@ -331,6 +373,16 @@ export function formatEvent(event: GameEvent): string {
       return event.spareComponents > 0
         ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
         : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "expedition-left":
+      return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
+    case "expedition-returned":
+      return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
+    case "expedition-called-off":
+      return "Expedition called off: the Rover is Broken";
+    case "self-sufficiency-gained":
+      return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+    case "self-sufficiency-lost":
+      return `The base is no longer self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
@@ -439,6 +491,65 @@ export function formatMillionDollars(value: number): string {
 export function formatStock(stockpile: Snapshot["stockpile"]): string {
   const held = stockpile.components.filter((stock) => stock.count > 0);
   return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
+}
+
+/** Names a bulk resource or life support stock, for example "Regolith" or "Oxygen". */
+export function resourceRefLabel(resource: ResourceRef): string {
+  return resource.kind === "bulk-resource"
+    ? resourceLabel(resource.resourceId)
+    : stockLabel(resource.stockId);
+}
+
+/**
+ * Says whether a Plant is running, and why not, for its line in the status
+ * panel, for example ", running" or ", stopped: out of Regolith"; nothing
+ * once it is Broken, which the line says already.
+ */
+export function formatPlant(plant: PlantSnapshot): string {
+  switch (plant.stoppedFor?.reason) {
+    case undefined:
+      return ", running";
+    case "broken":
+      return "";
+    case "no-input":
+      return `, stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
+    case "no-power":
+      return ", stopped: no power to spare";
+  }
+}
+
+export function resourceLabel(resourceId: string): string {
+  return (
+    catalogue.bulkResources.find((resource) => resource.id === resourceId)
+      ?.label ?? resourceId
+  );
+}
+
+/** Formats an amount in kilograms, rounded down to the whole kilogram, for example "1250 kg". */
+export function formatKilograms(kilograms: number): string {
+  return `${Math.floor(kilograms)} kg`;
+}
+
+/**
+ * Lists the base's stock of bulk resources, and roughly how long any that
+ * is falling will last at the current rate, for example "Regolith: 340 kg;
+ * Water ice: 190 kg, lasts about 7 Earth Days 22 hours".
+ */
+export function formatBulkResources(
+  bulkResources: Snapshot["bulkResources"],
+  forecasts: readonly BulkResourceForecast[],
+): string {
+  return bulkResources
+    .map((stock) => {
+      const amount = `${resourceLabel(stock.resourceId)}: ${formatKilograms(stock.kilograms)}`;
+      const minutes = forecasts.find(
+        (forecast) => forecast.resourceId === stock.resourceId,
+      )?.minutesUntilEmpty;
+      return minutes === undefined || stock.kilograms === 0
+        ? amount
+        : `${amount}, lasts about ${formatDuration(minutes)}`;
+    })
+    .join("; ");
 }
 
 /** Says how much Funding the base programme has, for example "Funding: $400M". */
@@ -553,7 +664,11 @@ export function formatMachine(
         ? "being driven to a site"
         : machine.activity.kind === "being-parked"
           ? "being parked"
-          : "idle";
+          : machine.activity.kind === "being-positioned-to-dig"
+            ? "being set digging"
+            : machine.activity.kind === "digging"
+              ? `digging ${resourceLabel(catalogue.digging.resourceId)}`
+              : "idle";
   const plug = broken
     ? ""
     : !machine.pluggedIn
@@ -579,8 +694,14 @@ export function formatMachine(
  * for example "Robot: working, Condition 87%" or "Robot: repairing itself
  * at the Habitat, Condition 9%, working at 18%".
  */
-export function formatRobot(robot: RobotSnapshot): string {
+export function formatRobot(
+  robot: RobotSnapshot,
+  expedition?: ExpeditionSnapshot,
+): string {
   const { activity, selfRepair } = robot;
+  if (isOnExpedition(robot.id, expedition)) {
+    return `Robot: on an Expedition, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+  }
   const where =
     selfRepair === undefined
       ? ""
@@ -596,6 +717,47 @@ export function formatRobot(robot: RobotSnapshot): string {
   return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
 }
 
+/**
+ * Whether a Robot has set off on an Expedition, so that every Work Order
+ * waits for it: from walking to the Rover until it has unloaded what it
+ * brought back.
+ */
+export function isOnExpedition(
+  robotId: string,
+  expedition: ExpeditionSnapshot | undefined,
+): boolean {
+  return (
+    expedition !== undefined &&
+    expedition.robotId === robotId &&
+    expedition.stage !== "boarding"
+  );
+}
+
+/**
+ * Says how the Expedition under way is going, and when it will be back,
+ * for example "Expedition: away, back in 2 Earth Days 5 hours", or that
+ * there is none.
+ */
+export function formatExpedition(
+  expedition: ExpeditionSnapshot | undefined,
+  elapsedMinutes: number,
+): string {
+  if (expedition === undefined) return "Expedition: none under way";
+  const cargo = `${formatKilograms(expedition.kilograms)} of ${resourceLabel(expedition.resourceId).toLowerCase()}`;
+  switch (expedition.stage) {
+    case "boarding":
+      return "Expedition: leaving once the Robot has finished its Work Order and boarded the Rover";
+    case "driving-out":
+      return "Expedition: the Robot is driving the Rover to the map edge";
+    case "away":
+      return `Expedition: away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
+    case "driving-back":
+      return `Expedition: back on the map with ${cargo}, driving to the stockpile`;
+    case "unloading":
+      return `Expedition: unloading ${cargo} at the stockpile`;
+  }
+}
+
 /** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
 function strikeTargetLabel(target: StrikeTarget): string {
   switch (target.kind) {
@@ -603,16 +765,77 @@ function strikeTargetLabel(target: StrikeTarget): string {
       return structureLabel(target.structureTypeId).toLowerCase();
     case "machine":
       return machineLabel(target.machineTypeId).toLowerCase();
+    case "rover":
+      return catalogue.rover.label;
     case "robot":
       return "Robot";
   }
+}
+
+/** Names a Machine or Rover, for example "Excavator" or "Rover". */
+export function drivenLabel(subject: DrivenSubject): string {
+  return subject.kind === "machine"
+    ? machineLabel(subject.machineTypeId)
+    : catalogue.rover.label;
 }
 
 /** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
 export function subjectLabel(subject: MaintenanceSubject): string {
   return subject.kind === "structure"
     ? structureLabel(subject.structureTypeId)
-    : machineLabel(subject.machineTypeId);
+    : drivenLabel(subject);
+}
+
+/** Lowercases a name, except one, such as the Rover, that the glossary always capitalises. */
+export function inSentence(label: string): string {
+  return label === catalogue.rover.label ? label : label.toLowerCase();
+}
+
+/**
+ * Whether a Robot's activity is for a Machine or Rover, by what it is: its
+ * Maintenance, or parking it.
+ */
+function isForDriven(activity: RobotActivity, subject: DrivenSubject): boolean {
+  return subject.kind === "machine"
+    ? "machineId" in activity && activity.machineId === subject.machineId
+    : "roverId" in activity && activity.roverId === subject.roverId;
+}
+
+/**
+ * Says what the Rover is doing, whether it is plugged in and powered, and
+ * how intact it is, for the status panel, for example "Rover: idle, not
+ * plugged in, Condition 100%" or "Rover: Broken, Condition 0%, awaiting
+ * Maintenance".
+ */
+export function formatRover(
+  rover: RoverSnapshot,
+  maintenance: readonly MaintenanceSnapshot[],
+): string {
+  const broken = rover.conditionPercent <= 0;
+  const doing = broken
+    ? "Broken"
+    : rover.activity.kind === "being-parked"
+      ? "being parked"
+      : rover.activity.kind === "on-expedition"
+        ? "on an Expedition"
+        : "parked";
+  const plug = broken
+    ? ""
+    : !rover.pluggedIn
+      ? ", not plugged in"
+      : rover.powered
+        ? ", plugged in and powered"
+        : ", plugged in, no power";
+  const order = maintenance.find(
+    ({ target }) => target.kind === "rover" && target.roverId === rover.id,
+  );
+  const maintained =
+    order === undefined
+      ? ""
+      : order.underWay
+        ? ", undergoing Maintenance"
+        : ", awaiting Maintenance";
+  return `${catalogue.rover.label}: ${doing}${plug}, Condition ${formatCondition(rover.conditionPercent)}${formatPerformance(rover.performance)}${maintained}`;
 }
 
 /** Whether a Robot's activity is for a Structure, by its id. */
@@ -729,7 +952,9 @@ function describeRobotWork(
     case "idle":
       return "Waiting for the Robot";
     case "walking":
-      return describeWalk(activity.destination);
+      return "structureId" in activity
+        ? describeWalk(activity.destination)
+        : "Waiting for the Robot";
     case "laying-cable":
       return `Robot laying power cable from the ${cableSource}: ${Math.floor(routeLength(cable?.route ?? []))} m so far`;
     case "driving-machine":
@@ -749,6 +974,9 @@ function describeRobotWork(
     // Only ever done for a Structure being dismantled or maintained, to
     // unload the Lander, or for the Robot's repair of itself, when it does
     // nothing for anything else.
+    case "driving-rover":
+    case "on-expedition":
+    case "unloading-expedition":
     case "dismantling":
     case "returning-components":
     case "loading-cargo":
@@ -840,18 +1068,18 @@ export function describeParking(
   parking: ParkingSnapshot,
   snapshot: Pick<Snapshot, "robots">,
 ): string {
-  const machine = machineLabel(parking.machineTypeId).toLowerCase();
+  const machine = inSentence(drivenLabel(parking.subject));
   const beside = structureLabel(parking.structureTypeId).toLowerCase();
   const robot = parking.underWay
-    ? snapshot.robots.find(
-        ({ activity }) =>
-          "machineId" in activity && activity.machineId === parking.machineId,
+    ? snapshot.robots.find(({ activity }) =>
+        isForDriven(activity, parking.subject),
       )
     : undefined;
   switch (robot?.activity.kind) {
     case "walking":
       return `Robot walking to the ${machine}`;
     case "driving-machine":
+    case "driving-rover":
       return `Robot driving the ${machine} to the ${beside}, to plug it in`;
     default:
       return `Waiting for the Robot to park the ${machine} beside the ${beside}`;
@@ -875,12 +1103,12 @@ export function describeMaintenance(
 ): string {
   const spares = plural(maintenance.spareComponents, "spare Component");
   const { target } = maintenance;
-  const label = subjectLabel(target).toLowerCase();
+  const label = inSentence(subjectLabel(target));
   const robot = maintenance.underWay
     ? snapshot.robots.find(({ activity }) =>
         target.kind === "structure"
           ? isFor(activity, target.structureId)
-          : "machineId" in activity && activity.machineId === target.machineId,
+          : isForDriven(activity, target),
       )
     : undefined;
   switch (robot?.activity.kind) {

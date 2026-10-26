@@ -108,7 +108,7 @@ describe("parking", () => {
     for (let minutes = 0; minutes < parkingLeadHours * 60; minutes++) {
       campaign.advance(1);
       const activity = campaign.snapshot().robots[0]?.activity;
-      if (activity?.kind === "driving-machine") {
+      if (activity?.kind === "driving-machine" && "structureId" in activity) {
         drives.add(`${activity.machineId} to ${activity.structureId}`);
         const machine = machines(campaign).find(
           (m) => m.id === activity.machineId,
@@ -124,7 +124,12 @@ describe("parking", () => {
     });
     expect(drives.size).toBeGreaterThan(0);
     expect(machines(campaign).map((m) => m.pluggedIn)).toEqual([true, true]);
-    expect(campaign.snapshot().parking).toEqual([]);
+    // Only the Rover, parked after the Machines, may still be on its way.
+    expect(
+      campaign
+        .snapshot()
+        .parking.filter((parking) => parking.subject.kind === "machine"),
+    ).toEqual([]);
   });
 
   it("isn't raised when there is no powered Structure to park beside", () => {
@@ -144,7 +149,7 @@ describe("parking", () => {
     const campaign = worn(game.campaign, bankId, 40);
     const work = (activity: RobotActivity | undefined): string | undefined => {
       if (activity === undefined || activity.kind === "idle") return undefined;
-      if (activity.kind === "driving-machine") {
+      if (activity.kind === "driving-machine" && "structureId" in activity) {
         return activity.structureId === mastId ? "construction" : "parking";
       }
       if ("machineId" in activity) return "parking";
@@ -315,7 +320,11 @@ describe("the cold", () => {
       events.push(
         ...campaign
           .advance(60)
-          .filter((event) => event.kind === "maintenance-needed"),
+          .filter(
+            (event) =>
+              event.kind === "maintenance-needed" &&
+              event.target.kind === "machine",
+          ),
       );
     }
 

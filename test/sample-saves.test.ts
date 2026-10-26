@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { loadCampaign, type Campaign, type GameEvent } from "../src/simulation";
+import {
+  loadCampaign,
+  type Campaign,
+  type GameEvent,
+  type GroundPosition,
+} from "../src/simulation";
 
 /**
  * Save files written by released format versions, kept so that every one of
@@ -427,10 +432,11 @@ describe("the sample saves from before Maintenance", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.at(-1)).toEqual({
-        componentId: "spare-component",
-        count: 6,
-      });
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === "spare-component",
+        ),
+      ).toEqual({ componentId: "spare-component", count: 6 });
       expect(state.maintenance).toEqual([]);
     },
   );
@@ -484,10 +490,11 @@ describe("the sample save of format version 8", () => {
       },
       carrying: [{ componentId: "spare-component", count: 2 }],
     });
-    expect(state.stockpile.components.at(-1)).toEqual({
-      componentId: "spare-component",
-      count: 4,
-    });
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "spare-component",
+      ),
+    ).toEqual({ componentId: "spare-component", count: 4 });
   });
 
   it("plays on from where it was saved, until the solar array is back to 100%", () => {
@@ -676,8 +683,11 @@ describe("the sample save of format version 11", () => {
     expect(state.lunation.part).toBe("daylight");
     expect(state.parking).toEqual([
       {
-        machineId: "regolith-printer-2",
-        machineTypeId: "regolith-printer",
+        subject: {
+          kind: "machine",
+          machineId: "regolith-printer-2",
+          machineTypeId: "regolith-printer",
+        },
         structureId: "structure-2",
         structureTypeId: "battery-bank",
         underWay: true,
@@ -826,5 +836,352 @@ describe("the sample save of format version 14", () => {
     for (const warning of warnings) {
       expect(warning.minutesUntilEmpty).toBeLessThanOrEqual(3 * 24 * 60);
     }
+  });
+});
+
+describe("the sample saves from before bulk resources", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-7.moonbase",
+    "version-13.moonbase",
+    "version-14.moonbase",
+  ])("%s loads with no Regolith, and no Machine digging", (name) => {
+    const state = loadSample(name).snapshot();
+
+    expect(state.bulkResources).toEqual(
+      catalogue.bulkResources.map((resource) => ({
+        resourceId: resource.id,
+        kilograms: 0,
+      })),
+    );
+    expect(
+      state.machines.filter((machine) => machine.activity.kind === "digging"),
+    ).toEqual([]);
+  });
+});
+
+describe("the sample save of format version 15", () => {
+  it("loads with the excavator digging Regolith beside the stockpile", () => {
+    const state = loadSample("version-15.moonbase").snapshot();
+
+    expect(
+      state.machines.find((machine) => machine.machineTypeId === "excavator")
+        ?.activity,
+    ).toEqual({ kind: "digging" });
+    expect(state.bulkResources[0]?.kilograms).toBeCloseTo(163.3, 1);
+  });
+
+  it("plays on from where it was saved, until the Regolith reaches its level", () => {
+    const campaign = loadSample("version-15.moonbase");
+
+    campaign.advance(24 * 60);
+
+    expect(campaign.snapshot().bulkResources[0]?.kilograms).toBe(
+      catalogue.digging.stockLevelKilograms,
+    );
+  });
+});
+
+describe("the sample saves from before the Rover", () => {
+  const footprint = (typeId: string): number =>
+    catalogue.structureTypes.find((type) => type.id === typeId)
+      ?.footprintRadiusMetres ??
+    catalogue.machineTypes.find((type) => type.id === typeId)
+      ?.footprintRadiusMetres ??
+    0;
+
+  it.each(
+    readdirSync(samples).filter(
+      (name) =>
+        name.endsWith(".moonbase") &&
+        Number(/version-(\d+)/.exec(name)?.[1]) < 16,
+    ),
+  )(
+    "%s loads with one Rover at full Condition, parked near the Lander clear of everything else",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.rovers).toHaveLength(1);
+      const [rover] = state.rovers;
+      expect(rover).toMatchObject({
+        id: "rover-1",
+        activity: { kind: "idle" },
+        conditionPercent: 100,
+      });
+      if (rover === undefined) return;
+      const clearOf = (position: GroundPosition, radius: number) =>
+        Math.hypot(
+          rover.position.x - position.x,
+          rover.position.y - position.y,
+        ) >=
+        radius + catalogue.rover.footprintRadiusMetres;
+      for (const footing of [
+        ...state.structures,
+        ...state.constructions,
+        ...state.dismantlings,
+      ]) {
+        expect(
+          clearOf(footing.position, footprint(footing.structureTypeId)),
+        ).toBe(true);
+      }
+      for (const machine of state.machines) {
+        expect(
+          clearOf(machine.position, footprint(machine.machineTypeId)),
+        ).toBe(true);
+      }
+      expect(Math.hypot(rover.position.x, rover.position.y)).toBeLessThan(15);
+    },
+  );
+});
+
+describe("the sample save of format version 16", () => {
+  it("loads early in the first Night, with the Robot driving the Rover to park it beside the solar array", () => {
+    const state = loadSample("version-16.moonbase").snapshot();
+
+    expect(state.lunation.part).toBe("night");
+    expect(state.robots[0]?.activity).toEqual({
+      kind: "driving-rover",
+      roverId: "rover-1",
+      structureId: "structure-1",
+    });
+    expect(state.rovers[0]).toMatchObject({
+      activity: { kind: "being-parked", structureId: "structure-1" },
+      pluggedIn: false,
+    });
+  });
+
+  it("plays on from where it was saved, until the Rover is plugged in and powered", () => {
+    const campaign = loadSample("version-16.moonbase");
+
+    campaign.advance(2 * 60);
+
+    expect(campaign.snapshot().lunation.part).toBe("night");
+    expect(campaign.snapshot().rovers[0]).toMatchObject({
+      activity: { kind: "idle" },
+      pluggedIn: true,
+      powered: true,
+    });
+  });
+});
+
+describe("the sample saves from before Plants", () => {
+  it.each(["version-1.moonbase", "version-14.moonbase", "version-16.moonbase"])(
+    "%s loads with no metals or silicon, and none of the extraction plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(
+        state.bulkResources
+          .filter((stock) => ["metals", "silicon"].includes(stock.resourceId))
+          .map((stock) => stock.kilograms),
+      ).toEqual([0, 0]);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["extraction-reactor", "oxygen-separator"].includes(
+            stock.componentId,
+          ),
+        ),
+      ).toEqual([
+        { componentId: "extraction-reactor", count: 0 },
+        { componentId: "oxygen-separator", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 17", () => {
+  const plantOf = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+
+  it("loads with the extraction plant turning Regolith into oxygen, metals and silicon", () => {
+    const campaign = loadSample("version-17.moonbase");
+
+    expect(plantOf(campaign)?.plant).toEqual({
+      running: true,
+      stoppedFor: undefined,
+    });
+    expect(
+      campaign
+        .snapshot()
+        .bulkResources.map((s) => s.kilograms)
+        .slice(0, 3),
+    ).toEqual([
+      expect.closeTo(462.3, 1),
+      expect.closeTo(6.03, 1),
+      expect.closeTo(4.02, 1),
+    ]);
+  });
+
+  it("plays on from where it was saved, the plant making oxygen until Night stops it", () => {
+    const campaign = loadSample("version-17.moonbase");
+    const oxygen = () => campaign.snapshot().lifeSupport[0]?.kilograms ?? 0;
+    const before = oxygen();
+
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
+
+    expect(oxygen()).toBeGreaterThan(before);
+    expect(plantOf(campaign)?.plant).toEqual({
+      running: false,
+      stoppedFor: { reason: "no-power" },
+    });
+  });
+});
+
+describe("the sample saves from before Expeditions", () => {
+  it.each(["version-1.moonbase", "version-16.moonbase", "version-17.moonbase"])(
+    "%s loads with no Expedition under way, and no water ice",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.expedition).toBeUndefined();
+      expect(
+        state.bulkResources.find((stock) => stock.resourceId === "water-ice"),
+      ).toEqual({ resourceId: "water-ice", kilograms: 0 });
+    },
+  );
+});
+
+describe("the sample save of format version 18", () => {
+  it("loads with the Robot and the Rover away on an Expedition", () => {
+    const state = loadSample("version-18.moonbase").snapshot();
+
+    expect(state.expedition).toMatchObject({
+      stage: "away",
+      returnsAtMinute: 4761,
+    });
+    expect(state.robots[0]?.activity).toEqual({ kind: "on-expedition" });
+    expect(state.rovers[0]?.activity).toEqual({ kind: "on-expedition" });
+  });
+
+  it("plays on from where it was saved, until the Expedition is back with its water ice", () => {
+    const campaign = loadSample("version-18.moonbase");
+    const kinds: string[] = [];
+
+    for (let hours = 0; campaign.snapshot().expedition !== undefined; hours++) {
+      if (hours > 4 * 24) throw new Error("The Expedition never came back.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("expedition-returned");
+    expect(
+      campaign
+        .snapshot()
+        .bulkResources.find((stock) => stock.resourceId === "water-ice")
+        ?.kilograms,
+    ).toBe(catalogue.expeditions.kilograms);
+  });
+});
+
+describe("the sample saves from before the water-processing plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-18.moonbase"])(
+    "%s loads with none of the water-processing plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["ice-melter", "water-purifier"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "ice-melter", count: 0 },
+        { componentId: "water-purifier", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 19", () => {
+  const iceOf = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === "water-ice")
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with the water-processing plant turning an Expedition's water ice into water", () => {
+    const campaign = loadSample("version-19.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.find(
+          (structure) => structure.structureTypeId === "water-processing-plant",
+        )?.plant,
+    ).toEqual({ running: true, stoppedFor: undefined });
+    expect(iceOf(campaign)).toBeCloseTo(196.2, 1);
+  });
+
+  it("plays on from where it was saved, the ice falling as the water rises", () => {
+    const campaign = loadSample("version-19.moonbase");
+    const waterOf = () => campaign.snapshot().lifeSupport[1]?.kilograms ?? 0;
+    const ice = iceOf(campaign);
+    const water = waterOf();
+
+    campaign.advance(10 * 60);
+
+    expect(iceOf(campaign)).toBeLessThan(ice);
+    expect(waterOf()).toBeGreaterThan(water);
+  });
+});
+
+describe("the sample saves from before self-sufficiency", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-19.moonbase"])(
+    "%s loads with no records kept yet, and the base self-sufficient in nothing",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.selfSufficiency).toEqual(
+        catalogue.lifeSupportStocks.map((stock) => ({
+          stockId: stock.id,
+          selfSufficient: false,
+          coveredShare: undefined,
+          windowComplete: false,
+        })),
+      );
+    },
+  );
+});
+
+describe("the sample save of format version 20", () => {
+  it("loads with two Earth Days of records of the water the plant has made", () => {
+    const document = JSON.parse(
+      readFileSync(new URL("version-20.moonbase", samples), "utf8"),
+    ) as {
+      state: {
+        selfSufficiency: {
+          stockId: string;
+          records: { producedKilograms: number }[];
+        }[];
+      };
+    };
+
+    expect(
+      document.state.selfSufficiency.map((history) => [
+        history.stockId,
+        history.records.length,
+      ]),
+    ).toEqual([
+      ["oxygen", 8],
+      ["water", 8],
+    ]);
+    const state = loadSample("version-20.moonbase").snapshot();
+    expect(
+      state.selfSufficiency.map((judged) => judged.selfSufficient),
+    ).toEqual([false, false]);
+  });
+
+  it("plays on from where it was saved, never self-sufficient while the Mission Director lives aboard the Lander", () => {
+    const campaign = loadSample("version-20.moonbase");
+
+    const kinds = campaign.advance(5 * 24 * 60).map((event) => event.kind);
+
+    expect(kinds).not.toContain("self-sufficiency-gained");
+    expect(campaign.snapshot().selfSufficiency[1]).toMatchObject({
+      stockId: "water",
+      selfSufficient: false,
+    });
   });
 });

@@ -13,9 +13,11 @@ import { setText } from "./dom";
 import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
+  formatBulkResources,
   formatClock,
   formatCondition,
   formatDustCoating,
+  formatExpedition,
   formatFunding,
   formatHabitatPower,
   formatLander,
@@ -23,11 +25,14 @@ import {
   formatLunation,
   formatMachine,
   formatRobot,
+  formatRover,
   formatSpareComponents,
   formatMissionDirector,
   formatPerformance,
+  formatPlant,
   formatPower,
   formatRadiationDose,
+  formatSelfSufficiency,
   formatSolarParticleEvent,
   formatStock,
   formatStoredPower,
@@ -40,7 +45,8 @@ const REFUSAL_SHOWN_MS = 8000;
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets the Robots and Machines listed, for a Campaign loaded in place
+   * Forgets the Robots, Machines and Rovers listed, for a Campaign loaded in place
+
    * of the last, which may have others.
    */
   startAfresh(): void;
@@ -63,6 +69,7 @@ export function createStatusPanel(
   >,
   saveFiles: SaveFiles,
   openLaunchManifest: () => void,
+  openExpeditions: () => void,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -137,6 +144,13 @@ export function createStatusPanel(
   stock.setAttribute("aria-label", "Base's stock");
   stock.setAttribute("aria-live", "off");
 
+  // The base's stock of bulk resources, such as Regolith.
+  const bulkResources = document.createElement("p");
+  bulkResources.className = "status-panel__components";
+  bulkResources.setAttribute("role", "status");
+  bulkResources.setAttribute("aria-label", "Bulk resources");
+  bulkResources.setAttribute("aria-live", "off");
+
   // How many spare Components there are, and how long they will last.
   const spareComponents = document.createElement("p");
   spareComponents.className = "status-panel__stock";
@@ -178,6 +192,23 @@ export function createStatusPanel(
   });
   landerLine.append(lander, sendLander);
 
+  // The Expedition under way, if any, beside the button that opens the
+  // Expeditions screen.
+  const expeditionLine = document.createElement("p");
+  expeditionLine.className = "status-panel__residence status-panel__lander";
+  const expedition = document.createElement("span");
+  expedition.setAttribute("role", "status");
+  expedition.setAttribute("aria-label", "Expedition");
+  expedition.setAttribute("aria-live", "off");
+  const expeditions = document.createElement("button");
+  expeditions.type = "button";
+  expeditions.className = "status-panel__send-lander";
+  expeditions.textContent = "Expeditions";
+  expeditions.title =
+    "Send the Robot off the map in the Rover, to come back with water ice.";
+  expeditions.addEventListener("click", openExpeditions);
+  expeditionLine.append(expedition, expeditions);
+
   // Whether the Mission Director's Habitat has power, and when it will lose it.
   const habitatPower = document.createElement("p");
   habitatPower.className = "status-panel__habitat-power";
@@ -191,6 +222,20 @@ export function createStatusPanel(
     line.className = "status-panel__stock";
     line.setAttribute("role", "status");
     line.setAttribute("aria-label", type.label);
+    line.setAttribute("aria-live", "off");
+    return { type, line };
+  });
+
+  // Whether the base is self-sufficient in oxygen and water.
+  const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
+    const line = document.createElement("p");
+    line.className = "status-panel__stock";
+    line.setAttribute("role", "status");
+    // Not starting with the stock's name, which labels its own line.
+    line.setAttribute(
+      "aria-label",
+      `Self-sufficiency in ${type.label.toLowerCase()}`,
+    );
     line.setAttribute("aria-live", "off");
     return { type, line };
   });
@@ -283,6 +328,13 @@ export function createStatusPanel(
   machines.setAttribute("aria-label", "Machines");
   const machineItems = new Map<string, HTMLLIElement>();
 
+  // Each Rover's Condition, and whether it is plugged in, Broken or
+  // awaiting Maintenance.
+  const rovers = document.createElement("ul");
+  rovers.className = "status-panel__structures";
+  rovers.setAttribute("aria-label", "Rovers");
+  const roverItems = new Map<string, HTMLLIElement>();
+
   panel.append(
     clock,
     lunation,
@@ -291,18 +343,22 @@ export function createStatusPanel(
     createSaveButtons(saveFiles, showResult),
     funding,
     stock,
+    bulkResources,
     spareComponents,
     power,
     storedPower,
     missionDirector,
     landerLine,
+    expeditionLine,
     habitatPower,
     ...stocks.map((stock) => stock.line),
+    ...selfSufficiency.map((stock) => stock.line),
     radiationDose,
     solarParticleEvent,
     structures,
     robots,
     machines,
+    rovers,
     refusal,
   );
   container.append(panel);
@@ -314,6 +370,10 @@ export function createStatusPanel(
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       setText(stock, formatStock(snapshot.stockpile));
+      setText(
+        bulkResources,
+        formatBulkResources(snapshot.bulkResources, forecasts.bulkResources),
+      );
       setText(
         spareComponents,
         formatSpareComponents(forecasts.spareComponents),
@@ -340,6 +400,10 @@ export function createStatusPanel(
         formatLander(snapshot.lander, snapshot.clock.elapsedMinutes),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
+      setText(
+        expedition,
+        formatExpedition(snapshot.expedition, snapshot.clock.elapsedMinutes),
+      );
       const habitatPowerText = formatHabitatPower(
         snapshot.missionDirector,
         snapshot.structures,
@@ -376,6 +440,14 @@ export function createStatusPanel(
           stock.kilograms === 0 ||
             (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
         );
+      }
+      for (const { type, line } of selfSufficiency) {
+        const judged = snapshot.selfSufficiency.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        line.hidden = judged === undefined;
+        if (judged === undefined) continue;
+        setText(line, formatSelfSufficiency(judged, snapshot.missionDirector));
       }
       setText(
         radiationDose,
@@ -435,7 +507,7 @@ export function createStatusPanel(
           : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.plant === undefined ? (structure.powered || broken ? "" : ", no power") : formatPlant(structure.plant)}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =
@@ -457,7 +529,7 @@ export function createStatusPanel(
           robots.append(item);
           robotItems.set(robot.id, item);
         }
-        setText(item, formatRobot(robot));
+        setText(item, formatRobot(robot, snapshot.expedition));
       }
       for (const machine of snapshot.machines) {
         let item = machineItems.get(machine.id);
@@ -468,9 +540,18 @@ export function createStatusPanel(
         }
         setText(item, formatMachine(machine, snapshot.maintenance));
       }
+      for (const rover of snapshot.rovers) {
+        let item = roverItems.get(rover.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          rovers.append(item);
+          roverItems.set(rover.id, item);
+        }
+        setText(item, formatRover(rover, snapshot.maintenance));
+      }
     },
     startAfresh() {
-      for (const items of [robotItems, machineItems]) {
+      for (const items of [robotItems, machineItems, roverItems]) {
         for (const item of items.values()) item.remove();
         items.clear();
       }

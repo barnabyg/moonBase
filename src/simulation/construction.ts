@@ -9,6 +9,7 @@ import {
   machineFootprintRadius,
   type MachineState,
 } from "./machines";
+import type { RoverState } from "./rovers";
 
 export type ConstructionStage =
   "site-preparation" | "component-delivery" | "assembly" | "commissioning";
@@ -26,6 +27,7 @@ export type PlacementRefusal =
   | "overlaps-stockpile"
   | "overlaps-structure"
   | "overlaps-machine"
+  | "overlaps-rover"
   /** Regolith shielding must go over a commissioned Habitat that isn't to be dismantled. */
   | "not-on-habitat"
   /** The Habitat has Regolith shielding over it already, or planned. */
@@ -105,6 +107,7 @@ export interface Site {
   /** Structures being dismantled, whose ground stays taken until they are gone. */
   readonly dismantlings: readonly Footing[];
   readonly machines: readonly MachineState[];
+  readonly rovers: readonly RoverState[];
 }
 
 /** Something standing on the base map with a Structure's footprint. */
@@ -284,6 +287,15 @@ function checkFooting(
       `${name} would overlap the ${label.toLowerCase()}.`,
     );
   }
+  if (
+    site.rovers.some(
+      (rover) =>
+        distance(position, rover.position) <
+        radius + catalogue.rover.footprintRadiusMetres,
+    )
+  ) {
+    return refuse("overlaps-rover", `${name} would overlap the Rover.`);
+  }
   return { ok: true, position: { x: position.x, y: position.y } };
 }
 
@@ -301,14 +313,22 @@ function stockpileGround(site: Pick<Site, "stockpile">): Ground {
   };
 }
 
+/** The ground every Rover stands on. */
+function roverGround(site: Pick<Site, "rovers">): Ground[] {
+  return site.rovers.map((rover) => ({
+    position: rover.position,
+    radius: catalogue.rover.footprintRadiusMetres,
+  }));
+}
+
 /** The ground a Machine stands on, and the ground it is being driven to. */
 function machineGround(machine: MachineState): Ground[] {
   const radius = machineFootprintRadius(machine.machineTypeId);
+  const destination =
+    machine.assignment?.destination ?? machine.digging?.destination;
   return [
     { position: machine.position, radius },
-    ...(machine.assignment === undefined
-      ? []
-      : [{ position: machine.assignment.destination, radius }]),
+    ...(destination === undefined ? [] : [{ position: destination, radius }]),
   ];
 }
 
@@ -398,7 +418,7 @@ function refuse(reason: PlacementRefusal, message: string): PlacementCheck {
  * Chooses where the Robot stands to work on a site: just outside its
  * footprint, on the side facing the Lander if that is clear, otherwise turning
  * round the site until it finds ground clear of the Lander, the stockpile,
- * every other Structure, every Machine and the map's edge.
+ * every other Structure, every Machine and Rover and the map's edge.
  */
 export function chooseWorkSpot(
   site: Site,
@@ -422,35 +442,40 @@ export function chooseWorkSpot(
         radius: footprintRadius(other.structureTypeId),
       })),
       ...site.machines.flatMap(machineGround),
+      ...roverGround(site),
     ],
   });
 }
 
 /**
- * Chooses where to park a Machine beside a Structure, within the data
- * catalogue's plug-in reach: just outside the Structure's footprint, on the
- * side facing the Machine if that is clear, otherwise turning round the
- * Structure until it finds ground clear of the Lander, the stockpile, every
- * other Structure and Machine, every spot another Machine is being parked
- * on and the map's edge.
+ * Chooses where to park a Machine or Rover beside a Structure, within the
+ * data catalogue's plug-in reach: just outside the Structure's footprint,
+ * on the side facing what is parked if that is clear, otherwise turning
+ * round the Structure until it finds ground clear of the Lander, the
+ * stockpile, every other Structure, Machine and Rover, every spot something
+ * else is being parked on and the map's edge.
  */
 export function chooseParkingSpot(
   site: Site,
   structure: Footing,
-  machine: MachineState,
+  driven: {
+    readonly id: string;
+    readonly position: GroundPosition;
+    readonly radius: number;
+  },
   parked: readonly {
     readonly position: GroundPosition;
     readonly radius: number;
   }[],
 ): GroundPosition {
-  const radius = machineFootprintRadius(machine.machineTypeId);
+  const { radius } = driven;
   return chooseSpotAround({
     centre: structure.position,
     reach:
       footprintRadius(structure.structureTypeId) +
       radius +
       catalogue.cold.plugInReachMetres / 2,
-    towards: machine.position,
+    towards: driven.position,
     clearance: radius,
     lander: {
       position: site.lander.position,
@@ -465,8 +490,11 @@ export function chooseParkingSpot(
         radius: footprintRadius(other.structureTypeId),
       })),
       ...site.machines
-        .filter((other) => other.id !== machine.id)
+        .filter((other) => other.id !== driven.id)
         .flatMap(machineGround),
+      ...roverGround({
+        rovers: site.rovers.filter((other) => other.id !== driven.id),
+      }),
       ...parked,
     ],
   });
@@ -514,7 +542,45 @@ export function chooseMachineSpot(
       ...site.machines
         .filter((other) => other.id !== machine.id)
         .flatMap(machineGround),
+      ...roverGround(site),
       { position: construction.workSpot, radius: machineGap },
+    ],
+  });
+}
+
+/**
+ * Chooses where a Machine stands to dig: beside the stockpile, a little way
+ * out from where the Robot loads and unloads, on the side away from the
+ * Lander if that is clear, otherwise turning round the stockpile until it
+ * finds ground clear of the Lander, every Structure and every other Machine
+ * and the map's edge.
+ */
+export function chooseDiggingSpot(
+  site: Site,
+  machine: MachineState,
+): GroundPosition {
+  const radius = machineFootprintRadius(machine.machineTypeId);
+  const gap = catalogue.robot.workingGapMetres;
+  const centre = site.stockpile.position;
+  const lander = site.lander.position;
+  return chooseSpotAround({
+    centre,
+    reach: catalogue.stockpile.footprintRadiusMetres + gap * 2 + radius,
+    towards: { x: centre.x * 2 - lander.x, y: centre.y * 2 - lander.y },
+    clearance: radius,
+    lander: {
+      position: lander,
+      radius: catalogue.lander.footprintRadiusMetres + gap,
+    },
+    others: [
+      ...footings(site).map((other) => ({
+        position: other.position,
+        radius: footprintRadius(other.structureTypeId),
+      })),
+      ...site.machines
+        .filter((other) => other.id !== machine.id)
+        .flatMap(machineGround),
+      ...roverGround(site),
     ],
   });
 }

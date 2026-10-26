@@ -18,7 +18,11 @@ import { scenario, type Scenario } from "./scenario";
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutCold } = await import("./without-cold");
-  return { ...actual, catalogue: withoutCold(actual.catalogue) };
+  const { withoutDigging } = await import("./without-digging");
+  return {
+    ...actual,
+    catalogue: withoutDigging(withoutCold(actual.catalogue)),
+  };
 });
 
 function structureType(id: string): StructureType {

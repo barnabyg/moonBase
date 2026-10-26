@@ -3,8 +3,10 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isBroken } from "./construction";
 import type { GameEvent } from "./events";
+import { isAway } from "./expeditions";
 import { damageMachine } from "./machines";
 import { drawMinutes, nextFraction, type RandomState } from "./random";
+import { damageRover } from "./rovers";
 import { wearRobotDown } from "./self-repair";
 
 /** The next Micrometeorite strike, as scheduled. Strikes come without warning. */
@@ -25,6 +27,7 @@ export type StrikeTarget =
       readonly machineId: string;
       readonly machineTypeId: string;
     }
+  | { readonly kind: "rover"; readonly roverId: string }
   | { readonly kind: "robot"; readonly robotId: string };
 
 /**
@@ -50,10 +53,12 @@ export function scheduleMicrometeorite(
 /**
  * Strikes as the game-minute that has just passed reaches the scheduled
  * strike, then schedules the next. The seeded generator picks one target
- * evenly among the commissioned Structures, the Machines and the Robots,
- * and draws the Condition it loses evenly from the data catalogue's range.
- * A Structure or Machine may be left Broken; a Robot's Condition stops at
- * its floor. Returns the strike, and the event for anything it broke.
+ * evenly among the commissioned Structures, the Machines, the Rovers and
+ * the Robots, and draws the Condition it loses evenly from the data
+ * catalogue's range. A Robot and a Rover away on an Expedition are beyond
+ * reach. A Structure, Machine or Rover may be left Broken; a Robot's
+ * Condition stops at its floor. Returns the strike, and the event for
+ * anything it broke.
  */
 export function watchMicrometeorites(state: CampaignState): GameEvent[] {
   const atMinute = state.elapsedMinutes;
@@ -64,7 +69,12 @@ export function watchMicrometeorites(state: CampaignState): GameEvent[] {
       structure,
     })),
     ...state.machines.map((machine) => ({ kind: "machine" as const, machine })),
-    ...state.robots.map((robot) => ({ kind: "robot" as const, robot })),
+    ...state.rovers
+      .filter((rover) => !isAway(state, { roverId: rover.id }))
+      .map((rover) => ({ kind: "rover" as const, rover })),
+    ...state.robots
+      .filter((robot) => !isAway(state, { robotId: robot.id }))
+      .map((robot) => ({ kind: "robot" as const, robot })),
   ];
   const target =
     targets[Math.floor(nextFraction(state.random) * targets.length)];
@@ -120,8 +130,22 @@ export function watchMicrometeorites(state: CampaignState): GameEvent[] {
         ...broken,
       ];
     }
+    case "rover": {
+      const { rover } = target;
+      const broken = damageRover(state, rover, loss);
+      return [
+        {
+          kind: "micrometeorite-strike",
+          atMinute,
+          target: { kind: "rover", roverId: rover.id },
+          conditionPercent: rover.conditionPercent,
+        },
+        ...broken,
+      ];
+    }
     case "robot": {
       const { robot } = target;
+
       wearRobotDown(robot, loss);
       return [
         {

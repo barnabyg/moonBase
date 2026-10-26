@@ -111,7 +111,8 @@ body {
 }
 
 .game-over,
-.launch-manifest {
+.launch-manifest,
+.expeditions {
   max-width: 440px;
   padding: 20px 22px;
   color: var(--text);
@@ -122,7 +123,8 @@ body {
 }
 
 .game-over::backdrop,
-.launch-manifest::backdrop {
+.launch-manifest::backdrop,
+.expeditions::backdrop {
   background: rgb(0 0 0 / 60%);
 }
 
@@ -318,7 +320,10 @@ body {
 .build-menu__options button {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   width: 100%;
+  text-align: left;
   padding: 6px 10px;
   font: inherit;
   color: var(--text);
@@ -344,6 +349,7 @@ body {
 }
 
 .build-menu__stock {
+  flex-shrink: 0;
   font-size: 0.85rem;
   opacity: 0.75;
 }
@@ -434,12 +440,14 @@ body {
   max-height: calc(100% - 32px);
 }
 
-.launch-manifest h2 {
+.launch-manifest h2,
+.expeditions h2 {
   margin: 0 0 8px;
   font-size: 1.2rem;
 }
 
-.launch-manifest p {
+.launch-manifest p,
+.expeditions p {
   margin: 0 0 10px;
 }
 
@@ -479,15 +487,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.launch-manifest__refusal {
+.launch-manifest__refusal,
+.expeditions__refusal {
   color: var(--warning);
 }
 
-.launch-manifest__refusal[hidden] {
+.launch-manifest__refusal[hidden],
+.expeditions__refusal[hidden] {
   display: none;
 }
 
+.expeditions button {
+  margin: 0 8px 10px 0;
+}
+
 .launch-manifest button,
+.expeditions button,
 .status-panel__manifest,
 .status-panel__send-lander {
   padding: 2px 8px;

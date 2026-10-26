@@ -134,7 +134,16 @@ export type GameEvent =
     }
   | {
       /**
-       * The Condition of a Structure or Machine has fallen below the
+       * A Rover's Condition has reached 0%: it is Broken, has stopped where
+       * it stood, and can't be driven until it has been maintained.
+       */
+      readonly kind: "rover-broken";
+      readonly atMinute: number;
+      readonly roverId: string;
+    }
+  | {
+      /**
+       * The Condition of a Structure, Machine or Rover has fallen below the
        * Maintenance threshold set in the data catalogue, or a solar array's
        * Dust coating has passed the threshold for cleaning, and a
        * Maintenance Work Order has been raised for it.
@@ -152,7 +161,8 @@ export type GameEvent =
     }
   | {
       /**
-       * The Robot has finished Maintenance on a Structure or Machine,
+       * The Robot has finished Maintenance on a Structure, Machine or Rover,
+
        * bringing its Condition back to 100% if it used spare Components, so
        * that something Broken works again, and cleaning the Dust coating
        * off a solar array if it cleaned it.
@@ -212,7 +222,40 @@ export type GameEvent =
       readonly minutesUntilEmpty: number;
     }
   | {
+      /** An Expedition has driven off the map, to come back at the given game-minute. */
+      readonly kind: "expedition-left";
+      readonly atMinute: number;
+      readonly returnsAtMinute: number;
+    }
+  | {
+      /**
+       * An Expedition is over: the Robot has unloaded what it brought back
+       * at the stockpile, where it joins the base's stock.
+       */
+      readonly kind: "expedition-returned";
+      readonly atMinute: number;
+      readonly resourceId: string;
+      readonly kilograms: number;
+    }
+  | {
+      /** The Rover was Broken before the Robot could drive it off, so the Expedition is off. */
+      readonly kind: "expedition-called-off";
+      readonly atMinute: number;
+    }
+  | {
+      /**
+       * The base has become self-sufficient in a life support stock
+       * ("self-sufficiency-gained"): over the data catalogue's window, its
+       * Plants made at least as much as the Mission Director used; or it
+       * has ceased to be ("self-sufficiency-lost").
+       */
+      readonly kind: "self-sufficiency-gained" | "self-sufficiency-lost";
+      readonly atMinute: number;
+      readonly stockId: string;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
+
       readonly kind: "mission-director-died";
       readonly atMinute: number;
       readonly cause: DeathCause;

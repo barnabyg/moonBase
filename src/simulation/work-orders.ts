@@ -6,6 +6,8 @@ import {
   type ConstructionStage,
   type ConstructionState,
 } from "./construction";
+import { isDiggingWanted } from "./digging";
+import { isSameDriven, type DrivenTarget } from "./driven";
 import type { DismantlingStage } from "./dismantling";
 import { isMachineBroken, machineOn, nearestFreeMachine } from "./machines";
 import {
@@ -25,9 +27,9 @@ import { inStock } from "./stockpile";
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
  * on laying cable to a Structure cut off from power, on unloading the
- * Lander, on Maintenance of a Structure or Machine, or on parking a
- * Machine. A Robot claims one at a time and carries it out before it looks
- * for another.
+ * Lander, on Maintenance of a Structure, Machine or Rover, on parking a
+ * Machine or Rover, or on setting a Machine digging. A Robot claims one at
+ * a time and carries it out before it looks for another.
  */
 export type WorkOrder =
   | {
@@ -44,12 +46,24 @@ export type WorkOrder =
       /** The Machine it is for. */
       readonly machineId: string;
       readonly kind: MachineWorkOrderKind;
+    }
+  | {
+      /** The Rover it is for. */
+      readonly roverId: string;
+      readonly kind: RoverWorkOrderKind;
     };
 
-/** The kinds of Work Order on a Machine: Maintenance, or parking it where it can plug in. */
-export type MachineWorkOrderKind = "maintain-machine" | "park-machine";
+/**
+ * The kinds of Work Order on a Machine: Maintenance, parking it where it
+ * can plug in, or setting it digging beside the stockpile.
+ */
+export type MachineWorkOrderKind = "maintain-machine" | "park-machine" | "dig";
 
-export type WorkOrderKind = StructureWorkOrderKind | MachineWorkOrderKind;
+/** The kinds of Work Order on a Rover: Maintenance, or parking it where it can plug in. */
+export type RoverWorkOrderKind = "maintain-rover" | "park-rover";
+
+export type WorkOrderKind =
+  StructureWorkOrderKind | MachineWorkOrderKind | RoverWorkOrderKind;
 
 /** The kinds of Work Order on a Structure. */
 export type StructureWorkOrderKind =
@@ -119,7 +133,9 @@ export function findWaitingReason(
   if (idle.some(isMachineBroken)) {
     return { reason: "machine-broken", machineTypeId };
   }
-  return idle.some((machine) => isUnderMaintenance(state, machine.id))
+  return idle.some((machine) =>
+    isUnderMaintenance(state, { kind: "machine", machineId: machine.id }),
+  )
     ? { reason: "machine-maintained", machineTypeId }
     : { reason: "machine-busy", machineTypeId };
 }
@@ -159,11 +175,10 @@ function missingComponents(
  * Finds the Work Order a Robot should claim next: the first one that nobody
  * else has claimed and that can be worked on now. Maintenance comes first,
  * in the order it was raised, then parking Machines; then the
- * Constructions, dismantling,
- * unloading of the Lander and cables to Structures cut off from power, in
- * the order they were planned. Each Construction's current stage comes
- * before laying its cable, which can be done at any stage before
- * Commissioning.
+ * Constructions, dismantling, unloading of the Lander and cables to
+ * Structures cut off from power, in the order they were planned; and last,
+ * setting a Machine digging. Each Construction's current stage comes before
+ * laying its cable, which can be done at any stage before Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -183,7 +198,7 @@ export function claimWorkOrder(
     const workOrder: WorkOrder =
       target.kind === "structure"
         ? { structureId: target.structureId, kind: "maintain" }
-        : { machineId: target.machineId, kind: "maintain-machine" };
+        : drivenWorkOrder(target, "maintain");
     if (
       isFree(workOrder) &&
       findMaintenanceWait(state, maintenance) === undefined
@@ -192,10 +207,7 @@ export function claimWorkOrder(
     }
   }
   for (const parking of state.parking) {
-    const workOrder: WorkOrder = {
-      machineId: parking.machineId,
-      kind: "park-machine",
-    };
+    const workOrder = drivenWorkOrder(parking.target, "park");
     if (isFree(workOrder)) return workOrder;
   }
   const plans = [
@@ -250,6 +262,10 @@ export function claimWorkOrder(
     const kind = next();
     if (kind !== undefined) return { structureId, kind };
   }
+  for (const machine of state.machines) {
+    const workOrder: WorkOrder = { machineId: machine.id, kind: "dig" };
+    if (isFree(workOrder) && isDiggingWanted(state, machine)) return workOrder;
+  }
   return undefined;
 }
 
@@ -291,12 +307,28 @@ export function needsCable(state: CampaignState, target: CableTarget): boolean {
     : !cable.complete;
 }
 
+/** The Work Order to maintain or park a Machine or Rover. */
+export function drivenWorkOrder(
+  target: DrivenTarget,
+  work: "maintain" | "park",
+): WorkOrder {
+  return target.kind === "machine"
+    ? {
+        machineId: target.machineId,
+        kind: work === "maintain" ? "maintain-machine" : "park-machine",
+      }
+    : {
+        roverId: target.roverId,
+        kind: work === "maintain" ? "maintain-rover" : "park-rover",
+      };
+}
+
 /** Whether two Work Orders are the same one. */
 export function isSameWorkOrder(a: WorkOrder, b: WorkOrder): boolean {
   if (a.kind !== b.kind) return false;
-  return "machineId" in a
-    ? "machineId" in b && a.machineId === b.machineId
-    : "structureId" in b && a.structureId === b.structureId;
+  if ("machineId" in a) return "machineId" in b && a.machineId === b.machineId;
+  if ("roverId" in a) return "roverId" in b && a.roverId === b.roverId;
+  return "structureId" in b && a.structureId === b.structureId;
 }
 
 /** The Structure a Work Order is for, or undefined if it is for a Machine, or there is none. */
@@ -310,11 +342,31 @@ export function structureOf(
 
 /** Whether a claimed Work Order still has work left in it. */
 export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
+  if ("roverId" in workOrder) {
+    const target: DrivenTarget = { kind: "rover", roverId: workOrder.roverId };
+    return workOrder.kind === "park-rover"
+      ? state.parking.some((parking) => isSameDriven(parking.target, target))
+      : findMaintenance(state, target) !== undefined;
+  }
   if ("machineId" in workOrder) {
     const { machineId } = workOrder;
-    return workOrder.kind === "park-machine"
-      ? state.parking.some((parking) => parking.machineId === machineId)
-      : findMaintenance(state, { kind: "machine", machineId }) !== undefined;
+    const target: DrivenTarget = { kind: "machine", machineId };
+    switch (workOrder.kind) {
+      case "park-machine":
+        return state.parking.some((parking) =>
+          isSameDriven(parking.target, target),
+        );
+      case "maintain-machine":
+        return (
+          findMaintenance(state, { kind: "machine", machineId }) !== undefined
+        );
+      case "dig": {
+        const machine = state.machines.find(
+          (candidate) => candidate.id === machineId,
+        );
+        return machine !== undefined && isDiggingWanted(state, machine);
+      }
+    }
   }
   if (workOrder.kind === "maintain") {
     return (

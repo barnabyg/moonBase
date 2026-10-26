@@ -77,6 +77,11 @@ function conditionOf(state: Snapshot, target: Strike["target"]): number {
         state.machines.find((m) => m.id === target.machineId)
           ?.conditionPercent ?? Number.NaN
       );
+    case "rover":
+      return (
+        state.rovers.find((r) => r.id === target.roverId)?.conditionPercent ??
+        Number.NaN
+      );
     case "robot":
       return (
         state.robots.find((r) => r.id === target.robotId)?.conditionPercent ??
@@ -101,7 +106,7 @@ describe("Micrometeorite strikes", () => {
     }
   });
 
-  it("hit each kind of target, Structures, Machines and the Robot, wearing it down by an amount drawn from the catalogue's range", () => {
+  it("hit each kind of target, Structures, Machines, the Rover and the Robot, wearing it down by an amount drawn from the catalogue's range", () => {
     const { campaign } = base();
     const kinds = new Set<string>();
 
@@ -124,7 +129,12 @@ describe("Micrometeorite strikes", () => {
       }
     }
 
-    expect([...kinds].sort()).toEqual(["machine", "robot", "structure"]);
+    expect([...kinds].sort()).toEqual([
+      "machine",
+      "robot",
+      "rover",
+      "structure",
+    ]);
   });
 
   it("can break a Structure", () => {
