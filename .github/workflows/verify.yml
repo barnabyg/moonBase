@@ -18,7 +18,22 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps firefox
+      # Playwright's Firefox is kept in GitHub's cache, keyed on the pinned
+      # Playwright version, so most runs download nothing. The runner image
+      # already has every library Firefox needs; Playwright's --with-deps would
+      # also fetch fonts and video codecs the tests never use from Ubuntu's
+      # mirrors, which have stalled CI runs for up to 24 minutes.
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright's Firefox
+        id: firefox-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-firefox-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.firefox-cache.outputs.cache-hit != 'true'
+        run: npx playwright install firefox
       # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
       # the WebGL2 context the renderer needs, but only with a display, so the
       # end-to-end tests run Firefox with a window in a virtual X display.
