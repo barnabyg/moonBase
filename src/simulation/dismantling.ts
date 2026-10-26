@@ -14,7 +14,7 @@ import { livesIn } from "./mission-director";
 
 /**
  * The stages of dismantling a Structure: the Robot takes it apart, then
- * carries the Components it recovers back to the Lander's cargo stock.
+ * carries the Components it recovers back to the base's stock at the stockpile.
  */
 export type DismantlingStage = "taking-apart" | "returning-components";
 
@@ -102,7 +102,7 @@ export function isDueToBeDismantled(
 /**
  * The Robot's working time the current stage needs, in game-minutes: taking
  * a Structure apart takes as long as assembling it, and unloading its
- * Components at the Lander as long as unloading them at its site did.
+ * Components at the stockpile as long as unloading them at its site did.
  */
 export function dismantlingStageMinutes(dismantling: DismantlingState): number {
   const hours = findStructureType(dismantling.structureTypeId)?.stageHours;

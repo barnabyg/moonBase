@@ -21,6 +21,7 @@ export type {
   PowerNetworkSnapshot,
   RobotSnapshot,
   Snapshot,
+  StockpileSnapshot,
   StructureSnapshot,
 } from "./campaign";
 export type {
@@ -30,6 +31,12 @@ export type {
   PlacementRefusal,
 } from "./construction";
 export type { CancelResult } from "./cancel";
+export type {
+  LaunchManifestSnapshot,
+  ManifestLine,
+  ManifestRefusal,
+  ManifestResult,
+} from "./launch-manifest";
 export type { LoadRefusal } from "./save";
 export type { DismantleResult, DismantlingStage } from "./dismantling";
 export type { RobotActivity, WalkingDestination } from "./robot";

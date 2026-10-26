@@ -15,6 +15,7 @@ import {
   type CableTarget,
 } from "./power";
 import { findStructureToReconnect } from "./reconnection";
+import { inStock } from "./stockpile";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
@@ -43,7 +44,7 @@ export type WorkOrderKind =
 export type ConstructionWait =
   | {
       readonly reason: "missing-components";
-      /** How many of each Component the cargo stock is short of. */
+      /** How many of each Component the base's stock is short of. */
       readonly missing: readonly ComponentCount[];
     }
   | {
@@ -83,7 +84,7 @@ export function findWaitingReason(
 }
 
 /**
- * The Components a Construction can't get from the cargo stock, until it has
+ * The Components a Construction can't get from the base's stock, until it has
  * taken them. Constructions planned earlier have first claim on the stock, so
  * one that can't be supplied waits from the start and no work is spent on it.
  */
@@ -104,10 +105,10 @@ function missingComponents(
       .reduce((total, need) => total + need.count, 0);
   return componentsFor(construction.structureTypeId)
     .map((need) => {
-      const inStock =
-        state.cargo.find((stock) => stock.componentId === need.componentId)
-          ?.count ?? 0;
-      const left = Math.max(inStock - claimedEarlier(need.componentId), 0);
+      const left = Math.max(
+        inStock(state, need.componentId) - claimedEarlier(need.componentId),
+        0,
+      );
       return { componentId: need.componentId, count: need.count - left };
     })
     .filter((shortfall) => shortfall.count > 0);

@@ -182,7 +182,7 @@ describe("the excavator", () => {
     expect(robotOf(game.state).activity).toMatchObject({
       kind: "walking",
       structureId: id,
-      destination: "lander",
+      destination: "stockpile",
     });
     // On the last minute the ground is graded and Component delivery begins.
     const progress = grading

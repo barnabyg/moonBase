@@ -207,7 +207,7 @@ function showConstruction(
     stage === "site-preparation" ? Math.max(progress, 0.001) : 1,
   );
 
-  // Delivery is half loading at the Lander, half unloading here; Assembly
+  // Delivery is half loading at the stockpile, half unloading here; Assembly
   // then uses the crates up one by one.
   const crateCount = view.crates.length;
   const cratesHere =

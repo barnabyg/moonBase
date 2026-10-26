@@ -66,10 +66,10 @@ function litBase(): Scenario {
 }
 
 describe("a Light Mast", () => {
-  it("comes in the starting cargo several times over", () => {
+  it("comes in the starting stock several times over", () => {
     const masts = Math.min(
       ...lightMast.components.map((need) => {
-        const inCargo = catalogue.startingCargo
+        const inCargo = catalogue.startingStock
           .filter((stock) => stock.componentId === need.componentId)
           .reduce((total, stock) => total + stock.count, 0);
         return Math.floor(inCargo / need.count);

@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type LaunchItem } from "../catalogue";
 import {
   readClock,
   type CampaignEnd,
@@ -24,6 +24,7 @@ import type {
   DismantlingSnapshot,
   DismantlingStage,
   LanderSnapshot,
+  LaunchManifestSnapshot,
   LunationSnapshot,
   MissionDirectorResidence,
   WalkingDestination,
@@ -190,7 +191,7 @@ export function formatEvent(event: GameEvent): string {
       return `${structureLabel(event.structureTypeId)} commissioned`;
     case "structure-dismantled":
       return hasComponents(event.structureTypeId)
-        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`
+        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the base's stock`
         : `${structureLabel(event.structureTypeId)} dismantled`;
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
@@ -296,13 +297,63 @@ export function structureLabel(structureTypeId: string): string {
   );
 }
 
+/** Formats an amount of money, for example "$12.5M" for 12.5 million dollars. */
+export function formatMillionDollars(value: number): string {
+  return `$${Number.isInteger(value) ? value : value.toFixed(1)}M`;
+}
+
+/** Says how much Funding the base programme has, for example "Funding: $400M". */
+export function formatFunding(fundingMillionDollars: number): string {
+  return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
+}
+
+/** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */
+export function launchItemLabel(item: LaunchItem): string {
+  const { brings } = item;
+  return brings.kind === "component"
+    ? componentLabel(brings.componentId)
+    : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+}
+
+/** Says a Launch item's mass and price, for example "60 kg, $4M". */
+export function formatLaunchItem(item: LaunchItem): string {
+  return `${item.massKilograms} kg, ${formatMillionDollars(item.priceMillionDollars)}`;
+}
+
+/**
+ * Says the manifest's Payload Mass against the Launch's limit, for example
+ * "Payload Mass: 230 of 2000 kg".
+ */
+export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
+  return `Payload Mass: ${manifest.payloadMassKilograms} of ${catalogue.launch.payloadMassLimitKilograms} kg`;
+}
+
+/**
+ * Says what the manifest costs against the Funding balance, for example
+ * "Cost: $230M of $400M Funding, including the $150M Launch fee". An empty
+ * manifest costs nothing, so the fee is left out until it has an item.
+ */
+export function formatLaunchCost(
+  manifest: LaunchManifestSnapshot,
+  fundingMillionDollars: number,
+): string {
+  const funding = `${formatMillionDollars(fundingMillionDollars)} Funding`;
+  return manifest.items.length === 0
+    ? `Cost: nothing of ${funding}, while the manifest is empty`
+    : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(catalogue.launch.feeMillionDollars)} Launch fee`;
+}
+
+function componentLabel(componentId: string): string {
+  return (
+    catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
+    componentId
+  );
+}
+
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
   const items = counts.map(({ componentId, count }) => {
-    const label = (
-      catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
-      componentId
-    ).toLowerCase();
+    const label = componentLabel(componentId).toLowerCase();
     return `${count} ${label}${count === 1 ? "" : "s"}`;
   });
   const last = items.pop();
@@ -328,7 +379,7 @@ export function formatWaiting(waiting: ConstructionWait): string {
     waiting.missing.length === 1 && waiting.missing[0]?.count === 1
       ? "isn't"
       : "aren't";
-  return `Waiting: ${missing} ${verb} in the cargo stock`;
+  return `Waiting: ${missing} ${verb} in the base's stock`;
 }
 
 /**
@@ -394,8 +445,8 @@ function describeRobotWork(
   ).toLowerCase();
   const describeWalk = (destination: WalkingDestination): string => {
     switch (destination) {
-      case "lander":
-        return "Robot walking to the Lander for the Components";
+      case "stockpile":
+        return "Robot walking to the stockpile for the Components";
       case "cable":
         return `Robot walking to the ${cableSource} to lay power cable`;
       case "machine": {
@@ -426,7 +477,7 @@ function describeRobotWork(
     case "activating-machine":
       return `Robot activating the ${machineName(activity.machineId)}`;
     case "loading-components":
-      return "Robot loading the Components at the Lander";
+      return "Robot loading the Components at the stockpile";
     case "unloading-components":
       return "Robot unloading the Components at the site";
     case "assembling":
@@ -467,8 +518,8 @@ export function describeDismantling(
   );
   switch (robot?.activity.kind) {
     case "walking":
-      if (robot.activity.destination === "lander") {
-        return `Robot carrying ${recovered} to the Lander`;
+      if (robot.activity.destination === "stockpile") {
+        return `Robot carrying ${recovered} to the stockpile`;
       }
       return dismantling.stage === "taking-apart"
         ? "Robot walking to the site"
@@ -476,11 +527,11 @@ export function describeDismantling(
     case "dismantling":
       return `Robot taking the ${structureLabel(dismantling.structureTypeId).toLowerCase()} apart`;
     case "returning-components":
-      return `Robot unloading ${recovered} at the Lander`;
+      return `Robot unloading ${recovered} at the stockpile`;
     default:
       return dismantling.stage === "taking-apart"
         ? "Waiting for the Robot; it keeps working until then"
-        : `Waiting for the Robot to carry ${recovered} to the Lander`;
+        : `Waiting for the Robot to carry ${recovered} to the stockpile`;
   }
 }
 

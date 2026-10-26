@@ -5,6 +5,8 @@ export type {
   ComponentType,
   GameSpeed,
   GroundPosition,
+  LaunchItem,
+  LaunchRules,
   LifeSupportStock,
   LunationSchedule,
   MachineType,

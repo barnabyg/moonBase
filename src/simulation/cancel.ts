@@ -1,6 +1,6 @@
 import type { ComponentCount } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { addToStock } from "./cargo";
+import { addToStock } from "./stockpile";
 import {
   componentsFor,
   stageMinutes,
@@ -10,13 +10,13 @@ import {
 export type CancelResult =
   | {
       readonly ok: true;
-      /** The unused Components that went back into the cargo stock. */
+      /** The unused Components that went back into the base's stock. */
       readonly returned: readonly ComponentCount[];
     }
   | { readonly ok: false; readonly message: string };
 
 /**
- * The Components a Construction has taken from the cargo stock and not yet
+ * The Components a Construction has taken from the base's stock and not yet
  * put into its Structure. Assembly uses them up one by one, so none are left
  * once Commissioning begins.
  */
@@ -48,8 +48,8 @@ export function unusedComponents(
 
 /**
  * Cancels an unfinished Construction: it is removed, along with any cable
- * being laid to it, and its unused Components go straight back into the cargo
- * stock. Any Robot or Machine working on it stops.
+ * being laid to it, and its unused Components go straight back into the
+ * base's stock. Any Robot or Machine working on it stops.
  */
 export function cancelConstruction(
   state: CampaignState,

@@ -81,6 +81,73 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("keeps the base's stock at a stockpile on the map, clear of the Lander, Robots and Machines, with room to walk round it", () => {
+    const { landerPosition, stockpilePosition, robotPositions, machines } =
+      catalogue.landingSite;
+    const radius = catalogue.stockpile.footprintRadiusMetres;
+    const distance = (a: GroundPosition, b: GroundPosition) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+
+    expect(radius).toBeGreaterThan(0);
+    expect(isOnMap(stockpilePosition, radius)).toBe(true);
+    // Room for the Robot to stand between it and the Lander.
+    expect(distance(stockpilePosition, landerPosition)).toBeGreaterThan(
+      radius +
+        catalogue.lander.footprintRadiusMetres +
+        catalogue.robot.workingGapMetres * 2,
+    );
+    for (const robot of robotPositions) {
+      expect(distance(stockpilePosition, robot)).toBeGreaterThan(radius);
+    }
+    for (const machine of machines) {
+      const type = catalogue.machineTypes.find(
+        (candidate) => candidate.id === machine.machineTypeId,
+      );
+      expect(distance(stockpilePosition, machine.position)).toBeGreaterThan(
+        radius + (type?.footprintRadiusMetres ?? 0),
+      );
+    }
+  });
+
+  it("starts the Campaign with a Programme Grant, and sets a Payload Mass limit and a Launch fee", () => {
+    expect(catalogue.programmeGrantMillionDollars).toBeGreaterThan(0);
+    expect(catalogue.launch.payloadMassLimitKilograms).toBeGreaterThan(0);
+    expect(catalogue.launch.feeMillionDollars).toBeGreaterThan(0);
+    expect(catalogue.launch.feeMillionDollars).toBeLessThan(
+      catalogue.programmeGrantMillionDollars,
+    );
+  });
+
+  it("can ship every Component, and oxygen and water in set amounts, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
+    const { items, payloadMassLimitKilograms, feeMillionDollars } =
+      catalogue.launch;
+
+    expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
+    const shipped = items.map(({ brings }) =>
+      brings.kind === "component" ? brings.componentId : brings.stockId,
+    );
+    expect(shipped.toSorted()).toEqual(
+      [
+        ...catalogue.componentTypes.map((type) => type.id),
+        ...catalogue.lifeSupportStocks.map((stock) => stock.id),
+      ].toSorted(),
+    );
+    for (const item of items) {
+      if (item.brings.kind === "life-support") {
+        expect(item.brings.kilograms).toBeGreaterThan(0);
+        expect(item.massKilograms).toBeGreaterThanOrEqual(
+          item.brings.kilograms,
+        );
+      }
+      expect(item.massKilograms).toBeGreaterThan(0);
+      expect(item.massKilograms).toBeLessThanOrEqual(payloadMassLimitKilograms);
+      expect(item.priceMillionDollars).toBeGreaterThan(0);
+      expect(feeMillionDollars + item.priceMillionDollars).toBeLessThanOrEqual(
+        catalogue.programmeGrantMillionDollars,
+      );
+    }
+  });
+
   it("gives the Robot a positive walking speed, working gap and cable laying speed", () => {
     expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
     expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);
@@ -161,10 +228,10 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("only uses known Components, in positive whole numbers, for Structures and the starting cargo", () => {
+  it("only uses known Components, in positive whole numbers, for Structures and the starting stock", () => {
     const known = new Set(catalogue.componentTypes.map((type) => type.id));
     const counts = [
-      ...catalogue.startingCargo,
+      ...catalogue.startingStock,
       ...catalogue.structureTypes.flatMap((type) => type.components),
     ];
 
@@ -333,7 +400,7 @@ describe("the data catalogue", () => {
   });
 
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
-    "brings the Components for a %s in the starting cargo",
+    "brings the Components for a %s in the starting stock",
     (structureTypeId) => {
       const structureType = catalogue.structureTypes.find(
         (type) => type.id === structureTypeId,
@@ -341,7 +408,7 @@ describe("the data catalogue", () => {
 
       expect(structureType).toBeDefined();
       for (const need of structureType?.components ?? []) {
-        const inCargo = catalogue.startingCargo
+        const inCargo = catalogue.startingStock
           .filter((stock) => stock.componentId === need.componentId)
           .reduce((total, stock) => total + stock.count, 0);
         expect(inCargo).toBeGreaterThanOrEqual(need.count);

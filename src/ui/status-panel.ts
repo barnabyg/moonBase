@@ -13,6 +13,7 @@ import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
   formatClock,
+  formatFunding,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
@@ -37,13 +38,15 @@ export interface StatusPanel {
  * speed choices to the game loop, and sends a choice to dismantle a Structure
  * or to move the Mission Director into a Habitat to the Campaign, which
  * decides whether it is allowed and says why not. It also saves the Campaign
- * to a file and loads one from a file.
+ * to a file and loads one from a file, and shows the Funding balance beside
+ * a button that opens the Launch manifest screen.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
   campaign: Pick<Campaign, "dismantleStructure" | "moveMissionDirectorIn">,
   saveFiles: SaveFiles,
+  openLaunchManifest: () => void,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
@@ -97,6 +100,19 @@ export function createStatusPanel(
       );
     }
   }
+
+  const funding = document.createElement("p");
+  funding.className = "status-panel__funding";
+  const fundingText = document.createElement("span");
+  fundingText.setAttribute("role", "status");
+  fundingText.setAttribute("aria-label", "Funding");
+  const manifest = document.createElement("button");
+  manifest.type = "button";
+  manifest.className = "status-panel__manifest";
+  manifest.textContent = "Launch manifest";
+  manifest.title = "Choose what the next Launch brings from Earth.";
+  manifest.addEventListener("click", openLaunchManifest);
+  funding.append(fundingText, manifest);
 
   const power = document.createElement("p");
   power.className = "status-panel__power";
@@ -192,7 +208,7 @@ export function createStatusPanel(
     dismantle.className = "status-panel__dismantle";
     dismantle.textContent = "Dismantle";
     dismantle.title =
-      "Have the Robot take it apart and carry most of its Components back into the cargo stock.";
+      "Have the Robot take it apart and carry most of its Components back into the base's stock.";
     dismantle.addEventListener("click", () => {
       showResult(campaign.dismantleStructure(structureId));
     });
@@ -217,6 +233,7 @@ export function createStatusPanel(
     speedGroup,
     skip,
     createSaveButtons(saveFiles, showResult),
+    funding,
     power,
     storedPower,
     missionDirector,
@@ -235,6 +252,7 @@ export function createStatusPanel(
     update(snapshot, forecasts) {
       setText(clock, formatClock(snapshot.clock));
       setText(lunation, formatLunation(snapshot.lunation));
+      setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       const hasStructures = snapshot.structures.length > 0;
       power.hidden = !hasStructures;
       storedPower.hidden = !hasStructures;

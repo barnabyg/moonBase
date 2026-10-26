@@ -171,7 +171,7 @@ function shieldingPlanned(): {
 describe("building Regolith shielding", () => {
   it("goes through Site Preparation, Assembly and Commissioning, using no Components and needing no cable", () => {
     const { game, shieldingId } = shieldingPlanned();
-    const cargo = game.state.cargo;
+    const stock = game.state.stockpile.components;
 
     const states = runUntil(game, (state) => state.constructions.length === 0);
 
@@ -181,7 +181,7 @@ describe("building Regolith shielding", () => {
       .filter((stage, index, all) => stage !== all[index - 1]);
     expect(stages).toEqual(["site-preparation", "assembly", "commissioning"]);
     for (const state of states) {
-      expect(state.cargo).toEqual(cargo);
+      expect(state.stockpile.components).toEqual(stock);
       expect(state.robots[0]?.carrying).toEqual([]);
     }
     expect(
@@ -350,9 +350,9 @@ describe("a Habitat's Regolith shielding once it is built", () => {
     });
   });
 
-  it("can be dismantled, leaving the Habitat unshielded and nothing to carry to the Lander", () => {
+  it("can be dismantled, leaving the Habitat unshielded and nothing to carry to the stockpile", () => {
     const { game, habitatId, shieldingId } = shielded();
-    const cargo = game.state.cargo;
+    const stock = game.state.stockpile.components;
     game.campaign.dismantleStructure(shieldingId);
 
     const states = runUntil(game, (state) => state.dismantlings.length === 0);
@@ -370,7 +370,7 @@ describe("a Habitat's Regolith shielding once it is built", () => {
     expect(robotSteps.filter((step) => step !== "walking to the site")).toEqual(
       ["dismantling"],
     );
-    expect(game.state.cargo).toEqual(cargo);
+    expect(game.state.stockpile.components).toEqual(stock);
     expect(
       game.state.structures.find((structure) => structure.id === habitatId),
     ).toMatchObject({ shielded: false });

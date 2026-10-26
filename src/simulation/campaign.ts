@@ -46,6 +46,13 @@ import {
   type LifeSupportState,
 } from "./life-support";
 import {
+  readLaunchManifest,
+  setLaunchManifest,
+  type LaunchManifestSnapshot,
+  type ManifestLine,
+  type ManifestResult,
+} from "./launch-manifest";
+import {
   moveMissionDirectorIn,
   type MissionDirectorResidence,
   type MoveInResult,
@@ -82,6 +89,7 @@ import {
   type SolarParticleEventState,
 } from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
+import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
 
@@ -100,6 +108,16 @@ export interface LanderSnapshot {
   /** Landed with the Mission Director aboard, or landed and free to fly once they have moved into a Habitat. */
   readonly state: "landed-occupied" | "landed-free";
   readonly position: GroundPosition;
+}
+
+/**
+ * The base's stock of Components, kept on the ground beside the landing site.
+ * It belongs to the base rather than the Lander.
+ */
+export interface StockpileSnapshot {
+  readonly position: GroundPosition;
+  /** How many of each Component are in stock, in catalogue order. */
+  readonly components: readonly ComponentCount[];
 }
 
 export interface RobotSnapshot {
@@ -126,10 +144,10 @@ export interface ConstructionSnapshot {
   readonly stage: ConstructionStage;
   /** How much of the current stage's work is done, from 0 to 1. */
   readonly stageProgress: number;
-  /** Whether the Robot has taken this Construction's Components from the cargo stock. */
+  /** Whether the Robot has taken this Construction's Components from the base's stock. */
   readonly componentsTaken: boolean;
   readonly failedCommissionings: number;
-  /** The Components that cancelling it now would return to the cargo stock. */
+  /** The Components that cancelling it now would return to the base's stock. */
   readonly unusedComponents: readonly ComponentCount[];
   /** Why nobody can work on the Construction for now, or undefined if it can be worked on. */
   readonly waiting: ConstructionWait | undefined;
@@ -257,6 +275,10 @@ export interface Snapshot {
    * has come, until it ends. Undefined otherwise.
    */
   readonly solarParticleEvent: SolarParticleEventSnapshot | undefined;
+  /** The money the base programme has to spend. */
+  readonly fundingMillionDollars: number;
+  /** What the next Launch is to bring from Earth, and what that comes to. */
+  readonly launchManifest: LaunchManifestSnapshot;
   /**
    * How the Campaign ended, or undefined while it goes on. Once it has
    * ended, the simulation no longer advances and every command is refused.
@@ -264,8 +286,7 @@ export interface Snapshot {
   readonly ended: CampaignEnd | undefined;
   readonly robots: readonly RobotSnapshot[];
   readonly machines: readonly MachineSnapshot[];
-  /** The Components in the Lander's cargo stock, in catalogue order. */
-  readonly cargo: readonly ComponentCount[];
+  readonly stockpile: StockpileSnapshot;
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
@@ -313,7 +334,7 @@ export interface Campaign {
   planConstruction(plan: ConstructionPlan): PlanResult;
   /**
    * Cancels an unfinished Construction at once, returning its unused
-   * Components to the cargo stock.
+   * Components to the base's stock.
    */
   cancelConstruction(constructionId: string): CancelResult;
   /**
@@ -326,6 +347,12 @@ export interface Campaign {
    * at once and for good, freeing the Lander.
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
+  /**
+   * Sets what the next Launch is to bring from Earth, in place of the
+   * manifest so far. A manifest the Launch can't carry, or the Funding
+   * balance can't pay for, is refused with the limit it would go over.
+   */
+  setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -354,10 +381,13 @@ export interface CampaignState {
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
+  fundingMillionDollars: number;
+  /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
+  launchManifest: { itemId: string; count: number }[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
-  cargo: { componentId: string; count: number }[];
+  stockpile: StockpileState;
   constructions: ConstructionState[];
   structures: StructureState[];
   dismantlings: DismantlingState[];
@@ -379,6 +409,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
     lifeSupport: startingLifeSupport(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
+    fundingMillionDollars: catalogue.programmeGrantMillionDollars,
+    launchManifest: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -394,12 +426,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       assignment: undefined,
     })),
-    cargo: catalogue.componentTypes.map((type) => ({
-      componentId: type.id,
-      count: catalogue.startingCargo
-        .filter((stock) => stock.componentId === type.id)
-        .reduce((total, stock) => total + stock.count, 0),
-    })),
+    stockpile: startingStockpile(),
     constructions: [],
     structures: [],
     dismantlings: [],
@@ -494,6 +521,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(moveMissionDirectorIn(state, habitatId));
     },
+    setLaunchManifest(manifest) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(setLaunchManifest(state, manifest));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -536,6 +573,8 @@ function campaignFrom(state: CampaignState): Campaign {
         lifeSupport: readLifeSupport(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
+        fundingMillionDollars: state.fundingMillionDollars,
+        launchManifest: readLaunchManifest(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
           id: robot.id,
@@ -549,7 +588,7 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...machine.position },
           activity: { ...machine.activity },
         })),
-        cargo: copy(state.cargo),
+        stockpile: copy(state.stockpile),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
           structureTypeId: construction.structureTypeId,

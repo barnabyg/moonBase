@@ -21,16 +21,16 @@ function runUntil(game: Scenario, done: (state: Snapshot) => boolean): void {
 describe("cancelling a Construction", () => {
   it("removes it and returns the Components the Robot is carrying to stock", () => {
     const game = scenario().plan("solar-array", site);
-    const startingStock = game.state.cargo;
+    const startingStock = game.state.stockpile.components;
     const id = game.state.constructions[0]?.id ?? "";
     runUntil(game, (state) => (state.robots[0]?.carrying.length ?? 0) > 0);
-    expect(game.state.cargo).not.toEqual(startingStock);
+    expect(game.state.stockpile.components).not.toEqual(startingStock);
 
     const result = game.campaign.cancelConstruction(id);
 
     expect(result).toEqual({ ok: true, returned: solarArray.components });
     expect(game.state.constructions).toEqual([]);
-    expect(game.state.cargo).toEqual(startingStock);
+    expect(game.state.stockpile.components).toEqual(startingStock);
     expect(game.state.robots[0]?.carrying).toEqual([]);
     game.advance({ hours: 1 });
     expect(game.state.robots[0]?.activity).toEqual({ kind: "idle" });
@@ -58,7 +58,7 @@ describe("cancelling a Construction", () => {
 
   it("part-way through Assembly, puts the unassembled Components back in stock", () => {
     const game = scenario().plan("solar-array", site);
-    const startingStock = game.state.cargo;
+    const startingStock = game.state.stockpile.components;
     const id = game.state.constructions[0]?.id ?? "";
     runUntil(
       game,
@@ -68,8 +68,9 @@ describe("cancelling a Construction", () => {
     );
     const unused = game.state.constructions[0]?.unusedComponents ?? [];
     const inStock = (componentId: string) =>
-      game.state.cargo.find((stock) => stock.componentId === componentId)
-        ?.count ?? 0;
+      game.state.stockpile.components.find(
+        (stock) => stock.componentId === componentId,
+      )?.count ?? 0;
     const before = startingStock.map((stock) => inStock(stock.componentId));
 
     const result = game.campaign.cancelConstruction(id);
@@ -83,14 +84,14 @@ describe("cancelling a Construction", () => {
       expect(inStock(stock.componentId)).toBe((before[index] ?? 0) + returned);
       expect(inStock(stock.componentId)).toBeLessThanOrEqual(stock.count);
     }
-    expect(game.state.cargo).not.toEqual(startingStock);
+    expect(game.state.stockpile.components).not.toEqual(startingStock);
   });
 
   it("during Site Preparation, takes nothing from stock and frees the excavator for the next Construction", () => {
     const game = scenario()
       .plan("solar-array", site)
       .plan("battery-bank", { x: -20, y: -15 });
-    const startingStock = game.state.cargo;
+    const startingStock = game.state.stockpile.components;
     const [cancelled, next] = game.state.constructions.map((c) => c.id);
     runUntil(game, (state) =>
       state.machines.some(
@@ -103,7 +104,7 @@ describe("cancelling a Construction", () => {
     const result = game.campaign.cancelConstruction(cancelled ?? "");
 
     expect(result).toEqual({ ok: true, returned: [] });
-    expect(game.state.cargo).toEqual(startingStock);
+    expect(game.state.stockpile.components).toEqual(startingStock);
     expect(game.state.machines[0]?.activity).toEqual({ kind: "idle" });
     runUntil(game, (state) => state.constructions.length === 0);
     expect(game.state.structures.map((structure) => structure.id)).toEqual([

@@ -12,9 +12,22 @@ export interface Catalogue {
     /** Radius of the ground the landed Lander stands on. */
     readonly footprintRadiusMetres: number;
   };
-  /** Where the Lander has touched down, and its Robots and Machines stand, when a Campaign begins. */
+  /**
+   * The base's stock of Components, kept on the ground beside the landing
+   * site. It belongs to the base, not the Lander, and stays when the Lander
+   * leaves.
+   */
+  readonly stockpile: {
+    /** Radius of the ground the stockpile stands on; Structures may not be placed over it. */
+    readonly footprintRadiusMetres: number;
+  };
+  /**
+   * Where the Lander has touched down, and the base's stockpile, Robots and
+   * Machines stand, when a Campaign begins.
+   */
   readonly landingSite: {
     readonly landerPosition: GroundPosition;
+    readonly stockpilePosition: GroundPosition;
     readonly robotPositions: readonly GroundPosition[];
     readonly machines: readonly {
       readonly machineTypeId: string;
@@ -27,7 +40,7 @@ export interface Catalogue {
   readonly robot: {
     /** How far a Robot walks in a game-hour. */
     readonly walkingSpeedMetresPerHour: number;
-    /** How far outside a footprint, or beside the Lander, a Robot stands to work. */
+    /** How far outside a footprint, or beside the stockpile, a Robot stands to work. */
     readonly workingGapMetres: number;
     /** How much power cable a Robot lays in a game-hour, walking along as it pays it out. */
     readonly cableLayingSpeedMetresPerHour: number;
@@ -41,8 +54,8 @@ export interface Catalogue {
    * damaged beyond reuse, rounded to the nearest whole Component.
    */
   readonly dismantlingLossShare: number;
-  /** The Components in the Lander's cargo stock when a Campaign begins. */
-  readonly startingCargo: readonly ComponentCount[];
+  /** The Components in the base's stock, which the Lander brought, when a Campaign begins. */
+  readonly startingStock: readonly ComponentCount[];
   /**
    * What the Mission Director needs to stay alive, in the order the status
    * panel shows them. Running out of any of them kills the Mission Director
@@ -59,6 +72,38 @@ export interface Catalogue {
   readonly habitatPowerWarningHoursLeft: readonly number[];
   readonly radiation: RadiationRules;
   readonly solarParticleEvents: SolarParticleEventRules;
+  /**
+   * The fixed lump of Funding the Mission Director starts the Campaign with,
+   * the only money there is until Exports earn more.
+   */
+  readonly programmeGrantMillionDollars: number;
+  readonly launch: LaunchRules;
+}
+
+/** What a Launch of the Lander from Earth can bring, and what it costs. */
+export interface LaunchRules {
+  /** The most mass one Launch can carry. */
+  readonly payloadMassLimitKilograms: number;
+  /** What every Launch costs on top of the price of what it brings. */
+  readonly feeMillionDollars: number;
+  /** Everything a Launch can bring, in the order the Launch manifest screen lists it. */
+  readonly items: readonly LaunchItem[];
+}
+
+/** Something a Launch can bring from Earth, as many times over as the player chooses. */
+export interface LaunchItem {
+  readonly id: string;
+  /** What one of it brings: a Component, or a set amount of oxygen or water. */
+  readonly brings:
+    | { readonly kind: "component"; readonly componentId: string }
+    | {
+        readonly kind: "life-support";
+        readonly stockId: string;
+        readonly kilograms: number;
+      };
+  /** Its mass, packing and any tank included, which counts towards the Payload Mass. */
+  readonly massKilograms: number;
+  readonly priceMillionDollars: number;
 }
 
 /**
@@ -185,7 +230,7 @@ export interface StructureType {
    * The working time for each stage of Construction, in game-hours, whether
    * a Machine or the Robot does the work. Walking, driving and activating
    * come on top. Component delivery is split evenly between loading at the
-   * Lander and unloading at the site, and is 0 for a Structure with no
+   * stockpile and unloading at the site, and is 0 for a Structure with no
    * Components.
    */
   readonly stageHours: {
@@ -243,11 +288,15 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 10,
+  version: 12,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
+  stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
     landerPosition: { x: 0, y: 0 },
+    // On the side the camera first looks from, clear of the ground beside
+    // the Lander.
+    stockpilePosition: { x: 9, y: -10 },
     robotPositions: [{ x: 6, y: -3 }],
     machines: [
       { machineTypeId: "excavator", position: { x: -11, y: -4.5 } },
@@ -438,7 +487,7 @@ export const catalogue: Catalogue = {
     },
   ],
   dismantlingLossShare: 0.2,
-  startingCargo: [
+  startingStock: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
     { componentId: "battery-module", count: 3 },
@@ -490,5 +539,85 @@ export const catalogue: Catalogue = {
     durationHours: { min: 6, max: 30 },
     warningHours: 4,
     doseRateMultiplier: 10,
+  },
+  // Enough for one well-filled Launch, so the first one has to count.
+  // Exports earn more later.
+  programmeGrantMillionDollars: 400,
+  // Each Launch carries two tonnes and costs a fixed fee for the flight, on
+  // top of the price of what it brings. The Habitat kit is by far the
+  // dearest, so the Funding runs out before the Payload Mass does if a
+  // Launch brings two.
+  launch: {
+    payloadMassLimitKilograms: 2000,
+    feeMillionDollars: 150,
+    items: [
+      {
+        id: "solar-panel",
+        brings: { kind: "component", componentId: "solar-panel" },
+        massKilograms: 60,
+        priceMillionDollars: 4,
+      },
+      {
+        id: "array-mast",
+        brings: { kind: "component", componentId: "array-mast" },
+        massKilograms: 80,
+        priceMillionDollars: 3,
+      },
+      {
+        id: "battery-module",
+        brings: { kind: "component", componentId: "battery-module" },
+        massKilograms: 120,
+        priceMillionDollars: 6,
+      },
+      {
+        id: "battery-cabinet",
+        brings: { kind: "component", componentId: "battery-cabinet" },
+        massKilograms: 70,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "mast-pole",
+        brings: { kind: "component", componentId: "mast-pole" },
+        massKilograms: 25,
+        priceMillionDollars: 1,
+      },
+      {
+        id: "light-head",
+        brings: { kind: "component", componentId: "light-head" },
+        massKilograms: 15,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "habitat-core",
+        brings: { kind: "component", componentId: "habitat-core" },
+        massKilograms: 900,
+        priceMillionDollars: 200,
+      },
+      {
+        id: "habitat-envelope",
+        brings: { kind: "component", componentId: "habitat-envelope" },
+        massKilograms: 350,
+        priceMillionDollars: 80,
+      },
+      {
+        id: "airlock",
+        brings: { kind: "component", componentId: "airlock" },
+        massKilograms: 400,
+        priceMillionDollars: 60,
+      },
+      // In pressurised tanks, which make up the rest of the mass.
+      {
+        id: "oxygen",
+        brings: { kind: "life-support", stockId: "oxygen", kilograms: 25 },
+        massKilograms: 40,
+        priceMillionDollars: 2,
+      },
+      {
+        id: "water",
+        brings: { kind: "life-support", stockId: "water", kilograms: 50 },
+        massKilograms: 60,
+        priceMillionDollars: 2,
+      },
+    ],
   },
 };

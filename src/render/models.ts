@@ -762,6 +762,54 @@ export function createCrateModel(): THREE.Mesh {
   return crate;
 }
 
+/** The crates in one layer of the stockpile, across by deep. */
+const STOCKPILE_LAYER = { across: 3, deep: 4 } as const;
+const STOCKPILE_LAYERS = 3;
+
+/**
+ * The base's stockpile: a ground mat within its footprint radius, with a
+ * packing crate stacked on it for each Component in stock, up to as many as
+ * fit, so that the player sees it fill and empty.
+ */
+export function createStockpileModel(footprintRadius: number): {
+  readonly group: THREE.Group;
+  /** Shows a crate for each of this many Components, or a full stack if there are more. */
+  showStock(components: number): void;
+} {
+  const group = new THREE.Group();
+  group.name = "Stockpile";
+  const mat = part(
+    new THREE.CylinderGeometry(footprintRadius, footprintRadius, 0.04, 24),
+    materials.darkMetal,
+    [0, 0.02, 0],
+  );
+  const { across, deep } = STOCKPILE_LAYER;
+  const crates = Array.from(
+    { length: across * deep * STOCKPILE_LAYERS },
+    (_, index) => {
+      const layer = Math.floor(index / (across * deep));
+      const inLayer = index % (across * deep);
+      const crate = createCrateModel();
+      crate.position.set(
+        ((inLayer % across) - (across - 1) / 2) * 0.62,
+        0.04 + layer * 0.41,
+        (Math.floor(inLayer / across) - (deep - 1) / 2) * 0.52,
+      );
+      crate.visible = false;
+      return crate;
+    },
+  );
+  group.add(mat, ...crates);
+  return {
+    group,
+    showStock(components) {
+      for (const [index, crate] of crates.entries()) {
+        crate.visible = index < components;
+      }
+    },
+  };
+}
+
 /** The height of every Machine's deck, where a Robot sits to drive it. */
 export const MACHINE_SEAT_HEIGHT = 1.15;
 

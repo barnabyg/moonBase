@@ -83,7 +83,7 @@ describe("several Constructions", () => {
       .plan("battery-bank", sites[2] as GroundPosition);
     const [first, waiting, next] = game.state.constructions.map((c) => c.id);
 
-    // The first solar array has first claim on the cargo stock's only set,
+    // The first solar array has first claim on the base's stock's only set,
     // so the second waits from the start, and no work is spent on its site.
     const states = run(game, 3 * 24 * 60);
 

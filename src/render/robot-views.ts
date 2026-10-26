@@ -93,7 +93,7 @@ function aboardMachine(robot: RobotSnapshot): boolean {
   return robot.activity.kind === "driving-machine";
 }
 
-/** What the Robot faces while it works: the Lander when loading, otherwise the site. */
+/** What the Robot faces while it works: the stockpile when loading or unloading there, otherwise the site. */
 function workTarget(
   frame: Frame,
   robot: RobotSnapshot,
@@ -111,7 +111,7 @@ function workTarget(
     activity.kind === "loading-components" ||
     activity.kind === "returning-components"
   ) {
-    return toScene(frame.current.lander.position);
+    return toScene(frame.current.stockpile.position);
   }
   if (activity.kind === "activating-machine") {
     const machine = frame.current.machines.find(
@@ -182,7 +182,7 @@ function poseFor(
       lean: 0.1,
       carrying,
     }),
-    // Lifting crates in and out of the cargo bay.
+    // Lifting crates off the stockpile, and down at the site.
     "loading-components": () => lifting(work, carrying),
     "unloading-components": () => lifting(work, carrying),
     // Reaching up to open out the panel.
@@ -203,7 +203,7 @@ function poseFor(
       seated: false,
       carrying,
     }),
-    // Lifting the recovered crates back into the cargo bay.
+    // Lifting the recovered crates back onto the stockpile.
     "returning-components": () => lifting(work, carrying),
     // Holding a test lead to the array and watching it.
     commissioning: () => ({

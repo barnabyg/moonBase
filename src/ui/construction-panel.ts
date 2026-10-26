@@ -147,9 +147,9 @@ function describeCancelling(construction: ConstructionSnapshot): string {
     return "Cancel it. It uses no Components.";
   }
   if (!construction.componentsTaken) {
-    return "Cancel it. Its Components haven't left the cargo stock.";
+    return "Cancel it. Its Components haven't left the base's stock.";
   }
   return construction.unusedComponents.length === 0
-    ? "Cancel it. Its Components are all assembled, so none go back into the cargo stock."
-    : `Cancel it, putting ${formatComponents(construction.unusedComponents)} back into the cargo stock.`;
+    ? "Cancel it. Its Components are all assembled, so none go back into the base's stock."
+    : `Cancel it, putting ${formatComponents(construction.unusedComponents)} back into the base's stock.`;
 }
