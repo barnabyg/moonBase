@@ -58,3 +58,4 @@ Every check applies; none is skipped. Tool versions are pinned exactly in `packa
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them.
 - `e2e/`: Playwright end-to-end tests in Firefox.
+- `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.
