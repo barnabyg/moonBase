@@ -24,6 +24,21 @@ async function readClockHours(page: Page): Promise<number> {
   return ((day ?? 0) - 1) * 24 + (hour ?? 0);
 }
 
+/**
+ * Waits until the game has drawn a frame. The game updates its interface in
+ * each animation frame, and a callback added now runs after the game's.
+ */
+async function nextFrame(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      }),
+  );
+}
+
 test("the game loads with no console errors and the clock advances", async ({
   page,
 }) => {
@@ -84,7 +99,16 @@ test("the status panel shows Daylight running out, and skipping jumps to Night",
     /^Daylight: (8 Earth Days|7 Earth Days \d+ hours?) left$/,
   );
 
-  await panel.getByRole("button", { name: "Skip to next event" }).click();
+  // A Micrometeorite may strike first, and stop a skip on the way.
+  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  for (
+    let skips = 0;
+    skips < 10 && !(await lunation.textContent())?.startsWith("Night");
+    skips++
+  ) {
+    await skip.click();
+    await nextFrame(page);
+  }
 
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
     "Earth Day 9, 00:00",
