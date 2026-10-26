@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels its run that is still going, which
+# checked code that has since changed. Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Two jobs run side by side and together cover every check in
 # `npm run verify`. Only the end-to-end job needs a browser, so a lint, type
 # or unit test failure reports without waiting for browser setup, and
