@@ -213,7 +213,10 @@ describe("self-repair", () => {
     const started = campaign.advance(1);
     const steps = selfRepairSteps(campaign);
 
-    expect(started).toEqual([
+    // The spare Components it is going for leave too few for long, too.
+    expect(
+      started.filter((event) => event.kind !== "spare-components-warning"),
+    ).toEqual([
       {
         kind: "robot-self-repair-started",
         atMinute: 1,

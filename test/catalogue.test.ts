@@ -446,6 +446,17 @@ describe("the data catalogue", () => {
     expect(conditionLossPercent.max).toBeLessThanOrEqual(100);
   });
 
+  it("warns as the spare Components near running out, at levels largest first, each a whole number of game-minutes", () => {
+    const levels = catalogue.spareComponentWarningEarthDaysLeft;
+
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels).toEqual(levels.toSorted((a, b) => b - a));
+    for (const earthDays of levels) {
+      expect(earthDays).toBeGreaterThan(0);
+      expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
+    }
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

@@ -802,3 +802,29 @@ describe("the sample save of format version 13", () => {
     expect(kinds).toContain("micrometeorite-strike");
   });
 });
+
+describe("the sample save of format version 14", () => {
+  it("loads with one spare Component left, and the warning that it will run out within 7 Earth Days given", () => {
+    const campaign = loadSample("version-14.moonbase");
+
+    expect(campaign.forecasts().spareComponents).toMatchObject({
+      inStock: 1,
+      forPendingRepairs: 0,
+    });
+    expect(
+      campaign.forecasts().spareComponents.minutesUntilEmpty,
+    ).toBeLessThanOrEqual(7 * 24 * 60);
+  });
+
+  it("plays on from where it was saved, warning again only as the time left falls to a lower level", () => {
+    const campaign = loadSample("version-14.moonbase");
+
+    const warnings = campaign
+      .advance(2 * 24 * 60)
+      .filter((event) => event.kind === "spare-components-warning");
+
+    for (const warning of warnings) {
+      expect(warning.minutesUntilEmpty).toBeLessThanOrEqual(3 * 24 * 60);
+    }
+  });
+});

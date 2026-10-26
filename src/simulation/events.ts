@@ -201,6 +201,17 @@ export type GameEvent =
       readonly conditionPercent: number;
     }
   | {
+      /**
+       * The time until the base's spare Components run out, at the current
+       * rate of wear, has fallen to one of the warning levels set in the
+       * data catalogue.
+       */
+      readonly kind: "spare-components-warning";
+      readonly atMinute: number;
+      readonly inStock: number;
+      readonly minutesUntilEmpty: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;

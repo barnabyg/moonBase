@@ -1,0 +1,192 @@
+{
+  "format": "moonbase-save",
+  "version": 14,
+  "random": {
+    "a": -492993013,
+    "b": 1398898198,
+    "c": 2121286809,
+    "d": 2291658344
+  },
+  "state": {
+    "elapsedMinutes": 11,
+    "nextStructureNumber": 2,
+    "nextPlanNumber": 2,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 20309
+    },
+    "spareComponentsWarnedMinutes": 10080,
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 3.9066445079304795,
+          "y": -3.676655587298573
+        },
+        "activity": {
+          "kind": "walking",
+          "structureId": "structure-1",
+          "destination": "machine"
+        },
+        "carrying": [],
+        "workOrder": {
+          "structureId": "structure-1",
+          "kind": "prepare-site"
+        },
+        "conditionPercent": 99.98333333333335,
+        "selfRepair": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": -11,
+          "y": -4.5
+        },
+        "activity": {
+          "kind": "being-positioned",
+          "constructionId": "structure-1"
+        },
+        "assignment": {
+          "constructionId": "structure-1",
+          "stage": "site-preparation",
+          "destination": {
+            "x": 22.050609665440987,
+            "y": -22.050609665440987
+          },
+          "activationMinutes": 0,
+          "working": false
+        },
+        "conditionPercent": 100,
+        "powered": false
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 2
+        },
+        {
+          "componentId": "array-mast",
+          "count": 1
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 1
+        }
+      ]
+    },
+    "constructions": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "light-mast",
+        "position": {
+          "x": 20,
+          "y": -20
+        },
+        "planNumber": 1,
+        "workSpot": {
+          "x": 18.727207793864213,
+          "y": -18.727207793864213
+        },
+        "stage": "site-preparation",
+        "workedMinutes": 0,
+        "componentsTaken": false,
+        "failedCommissionings": 0
+      }
+    ],
+    "structures": [],
+    "dismantlings": [],
+    "unloading": null,
+    "cables": [],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": []
+  }
+}

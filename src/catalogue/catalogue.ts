@@ -135,6 +135,12 @@ export interface Catalogue {
   readonly machinePerformance: PerformanceCurve;
   readonly cold: ColdRules;
   readonly micrometeorites: MicrometeoriteRules;
+  /**
+   * A warning comes as the time until the base's spare Components run out,
+   * at the current rate of wear, falls to each of these many Earth Days,
+   * largest first. Each must come to a whole number of game-minutes.
+   */
+  readonly spareComponentWarningEarthDaysLeft: readonly number[];
 }
 
 /**
@@ -487,7 +493,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 22,
+  version: 23,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -947,4 +953,7 @@ export const catalogue: Catalogue = {
     earthDaysBetween: { min: 4, max: 20 },
     conditionLossPercent: { min: 5, max: 25 },
   },
+  // As for oxygen and water. The starting stock lasts longer than the first
+  // at the wear of ordinary work, but not with Machines in the cold.
+  spareComponentWarningEarthDaysLeft: [7, 3, 1],
 };

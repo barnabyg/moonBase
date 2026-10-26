@@ -327,6 +327,16 @@ export const migrations: readonly Migration[] = [
       state: { ...state, micrometeorite: { strikesAtMinute } },
     };
   },
+  // 13 to 14: warnings that the spare Components will run out, given once
+  // for each level. None has been given yet.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: { ...state, spareComponentsWarnedMinutes: null },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -807,6 +817,7 @@ const simulationState = object({
     endsAtMinute: wholeNumber,
   }),
   micrometeorite: object({ strikesAtMinute: wholeNumber }),
+  spareComponentsWarnedMinutes: optional(wholeNumber),
   fundingMillionDollars: finiteNumber,
   launchManifest: list(
     object({

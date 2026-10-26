@@ -41,6 +41,7 @@ export function createNotificationList(
           event.kind === "machine-broken" ||
           event.kind === "robot-self-repair-started" ||
           event.kind === "micrometeorite-strike" ||
+          event.kind === "spare-components-warning" ||
           event.kind === "maintenance-needed" ||
           event.kind === "mission-director-died"
         ) {

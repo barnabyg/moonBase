@@ -23,6 +23,7 @@ import {
   formatLunation,
   formatMachine,
   formatRobot,
+  formatSpareComponents,
   formatMissionDirector,
   formatPerformance,
   formatPower,
@@ -135,6 +136,13 @@ export function createStatusPanel(
   stock.setAttribute("role", "status");
   stock.setAttribute("aria-label", "Base's stock");
   stock.setAttribute("aria-live", "off");
+
+  // How many spare Components there are, and how long they will last.
+  const spareComponents = document.createElement("p");
+  spareComponents.className = "status-panel__stock";
+  spareComponents.setAttribute("role", "status");
+  spareComponents.setAttribute("aria-label", "Spare Components");
+  spareComponents.setAttribute("aria-live", "off");
 
   const power = document.createElement("p");
   power.className = "status-panel__power";
@@ -283,6 +291,7 @@ export function createStatusPanel(
     createSaveButtons(saveFiles, showResult),
     funding,
     stock,
+    spareComponents,
     power,
     storedPower,
     missionDirector,
@@ -305,6 +314,18 @@ export function createStatusPanel(
       setText(lunation, formatLunation(snapshot.lunation));
       setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
       setText(stock, formatStock(snapshot.stockpile));
+      setText(
+        spareComponents,
+        formatSpareComponents(forecasts.spareComponents),
+      );
+      // Shown as a warning from the first warning on.
+      const sparesWarnFrom =
+        Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;
+      spareComponents.classList.toggle(
+        "status-panel__stock--low",
+        (forecasts.spareComponents.minutesUntilEmpty ?? Infinity) <=
+          sparesWarnFrom,
+      );
       const hasStructures = snapshot.structures.length > 0;
       power.hidden = !hasStructures;
       storedPower.hidden = !hasStructures;

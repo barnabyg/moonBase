@@ -121,6 +121,11 @@ import {
   type SolarParticleEventState,
 } from "./solar-particle-events";
 import { planReconnections, type ReconnectionState } from "./reconnection";
+import {
+  forecastSpareComponents,
+  watchSpareComponents,
+  type SpareComponentsForecast,
+} from "./spare-forecast";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import {
@@ -320,6 +325,8 @@ export interface Forecasts {
   readonly habitatPower: HabitatPowerForecast | undefined;
   /** How fast the Mission Director's Radiation Dose is rising, and when it reaches the limit. */
   readonly radiationDose: RadiationDoseForecast;
+  /** How long the base's spare Components will last, at the current rate of wear. */
+  readonly spareComponents: SpareComponentsForecast;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -495,6 +502,12 @@ export interface CampaignState {
   solarParticleEvent: SolarParticleEventState;
   /** The next Micrometeorite strike. */
   micrometeorite: MicrometeoriteState;
+  /**
+   * The lowest warning level, in game-minutes left, already given for the
+   * spare Components running out, until the forecast is back well clear
+   * of them all; undefined when none has been.
+   */
+  spareComponentsWarnedMinutes: number | undefined;
   fundingMillionDollars: number;
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
@@ -534,6 +547,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     micrometeorite: scheduleMicrometeorite(random, 0),
+    spareComponentsWarnedMinutes: undefined,
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
     ended: undefined,
@@ -696,6 +710,7 @@ function campaignFrom(state: CampaignState): Campaign {
         lifeSupport: forecastLifeSupport(state),
         habitatPower: forecastHabitatPower(state),
         radiationDose: forecastRadiationDose(state),
+        spareComponents: forecastSpareComponents(state),
       });
     },
     snapshot() {
@@ -816,6 +831,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
+  const sparesRunOutBefore = forecastSpareComponents(state).minutesUntilEmpty;
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
@@ -838,6 +854,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     });
   }
   events.push(...watchSolarParticleEvents(state));
+  events.push(...watchSpareComponents(state, sparesRunOutBefore));
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.

@@ -8,6 +8,7 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type RadiationDoseForecast,
+  type SpareComponentsForecast,
   type SolarParticleEventSnapshot,
 } from "../simulation";
 import type {
@@ -233,6 +234,27 @@ export function formatPerformance(performance: number): string {
     : "";
 }
 
+/**
+ * Says how many spare Components the base has and how long they will last
+ * at the current rate of wear, for example "Spare Components: 6 in stock,
+ * last 9 Earth Days 4 hours".
+ */
+export function formatSpareComponents(
+  forecast: SpareComponentsForecast,
+): string {
+  const pending =
+    forecast.forPendingRepairs === 0
+      ? ""
+      : `, ${forecast.forPendingRepairs} needed for repairs waiting`;
+  const amount = `Spare Components: ${forecast.inStock} in stock${pending}`;
+  if (forecast.minutesUntilEmpty === undefined) {
+    return `${amount}, nothing wearing down`;
+  }
+  return forecast.minutesUntilEmpty === 0
+    ? `${amount}, too few for the wear`
+    : `${amount}, last ${formatDuration(forecast.minutesUntilEmpty)}`;
+}
+
 /** Says what happened in an event, for the notification list, for example "Night has fallen". */
 export function formatEvent(event: GameEvent): string {
   switch (event.kind) {
@@ -309,6 +331,8 @@ export function formatEvent(event: GameEvent): string {
       return event.spareComponents > 0
         ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
         : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "spare-components-warning":
+      return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
       return `Micrometeorite struck the ${strikeTargetLabel(event.target)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
     case "mission-director-died":
