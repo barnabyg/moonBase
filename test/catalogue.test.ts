@@ -354,6 +354,21 @@ describe("the data catalogue", () => {
     expect(workHours).toBeGreaterThan(0);
   });
 
+  it("wears every Structure down by Dust at a rate that can be 0, and cuts output below a performance threshold", () => {
+    for (const type of catalogue.structureTypes) {
+      expect(type.dustWearPercentPerHour).toBeGreaterThanOrEqual(0);
+      expect(type.dustWearPercentPerHour).toBeLessThan(100);
+    }
+    const solarArray = catalogue.structureTypes.find(
+      (type) => type.id === "solar-array",
+    );
+    expect(solarArray?.dustWearPercentPerHour).toBeGreaterThan(0);
+    const { thresholdPercent, exponent } = catalogue.structurePerformance;
+    expect(thresholdPercent).toBeGreaterThan(0);
+    expect(thresholdPercent).toBeLessThanOrEqual(100);
+    expect(exponent).toBeGreaterThan(0);
+  });
+
   it("loses less than half of a dismantled Structure's Components", () => {
     expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);

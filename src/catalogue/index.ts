@@ -12,6 +12,7 @@ export type {
   MaintenanceRules,
   MachineType,
   MapSize,
+  PerformanceCurve,
   RadiationRules,
   SolarParticleEventRules,
   StructureType,

@@ -96,6 +96,24 @@ export interface Catalogue {
   readonly launch: LaunchRules;
   readonly plumeEjecta: PlumeEjectaRules;
   readonly maintenance: MaintenanceRules;
+  /**
+   * How well a solar array generates, a battery bank stores and a Light
+   * Mast lights as its Condition falls. Other Structures either work or
+   * are Broken.
+   */
+  readonly structurePerformance: PerformanceCurve;
+}
+
+/**
+ * How well something works as its Condition falls: fully at or above the
+ * threshold, and below it at its Condition's share of the threshold raised
+ * to the exponent, down to nothing once it is Broken.
+ */
+export interface PerformanceCurve {
+  /** In percent of Condition. */
+  readonly thresholdPercent: number;
+  /** 1 falls in a straight line; more falls faster at first, less slower. */
+  readonly exponent: number;
 }
 
 /**
@@ -316,6 +334,12 @@ export interface StructureType {
   };
   /** The chance, from 0 to 1, that a Commissioning attempt fails and has to be retried. */
   readonly commissioningFailureChance: number;
+  /**
+   * How much Condition Dust wears off it for each game-hour it operates, in
+   * percentage points; it may be 0. It operates while it is commissioned,
+   * isn't Broken and, if it has anything to do with power, has power.
+   */
+  readonly dustWearPercentPerHour: number;
   /** What the commissioned Structure does on the power network. */
   readonly power: {
     /** The power it generates in Daylight; nothing generates at Night. */
@@ -357,7 +381,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 16,
+  version: 17,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -439,6 +463,8 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.25,
+      // Its tracking drive and panel hinges grind on the Dust.
+      dustWearPercentPerHour: 0.05,
       // The drive that keeps the panel turned to the sun.
       power: {
         generationKilowatts: 10,
@@ -467,6 +493,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
       // The heaters that keep the cells warm enough to work.
       power: {
         generationKilowatts: 0,
@@ -495,6 +522,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.02,
       // Its light switches on by itself at Night, and draws nothing in Daylight.
       power: {
         generationKilowatts: 0,
@@ -524,6 +552,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.01,
       // Its life support, heaters and controls.
       power: {
         generationKilowatts: 0,
@@ -555,6 +584,8 @@ export const catalogue: Catalogue = {
         assembly: "regolith-printer",
       },
       commissioningFailureChance: 0.1,
+      // Packed Regolith has nothing for Dust to wear.
+      dustWearPercentPerHour: 0,
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -586,6 +617,7 @@ export const catalogue: Catalogue = {
       },
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
       // The beacon runs off its own small battery.
       power: {
         generationKilowatts: 0,
@@ -768,4 +800,6 @@ export const catalogue: Catalogue = {
     loadingHours: 0.25,
     workHours: 2,
   },
+  // Below half its Condition, a Structure's output falls in step with it.
+  structurePerformance: { thresholdPercent: 50, exponent: 1 },
 };

@@ -71,9 +71,10 @@ const CONDITION_TOLERANCE = 1e-9;
  * catalogue's threshold, unless it is to be dismantled, never more than one
  * for each. A Structure that is gone, or is to be dismantled, is not
  * maintained: its Work Order goes, and any spare Components taken for it go
- * straight back into the base's stock.
+ * straight back into the base's stock. Returns an event for each Work Order
+ * raised.
  */
-export function planMaintenance(state: CampaignState): void {
+export function planMaintenance(state: CampaignState): GameEvent[] {
   const wanted = (structureId: string) =>
     !isDueToBeDismantled(state, structureId) &&
     state.structures.some((structure) => structure.id === structureId);
@@ -95,6 +96,7 @@ export function planMaintenance(state: CampaignState): void {
   state.maintenance = state.maintenance.filter((maintenance) =>
     wanted(maintenance.structureId),
   );
+  const events: GameEvent[] = [];
   for (const structure of state.structures) {
     if (
       structure.conditionPercent < catalogue.maintenance.thresholdPercent &&
@@ -107,8 +109,16 @@ export function planMaintenance(state: CampaignState): void {
         spareComponents: undefined,
         workedMinutes: 0,
       });
+      events.push({
+        kind: "maintenance-needed",
+        atMinute: state.elapsedMinutes,
+        structureId: structure.id,
+        structureTypeId: structure.structureTypeId,
+        conditionPercent: structure.conditionPercent,
+      });
     }
   }
+  return events;
 }
 
 /** The Maintenance Work Order for a Structure, if one has been raised. */

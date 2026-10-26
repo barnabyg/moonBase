@@ -10,6 +10,7 @@ import {
   type CancelResult,
 } from "./cancel";
 import { readClock, type ClockSnapshot } from "./clock";
+import { structurePerformance, wearStructures } from "./condition";
 import {
   dismantleStructure,
   dismantlingStageMinutes,
@@ -20,6 +21,7 @@ import {
 import {
   checkPlacement,
   chooseWorkSpot,
+  findStructureType,
   isShielded,
   stageMinutes,
   type ConstructionPlan,
@@ -193,6 +195,15 @@ export interface StructureSnapshot {
    * nothing until it is repaired.
    */
   readonly conditionPercent: number;
+  /**
+   * How well it does its job as its Condition falls, from 1 down to 0 once
+   * it is Broken: how much of its generation, storage capacity or light
+   * radius a solar array, battery bank or Light Mast has left. Anything
+   * else works fully until it is Broken.
+   */
+  readonly performance: number;
+  /** How far round it its light reaches, as its performance allows, or 0 if it has none. */
+  readonly lightRadiusMetres: number;
 }
 
 /**
@@ -233,7 +244,7 @@ export interface CableSnapshot {
 export interface PowerNetworkSnapshot {
   /** In the order they were commissioned. */
   readonly structureIds: readonly string[];
-  /** The power its solar arrays are generating now: none at Night. */
+  /** The power its solar arrays are generating now, as their Condition allows: none at Night. */
   readonly generationKilowatts: number;
   /** The power its Structures draw now, including any lights at Night. */
   readonly consumptionKilowatts: number;
@@ -659,10 +670,17 @@ function campaignFrom(state: CampaignState): Campaign {
           unusedComponents: unusedComponents(construction),
           waiting: copy(findWaitingReason(state, construction)),
         })),
-        structures: state.structures.map((structure) => ({
-          ...copy(structure),
-          shielded: isShielded(state, structure),
-        })),
+        structures: state.structures.map((structure) => {
+          const performance = structurePerformance(structure);
+          return {
+            ...copy(structure),
+            shielded: isShielded(state, structure),
+            performance,
+            lightRadiusMetres:
+              (findStructureType(structure.structureTypeId)
+                ?.lightRadiusMetres ?? 0) * performance,
+          };
+        }),
         dismantlings: state.dismantlings.map((dismantling) => ({
           id: dismantling.id,
           structureTypeId: dismantling.structureTypeId,
@@ -718,9 +736,11 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   state.elapsedMinutes += 1;
+  // First, before anything changes whether they operate.
+  events.push(...wearStructures(state));
   events.push(...flyLander(state));
   planUnloading(state);
-  planMaintenance(state);
+  events.push(...planMaintenance(state));
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);

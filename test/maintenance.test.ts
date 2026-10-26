@@ -9,15 +9,18 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { worn } from "./worn";
 
 // The Mission Director has to live in the Habitat for a whole round trip of
-// the Lander, for Plume Ejecta to wear Structures down.
+// the Lander, for Plume Ejecta to wear Structures down. Dust wears nothing
+// down, so that a Condition changes only as each test says.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
+  const { withoutDust } = await import("./without-dust");
   return {
     ...actual,
-    catalogue: safeHabitat(actual.catalogue, [
+    catalogue: safeHabitat(withoutDust(actual.catalogue), [
       "power",
       "radiation",
       "solar-particle-events",
@@ -54,38 +57,6 @@ function spareComponents(state: Snapshot): number {
     state.stockpile.components.find((s) => s.componentId === spareComponentId)
       ?.count ?? 0
   );
-}
-
-interface SaveJson {
-  state: {
-    structures: { id: string; conditionPercent: number }[];
-    stockpile: { components: { componentId: string; count: number }[] };
-  };
-}
-
-/**
- * The Campaign as saved, but with a Structure worn down to a Condition, and
- * if given, a number of spare Components in stock: a stand-in for wear the
- * game has no quicker way to bring about.
- */
-function worn(
-  campaign: Campaign,
-  structureId: string,
-  conditionPercent: number,
-  spares?: number,
-): Campaign {
-  const document = JSON.parse(campaign.save()) as SaveJson;
-  for (const saved of document.state.structures) {
-    if (saved.id === structureId) saved.conditionPercent = conditionPercent;
-  }
-  for (const stock of document.state.stockpile.components) {
-    if (stock.componentId === spareComponentId && spares !== undefined) {
-      stock.count = spares;
-    }
-  }
-  const loaded = loadCampaign(JSON.stringify(document));
-  if (!loaded.ok) throw new Error(loaded.message);
-  return loaded.campaign;
 }
 
 /** A solar array, built and then worn down to a Condition. */

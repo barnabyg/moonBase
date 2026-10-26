@@ -206,6 +206,26 @@ export function formatLifeSupport(
     : amount;
 }
 
+/**
+ * Formats a Condition to the whole percent, for example "73%". Only a
+ * Broken one shows as 0%, and one that has worn down at all shows below
+ * 100% once it is half a percentage point down.
+ */
+export function formatCondition(conditionPercent: number): string {
+  if (conditionPercent <= 0) return "0%";
+  return `${Math.min(Math.max(Math.round(conditionPercent), 1), 100)}%`;
+}
+
+/**
+ * Says how well a Structure works, if its Condition has cut its output, for
+ * example ", working at 80%"; nothing at full performance or once Broken.
+ */
+export function formatPerformance(performance: number): string {
+  return performance > 0 && performance < 1
+    ? `, working at ${Math.max(Math.round(performance * 100), 1)}%`
+    : "";
+}
+
 /** Says what happened in an event, for the notification list, for example "Night has fallen". */
 export function formatEvent(event: GameEvent): string {
   switch (event.kind) {
@@ -249,11 +269,13 @@ export function formatEvent(event: GameEvent): string {
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
           (damage) =>
-            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${damage.conditionPercent}%`,
+            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${formatCondition(damage.conditionPercent)}`,
         ),
       )}`;
     case "structure-broken":
       return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
+    case "maintenance-needed":
+      return `${structureLabel(event.structureTypeId)} needs Maintenance, at ${formatCondition(event.conditionPercent)} Condition`;
     case "maintenance-completed":
       return `${structureLabel(event.structureTypeId)} maintained, back to 100% Condition, using ${plural(event.spareComponents, "spare Component")}`;
     case "mission-director-died":

@@ -14,12 +14,14 @@ import { createSaveButtons } from "./save-buttons";
 import { catalogue } from "../catalogue";
 import {
   formatClock,
+  formatCondition,
   formatFunding,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatLunation,
   formatMissionDirector,
+  formatPerformance,
   formatPower,
   formatRadiationDose,
   formatSolarParticleEvent,
@@ -387,7 +389,7 @@ export function createStatusPanel(
           : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${structure.conditionPercent}%${maintained}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.powered || broken ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${maintained}`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =

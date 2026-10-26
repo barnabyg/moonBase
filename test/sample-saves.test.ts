@@ -318,18 +318,26 @@ describe("the sample save of format version 6", () => {
 
   it("plays on from where it was saved, until the Lander's landing wears them down again", () => {
     const campaign = loadSample("version-6.moonbase");
-
+    const conditions = () =>
+      campaign
+        .snapshot()
+        .structures.filter((s) => s.structureTypeId !== "light-mast")
+        .map((s) => s.conditionPercent);
     campaign.advance(
-      35340 + 3 * 24 * 60 - campaign.snapshot().clock.elapsedMinutes,
+      35340 + 3 * 24 * 60 - 1 - campaign.snapshot().clock.elapsedMinutes,
     );
+    const before = conditions();
 
-    const state = campaign.snapshot();
-    expect(state.lander.state).toBe("landed-free");
-    expect(
-      state.structures
-        .filter((s) => s.structureTypeId !== "light-mast")
-        .map((s) => s.conditionPercent),
-    ).toEqual([60, 60]);
+    campaign.advance(1);
+
+    expect(campaign.snapshot().lander.state).toBe("landed-free");
+    // Dust has worn them down a little more since the take-off, too.
+    expect(before.every((condition) => condition < 80)).toBe(true);
+    const lost = conditions().map(
+      (after, index) => (before[index] ?? 0) - after,
+    );
+    expect(lost).toHaveLength(2);
+    for (const each of lost) expect(each).toBeCloseTo(20, 1);
   });
 });
 
@@ -478,9 +486,13 @@ describe("the sample save of format version 8", () => {
     const campaign = loadSample("version-8.moonbase");
     const kinds: string[] = [];
 
-    for (let hours = 0; campaign.snapshot().maintenance.length > 0; hours++) {
-      if (hours > 24) throw new Error("Maintenance never finished.");
-      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    for (
+      let minutes = 0;
+      campaign.snapshot().maintenance.length > 0;
+      minutes++
+    ) {
+      if (minutes > 24 * 60) throw new Error("Maintenance never finished.");
+      kinds.push(...campaign.advance(1).map((event) => event.kind));
     }
 
     expect(kinds).toContain("maintenance-completed");

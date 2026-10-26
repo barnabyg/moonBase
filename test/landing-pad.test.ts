@@ -15,10 +15,11 @@ import { scenario, type Scenario } from "./scenario";
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
+  const { withoutDust } = await import("./without-dust");
   return {
     ...actual,
     catalogue: {
-      ...safeHabitat(actual.catalogue, [
+      ...safeHabitat(withoutDust(actual.catalogue), [
         "power",
         "radiation",
         "life-support",

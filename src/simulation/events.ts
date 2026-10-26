@@ -121,6 +121,18 @@ export type GameEvent =
     }
   | {
       /**
+       * A Structure's Condition has fallen below the Maintenance threshold
+       * set in the data catalogue, or it is Broken, and a Maintenance Work
+       * Order has been raised for it.
+       */
+      readonly kind: "maintenance-needed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      readonly conditionPercent: number;
+    }
+  | {
+      /**
        * The Robot has finished Maintenance on a Structure, bringing its
        * Condition back to 100%, so that a Broken one works again.
        */

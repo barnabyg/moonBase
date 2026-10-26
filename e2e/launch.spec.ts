@@ -68,8 +68,9 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
     "Funding: $239M",
   );
+  // Maintenance may have used some spare Components meanwhile.
   await expect(stock).toHaveText(
-    "Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and 6 spare components",
+    /^Stock: 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles, 4 light heads and \d+ spare components$/,
   );
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
     "Lander landed with 2 × Solar panel and 1 × Array mast",

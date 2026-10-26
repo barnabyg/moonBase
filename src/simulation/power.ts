@@ -4,6 +4,7 @@ import {
   type StructureType,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { structurePerformance } from "./condition";
 import {
   distance,
   findStructureType,
@@ -434,7 +435,18 @@ function powerOf(structureTypeId: string): Power {
   return findStructureType(structureTypeId)?.power ?? noPower;
 }
 
-/** What a Structure does on the power network: nothing, once it is Broken. */
+/**
+ * What a Structure does on the power network: it generates and stores less
+ * as its performance falls with its Condition, and does nothing once it is
+ * Broken. What it draws doesn't change until then.
+ */
 function workingPower(structure: StructureState): Power {
-  return isBroken(structure) ? noPower : powerOf(structure.structureTypeId);
+  if (isBroken(structure)) return noPower;
+  const power = powerOf(structure.structureTypeId);
+  const performance = structurePerformance(structure);
+  return {
+    ...power,
+    generationKilowatts: power.generationKilowatts * performance,
+    storageKilowattHours: power.storageKilowattHours * performance,
+  };
 }
