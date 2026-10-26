@@ -401,13 +401,15 @@ function workOnDismantling(
       if (dismantling.workedMinutes === 0) takeOffBase(state, id);
       robot.activity = { kind: "dismantling", structureId: id };
       dismantling.workedMinutes += 1;
-      if (dismantling.workedMinutes >= required) {
-        dismantling.stage = "returning-components";
-        dismantling.workedMinutes = 0;
-        dismantling.recovered = recoveredComponents(
-          dismantling.structureTypeId,
-        );
+      if (dismantling.workedMinutes < required) return [];
+      dismantling.recovered = recoveredComponents(dismantling.structureTypeId);
+      // Something with no Components, such as Regolith shielding, is gone
+      // once it has been taken apart.
+      if (dismantling.recovered.length === 0) {
+        return finishDismantling(state, dismantling);
       }
+      dismantling.stage = "returning-components";
+      dismantling.workedMinutes = 0;
       return [];
 
     case "returning-components":
@@ -422,18 +424,26 @@ function workOnDismantling(
       if (dismantling.workedMinutes < required) return [];
       addToStock(state, dismantling.recovered);
       robot.carrying = [];
-      state.dismantlings = state.dismantlings.filter(
-        (other) => other !== dismantling,
-      );
-      return [
-        {
-          kind: "structure-dismantled",
-          atMinute: state.elapsedMinutes,
-          structureId: id,
-          structureTypeId: dismantling.structureTypeId,
-        },
-      ];
+      return finishDismantling(state, dismantling);
   }
+}
+
+/** Ends a Structure's dismantling, once anything recovered from it is back in stock. */
+function finishDismantling(
+  state: CampaignState,
+  dismantling: DismantlingState,
+): GameEvent[] {
+  state.dismantlings = state.dismantlings.filter(
+    (other) => other !== dismantling,
+  );
+  return [
+    {
+      kind: "structure-dismantled",
+      atMinute: state.elapsedMinutes,
+      structureId: dismantling.id,
+      structureTypeId: dismantling.structureTypeId,
+    },
+  ];
 }
 
 /**

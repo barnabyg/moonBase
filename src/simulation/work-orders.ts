@@ -8,7 +8,12 @@ import {
 } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
-import { findCable, nearestPoweredStructure, type CableTarget } from "./power";
+import {
+  findCable,
+  nearestPoweredStructure,
+  usesPower,
+  type CableTarget,
+} from "./power";
 import { findStructureToReconnect } from "./reconnection";
 
 /**
@@ -196,11 +201,12 @@ function canBeWorkedOn(
 }
 
 /**
- * Whether a Construction or Structure still needs its cable laid: it has a
- * cable under way, or none yet and there is a powered Structure to lay one
- * from.
+ * Whether a Construction or Structure still needs its cable laid: it has
+ * something to do with power, and it has a cable under way, or none yet and
+ * there is a powered Structure to lay one from.
  */
 export function needsCable(state: CampaignState, target: CableTarget): boolean {
+  if (!usesPower(target.structureTypeId)) return false;
   const cable = findCable(state, target.id);
   return cable === undefined
     ? nearestPoweredStructure(state, target.position) !== undefined

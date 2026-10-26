@@ -18,6 +18,7 @@ import {
   formatMissionDirector,
   formatPower,
   formatRadiationDose,
+  formatSolarParticleEvent,
   formatStoredPower,
   structureLabel,
 } from "./format";
@@ -139,6 +140,14 @@ export function createStatusPanel(
   radiationDose.setAttribute("aria-label", "Radiation Dose");
   radiationDose.setAttribute("aria-live", "off");
 
+  // A Solar Particle Event that is coming or under way.
+  const solarParticleEvent = document.createElement("p");
+  solarParticleEvent.className = "status-panel__solar-particle-event";
+  solarParticleEvent.setAttribute("role", "status");
+  solarParticleEvent.setAttribute("aria-label", "Solar Particle Event");
+  solarParticleEvent.setAttribute("aria-live", "off");
+  solarParticleEvent.hidden = true;
+
   // Why the player's latest choice was refused, for a few seconds, so that
   // it doesn't linger once things have changed.
   const refusal = document.createElement("p");
@@ -208,6 +217,7 @@ export function createStatusPanel(
     habitatPower,
     ...stocks.map((stock) => stock.line),
     radiationDose,
+    solarParticleEvent,
     structures,
     refusal,
   );
@@ -283,6 +293,16 @@ export function createStatusPanel(
           (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=
             doseWarnFrom,
       );
+      solarParticleEvent.hidden = snapshot.solarParticleEvent === undefined;
+      setText(
+        solarParticleEvent,
+        snapshot.solarParticleEvent === undefined
+          ? ""
+          : formatSolarParticleEvent(
+              snapshot.solarParticleEvent,
+              snapshot.clock.elapsedMinutes,
+            ),
+      );
       const seen = new Set<string>();
       for (const structure of snapshot.structures) {
         seen.add(structure.id);
@@ -297,9 +317,12 @@ export function createStatusPanel(
         const home =
           snapshot.missionDirector.residence === "habitat" &&
           snapshot.missionDirector.habitatId === structure.id;
+        const shielding = isHabitat(structure.structureTypeId)
+          ? `, ${structure.shielded ? "shielded" : "unshielded"}`
+          : "";
         setText(
           entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}${home ? ", the Mission Director's home" : ""}`,
+          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : "commissioned"}${structure.powered ? "" : ", no power"}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}`,
         );
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =

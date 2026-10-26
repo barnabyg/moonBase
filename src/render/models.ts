@@ -57,6 +57,13 @@ const materials = {
     roughness: 0.85,
     flatShading: true,
   }),
+  // Printed Regolith: grey-brown, rough and matte.
+  regolith: new THREE.MeshStandardMaterial({
+    color: 0x8a857c,
+    metalness: 0,
+    roughness: 1,
+    flatShading: true,
+  }),
   crate: new THREE.MeshStandardMaterial({
     color: 0xb9b2a2,
     metalness: 0.1,
@@ -364,6 +371,9 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "battery-bank") return createBatteryBankModel();
   if (structureTypeId === "light-mast") return createLightMastModel();
   if (structureTypeId === "habitat") return createHabitatModel();
+  if (structureTypeId === "regolith-shielding") {
+    return createRegolithShieldingModel();
+  }
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -579,6 +589,65 @@ function createHabitatModel(): StructureModel {
   };
 }
 
+/** How high Regolith shielding rises over the Habitat's dome. */
+export const SHIELDING_HEIGHT = 3.4;
+/** The radius of the shielding where it meets the ground, just inside its footprint. */
+const SHIELDING_BASE_RADIUS = 3.95;
+/** How many layers the regolith printer lays the shielding down in. */
+const SHIELDING_LAYERS = 12;
+
+/**
+ * The radius of Regolith shielding's outer surface at a height above the
+ * ground: a rounded dome over the Habitat.
+ */
+export function shieldingRadiusAt(height: number): number {
+  const h = THREE.MathUtils.clamp(height / SHIELDING_HEIGHT, 0, 1);
+  return SHIELDING_BASE_RADIUS * Math.sqrt(1 - h * h);
+}
+
+/**
+ * Regolith shielding: a thick dome of printed Regolith over the Habitat,
+ * with the airlock's hatch left showing. During Assembly it builds up layer
+ * by layer from the ground, the layer being printed growing as it goes.
+ */
+function createRegolithShieldingModel(): StructureModel {
+  const shielding = new THREE.Group();
+  shielding.name = "Regolith shielding";
+  const layerHeight = SHIELDING_HEIGHT / SHIELDING_LAYERS;
+  const layers = Array.from({ length: SHIELDING_LAYERS }, (_, index) => {
+    const bottom = index * layerHeight;
+    const geometry = new THREE.CylinderGeometry(
+      shieldingRadiusAt(bottom + layerHeight),
+      shieldingRadiusAt(bottom),
+      layerHeight,
+      20,
+    );
+    // Grows upwards from its base as it is printed.
+    geometry.translate(0, layerHeight / 2, 0);
+    const layer = part(geometry, materials.regolith, [0, bottom, 0]);
+    layer.name = `Layer ${index + 1}`;
+    shielding.add(layer);
+    return layer;
+  });
+
+  return {
+    group: shielding,
+    setAssembled(fraction) {
+      const printed = THREE.MathUtils.clamp(fraction, 0, 1) * SHIELDING_LAYERS;
+      for (const [index, layer] of layers.entries()) {
+        const done = THREE.MathUtils.clamp(printed - index, 0, 1);
+        layer.visible = done > 0;
+        layer.scale.y = Math.max(done, 0.01);
+      }
+    },
+    setFacing: () => undefined,
+    // A mound of Regolith has no status light: the Habitat's shows through.
+    setStatusLight: () => undefined,
+    setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}
+
 const BATTERY_MODULES = 3;
 const CHARGE_SEGMENTS = 5;
 /** The share of Assembly spent sliding the modules in, before the cabinet closes. */
@@ -693,8 +762,8 @@ export function createCrateModel(): THREE.Mesh {
   return crate;
 }
 
-/** The height of the excavator's deck, where a Robot sits to drive it. */
-export const EXCAVATOR_SEAT_HEIGHT = 1.15;
+/** The height of every Machine's deck, where a Robot sits to drive it. */
+export const MACHINE_SEAT_HEIGHT = 1.15;
 
 /**
  * A small tracked excavator, facing along its local +z axis. Its upper body
@@ -811,4 +880,145 @@ export function createExcavatorModel(): ExcavatorModel {
       beaconMaterial.emissive.copy(source.emissive);
     },
   };
+}
+
+/**
+ * A regolith printer on tracks, facing along its local +z axis. Its upper
+ * body turns on the tracks; a carriage runs up and down a mast at the front,
+ * carrying a boom that reaches out with the print head hanging from its end,
+ * fed from a hopper of Regolith scooped from the ground.
+ */
+export interface RegolithPrinterModel {
+  readonly group: THREE.Group;
+  /** Turns the upper body relative to the tracks (radians, as for Object3D.rotation.y). */
+  setSlew(angle: number): void;
+  /** How far out the print head is from the turntable's centre, in metres. */
+  setReach(metres: number): void;
+  /** How high the print head's nozzle is above the ground, in metres. */
+  setNozzleHeight(metres: number): void;
+  /** The beacon that flashes while the Machine works by itself. */
+  setBeacon(on: boolean): void;
+}
+
+/** How far from the turntable's centre the printer's mast stands. */
+const PRINTER_MAST_REACH = 0.7;
+/** How far below the boom the print head's nozzle hangs. */
+const PRINT_HEAD_DROP = 0.55;
+/** How high the turntable's top is above the ground. */
+const PRINTER_TURNTABLE_HEIGHT = 0.75;
+const PRINTER_MAST_HEIGHT = 4.2;
+
+export function createRegolithPrinterModel(): RegolithPrinterModel {
+  const printer = new THREE.Group();
+  printer.name = "Regolith printer";
+
+  for (const side of [-1, 1]) {
+    printer.add(
+      part(new THREE.BoxGeometry(0.5, 0.5, 3), materials.track, [
+        side * 1.05,
+        0.25,
+        0,
+      ]),
+    );
+  }
+  printer.add(
+    part(
+      new THREE.CylinderGeometry(0.9, 1, 0.3, 12),
+      materials.darkMetal,
+      [0, 0.6, 0],
+    ),
+  );
+
+  // Everything above the turntable turns as one.
+  const upper = new THREE.Group();
+  upper.position.y = PRINTER_TURNTABLE_HEIGHT;
+  printer.add(upper);
+  const deckHeight = MACHINE_SEAT_HEIGHT - PRINTER_TURNTABLE_HEIGHT;
+  const beaconMaterial = materials.statusOff.clone();
+  upper.add(
+    // The deck, level with every Machine's seat.
+    part(new THREE.BoxGeometry(1.9, deckHeight, 2.2), materials.hull, [
+      0,
+      deckHeight / 2,
+      0,
+    ]),
+    // The hopper of Regolith behind the seat, wider at the top.
+    part(
+      new THREE.CylinderGeometry(0.75, 0.45, 0.9, 6),
+      materials.machinePaint,
+      [0, deckHeight + 0.45, -0.6],
+    ),
+    part(new THREE.SphereGeometry(0.08, 8, 6), beaconMaterial, [
+      0.75,
+      deckHeight + 1,
+      -0.6,
+    ]),
+    part(
+      new THREE.BoxGeometry(0.2, PRINTER_MAST_HEIGHT, 0.2),
+      materials.darkMetal,
+      [0, PRINTER_MAST_HEIGHT / 2, PRINTER_MAST_REACH],
+    ),
+  );
+
+  // The carriage on the mast, and the boom it carries out to the print head.
+  const carriage = new THREE.Group();
+  carriage.position.z = PRINTER_MAST_REACH;
+  upper.add(carriage);
+  carriage.add(
+    part(
+      new THREE.BoxGeometry(0.4, 0.35, 0.4),
+      materials.machinePaint,
+      [0, 0, 0],
+    ),
+  );
+  const boom = part(
+    new THREE.BoxGeometry(0.16, 0.16, 1),
+    materials.machinePaint,
+    [0, 0, 0],
+  );
+  carriage.add(boom);
+  const head = new THREE.Group();
+  carriage.add(head);
+  head.add(
+    part(
+      new THREE.BoxGeometry(0.3, 0.3, 0.3),
+      materials.darkMetal,
+      [0, -0.2, 0],
+    ),
+    part(new THREE.ConeGeometry(0.1, 0.25, 6), materials.darkMetal, [
+      0,
+      -PRINT_HEAD_DROP + 0.125,
+      0,
+    ]),
+  );
+  // The carriage runs between the deck and the top of the mast.
+  const lowest = MACHINE_SEAT_HEIGHT + 0.2 - PRINT_HEAD_DROP;
+  const highest =
+    PRINTER_TURNTABLE_HEIGHT + PRINTER_MAST_HEIGHT - 0.2 - PRINT_HEAD_DROP;
+
+  const model: RegolithPrinterModel = {
+    group: printer,
+    setSlew(angle) {
+      upper.rotation.y = angle;
+    },
+    setReach(metres) {
+      const out = Math.max(metres - PRINTER_MAST_REACH, 0.3);
+      boom.scale.z = out;
+      boom.position.z = out / 2;
+      head.position.z = out;
+    },
+    setNozzleHeight(metres) {
+      const height = THREE.MathUtils.clamp(metres, lowest, highest);
+      carriage.position.y = height + PRINT_HEAD_DROP - PRINTER_TURNTABLE_HEIGHT;
+    },
+    setBeacon(on) {
+      const source = on ? materials.statusTesting : materials.statusOff;
+      beaconMaterial.color.copy(source.color);
+      beaconMaterial.emissive.copy(source.emissive);
+    },
+  };
+  // Parked with the boom drawn in and the head held low.
+  model.setReach(PRINTER_MAST_REACH + 1);
+  model.setNozzleHeight(lowest);
+  return model;
 }

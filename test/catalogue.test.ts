@@ -183,11 +183,14 @@ describe("the data catalogue", () => {
 
     for (const type of structureTypes) {
       expect(type.footprintRadiusMetres).toBeGreaterThan(0);
-      expect(type.components.length).toBeGreaterThan(0);
-      for (const hours of Object.values(type.stageHours)) {
+      const { componentDelivery, ...otherStages } = type.stageHours;
+      for (const hours of Object.values(otherStages)) {
         expect(hours).toBeGreaterThan(0);
         expect(Number.isInteger(hours * 60)).toBe(true);
       }
+      // Only a Structure with Components has them delivered.
+      expect(componentDelivery > 0).toBe(type.components.length > 0);
+      expect(Number.isInteger(componentDelivery * 60)).toBe(true);
       expect(type.commissioningFailureChance).toBeGreaterThanOrEqual(0);
       expect(type.commissioningFailureChance).toBeLessThan(1);
       for (const value of Object.values(type.power)) {
@@ -199,6 +202,28 @@ describe("the data catalogue", () => {
       expect(type.lightRadiusMetres > 0).toBe(
         type.power.nightDrawKilowatts > 0,
       );
+    }
+  });
+
+  it("has Regolith shielding, printed over a Habitat by the regolith printer from no Components", () => {
+    const shielding = catalogue.structureTypes.filter(
+      (type) => type.shieldsHabitat,
+    );
+    const habitat = catalogue.structureTypes.find((type) => type.habitat);
+
+    expect(shielding.map((type) => type.id)).toEqual(["regolith-shielding"]);
+    for (const type of shielding) {
+      expect(type.components).toEqual([]);
+      expect(type.stageMachines).toEqual({
+        sitePreparation: "excavator",
+        assembly: "regolith-printer",
+      });
+      expect(type.habitat).toBe(false);
+      // It covers the Habitat it goes over.
+      expect(type.footprintRadiusMetres).toBeGreaterThanOrEqual(
+        habitat?.footprintRadiusMetres ?? Infinity,
+      );
+      for (const value of Object.values(type.power)) expect(value).toBe(0);
     }
   });
 
@@ -255,13 +280,19 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("has no Radiation Dose aboard the Lander, and warnings before an unshielded Habitat's dose reaches the limit", () => {
+  it("has no Radiation Dose aboard the Lander, less in a shielded Habitat than an unshielded one, and warnings before an unshielded Habitat's dose reaches the limit", () => {
     const { radiation } = catalogue;
 
     expect(radiation.doseRateMillisievertsPerEarthDay.lander).toBe(0);
     expect(radiation.doseRateMillisievertsPerEarthDay.habitat).toBeGreaterThan(
       0,
     );
+    expect(
+      radiation.doseRateMillisievertsPerEarthDay.shieldedHabitat,
+    ).toBeGreaterThan(0);
+    expect(
+      radiation.doseRateMillisievertsPerEarthDay.shieldedHabitat,
+    ).toBeLessThan(radiation.doseRateMillisievertsPerEarthDay.habitat);
     expect(radiation.doseLimitMillisieverts).toBeGreaterThan(0);
     const reachedInEarthDays =
       radiation.doseLimitMillisieverts /
@@ -275,6 +306,30 @@ describe("the data catalogue", () => {
       expect(earthDays).toBeLessThan(reachedInEarthDays);
       expect(Number.isInteger(earthDays * 24 * 60)).toBe(true);
     }
+  });
+
+  it("schedules Solar Particle Events that are warned of a few hours ahead, one at a time, and multiply the dose rate", () => {
+    const {
+      earthDaysBetween,
+      durationHours,
+      warningHours,
+      doseRateMultiplier,
+    } = catalogue.solarParticleEvents;
+
+    for (const [min, max, minutesPerUnit] of [
+      [earthDaysBetween.min, earthDaysBetween.max, 24 * 60],
+      [durationHours.min, durationHours.max, 60],
+    ] as const) {
+      expect(min).toBeGreaterThan(0);
+      expect(max).toBeGreaterThanOrEqual(min);
+      expect(Number.isInteger(min * minutesPerUnit)).toBe(true);
+      expect(Number.isInteger(max * minutesPerUnit)).toBe(true);
+    }
+    expect(warningHours).toBeGreaterThan(0);
+    expect(Number.isInteger(warningHours * 60)).toBe(true);
+    // The next event's warning comes only after the last has ended.
+    expect(earthDaysBetween.min * 24).toBeGreaterThan(warningHours);
+    expect(doseRateMultiplier).toBeGreaterThan(1);
   });
 
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(

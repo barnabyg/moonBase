@@ -50,6 +50,24 @@ export type GameEvent =
       readonly minutesUntilLimit: number;
     }
   | {
+      /** A Solar Particle Event will start in the warning time set in the data catalogue. */
+      readonly kind: "solar-particle-event-warning";
+      readonly atMinute: number;
+      readonly startsAtMinute: number;
+      readonly endsAtMinute: number;
+    }
+  | {
+      /** A Solar Particle Event has started, multiplying the dose rate where the Mission Director lives. */
+      readonly kind: "solar-particle-event-started";
+      readonly atMinute: number;
+      readonly endsAtMinute: number;
+    }
+  | {
+      /** A Solar Particle Event has ended, and the dose rate is back to usual. */
+      readonly kind: "solar-particle-event-ended";
+      readonly atMinute: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;

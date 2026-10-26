@@ -10,7 +10,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const { safeHabitat } = await import("./safe-habitat");
   return {
     ...actual,
-    catalogue: safeHabitat(actual.catalogue, ["power", "radiation"]),
+    catalogue: safeHabitat(actual.catalogue, [
+      "power",
+      "radiation",
+      "solar-particle-events",
+    ]),
   };
 });
 
