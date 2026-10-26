@@ -699,3 +699,56 @@ describe("the sample save of format version 11", () => {
     ]);
   });
 });
+
+describe("the sample saves from before the Robot had a Condition", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-3.moonbase",
+    "version-5.moonbase",
+    "version-7.moonbase",
+    "version-9.moonbase",
+    "version-11.moonbase",
+  ])("%s loads with the Robot at 100%, repairing nothing", (name) => {
+    const [robot] = loadSample(name).snapshot().robots;
+
+    expect(robot).toMatchObject({
+      conditionPercent: 100,
+      performance: 1,
+      selfRepair: undefined,
+    });
+  });
+});
+
+describe("the sample save of format version 12", () => {
+  it("loads with the Robot carrying a light mast's Components and spare Components to the Lander, to repair itself", () => {
+    const [robot] = loadSample("version-12.moonbase").snapshot().robots;
+
+    expect(robot).toMatchObject({
+      activity: { kind: "walking-to-repair", destination: "lander" },
+      carrying: [
+        { componentId: "mast-pole", count: 1 },
+        { componentId: "light-head", count: 1 },
+        { componentId: "spare-component", count: 5 },
+      ],
+      selfRepair: { home: "lander", spareComponents: 5, makeshift: false },
+    });
+    expect(robot?.conditionPercent).toBeLessThan(
+      catalogue.robot.selfRepairThresholdPercent,
+    );
+  });
+
+  it("plays on from where it was saved, until the Robot has repaired itself and built the light mast", () => {
+    const campaign = loadSample("version-12.moonbase");
+    const kinds: string[] = [];
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 48) throw new Error("The light mast was never built.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("robot-repaired");
+    expect(kinds).toContain("construction-completed");
+    expect(campaign.snapshot().robots[0]?.conditionPercent).toBeGreaterThan(99);
+  });
+});

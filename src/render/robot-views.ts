@@ -85,7 +85,9 @@ export function createRobotViews(scene: THREE.Scene) {
 
 function onFoot(robot: RobotSnapshot): boolean {
   return (
-    robot.activity.kind === "walking" || robot.activity.kind === "laying-cable"
+    robot.activity.kind === "walking" ||
+    robot.activity.kind === "walking-to-repair" ||
+    robot.activity.kind === "laying-cable"
   );
 }
 
@@ -109,10 +111,15 @@ function workTarget(
   }
   if (
     activity.kind === "loading-components" ||
+    activity.kind === "loading-spare-components" ||
     activity.kind === "returning-components" ||
     activity.kind === "unloading-cargo"
   ) {
     return toScene(frame.current.stockpile.position);
+  }
+  // Repairing itself, it looks down at its own work.
+  if (activity.kind === "walking-to-repair" || !("structureId" in activity)) {
+    return undefined;
   }
   if (activity.kind === "loading-cargo") {
     return toScene(frame.current.lander.position);
@@ -204,6 +211,29 @@ function poseFor(
       leftArm: 2.0 + work * 0.3,
       rightArm: 2.0 - work * 0.3,
       lean: 0,
+      seated: false,
+      carrying,
+    }),
+    // Walking, at whatever pace its Condition allows, to repair itself.
+    "walking-to-repair": () => {
+      const swing = Math.sin(strideAngle) * 0.35;
+      return {
+        legSwing: swing,
+        leftArm: carrying ? 1.2 : swing * 0.6,
+        rightArm: carrying ? 1.2 : -swing * 0.6,
+        lean: 0.12,
+        seated: false,
+        carrying,
+      };
+    },
+    // Lifting the spare Components for its own repair off the stockpile.
+    "loading-spare-components": () => lifting(work, carrying),
+    // Kneeling to work on its own leg with both hands.
+    "repairing-itself": () => ({
+      legSwing: 0.4,
+      leftArm: 0.9 + work * 0.2,
+      rightArm: 0.9 - work * 0.2,
+      lean: 0.45,
       seated: false,
       carrying,
     }),

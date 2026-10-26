@@ -173,6 +173,28 @@ describe("the data catalogue", () => {
     expect(catalogue.robot.cableLayingSpeedMetresPerHour).toBeGreaterThan(0);
   });
 
+  it("wears the Robot down by Dust, has it repair itself below a threshold, to a makeshift level above it without spares, and never lets it be Broken", () => {
+    const {
+      dustWearPercentPerHour,
+      performance,
+      selfRepairThresholdPercent,
+      selfRepairHours,
+      makeshiftRepairPercent,
+      conditionFloorPercent,
+    } = catalogue.robot;
+
+    expect(dustWearPercentPerHour).toBeGreaterThanOrEqual(0);
+    expect(performance.thresholdPercent).toBeGreaterThan(0);
+    expect(performance.exponent).toBeGreaterThan(0);
+    expect(conditionFloorPercent).toBeGreaterThan(0);
+    expect(selfRepairThresholdPercent).toBeGreaterThan(conditionFloorPercent);
+    expect(makeshiftRepairPercent).toBeGreaterThan(selfRepairThresholdPercent);
+    // A makeshift repair leaves it working slowly.
+    expect(makeshiftRepairPercent).toBeLessThan(performance.thresholdPercent);
+    expect(selfRepairHours).toBeGreaterThan(0);
+    expect(Number.isInteger(selfRepairHours * 60)).toBe(true);
+  });
+
   it("describes Machines that a Robot can drive and activate", () => {
     const { machineTypes } = catalogue;
     expect(new Set(machineTypes.map((type) => type.id)).size).toBe(

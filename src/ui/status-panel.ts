@@ -22,6 +22,7 @@ import {
   formatLifeSupport,
   formatLunation,
   formatMachine,
+  formatRobot,
   formatMissionDirector,
   formatPerformance,
   formatPower,
@@ -38,8 +39,8 @@ const REFUSAL_SHOWN_MS = 8000;
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets the Machines listed, for a Campaign loaded in place of the
-   * last, which may have other Machines.
+   * Forgets the Robots and Machines listed, for a Campaign loaded in place
+   * of the last, which may have others.
    */
   startAfresh(): void;
 }
@@ -260,8 +261,15 @@ export function createStatusPanel(
     return { item, text, dismantle, moveIn };
   };
 
+  // What each Robot is doing, its Condition, and whether it is repairing
+  // itself.
+  const robots = document.createElement("ul");
+  robots.className = "status-panel__structures";
+  robots.setAttribute("aria-label", "Robots");
+  const robotItems = new Map<string, HTMLLIElement>();
+
   // Each Machine's Condition, and whether it is Broken or awaiting
-  // Maintenance. The Machines never change, so the list is made once.
+  // Maintenance.
   const machines = document.createElement("ul");
   machines.className = "status-panel__structures";
   machines.setAttribute("aria-label", "Machines");
@@ -284,6 +292,7 @@ export function createStatusPanel(
     radiationDose,
     solarParticleEvent,
     structures,
+    robots,
     machines,
     refusal,
   );
@@ -420,6 +429,15 @@ export function createStatusPanel(
         }
       }
       structures.hidden = structureItems.size === 0;
+      for (const robot of snapshot.robots) {
+        let item = robotItems.get(robot.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          robots.append(item);
+          robotItems.set(robot.id, item);
+        }
+        setText(item, formatRobot(robot));
+      }
       for (const machine of snapshot.machines) {
         let item = machineItems.get(machine.id);
         if (item === undefined) {
@@ -431,8 +449,10 @@ export function createStatusPanel(
       }
     },
     startAfresh() {
-      for (const item of machineItems.values()) item.remove();
-      machineItems.clear();
+      for (const items of [robotItems, machineItems]) {
+        for (const item of items.values()) item.remove();
+        items.clear();
+      }
     },
   };
 }

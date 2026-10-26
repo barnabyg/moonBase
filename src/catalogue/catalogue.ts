@@ -60,6 +60,31 @@ export interface Catalogue {
     readonly workingGapMetres: number;
     /** How much power cable a Robot lays in a game-hour, walking along as it pays it out. */
     readonly cableLayingSpeedMetresPerHour: number;
+    /**
+     * How much Condition Dust wears off a Robot for each game-hour it does
+     * anything but stand idle, in percentage points.
+     */
+    readonly dustWearPercentPerHour: number;
+    /** How fast a Robot walks and works as its Condition falls. */
+    readonly performance: PerformanceCurve;
+    /**
+     * Below this Condition, in percent, a Robot stops what it is doing to
+     * repair itself where the Mission Director lives.
+     */
+    readonly selfRepairThresholdPercent: number;
+    /**
+     * The Robot's working time to repair itself, in game-hours, once it is
+     * there with any spare Components. Must come to a whole number of
+     * game-minutes.
+     */
+    readonly selfRepairHours: number;
+    /**
+     * The Condition, in percent, a makeshift repair brings a Robot back to
+     * when there are too few spare Components for a full one.
+     */
+    readonly makeshiftRepairPercent: number;
+    /** A Robot's Condition never falls below this, in percent, so that it is never Broken. */
+    readonly conditionFloorPercent: number;
   };
   readonly machineTypes: readonly MachineType[];
   readonly componentTypes: readonly ComponentType[];
@@ -446,7 +471,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 20,
+  version: 21,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -480,6 +505,16 @@ export const catalogue: Catalogue = {
     walkingSpeedMetresPerHour: 12,
     workingGapMetres: 1,
     cableLayingSpeedMetresPerHour: 6,
+    // About five weeks of steady work before it needs to repair itself.
+    dustWearPercentPerHour: 0.1,
+    // Falling slowly at first, so that a Robot low enough to need repair
+    // still gets itself there in hours rather than days.
+    performance: { thresholdPercent: 50, exponent: 0.5 },
+    selfRepairThresholdPercent: 10,
+    selfRepairHours: 3,
+    // Enough to keep working, at well under full speed.
+    makeshiftRepairPercent: 30,
+    conditionFloorPercent: 1,
   },
   machineTypes: [
     {

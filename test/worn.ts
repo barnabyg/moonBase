@@ -10,6 +10,7 @@ export interface SavedState {
     storedKilowattHours: number;
   }[];
   machines: { id: string; conditionPercent: number }[];
+  robots: { id: string; conditionPercent: number }[];
   stockpile: { components: { componentId: string; count: number }[] };
 }
 
@@ -29,8 +30,8 @@ export function changed(
 }
 
 /**
- * The Campaign as saved, but with a Structure or Machine worn down to a
- * Condition and, if given, a number of spare Components in the base's
+ * The Campaign as saved, but with a Structure, Machine or Robot worn down
+ * to a Condition and, if given, a number of spare Components in the base's
  * stock.
  */
 export function worn(
@@ -40,7 +41,11 @@ export function worn(
   spares?: number,
 ): Campaign {
   return changed(campaign, (state) => {
-    for (const saved of [...state.structures, ...state.machines]) {
+    for (const saved of [
+      ...state.structures,
+      ...state.machines,
+      ...state.robots,
+    ]) {
       if (saved.id === id) saved.conditionPercent = conditionPercent;
     }
     if (spares !== undefined) withSpares(state, spares);

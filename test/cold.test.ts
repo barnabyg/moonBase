@@ -148,6 +148,7 @@ describe("parking", () => {
         return activity.structureId === mastId ? "construction" : "parking";
       }
       if ("machineId" in activity) return "parking";
+      if (!("structureId" in activity)) return undefined;
       if (activity.structureId === mastId) return "construction";
       return activity.structureId === bankId ? "maintenance" : undefined;
     };

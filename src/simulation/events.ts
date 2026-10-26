@@ -164,6 +164,34 @@ export type GameEvent =
       readonly cleaned: boolean;
     }
   | {
+      /**
+       * A Robot's Condition has fallen below the threshold set in the data
+       * catalogue, and it has stopped what it was doing to repair itself
+       * where the Mission Director lives.
+       */
+      readonly kind: "robot-self-repair-started";
+      readonly atMinute: number;
+      readonly robotId: string;
+      readonly conditionPercent: number;
+      /** Where it is going to repair itself. */
+      readonly home: "habitat" | "lander";
+      /** Whether it will be a makeshift repair, for want of spare Components. */
+      readonly makeshift: boolean;
+    }
+  | {
+      /**
+       * A Robot has repaired itself, back to 100% with spare Components or,
+       * with none, to the makeshift level set in the data catalogue, and
+       * takes up its Work Order again.
+       */
+      readonly kind: "robot-repaired";
+      readonly atMinute: number;
+      readonly robotId: string;
+      readonly conditionPercent: number;
+      /** The spare Components it used up: none for a makeshift repair. */
+      readonly spareComponents: number;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
       readonly kind: "mission-director-died";
       readonly atMinute: number;

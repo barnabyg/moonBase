@@ -300,6 +300,14 @@ export function formatEvent(event: GameEvent): string {
           : []),
         ...(event.cleaned ? ["cleaned of Dust"] : []),
       ])}`;
+    case "robot-self-repair-started":
+      return event.makeshift
+        ? `Robot at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
+        : `Robot at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
+    case "robot-repaired":
+      return event.spareComponents > 0
+        ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
+        : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -539,6 +547,28 @@ export function formatMachine(
   return `${machineLabel(machine.machineTypeId)}: ${doing}${plug}, Condition ${formatCondition(machine.conditionPercent)}${formatPerformance(machine.performance)}${maintained}`;
 }
 
+/**
+ * Says what a Robot is doing and how intact it is, for the status panel,
+ * for example "Robot: working, Condition 87%" or "Robot: repairing itself
+ * at the Habitat, Condition 9%, working at 18%".
+ */
+export function formatRobot(robot: RobotSnapshot): string {
+  const { activity, selfRepair } = robot;
+  const where =
+    selfRepair === undefined
+      ? ""
+      : ` at the ${selfRepair.home === "habitat" ? "Habitat" : "Lander"}`;
+  const doing =
+    selfRepair === undefined
+      ? activity.kind === "idle"
+        ? "idle"
+        : "working"
+      : activity.kind === "repairing-itself"
+        ? `${selfRepair.makeshift ? "making a makeshift repair" : "repairing itself"}${where}`
+        : `going to repair itself${where}`;
+  return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+}
+
 /** Names what a Maintenance Work Order is for, for example "Solar array" or "Excavator". */
 export function subjectLabel(subject: MaintenanceSubject): string {
   return subject.kind === "structure"
@@ -677,14 +707,18 @@ function describeRobotWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    // Only ever done for a Structure being dismantled or maintained, or to
-    // unload the Lander.
+    // Only ever done for a Structure being dismantled or maintained, to
+    // unload the Lander, or for the Robot's repair of itself, when it does
+    // nothing for anything else.
     case "dismantling":
     case "returning-components":
     case "loading-cargo":
     case "unloading-cargo":
     case "maintaining":
     case "cleaning":
+    case "walking-to-repair":
+    case "loading-spare-components":
+    case "repairing-itself":
       return "Waiting for the Robot";
   }
 }

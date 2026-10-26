@@ -119,6 +119,11 @@ import { planReconnections, type ReconnectionState } from "./reconnection";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import {
+  readSelfRepair,
+  robotPerformance,
+  type SelfRepairSnapshot,
+} from "./self-repair";
+import {
   planUnloading,
   readUnloading,
   type UnloadingSnapshot,
@@ -154,6 +159,15 @@ export interface RobotSnapshot {
   readonly activity: RobotActivity;
   /** The Components the Robot is carrying. */
   readonly carrying: readonly ComponentCount[];
+  /**
+   * How intact it is, from 100% down to the data catalogue's floor: a
+   * Robot is never Broken.
+   */
+  readonly conditionPercent: number;
+  /** How fast it walks and works as its Condition falls, from 1 down. */
+  readonly performance: number;
+  /** Its repair of itself, while it is under way. */
+  readonly selfRepair: SelfRepairSnapshot | undefined;
 }
 
 export interface MachineSnapshot {
@@ -521,6 +535,8 @@ export function createCampaign(options: CampaignOptions): Campaign {
       activity: { kind: "idle" },
       carrying: [],
       workOrder: undefined,
+      conditionPercent: 100,
+      selfRepair: undefined,
     })),
     machines: landingSite.machines.map((machine, index) => ({
       id: `${machine.machineTypeId}-${index + 1}`,
@@ -695,6 +711,9 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...robot.position },
           activity: { ...robot.activity },
           carrying: copy(robot.carrying),
+          conditionPercent: robot.conditionPercent,
+          performance: robotPerformance(robot),
+          selfRepair: readSelfRepair(robot),
         })),
         machines: state.machines.map((machine) => ({
           id: machine.id,

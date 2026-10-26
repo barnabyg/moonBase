@@ -34,6 +34,7 @@ import {
   currentStep,
   findWorn,
   finishMaintenance,
+  spareComponentsFor,
   spares,
   visitFor,
   type MaintenanceState,
@@ -43,7 +44,20 @@ import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
 import { findStructureToReconnect } from "./reconnection";
-import { addToStock, stockpileSpot, takeFromStock } from "./stockpile";
+import {
+  finishSelfRepair,
+  robotPerformance,
+  selfRepairMinutes,
+  startSelfRepair,
+  wearRobot,
+  type SelfRepairState,
+} from "./self-repair";
+import {
+  addCounts,
+  addToStock,
+  stockpileSpot,
+  takeFromStock,
+} from "./stockpile";
 import {
   cargoHandlingMinutes,
   cargoSpot,
@@ -88,6 +102,18 @@ export type RobotActivity =
       readonly machineId: string;
     }
   | {
+      /**
+       * Walking to repair itself: to the stockpile for spare Components,
+       * then to the Habitat or the Lander the Mission Director lives in.
+       */
+      readonly kind: "walking-to-repair";
+      readonly destination: "stockpile" | "habitat" | "lander";
+    }
+  | {
+      /** Loading spare Components at the stockpile to repair itself, or repairing itself. */
+      readonly kind: "loading-spare-components" | "repairing-itself";
+    }
+  | {
       /** Driving a Machine to the site, aboard it, or setting it going there. */
       readonly kind: "driving-machine" | "activating-machine";
       readonly structureId: string;
@@ -121,23 +147,41 @@ export interface RobotState {
   position: GroundPosition;
   activity: RobotActivity;
   carrying: ComponentCount[];
-  /** The Work Order the Robot has claimed and is carrying out. */
+  /**
+   * The Work Order the Robot has claimed and is carrying out, which it
+   * keeps while it repairs itself.
+   */
   workOrder: WorkOrder | undefined;
+  /**
+   * How intact it is, from 100% down to the data catalogue's floor: a
+   * Robot is never Broken.
+   */
+  conditionPercent: number;
+  /** Its repair of itself, which goes ahead of everything, while it is under way. */
+  selfRepair: SelfRepairState | undefined;
 }
 
 /** How close to the Lander's centre a Robot may walk. */
 const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 
 /**
- * Lets the Robot do one game-minute of work on its Work Order, claiming the
- * next one in plan order when it has none, and returns any events.
+ * Lets the Robot do one game-minute of work, as fast as its Condition
+ * allows: first wearing it down by Dust for the game-minute before, if it
+ * wasn't idle. Below the data catalogue's threshold, it repairs itself
+ * ahead of everything else; otherwise it works on its Work Order, claiming
+ * the next one in plan order when it has none. Returns any events.
  */
 export function workRobot(
   state: CampaignState,
   robot: RobotState,
 ): GameEvent[] {
+  wearRobot(robot);
   if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
     robot.workOrder = undefined;
+  }
+  const started = startSelfRepair(state, robot);
+  if (robot.selfRepair !== undefined) {
+    return [...started, ...repairItself(state, robot, robot.selfRepair)];
   }
   robot.workOrder ??= claimWorkOrder(state, robot);
   const { workOrder } = robot;
@@ -190,7 +234,7 @@ export function workRobot(
     untilMinutes: number,
   ): boolean => {
     robot.activity = { kind, structureId: id };
-    construction.workedMinutes += 1;
+    construction.workedMinutes += robotPerformance(robot);
     return construction.workedMinutes >= untilMinutes;
   };
 
@@ -317,7 +361,7 @@ function positionMachine(
     structureId: id,
     machineId: machine.id,
   };
-  assignment.activationMinutes += 1;
+  assignment.activationMinutes += robotPerformance(robot);
   if (
     assignment.activationMinutes >=
     Math.round((type?.activationHours ?? 0) * 60)
@@ -352,11 +396,15 @@ function layCable(
     }
     cable.route.push({ ...cable.start });
   }
+  // Back from repairing itself, it goes on from where the cable got to.
+  const laid = cable.route.at(-1) ?? cable.start;
+  if (!walkRobotTo(state, robot, structureId, laid, "cable")) return [];
   robot.position = stepTowards(
     robot.position,
     cable.end,
     { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
-    catalogue.robot.cableLayingSpeedMetresPerHour / 60,
+    (catalogue.robot.cableLayingSpeedMetresPerHour * robotPerformance(robot)) /
+      60,
   );
   extendRoute(cable.route, robot.position);
   robot.activity = { kind: "laying-cable", structureId };
@@ -475,7 +523,7 @@ function workOnDismantling(
       // From the first minute of taking it apart, it no longer works.
       if (dismantling.workedMinutes === 0) takeOffBase(state, id);
       robot.activity = { kind: "dismantling", structureId: id };
-      dismantling.workedMinutes += 1;
+      dismantling.workedMinutes += robotPerformance(robot);
       if (dismantling.workedMinutes < required) return [];
       dismantling.recovered = recoveredComponents(dismantling.structureTypeId);
       // Something with no Components, such as Regolith shielding, is gone
@@ -495,7 +543,7 @@ function workOnDismantling(
       }
       if (!walkTo(stockpileSpot(state, dismantling), "stockpile")) return [];
       robot.activity = { kind: "returning-components", structureId: id };
-      dismantling.workedMinutes += 1;
+      dismantling.workedMinutes += robotPerformance(robot);
       if (dismantling.workedMinutes < required) return [];
       addToStock(state, dismantling.recovered);
       robot.carrying = [];
@@ -538,7 +586,7 @@ function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
   if (!unloading.collected) {
     if (!walkRobotTo(state, robot, id, cargoSpot(state), "lander")) return [];
     robot.activity = { kind: "loading-cargo", structureId: id };
-    unloading.workedMinutes += 1;
+    unloading.workedMinutes += robotPerformance(robot);
     if (unloading.workedMinutes >= loading) {
       robot.carrying = collectCargo(state, unloading);
     }
@@ -547,7 +595,7 @@ function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
   const spot = stockpileSpot(state, { workSpot: cargoSpot(state) });
   if (!walkRobotTo(state, robot, id, spot, "stockpile")) return [];
   robot.activity = { kind: "unloading-cargo", structureId: id };
-  unloading.workedMinutes += 1;
+  unloading.workedMinutes += robotPerformance(robot);
   if (unloading.workedMinutes < total - loading) return [];
   const components = unloading.cargo.map((count) => ({ ...count }));
   finishUnloading(state, unloading);
@@ -613,7 +661,7 @@ function maintain(
   const current = currentStep(maintenance.visit, maintenance.workedMinutes);
   if (current?.step === "loading-spare-components") {
     robot.activity = working("loading-components");
-    maintenance.workedMinutes += 1;
+    maintenance.workedMinutes += robotPerformance(robot);
     return [];
   }
   if (current !== undefined) {
@@ -622,7 +670,7 @@ function maintain(
       current.step === "cleaning" && worn.kind === "structure"
         ? { kind: "cleaning", structureId: worn.structure.id }
         : working("maintaining");
-    maintenance.workedMinutes += 1;
+    maintenance.workedMinutes += robotPerformance(robot);
     if (
       currentStep(maintenance.visit, maintenance.workedMinutes) !== undefined
     ) {
@@ -745,7 +793,10 @@ function walkRobotTo(
   return false;
 }
 
-/** Walks the Robot one game-minute's step towards a spot, round the Lander. */
+/**
+ * Walks the Robot one game-minute's step towards a spot, round the Lander,
+ * as fast as its Condition allows.
+ */
 function stepRobot(
   state: CampaignState,
   robot: RobotState,
@@ -755,6 +806,71 @@ function stepRobot(
     robot.position,
     spot,
     { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
-    catalogue.robot.walkingSpeedMetresPerHour / 60,
+    (catalogue.robot.walkingSpeedMetresPerHour * robotPerformance(robot)) / 60,
   );
+}
+
+/**
+ * Lets the Robot do one game-minute of repairing itself: it fetches the
+ * spare Components it needs from the stockpile, if it set off for them,
+ * and loads them, then walks to where the Mission Director lives and
+ * repairs itself there. Anything it was carrying for its Work Order stays
+ * with it.
+ */
+function repairItself(
+  state: CampaignState,
+  robot: RobotState,
+  selfRepair: SelfRepairState,
+): GameEvent[] {
+  const walkTo = (
+    spot: GroundPosition,
+    destination: "stockpile" | "habitat" | "lander",
+  ): boolean => {
+    if (samePlace(robot.position, spot)) return true;
+    stepRobot(state, robot, spot);
+    robot.activity = { kind: "walking-to-repair", destination };
+    return false;
+  };
+  if (selfRepair.spareComponents === undefined) {
+    if (
+      !walkTo(stockpileSpot(state, { workSpot: selfRepair.spot }), "stockpile")
+    ) {
+      return [];
+    }
+    const needed = spareComponentsFor(robot);
+    // If they have gone meanwhile, the repair is a makeshift one.
+    selfRepair.spareComponents = takeFromStock(state, spares(needed))
+      ? needed
+      : 0;
+    addCounts(robot.carrying, spares(selfRepair.spareComponents));
+  }
+  const { loading, total } = selfRepairMinutes(selfRepair.spareComponents);
+  if (selfRepair.workedMinutes < loading) {
+    robot.activity = { kind: "loading-spare-components" };
+    selfRepair.workedMinutes += 1;
+    return [];
+  }
+  if (!walkTo(selfRepair.spot, selfRepair.home)) return [];
+  robot.activity = { kind: "repairing-itself" };
+  selfRepair.workedMinutes += 1;
+  if (selfRepair.workedMinutes < total) return [];
+  removeCounts(robot.carrying, spares(selfRepair.spareComponents));
+  return finishSelfRepair(state, robot, selfRepair.spareComponents);
+}
+
+/** Takes Components out of a list of counts, dropping any count that comes to none. */
+function removeCounts(
+  counts: ComponentCount[],
+  removed: readonly ComponentCount[],
+): void {
+  for (const { componentId, count } of removed) {
+    const index = counts.findIndex(
+      (other) => other.componentId === componentId,
+    );
+    const existing = counts[index];
+    if (existing === undefined) continue;
+    const left = existing.count - count;
+    if (left > 0) counts[index] = { componentId, count: left };
+    else counts.splice(index, 1);
+  }
 }

@@ -271,6 +271,26 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 11 to 12: every Robot has a Condition, which Dust wears down as it
+  // works, and repairs itself when it falls too far. Nothing wore a Robot
+  // down before, so each is at 100%, repairing nothing.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["robots"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        robots: state["robots"].map((robot: unknown) =>
+          isRecord(robot)
+            ? { ...robot, conditionPercent: 100, selfRepair: null }
+            : robot,
+        ),
+      },
+    };
+  },
 ];
 
 export type LoadRefusal =
@@ -628,9 +648,18 @@ const robotActivity: Decoder<RobotActivity> = (() => {
       }),
     }),
   );
+  const repairing = object({
+    kind: oneOf({ "loading-spare-components": true, "repairing-itself": true }),
+  });
   return tagged("kind", {
     idle: object({ kind: exactly("idle") }),
     walking,
+    "walking-to-repair": object({
+      kind: exactly("walking-to-repair"),
+      destination: oneOf({ stockpile: true, habitat: true, lander: true }),
+    }),
+    "loading-spare-components": repairing,
+    "repairing-itself": repairing,
     "driving-machine": drivingOrActivating,
     "activating-machine": drivingOrActivating,
     "loading-components": byField("machineId", forMachine, working),
@@ -704,7 +733,7 @@ const machineAssignment = object({
   constructionId: text,
   stage: oneOf<MachineStage>({ "site-preparation": true, assembly: true }),
   destination: groundPosition,
-  activationMinutes: wholeNumber,
+  activationMinutes: amount,
   working: boolean,
 });
 
@@ -756,6 +785,15 @@ const simulationState = object({
       activity: robotActivity,
       carrying: list(componentCount),
       workOrder: optional(workOrder),
+      conditionPercent: finiteNumber,
+      selfRepair: optional(
+        object({
+          home: oneOf({ habitat: true, lander: true }),
+          spot: groundPosition,
+          spareComponents: optional(wholeNumber),
+          workedMinutes: wholeNumber,
+        }),
+      ),
     }),
   ),
   machines: list(
@@ -814,7 +852,7 @@ const simulationState = object({
         "taking-apart": true,
         "returning-components": true,
       }),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       recovered: list(componentCount),
       collected: boolean,
     }),
@@ -824,7 +862,7 @@ const simulationState = object({
       landingPadId: text,
       planNumber: wholeNumber,
       cargo: list(componentCount),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
       collected: boolean,
     }),
   ),
@@ -849,7 +887,7 @@ const simulationState = object({
       visit: optional(
         object({ spareComponents: wholeNumber, cleaning: boolean }),
       ),
-      workedMinutes: wholeNumber,
+      workedMinutes: amount,
     }),
   ),
   parking: list(
