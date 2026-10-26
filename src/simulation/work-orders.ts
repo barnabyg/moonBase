@@ -4,11 +4,11 @@ import {
   componentsFor,
   type ConstructionStage,
   type ConstructionState,
-  type StructureState,
 } from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import { machineOn, nearestFreeMachine } from "./machines";
 import { findCable, nearestPoweredStructure, type CableTarget } from "./power";
+import { reconnecting } from "./reconnection";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
@@ -202,25 +202,6 @@ export function needsCable(state: CampaignState, target: CableTarget): boolean {
   return cable === undefined
     ? nearestPoweredStructure(state, target.position) !== undefined
     : !cable.complete;
-}
-
-/**
- * The commissioned Structure cut off from power that a cable is planned to,
- * unless it is due to be dismantled.
- */
-export function reconnecting(
-  state: CampaignState,
-  structureId: string,
-): StructureState | undefined {
-  if (
-    !state.reconnections.some(
-      (reconnection) => reconnection.structureId === structureId,
-    ) ||
-    state.dismantlings.some((planned) => planned.id === structureId)
-  ) {
-    return undefined;
-  }
-  return state.structures.find((structure) => structure.id === structureId);
 }
 
 /** Whether a claimed Work Order still has work left in it. */

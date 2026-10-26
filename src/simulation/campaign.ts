@@ -42,13 +42,12 @@ import {
 import {
   consumptionKilowatts,
   minutesUntilEmpty,
-  planReconnections,
   powerNetworks,
   supplyPower,
   type CableState,
-  type ReconnectionState,
 } from "./power";
 import { seedRandom, type RandomState } from "./random";
+import { planReconnections, type ReconnectionState } from "./reconnection";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
 

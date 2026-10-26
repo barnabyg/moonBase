@@ -30,12 +30,8 @@ import {
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
-import {
-  claimWorkOrder,
-  isOpen,
-  reconnecting,
-  type WorkOrder,
-} from "./work-orders";
+import { reconnecting } from "./reconnection";
+import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
 
 /**
  * Where a walking Robot is heading: a Construction's site, the Lander, a
