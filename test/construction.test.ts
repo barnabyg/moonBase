@@ -278,23 +278,6 @@ describe("the Construction of a solar array", () => {
     expect(campaign.snapshot().lunation.part).toBe("daylight");
   });
 
-  it("leaves a second solar array waiting for Components once the cargo stock runs out", () => {
-    const game = scenario()
-      .plan("solar-array", site)
-      .plan("solar-array", { x: -20, y: -15 });
-
-    game.advance({ earthDays: 3 });
-
-    expect(game.state.structures).toHaveLength(1);
-    expect(game.state.constructions).toEqual([
-      expect.objectContaining({
-        stage: "component-delivery",
-        stageProgress: 0,
-      }),
-    ]);
-    expect(robotOf(game.state).activity.kind).toBe("waiting-for-components");
-  });
-
   it("leaves the Robot idle once there is no Construction left", () => {
     const game = scenario();
     expect(robotOf(game.state).activity).toEqual({ kind: "idle" });

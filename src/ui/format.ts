@@ -1,7 +1,9 @@
 import { catalogue } from "../catalogue";
 import type {
   ClockSnapshot,
+  ComponentCount,
   ConstructionSnapshot,
+  ConstructionWait,
   ConstructionStage,
   LunationSnapshot,
   RobotSnapshot,
@@ -56,11 +58,39 @@ export function structureLabel(structureTypeId: string): string {
   );
 }
 
+/** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
+export function formatComponents(counts: readonly ComponentCount[]): string {
+  const items = counts.map(({ componentId, count }) => {
+    const label = (
+      catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
+      componentId
+    ).toLowerCase();
+    return `${count} ${label}${count === 1 ? "" : "s"}`;
+  });
+  const last = items.pop();
+  return items.length === 0
+    ? (last ?? "")
+    : `${items.join(", ")} and ${last ?? ""}`;
+}
+
+/** Says why a Construction is waiting, for the Construction panel. */
+export function formatWaiting(waiting: ConstructionWait): string {
+  const missing = formatComponents(waiting.missing);
+  const verb =
+    waiting.missing.length === 1 && waiting.missing[0]?.count === 1
+      ? "isn't"
+      : "aren't";
+  return `Waiting: ${missing} ${verb} in the cargo stock`;
+}
+
 /** Says what is happening on a Construction right now, for the Construction panel. */
 export function describeWork(
   construction: ConstructionSnapshot,
   robots: readonly RobotSnapshot[],
 ): string {
+  if (construction.waiting !== undefined) {
+    return formatWaiting(construction.waiting);
+  }
   const robot = robots.find(
     (candidate) =>
       candidate.activity.kind !== "idle" &&
@@ -89,7 +119,5 @@ export function describeWork(
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
-    case "waiting-for-components":
-      return "Waiting: its Components aren't in the cargo stock";
   }
 }

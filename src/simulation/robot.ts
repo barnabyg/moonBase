@@ -14,6 +14,7 @@ import {
 import type { GameEvent } from "./events";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
+import { claimWorkOrder, isOpen, type WorkOrder } from "./work-orders";
 
 /** What a Robot did during the latest game-minute, and for which Construction. */
 export type RobotActivity =
@@ -29,8 +30,7 @@ export type RobotActivity =
         | "loading-components"
         | "unloading-components"
         | "assembling"
-        | "commissioning"
-        | "waiting-for-components";
+        | "commissioning";
       readonly constructionId: string;
     };
 
@@ -39,21 +39,31 @@ export interface RobotState {
   position: GroundPosition;
   activity: RobotActivity;
   carrying: ComponentCount[];
+  /** The Work Order the Robot has claimed and is carrying out. */
+  workOrder: WorkOrder | undefined;
 }
 
 /** How close to the Lander's centre a Robot may walk. */
 const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 
 /**
- * Lets the Robot do one game-minute of work on the first Construction in plan
- * order, and returns any events.
+ * Lets the Robot do one game-minute of work on its Work Order, claiming the
+ * next one in plan order when it has none, and returns any events.
  */
 export function workRobot(
   state: CampaignState,
   robot: RobotState,
 ): GameEvent[] {
-  const construction = state.constructions[0];
+  if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
+    robot.workOrder = undefined;
+  }
+  robot.workOrder ??= claimWorkOrder(state, robot);
+  const { workOrder } = robot;
+  const construction = state.constructions.find(
+    (candidate) => candidate.id === workOrder?.constructionId,
+  );
   if (construction === undefined) {
+    robot.workOrder = undefined;
     robot.activity = { kind: "idle" };
     return [];
   }
@@ -107,10 +117,9 @@ export function workRobot(
         if (!walkTo(landerSpot(state, construction), "lander")) return [];
         const needed = componentsFor(construction.structureTypeId);
         if (!takeFromStock(state, needed)) {
-          robot.activity = {
-            kind: "waiting-for-components",
-            constructionId: id,
-          };
+          // Another Robot took them first; this Construction now waits.
+          robot.workOrder = undefined;
+          robot.activity = { kind: "idle" };
           return [];
         }
         robot.carrying = needed;

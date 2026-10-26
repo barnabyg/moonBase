@@ -72,10 +72,7 @@ function workTarget(
 ): THREE.Vector3 | undefined {
   const { activity } = robot;
   if (activity.kind === "idle" || activity.kind === "walking") return undefined;
-  if (
-    activity.kind === "loading-components" ||
-    activity.kind === "waiting-for-components"
-  ) {
+  if (activity.kind === "loading-components") {
     return toScene(frame.current.lander.position);
   }
   const site =
@@ -97,7 +94,6 @@ function poseFor(
   const work = Math.sin(workCycles * Math.PI * 2);
   const poses: Record<RobotActivity["kind"], () => RobotPose> = {
     idle: () => still(carrying),
-    "waiting-for-components": () => still(carrying),
     walking: () => {
       const swing = Math.sin(strideAngle) * 0.45;
       return {

@@ -24,6 +24,7 @@ import {
 } from "./lunation";
 import { seedRandom, type RandomState } from "./random";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
+import { findWaitingReason, type ConstructionWait } from "./work-orders";
 
 export interface CampaignOptions {
   /** A whole number from 0 to 2³² − 1. The same seed always plays out the same way. */
@@ -58,6 +59,8 @@ export interface ConstructionSnapshot {
   /** Whether the Robot has taken this Construction's Components from the cargo stock. */
   readonly componentsTaken: boolean;
   readonly failedCommissionings: number;
+  /** Why nobody can work on the Construction for now, or undefined if it can be worked on. */
+  readonly waiting: ConstructionWait | undefined;
 }
 
 /** A commissioned Structure. */
@@ -135,6 +138,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...position },
       activity: { kind: "idle" },
       carrying: [],
+      workOrder: undefined,
     })),
     cargo: catalogue.componentTypes.map((type) => ({
       componentId: type.id,
@@ -192,7 +196,12 @@ export function createCampaign(options: CampaignOptions): Campaign {
         lunation: readLunation(state.elapsedMinutes, catalogue.lunation),
         map: { ...catalogue.map },
         lander: copy(state.lander),
-        robots: copy(state.robots),
+        robots: state.robots.map((robot) => ({
+          id: robot.id,
+          position: { ...robot.position },
+          activity: { ...robot.activity },
+          carrying: copy(robot.carrying),
+        })),
         cargo: copy(state.cargo),
         constructions: state.constructions.map((construction) => ({
           id: construction.id,
@@ -202,6 +211,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
           stageProgress: stageProgress(construction),
           componentsTaken: construction.componentsTaken,
           failedCommissionings: construction.failedCommissionings,
+          waiting: copy(findWaitingReason(state, construction)),
         })),
         structures: copy(state.structures),
       });
