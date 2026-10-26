@@ -239,6 +239,22 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has a Habitat that draws power, with warnings before it loses it", () => {
+    for (const type of catalogue.structureTypes.filter(
+      (each) => each.habitat,
+    )) {
+      expect(type.power.drawKilowatts).toBeGreaterThan(0);
+    }
+    const warnings = catalogue.habitatPowerWarningHoursLeft;
+    expect(warnings.length).toBeGreaterThan(0);
+    expect([...warnings].sort((a, b) => b - a)).toEqual(warnings);
+    expect(new Set(warnings).size).toBe(warnings.length);
+    for (const hours of warnings) {
+      expect(hours).toBeGreaterThan(0);
+      expect(Number.isInteger(hours * 60)).toBe(true);
+    }
+  });
+
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting cargo",
     (structureTypeId) => {

@@ -49,6 +49,14 @@ export interface Catalogue {
    * at once.
    */
   readonly lifeSupportStocks: readonly LifeSupportStock[];
+  /**
+   * A warning comes as the time until the Habitat the Mission Director lives
+   * in loses power falls to each of these many game-hours, largest first.
+   * Each must come to a whole number of game-minutes. The Habitat is supplied
+   * before anything else on its power network, and losing its power kills
+   * the Mission Director at once.
+   */
+  readonly habitatPowerWarningHoursLeft: readonly number[];
 }
 
 /**
@@ -179,7 +187,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 6,
+  version: 7,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: { footprintRadiusMetres: 4 },
   landingSite: {
@@ -361,4 +369,5 @@ export const catalogue: Catalogue = {
       warningEarthDaysLeft: [7, 3, 1],
     },
   ],
+  habitatPowerWarningHoursLeft: [24, 6, 1],
 };

@@ -5,11 +5,13 @@ import type {
   Forecasts,
   MoveInResult,
   Snapshot,
+  StructureSnapshot,
 } from "../simulation";
 import { setText } from "./dom";
 import { catalogue } from "../catalogue";
 import {
   formatClock,
+  formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatLunation,
@@ -112,6 +114,13 @@ export function createStatusPanel(
   lander.setAttribute("role", "status");
   lander.setAttribute("aria-label", "Lander");
 
+  // Whether the Mission Director's Habitat has power, and when it will lose it.
+  const habitatPower = document.createElement("p");
+  habitatPower.className = "status-panel__habitat-power";
+  habitatPower.setAttribute("role", "status");
+  habitatPower.setAttribute("aria-label", "Habitat power");
+  habitatPower.setAttribute("aria-live", "off");
+
   // How much oxygen and water is left, and when it will run out.
   const stocks = catalogue.lifeSupportStocks.map((type) => {
     const line = document.createElement("p");
@@ -169,7 +178,7 @@ export function createStatusPanel(
     moveIn.className = "status-panel__move-in";
     moveIn.textContent = "Move in";
     moveIn.title =
-      "Move the Mission Director from the Lander into this Habitat. It happens at once and can't be undone.";
+      "Move the Mission Director from the Lander into this Habitat, which needs power. It happens at once and can't be undone.";
     moveIn.hidden = true;
     moveIn.addEventListener("click", () => {
       showResult(campaign.moveMissionDirectorIn(structureId));
@@ -188,6 +197,7 @@ export function createStatusPanel(
     storedPower,
     missionDirector,
     lander,
+    habitatPower,
     ...stocks.map((stock) => stock.line),
     structures,
     refusal,
@@ -209,6 +219,22 @@ export function createStatusPanel(
         formatMissionDirector(snapshot.missionDirector, snapshot.structures),
       );
       setText(lander, formatLander(snapshot.lander));
+      const habitatPowerText = formatHabitatPower(
+        snapshot.missionDirector,
+        snapshot.structures,
+        forecasts.habitatPower,
+      );
+      habitatPower.hidden = habitatPowerText === undefined;
+      setText(habitatPower, habitatPowerText ?? "");
+      // Shown as a warning from the first warning on, and once it has failed.
+      const powerWarnFrom =
+        Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
+      habitatPower.classList.toggle(
+        "status-panel__habitat-power--low",
+        homeHabitat(snapshot)?.powered === false ||
+          (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
+            powerWarnFrom,
+      );
       for (const { type, line } of stocks) {
         const stock = snapshot.lifeSupport.find(
           (candidate) => candidate.stockId === type.id,
@@ -263,6 +289,16 @@ export function createStatusPanel(
       structures.hidden = structureItems.size === 0;
     },
   };
+}
+
+/** The Habitat the Mission Director lives in, if they have moved into one. */
+function homeHabitat(snapshot: Snapshot): StructureSnapshot | undefined {
+  const { missionDirector } = snapshot;
+  return missionDirector.residence === "habitat"
+    ? snapshot.structures.find(
+        (structure) => structure.id === missionDirector.habitatId,
+      )
+    : undefined;
 }
 
 function isHabitat(structureTypeId: string): boolean {

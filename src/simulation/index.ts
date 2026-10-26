@@ -40,5 +40,6 @@ export type {
 } from "./mission-director";
 export type { ClockSnapshot } from "./clock";
 export type { DeathCause, GameEvent } from "./events";
+export type { HabitatPowerForecast } from "./habitat-power";
 export type { LifeSupportForecast, LifeSupportSnapshot } from "./life-support";
 export type { LunationPart, LunationSnapshot } from "./lunation";

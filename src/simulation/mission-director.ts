@@ -12,6 +12,7 @@ export type MoveInRefusal =
   | "not-a-habitat"
   | "not-commissioned"
   | "being-dismantled"
+  | "no-power"
   | "campaign-ended";
 
 export type MoveInResult =
@@ -24,8 +25,8 @@ export type MoveInResult =
     };
 
 /**
- * Moves the Mission Director from the Lander into a commissioned Habitat, at
- * once and for good, whether or not the Habitat has power.
+ * Moves the Mission Director from the Lander into a commissioned Habitat
+ * that has power, at once and for good. Losing its power would kill them.
  */
 export function moveMissionDirectorIn(
   state: CampaignState,
@@ -65,6 +66,12 @@ export function moveMissionDirectorIn(
     return refuse(
       "being-dismantled",
       "The Mission Director can't move into a Habitat that is to be dismantled.",
+    );
+  }
+  if (!structure.powered) {
+    return refuse(
+      "no-power",
+      "The Habitat has no power, and the Mission Director can't live in it without.",
     );
   }
   state.missionDirector = { residence: "habitat", habitatId };

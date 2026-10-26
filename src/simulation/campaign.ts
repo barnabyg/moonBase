@@ -30,6 +30,11 @@ import {
 } from "./construction";
 import type { DeathCause, GameEvent } from "./events";
 import {
+  forecastHabitatPower,
+  watchHabitatPower,
+  type HabitatPowerForecast,
+} from "./habitat-power";
+import {
   forecastLifeSupport,
   readLifeSupport,
   startingLifeSupport,
@@ -120,7 +125,11 @@ export interface StructureSnapshot {
   readonly id: string;
   readonly structureTypeId: string;
   readonly position: GroundPosition;
-  /** Whether its power network covered what it draws during the latest game-minute. */
+  /**
+   * Whether it had power during the latest game-minute. A network that can't
+   * cover everything supplies Habitats first, then the rest in the order they
+   * were commissioned.
+   */
   readonly powered: boolean;
   /** Whether its light was on during the latest game-minute: only at Night, with power. */
   readonly lit: boolean;
@@ -180,6 +189,11 @@ export interface Forecasts {
   readonly power: PowerForecast;
   /** When each life support stock runs out, in catalogue order. */
   readonly lifeSupport: readonly LifeSupportForecast[];
+  /**
+   * When the Habitat the Mission Director lives in loses power, or undefined
+   * while they live aboard the Lander, or once they have died.
+   */
+  readonly habitatPower: HabitatPowerForecast | undefined;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -434,6 +448,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
           })),
         },
         lifeSupport: forecastLifeSupport(state),
+        habitatPower: forecastHabitatPower(state),
       });
     },
     snapshot() {
@@ -523,6 +538,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes,
     catalogue.lunation,
   ).part;
+  const powerLostBefore = forecastHabitatPower(state)?.minutesUntilPowerLost;
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -535,8 +551,15 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       atMinute: state.elapsedMinutes,
     });
   }
-  // Last, so that the Mission Director's death ends the game-minute.
-  events.push(...useLifeSupport(state));
+  // Last, so that the Mission Director's death ends the game-minute. It is
+  // then the only one of these events, as any warning that minute would come
+  // too late to matter.
+  const dangers = [
+    ...useLifeSupport(state),
+    ...watchHabitatPower(state, powerLostBefore),
+  ];
+  const death = dangers.find((event) => event.kind === "mission-director-died");
+  events.push(...(death === undefined ? dangers : [death]));
   return events;
 }
 

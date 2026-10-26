@@ -2,7 +2,9 @@ import { catalogue } from "../catalogue";
 import {
   readClock,
   type CampaignEnd,
+  type DeathCause,
   type GameEvent,
+  type HabitatPowerForecast,
   type LifeSupportForecast,
   type LifeSupportSnapshot,
 } from "../simulation";
@@ -123,6 +125,25 @@ export function formatMissionDirector(
   return `Mission Director: living in the ${structureLabel(habitat?.structureTypeId ?? "habitat").toLowerCase()}`;
 }
 
+/**
+ * Says whether the Habitat the Mission Director lives in has power and when
+ * it will lose it, for example "Habitat power: on, fails in 1 Earth Day 16
+ * hours", or undefined while they live aboard the Lander.
+ */
+export function formatHabitatPower(
+  missionDirector: MissionDirectorResidence,
+  structures: Snapshot["structures"],
+  forecast: HabitatPowerForecast | undefined,
+): string | undefined {
+  if (missionDirector.residence !== "habitat") return undefined;
+  const { habitatId } = missionDirector;
+  const habitat = structures.find((structure) => structure.id === habitatId);
+  if (habitat?.powered !== true) return "Habitat power: failed";
+  return forecast?.minutesUntilPowerLost === undefined
+    ? "Habitat power: on, doesn't fail"
+    : `Habitat power: on, fails in ${formatDuration(forecast.minutesUntilPowerLost)}`;
+}
+
 /** Says what state the Lander is in, for example "Lander: landed, free to fly". */
 export function formatLander(lander: LanderSnapshot): string {
   return lander.state === "landed-occupied"
@@ -169,8 +190,10 @@ export function formatEvent(event: GameEvent): string {
       return `${structureLabel(event.structureTypeId)} dismantled, its Components back in the cargo stock`;
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
+    case "habitat-power-warning":
+      return `Habitat power will fail in ${formatDuration(event.minutesUntilPowerLost)}`;
     case "mission-director-died":
-      return `The Mission Director has died: the ${stockLabel(event.cause.stockId).toLowerCase()} ran out`;
+      return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
 }
 
@@ -180,7 +203,18 @@ export function formatEvent(event: GameEvent): string {
  * the Mission Director died at once."
  */
 export function formatDeath(end: CampaignEnd): string {
-  return `The ${stockLabel(end.cause.stockId).toLowerCase()} in the Habitat ran out on ${formatMoment(end.atMinute)}, and the Mission Director died at once.`;
+  const cause = describeCause(end.cause);
+  return `${cause.charAt(0).toUpperCase()}${cause.slice(1)} on ${formatMoment(end.atMinute)}, and the Mission Director died at once.`;
+}
+
+/** What killed the Mission Director, for example "the oxygen in the Habitat ran out". */
+function describeCause(cause: DeathCause): string {
+  switch (cause.kind) {
+    case "ran-out":
+      return `the ${stockLabel(cause.stockId).toLowerCase()} in the Habitat ran out`;
+    case "habitat-power-failed":
+      return "Habitat power failed";
+  }
 }
 
 const stageLabels: Record<ConstructionStage, string> = {
