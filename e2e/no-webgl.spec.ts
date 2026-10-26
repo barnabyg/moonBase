@@ -1,3 +1,4 @@
+import "./frame-probe";
 import { expect, test } from "@playwright/test";
 
 // A Firefox whose WebGL is switched off, such as one with graphics

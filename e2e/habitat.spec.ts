@@ -1,3 +1,4 @@
+import "./frame-probe";
 import { expect, test } from "@playwright/test";
 import { placeOnClearGround } from "./placement";
 

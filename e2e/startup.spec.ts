@@ -1,3 +1,4 @@
+import "./frame-probe";
 import { expect, test, type Page } from "@playwright/test";
 
 function collectConsoleErrors(page: Page): string[] {
