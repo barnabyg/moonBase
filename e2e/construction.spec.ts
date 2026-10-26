@@ -62,6 +62,12 @@ test("the Robot carries out the Construction of a solar array placed on the map,
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
   ).toHaveText(["Solar array: commissioned"], { timeout: 45_000 });
+  await expect(
+    page.getByRole("status", { name: "Power", exact: true }),
+  ).toHaveText("Power: 10.00 kW generated, 0.05 kW used");
+  await expect(page.getByRole("status", { name: "Stored power" })).toHaveText(
+    "Stored: no battery banks",
+  );
   await expect(constructions).toContainText(
     "Waiting: 2 solar panels and 1 array mast aren't in the cargo stock",
   );

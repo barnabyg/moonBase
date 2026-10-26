@@ -49,9 +49,11 @@ export function createRobotViews(scene: THREE.Scene) {
           view.lastPosition === undefined
             ? 0
             : position.distanceTo(view.lastPosition);
-        if (robot.activity.kind === "walking" && moved > 1e-6) {
+        if (moved > 1e-6) {
           view.heading = facingAngle(view.lastPosition ?? position, position);
-          view.strideAngle += (moved / STRIDE_METRES) * Math.PI * 2;
+          if (onFoot(robot)) {
+            view.strideAngle += (moved / STRIDE_METRES) * Math.PI * 2;
+          }
         } else {
           const target = workTarget(frame, robot);
           if (target !== undefined)
@@ -74,6 +76,12 @@ export function createRobotViews(scene: THREE.Scene) {
       }
     },
   };
+}
+
+function onFoot(robot: RobotSnapshot): boolean {
+  return (
+    robot.activity.kind === "walking" || robot.activity.kind === "laying-cable"
+  );
 }
 
 function aboardMachine(robot: RobotSnapshot): boolean {
@@ -131,6 +139,18 @@ function poseFor(
         lean: 0.05,
         seated: false,
         carrying,
+      };
+    },
+    // Walking slowly, paying the cable out from the drum in its hands.
+    "laying-cable": () => {
+      const swing = Math.sin(strideAngle) * 0.3;
+      return {
+        legSwing: swing,
+        seated: false,
+        leftArm: 0.7 + work * 0.1,
+        rightArm: 0.7 - work * 0.1,
+        lean: 0.2,
+        carrying: true,
       };
     },
     // Sitting at the controls, steering.

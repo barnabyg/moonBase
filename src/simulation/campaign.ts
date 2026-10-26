@@ -27,6 +27,12 @@ import {
   type MachineActivity,
   type MachineState,
 } from "./machines";
+import {
+  minutesUntilEmpty,
+  powerNetworks,
+  supplyPower,
+  type CableState,
+} from "./power";
 import { seedRandom, type RandomState } from "./random";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import { findWaitingReason, type ConstructionWait } from "./work-orders";
@@ -80,6 +86,54 @@ export interface StructureSnapshot {
   readonly id: string;
   readonly structureTypeId: string;
   readonly position: GroundPosition;
+  /** Whether its power network covered what it draws during the latest game-minute. */
+  readonly powered: boolean;
+  /** The energy stored in it, if it is a battery bank. */
+  readonly storedKilowattHours: number;
+}
+
+/** A power cable, laid or being laid, from a powered Structure to a Construction. */
+export interface CableSnapshot {
+  readonly fromStructureId: string;
+  /** The Construction's id, which its Structure keeps once commissioned. */
+  readonly toStructureId: string;
+  /** The cable laid so far, as a line of points from the powered Structure. */
+  readonly route: readonly GroundPosition[];
+  readonly complete: boolean;
+}
+
+/** Commissioned Structures joined by cable, which share their power. */
+export interface PowerNetworkSnapshot {
+  /** In the order they were commissioned. */
+  readonly structureIds: readonly string[];
+  /** The power its solar arrays are generating now: none at Night. */
+  readonly generationKilowatts: number;
+  /** The power its Structures draw. */
+  readonly consumptionKilowatts: number;
+  readonly storedKilowattHours: number;
+  readonly storageCapacityKilowattHours: number;
+  /** Whether it covered what its Structures draw during the latest game-minute. */
+  readonly powered: boolean;
+}
+
+export interface Forecasts {
+  readonly power: PowerForecast;
+}
+
+export interface PowerForecast {
+  /**
+   * Game-minutes until the first network with stored energy runs out of it,
+   * or undefined if none does.
+   */
+  readonly minutesUntilEmpty: number | undefined;
+  readonly networks: readonly {
+    readonly structureIds: readonly string[];
+    /**
+     * Game-minutes until its stored energy runs out, following the Daylight
+     * and Night ahead; undefined if it has no storage or it doesn't run out.
+     */
+    readonly minutesUntilEmpty: number | undefined;
+  }[];
 }
 
 /** An immutable view of everything the renderer and the interface need. */
@@ -95,6 +149,8 @@ export interface Snapshot {
   /** Unfinished Constructions, in the order they were planned. */
   readonly constructions: readonly ConstructionSnapshot[];
   readonly structures: readonly StructureSnapshot[];
+  readonly cables: readonly CableSnapshot[];
+  readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
 }
 
 export type PlanResult =
@@ -120,6 +176,8 @@ export interface Campaign {
   checkPlacement(plan: ConstructionPlan): PlacementCheck;
   /** Plans a Construction, which the Robot then carries out by itself. */
   planConstruction(plan: ConstructionPlan): PlanResult;
+  /** Says when things will run out, as things stand. */
+  forecasts(): Forecasts;
   snapshot(): Snapshot;
 }
 
@@ -135,6 +193,7 @@ export interface CampaignState {
   cargo: { componentId: string; count: number }[];
   constructions: ConstructionState[];
   structures: StructureState[];
+  cables: CableState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -169,6 +228,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     })),
     constructions: [],
     structures: [],
+    cables: [],
   };
 
   return {
@@ -211,10 +271,33 @@ export function createCampaign(options: CampaignOptions): Campaign {
       });
       return deepFreeze({ ok: true, constructionId: id });
     },
+    forecasts() {
+      const networks = powerNetworks(state).map((network) => ({
+        structureIds: network.structures.map((structure) => structure.id),
+        stored: network.storedKilowattHours,
+        minutesUntilEmpty: minutesUntilEmpty(network, state.elapsedMinutes),
+      }));
+      const running = networks.flatMap((network) =>
+        network.stored > 0 && network.minutesUntilEmpty !== undefined
+          ? [network.minutesUntilEmpty]
+          : [],
+      );
+      return deepFreeze({
+        power: {
+          minutesUntilEmpty:
+            running.length === 0 ? undefined : Math.min(...running),
+          networks: networks.map(({ structureIds, minutesUntilEmpty }) => ({
+            structureIds,
+            minutesUntilEmpty,
+          })),
+        },
+      });
+    },
     snapshot() {
+      const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
-        lunation: readLunation(state.elapsedMinutes, catalogue.lunation),
+        lunation,
         map: { ...catalogue.map },
         lander: copy(state.lander),
         robots: state.robots.map((robot) => ({
@@ -241,6 +324,25 @@ export function createCampaign(options: CampaignOptions): Campaign {
           waiting: copy(findWaitingReason(state, construction)),
         })),
         structures: copy(state.structures),
+        cables: state.cables.map((cable) => ({
+          fromStructureId: cable.fromStructureId,
+          toStructureId: cable.toStructureId,
+          route: copy(cable.route),
+          complete: cable.complete,
+        })),
+        power: {
+          networks: powerNetworks(state).map((network) => ({
+            structureIds: network.structures.map((structure) => structure.id),
+            generationKilowatts:
+              lunation.part === "daylight"
+                ? network.daylightGenerationKilowatts
+                : 0,
+            consumptionKilowatts: network.consumptionKilowatts,
+            storedKilowattHours: network.storedKilowattHours,
+            storageCapacityKilowattHours: network.storageCapacityKilowattHours,
+            powered: network.structures.every((structure) => structure.powered),
+          })),
+        },
       });
     },
   };
@@ -256,6 +358,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   state.elapsedMinutes += 1;
   workMachines(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
+  supplyPower(state, partBefore === "daylight");
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({

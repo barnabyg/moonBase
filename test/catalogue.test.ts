@@ -81,9 +81,10 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("gives the Robot a positive walking speed and working gap", () => {
+  it("gives the Robot a positive walking speed, working gap and cable laying speed", () => {
     expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
     expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);
+    expect(catalogue.robot.cableLayingSpeedMetresPerHour).toBeGreaterThan(0);
   });
 
   it("describes Machines that a Robot can drive and activate", () => {
@@ -166,19 +167,27 @@ describe("the data catalogue", () => {
       }
       expect(type.commissioningFailureChance).toBeGreaterThanOrEqual(0);
       expect(type.commissioningFailureChance).toBeLessThan(1);
+      for (const value of Object.values(type.power)) {
+        expect(Number.isFinite(value)).toBe(true);
+        expect(value).toBeGreaterThanOrEqual(0);
+      }
     }
   });
 
-  it("brings the Components for a solar array in the starting cargo", () => {
-    const solarArray = catalogue.structureTypes.find(
-      (type) => type.id === "solar-array",
-    );
+  it.each(["solar-array", "battery-bank"])(
+    "brings the Components for a %s in the starting cargo",
+    (structureTypeId) => {
+      const structureType = catalogue.structureTypes.find(
+        (type) => type.id === structureTypeId,
+      );
 
-    for (const need of solarArray?.components ?? []) {
-      const inCargo = catalogue.startingCargo
-        .filter((stock) => stock.componentId === need.componentId)
-        .reduce((total, stock) => total + stock.count, 0);
-      expect(inCargo).toBeGreaterThanOrEqual(need.count);
-    }
-  });
+      expect(structureType).toBeDefined();
+      for (const need of structureType?.components ?? []) {
+        const inCargo = catalogue.startingCargo
+          .filter((stock) => stock.componentId === need.componentId)
+          .reduce((total, stock) => total + stock.count, 0);
+        expect(inCargo).toBeGreaterThanOrEqual(need.count);
+      }
+    },
+  );
 });

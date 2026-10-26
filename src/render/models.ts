@@ -337,6 +337,140 @@ export function createSolarArrayModel(): SolarArrayModel {
   };
 }
 
+/** The parts of a Structure the Construction views animate, whatever its type. */
+export interface StructureModel {
+  readonly group: THREE.Group;
+  /** From 0, nothing assembled, to 1, complete. */
+  setAssembled(fraction: number): void;
+  /** Turns any sun-tracking part to face the given direction (radians, as for Object3D.rotation.y). */
+  setFacing(angle: number): void;
+  /** The light on the base: off, amber while Commissioning, green once commissioned and powered. */
+  setStatusLight(state: "off" | "testing" | "on"): void;
+  /** Shows how full any storage is, from 0 to 1. */
+  setCharge(fraction: number): void;
+}
+
+/** The model for a type of Structure from the data catalogue. */
+export function createStructureModel(structureTypeId: string): StructureModel {
+  if (structureTypeId === "battery-bank") return createBatteryBankModel();
+  const array = createSolarArrayModel();
+  return {
+    group: array.group,
+    setAssembled: (fraction) => {
+      array.setUnfolded(fraction);
+    },
+    setFacing: (angle) => {
+      array.setFacing(angle);
+    },
+    setStatusLight: (state) => {
+      array.setStatusLight(state);
+    },
+    setCharge: () => undefined,
+  };
+}
+
+const BATTERY_MODULES = 3;
+const CHARGE_SEGMENTS = 5;
+/** The share of Assembly spent sliding the modules in, before the cabinet closes. */
+const MODULES_SHARE = 0.75;
+
+/**
+ * A battery bank: an insulated cabinet on a plinth. During Assembly its
+ * modules are slid in one by one and then the cabinet closes over them; a row
+ * of lights on the front shows how full it is.
+ */
+function createBatteryBankModel(): StructureModel {
+  const bank = new THREE.Group();
+  bank.name = "Battery bank";
+
+  const statusLightMaterial = materials.statusOff.clone();
+  bank.add(
+    part(
+      new THREE.BoxGeometry(2.4, 0.2, 1.6),
+      materials.darkMetal,
+      [0, 0.1, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.08, 8, 6),
+      statusLightMaterial,
+      [1.0, 0.28, 0.7],
+    ),
+  );
+
+  const modules = Array.from({ length: BATTERY_MODULES }, (_, index) => {
+    const module = part(
+      new THREE.BoxGeometry(0.6, 1.1, 1.1),
+      materials.robotJoint,
+      [(index - (BATTERY_MODULES - 1) / 2) * 0.68, 0.75, 0],
+    );
+    bank.add(module);
+    return module;
+  });
+
+  // The insulated cabinet, with radiator fins on top, grows up over the modules.
+  const cabinet = new THREE.Group();
+  cabinet.add(
+    part(new THREE.BoxGeometry(2.2, 1.3, 1.3), materials.foil, [0, 0.85, 0]),
+    ...[-0.6, -0.2, 0.2, 0.6].map((x) =>
+      part(new THREE.BoxGeometry(0.06, 0.3, 1.2), materials.hull, [x, 1.65, 0]),
+    ),
+  );
+  bank.add(cabinet);
+
+  const chargeMaterials = Array.from({ length: CHARGE_SEGMENTS }, () =>
+    materials.statusOff.clone(),
+  );
+  for (const [index, material] of chargeMaterials.entries()) {
+    cabinet.add(
+      part(new THREE.BoxGeometry(0.22, 0.12, 0.04), material, [
+        (index - (CHARGE_SEGMENTS - 1) / 2) * 0.3,
+        1.2,
+        0.67,
+      ]),
+    );
+  }
+
+  const light = (material: THREE.MeshStandardMaterial, on: boolean) => {
+    const source = on ? materials.statusOn : materials.statusOff;
+    material.color.copy(source.color);
+    material.emissive.copy(source.emissive);
+  };
+
+  return {
+    group: bank,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const modulesIn = Math.min(f / MODULES_SHARE, 1) * BATTERY_MODULES;
+      for (const [index, module] of modules.entries()) {
+        const slid = THREE.MathUtils.clamp(modulesIn - index, 0, 1);
+        module.visible = slid > 0;
+        module.position.z = (1 - slid) * 1.4;
+      }
+      const closed = (f - MODULES_SHARE) / (1 - MODULES_SHARE);
+      cabinet.visible = closed > 0;
+      cabinet.scale.y = THREE.MathUtils.clamp(closed, 0.01, 1);
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge(fraction) {
+      const lit = Math.ceil(
+        THREE.MathUtils.clamp(fraction, 0, 1) * CHARGE_SEGMENTS - 1e-9,
+      );
+      for (const [index, material] of chargeMaterials.entries()) {
+        light(material, index < lit);
+      }
+    },
+  };
+}
+
 /** A packing crate holding one Component, standing on the ground. */
 export function createCrateModel(): THREE.Mesh {
   const crate = part(

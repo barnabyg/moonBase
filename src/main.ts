@@ -65,7 +65,7 @@ function frame(time: number): void {
   if (lastFrameTime !== undefined) loop.update(time - lastFrameTime);
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
-  statusPanel.update(snapshot);
+  statusPanel.update(snapshot, campaign.forecasts());
   constructionPanel.update(snapshot);
   buildMenu?.update(snapshot);
   renderer?.render({

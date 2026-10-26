@@ -1,10 +1,16 @@
 import type { GameLoop } from "../game/loop";
-import type { Snapshot } from "../simulation";
+import type { Forecasts, Snapshot } from "../simulation";
 import { setText } from "./dom";
-import { formatClock, formatLunation, structureLabel } from "./format";
+import {
+  formatClock,
+  formatLunation,
+  formatPower,
+  formatStoredPower,
+  structureLabel,
+} from "./format";
 
 export interface StatusPanel {
-  update(snapshot: Snapshot): void;
+  update(snapshot: Snapshot, forecasts: Forecasts): void;
 }
 
 /**
@@ -68,25 +74,55 @@ export function createStatusPanel(
     }
   }
 
+  const power = document.createElement("p");
+  power.className = "status-panel__power";
+  power.setAttribute("role", "status");
+  power.setAttribute("aria-label", "Power");
+  power.setAttribute("aria-live", "off");
+
+  const storedPower = document.createElement("p");
+  storedPower.className = "status-panel__power";
+  storedPower.setAttribute("role", "status");
+  storedPower.setAttribute("aria-label", "Stored power");
+  storedPower.setAttribute("aria-live", "off");
+
   const structures = document.createElement("ul");
   structures.className = "status-panel__structures";
   structures.setAttribute("aria-label", "Structures");
   const structureItems = new Map<string, HTMLLIElement>();
 
-  panel.append(clock, lunation, speedGroup, skip, structures);
+  panel.append(
+    clock,
+    lunation,
+    speedGroup,
+    skip,
+    power,
+    storedPower,
+    structures,
+  );
   container.append(panel);
   showSelectedSpeed();
 
   return {
-    update(snapshot) {
+    update(snapshot, forecasts) {
       setText(clock, formatClock(snapshot.clock));
       setText(lunation, formatLunation(snapshot.lunation));
+      const hasStructures = snapshot.structures.length > 0;
+      power.hidden = !hasStructures;
+      storedPower.hidden = !hasStructures;
+      setText(power, formatPower(snapshot.power));
+      setText(storedPower, formatStoredPower(snapshot.power, forecasts.power));
       for (const structure of snapshot.structures) {
-        if (structureItems.has(structure.id)) continue;
-        const item = document.createElement("li");
-        item.textContent = `${structureLabel(structure.structureTypeId)}: commissioned`;
-        structures.append(item);
-        structureItems.set(structure.id, item);
+        let item = structureItems.get(structure.id);
+        if (item === undefined) {
+          item = document.createElement("li");
+          structures.append(item);
+          structureItems.set(structure.id, item);
+        }
+        setText(
+          item,
+          `${structureLabel(structure.structureTypeId)}: commissioned${structure.powered ? "" : ", no power"}`,
+        );
       }
       structures.hidden = structureItems.size === 0;
     },

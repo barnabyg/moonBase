@@ -1,6 +1,10 @@
 import { catalogue } from "../catalogue";
 import type {
   ClockSnapshot,
+  GroundPosition,
+  PowerForecast,
+  PowerNetworkSnapshot,
+  RobotSnapshot,
   Snapshot,
   ComponentCount,
   ConstructionSnapshot,
@@ -30,14 +34,54 @@ const plural = (count: number, unit: string): string =>
  */
 export function formatLunation(lunation: LunationSnapshot): string {
   const part = lunation.part === "daylight" ? "Daylight" : "Night";
-  const totalHours = Math.ceil(lunation.minutesRemaining / 60);
+  return `${part}: ${formatDuration(lunation.minutesRemaining)} left`;
+}
+
+/**
+ * Formats a span of game time in Earth Days and hours, for example "7 Earth
+ * Days 23 hours", rounded up to the hour.
+ */
+export function formatDuration(minutes: number): string {
+  const totalHours = Math.ceil(minutes / 60);
   const earthDays = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
-  const parts = [
+  return [
     ...(earthDays > 0 ? [plural(earthDays, "Earth Day")] : []),
     ...(hours > 0 || earthDays === 0 ? [plural(hours, "hour")] : []),
-  ];
-  return `${part}: ${parts.join(" ")} left`;
+  ].join(" ");
+}
+
+const kilowatts = (value: number): string => `${value.toFixed(2)} kW`;
+const kilowattHours = (value: number): string => `${value.toFixed(1)} kWh`;
+
+/** Sums the base's power networks, for example "Power: 10.00 kW generated, 0.30 kW used". */
+export function formatPower(power: Snapshot["power"]): string {
+  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
+    power.networks.reduce((sum, network) => sum + pick(network), 0);
+  return `Power: ${kilowatts(total((network) => network.generationKilowatts))} generated, ${kilowatts(total((network) => network.consumptionKilowatts))} used`;
+}
+
+/**
+ * Says how much energy the base has stored and when it will run out, for
+ * example "Stored: 42.0 of 60.0 kWh, runs out in 8 Earth Days 8 hours".
+ */
+export function formatStoredPower(
+  power: Snapshot["power"],
+  forecast: PowerForecast,
+): string {
+  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
+    power.networks.reduce((sum, network) => sum + pick(network), 0);
+  const capacity = total((network) => network.storageCapacityKilowattHours);
+  if (capacity === 0) return "Stored: no battery banks";
+  const storedKilowattHours = total((network) => network.storedKilowattHours);
+  const stored = `Stored: ${storedKilowattHours.toFixed(1)} of ${kilowattHours(capacity)}`;
+  const { minutesUntilEmpty } = forecast;
+  if (minutesUntilEmpty !== undefined) {
+    return `${stored}, runs out in ${formatDuration(minutesUntilEmpty)}`;
+  }
+  return storedKilowattHours > 0
+    ? `${stored}, doesn't run out`
+    : `${stored}, empty`;
 }
 
 const stageLabels: Record<ConstructionStage, string> = {
@@ -93,57 +137,91 @@ export function formatWaiting(waiting: ConstructionWait): string {
   return `Waiting: ${missing} ${verb} in the cargo stock`;
 }
 
-/** Says what is happening on a Construction right now, for the Construction panel. */
+/**
+ * Says what is happening on a Construction right now, for the Construction
+ * panel: what a Machine and the Robot are doing on it, or else why it is
+ * waiting.
+ */
 export function describeWork(
   construction: ConstructionSnapshot,
-  snapshot: Pick<Snapshot, "robots" | "machines">,
+  snapshot: Pick<Snapshot, "robots" | "machines" | "structures" | "cables">,
 ): string {
-  if (construction.waiting !== undefined) {
-    return formatWaiting(construction.waiting);
-  }
   const machine = snapshot.machines.find(
     (candidate) =>
       candidate.activity.kind === "working" &&
       candidate.activity.constructionId === construction.id,
   );
-  if (machine !== undefined) {
-    return `${machineLabel(machine.machineTypeId)} grading the ground by itself`;
-  }
   const robot = snapshot.robots.find(
     (candidate) =>
       candidate.activity.kind !== "idle" &&
       candidate.activity.constructionId === construction.id,
   );
-  if (robot === undefined) return "Waiting for the Robot";
+  const work = [
+    ...(machine === undefined
+      ? []
+      : [
+          `${machineLabel(machine.machineTypeId)} grading the ground by itself`,
+        ]),
+    ...(robot === undefined
+      ? []
+      : [describeRobotWork(construction, robot, snapshot)]),
+  ];
+  if (work.length > 0) return work.join("; ");
+  return construction.waiting === undefined
+    ? "Waiting for the Robot"
+    : formatWaiting(construction.waiting);
+}
+
+function describeRobotWork(
+  construction: ConstructionSnapshot,
+  robot: RobotSnapshot,
+  snapshot: Pick<Snapshot, "machines" | "structures" | "cables">,
+): string {
   const { activity } = robot;
   const machineName = (machineId: string) =>
     machineLabel(
       snapshot.machines.find((candidate) => candidate.id === machineId)
         ?.machineTypeId ?? machineId,
     ).toLowerCase();
+  const cable = snapshot.cables.find(
+    (candidate) => candidate.toStructureId === construction.id,
+  );
+  const cableSource = structureLabel(
+    snapshot.structures.find(
+      (structure) => structure.id === cable?.fromStructureId,
+    )?.structureTypeId ?? "",
+  ).toLowerCase();
+  const describeWalk = (
+    destination: "site" | "lander" | "machine" | "cable",
+  ): string => {
+    switch (destination) {
+      case "lander":
+        return "Robot walking to the Lander for the Components";
+      case "cable":
+        return `Robot walking to the ${cableSource} to lay power cable`;
+      case "machine": {
+        const positioning = snapshot.machines.find(
+          (candidate) =>
+            candidate.activity.kind !== "idle" &&
+            candidate.activity.constructionId === construction.id,
+        );
+        return positioning === undefined
+          ? "Robot walking to the Machine"
+          : `Robot walking to the ${machineName(positioning.id)}`;
+      }
+      case "site":
+        return robot.carrying.length > 0
+          ? "Robot carrying the Components to the site"
+          : "Robot walking to the site";
+    }
+  };
   switch (activity.kind) {
     case "idle":
       return "Waiting for the Robot";
     case "walking":
-      switch (activity.destination) {
-        case "lander":
-          return "Robot walking to the Lander for the Components";
-        case "machine": {
-          const positioning = snapshot.machines.find(
-            (candidate) =>
-              candidate.activity.kind !== "idle" &&
-              candidate.activity.constructionId === construction.id,
-          );
-          return positioning === undefined
-            ? "Robot walking to the Machine"
-            : `Robot walking to the ${machineName(positioning.id)}`;
-        }
-        case "site":
-          return robot.carrying.length > 0
-            ? "Robot carrying the Components to the site"
-            : "Robot walking to the site";
-      }
-      break;
+      return describeWalk(activity.destination);
+    case "laying-cable":
+      return `Robot laying power cable from the ${cableSource}: ${Math.floor(routeLength(cable?.route ?? []))} m so far`;
     case "driving-machine":
       return `Robot driving the ${machineName(activity.machineId)} to the site`;
     case "activating-machine":
@@ -159,4 +237,17 @@ export function describeWork(
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
   }
+}
+
+/** The length of a line of points on the ground, in metres. */
+export function routeLength(route: readonly GroundPosition[]): number {
+  let total = 0;
+  for (let index = 1; index < route.length; index++) {
+    const from = route[index - 1];
+    const to = route[index];
+    if (from !== undefined && to !== undefined) {
+      total += Math.hypot(to.x - from.x, to.y - from.y);
+    }
+  }
+  return total;
 }

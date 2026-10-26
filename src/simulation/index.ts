@@ -2,15 +2,19 @@ export { createCampaign } from "./campaign";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
 export type {
+  CableSnapshot,
   Campaign,
   CampaignOptions,
   ComponentCount,
   ConstructionSnapshot,
+  Forecasts,
   GroundPosition,
   LanderSnapshot,
   MachineSnapshot,
   MapSnapshot,
   PlanResult,
+  PowerForecast,
+  PowerNetworkSnapshot,
   RobotSnapshot,
   Snapshot,
   StructureSnapshot,

@@ -50,6 +50,10 @@ export interface StructureState {
   id: string;
   structureTypeId: string;
   position: GroundPosition;
+  /** Whether its network covered what it draws during the latest game-minute. */
+  powered: boolean;
+  /** The energy stored in it, if it is a battery bank. */
+  storedKilowattHours: number;
 }
 
 /** The parts of the Campaign state that placement depends on. */

@@ -29,6 +29,8 @@ export interface Catalogue {
     readonly walkingSpeedMetresPerHour: number;
     /** How far outside a footprint, or beside the Lander, a Robot stands to work. */
     readonly workingGapMetres: number;
+    /** How much power cable a Robot lays in a game-hour, walking along as it pays it out. */
+    readonly cableLayingSpeedMetresPerHour: number;
   };
   readonly machineTypes: readonly MachineType[];
   /** The Machine that grades a Construction's ground during Site Preparation. */
@@ -110,6 +112,15 @@ export interface StructureType {
   };
   /** The chance, from 0 to 1, that a Commissioning attempt fails and has to be retried. */
   readonly commissioningFailureChance: number;
+  /** What the commissioned Structure does on the power network. */
+  readonly power: {
+    /** The power it generates in Daylight; nothing generates at Night. */
+    readonly generationKilowatts: number;
+    /** The energy it can store. */
+    readonly storageKilowattHours: number;
+    /** The power it draws all the time, for its own controls and heaters. */
+    readonly drawKilowatts: number;
+  };
 }
 
 export interface GameSpeed {
@@ -138,7 +149,11 @@ export const catalogue: Catalogue = {
     nightEarthDays: 9.5,
     initialDaylightRemainingEarthDays: 8,
   },
-  robot: { walkingSpeedMetresPerHour: 12, workingGapMetres: 1 },
+  robot: {
+    walkingSpeedMetresPerHour: 12,
+    workingGapMetres: 1,
+    cableLayingSpeedMetresPerHour: 6,
+  },
   machineTypes: [
     {
       id: "excavator",
@@ -152,6 +167,8 @@ export const catalogue: Catalogue = {
   componentTypes: [
     { id: "solar-panel", label: "Solar panel" },
     { id: "array-mast", label: "Array mast" },
+    { id: "battery-module", label: "Battery module" },
+    { id: "battery-cabinet", label: "Battery cabinet" },
   ],
   structureTypes: [
     {
@@ -169,10 +186,40 @@ export const catalogue: Catalogue = {
         commissioning: 1,
       },
       commissioningFailureChance: 0.25,
+      // The drive that keeps the panel turned to the sun.
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+      },
+    },
+    {
+      id: "battery-bank",
+      label: "Battery bank",
+      footprintRadiusMetres: 2,
+      components: [
+        { componentId: "battery-module", count: 3 },
+        { componentId: "battery-cabinet", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 1,
+        assembly: 2,
+        commissioning: 1,
+      },
+      commissioningFailureChance: 0.2,
+      // The heaters that keep the cells warm enough to work.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 60,
+        drawKilowatts: 0.25,
+      },
     },
   ],
   startingCargo: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
+    { componentId: "battery-module", count: 3 },
+    { componentId: "battery-cabinet", count: 1 },
   ],
 };

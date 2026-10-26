@@ -213,6 +213,44 @@ describe("the Construction of a solar array", () => {
     },
   );
 
+  it("has the Robot work from clear ground, not from inside a neighbouring Structure", () => {
+    const batteryBank = catalogue.structureTypes.find(
+      (type) => type.id === "battery-bank",
+    );
+    if (batteryBank === undefined) throw new Error("expected a battery bank");
+    // The side of the solar array's site facing the Lander lies inside the
+    // battery bank planned before it.
+    const neighbour = { x: 20, y: 0 };
+    const worked = {
+      x:
+        20 +
+        batteryBank.footprintRadiusMetres +
+        solarArray.footprintRadiusMetres +
+        0.5,
+      y: 0,
+    };
+    const game = scenario()
+      .plan("battery-bank", neighbour)
+      .plan("solar-array", worked);
+    const workedId = game.state.constructions[1]?.id;
+
+    const states = runUntilBuilt(game);
+
+    const working = states.filter((state) => {
+      const { activity } = robotOf(state);
+      return (
+        (activity.kind === "assembling" || activity.kind === "commissioning") &&
+        activity.constructionId === workedId
+      );
+    });
+    expect(working.length).toBeGreaterThan(0);
+    for (const state of working) {
+      expect(
+        distanceBetween(robotOf(state).position, neighbour),
+      ).toBeGreaterThanOrEqual(batteryBank.footprintRadiusMetres);
+    }
+  });
+
   it("has the excavator work from clear ground, not from inside a neighbouring Structure", () => {
     // The side of the first site away from the Lander lies inside the second.
     const first = { x: 20, y: 0 };

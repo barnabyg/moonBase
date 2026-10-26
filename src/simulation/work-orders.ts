@@ -6,6 +6,7 @@ import {
   type ConstructionState,
 } from "./construction";
 import { machineOn, nearestFreeMachine } from "./machines";
+import { nearestPoweredStructure } from "./power";
 
 /**
  * A unit of the Robot's work on a Construction. A Robot claims one at a time
@@ -17,7 +18,11 @@ export interface WorkOrder {
 }
 
 export type WorkOrderKind =
-  "prepare-site" | "deliver-components" | "assemble" | "commission";
+  | "prepare-site"
+  | "deliver-components"
+  | "assemble"
+  | "commission"
+  | "lay-cable";
 
 /** Why nobody can work on a Construction for now. */
 export type ConstructionWait =
@@ -75,8 +80,9 @@ export function findWaitingReason(
 
 /**
  * Finds the Work Order a Robot should claim next: the first one that nobody
- * else has claimed and that isn't waiting, taking the Constructions in the
- * order they were planned.
+ * else has claimed and that can be worked on now, taking the Constructions in
+ * the order they were planned. Each Construction's current stage comes before
+ * laying its cable, which can be done at any stage before Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -88,33 +94,61 @@ export function claimWorkOrder(
       : [robot.workOrder],
   );
   for (const construction of state.constructions) {
-    const kind = workOrderKinds[construction.stage];
-    if (
-      claimed.some(
-        (order) =>
-          order.constructionId === construction.id && order.kind === kind,
-      ) ||
-      !canBeWorkedOn(state, construction)
-    ) {
-      continue;
+    for (const kind of [
+      workOrderKinds[construction.stage],
+      "lay-cable",
+    ] as const) {
+      if (
+        !claimed.some(
+          (order) =>
+            order.constructionId === construction.id && order.kind === kind,
+        ) &&
+        canBeWorkedOn(state, construction, kind)
+      ) {
+        return { constructionId: construction.id, kind };
+      }
     }
-    return { constructionId: construction.id, kind };
   }
   return undefined;
 }
 
-/**
- * Whether a Construction has work for a Robot now: it isn't waiting, and its
- * site isn't being graded by a Machine that needs no Robot.
- */
+/** Whether a Robot can carry out a kind of Work Order on a Construction now. */
 function canBeWorkedOn(
   state: CampaignState,
   construction: ConstructionState,
+  kind: WorkOrderKind,
 ): boolean {
-  return (
-    findWaitingReason(state, construction) === undefined &&
-    machineOn(state, construction.id)?.task?.working !== true
+  switch (kind) {
+    case "lay-cable":
+      return needsCable(state, construction);
+    case "commission":
+      return !needsCable(state, construction);
+    case "prepare-site":
+      // Once activated, the Machine grades the ground without a Robot.
+      return (
+        findWaitingReason(state, construction) === undefined &&
+        machineOn(state, construction.id)?.task?.working !== true
+      );
+    case "deliver-components":
+    case "assemble":
+      return findWaitingReason(state, construction) === undefined;
+  }
+}
+
+/**
+ * Whether a Construction still needs its cable laid: it has a cable under way,
+ * or none yet and there is a powered Structure to lay one from.
+ */
+export function needsCable(
+  state: CampaignState,
+  construction: ConstructionState,
+): boolean {
+  const cable = state.cables.find(
+    (candidate) => candidate.toStructureId === construction.id,
   );
+  return cable === undefined
+    ? nearestPoweredStructure(state, construction.position) !== undefined
+    : !cable.complete;
 }
 
 /** Whether a claimed Work Order still has work left in it. */
@@ -122,8 +156,9 @@ export function isOpen(state: CampaignState, order: WorkOrder): boolean {
   const construction = state.constructions.find(
     (candidate) => candidate.id === order.constructionId,
   );
+  if (construction === undefined) return false;
+  if (order.kind === "lay-cable") return needsCable(state, construction);
   return (
-    construction !== undefined &&
     workOrderKinds[construction.stage] === order.kind &&
     machineOn(state, construction.id)?.task?.working !== true
   );

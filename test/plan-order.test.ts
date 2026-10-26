@@ -60,6 +60,26 @@ describe("several Constructions", () => {
     expect(secondStarted).toBeGreaterThan(commissioned);
   });
 
+  it.each([
+    ["solar-array", "battery-bank"],
+    ["battery-bank", "solar-array"],
+  ] as const)(
+    "are commissioned in the order they were planned: %s, then %s",
+    (first, second) => {
+      const game = scenario()
+        .plan(first, sites[0] as GroundPosition)
+        .plan(second, sites[1] as GroundPosition);
+
+      while (game.state.constructions.length > 0) {
+        game.campaign.advanceToNextEvent();
+      }
+
+      expect(
+        game.state.structures.map((structure) => structure.structureTypeId),
+      ).toEqual([first, second]);
+    },
+  );
+
   it("leave a Construction whose Components aren't in stock waiting, with the reason, while the Robot moves on", () => {
     const game = scenario();
     for (const site of sites) game.plan("solar-array", site);
