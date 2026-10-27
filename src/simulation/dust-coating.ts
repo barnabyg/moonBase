@@ -1,6 +1,10 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { findStructureType, type StructureState } from "./construction";
+import {
+  findStructureType,
+  hazardShare,
+  type StructureState,
+} from "./construction";
 
 /** Whether Dust coats a type of Structure: only solar arrays, those that generate power. */
 export function isCoatedByDust(structureTypeId: string): boolean {
@@ -18,11 +22,10 @@ export function coatSolarArrays(state: CampaignState, daylight: boolean): void {
   if (!daylight) return;
   const perMinute = catalogue.dustCoating.percentPerDaylightHour / 60;
   for (const structure of state.structures) {
-    const type = findStructureType(structure.structureTypeId);
-    if (type === undefined || !isCoatedByDust(type.id)) continue;
+    if (!isCoatedByDust(structure.structureTypeId)) continue;
     structure.dustCoatingPercent = Math.min(
       structure.dustCoatingPercent +
-        perMinute * type.hazardMultipliers.dustCoating,
+        perMinute * hazardShare(structure.structureTypeId, "dustCoating"),
       100,
     );
   }

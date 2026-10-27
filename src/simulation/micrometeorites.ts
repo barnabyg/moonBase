@@ -1,7 +1,7 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
-import { findStructureType, isBroken } from "./construction";
+import { hazardShare, isBroken } from "./construction";
 import type { GameEvent } from "./events";
 import { isAway } from "./expeditions";
 import { damageMachine } from "./machines";
@@ -82,17 +82,12 @@ export function averageStrikeShare(state: CampaignState): number {
   return (
     targets.reduce(
       (sum, target) =>
-        sum + (target.kind === "structure" ? strikeShare(target.structure) : 1),
+        sum +
+        (target.kind === "structure"
+          ? hazardShare(target.structure.structureTypeId, "micrometeorites")
+          : 1),
       0,
     ) / targets.length
-  );
-}
-
-/** The share of a strike's Condition loss a Structure takes, by its type. */
-function strikeShare(structure: { structureTypeId: string }): number {
-  return (
-    findStructureType(structure.structureTypeId)?.hazardMultipliers
-      .micrometeorites ?? 1
   );
 }
 
@@ -121,7 +116,8 @@ export function watchMicrometeorites(state: CampaignState): GameEvent[] {
       const { structure } = target;
       const wasBroken = isBroken(structure);
       structure.conditionPercent = Math.max(
-        structure.conditionPercent - loss * strikeShare(structure),
+        structure.conditionPercent -
+          loss * hazardShare(structure.structureTypeId, "micrometeorites"),
         0,
       );
       return [

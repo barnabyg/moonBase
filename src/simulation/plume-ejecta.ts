@@ -2,8 +2,8 @@ import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
   distance,
-  findStructureType,
   footprintRadius,
+  hazardShare,
   isBroken,
 } from "./construction";
 import type { GameEvent } from "./events";
@@ -45,9 +45,7 @@ export function blastPlumeEjecta(
     ) {
       continue;
     }
-    const share =
-      findStructureType(structure.structureTypeId)?.hazardMultipliers
-        .plumeEjecta ?? 1;
+    const share = hazardShare(structure.structureTypeId, "plumeEjecta");
     structure.conditionPercent = Math.max(
       structure.conditionPercent - conditionLossPercent * share,
       0,
