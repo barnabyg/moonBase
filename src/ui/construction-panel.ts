@@ -13,7 +13,7 @@ import {
   describeWork,
   drivenLabel,
   inSentence,
-  isOnExpedition,
+  isEveryRobotOnExpedition,
   formatComponents,
   formatDismantlingStage,
   formatMaintenanceStep,
@@ -113,9 +113,11 @@ export function createConstructionPanel(
 
   return {
     update(snapshot) {
-      // Every Work Order waits while the Robot is on an Expedition.
-      const away = snapshot.robots.some((robot) =>
-        isOnExpedition(robot.id, snapshot.expedition),
+      // Every Work Order waits while the Robot is on an Expedition; with
+      // more than one, the others carry on with them.
+      const away = isEveryRobotOnExpedition(
+        snapshot.robots,
+        snapshot.expedition,
       );
       const showWork = (row: Row, work: () => string) => {
         setText(
