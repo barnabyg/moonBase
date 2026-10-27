@@ -1,5 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { catalogue } from "../src/catalogue";
 import { placeOnClearGround } from "./placement";
+
+const doseRates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
+
+/** A dose rate as the status panel shows it, to a tenth of a millisievert. */
+function perDay(millisieverts: number): string {
+  return `+${millisieverts.toFixed(1)} a day`;
+}
 
 /**
  * Waits until the game has drawn a frame. The game updates its interface in
@@ -61,7 +69,7 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
     /^Solar array/,
     /^Inflatable Habitat Condition \d+% commissioned · unshielded, the Mission Director's home/,
   ]);
-  await expect(radiationDose).toHaveText(/\+30\.0 a day/);
+  await expect(radiationDose).toContainText(perDay(doseRates.habitat));
 
   // The only clear ground it can go on is the Habitat.
   await shielding.click();
@@ -75,5 +83,5 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
     /^Inflatable Habitat Condition \d+% commissioned · shielded, the Mission Director's home/,
     /^Regolith shielding Condition 100% commissioned(?! ·)/,
   ]);
-  await expect(radiationDose).toHaveText(/\+0\.1 a day/);
+  await expect(radiationDose).toContainText(perDay(doseRates.shieldedHabitat));
 });
