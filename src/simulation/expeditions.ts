@@ -58,19 +58,23 @@ const BEYOND_EDGE_METRES = 10;
 
 /**
  * Starts an Expedition with the first Rover and the first Robot that is
- * free, holding no Work Order and not repairing itself, or else the first
- * Robot, unless one is already under way or the Rover is Broken. The Robot
- * finishes the Work Order it holds before it leaves.
+ * free: holding no Work Order, not repairing itself, and not still arriving
+ * from the Lander. Failing that it takes a Robot that is arriving, or else
+ * the first Robot. It refuses if one is already under way or the Rover is
+ * Broken. The Robot finishes the Work Order it holds before it leaves.
  */
 export function startExpedition(state: CampaignState): StartExpeditionResult {
   if (state.expedition !== undefined) {
     return refuse("under-way", "An Expedition is already under way.");
   }
+  const free = state.robots.filter(
+    (candidate) =>
+      candidate.workOrder === undefined && candidate.selfRepair === undefined,
+  );
   const robot =
-    state.robots.find(
-      (candidate) =>
-        candidate.workOrder === undefined && candidate.selfRepair === undefined,
-    ) ?? state.robots[0];
+    free.find((candidate) => candidate.arrival === undefined) ??
+    free[0] ??
+    state.robots[0];
   const [rover] = state.rovers;
   if (robot === undefined || rover === undefined) {
     return refuse("no-rover", "The base has no Rover to go on an Expedition.");

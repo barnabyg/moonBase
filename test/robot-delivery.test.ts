@@ -366,6 +366,53 @@ describe("a Robot shipped by Launch to a landing pad", () => {
   });
 });
 
+describe("an Expedition started while a Robot arrives", () => {
+  it("takes a Robot already at work on the base that is free, rather than the one arriving, wherever each comes in the list", () => {
+    // On a landing pad, so that no Plume Ejecta gives the first Robot
+    // Maintenance to do as the Lander lands.
+    const game = readyToShip();
+    setManifest(game, padComponents);
+    send(game);
+    skipUntil(game, "lander-landed");
+    buildAll(game.plan(padType.id, padSite));
+    setManifest(game, [{ itemId: robotItem.id, count: 1 }]);
+    send(game);
+    skipUntil(game, "lander-landed");
+    expect(robot(game.state, "robot-1").activity.kind).toBe("idle");
+    expect(robot(game.state, "robot-2").activity.kind).toBe("climbing-down");
+    // The same base, with the arriving Robot listed first.
+    const save = JSON.parse(game.campaign.save()) as {
+      state: { robots: unknown[] };
+    };
+    save.state.robots.reverse();
+    const loaded = loadCampaign(JSON.stringify(save));
+    if (!loaded.ok) throw new Error(loaded.message);
+    expect(loaded.campaign.snapshot().robots.map((each) => each.id)).toEqual([
+      "robot-2",
+      "robot-1",
+    ]);
+
+    const result = loaded.campaign.startExpedition();
+
+    expect(result.ok).toBe(true);
+    expect(loaded.campaign.snapshot().expedition?.robotId).toBe("robot-1");
+  });
+
+  it("takes the arriving Robot when every other Robot is busy", () => {
+    const game = readyToShip();
+    setManifest(game, [{ itemId: robotItem.id, count: 1 }]);
+    send(game);
+    skipUntil(game, "lander-landed");
+    // The first Robot is busy maintaining the Habitat as the Lander lands.
+    expect(robot(game.state, "robot-1").activity.kind).not.toBe("idle");
+    expect(robot(game.state, "robot-2").activity.kind).toBe("climbing-down");
+
+    game.campaign.startExpedition();
+
+    expect(game.state.expedition?.robotId).toBe("robot-2");
+  });
+});
+
 describe("saving and loading while a Robot arrives", () => {
   it.each([
     ["climbing-down", 5],
