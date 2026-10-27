@@ -53,7 +53,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await screen.getByRole("button", { name: "Add one Array mast" }).click();
   // The Launch fee, two solar panels at $4M and an array mast at $3M.
   await expect(screen.getByRole("status", { name: "Launch cost" })).toHaveText(
-    "Cost: $161M of $400M Funding, including the $150M Launch fee",
+    "Cost: $161M of $500M Funding, including the $150M Launch fee",
   );
   await screen.getByRole("button", { name: "Close" }).click();
 
@@ -62,13 +62,13 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await expect(lander).toContainText("Lander travelling to Earth");
   await skipUntil(page, "Lander left Earth");
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
-    "$239M",
+    "$339M",
   );
   await skipUntil(page, "Lander landed");
 
   await expect(lander).toHaveText("Lander landed · free to fly");
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
-    "$239M",
+    "$339M",
   );
   // Maintenance may have used more spare Components meanwhile.
   await expect(stock).toHaveText(

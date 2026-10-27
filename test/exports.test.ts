@@ -362,21 +362,37 @@ describe("the Lander reaching Earth", () => {
 });
 
 describe("a manifest paid for by that trip's Exports", () => {
-  // More than the Programme Grant, but within a Launch's Payload Mass.
-  const dear: ManifestLine[] = [
-    { itemId: "battery-module", count: 9 },
+  // A Habitat kit, and enough battery modules on top to cost more than the
+  // Programme Grant and 2 kg of wafers together, within a Launch's Payload
+  // Mass.
+  const priceOf = (itemId: string) =>
+    launch.items.find((item) => item.id === itemId)?.priceMillionDollars ??
+    Number.NaN;
+  const kit: ManifestLine[] = [
     { itemId: "habitat-core", count: 1 },
+    { itemId: "habitat-envelope", count: 1 },
+    { itemId: "airlock", count: 1 },
   ];
-  const cost =
-    launch.feeMillionDollars +
-    dear.reduce(
-      (total, { itemId, count }) =>
-        total +
-        (launch.items.find((item) => item.id === itemId)?.priceMillionDollars ??
-          0) *
-          count,
+  const priceOfAll = (lines: readonly ManifestLine[]) =>
+    lines.reduce(
+      (total, { itemId, count }) => total + priceOf(itemId) * count,
       0,
     );
+  const modules = Math.max(
+    Math.floor(
+      (programmeGrant +
+        2 * waferPrice -
+        launch.feeMillionDollars -
+        priceOfAll(kit)) /
+        priceOf("battery-module"),
+    ) + 1,
+    0,
+  );
+  const dear: ManifestLine[] = [
+    ...kit,
+    { itemId: "battery-module", count: modules },
+  ];
+  const cost = launch.feeMillionDollars + priceOfAll(dear);
 
   it("is refused before the Exports are aboard, on the Funding balance alone", () => {
     const campaign = landerFreeWith(returnMass);

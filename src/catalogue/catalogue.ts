@@ -800,7 +800,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 44,
+  version: 45,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -2123,28 +2123,35 @@ export const catalogue: Catalogue = {
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
   // surface, so that the limit comes in 20 Earth Days and shielding the
-  // Habitat is urgent. Shielding cuts it to a tenth.
+  // Habitat is urgent. Shielding cuts it to a three-hundredth, about what
+  // a few metres of Regolith leave, so that a shielded Habitat, Solar
+  // Particle Events and all, takes many years to reach the limit and an
+  // open-ended Campaign can go on. At a tenth it came in about four months
+  // whatever the player did.
   radiation: {
     doseRateMillisievertsPerEarthDay: {
       lander: 0,
       habitat: 30,
-      shieldedHabitat: 3,
+      shieldedHabitat: 0.1,
     },
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
   },
   // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
-  // Day or so takes half the dose limit in an unshielded Habitat, but a
-  // twentieth in a shielded one.
+  // Day or so takes half the dose limit in an unshielded Habitat, but next
+  // to nothing in a shielded one.
   solarParticleEvents: {
     earthDaysBetween: { min: 10, max: 30 },
     durationHours: { min: 6, max: 30 },
     warningHours: 4,
     doseRateMultiplier: 10,
   },
-  // Enough for one well-filled Launch, so the first one has to count.
-  // Exports earn more later.
-  programmeGrantMillionDollars: 400,
+  // Enough for one well-filled Launch, so the first one has to count, and
+  // for part of the second, which the first sale of wafers can't pay for on
+  // its own: they sell for no more than the Launch fee. So the second Launch
+  // can bring a circuit board plant, whose circuit boards pay for every
+  // Launch after it, with what the base needs besides.
+  programmeGrantMillionDollars: 500,
   // Each Launch carries 3.4 tonnes and costs a fixed fee for the flight, on
   // top of the price of what it brings. The Habitat kit is by far the
   // dearest, so the Funding runs out before the Payload Mass does if a
@@ -2921,25 +2928,25 @@ export const catalogue: Catalogue = {
     {
       id: "power-storage",
       label: "Power storage before the first Night",
-      hint: "Build the battery bank from the starting stock beside a solar array, so the base has stored power when the first Night falls.",
+      hint: "Build the battery banks from the starting stock beside a solar array, so the base has stored power when the first Night falls: the Habitat needs all of them to get through one.",
       condition: { kind: "power-storage-commissioned" },
     },
     {
       id: "moved-in",
       label: "Habitat commissioned, Mission Director moved in",
-      hint: "Build the inflatable Habitat from the starting stock on the power network, then press Move in beside it in the Structures list.",
+      hint: "Build the inflatable Habitat from the starting stock on the power network, and once every battery bank is commissioned and the status panel shows them fully charged, press Move in beside it in the Structures list.",
       condition: { kind: "mission-director-moved-in" },
     },
     {
       id: "lander-departs",
       label: "Lander departs",
-      hint: "Set the Launch manifest with what the base needs next, then Send the Lander from the status panel: it flies to Earth and comes back with the Launch.",
+      hint: "The Programme Grant pays for one well-filled Launch: put a landing pad, an extraction plant, a vacuum fabrication plant and a second solar array on the Launch manifest, with oxygen, water and spare Components, then Send the Lander from the status panel.",
       condition: { kind: "lander-took-off" },
     },
     {
       id: "habitat-shielded",
       label: "Habitat shielded",
-      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose tenfold.",
+      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose inside to almost nothing.",
       condition: { kind: "habitat-shielded" },
     },
     {

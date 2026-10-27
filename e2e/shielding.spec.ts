@@ -75,5 +75,5 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
     /^Inflatable Habitat Condition \d+% commissioned · shielded, the Mission Director's home/,
     /^Regolith shielding Condition 100% commissioned(?! ·)/,
   ]);
-  await expect(radiationDose).toHaveText(/\+3\.0 a day/);
+  await expect(radiationDose).toHaveText(/\+0\.1 a day/);
 });

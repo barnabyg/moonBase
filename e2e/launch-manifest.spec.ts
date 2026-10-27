@@ -5,7 +5,7 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
 }) => {
   await page.goto("/?seed=1");
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
-    "$400M",
+    "$500M",
   );
 
   await page.getByRole("button", { name: "Launch manifest" }).click();
@@ -18,19 +18,19 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
   // An empty manifest costs nothing, so the Launch fee isn't shown yet.
   await expect(payloadMass).toHaveText("Payload Mass: 0 of 3400 kg");
   await expect(cost).toHaveText(
-    "Cost: nothing of $400M Funding, while the manifest is empty",
+    "Cost: nothing of $500M Funding, while the manifest is empty",
   );
 
   await screen.getByRole("button", { name: "Add one Habitat core" }).click();
   await screen.getByRole("button", { name: "Add one Water, 50 kg" }).click();
   await expect(payloadMass).toHaveText("Payload Mass: 960 of 3400 kg");
   await expect(cost).toHaveText(
-    "Cost: $352M of $400M Funding, including the $150M Launch fee",
+    "Cost: $352M of $500M Funding, including the $150M Launch fee",
   );
 
   await screen.getByRole("button", { name: "Add one Habitat core" }).click();
   await expect(screen.getByRole("alert")).toHaveText(
-    "That would bring the manifest's cost to $552M, more than the Funding balance of $400M.",
+    "That would bring the manifest's cost to $552M, more than the Funding balance of $500M.",
   );
   // Its count, after its name and its mass and price.
   await expect(
@@ -43,7 +43,7 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
   await screen.getByRole("button", { name: "Remove one Habitat core" }).click();
   await screen.getByRole("button", { name: "Remove one Water, 50 kg" }).click();
   await expect(cost).toHaveText(
-    "Cost: nothing of $400M Funding, while the manifest is empty",
+    "Cost: nothing of $500M Funding, while the manifest is empty",
   );
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(screen).toBeHidden();

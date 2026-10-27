@@ -13,7 +13,7 @@ test("a fresh game shows power storage as the current Milestone, and commissioni
   const hint = page.getByRole("status", { name: "Milestone hint" });
   const next = page.getByRole("status", { name: "Next Milestone" });
   await expect(current).toHaveText("Now Power storage before the first Night");
-  await expect(hint).toContainText("battery bank from the starting stock");
+  await expect(hint).toContainText("battery banks from the starting stock");
   await expect(next).toHaveText(
     "Next Habitat commissioned, Mission Director moved in",
   );

@@ -1,6 +1,7 @@
 import { catalogue } from "../src/catalogue";
 import {
   createCampaign,
+  lunationMinutes,
   milestoneLabel,
   type Campaign,
   type GameEvent,
@@ -26,7 +27,8 @@ export const REFERENCE_SEED = 20261025;
 
 /** One step of the play guide, and the Milestone it serves. */
 export interface PlayStep {
-  readonly milestoneId: string;
+  /** Undefined for keeping the base going after the last Milestone. */
+  readonly milestoneId: string | undefined;
   /** What the player does, in the game's words. */
   readonly description: string;
   play(play: Play): void;
@@ -53,6 +55,9 @@ export interface Play {
   /** Something the player does every game-hour from now on, such as keeping a Research Task running. */
   keepUp(habit: (play: Play) => void): void;
 }
+
+/** How many Lunations the play guide keeps the base going after the last Milestone. */
+export const PLAY_ON_LUNATIONS = 3;
 
 /** How long the play guide waits for anything before it gives up. */
 const LONGEST_WAIT: Duration = { earthDays: 60 };
@@ -83,6 +88,7 @@ const site = {
   extractionPlant: { x: 44, y: -33 },
   vacuumFabricationPlant: { x: 51, y: -33 },
   waterProcessingPlant: { x: 58, y: -26 },
+  circuitBoardPlant: { x: 58, y: -33 },
 } as const satisfies Record<string, GroundPosition | readonly GroundPosition[]>;
 
 /** The play guide: what a sensible player does for each Milestone, in order. */
@@ -182,7 +188,7 @@ export const referenceSteps: readonly PlayStep[] = [
   {
     milestoneId: "first-export",
     description:
-      "Run the extraction plant for metals and silicon to feed the vacuum fabrication plant until there is a full Return Mass of wafers, load them, send the Lander, and once it is away put a water-processing plant, a tank of oxygen, two of water and five spare Components on the Launch manifest.",
+      "Run the extraction plant for metals and silicon to feed the vacuum fabrication plant until there is a full Return Mass of wafers, load them, send the Lander, and once it is away put a water-processing plant, a circuit board plant, a tank of oxygen, two of water and fifteen spare Components on the Launch manifest, leaving out the circuit board plant if the Funding can't run to it; build the circuit board plant once it comes.",
     play(play) {
       const extractionId = play.waitForStructure("extraction-plant");
       succeed(
@@ -209,13 +215,15 @@ export const referenceSteps: readonly PlayStep[] = [
         "the Lander away with the wafers",
         (state) => state.exports.valueAboardMillionDollars > 0,
       );
-      play.setManifest([
+      const needed: ManifestLine[] = [
         { itemId: "ice-melter", count: 1 },
         { itemId: "water-purifier", count: 1 },
         { itemId: "oxygen", count: 1 },
         { itemId: "water", count: 2 },
-        { itemId: "spare-component", count: 5 },
-      ]);
+        { itemId: "spare-component", count: 15 },
+      ];
+      setAffordableManifest(play, needed, circuitBoardPlant);
+      play.keepUp(buildCircuitBoardPlant);
       play.waitForMilestone("first-export");
     },
   },
@@ -246,7 +254,185 @@ export const referenceSteps: readonly PlayStep[] = [
       play.waitForMilestone("water-self-sufficient");
     },
   },
+  {
+    milestoneId: undefined,
+    description: `Keep the base going for ${PLAY_ON_LUNATIONS} Lunations: run the extraction plant for oxygen whenever the oxygen runs low and for metals and silicon otherwise, send the Rover for water ice once the ice is used up and the water is getting low, and send the Lander whenever there is a full Return Mass of circuit boards (or of wafers, before there is a circuit board plant), with oxygen, water and spare Components on the Launch manifest as they are needed, and a circuit board plant if the base has none.`,
+    play(play) {
+      play.keepUp(balanceOxygen);
+      play.keepUp(fetchWaterIce);
+      play.keepUp(tradeWithEarth());
+      const until =
+        play.state.clock.elapsedMinutes +
+        PLAY_ON_LUNATIONS * lunationMinutes(catalogue.lunation).lunation;
+      play.waitUntil(
+        `${PLAY_ON_LUNATIONS} more Lunations`,
+        (state) => state.clock.elapsedMinutes >= until,
+        { earthDays: PLAY_ON_LUNATIONS * 30 + 1 },
+      );
+    },
+  },
 ];
+
+/** The Launch items that make a circuit board plant. */
+const circuitBoardPlant: readonly ManifestLine[] = [
+  { itemId: "circuit-etcher", count: 1 },
+  { itemId: "reflow-oven", count: 1 },
+];
+
+/**
+ * Sets the Launch manifest to what is needed and what is wanted, or, if the
+ * Funding can't run to both, to what is needed alone.
+ */
+function setAffordableManifest(
+  play: Play,
+  needed: readonly ManifestLine[],
+  wanted: readonly ManifestLine[],
+): void {
+  if (
+    wanted.length > 0 &&
+    play.campaign.setLaunchManifest([...needed, ...wanted]).ok
+  ) {
+    return;
+  }
+  play.setManifest(needed);
+}
+
+function isPlannedOrBuilt(state: Snapshot, structureTypeId: string): boolean {
+  return [...state.constructions, ...state.structures].some(
+    (structure) => structure.structureTypeId === structureTypeId,
+  );
+}
+
+/** Builds the circuit board plant beside the base once its Components are in stock. */
+function buildCircuitBoardPlant(play: Play): void {
+  const { state } = play;
+  const inStock = circuitBoardPlant.every(
+    (line) =>
+      (state.stockpile.components.find(
+        (stock) => stock.componentId === line.itemId,
+      )?.count ?? 0) >= line.count,
+  );
+  if (isPlannedOrBuilt(state, "circuit-board-plant") || !inStock) return;
+  play.plan("circuit-board-plant", site.circuitBoardPlant);
+}
+
+/**
+ * The oxygen in stock below which the extraction plant runs for oxygen, and
+ * above which it goes back to metals and silicon.
+ */
+const OXYGEN_LOW_KILOGRAMS = 30;
+const OXYGEN_HIGH_KILOGRAMS = 45;
+
+/**
+ * Runs the extraction plant for oxygen while the oxygen is low, and for
+ * metals and silicon, for the wafers and circuit boards, once there is
+ * plenty again.
+ */
+function balanceOxygen(play: Play): void {
+  const { state } = play;
+  const plant = state.structures.find(
+    (structure) => structure.structureTypeId === "extraction-plant",
+  );
+  if (plant === undefined) return;
+  const oxygen = lifeSupportInStock(state, "oxygen");
+  const recipeId =
+    oxygen < OXYGEN_LOW_KILOGRAMS
+      ? "oxygen"
+      : oxygen > OXYGEN_HIGH_KILOGRAMS
+        ? "metals-and-silicon"
+        : plant.recipeId;
+  if (recipeId === undefined || recipeId === plant.recipeId) return;
+  succeed(
+    play.campaign.setPlantRecipe(plant.id, recipeId),
+    "Switching the extraction plant's recipe",
+  );
+}
+
+/** The water in stock below which, with the water ice used up, the Rover goes for more. */
+const WATER_LOW_KILOGRAMS = 120;
+
+/** Sends the Rover for water ice once the last is used up and the water is getting low. */
+function fetchWaterIce(play: Play): void {
+  const { state } = play;
+  if (
+    state.expedition !== undefined ||
+    bulkInStock(state, "water-ice") > 0 ||
+    lifeSupportInStock(state, "water") >= WATER_LOW_KILOGRAMS ||
+    state.rovers.every((rover) => rover.conditionPercent <= 0)
+  ) {
+    return;
+  }
+  succeed(play.campaign.startExpedition(), "Starting an Expedition");
+}
+
+/** The spare Components the player keeps in stock, topping them up by Launch. */
+const SPARES_KEPT = 30;
+
+/**
+ * Sends the Lander with a full Return Mass of the most valuable Export the
+ * base makes, and once it is away sets the Launch manifest: oxygen and water
+ * if they are low, spare Components up to the number kept, and a circuit
+ * board plant if the base has none and the Funding runs to it.
+ */
+function tradeWithEarth(): (play: Play) => void {
+  let manifestSetOnTrip: number | undefined;
+  return (play) => {
+    const { state } = play;
+    const returnMass = catalogue.lander.returnMassKilograms;
+    const boards = isPlannedOrBuilt(state, "circuit-board-plant");
+    const exportId = boards ? "circuit-boards" : "wafers";
+    if (state.lander.state === "landed-free") {
+      const loading =
+        state.exports.toLoad.length > 0 || state.exports.aboard.length > 0;
+      if (!loading && bulkInStock(state, exportId) >= returnMass) {
+        succeed(
+          play.campaign.loadExports([
+            { resourceId: exportId, kilograms: returnMass },
+          ]),
+          "Loading the Exports",
+        );
+        return;
+      }
+      if (loading && state.exportLoading === undefined) {
+        succeed(play.campaign.sendLander(), "Sending the Lander");
+      }
+      return;
+    }
+    const trip = state.lander.legStartedAtMinute;
+    if (
+      state.lander.state !== "travelling-to-earth" ||
+      trip === undefined ||
+      manifestSetOnTrip === trip
+    ) {
+      return;
+    }
+    manifestSetOnTrip = trip;
+    const needed: ManifestLine[] = [];
+    if (lifeSupportInStock(state, "oxygen") < OXYGEN_LOW_KILOGRAMS) {
+      needed.push({ itemId: "oxygen", count: 1 });
+    }
+    if (lifeSupportInStock(state, "water") < WATER_LOW_KILOGRAMS) {
+      needed.push({ itemId: "water", count: 2 });
+    }
+    const spares =
+      state.stockpile.components.find(
+        (stock) => stock.componentId === catalogue.maintenance.spareComponentId,
+      )?.count ?? 0;
+    if (spares < SPARES_KEPT) {
+      needed.push({
+        itemId: catalogue.maintenance.spareComponentId,
+        count: SPARES_KEPT - spares,
+      });
+    }
+    setAffordableManifest(play, needed, boards ? [] : circuitBoardPlant);
+  };
+}
+
+function lifeSupportInStock(state: Snapshot, stockId: string): number {
+  return (
+    state.lifeSupport.find((stock) => stock.stockId === stockId)?.kilograms ?? 0
+  );
+}
 
 /** Keeps a Research Task running: the shortest on offer that isn't done yet. */
 function keepResearching(play: Play): void {
@@ -338,6 +524,18 @@ export interface ReferenceTimeline {
     /** The Radiation Dose only ever rises, so the highest is the last. */
     readonly highestRadiationDoseMillisieverts: Extreme;
   };
+  /**
+   * How fast the Radiation Dose rose over the last Lunation played, Solar
+   * Particle Events and all, and how many Earth Days it would take at that
+   * rate to reach the limit from where it ended: undefined if it didn't
+   * rise.
+   */
+  readonly radiationDoseAtEnd: {
+    readonly millisievertsPerEarthDay: number;
+    readonly earthDaysUntilLimit: number | undefined;
+  };
+  /** The Funding balance as the play guide ended. */
+  readonly fundingAtEndMillionDollars: number;
 }
 
 /** Plays the reference Campaign from a fresh Campaign to the end of the play guide, or until it gives up. */
@@ -441,6 +639,7 @@ function recorder(campaign: Campaign) {
   let stored: Extreme | undefined;
   let funding: Extreme = { value: start.fundingMillionDollars, atMinute: 0 };
   let dose: Extreme = { value: start.radiationDoseMillisieverts, atMinute: 0 };
+  const doses: Extreme[] = [dose];
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
@@ -471,6 +670,7 @@ function recorder(campaign: Campaign) {
       if (state.radiationDoseMillisieverts > dose.value) {
         dose = { value: state.radiationDoseMillisieverts, atMinute };
       }
+      doses.push({ value: state.radiationDoseMillisieverts, atMinute });
       const { missionDirector } = state;
       if (missionDirector.residence !== "habitat") return;
       const forecasts = campaign.forecasts();
@@ -501,6 +701,16 @@ function recorder(campaign: Campaign) {
     },
     timeline(failure: string | undefined): ReferenceTimeline {
       const state = campaign.snapshot();
+      const end = state.clock.elapsedMinutes;
+      const lunation = lunationMinutes(catalogue.lunation).lunation;
+      const from =
+        doses.find((sample) => sample.atMinute >= end - lunation) ?? dose;
+      const perEarthDay =
+        end > from.atMinute
+          ? ((state.radiationDoseMillisieverts - from.value) /
+              (end - from.atMinute)) *
+            MINUTES_PER_EARTH_DAY
+          : 0;
       return {
         seed: REFERENCE_SEED,
         milestones,
@@ -522,6 +732,16 @@ function recorder(campaign: Campaign) {
           lowestFundingMillionDollars: funding,
           highestRadiationDoseMillisieverts: dose,
         },
+        radiationDoseAtEnd: {
+          millisievertsPerEarthDay: perEarthDay,
+          earthDaysUntilLimit:
+            perEarthDay > 0
+              ? (catalogue.radiation.doseLimitMillisieverts -
+                  state.radiationDoseMillisieverts) /
+                perEarthDay
+              : undefined,
+        },
+        fundingAtEndMillionDollars: state.fundingMillionDollars,
       };
     },
   };
@@ -591,7 +811,14 @@ export function formatTimeline(timeline: ReferenceTimeline): string[] {
     `  Radiation Dose: highest ${margins.highestRadiationDoseMillisieverts.value.toFixed(1)} mSv of the ${catalogue.radiation.doseLimitMillisieverts} mSv limit, ${on(margins.highestRadiationDoseMillisieverts)}.`,
     "  (Oxygen, water and Habitat power count only while the Mission Director lives in the Habitat.)",
     "",
-    `The play guide ended on Earth Day ${(timeline.endMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}.`,
+    `The play guide ended on Earth Day ${(timeline.endMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}, with ${money(timeline.fundingAtEndMillionDollars)} of Funding.`,
+    (() => {
+      const { millisievertsPerEarthDay, earthDaysUntilLimit } =
+        timeline.radiationDoseAtEnd;
+      return earthDaysUntilLimit === undefined
+        ? "Over its last Lunation the Radiation Dose didn't rise."
+        : `Over its last Lunation the Radiation Dose rose ${millisievertsPerEarthDay.toFixed(2)} mSv an Earth Day; at that rate it would reach the limit in ${earthDaysUntilLimit.toFixed(0)} Earth Days (${(earthDaysUntilLimit / 365.25).toFixed(1)} years).`;
+    })(),
   ];
   if (timeline.failure !== undefined) {
     lines.push(`It gave up: ${timeline.failure}`);

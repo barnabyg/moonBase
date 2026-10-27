@@ -173,13 +173,20 @@ describe("paying for the Launch", () => {
 
   it("never ends the Campaign when it leaves no Funding", () => {
     const game = landerFree();
-    // A Habitat core, eight battery modules and two mast poles cost what is
-    // left of the Programme Grant after the Launch fee, and fit in a Launch.
-    const everything: ManifestLine[] = [
-      { itemId: "battery-module", count: 8 },
-      { itemId: "mast-pole", count: 2 },
+    // A Habitat kit, and as many mast poles at $1M as make up the rest,
+    // cost what is left of the Programme Grant after the Launch fee, and
+    // fit in a Launch.
+    const kit: ManifestLine[] = [
       { itemId: "habitat-core", count: 1 },
+      { itemId: "habitat-envelope", count: 1 },
+      { itemId: "airlock", count: 1 },
     ];
+    const poles = programmeGrant - launch.feeMillionDollars - price(kit);
+    const everything: ManifestLine[] = [
+      { itemId: "mast-pole", count: poles },
+      ...kit,
+    ];
+    expect(poles).toBeGreaterThan(0);
     expect(launch.feeMillionDollars + price(everything)).toBe(programmeGrant);
     setManifest(game, everything);
     send(game);

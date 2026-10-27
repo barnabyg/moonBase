@@ -33,13 +33,14 @@ describe("the sample saves", () => {
 
 describe("the sample saves from before Funding", () => {
   it.each(["version-1.moonbase", "version-2.moonbase"])(
-    "%s loads with the Programme Grant as its Funding, and an empty Launch manifest",
+    "%s loads with the Programme Grant of the time as its Funding, and an empty Launch manifest",
     (name) => {
       const state = loadSample(name).snapshot();
 
-      expect(state.fundingMillionDollars).toBe(
-        catalogue.programmeGrantMillionDollars,
-      );
+      // The Programme Grant as it was when format version 3 brought in
+      // Funding, which the migration names, so that tuning the grant later
+      // doesn't change what an old save loads with.
+      expect(state.fundingMillionDollars).toBe(400);
       expect(state.launchManifest).toEqual({
         items: [],
         payloadMassKilograms: 0,
