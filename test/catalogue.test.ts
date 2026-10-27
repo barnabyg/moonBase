@@ -693,13 +693,13 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("has Regolith shielding, printed over a Habitat by the regolith printer from no Components", () => {
+  it("has Regolith shielding, and any other shielding, printed over a Habitat by the regolith printer from no Components", () => {
     const shielding = catalogue.structureTypes.filter(
       (type) => type.shieldsHabitat,
     );
     const habitats = catalogue.structureTypes.filter((type) => type.habitat);
 
-    expect(shielding.map((type) => type.id)).toEqual(["regolith-shielding"]);
+    expect(shielding[0]?.id).toBe("regolith-shielding");
     for (const type of shielding) {
       expect(type.components).toEqual([]);
       expect(type.stageMachines).toEqual({
@@ -858,10 +858,19 @@ describe("the data catalogue", () => {
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
   });
 
-  it("has a landing pad, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
-    const pads = catalogue.structureTypes.filter((type) => type.landingPad);
+  it("has a landing pad behind a starting Design, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
+    const pads = catalogue.structureTypes.filter(
+      (type) =>
+        type.landingPad &&
+        catalogue.designs.find((design) => design.id === type.designId)
+          ?.starting === true,
+    );
 
     expect(pads).toHaveLength(1);
+    // The first, so that it is the one the build menu offers first.
+    expect(catalogue.structureTypes.find((type) => type.landingPad)).toBe(
+      pads[0],
+    );
     const [pad] = pads;
     expect(pad?.footprintRadiusMetres).toBeGreaterThan(
       catalogue.lander.footprintRadiusMetres,
@@ -1279,6 +1288,90 @@ describe("the data catalogue", () => {
       expect(large.power.drawKilowatts).toBeGreaterThan(
         small.power.drawKilowatts,
       );
+    });
+  });
+
+  describe("the Construction Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    const hours = (type: StructureType) =>
+      Object.values(type.stageHours).reduce((sum, value) => sum + value, 0);
+
+    it("has a sintered landing pad, behind Regolith sintering, a Construction Design that needs Regolith shielding first", () => {
+      const pad = structureType("sintered-landing-pad");
+
+      expect(designOf(pad)).toMatchObject({
+        id: "regolith-sintering",
+        category: "construction",
+        starting: false,
+        prerequisiteDesignIds: ["regolith-shielding"],
+      });
+    });
+
+    it("has the sintered landing pad printed from Regolith by the regolith printer, with no Components, taking longer to build than a landing pad shipped from Earth", () => {
+      const sintered = structureType("sintered-landing-pad");
+      const shipped = structureType("landing-pad");
+
+      expect(sintered).toMatchObject({
+        landingPad: true,
+        components: [],
+        stageMachines: {
+          sitePreparation: "excavator",
+          assembly: "regolith-printer",
+        },
+        footprintRadiusMetres: shipped.footprintRadiusMetres,
+        power: shipped.power,
+        hazardMultipliers: shipped.hazardMultipliers,
+      });
+      expect(sintered.stageHours.componentDelivery).toBe(0);
+      expect(hours(sintered)).toBeGreaterThan(hours(shipped));
+      expect(
+        catalogue.launch.items.filter(
+          (item) => item.designId === sintered.designId,
+        ),
+      ).toEqual([]);
+    });
+
+    it("has sintered Regolith shielding, behind Microwave sintering, a Construction Design that needs Regolith sintering first", () => {
+      expect(designOf(structureType("sintered-regolith-shielding"))).toEqual(
+        expect.objectContaining({
+          id: "microwave-sintering",
+          category: "construction",
+          starting: false,
+          prerequisiteDesignIds: ["regolith-sintering"],
+        }),
+      );
+    });
+
+    it("has sintered Regolith shielding printed like Regolith shielding, but in under half the hours", () => {
+      const sintered = structureType("sintered-regolith-shielding");
+      const printed = structureType("regolith-shielding");
+
+      expect(sintered).toMatchObject({
+        shieldsHabitat: true,
+        components: [],
+        stageMachines: printed.stageMachines,
+        footprintRadiusMetres: printed.footprintRadiusMetres,
+        power: printed.power,
+        hazardMultipliers: printed.hazardMultipliers,
+      });
+      expect(sintered.stageHours.sitePreparation).toBe(
+        printed.stageHours.sitePreparation,
+      );
+      expect(sintered.stageHours.assembly).toBeLessThan(
+        printed.stageHours.assembly / 2,
+      );
+      expect(hours(sintered)).toBeLessThan(hours(printed) / 2);
     });
   });
 

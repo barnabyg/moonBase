@@ -755,7 +755,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 39,
+  version: 40,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1261,6 +1261,40 @@ export const catalogue: Catalogue = {
       shieldsHabitat: true,
       landingPad: false,
     },
+    // Regolith shielding whose every layer is fused by microwaves as the
+    // regolith printer lays it, rather than left to settle under the next,
+    // so that the printer lays it in 20 hours rather than 48: 25 hours in
+    // all rather than 53, under an unshielded Habitat's Radiation Dose.
+    {
+      id: "sintered-regolith-shielding",
+      label: "Sintered Regolith shielding",
+      designId: "microwave-sintering",
+      footprintRadiusMetres: 4,
+      components: [],
+      stageHours: {
+        sitePreparation: 3,
+        componentDelivery: 0,
+        assembly: 20,
+        commissioning: 2,
+      },
+      stageMachines: {
+        sitePreparation: "excavator",
+        assembly: "regolith-printer",
+      },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: true,
+      landingPad: false,
+    },
     {
       id: "landing-pad",
       label: "Landing pad",
@@ -1285,6 +1319,41 @@ export const catalogue: Catalogue = {
       dustWearPercentPerHour: 0.01,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The beacon runs off its own small battery.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: true,
+    },
+    // A landing pad the regolith printer lays from Regolith, fusing it into
+    // a hard slab as it goes, so that nothing has to be shipped from Earth
+    // for it: the Lander comes down on its own radar, with no beacon. It
+    // stands on the same ground as a landing pad shipped from Earth, but
+    // takes 43 hours to build rather than 17, most of them printing.
+    {
+      id: "sintered-landing-pad",
+      label: "Sintered landing pad",
+      designId: "regolith-sintering",
+      footprintRadiusMetres: 7,
+      components: [],
+      stageHours: {
+        sitePreparation: 6,
+        componentDelivery: 0,
+        assembly: 36,
+        commissioning: 1,
+      },
+      stageMachines: {
+        sitePreparation: "excavator",
+        assembly: "regolith-printer",
+      },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1869,7 +1938,7 @@ export const catalogue: Catalogue = {
   },
   // From a few hours to a week. The short ones pay more Science an hour,
   // but the player has to come back to start the next; the long ones run
-  // unattended, through a Night or a whole round trip of the Lander. Three
+  // unattended, through a Night or a whole round trip of the Lander. Some
   // are offered only once the Design they study is unlocked.
   researchTasks: [
     {
@@ -1942,6 +2011,12 @@ export const catalogue: Catalogue = {
       lengthHours: 120,
       science: 50,
       requiresDesignId: "whipple-shielding",
+    },
+    {
+      id: "thermal-cycling-survey",
+      label: "Thermal cycling survey",
+      lengthHours: 132,
+      science: 52,
     },
     {
       id: "micrometeorite-flux-count",
@@ -2028,6 +2103,26 @@ export const catalogue: Catalogue = {
       starting: true,
       scienceCost: 0,
       prerequisiteDesignIds: [],
+    },
+    {
+      id: "regolith-sintering",
+      label: "Regolith sintering",
+      description:
+        "Fusing Regolith into a hard slab with heat as it is printed, so that the regolith printer can lay a landing pad with no Components from Earth.",
+      category: "construction",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["regolith-shielding"],
+    },
+    {
+      id: "microwave-sintering",
+      label: "Microwave sintering",
+      description:
+        "Microwaves that fuse each layer of Regolith as the regolith printer lays it, so that it prints shielding over a Habitat in under half the hours.",
+      category: "construction",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["regolith-sintering"],
     },
     {
       id: "regolith-shielding",
@@ -2146,16 +2241,6 @@ export const catalogue: Catalogue = {
       starting: true,
       scienceCost: 0,
       prerequisiteDesignIds: [],
-    },
-    {
-      id: "regolith-sintering",
-      label: "Regolith sintering",
-      description:
-        "Fusing Regolith into hard blocks with heat, for sturdier Structures made on the Moon.",
-      category: "industry",
-      starting: false,
-      scienceCost: 30,
-      prerequisiteDesignIds: ["regolith-shielding"],
     },
     {
       id: "landing-pads",
