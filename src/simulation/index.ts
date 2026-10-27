@@ -1,6 +1,7 @@
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { designLabel } from "./tech-tree";
+export { milestoneHint, milestoneLabel } from "./milestones";
 export { launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { robotNumber } from "./arrival";
@@ -56,6 +57,7 @@ export type { ExportLoadingSnapshot } from "./export-loading";
 export type { ParkingSnapshot } from "./parking";
 export type { BulkResourceForecast } from "./bulk-forecast";
 export type { SelfSufficiencySnapshot } from "./self-sufficiency";
+export type { MilestonesSnapshot } from "./milestones";
 export type {
   ExpeditionSnapshot,
   ExpeditionStage,

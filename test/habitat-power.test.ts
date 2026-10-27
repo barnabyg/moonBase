@@ -7,6 +7,7 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 // No Machine feels the cold or draws power for a heater at Night, and the
 // Robot never has to park one, so that power and time pass as the test
@@ -87,17 +88,25 @@ describe("power by priority", () => {
     expect(game.state.structures.every((structure) => structure.powered)).toBe(
       true,
     );
+    // Just enough left for the Habitat's next game-minute, and none for the
+    // Structures after it.
+    const bankId = structureOf(game.state, "battery-bank").id;
+    const campaign = changed(game.campaign, (state) => {
+      for (const saved of state.structures) {
+        saved.storedKilowattHours =
+          saved.id === bankId ? habitatDrawKilowatts / 60 : 0;
+      }
+    });
 
-    runUntil(game, (state) =>
-      state.structures.some((structure) => !structure.powered),
-    );
+    campaign.advance(1);
 
-    expect(structureOf(game.state, "light-mast")).toMatchObject({
+    const state = campaign.snapshot();
+    expect(structureOf(state, "light-mast")).toMatchObject({
       powered: false,
       lit: false,
     });
-    expect(structureOf(game.state, "habitat").powered).toBe(true);
-    expect(game.state.power.networks[0]?.powered).toBe(false);
+    expect(structureOf(state, "habitat").powered).toBe(true);
+    expect(state.power.networks[0]?.powered).toBe(false);
   });
 
   it("supplies the other Structures the same way every time", () => {
@@ -198,12 +207,21 @@ describe("the Habitat power forecast", () => {
 describe("letting the battery run flat at Night with the Mission Director in the Habitat", () => {
   it("warns on the first game-minute when the Mission Director moves in with less power left than a warning level", () => {
     const game = poweredBase();
-    runUntil(game, (state) => state.lunation.part === "night");
-    game.advance({ hours: 20 });
-    const habitatId = moveIn(game);
-    const forecast = forecastPowerLost(game);
     const [firstLevel = 0, secondLevel = 0] =
       catalogue.habitatPowerWarningHoursLeft.map((hours) => hours * 60);
+    runUntil(game, (state) => state.lunation.part === "night");
+    // An hour inside the first warning level of what is stored, at the
+    // Night's rate.
+    runUntil(game, (state) => {
+      const [network] = state.power.networks;
+      return (
+        network !== undefined &&
+        (network.storedKilowattHours / network.consumptionKilowatts) * 60 <
+          firstLevel - 60
+      );
+    });
+    const habitatId = moveIn(game);
+    const forecast = forecastPowerLost(game);
     expect(forecast).toBeLessThan(firstLevel);
     expect(forecast).toBeGreaterThan(secondLevel + 1);
 
@@ -230,7 +248,9 @@ describe("letting the battery run flat at Night with the Mission Director in the
       .flatMap((skip) => skip.events)
       .filter(
         (event) =>
-          event.kind !== "night-started" && event.kind !== "daylight-started",
+          event.kind !== "night-started" &&
+          event.kind !== "daylight-started" &&
+          event.kind !== "milestone-reached",
       )
       .map((event) =>
         event.kind === "habitat-power-warning"

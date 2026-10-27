@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogue, type LaunchItem } from "../src/catalogue";
 import type { ManifestLine } from "../src/simulation";
 import { scenario } from "./scenario";
+import { withFunding } from "./worn";
 
 const { launch, programmeGrantMillionDollars: programmeGrant } = catalogue;
 
@@ -120,33 +121,30 @@ describe("the Launch manifest", () => {
   });
 
   it("refuses an item the Funding balance can't pay for", () => {
-    const game = scenario();
     const core = item("habitat-core");
-    const affordable = Math.floor(
-      (programmeGrant - launch.feeMillionDollars) / core.priceMillionDollars,
-    );
-    // One more would be within the Payload Mass limit, so only the Funding stops it.
-    expect(affordable).toBeGreaterThan(0);
-    expect((affordable + 1) * core.massKilograms).toBeLessThanOrEqual(
+    // Funding for the Launch fee and one Habitat core: a second would be
+    // within the Payload Mass limit, so only the Funding stops it.
+    const funding = launch.feeMillionDollars + core.priceMillionDollars;
+    const campaign = withFunding(scenario().campaign, funding);
+    expect(2 * core.massKilograms).toBeLessThanOrEqual(
       launch.payloadMassLimitKilograms,
     );
-    game.campaign.setLaunchManifest([
-      { itemId: "habitat-core", count: affordable },
+    expect(
+      campaign.setLaunchManifest([{ itemId: "habitat-core", count: 1 }]),
+    ).toEqual({ ok: true });
+
+    const oneMore = campaign.setLaunchManifest([
+      { itemId: "habitat-core", count: 2 },
     ]);
 
-    const oneMore = game.campaign.setLaunchManifest([
-      { itemId: "habitat-core", count: affordable + 1 },
-    ]);
-
-    const cost =
-      launch.feeMillionDollars + (affordable + 1) * core.priceMillionDollars;
+    const cost = launch.feeMillionDollars + 2 * core.priceMillionDollars;
     expect(oneMore).toEqual({
       ok: false,
       reason: "over-funding",
-      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${programmeGrant}M.`,
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M.`,
     });
-    expect(game.state.launchManifest.items).toEqual([
-      { itemId: "habitat-core", count: affordable },
+    expect(campaign.snapshot().launchManifest.items).toEqual([
+      { itemId: "habitat-core", count: 1 },
     ]);
   });
 

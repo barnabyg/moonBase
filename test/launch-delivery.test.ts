@@ -7,7 +7,8 @@ import {
   type ManifestLine,
   type Snapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
+import { withFunding } from "./worn";
 
 // The Mission Director has to live in the Habitat for a whole round trip,
 // longer than the starting stock keeps a Habitat powered or the dose low.
@@ -172,15 +173,18 @@ describe("paying for the Launch", () => {
   });
 
   it("never ends the Campaign when it leaves no Funding", () => {
-    const game = landerFree();
-    // A Habitat core, eight battery modules and two mast poles cost what is
-    // left of the Programme Grant after the Launch fee, and fit in a Launch.
+    // A Habitat kit, with Funding left for it and the Launch fee and no more.
     const everything: ManifestLine[] = [
-      { itemId: "battery-module", count: 8 },
-      { itemId: "mast-pole", count: 2 },
       { itemId: "habitat-core", count: 1 },
+      { itemId: "habitat-envelope", count: 1 },
+      { itemId: "airlock", count: 1 },
     ];
-    expect(launch.feeMillionDollars + price(everything)).toBe(programmeGrant);
+    const game = scenarioOf(
+      withFunding(
+        landerFree().campaign,
+        launch.feeMillionDollars + price(everything),
+      ),
+    );
     setManifest(game, everything);
     send(game);
 

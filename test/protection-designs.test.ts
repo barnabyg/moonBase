@@ -3,11 +3,16 @@ import { catalogue } from "../src/catalogue";
 import { earnScience, findDesign, unlock } from "./designs";
 import { scenario, type Scenario } from "./scenario";
 
-/** The hardened Structures of the Protection Designs. */
+/**
+ * The hardened Structures of the Protection Designs. The water wall, which
+ * hardens nothing but goes over a Habitat's Regolith shielding, has tests
+ * of its own (water-wall.test.ts).
+ */
 const hardened = catalogue.structureTypes.filter(
   (type) =>
     findDesign(type.designId).category === "protection" &&
-    !findDesign(type.designId).starting,
+    !findDesign(type.designId).starting &&
+    type.waterWall === undefined,
 );
 const site = { x: 30, y: 25 };
 

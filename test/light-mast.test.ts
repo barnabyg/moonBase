@@ -152,7 +152,17 @@ describe("a Light Mast", () => {
   });
 
   it("is counted in the power forecast for the Night ahead", () => {
+    // Every Light Mast in the starting stock, which together draw enough at
+    // Night to empty the battery bank before Daylight comes back.
     const game = litBase();
+    for (const site of [
+      { x: 15, y: -30 },
+      { x: 18, y: -30 },
+      { x: 21, y: -30 },
+    ]) {
+      game.plan("light-mast", site);
+    }
+    runUntilBuilt(game);
     const mastId = mastOf(game.state).id;
 
     const forecast = game.campaign.forecasts().power.minutesUntilEmpty;

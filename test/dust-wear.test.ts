@@ -37,6 +37,9 @@ const bankSite: GroundPosition = { x: -30, y: 4 };
 const mastSite: GroundPosition = { x: 20, y: -20 };
 const padSite: GroundPosition = { x: 40, y: 25 };
 const { thresholdPercent } = catalogue.structurePerformance;
+const bankCapacity =
+  catalogue.structureTypes.find((type) => type.id === "battery-bank")?.power
+    .storageKilowattHours ?? Number.NaN;
 
 function wearRate(structureTypeId: string): number {
   return (
@@ -78,9 +81,16 @@ function skipUntil(campaign: Campaign, kind: GameEvent["kind"]): void {
  * A solar array and a battery bank cabled to it, with the bank worn down to
  * a Condition, and no spare Components to maintain it with.
  */
+/**
+ * A solar array, a battery bank worn to a Condition and a Light Mast, whose
+ * light draws enough at Night to empty the battery bank before Daylight.
+ */
 function wornBank(conditionPercent: number): Campaign {
   const game = buildAll(
-    scenario().plan("solar-array", arraySite).plan("battery-bank", bankSite),
+    scenario()
+      .plan("solar-array", arraySite)
+      .plan("battery-bank", bankSite)
+      .plan("light-mast", mastSite),
   );
   return worn(
     game.campaign,
@@ -217,8 +227,12 @@ describe("performance at low Condition", () => {
       campaign
         .snapshot()
         .power.networks.find((candidate) => candidate.structureIds.length > 1);
-    for (let hours = 0; (network()?.storedKilowattHours ?? 0) < 60; hours++) {
-      if (hours > 24) throw new Error("The battery bank never filled.");
+    for (
+      let hours = 0;
+      (network()?.storedKilowattHours ?? 0) < bankCapacity;
+      hours++
+    ) {
+      if (hours > 48) throw new Error("The battery bank never filled.");
       campaign.advance(60);
     }
     const bankId = structure(campaign.snapshot(), "battery-bank").id;
@@ -229,7 +243,10 @@ describe("performance at low Condition", () => {
     const after = halved
       .snapshot()
       .power.networks.find((candidate) => candidate.structureIds.length > 1);
-    expect(after?.storageCapacityKilowattHours).toBeCloseTo(30, 1);
+    expect(after?.storageCapacityKilowattHours).toBeCloseTo(
+      bankCapacity / 2,
+      1,
+    );
     expect(after?.storedKilowattHours).toBeCloseTo(
       after?.storageCapacityKilowattHours ?? 0,
       9,
@@ -253,7 +270,7 @@ describe("performance at low Condition", () => {
       .snapshot()
       .power.networks.find((candidate) => candidate.structureIds.length > 1);
     const { storedKilowattHours = 0, consumptionKilowatts = 1 } = network ?? {};
-    expect(storedKilowattHours).toBeLessThan(30);
+    expect(storedKilowattHours).toBeLessThan(bankCapacity / 2);
     expect(halvedForecast).toBeLessThan(freshForecast / 2);
     expect(
       Math.abs(

@@ -191,7 +191,52 @@ export interface Catalogue {
    * largest first. Each must come to a whole number of game-minutes.
    */
   readonly spareComponentWarningEarthDaysLeft: readonly number[];
+  /**
+   * The Milestones, in the order the status panel offers them.
+   * They are guidance only: they carry no rewards and never end the
+   * Campaign.
+   */
+  readonly milestones: readonly Milestone[];
 }
+
+/**
+ * A named achievement that marks progress through the Campaign. It is
+ * reached the first time its condition holds, whatever the order, and stays
+ * reached even if the condition later stops holding.
+ */
+export interface Milestone {
+  readonly id: string;
+  readonly label: string;
+  /** One line telling a new player what to do next to reach it. */
+  readonly hint: string;
+  readonly condition: MilestoneCondition;
+}
+
+/**
+ * What reaches a Milestone. Some conditions are read from the state as it
+ * stands; others are moments the state doesn't keep afterwards, noticed as
+ * they happen.
+ */
+export type MilestoneCondition =
+  /** A Structure that stores power, such as a battery bank, is commissioned. */
+  | { readonly kind: "power-storage-commissioned" }
+  /** The Mission Director has moved into a Habitat. */
+  | { readonly kind: "mission-director-moved-in" }
+  /** The Lander takes off for Earth. */
+  | { readonly kind: "lander-took-off" }
+  /** The Habitat the Mission Director lives in is shielded. */
+  | { readonly kind: "habitat-shielded" }
+  /** A landing pad is commissioned. */
+  | { readonly kind: "landing-pad-commissioned" }
+  /** A Research Task has been completed. */
+  | { readonly kind: "research-task-completed" }
+  /** Exports are sold, as the Lander reaches Earth with some aboard. */
+  | { readonly kind: "export-sold" }
+  /**
+   * The base is self-sufficient in a life support stock, as the status
+   * panel judges it.
+   */
+  | { readonly kind: "self-sufficient"; readonly stockId: string };
 
 /**
  * Micrometeorite strikes, which the Campaign's seeded generator schedules
@@ -412,6 +457,11 @@ export interface RadiationRules {
     readonly habitat: number;
     /** In a Habitat with commissioned Regolith shielding over it. */
     readonly shieldedHabitat: number;
+    /**
+     * In a Habitat with a commissioned water wall over its commissioned
+     * Regolith shielding, none of them Broken.
+     */
+    readonly waterWalledHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -718,6 +768,32 @@ export interface StructureType {
    * the player can choose another, which it runs from the next game-minute.
    */
   readonly recipes?: readonly PlantRecipe[];
+  /**
+   * If it is a water wall: built over a commissioned Habitat with
+   * commissioned Regolith shielding over it, standing centred on them and
+   * the only other Structure allowed to overlap them, and filled with water
+   * as its Assembly starts. Once it is commissioned, neither of them
+   * Broken, the Habitat is water-walled.
+   */
+  readonly waterWall?: WaterWallRules;
+}
+
+/**
+ * How a water wall is filled: with water from a life support stock, taken
+ * as its Assembly starts, and only while what is left still leaves the
+ * Mission Director a reserve of it. The water stays in the wall: neither
+ * cancelling nor dismantling gives it back.
+ */
+export interface WaterWallRules {
+  /** The life support stock the water comes from. */
+  readonly stockId: string;
+  /** How much it takes to fill. */
+  readonly kilograms: number;
+  /**
+   * How many Earth Days of the Mission Director's use of the stock must be
+   * left once it is filled; its Construction waits until there is.
+   */
+  readonly reserveEarthDays: number;
 }
 
 /**
@@ -755,7 +831,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 42,
+  version: 48,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -925,6 +1001,7 @@ export const catalogue: Catalogue = {
     // Labelled a pad light because the Glossary avoids "floodlight", but
     // saves from version 32 on name it by this id, so the id stays.
     { id: "landing-floodlight", label: "Pad light" },
+    { id: "water-wall-bladder", label: "Water-wall bladder" },
   ],
   structureTypes: [
     {
@@ -1115,11 +1192,14 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // The heaters that keep the cells warm enough to work.
+      // A pack of modern cells, about what a small electric car carries. The
+      // heaters that keep them warm enough to work take 16 kWh through a
+      // Night, a twelfth of what it stores, so that a battery bank carries
+      // most of it through one.
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 60,
-        drawKilowatts: 0.25,
+        storageKilowattHours: 200,
+        drawKilowatts: 0.07,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1156,8 +1236,8 @@ export const catalogue: Catalogue = {
       },
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 60,
-        drawKilowatts: 0.25,
+        storageKilowattHours: 200,
+        drawKilowatts: 0.07,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1187,11 +1267,12 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // The heaters that keep the cells warm enough to work.
+      // The heaters that keep the cells warm enough to work: three times a
+      // battery bank's, for four times the storage.
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 240,
-        drawKilowatts: 0.4,
+        storageKilowattHours: 800,
+        drawKilowatts: 0.2,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1232,8 +1313,8 @@ export const catalogue: Catalogue = {
     },
     // A Light Mast on a pole twice as tall, with two light heads, lighting
     // a circle twice as wide: four times the ground for two and a half
-    // times the power. Through a Night it draws 228 kWh, a little less than
-    // a large battery bank stores.
+    // times the power. Through a Night it draws 228 kWh, a little more than
+    // a battery bank stores.
     {
       id: "tall-light-mast",
       label: "Tall Light Mast",
@@ -1403,6 +1484,45 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: true,
       landingPad: false,
+    },
+    // Bladders of water laid over a Habitat's Regolith shielding: water is
+    // rich in hydrogen, which stops the protons of the Sun and the cosmic
+    // rays that get through Regolith better than Regolith does. The
+    // bladders are shipped empty and filled from the base's water as they
+    // go up, so a water wall is as much water as it is Components, and
+    // making water matters beyond what the Mission Director drinks.
+    {
+      id: "water-wall",
+      label: "Water wall",
+      designId: "water-wall-shielding",
+      // The same as the Habitat's and its shielding's, which it stands over.
+      footprintRadiusMetres: 4,
+      components: [{ componentId: "water-wall-bladder", count: 4 }],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 1,
+        assembly: 6,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      // Nothing moves in it for Dust to wear.
+      dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // About 12 Earth Days of what a water-processing plant makes, or most
+      // of what an Expedition's water ice gives, on top of a fortnight's
+      // drinking water kept back for the Mission Director.
+      waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
     },
     {
       id: "landing-pad",
@@ -2032,8 +2152,15 @@ export const catalogue: Catalogue = {
   startingStock: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
-    { componentId: "battery-module", count: 3 },
-    { componentId: "battery-cabinet", count: 1 },
+    // Three battery banks, 600 kWh: enough to carry the Habitat, two solar
+    // arrays, their own heaters and those of the Machines and the Rover,
+    // about 480 kWh in all, through a Night, and two would not be. Nothing
+    // that stores more can arrive in time for the Habitat's first Night:
+    // the Milestones put the first Research Task, and so the Science for
+    // Large battery banks, after the landing pad, whose Components need a
+    // Launch, which can't leave until the Mission Director has moved in.
+    { componentId: "battery-module", count: 9 },
+    { componentId: "battery-cabinet", count: 3 },
     { componentId: "mast-pole", count: 4 },
     { componentId: "light-head", count: 4 },
     // The inflatable Habitat kit.
@@ -2068,32 +2195,44 @@ export const catalogue: Catalogue = {
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
   // surface, so that the limit comes in 20 Earth Days and shielding the
-  // Habitat is urgent. Shielding cuts it to a tenth.
+  // Habitat is urgent. Regolith shielding cuts it to a twentieth, so that
+  // with Solar Particle Events the limit still comes in about nine
+  // Lunations; a water wall over the shielding cuts it to a tenth of that
+  // again, so that it comes only after many years and an open-ended
+  // Campaign can go on.
   radiation: {
     doseRateMillisievertsPerEarthDay: {
       lander: 0,
       habitat: 30,
-      shieldedHabitat: 3,
+      shieldedHabitat: 1.5,
+      waterWalledHabitat: 0.15,
     },
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
   },
   // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
-  // Day or so takes half the dose limit in an unshielded Habitat, but a
-  // twentieth in a shielded one.
+  // Day or so takes half the dose limit in an unshielded Habitat, a
+  // fortieth in a shielded one and a four-hundredth in a water-walled one.
   solarParticleEvents: {
     earthDaysBetween: { min: 10, max: 30 },
     durationHours: { min: 6, max: 30 },
     warningHours: 4,
     doseRateMultiplier: 10,
   },
-  // Enough for one well-filled Launch, so the first one has to count.
-  // Exports earn more later.
-  programmeGrantMillionDollars: 400,
+  // Enough for the Launches before the base earns: the first brings the
+  // landing pad with oxygen, water and spare Components ($200M), the second
+  // the export Plants and a second solar array ($301M), and the one after
+  // the first sale of wafers, which sell for no more than the Launch fee, a
+  // circuit board plant and a water-processing plant with what the base
+  // needs besides (about $265M, the sale paying $150M of it). From then on
+  // circuit boards pay for every Launch.
+  programmeGrantMillionDollars: 650,
   // Each Launch carries two tonnes and costs a fixed fee for the flight, on
   // top of the price of what it brings. The Habitat kit is by far the
   // dearest, so the Funding runs out before the Payload Mass does if a
-  // Launch brings two.
+  // Launch brings two. A landing pad and supplies fill one Launch, and an
+  // extraction plant, a vacuum fabrication plant and a second solar array
+  // to power them (1950 kg) another.
   launch: {
     payloadMassLimitKilograms: 2000,
     feeMillionDollars: 150,
@@ -2385,6 +2524,14 @@ export const catalogue: Catalogue = {
         massKilograms: 320,
         priceMillionDollars: 6,
       },
+      // Shipped empty and folded; a water wall's worth comes to 240 kg.
+      {
+        id: "water-wall-bladder",
+        designId: "water-wall-shielding",
+        brings: { kind: "component", componentId: "water-wall-bladder" },
+        massKilograms: 60,
+        priceMillionDollars: 5,
+      },
       // A humanoid Robot built for the Moon, crated with its spares and
       // tools. With the Launch fee, one costs half the Programme Grant, so
       // a second Robot is a real choice against Components and supplies.
@@ -2465,6 +2612,13 @@ export const catalogue: Catalogue = {
       label: "Plume erosion survey",
       lengthHours: 72,
       science: 30,
+    },
+    {
+      id: "water-wall-dosimetry",
+      label: "Water-wall dosimetry",
+      lengthHours: 72,
+      science: 30,
+      requiresDesignId: "water-wall-shielding",
     },
     {
       id: "thin-film-cell-ageing-study",
@@ -2577,7 +2731,7 @@ export const catalogue: Catalogue = {
       id: "tall-light-masts",
       label: "Tall Light Masts",
       description:
-        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing about what a large battery bank stores.",
+        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing a little more than a battery bank stores.",
       category: "power",
       starting: false,
       scienceCost: 30,
@@ -2672,6 +2826,16 @@ export const catalogue: Catalogue = {
       starting: false,
       scienceCost: 30,
       prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
+    },
+    {
+      id: "water-wall-shielding",
+      label: "Water-wall shielding",
+      description:
+        "Bladders of water laid over a Habitat's Regolith shielding, which stop much of the radiation that gets through Regolith.",
+      category: "protection",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["regolith-shielding"],
     },
     {
       id: "hardened-habitat",
@@ -2857,4 +3021,60 @@ export const catalogue: Catalogue = {
   // As for oxygen and water. The starting stock lasts longer than the first
   // at the wear of ordinary work, but not with Machines in the cold.
   spareComponentWarningEarthDaysLeft: [7, 3, 1],
+  milestones: [
+    {
+      id: "power-storage",
+      label: "Power storage before the first Night",
+      hint: "Build the battery banks from the starting stock beside a solar array, so the base has stored power when the first Night falls: the Habitat needs all of them to get through one.",
+      condition: { kind: "power-storage-commissioned" },
+    },
+    {
+      id: "moved-in",
+      label: "Habitat commissioned, Mission Director moved in",
+      hint: "Build the inflatable Habitat from the starting stock on the power network, and once every battery bank is commissioned and the status panel shows them fully charged, press Move in beside it in the Structures list.",
+      condition: { kind: "mission-director-moved-in" },
+    },
+    {
+      id: "lander-departs",
+      label: "Lander departs",
+      hint: "The Programme Grant pays for the Launches until Exports earn: put a landing pad's panels and beacon on the Launch manifest, with oxygen, water and spare Components, then Send the Lander from the status panel. Keep enough for the export Plants on the next.",
+      condition: { kind: "lander-took-off" },
+    },
+    {
+      id: "habitat-shielded",
+      label: "Habitat shielded",
+      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose inside to a twentieth.",
+      condition: { kind: "habitat-shielded" },
+    },
+    {
+      id: "landing-pad",
+      label: "Landing pad",
+      hint: "Put the landing pad's pad panels and beacon on the Launch manifest, then build a landing pad clear of the base, so the Lander stops blasting Plume Ejecta over it.",
+      condition: { kind: "landing-pad-commissioned" },
+    },
+    {
+      id: "first-research-task",
+      label: "First Research Task",
+      hint: "Open Research Tasks in the top bar and start one: it runs by itself and pays Science, which unlocks Designs on the Tech Tree.",
+      condition: { kind: "research-task-completed" },
+    },
+    {
+      id: "first-export",
+      label: "First Export",
+      hint: "Ship an extraction plant, a vacuum fabrication plant and a second solar array to power them, to make wafers from Regolith; load the wafers on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
+      condition: { kind: "export-sold" },
+    },
+    {
+      id: "oxygen-self-sufficient",
+      label: "Oxygen self-sufficiency",
+      hint: "Keep the extraction plant the first Launch brought making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
+      condition: { kind: "self-sufficient", stockId: "oxygen" },
+    },
+    {
+      id: "water-self-sufficient",
+      label: "Water self-sufficiency",
+      hint: "Ship a water-processing plant and send Expeditions for water ice, until the base's Plants have made at least as much water as the Mission Director drinks over a whole Lunation.",
+      condition: { kind: "self-sufficient", stockId: "water" },
+    },
+  ],
 };

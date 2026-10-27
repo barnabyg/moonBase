@@ -1263,6 +1263,20 @@ describe("the data catalogue", () => {
       });
     });
 
+    it("draws more for its heaters than a battery bank does, but less for each kilowatt-hour it stores", () => {
+      const { power: largePower } = large;
+      const { power: smallPower } = small;
+
+      expect(largePower.drawKilowatts).toBeGreaterThan(
+        smallPower.drawKilowatts,
+      );
+      expect(
+        largePower.drawKilowatts / largePower.storageKilowattHours,
+      ).toBeLessThan(
+        smallPower.drawKilowatts / smallPower.storageKilowattHours,
+      );
+    });
+
     it("stores at least three times what a battery bank does, for less mass and less money for each kilowatt-hour", () => {
       const storage = (type: StructureType) => type.power.storageKilowattHours;
 
@@ -1576,9 +1590,9 @@ describe("the data catalogue", () => {
     });
   });
 
-  it("has about 25 Designs in the Tech Tree, and no more than 28", () => {
+  it("has about 25 Designs in the Tech Tree, and no more than 30", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(28);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(30);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something to build or ship", () => {
@@ -2003,6 +2017,73 @@ describe("the data catalogue", () => {
     });
   });
 
+  describe("Water-wall shielding", () => {
+    const walls = catalogue.structureTypes.filter(
+      (type) => type.waterWall !== undefined,
+    );
+    const [wall] = walls;
+    const habitat = catalogue.structureTypes.find((type) => type.habitat);
+    const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
+
+    it("is a Protection Design beyond the starting ones, needing Regolith shielding first, for the one water wall", () => {
+      expect(walls).toHaveLength(1);
+      expect(
+        catalogue.designs.find((design) => design.id === wall?.designId),
+      ).toMatchObject({
+        category: "protection",
+        starting: false,
+        prerequisiteDesignIds: ["regolith-shielding"],
+      });
+    });
+
+    it("has the water wall stand on the Habitat's footprint, built from Components of its own that a Launch brings and the starting stock doesn't hold, using no power, and not count as Regolith shielding", () => {
+      expect(wall?.footprintRadiusMetres).toBe(habitat?.footprintRadiusMetres);
+      expect(wall?.shieldsHabitat).toBe(false);
+      expect(wall?.habitat).toBe(false);
+      expect(
+        Object.values(wall?.power ?? {}).every((value) => value === 0),
+      ).toBe(true);
+      let mass = 0;
+      for (const need of wall?.components ?? []) {
+        const item = catalogue.launch.items.find(
+          (candidate) =>
+            candidate.brings.kind === "component" &&
+            candidate.brings.componentId === need.componentId,
+        );
+        expect(item?.designId).toBe(wall?.designId);
+        expect(
+          catalogue.startingStock.some(
+            (stock) => stock.componentId === need.componentId,
+          ),
+        ).toBe(false);
+        mass += (item?.massKilograms ?? Infinity) * need.count;
+      }
+      expect(wall?.components.length).toBeGreaterThan(0);
+      expect(mass).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
+    });
+
+    it("fills the water wall from a life support stock, with more than the reserve it leaves the Mission Director", () => {
+      const rules = wall?.waterWall;
+      const stock = catalogue.lifeSupportStocks.find(
+        (candidate) => candidate.id === rules?.stockId,
+      );
+
+      expect(stock).toBeDefined();
+      expect(rules?.reserveEarthDays).toBeGreaterThan(0);
+      expect(rules?.kilograms).toBeGreaterThan(
+        (rules?.reserveEarthDays ?? Infinity) *
+          (stock?.usePerEarthDayKilograms ?? Infinity),
+      );
+    });
+
+    it("lets less radiation into a water-walled Habitat than a Habitat with Regolith shielding alone, but some", () => {
+      expect(rates.waterWalledHabitat).toBeGreaterThan(0);
+      expect(rates.waterWalledHabitat).toBeLessThan(rates.shieldedHabitat);
+    });
+  });
+
   describe("the Protection Designs", () => {
     const structureType = (id: string) => {
       const found = catalogue.structureTypes.find((type) => type.id === id);
@@ -2028,8 +2109,15 @@ describe("the data catalogue", () => {
       ["whipple-shielded-battery-bank", "battery-bank", ["micrometeorites"]],
       ["hardened-habitat", "habitat", ["micrometeorites", "plumeEjecta"]],
     ];
+    // Water-wall shielding hardens nothing: it goes over a Habitat's
+    // Regolith shielding, and has tests of its own (below).
     const protection = catalogue.designs.filter(
-      (design) => design.category === "protection" && !design.starting,
+      (design) =>
+        design.category === "protection" &&
+        !design.starting &&
+        !catalogue.structureTypes.some(
+          (type) => type.designId === design.id && type.waterWall !== undefined,
+        ),
     );
 
     it("has three to five, each unlocking a hardened Structure, that together cover more than one Hazard", () => {
@@ -2268,4 +2356,71 @@ describe("the data catalogue", () => {
       }
     },
   );
+});
+
+describe("the Milestones", () => {
+  it("are listed in order, each with a unique id and label and a one-line hint", () => {
+    const { milestones } = catalogue;
+
+    expect(milestones.map((milestone) => milestone.id)).toEqual([
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+      "habitat-shielded",
+      "landing-pad",
+      "first-research-task",
+      "first-export",
+      "oxygen-self-sufficient",
+      "water-self-sufficient",
+    ]);
+    expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
+      milestones.length,
+    );
+    expect(new Set(milestones.map((milestone) => milestone.label)).size).toBe(
+      milestones.length,
+    );
+    for (const { label, hint } of milestones) {
+      expect(label.trim()).not.toBe("");
+      expect(hint.trim()).not.toBe("");
+      expect(hint).not.toContain("\n");
+    }
+  });
+
+  it("judge self-sufficiency only in a life support stock the data catalogue has", () => {
+    for (const { condition } of catalogue.milestones) {
+      if (condition.kind !== "self-sufficient") continue;
+      expect(catalogue.lifeSupportStocks.map((stock) => stock.id)).toContain(
+        condition.stockId,
+      );
+    }
+  });
+
+  it("carry no reward, only a condition", () => {
+    for (const milestone of catalogue.milestones) {
+      expect(Object.keys(milestone).sort()).toEqual([
+        "condition",
+        "hint",
+        "id",
+        "label",
+      ]);
+    }
+  });
+
+  it("name the deadline of power storage, and point at the battery bank in the starting stock", () => {
+    const [powerStorage] = catalogue.milestones;
+    const bank = catalogue.structureTypes.find(
+      (type) => type.id === "battery-bank",
+    );
+
+    expect(powerStorage?.label).toMatch(/before the first Night/);
+    expect(powerStorage?.hint).toMatch(/battery bank/);
+    expect(powerStorage?.hint).toMatch(/starting stock/);
+    for (const need of bank?.components ?? []) {
+      expect(
+        catalogue.startingStock.find(
+          (stock) => stock.componentId === need.componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(need.count);
+    }
+  });
 });

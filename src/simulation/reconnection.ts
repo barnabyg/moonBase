@@ -1,7 +1,12 @@
 import type { CampaignState } from "./campaign";
 import type { StructureState } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
-import { findCable, hasPowerSource, powerNetworks, usesPower } from "./power";
+import {
+  findCable,
+  hasPowerSource,
+  structureNetworks,
+  usesPower,
+} from "./power";
 
 /**
  * A plan to lay cable to a commissioned Structure cut off from power, which
@@ -27,7 +32,7 @@ export interface ReconnectionState {
  * isn't cabled; any cable left half-laid to it goes.
  */
 export function planReconnections(state: CampaignState): void {
-  const toReconnect = powerNetworks(state)
+  const toReconnect = structureNetworks(state)
     .filter(
       (network) =>
         !hasPowerSource(network) &&

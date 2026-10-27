@@ -16,6 +16,26 @@ import {
  */
 const samples = new URL("./saves/", import.meta.url);
 
+/**
+ * Runs a loaded sample until its battery banks are full, so that its Plants
+ * get power again: they run only on what no battery bank can store, and a
+ * battery bank may store more now than when the sample was saved.
+ */
+function untilBatteriesFull(campaign: Campaign): void {
+  for (let hours = 0; ; hours++) {
+    const full = campaign
+      .snapshot()
+      .power.networks.every(
+        (network) =>
+          network.storedKilowattHours >=
+          network.storageCapacityKilowattHours - 1e-6,
+      );
+    if (full) return;
+    if (hours > 3 * 24) throw new Error("The battery banks never filled.");
+    campaign.advance(60);
+  }
+}
+
 function loadSample(name: string): Campaign {
   const result = loadCampaign(readFileSync(new URL(name, samples), "utf8"));
   if (!result.ok) throw new Error(`${name}: ${result.message}`);
@@ -33,13 +53,14 @@ describe("the sample saves", () => {
 
 describe("the sample saves from before Funding", () => {
   it.each(["version-1.moonbase", "version-2.moonbase"])(
-    "%s loads with the Programme Grant as its Funding, and an empty Launch manifest",
+    "%s loads with the Programme Grant of the time as its Funding, and an empty Launch manifest",
     (name) => {
       const state = loadSample(name).snapshot();
 
-      expect(state.fundingMillionDollars).toBe(
-        catalogue.programmeGrantMillionDollars,
-      );
+      // The Programme Grant as it was when format version 3 brought in
+      // Funding, which the migration names, so that tuning the grant later
+      // doesn't change what an old save loads with.
+      expect(state.fundingMillionDollars).toBe(400);
       expect(state.launchManifest).toEqual({
         items: [],
         payloadMassKilograms: 0,
@@ -1529,6 +1550,7 @@ describe("the sample save of format version 25", () => {
 
   it("plays on from where it was saved, the silicon rising and the oxygen falling, until the plant is switched back to oxygen", () => {
     const campaign = loadSample("version-25.moonbase");
+    untilBatteriesFull(campaign);
     const silicon = bulkOf(campaign, "silicon");
 
     campaign.advance(10 * 60);
@@ -2139,6 +2161,7 @@ describe("the sample save of format version 32", () => {
       if (hours > 24) throw new Error("It was never commissioned.");
       campaign.advance(60);
     }
+    untilBatteriesFull(campaign);
     const oxygen = (state: Snapshot) =>
       state.lifeSupport.find((stock) => stock.stockId === "oxygen")
         ?.kilograms ?? Number.NaN;
@@ -2157,5 +2180,142 @@ describe("the sample save of format version 32", () => {
     });
     expect(ice(after)).toBeLessThan(ice(before));
     expect(oxygen(after)).toBeGreaterThan(oxygen(before));
+  });
+});
+
+describe("the sample saves from before the Milestones", () => {
+  it.each(["version-4.moonbase", "version-6.moonbase"])(
+    "%s, saved with the Lander away, loads with the Lander departing reached",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.lander.legEndsAtMinute).toBeDefined();
+      expect(state.milestones.reachedIds).toEqual(["lander-departs"]);
+    },
+  );
+
+  it.each([
+    ["version-1.moonbase", ["power-storage", "moved-in"]],
+    ["version-22.moonbase", ["power-storage", "moved-in"]],
+    [
+      "version-31.moonbase",
+      [
+        "power-storage",
+        "moved-in",
+        "habitat-shielded",
+        "landing-pad",
+        "first-research-task",
+      ],
+    ],
+    [
+      "version-32.moonbase",
+      ["power-storage", "moved-in", "first-research-task"],
+    ],
+  ])(
+    "%s, saved with the Lander landed, loads with none reached, then reaches those its state meets as play goes on",
+    (name, meets) => {
+      const campaign = loadSample(name);
+      expect(campaign.snapshot().milestones.reachedIds).toEqual([]);
+
+      const events = campaign.advance(1);
+
+      expect(
+        events.flatMap((event) =>
+          event.kind === "milestone-reached" ? [event.milestoneId] : [],
+        ),
+      ).toEqual(meets);
+      expect(campaign.snapshot().milestones.reachedIds).toEqual(meets);
+    },
+  );
+});
+
+describe("the sample save of format version 33", () => {
+  // Saved 3302 game-minutes in, an hour and a half after the Mission
+  // Director moved into a Habitat beside a solar array and a battery bank,
+  // with the Lander landed and free to fly.
+  it("loads with power storage and moving in reached, and the Lander departing current", () => {
+    const state = loadSample("version-33.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(3302);
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.lander.state).toBe("landed-free");
+    expect(state.milestones).toMatchObject({
+      reachedIds: ["power-storage", "moved-in"],
+      currentId: "lander-departs",
+    });
+  });
+
+  it("plays on from where it was saved, reaching the Lander departing as it takes off", () => {
+    const campaign = loadSample("version-33.moonbase");
+    expect(campaign.sendLander()).toEqual({ ok: true });
+
+    const events = campaign.advance(1);
+
+    expect(events.map((event) => event.kind)).toEqual(
+      expect.arrayContaining(["lander-took-off", "milestone-reached"]),
+    );
+    expect(campaign.snapshot().milestones.reachedIds).toEqual([
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+    ]);
+  });
+});
+
+describe("the sample saves from before Water-wall shielding", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-33.moonbase"])(
+    "%s loads with no water-wall bladders, counted after the earlier Components in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.at(-1)).toEqual({
+        componentId: "water-wall-bladder",
+        count: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 34", () => {
+  // Saved 9970 game-minutes in, an hour into the Assembly of a water wall
+  // over the Mission Director's Habitat and its Regolith shielding, once
+  // Water-wall shielding was unlocked, its four bladders brought and
+  // filled from the water stock as its Assembly started.
+  it("loads with Water-wall shielding unlocked and a water wall being assembled over the shielded Habitat", () => {
+    const state = loadSample("version-34.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(9970);
+    expect(state.unlockedDesignIds).toContain("water-wall-shielding");
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(
+      state.structures.find((s) => s.structureTypeId === "habitat"),
+    ).toMatchObject({ shielded: true, waterWalled: false });
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        structureTypeId: "water-wall",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+  });
+
+  it("plays on from where it was saved, the water wall commissioned within a day and cutting the Radiation Dose", () => {
+    const campaign = loadSample("version-34.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(
+      state.structures.find((s) => s.structureTypeId === "habitat"),
+    ).toMatchObject({ shielded: true, waterWalled: true });
+    expect(campaign.forecasts().radiationDose.millisievertsPerEarthDay).toBe(
+      catalogue.radiation.doseRateMillisievertsPerEarthDay.waterWalledHabitat,
+    );
   });
 });

@@ -241,6 +241,20 @@ export const materials = {
     roughness: 0.45,
     flatShading: true,
   }),
+  // A water-wall bladder: a coated fabric tube, pale blue-grey, with the
+  // faint sheen of the water filling it.
+  waterBladder: new THREE.MeshStandardMaterial({
+    color: 0x9fb4c4,
+    metalness: 0.05,
+    roughness: 0.55,
+    flatShading: true,
+  }),
+  // The webbing straps that hold the bladders down over the shielding.
+  bladderStrap: new THREE.MeshStandardMaterial({
+    color: 0x55504a,
+    metalness: 0,
+    roughness: 0.9,
+  }),
   // Sintered Regolith panels, darker and smoother than the ground round them.
   padPanel: new THREE.MeshStandardMaterial({
     color: 0x5d5a55,

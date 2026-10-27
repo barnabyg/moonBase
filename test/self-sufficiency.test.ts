@@ -227,6 +227,60 @@ describe("self-sufficiency", () => {
     expect(judged(campaign, "water").selfSufficient).toBe(true);
   });
 
+  it("keeps its Milestone reached once the base stops being self-sufficient", () => {
+    const gainedBase = base();
+    untilGained(gainedBase, "oxygen");
+    expect(gainedBase.snapshot().milestones.reachedIds).toContain(
+      "oxygen-self-sufficient",
+    );
+    // No more Regolith, so the extraction plant stops for good.
+    const campaign = withStocks(gainedBase, { regolith: 0 });
+
+    const events: GameEvent[] = [];
+    for (let hours = 0; judged(campaign, "oxygen").selfSufficient; hours++) {
+      if (hours > windowMinutes / 60) throw new Error("It was never lost.");
+      events.push(...campaign.advance(60));
+    }
+
+    expect(events.map((event) => event.kind)).not.toContain(
+      "milestone-reached",
+    );
+    expect(campaign.snapshot().milestones.reachedIds).toContain(
+      "oxygen-self-sufficient",
+    );
+  });
+
+  it("reaches the oxygen and water self-sufficiency Milestones in the game-minute each is gained", () => {
+    const campaign = base();
+    const events: GameEvent[] = [];
+    for (
+      let hours = 0;
+      !judged(campaign, "oxygen").selfSufficient ||
+      !judged(campaign, "water").selfSufficient;
+      hours++
+    ) {
+      if (hours > (3 * windowMinutes) / 60) throw new Error("It never came.");
+      events.push(...campaign.advance(60));
+    }
+
+    for (const [stockId, milestoneId] of [
+      ["oxygen", "oxygen-self-sufficient"],
+      ["water", "water-self-sufficient"],
+    ] as const) {
+      const gained = events.find(
+        (event) =>
+          event.kind === "self-sufficiency-gained" && event.stockId === stockId,
+      );
+      const reached = events.find(
+        (event) =>
+          event.kind === "milestone-reached" &&
+          event.milestoneId === milestoneId,
+      );
+      expect(gained).toBeDefined();
+      expect(reached?.atMinute).toBe(gained?.atMinute);
+    }
+  });
+
   it("goes on the same way through saving and loading", () => {
     const campaign = base();
     campaign.advance(windowMinutes / 2);

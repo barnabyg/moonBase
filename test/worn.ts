@@ -15,6 +15,7 @@ export interface SavedState {
   stockpile: { components: { componentId: string; count: number }[] };
   bulkResources: { resourceId: string; kilograms: number }[];
   lifeSupport: { stockId: string; kilograms: number }[];
+  fundingMillionDollars: number;
 }
 
 /**
@@ -30,6 +31,19 @@ export function changed(
   const loaded = loadCampaign(JSON.stringify(document));
   if (!loaded.ok) throw new Error(loaded.message);
   return loaded.campaign;
+}
+
+/**
+ * The Campaign as saved, but with the Funding balance given: a stand-in for
+ * the Launches that would have spent the Programme Grant down to it.
+ */
+export function withFunding(
+  campaign: Campaign,
+  fundingMillionDollars: number,
+): Campaign {
+  return changed(campaign, (state) => {
+    state.fundingMillionDollars = fundingMillionDollars;
+  });
 }
 
 /**

@@ -48,6 +48,7 @@ import {
   chooseWorkSpot,
   findStructureType,
   isShielded,
+  isWaterWalled,
   stageMinutes,
   type ConstructionPlan,
   type ConstructionStage,
@@ -87,6 +88,11 @@ import {
   type ManifestLine,
   type ManifestResult,
 } from "./launch-manifest";
+import {
+  readMilestones,
+  watchMilestones,
+  type MilestonesSnapshot,
+} from "./milestones";
 import {
   moveMissionDirectorIn,
   type MissionDirectorResidence,
@@ -343,6 +349,11 @@ export interface StructureSnapshot {
    */
   readonly shielded: boolean;
   /**
+   * Whether it is a shielded Habitat with a commissioned water wall over
+   * its shielding, none of them Broken.
+   */
+  readonly waterWalled: boolean;
+  /**
    * How intact it is, from 100% down to 0%, when it is Broken and does
    * nothing until it is repaired.
    */
@@ -512,6 +523,8 @@ export interface Snapshot {
    * then the others in the order they were unlocked.
    */
   readonly unlockedDesignIds: readonly string[];
+  /** The Milestones reached, and the ones to aim for now and next. */
+  readonly milestones: MilestonesSnapshot;
   /** The Exports to load onto the Lander, those aboard it, and what they come to. */
   readonly exports: ExportsSnapshot;
   /**
@@ -733,6 +746,8 @@ export interface CampaignState {
    * then the others in the order they were unlocked.
    */
   unlockedDesignIds: string[];
+  /** The ids of the Milestones reached, in the order they were. */
+  reachedMilestoneIds: string[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -786,6 +801,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     researchTask: undefined,
     completedResearchTaskIds: [],
     unlockedDesignIds: startingDesignIds(),
+    reachedMilestoneIds: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -1027,6 +1043,7 @@ function campaignFrom(state: CampaignState): Campaign {
         researchTask: readResearchTask(state),
         completedResearchTaskIds: [...state.completedResearchTaskIds],
         unlockedDesignIds: [...state.unlockedDesignIds],
+        milestones: readMilestones(state),
         exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
@@ -1077,6 +1094,7 @@ function campaignFrom(state: CampaignState): Campaign {
           return {
             ...copy(structure),
             shielded: isShielded(state, structure),
+            waterWalled: isWaterWalled(state, structure),
             performance,
             plant: readPlant(state, structure),
             lightRadiusMetres:
@@ -1189,6 +1207,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...(death === undefined ? dangers : [death]));
   if (death === undefined) {
     events.push(...watchSelfSufficiency(state, selfSufficiencyBefore));
+    events.push(...watchMilestones(state, events));
   }
   return events;
 }

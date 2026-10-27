@@ -786,6 +786,49 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 32 to 33: the Milestones reached. The base kept no record of its past,
+  // so this marks reached only what the saved state shows of a moment that
+  // has passed: the Lander departing, while it is away. The Milestones
+  // whose condition the saved state meets are reached as play goes on. The
+  // id is the one when format version 33 came in, so that renaming it later
+  // doesn't change what this migration gives.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { lander } = state;
+    const away = isRecord(lander) && isRecord(lander["trip"]);
+    return {
+      ...document,
+      state: {
+        ...state,
+        reachedMilestoneIds: away ? ["lander-departs"] : [],
+      },
+    };
+  },
+  // 33 to 34: Water-wall shielding, whose water wall brings a new
+  // Component, which the base's stock keeps a count of after the others.
+  // None was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "water-wall-bladder", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**
@@ -1491,6 +1534,7 @@ const simulationState = object({
   ),
   completedResearchTaskIds: list(researchTaskId),
   unlockedDesignIds: list(designId),
+  reachedMilestoneIds: list(catalogueId(catalogue.milestones, "Milestone")),
   ended: optional(campaignEnd),
   robots: list(
     object({

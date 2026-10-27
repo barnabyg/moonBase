@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "reference-campaign": "node scripts/reference-campaign.mjs",
     "audit": "npm audit",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"

@@ -309,6 +309,15 @@ export type GameEvent =
       readonly stockId: string;
     }
   | {
+      /**
+       * A Milestone's condition has held for the first time, and it is
+       * reached for good.
+       */
+      readonly kind: "milestone-reached";
+      readonly atMinute: number;
+      readonly milestoneId: string;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
 
       readonly kind: "mission-director-died";

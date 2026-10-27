@@ -71,7 +71,9 @@ describe("a large battery bank", () => {
 
     game.advance({ hours: 1 });
     const after = networkOf(game.state, batteryId).storedKilowattHours;
-    game.advance({ earthDays: 2 });
+    // Long enough to fill it from the solar array's surplus, still in the
+    // first Daylight.
+    game.advance({ earthDays: 4 });
 
     expect(game.state.lunation.part).toBe("daylight");
     const surplus =

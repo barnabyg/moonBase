@@ -229,7 +229,9 @@ describe("life support warnings", () => {
       .flatMap((skip) => skip.events)
       .filter(
         (event) =>
-          event.kind !== "night-started" && event.kind !== "daylight-started",
+          event.kind !== "night-started" &&
+          event.kind !== "daylight-started" &&
+          event.kind !== "milestone-reached",
       )
       .map((event) =>
         event.kind === "life-support-warning"
