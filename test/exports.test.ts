@@ -178,6 +178,16 @@ describe("the Exports to load", () => {
     expect(campaign.loadExports(wafers(35.5))).toEqual({ ok: true });
   });
 
+  it("give the stock rounded down when refusing over it, so it never reads as enough", () => {
+    const campaign = landerFreeWith(29.97);
+
+    expect(campaign.loadExports(wafers(30))).toMatchObject({
+      reason: "over-stock",
+      message:
+        "That would load 30 kg of wafers, more than the 29.9 kg in stock.",
+    });
+  });
+
   it("are refused while the Lander is away, saying so", () => {
     const campaign = landerFreeWith(60);
     send(campaign);

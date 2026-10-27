@@ -111,7 +111,7 @@ export function loadExports(
     if (kilograms > inStock) {
       return refuse(
         "over-stock",
-        `That would load ${kilogramsInWords(kilograms)} kg of ${labelOf(resourceId).toLowerCase()}, more than the ${kilogramsInWords(inStock)} kg in stock.`,
+        `That would load ${kilogramsInWords(kilograms)} kg of ${labelOf(resourceId).toLowerCase()}, more than the ${stockInWords(inStock)} kg in stock.`,
       );
     }
   }
@@ -218,6 +218,14 @@ function valueOf(lines: readonly ExportLine[]): number {
 /** An amount in kilograms, to the nearest tenth, as a refusal gives it. */
 function kilogramsInWords(kilograms: number): string {
   return String(Math.round(kilograms * 10) / 10);
+}
+
+/**
+ * A stock in kilograms, rounded down to the tenth, as a refusal gives it, so
+ * it never reads as more than there is.
+ */
+function stockInWords(kilograms: number): string {
+  return String(Math.floor(kilograms * 10) / 10);
 }
 
 function labelOf(resourceId: string): string {

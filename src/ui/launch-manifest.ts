@@ -9,9 +9,9 @@ import { setText } from "./dom";
 import {
   formatExportLines,
   formatExportPrice,
+  formatExportStock,
   formatExportsValue,
   formatKilogramAmount,
-  formatKilograms,
   formatLaunchCost,
   formatLaunchItem,
   formatMillionDollars,
@@ -263,7 +263,7 @@ export function createLaunchManifestScreen(
       for (const { sold, inStock, input } of exportRows) {
         setText(
           inStock,
-          formatKilograms(
+          formatExportStock(
             snapshot.bulkResources.find(
               (stock) => stock.resourceId === sold.resourceId,
             )?.kilograms ?? 0,

@@ -678,6 +678,14 @@ export function formatExportPrice(sold: Export): string {
 }
 
 /**
+ * Formats a stock an Export can be loaded from, rounded down to the tenth of
+ * a kilogram the player can set, for example "46.5 kg".
+ */
+export function formatExportStock(kilograms: number): string {
+  return `${Math.floor(kilograms * 10) / 10} kg`;
+}
+
+/**
  * Formats an amount the player sets in kilograms, to the nearest tenth, for
  * example "35.5".
  */
