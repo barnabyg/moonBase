@@ -24,6 +24,7 @@ import {
 } from "./power";
 import { findStructureToReconnect } from "./reconnection";
 import { inStock } from "./stockpile";
+import { findWaterReserveWait, type WaterReserveWait } from "./water-wall";
 
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
@@ -96,7 +97,8 @@ export type ConstructionWait =
        */
       readonly reason: "machine-busy" | "machine-broken" | "machine-maintained";
       readonly machineTypeId: string;
-    };
+    }
+  | WaterReserveWait;
 
 /** The Robot's Work Order at each stage of Construction. */
 const workOrderKinds = {
@@ -119,6 +121,8 @@ export function findWaitingReason(
 ): ConstructionWait | undefined {
   const missing = missingComponents(state, construction);
   if (missing.length > 0) return { reason: "missing-components", missing };
+  const water = findWaterReserveWait(state, construction);
+  if (water !== undefined) return water;
   const machineTypeId = stageMachine(construction)?.machineTypeId;
   if (machineTypeId === undefined) return undefined;
   if (

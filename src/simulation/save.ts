@@ -805,6 +805,30 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 33 to 34: Water-wall shielding, whose water wall brings a new
+  // Component, which the base's stock keeps a count of after the others.
+  // None was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "water-wall-bladder", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**

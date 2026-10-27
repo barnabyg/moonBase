@@ -140,6 +140,10 @@ _Avoid_: colonists, astronauts, settlers
 A Structure in which people live, which provides life support and, once shielded, protection from radiation.
 _Avoid_: accommodation module, hab, living quarters
 
+**Water wall**:
+Bladders of water laid over a Habitat's Regolith shielding, filled from the base's water, which cut the Radiation Dose inside further than Regolith alone.
+_Avoid_: water shield, water jacket, tank
+
 ## Condition
 
 **Condition**:

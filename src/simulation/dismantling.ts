@@ -9,6 +9,7 @@ import {
   componentsFor,
   findStructureType,
   shieldingOver,
+  waterWallOver,
 } from "./construction";
 import { padUnderLander } from "./lander";
 import { livesIn } from "./mission-director";
@@ -82,6 +83,15 @@ export function dismantleStructure(
       ok: false,
       message:
         "Its Regolith shielding is over it, and must be dismantled first.",
+    };
+  }
+  const type = findStructureType(structure.structureTypeId);
+  const wall =
+    type?.shieldsHabitat === true ? waterWallOver(state, structure) : undefined;
+  if (wall !== undefined) {
+    return {
+      ok: false,
+      message: `Its ${(findStructureType(wall.structureTypeId)?.label ?? "water wall").toLowerCase()} is over it, and must be dismantled first.`,
     };
   }
   state.dismantlings.push({

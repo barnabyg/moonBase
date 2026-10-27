@@ -1,7 +1,7 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
-import { isShielded } from "./construction";
+import { isShielded, isWaterWalled } from "./construction";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import {
@@ -93,8 +93,8 @@ export function absorbRadiationDose(
 /**
  * The dose rate where the Mission Director lives in the game-minute
  * starting at the given minute, in millisieverts an Earth Day, while they
- * are alive: less in a Habitat once it is shielded, and multiplied during a
- * Solar Particle Event.
+ * are alive: less in a Habitat once it is shielded, less again once it is
+ * water-walled, and multiplied during a Solar Particle Event.
  */
 function doseRate(state: CampaignState, minute: number): number {
   if (state.ended !== undefined) return 0;
@@ -109,9 +109,13 @@ function doseRate(state: CampaignState, minute: number): number {
   const usual =
     missionDirector.residence === "lander"
       ? rates.lander
-      : habitat !== undefined && isShielded(state, habitat)
-        ? rates.shieldedHabitat
-        : rates.habitat;
+      : habitat === undefined
+        ? rates.habitat
+        : isWaterWalled(state, habitat)
+          ? rates.waterWalledHabitat
+          : isShielded(state, habitat)
+            ? rates.shieldedHabitat
+            : rates.habitat;
   return usual * doseRateMultiplier(state, minute);
 }
 

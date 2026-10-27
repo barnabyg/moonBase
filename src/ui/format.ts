@@ -1157,6 +1157,10 @@ export function isFor(activity: RobotActivity, structureId: string): boolean {
 
 /** Says why a Construction is waiting, for the Construction panel. */
 export function formatWaiting(waiting: ConstructionWait): string {
+  if (waiting.reason === "water-reserve") {
+    const stock = stockLabel(waiting.stockId).toLowerCase();
+    return `Waiting for ${formatKilograms(waiting.missingKilograms)} more ${stock}: filling it must leave the Mission Director a reserve`;
+  }
   if (waiting.reason !== "missing-components") {
     const machine = machineLabel(waiting.machineTypeId).toLowerCase();
     switch (waiting.reason) {

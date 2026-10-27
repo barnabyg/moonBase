@@ -439,6 +439,7 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "sintered-regolith-shielding") {
     return createRegolithShieldingModel(SINTERED_REGOLITH_SHIELDING);
   }
+  if (structureTypeId === "water-wall") return createWaterWallModel();
   if (structureTypeId === "landing-pad") {
     return createLandingPadModel(LANDING_PAD);
   }
@@ -965,6 +966,82 @@ function createRegolithShieldingModel(shape: ShieldingShape): StructureModel {
     },
     setFacing: () => undefined,
     // A mound of Regolith has no status light: the Habitat's shows through.
+    setStatusLight: () => undefined,
+    setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}
+
+/** How many bladders a water wall is laid in, one for each it is built from. */
+const WATER_WALL_BLADDERS = 4;
+/** The height of the ring of bladders' middle, low on the shielding's flank. */
+const WATER_WALL_HEIGHT = 1.1;
+/** The bladders' thickness, from the shielding out, once full. */
+const WATER_WALL_TUBE_RADIUS = 0.55;
+
+/**
+ * A water wall: a ring of fat bladders lying round the lower flank of the
+ * Regolith shielding over a Habitat, each a quarter of the way round, held
+ * down by webbing straps that run up over the dome. During Assembly the
+ * bladders go down one after another and swell as they fill with water.
+ */
+function createWaterWallModel(): StructureModel {
+  const wall = new THREE.Group();
+  wall.name = "Water wall";
+  const ring =
+    shieldingRadiusAt(WATER_WALL_HEIGHT) + WATER_WALL_TUBE_RADIUS * 0.55;
+  const gap = 0.12;
+  const bladders = Array.from({ length: WATER_WALL_BLADDERS }, (_, index) => {
+    const arc = (Math.PI * 2) / WATER_WALL_BLADDERS - gap;
+    const bladder = part(
+      new THREE.TorusGeometry(ring, WATER_WALL_TUBE_RADIUS, 6, 10, arc),
+      materials.waterBladder,
+      [0, WATER_WALL_HEIGHT, 0],
+    );
+    bladder.name = `Bladder ${index + 1}`;
+    bladder.rotation.x = Math.PI / 2;
+    bladder.rotation.z = (index * Math.PI * 2) / WATER_WALL_BLADDERS + gap / 2;
+    wall.add(bladder);
+    return bladder;
+  });
+  // A strap over each gap, from the ground up the dome to its crown.
+  const straps = Array.from({ length: WATER_WALL_BLADDERS }, (_, index) => {
+    const strap = new THREE.Group();
+    strap.name = `Strap ${index + 1}`;
+    const steps = 6;
+    for (let step = 0; step < steps; step++) {
+      const bottom = (step / steps) * SHIELDING_HEIGHT;
+      const top = ((step + 1) / steps) * SHIELDING_HEIGHT;
+      const inner = shieldingRadiusAt(bottom) + 0.03;
+      const outer = shieldingRadiusAt(top) + 0.03;
+      const length = Math.hypot(top - bottom, inner - outer);
+      const piece = part(
+        new THREE.BoxGeometry(0.16, length, 0.04),
+        materials.bladderStrap,
+        [(inner + outer) / 2, (bottom + top) / 2, 0],
+      );
+      piece.rotation.z = Math.atan2(inner - outer, top - bottom);
+      strap.add(piece);
+    }
+    strap.rotation.y = -(index * Math.PI * 2) / WATER_WALL_BLADDERS;
+    wall.add(strap);
+    return strap;
+  });
+
+  return {
+    group: wall,
+    setAssembled(fraction) {
+      const laid = THREE.MathUtils.clamp(fraction, 0, 1) * WATER_WALL_BLADDERS;
+      for (const [index, bladder] of bladders.entries()) {
+        const filled = THREE.MathUtils.clamp(laid - index, 0, 1);
+        bladder.visible = filled > 0;
+        // Laid flat, then swelling as it fills.
+        bladder.scale.z = Math.max(0.2 + 0.8 * filled, 0.01);
+      }
+      for (const strap of straps) strap.visible = laid >= WATER_WALL_BLADDERS;
+    },
+    setFacing: () => undefined,
+    // Like the shielding under it, it has no status light of its own.
     setStatusLight: () => undefined,
     setCharge: () => undefined,
     setLit: () => undefined,

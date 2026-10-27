@@ -322,6 +322,7 @@ function describeStructure(
         ? "shielded"
         : "unshielded"
       : undefined,
+    structure.waterWalled ? "water-walled" : undefined,
     home ? "the Mission Director's home" : undefined,
     formatPerformance(structure.performance),
     formatDustCoating(structure),

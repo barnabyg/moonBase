@@ -33,4 +33,5 @@ export type {
   SelfSufficiencyRules,
   SolarParticleEventRules,
   StructureType,
+  WaterWallRules,
 } from "./catalogue";

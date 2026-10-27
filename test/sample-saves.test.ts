@@ -2239,3 +2239,61 @@ describe("the sample save of format version 33", () => {
     ]);
   });
 });
+
+describe("the sample saves from before Water-wall shielding", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-33.moonbase"])(
+    "%s loads with no water-wall bladders, counted after the earlier Components in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.at(-1)).toEqual({
+        componentId: "water-wall-bladder",
+        count: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 34", () => {
+  // Saved 9970 game-minutes in, an hour into the Assembly of a water wall
+  // over the Mission Director's Habitat and its Regolith shielding, once
+  // Water-wall shielding was unlocked, its four bladders brought and
+  // filled from the water stock as its Assembly started.
+  it("loads with Water-wall shielding unlocked and a water wall being assembled over the shielded Habitat", () => {
+    const state = loadSample("version-34.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(9970);
+    expect(state.unlockedDesignIds).toContain("water-wall-shielding");
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(
+      state.structures.find((s) => s.structureTypeId === "habitat"),
+    ).toMatchObject({ shielded: true, waterWalled: false });
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        structureTypeId: "water-wall",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+  });
+
+  it("plays on from where it was saved, the water wall commissioned within a day and cutting the Radiation Dose", () => {
+    const campaign = loadSample("version-34.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(
+      state.structures.find((s) => s.structureTypeId === "habitat"),
+    ).toMatchObject({ shielded: true, waterWalled: true });
+    expect(campaign.forecasts().radiationDose.millisievertsPerEarthDay).toBe(
+      catalogue.radiation.doseRateMillisievertsPerEarthDay.waterWalledHabitat,
+    );
+  });
+});

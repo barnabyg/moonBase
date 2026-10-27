@@ -457,6 +457,11 @@ export interface RadiationRules {
     readonly habitat: number;
     /** In a Habitat with commissioned Regolith shielding over it. */
     readonly shieldedHabitat: number;
+    /**
+     * In a Habitat with a commissioned water wall over its commissioned
+     * Regolith shielding, none of them Broken.
+     */
+    readonly waterWalledHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -763,6 +768,32 @@ export interface StructureType {
    * the player can choose another, which it runs from the next game-minute.
    */
   readonly recipes?: readonly PlantRecipe[];
+  /**
+   * If it is a water wall: built over a commissioned Habitat with
+   * commissioned Regolith shielding over it, standing centred on them and
+   * the only other Structure allowed to overlap them, and filled with water
+   * as its Assembly starts. Once it is commissioned, neither of them
+   * Broken, the Habitat is water-walled.
+   */
+  readonly waterWall?: WaterWallRules;
+}
+
+/**
+ * How a water wall is filled: with water from a life support stock, taken
+ * as its Assembly starts, and only while what is left still leaves the
+ * Mission Director a reserve of it. The water stays in the wall: neither
+ * cancelling nor dismantling gives it back.
+ */
+export interface WaterWallRules {
+  /** The life support stock the water comes from. */
+  readonly stockId: string;
+  /** How much it takes to fill. */
+  readonly kilograms: number;
+  /**
+   * How many Earth Days of the Mission Director's use of the stock must be
+   * left once it is filled; its Construction waits until there is.
+   */
+  readonly reserveEarthDays: number;
 }
 
 /**
@@ -800,7 +831,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 46,
+  version: 47,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -970,6 +1001,7 @@ export const catalogue: Catalogue = {
     // Labelled a pad light because the Glossary avoids "floodlight", but
     // saves from version 32 on name it by this id, so the id stays.
     { id: "landing-floodlight", label: "Pad light" },
+    { id: "water-wall-bladder", label: "Water-wall bladder" },
   ],
   structureTypes: [
     {
@@ -1452,6 +1484,45 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: true,
       landingPad: false,
+    },
+    // Bladders of water laid over a Habitat's Regolith shielding: water is
+    // rich in hydrogen, which stops the protons of the Sun and the cosmic
+    // rays that get through Regolith better than Regolith does. The
+    // bladders are shipped empty and filled from the base's water as they
+    // go up, so a water wall is as much water as it is Components, and
+    // making water matters beyond what the Mission Director drinks.
+    {
+      id: "water-wall",
+      label: "Water wall",
+      designId: "water-wall-shielding",
+      // The same as the Habitat's and its shielding's, which it stands over.
+      footprintRadiusMetres: 4,
+      components: [{ componentId: "water-wall-bladder", count: 4 }],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 1,
+        assembly: 6,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      // Nothing moves in it for Dust to wear.
+      dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // About 12 Earth Days of what a water-processing plant makes, or most
+      // of what an Expedition's water ice gives, on top of a fortnight's
+      // drinking water kept back for the Mission Director.
+      waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
     },
     {
       id: "landing-pad",
@@ -2134,6 +2205,7 @@ export const catalogue: Catalogue = {
       lander: 0,
       habitat: 30,
       shieldedHabitat: 0.1,
+      waterWalledHabitat: 0.05,
     },
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
@@ -2453,6 +2525,14 @@ export const catalogue: Catalogue = {
         massKilograms: 320,
         priceMillionDollars: 6,
       },
+      // Shipped empty and folded; a water wall's worth comes to 240 kg.
+      {
+        id: "water-wall-bladder",
+        designId: "water-wall-shielding",
+        brings: { kind: "component", componentId: "water-wall-bladder" },
+        massKilograms: 60,
+        priceMillionDollars: 5,
+      },
       // A humanoid Robot built for the Moon, crated with its spares and
       // tools. With the Launch fee, one costs half the Programme Grant, so
       // a second Robot is a real choice against Components and supplies.
@@ -2533,6 +2613,13 @@ export const catalogue: Catalogue = {
       label: "Plume erosion survey",
       lengthHours: 72,
       science: 30,
+    },
+    {
+      id: "water-wall-dosimetry",
+      label: "Water-wall dosimetry",
+      lengthHours: 72,
+      science: 30,
+      requiresDesignId: "water-wall-shielding",
     },
     {
       id: "thin-film-cell-ageing-study",
@@ -2740,6 +2827,16 @@ export const catalogue: Catalogue = {
       starting: false,
       scienceCost: 30,
       prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
+    },
+    {
+      id: "water-wall-shielding",
+      label: "Water-wall shielding",
+      description:
+        "Bladders of water laid over a Habitat's Regolith shielding, which stop much of the radiation that gets through Regolith.",
+      category: "protection",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["regolith-shielding"],
     },
     {
       id: "hardened-habitat",

@@ -34,6 +34,13 @@ export type PlacementRefusal =
   | "not-on-habitat"
   /** The Habitat has Regolith shielding over it already, or planned. */
   | "already-shielded"
+  /**
+   * A water wall must go over a commissioned Habitat, not to be dismantled,
+   * with commissioned Regolith shielding over it.
+   */
+  | "not-on-shielded-habitat"
+  /** The Habitat has a water wall over it already, or planned. */
+  | "already-water-walled"
   | "campaign-ended";
 
 export type PlacementCheck =
@@ -151,9 +158,12 @@ export function hazardShare(
 
 /**
  * Checks whether a Structure may be placed: its footprint must lie wholly on
- * the map and overlap nothing else. Regolith shielding is the exception: it
- * goes over a commissioned Habitat that isn't shielded yet, standing centred
- * on it, and may overlap that Habitat but nothing else.
+ * the map and overlap nothing else. Regolith shielding and water walls are
+ * the exceptions. Regolith shielding goes over a commissioned Habitat that
+ * isn't shielded yet, standing centred on it, and may overlap that Habitat
+ * but nothing else. A water wall goes over a commissioned Habitat with
+ * commissioned Regolith shielding over it and no water wall yet, standing
+ * centred on them, and may overlap them but nothing else.
  */
 export function checkPlacement(
   site: Site,
@@ -165,6 +175,9 @@ export function checkPlacement(
       "unknown-structure-type",
       `There is no Structure called "${plan.structureTypeId}".`,
     );
+  }
+  if (type.waterWall !== undefined) {
+    return checkWaterWallPlacement(site, type, plan.position);
   }
   if (!type.shieldsHabitat) return checkFooting(site, type, plan.position);
   const habitat = site.structures.find(
@@ -197,7 +210,89 @@ export function checkPlacement(
           : "The Habitat is already shielded.",
     );
   }
-  return checkFooting(site, type, habitat.position, habitat.id);
+  return checkFooting(site, type, habitat.position, [habitat.id]);
+}
+
+/** Checks a water wall's placement (see `checkPlacement`). */
+function checkWaterWallPlacement(
+  site: Site,
+  type: StructureType,
+  position: GroundPosition,
+): PlacementCheck {
+  const habitat = site.structures.find(
+    (structure) =>
+      findStructureType(structure.structureTypeId)?.habitat === true &&
+      distance(position, structure.position) <
+        footprintRadius(structure.structureTypeId),
+  );
+  const shielding =
+    habitat === undefined
+      ? undefined
+      : site.structures.find((structure) =>
+          isShieldingOver(structure, habitat),
+        );
+  const name = type.label.toLowerCase();
+  if (
+    habitat === undefined ||
+    shielding === undefined ||
+    site.dismantlings.some(
+      (planned) => planned.id === habitat.id || planned.id === shielding.id,
+    )
+  ) {
+    return refuse(
+      "not-on-shielded-habitat",
+      `The ${name} can only be built over a commissioned Habitat with commissioned Regolith shielding over it.`,
+    );
+  }
+  const existing = waterWallOver(site, habitat);
+  if (existing !== undefined) {
+    const isOne = (other: Footing) => other.id === existing.id;
+    return refuse(
+      "already-water-walled",
+      site.constructions.some(isOne)
+        ? `The Habitat's ${name} is already planned.`
+        : site.dismantlings.some(isOne)
+          ? `The Habitat's ${name} is still being dismantled.`
+          : `The Habitat already has a ${name}.`,
+    );
+  }
+  return checkFooting(site, type, habitat.position, [habitat.id, shielding.id]);
+}
+
+/**
+ * The water wall over a Habitat, whether commissioned, under Construction
+ * or being dismantled, if there is any.
+ */
+export function waterWallOver(
+  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
+  habitat: Footing,
+): Footing | undefined {
+  return footings(site).find((footing) => isWaterWallOver(footing, habitat));
+}
+
+/**
+ * Whether a Structure is a shielded Habitat (see `isShielded`) with a
+ * commissioned water wall over it that isn't Broken.
+ */
+export function isWaterWalled(
+  site: Pick<Site, "structures">,
+  structure: StructureState,
+): boolean {
+  return (
+    isShielded(site, structure) &&
+    site.structures.some(
+      (footing) => isWaterWallOver(footing, structure) && !isBroken(footing),
+    )
+  );
+}
+
+/** Whether something is a water wall over a Habitat, standing centred on it. */
+function isWaterWallOver(footing: Footing, habitat: Footing): boolean {
+  return (
+    findStructureType(footing.structureTypeId)?.waterWall !== undefined &&
+    footing.position.x === habitat.position.x &&
+    footing.position.y === habitat.position.y
+  );
 }
 
 /**
@@ -242,13 +337,13 @@ function isShieldingOver(footing: Footing, habitat: Footing): boolean {
 
 /**
  * Checks that a Structure's footprint, at a position, lies wholly on the map
- * and overlaps nothing but the Structure it may stand over, if any.
+ * and overlaps nothing but the Structures it may stand over, if any.
  */
 function checkFooting(
   site: Site,
   type: StructureType,
   position: GroundPosition,
-  standsOverId?: string,
+  standsOverIds: readonly string[] = [],
 ): PlacementCheck {
   const name = `The ${type.label.toLowerCase()}`;
   const radius = type.footprintRadiusMetres;
@@ -282,7 +377,9 @@ function checkFooting(
       `${name} would overlap the base's stockpile.`,
     );
   }
-  const others = footings(site).filter((other) => other.id !== standsOverId);
+  const others = footings(site).filter(
+    (other) => !standsOverIds.includes(other.id),
+  );
   if (
     others.some(
       (other) =>

@@ -99,6 +99,7 @@ import {
   type Driven,
 } from "./driven";
 import { isClaimedBy } from "./maintenance";
+import { fillWaterWall } from "./water-wall";
 
 /**
  * Where a walking Robot is heading: a Construction's site, the base's
@@ -397,10 +398,14 @@ export function workRobot(
     }
 
     case "assembly":
-      if (
-        walkTo(construction.workSpot, "site") &&
-        workFor("assembling", required)
-      ) {
+      if (!walkTo(construction.workSpot, "site")) return [];
+      if (!fillWaterWall(state, construction)) {
+        // The water ran short on the way; this Construction now waits.
+        robot.workOrder = undefined;
+        robot.activity = { kind: "idle" };
+        return [];
+      }
+      if (workFor("assembling", required)) {
         moveOn(construction, "commissioning");
       }
       return [];
