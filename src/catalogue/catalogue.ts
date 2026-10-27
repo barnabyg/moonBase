@@ -618,7 +618,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 29,
+  version: 30,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -714,6 +714,7 @@ export const catalogue: Catalogue = {
     { id: "regolith", label: "Regolith" },
     { id: "metals", label: "Metals" },
     { id: "silicon", label: "Silicon" },
+    { id: "wafers", label: "Wafers" },
     { id: "water-ice", label: "Water ice" },
   ],
   // About a day's digging fills it, wearing the excavator down by some 8
@@ -741,6 +742,8 @@ export const catalogue: Catalogue = {
     { id: "oxygen-separator", label: "Oxygen separator" },
     { id: "ice-melter", label: "Ice melter" },
     { id: "water-purifier", label: "Water purifier" },
+    { id: "crystal-furnace", label: "Crystal furnace" },
+    { id: "wafer-saw", label: "Wafer saw" },
   ],
   structureTypes: [
     {
@@ -1032,6 +1035,60 @@ export const catalogue: Catalogue = {
         drawKilowatts: 2,
       },
     },
+    {
+      id: "vacuum-fabrication-plant",
+      label: "Vacuum fabrication plant",
+      footprintRadiusMetres: 2.5,
+      // A furnace that grows silicon crystals in the Moon's vacuum, and a saw
+      // that slices them into wafers.
+      components: [
+        { componentId: "crystal-furnace", count: 1 },
+        { componentId: "wafer-saw", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Dust in its saw and seals.
+      dustWearPercentPerHour: 0.04,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // It takes in a little less silicon than an extraction plant makes,
+      // so that, running together, the silicon never quite runs out and it
+      // keeps up without stopping and starting; the saw turns some of it to
+      // dust. Its furnace draws 6 kW: on its own, the starting solar array
+      // can spare that beside the Habitat and a battery bank, but the two
+      // Plants together draw 10 kW, all that array makes, so earning money
+      // from wafers takes a second solar array.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 0.35,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "wafers" },
+            kilogramsPerHour: 0.3,
+          },
+        ],
+        drawKilowatts: 6,
+      },
+    },
   ],
   dismantlingLossShare: 0.2,
   startingStock: [
@@ -1202,6 +1259,20 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "water-purifier" },
         massKilograms: 150,
         priceMillionDollars: 20,
+      },
+      // A vacuum fabrication plant's worth comes to 750 kg, leaving room on
+      // the same Launch for a second solar array to power it.
+      {
+        id: "crystal-furnace",
+        brings: { kind: "component", componentId: "crystal-furnace" },
+        massKilograms: 500,
+        priceMillionDollars: 40,
+      },
+      {
+        id: "wafer-saw",
+        brings: { kind: "component", componentId: "wafer-saw" },
+        massKilograms: 250,
+        priceMillionDollars: 25,
       },
       // In pressurised tanks, which make up the rest of the mass.
       {

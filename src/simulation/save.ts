@@ -489,6 +489,39 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 20 to 21: the vacuum fabrication plant, with two new Components, which
+  // the base's stock keeps a count of after the others, and wafers, which
+  // come among the bulk resources straight after silicon. None of them was
+  // there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "crystal-furnace", count: 0 },
+                  { componentId: "wafer-saw", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? (bulkResources as unknown[]).flatMap((stock) =>
+              isRecord(stock) && stock["resourceId"] === "silicon"
+                ? [stock, { resourceId: "wafers", kilograms: 0 }]
+                : [stock],
+            )
+          : bulkResources,
+      },
+    };
+  },
 ];
 
 /**

@@ -606,6 +606,51 @@ describe("the data catalogue", () => {
     ]);
   });
 
+  describe("the vacuum fabrication plant", () => {
+    const typeOf = (id: string) =>
+      catalogue.structureTypes.find((type) => type.id === id);
+    const plant = typeOf("vacuum-fabrication-plant")?.plant;
+    const extraction = typeOf("extraction-plant")?.plant;
+
+    it("turns silicon into wafers, a bulk resource straight after silicon", () => {
+      expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "silicon" },
+      ]);
+      expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "wafers" },
+      ]);
+      const ids = catalogue.bulkResources.map((resource) => resource.id);
+      expect(ids.indexOf("wafers")).toBe(ids.indexOf("silicon") + 1);
+    });
+
+    it("keeps up with roughly one extraction plant's silicon", () => {
+      const made =
+        extraction?.outputs.find(
+          (flow) =>
+            flow.resource.kind === "bulk-resource" &&
+            flow.resource.resourceId === "silicon",
+        )?.kilogramsPerHour ?? 0;
+      const taken = plant?.inputs[0]?.kilogramsPerHour ?? Infinity;
+
+      expect(taken).toBeLessThanOrEqual(made);
+      expect(taken).toBeGreaterThanOrEqual(made * 0.75);
+    });
+
+    it("runs on what the starting solar array can spare, but not with an extraction plant too", () => {
+      const draw = (id: string) => typeOf(id)?.power.drawKilowatts ?? 0;
+      const spare =
+        (typeOf("solar-array")?.power.generationKilowatts ?? 0) -
+        draw("solar-array") -
+        draw("battery-bank") -
+        draw("habitat");
+
+      expect(plant?.drawKilowatts).toBeLessThanOrEqual(spare);
+      expect(
+        (plant?.drawKilowatts ?? 0) + (extraction?.drawKilowatts ?? 0),
+      ).toBeGreaterThan(spare);
+    });
+  });
+
   describe.each(
     catalogue.structureTypes.flatMap((type) =>
       type.plant === undefined ? [] : [[type.label, type] as const],

@@ -1185,3 +1185,60 @@ describe("the sample save of format version 20", () => {
     });
   });
 });
+
+describe("the sample saves from before the vacuum fabrication plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-20.moonbase"])(
+    "%s loads with no wafers, straight after the silicon, and none of the vacuum fabrication plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      const ids = state.bulkResources.map((stock) => stock.resourceId);
+      expect(ids.indexOf("wafers")).toBe(ids.indexOf("silicon") + 1);
+      expect(
+        state.bulkResources.find((stock) => stock.resourceId === "wafers")
+          ?.kilograms,
+      ).toBe(0);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["crystal-furnace", "wafer-saw"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "crystal-furnace", count: 0 },
+        { componentId: "wafer-saw", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 21", () => {
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with an extraction plant and a vacuum fabrication plant turning Regolith into wafers", () => {
+    const campaign = loadSample("version-21.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.filter((structure) => structure.plant !== undefined)
+        .map((structure) => [structure.structureTypeId, structure.plant]),
+    ).toEqual([
+      ["extraction-plant", { running: true, stoppedFor: undefined }],
+      ["vacuum-fabrication-plant", { running: true, stoppedFor: undefined }],
+    ]);
+    expect(bulkOf(campaign, "wafers")).toBeCloseTo(3.03, 1);
+  });
+
+  it("plays on from where it was saved, the wafers rising while the silicon keeps up", () => {
+    const campaign = loadSample("version-21.moonbase");
+    const wafers = bulkOf(campaign, "wafers");
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "wafers")).toBeGreaterThan(wafers);
+    expect(bulkOf(campaign, "silicon")).toBeGreaterThan(0);
+  });
+});
