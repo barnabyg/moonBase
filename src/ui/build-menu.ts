@@ -12,8 +12,9 @@ export interface BuildMenu {
 
 /**
  * The build menu. The player picks a Structure, moves its translucent preview
- * over the map, and clicks to plan a Construction there. The menu only sends
- * the plan to the Campaign; the simulation decides whether it is allowed.
+ * over the map, and clicks to plan a Construction there. A Structure whose
+ * Design isn't unlocked isn't offered until it is. The menu only sends the
+ * plan to the Campaign; the simulation decides whether it is allowed.
  */
 export function createBuildMenu(
   container: HTMLElement,
@@ -184,7 +185,9 @@ export function createBuildMenu(
   return {
     update(snapshot) {
       ({ plumeEjecta } = snapshot);
-      for (const { type, stock, count, meaning } of buttons) {
+      for (const { type, button, stock, count, meaning } of buttons) {
+        // Not offered until its Design is unlocked.
+        button.hidden = !snapshot.unlockedDesignIds.includes(type.designId);
         const sets = setsAvailable(type, snapshot);
         available.set(type.id, sets);
         // One made from Regolith alone never runs short.

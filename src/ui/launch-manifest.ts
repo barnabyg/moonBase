@@ -31,7 +31,7 @@ export interface LaunchManifestScreen {
  * brings from Earth: each item with its mass and price, how many the
  * manifest has, and its totals against the Payload Mass limit and the
  * Funding balance, with what any Exports aboard the Lander will sell for.
- * Below that, they choose the Exports the Lander carries off the Moon: each
+ * An item whose Design isn't unlocked isn't listed until it is. Below that, they choose the Exports the Lander carries off the Moon: each
  * with what is in stock, its price and the kilograms to load, and their
  * totals against the Return Mass. It only sends what the player asks for to
  * the Campaign, which decides whether it is allowed and says why not. The
@@ -110,7 +110,7 @@ export function createLaunchManifestScreen(
     actions.append(remove, add);
     row.append(name, details, count, actions);
     body.append(row);
-    return { item, count, remove, add };
+    return { item, row, count, remove, add };
   });
 
   const payloadMass = document.createElement("p");
@@ -239,7 +239,9 @@ export function createLaunchManifestScreen(
           ? "Locked: the Lander has left Earth with this manifest, paid for. A new one starts once it has landed."
           : "Choose what the next Launch brings from Earth.",
       );
-      for (const { item, count, remove, add } of rows) {
+      for (const { item, row, count, remove, add } of rows) {
+        // Not listed until its Design is unlocked.
+        row.hidden = !snapshot.unlockedDesignIds.includes(item.designId);
         const onManifest = countOf(item.id);
         setText(count, String(onManifest));
         remove.disabled = locked || onManifest === 0;
