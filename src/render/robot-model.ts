@@ -24,7 +24,7 @@ const THIGH_LENGTH = 0.42;
 const UPPER_ARM_LENGTH = 0.3;
 
 /** A rounded limb segment hanging down from its joint, of the given length. */
-function limb(
+export function limb(
   radius: number,
   length: number,
   material: THREE.Material,
@@ -42,7 +42,7 @@ function limb(
 }
 
 /** A joint that a limb hangs from: turning it swings everything below. */
-function joint(position: [number, number, number]): THREE.Group {
+export function joint(position: [number, number, number]): THREE.Group {
   const pivot = new THREE.Group();
   pivot.position.set(...position);
   return pivot;

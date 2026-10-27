@@ -78,11 +78,14 @@ export function createConstructionViews(scene: THREE.Scene) {
     /**
      * @param sunFacing The angle that turns a panel to face the sun, or
      *   undefined at Night, when panels stay as they are.
+     * @param occupiedHabitatId The Habitat to show the Mission Director
+     *   living in, if any.
      */
     update(
       frame: Frame,
       realSeconds: number,
       sunFacing: number | undefined,
+      occupiedHabitatId: string | undefined,
     ): void {
       const seen = new Set<string>();
       for (const construction of frame.current.constructions) {
@@ -121,6 +124,7 @@ export function createConstructionViews(scene: THREE.Scene) {
             : "off",
         );
         view.model.setRunning?.(structure.plant?.running === true, realSeconds);
+        view.model.setOccupied?.(structure.id === occupiedHabitatId);
         showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(
           view.storageKilowattHours === 0

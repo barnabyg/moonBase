@@ -1,6 +1,5 @@
 import * as THREE from "three";
-
-import { materials, part } from "./materials";
+import { lightWindow, materials, part, windowGlass } from "./materials";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
@@ -228,6 +227,8 @@ export interface StructureModel {
   setLit(on: boolean): void;
   /** Shows a Plant at work, or standing still; nothing for anything else. */
   setRunning?(running: boolean, realSeconds: number): void;
+  /** Shows that the Mission Director lives in a Habitat; nothing for anything else. */
+  setOccupied?(occupied: boolean): void;
 }
 
 /** The model for a type of Structure from the data catalogue. */
@@ -429,6 +430,84 @@ function createHabitatModel(): StructureModel {
   airlock.add(tube, hatch);
   habitat.add(airlock);
 
+  // Windows that glow while the Mission Director lives inside: portholes
+  // round the envelope, and one in the hatch that still shows once
+  // Regolith shielding covers the rest, with a lamp over it.
+  const glass = windowGlass.clone();
+  const portholeHeight = Math.sin(THREE.MathUtils.degToRad(25));
+  for (const degrees of [30, 150, 210, 330]) {
+    const angle = THREE.MathUtils.degToRad(degrees);
+    const out = 3.4 * Math.sqrt(1 - portholeHeight ** 2) - 0.03;
+    const at = new THREE.Vector3(
+      Math.sin(angle) * out,
+      3.4 * portholeHeight * domeHeight,
+      Math.cos(angle) * out,
+    );
+    // Facing straight out from the squashed dome.
+    const normal = new THREE.Vector3(
+      at.x,
+      at.y / domeHeight ** 2,
+      at.z,
+    ).normalize();
+    const porthole = new THREE.Group();
+    porthole.position.copy(at);
+    porthole.lookAt(at.clone().add(normal));
+    porthole.add(
+      part(
+        new THREE.TorusGeometry(0.3, 0.05, 6, 20),
+        materials.darkMetal,
+        [0, 0, 0],
+      ),
+      part(new THREE.CircleGeometry(0.29, 20), glass, [0, 0, 0.01]),
+    );
+    envelope.add(porthole);
+  }
+  const hatchWindow = part(
+    new THREE.CircleGeometry(0.15, 16),
+    glass,
+    [0.87, 0.12, 0],
+  );
+  hatchWindow.rotation.y = Math.PI / 2;
+  const hatchLamp = materials.statusOff.clone();
+  airlock.add(
+    hatchWindow,
+    part(new THREE.BoxGeometry(0.12, 0.08, 0.3), hatchLamp, [0.84, 0.64, 0]),
+  );
+
+  // The mission flag, raised on top of the core when the Mission Director
+  // moves in, high enough to fly above Regolith shielding. With no air to
+  // fly in, it hangs from a rod along its top.
+  const flag = new THREE.Group();
+  const poleTop = 4.9;
+  flag.add(
+    part(
+      new THREE.CylinderGeometry(0.03, 0.03, poleTop - 2.9, 6),
+      materials.aluminium,
+      [0, (poleTop + 2.9) / 2, 0],
+    ),
+    part(
+      new THREE.CylinderGeometry(0.02, 0.02, 1.05, 6).rotateZ(Math.PI / 2),
+      materials.aluminium,
+      [0.52, poleTop - 0.02, 0],
+    ),
+    part(new THREE.PlaneGeometry(1.0, 0.62), flagCloth, [
+      0.53,
+      poleTop - 0.34,
+      0,
+    ]),
+    ...[-1, 1].map((side) => {
+      const emblem = part(new THREE.CircleGeometry(0.17, 20), flagEmblem, [
+        0.53,
+        poleTop - 0.34,
+        side * 0.004,
+      ]);
+      emblem.rotation.y = side < 0 ? Math.PI : 0;
+      return emblem;
+    }),
+  );
+  flag.visible = false;
+  habitat.add(flag);
+
   return {
     group: habitat,
     setAssembled(fraction) {
@@ -462,8 +541,25 @@ function createHabitatModel(): StructureModel {
     },
     setCharge: () => undefined,
     setLit: () => undefined,
+    setOccupied(occupied) {
+      lightWindow(glass, occupied);
+      hatchLamp.color.set(occupied ? 0xfff4dc : 0x222222);
+      hatchLamp.emissive.set(occupied ? 0xfff0d0 : 0x000000);
+      flag.visible = occupied;
+    },
   };
 }
+
+/** The mission flag's cloth, and the white disc of the Moon on it. */
+const flagCloth = new THREE.MeshStandardMaterial({
+  color: 0xe0661b,
+  roughness: 0.9,
+  side: THREE.DoubleSide,
+});
+const flagEmblem = new THREE.MeshStandardMaterial({
+  color: 0xf4f2ec,
+  roughness: 0.9,
+});
 
 /** How high Regolith shielding rises over the Habitat's dome. */
 export const SHIELDING_HEIGHT = 3.4;
