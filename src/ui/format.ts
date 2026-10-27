@@ -931,6 +931,33 @@ export function isOnExpedition(
 }
 
 /**
+ * Whether every Robot has set off on an Expedition, so that every Work
+ * Order waits until one is back.
+ */
+export function isEveryRobotOnExpedition(
+  robots: readonly Pick<RobotSnapshot, "id">[],
+  expedition: ExpeditionSnapshot | undefined,
+): boolean {
+  return (
+    robots.length > 0 &&
+    robots.every((robot) => isOnExpedition(robot.id, expedition))
+  );
+}
+
+/**
+ * Names a Robot, for the Base panel: "Robot" while it is the only one,
+ * otherwise numbered, for example "Robot 2".
+ */
+export function robotLabel(
+  robotId: string,
+  robots: readonly Pick<RobotSnapshot, "id">[],
+): string {
+  if (robots.length <= 1) return "Robot";
+  const index = robots.findIndex((robot) => robot.id === robotId);
+  return `Robot ${index + 1}`;
+}
+
+/**
  * Says how the Expedition under way is going, and when it will be back,
  * for example "Expedition: away, back in 2 Earth Days 5 hours", or that
  * there is none.
@@ -1068,7 +1095,7 @@ export function formatWaiting(waiting: ConstructionWait): string {
 
 /**
  * Says what is happening on a Construction right now, for the Construction
- * panel: what a Machine and the Robot are doing on it, or else why it is
+ * panel: what a Machine and each Robot are doing on it, or else why it is
  * waiting.
  */
 export function describeWork(
@@ -1080,7 +1107,8 @@ export function describeWork(
       candidate.activity.kind === "working" &&
       candidate.activity.constructionId === construction.id,
   );
-  const robot = snapshot.robots.find((candidate) =>
+  // One Robot may lay its cable while another works on its stage.
+  const robots = snapshot.robots.filter((candidate) =>
     isFor(candidate.activity, construction.id),
   );
   const work = [
@@ -1089,9 +1117,7 @@ export function describeWork(
       : [
           `${machineLabel(machine.machineTypeId)} ${machineWork(construction)} by itself`,
         ]),
-    ...(robot === undefined
-      ? []
-      : [describeRobotWork(construction, robot, snapshot)]),
+    ...robots.map((robot) => describeRobotWork(construction, robot, snapshot)),
   ];
   if (work.length > 0) return work.join("; ");
   return construction.waiting === undefined

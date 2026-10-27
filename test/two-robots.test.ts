@@ -9,6 +9,12 @@ import type {
   Snapshot,
 } from "../src/simulation";
 import { scenario, toGameMinutes, type Scenario } from "./scenario";
+import {
+  describeWork,
+  isEveryRobotOnExpedition,
+  isFor,
+  robotLabel,
+} from "../src/ui/format";
 import { changed, withSpares, worn } from "./worn";
 
 // Two Robots at the landing site; nothing strikes at random, and nobody
@@ -449,5 +455,50 @@ describe("an Expedition with two Robots", () => {
     game.campaign.startExpedition();
 
     expect(game.state.expedition?.robotId).toBe("robot-1");
+  });
+});
+
+describe("the interface with two Robots", () => {
+  it("names each Robot in the Base panel, and a lone Robot just Robot", () => {
+    const { robots } = scenario().state;
+
+    expect(robots.map((each) => robotLabel(each.id, robots))).toEqual([
+      "Robot 1",
+      "Robot 2",
+    ]);
+    expect(robotLabel("robot-1", [{ id: "robot-1" }])).toBe("Robot");
+  });
+
+  it("says what each Robot at work on a Construction is doing", () => {
+    const game = scenario()
+      .plan("solar-array", firstSite)
+      .plan("battery-bank", secondSite);
+    const states = runUntil(game, (state) => state.constructions.length === 0);
+    const onBoth = (state: Snapshot) =>
+      state.constructions.find(
+        (construction) =>
+          state.robots.filter((each) => isFor(each.activity, construction.id))
+            .length === 2,
+      );
+    const both = states.find((state) => onBoth(state) !== undefined);
+    const construction = both === undefined ? undefined : onBoth(both);
+    if (both === undefined || construction === undefined) {
+      throw new Error("expected both Robots on one Construction");
+    }
+
+    const work = describeWork(construction, both).split("; ");
+
+    expect(work).toHaveLength(2);
+    expect(work.filter((each) => each.includes("power cable"))).toHaveLength(1);
+  });
+
+  it("has the Work Orders wait for an Expedition only while every Robot is on it", () => {
+    const game = scenario();
+    game.campaign.startExpedition();
+    runUntil(game, (state) => state.expedition?.stage === "away", 24 * 60);
+    const { robots, expedition } = game.state;
+
+    expect(isEveryRobotOnExpedition(robots, expedition)).toBe(false);
+    expect(isEveryRobotOnExpedition(robots.slice(0, 1), expedition)).toBe(true);
   });
 });

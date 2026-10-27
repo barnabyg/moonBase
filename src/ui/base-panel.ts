@@ -11,6 +11,7 @@ import {
   formatRover,
   machineLabel,
   maintenanceState,
+  robotLabel,
   structureLabel,
   type Stat,
 } from "./format";
@@ -245,10 +246,12 @@ export function createBasePanel(
       structuresSection.count(structureEntries.size);
 
       for (const robot of snapshot.robots) {
-        entryFor(robotEntries, robots, robot.id, "Robot").show(
-          formatRobot(robot, snapshot.expedition),
-          robot.conditionPercent,
-        );
+        entryFor(
+          robotEntries,
+          robots,
+          robot.id,
+          robotLabel(robot.id, snapshot.robots),
+        ).show(formatRobot(robot, snapshot.expedition), robot.conditionPercent);
       }
       for (const machine of snapshot.machines) {
         entryFor(
