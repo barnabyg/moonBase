@@ -19,8 +19,8 @@ export interface TopBar {
  * The bar across the top of the screen: the game clock and the part of the
  * Lunation, the game speed and skipping to the next event, the Funding
  * balance beside the button that opens the Launch manifest screen, the
- * Science balance beside the button that opens the Research Tasks screen,
- * and saving and loading. It sends the player's speed choices to the game
+ * Science balance beside the buttons that open the Research Tasks and Tech
+ * Tree screens, and saving and loading. It sends the player's speed choices to the game
  * loop.
  */
 export function createTopBar(
@@ -30,6 +30,7 @@ export function createTopBar(
   showResult: (result: ChoiceResult) => void,
   openLaunchManifest: () => void,
   openResearchTasks: () => void,
+  openTechTree: () => void,
 ): TopBar {
   const bar = document.createElement("section");
   bar.className = "top-bar";
@@ -115,7 +116,12 @@ export function createTopBar(
   research.textContent = "Research Tasks";
   research.title = "Start a Research Task, which earns Science.";
   research.addEventListener("click", openResearchTasks);
-  science.append(scienceLabel, scienceValue, research);
+  const techTree = document.createElement("button");
+  techTree.type = "button";
+  techTree.textContent = "Tech Tree";
+  techTree.title = "Spend Science to unlock a Design.";
+  techTree.addEventListener("click", openTechTree);
+  science.append(scienceLabel, scienceValue, research, techTree);
 
   bar.append(
     time,

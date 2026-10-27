@@ -16,7 +16,8 @@ export interface ResearchTasksScreen {
 /**
  * The Research Tasks screen, where the player starts a Research Task to earn
  * Science: each with its length and the Science it pays, which one is
- * running and how long it has left, and which have been completed. It only
+ * running and how long it has left, and which have been completed. One
+ * that needs a Design isn't listed until that Design is unlocked. It only
  * sends the choice to start one to the Campaign, which decides whether it is
  * allowed and says why not. The game runs on while it is open.
  */
@@ -79,7 +80,7 @@ export function createResearchTasksScreen(
     action.append(state, start);
     row.append(name, length, pays, action);
     body.append(row);
-    return { task, state, start };
+    return { task, row, state, start };
   });
 
   const close = document.createElement("button");
@@ -102,7 +103,11 @@ export function createResearchTasksScreen(
     update(snapshot) {
       const running = snapshot.researchTask;
       setText(status, describeResearch(running));
-      for (const { task, state, start } of rows) {
+      for (const { task, row, state, start } of rows) {
+        // One that needs a Design isn't offered until it is unlocked.
+        const needed = task.requiresDesignId;
+        row.hidden =
+          needed !== undefined && !snapshot.unlockedDesignIds.includes(needed);
         const shown =
           running?.researchTaskId === task.id
             ? "Running"

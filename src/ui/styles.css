@@ -664,7 +664,8 @@ body {
 .game-over,
 .launch-manifest,
 .expeditions,
-.research-tasks {
+.research-tasks,
+.tech-tree {
   max-width: 440px;
   padding: 20px 22px;
   color: var(--text);
@@ -677,7 +678,8 @@ body {
 .game-over::backdrop,
 .launch-manifest::backdrop,
 .expeditions::backdrop,
-.research-tasks::backdrop {
+.research-tasks::backdrop,
+.tech-tree::backdrop {
   background: rgb(0 0 0 / 60%);
 }
 
@@ -741,21 +743,78 @@ body {
 }
 
 .launch-manifest,
-.research-tasks {
+.research-tasks,
+.tech-tree {
   max-width: 520px;
   max-height: calc(100% - 32px);
 }
 
 .launch-manifest h2,
 .expeditions h2,
-.research-tasks h2 {
+.research-tasks h2,
+.tech-tree h2 {
   margin: 0 0 8px;
   font-size: 1.2rem;
 }
 
-.launch-manifest h3 {
+.launch-manifest h3,
+.tech-tree h3 {
   margin: 14px 0 6px;
   font-size: 1rem;
+}
+
+.tech-tree {
+  max-width: 640px;
+}
+
+/* The same columns in every category's table. */
+.tech-tree table {
+  table-layout: fixed;
+}
+
+.tech-tree thead th:nth-child(1) {
+  width: 42%;
+}
+
+.tech-tree thead th:nth-child(2) {
+  width: 14%;
+}
+
+.tech-tree thead th:nth-child(3) {
+  width: 20%;
+}
+
+.tech-tree tbody th,
+.tech-tree td {
+  vertical-align: top;
+}
+
+.tech-tree__label,
+.tech-tree__description {
+  display: block;
+}
+
+.tech-tree__description {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tech-tree__state {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.tech-tree__state--unlocked {
+  color: var(--accent);
+}
+
+/* Stays in sight at the foot of the screen while the tree scrolls past it. */
+.tech-tree__refusal {
+  position: sticky;
+  bottom: 0;
+  padding: 6px 0;
+  background: var(--panel-background);
 }
 
 .launch-manifest__kilograms {
@@ -779,12 +838,14 @@ body {
 
 .launch-manifest p,
 .expeditions p,
-.research-tasks p {
+.research-tasks p,
+.tech-tree p {
   margin: 0 0 10px;
 }
 
 .launch-manifest table,
-.research-tasks table {
+.research-tasks table,
+.tech-tree table {
   width: 100%;
   margin-bottom: 10px;
   border-collapse: collapse;
@@ -795,20 +856,24 @@ body {
 .launch-manifest th,
 .launch-manifest td,
 .research-tasks th,
-.research-tasks td {
+.tech-tree th,
+.research-tasks td,
+.tech-tree td {
   padding: 3px 6px;
   text-align: left;
 }
 
 .launch-manifest thead th,
-.research-tasks thead th {
+.research-tasks thead th,
+.tech-tree thead th {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
 .launch-manifest tbody th,
-.research-tasks tbody th {
+.research-tasks tbody th,
+.tech-tree tbody th {
   font-weight: normal;
 }
 
@@ -835,13 +900,15 @@ body {
 
 .launch-manifest__refusal,
 .expeditions__refusal,
-.research-tasks__refusal {
+.research-tasks__refusal,
+.tech-tree__refusal {
   color: var(--warning);
 }
 
 .launch-manifest__refusal[hidden],
 .expeditions__refusal[hidden],
-.research-tasks__refusal[hidden] {
+.research-tasks__refusal[hidden],
+.tech-tree__refusal[hidden] {
   display: none;
 }
 
@@ -851,7 +918,8 @@ body {
 
 .launch-manifest button,
 .expeditions button,
-.research-tasks button {
+.research-tasks button,
+.tech-tree button {
   padding: 2px 8px;
   font: inherit;
   font-size: 0.85rem;
@@ -871,7 +939,8 @@ body {
 }
 
 .launch-manifest button:hover:not(:disabled),
-.research-tasks button:hover {
+.research-tasks button:hover,
+.tech-tree button:hover {
   border-color: var(--text-muted);
 }
 
@@ -881,7 +950,8 @@ body {
 }
 
 .launch-manifest button:focus-visible,
-.research-tasks button:focus-visible {
+.research-tasks button:focus-visible,
+.tech-tree button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

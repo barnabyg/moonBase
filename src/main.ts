@@ -14,6 +14,7 @@ import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
 import { createStatusPanel } from "./ui/status-panel";
+import { createTechTreeScreen } from "./ui/tech-tree";
 import { createTopBar } from "./ui/top-bar";
 
 /**
@@ -86,6 +87,9 @@ const researchTasks = createResearchTasksScreen(container, campaign);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult);
 const notifications = createNotificationList(rightColumn);
+const techTree = createTechTreeScreen(container, campaign, (event) => {
+  notifications.add([event]);
+});
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
@@ -101,6 +105,9 @@ const topBar = createTopBar(
   },
   () => {
     researchTasks.open();
+  },
+  () => {
+    techTree.open();
   },
 );
 const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
@@ -133,6 +140,7 @@ function frame(time: number): void {
   launchManifest.update(snapshot);
   expeditions.update(snapshot);
   researchTasks.update(snapshot);
+  techTree.update(snapshot);
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
