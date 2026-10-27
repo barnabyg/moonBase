@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import { toScene, type Frame } from "./interpolation";
-import { createLanderModel, createPlumeModel } from "./models";
+import { createLanderModel } from "./lander-model";
+import { createPlumeModel } from "./models";
 
 /**
  * How long the Lander is seen climbing away after it takes off, and coming
@@ -25,7 +26,7 @@ export function createLanderView(scene: THREE.Scene) {
   const lander = createLanderModel(catalogue.lander.footprintRadiusMetres);
   // The dust rolls out as far as the Plume Ejecta reaches.
   const plume = createPlumeModel(catalogue.plumeEjecta.radiusMetres);
-  scene.add(lander, plume.group);
+  scene.add(lander.group, plume.group);
 
   return {
     update(frame: Frame, realSeconds: number): void {
@@ -52,8 +53,11 @@ export function createLanderView(scene: THREE.Scene) {
           (Math.max(minutesInFlight, 0) / FLIGHT_MINUTES) ** 2
         : 0;
       const ground = toScene(state.position);
-      lander.visible = onMap;
-      lander.position.copy(ground).setY(height);
+      lander.group.visible = onMap;
+      lander.group.position.copy(ground).setY(height);
+      lander.setCrewAboard(
+        frame.current.missionDirector.residence === "lander",
+      );
       const strength =
         onMap && minutesInFlight > 0
           ? Math.max(1 - height / PLUME_HEIGHT_METRES, 0)
