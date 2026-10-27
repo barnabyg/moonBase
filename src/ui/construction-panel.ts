@@ -6,6 +6,7 @@ import type {
 } from "../simulation";
 import {
   describeDismantling,
+  describeExportLoading,
   describeMaintenance,
   describeParking,
   describeUnloading,
@@ -35,6 +36,9 @@ export interface ConstructionPanel {
 /** The key of the row for unloading the Lander, which no Structure's id can be. */
 const UNLOADING_ROW = "unloading the Lander";
 
+/** The key of the row for loading Exports onto the Lander, which no Structure's id can be. */
+const LOADING_ROW = "loading the Lander";
+
 /** The start of the key of a row for maintaining a Structure, which no Structure's id has. */
 const MAINTENANCE_ROW = "maintaining ";
 
@@ -52,7 +56,7 @@ interface Row {
 /**
  * The HTML Work panel: each Maintenance Work Order, each unfinished
  * Construction, each Structure being dismantled and any unloading of the
- * Lander, with its current stage, its
+ * Lander or loading of Exports onto it, with its current stage, its
  * progress, and what is happening on it. The player can cancel a
  * Construction from here; the panel only sends that choice to the Campaign.
  */
@@ -123,6 +127,7 @@ export function createConstructionPanel(
         snapshot.constructions.length === 0 &&
         snapshot.dismantlings.length === 0 &&
         snapshot.unloading === undefined &&
+        snapshot.exportLoading === undefined &&
         snapshot.maintenance.length === 0 &&
         snapshot.parking.length === 0;
       const seen = new Set<string>();
@@ -232,6 +237,23 @@ export function createConstructionPanel(
           unloading.stageProgress,
         );
         showWork(row, () => describeUnloading(unloading, snapshot));
+      }
+      const { exportLoading } = snapshot;
+      if (exportLoading !== undefined) {
+        seen.add(LOADING_ROW);
+        let row = rows.get(LOADING_ROW);
+        if (row === undefined) {
+          row = createRow("Loading the Lander", undefined);
+          rows.set(LOADING_ROW, row);
+        }
+        showStage(
+          row,
+          exportLoading.collected
+            ? "Carrying to the Lander"
+            : "Loading at the stockpile",
+          exportLoading.stageProgress,
+        );
+        showWork(row, () => describeExportLoading(exportLoading, snapshot));
       }
       for (const [id, row] of rows) {
         if (!seen.has(id)) {

@@ -1389,3 +1389,71 @@ describe("the sample save of format version 23", () => {
     );
   });
 });
+
+describe("the sample saves from before the Robot loaded Exports", () => {
+  it.each(["version-1.moonbase", "version-7.moonbase", "version-23.moonbase"])(
+    "%s loads with no loading of Exports onto the Lander",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.exportLoading).toBeUndefined();
+      expect(state.robots.map((robot) => robot.carryingExports)).toEqual(
+        state.robots.map(() => []),
+      );
+    },
+  );
+});
+
+describe("the sample save of format version 24", () => {
+  const wafers = [{ resourceId: "wafers", kilograms: 30 }];
+  const wafersInStock = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === "wafers")?.kilograms;
+
+  it("loads with the Lander on the landing pad, and the Robot carrying wafers from the stockpile to it", () => {
+    const state = loadSample("version-24.moonbase").snapshot();
+
+    expect(state.lander).toMatchObject({
+      state: "landed-free",
+      position: { x: 40, y: 25 },
+      landingPadId: "structure-4",
+    });
+    expect(state.exportLoading).toEqual({
+      landingPadId: "structure-4",
+      collected: true,
+      stageProgress: 0,
+      exports: wafers,
+    });
+    expect(state.exports).toMatchObject({ toLoad: wafers, aboard: [] });
+    expect(state.robots[0]).toMatchObject({
+      activity: { kind: "walking", purpose: "exports", destination: "lander" },
+      carryingExports: wafers,
+    });
+  });
+
+  it("plays on from where it was saved, until the wafers are aboard and the Lander can be sent", () => {
+    const campaign = loadSample("version-24.moonbase");
+    const before = wafersInStock(campaign);
+    expect(campaign.sendLander()).toMatchObject({
+      ok: false,
+      reason: "exports-loading",
+    });
+    const kinds: string[] = [];
+
+    for (
+      let hours = 0;
+      campaign.snapshot().exportLoading !== undefined;
+      hours++
+    ) {
+      if (hours > 24) throw new Error("The wafers never went aboard.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("lander-loaded");
+    expect(campaign.snapshot().ended).toBeUndefined();
+    expect(campaign.snapshot().exports.aboard).toEqual(wafers);
+    expect(wafersInStock(campaign)).toBe(before);
+    expect(campaign.sendLander()).toEqual({ ok: true });
+  });
+});

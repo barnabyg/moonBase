@@ -38,6 +38,7 @@ import type {
   DismantlingSnapshot,
   DismantlingStage,
   ExportLine,
+  ExportLoadingSnapshot,
   ExportsSnapshot,
   LanderSnapshot,
   LaunchManifestSnapshot,
@@ -173,27 +174,36 @@ export function formatHabitatPower(
 }
 
 /**
- * Says what state the Lander is in and, while it is away, when it next
- * arrives or leaves and any Exports aboard, for example "Lander: landed,
- * free to fly" or "Lander: travelling to Earth with 40 kg of wafers,
- * arrives in 2 Earth Days 23 hours".
+ * Says what state the Lander is in, any Exports aboard and, while it is
+ * away, when it next arrives or leaves, for example "Lander: landed on the
+ * landing pad with 40 kg of wafers aboard, free to fly" or "Lander:
+ * travelling to Earth with 40 kg of wafers, arrives in 2 Earth Days 23
+ * hours".
  */
 export function formatLander(
   lander: LanderSnapshot,
   elapsedMinutes: number,
   exportsAboard: readonly ExportLine[],
+  exportLoading?: ExportLoadingSnapshot,
 ): string {
   const left = formatDuration(
     Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
   );
   const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
+  const aboard =
+    exportsAboard.length === 0
+      ? ""
+      : ` with ${formatExportLines(exportsAboard)} aboard`;
   switch (lander.state) {
     case "landed-occupied":
       return "Lander: landed, with the Mission Director aboard";
     case "landed-free":
-      return lander.cargo.length === 0
-        ? `Lander: landed${onPad}, free to fly`
-        : `Lander: landed${onPad}, its cargo waiting for the Robot to unload it`;
+      if (lander.cargo.length > 0) {
+        return `Lander: landed${onPad}${aboard}, its cargo waiting for the Robot to unload it`;
+      }
+      return exportLoading === undefined
+        ? `Lander: landed${onPad}${aboard}, free to fly`
+        : `Lander: landed${onPad}${aboard}, waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`;
     case "travelling-to-earth":
       return exportsAboard.length === 0
         ? `Lander: travelling to Earth, arrives in ${left}`
@@ -349,6 +359,8 @@ export function formatEvent(event: GameEvent): string {
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
     case "lander-unloaded":
       return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
+    case "lander-loaded":
+      return `Robot loaded the Lander: ${formatExportLines(event.exports)} now aboard`;
     case "plume-ejecta-damage":
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
@@ -674,11 +686,15 @@ export function formatKilogramAmount(kilograms: number): string {
 }
 
 /**
- * Says the mass of the Exports to load against the Lander's Return Mass,
- * for example "Return Mass: 40 of 100 kg".
+ * Says the mass of the Exports aboard the Lander and to load against its
+ * Return Mass, for example "Return Mass: 40 of 100 kg".
  */
 export function formatReturnMass(exports: ExportsSnapshot): string {
-  return `Return Mass: ${formatKilogramAmount(exports.massKilograms)} of ${catalogue.lander.returnMassKilograms} kg`;
+  const aboard = exports.aboard.reduce(
+    (total, line) => total + line.kilograms,
+    0,
+  );
+  return `Return Mass: ${formatKilogramAmount(exports.massKilograms + aboard)} of ${catalogue.lander.returnMassKilograms} kg`;
 }
 
 /**
@@ -1042,8 +1058,8 @@ function describeRobotWork(
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
     // Only ever done for a Structure being dismantled or maintained, to
-    // unload the Lander, or for the Robot's repair of itself, when it does
-    // nothing for anything else.
+    // unload or load the Lander, or for the Robot's repair of itself, when
+    // it does nothing for anything else.
     case "driving-rover":
     case "on-expedition":
     case "unloading-expedition":
@@ -1051,6 +1067,8 @@ function describeRobotWork(
     case "returning-components":
     case "loading-cargo":
     case "unloading-cargo":
+    case "loading-exports":
+    case "putting-exports-aboard":
     case "maintaining":
     case "cleaning":
     case "walking-to-repair":
@@ -1126,6 +1144,38 @@ export function describeUnloading(
       return unloading.collected
         ? `Waiting for the Robot to carry ${cargo} to the stockpile`
         : `Waiting for the Robot to take ${cargo} off the Lander`;
+  }
+}
+
+/**
+ * Says what is happening on the loading of the Exports onto the Lander
+ * right now, for the Work panel: what the Robot is doing with them, or
+ * else that it is waiting for the Robot.
+ */
+export function describeExportLoading(
+  loading: ExportLoadingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const exports = formatExportLines(loading.exports);
+  const robot = snapshot.robots.find(
+    ({ activity }) =>
+      activity.kind === "loading-exports" ||
+      activity.kind === "putting-exports-aboard" ||
+      (activity.kind === "walking" && "purpose" in activity),
+  );
+  switch (robot?.activity.kind) {
+    case "walking":
+      return robot.activity.destination === "stockpile"
+        ? `Robot walking to the stockpile for ${exports}`
+        : `Robot carrying ${exports} to the Lander`;
+    case "loading-exports":
+      return `Robot loading ${exports} at the stockpile`;
+    case "putting-exports-aboard":
+      return `Robot putting ${exports} aboard the Lander`;
+    default:
+      return loading.collected
+        ? `Waiting for the Robot to carry ${exports} to the Lander`
+        : `Waiting for the Robot to load ${exports} at the stockpile`;
   }
 }
 

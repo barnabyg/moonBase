@@ -257,15 +257,9 @@ export function createLaunchManifestScreen(
 
       toLoad = snapshot.exports.toLoad;
       const away = snapshot.lander.legEndsAtMinute !== undefined;
-      const { aboard, valueAboardMillionDollars } = snapshot.exports;
-      setText(
-        exportsIntro,
-        !away
-          ? "Choose what the Lander carries off the Moon, to sell when it reaches Earth. It takes them from the base's stock as it takes off."
-          : aboard.length === 0
-            ? "The Lander is away. Exports can be loaded once it has landed."
-            : `The Lander is away with ${formatExportLines(aboard)} aboard, to sell for ${formatMillionDollars(valueAboardMillionDollars)} when it reaches Earth.`,
-      );
+      // Once the Robot has loaded them, they can't change until they're aboard.
+      const carried = snapshot.exportLoading?.collected === true;
+      setText(exportsIntro, describeExports(snapshot));
       for (const { sold, inStock, input } of exportRows) {
         setText(
           inStock,
@@ -275,7 +269,7 @@ export function createLaunchManifestScreen(
             )?.kilograms ?? 0,
           ),
         );
-        input.disabled = away;
+        input.disabled = away || carried;
         // Not while the player is typing in it.
         if (document.activeElement !== input) {
           const shown = formatKilogramAmount(kilogramsOf(sold.resourceId));
@@ -286,4 +280,29 @@ export function createLaunchManifestScreen(
       setText(exportsValue, formatExportsValue(snapshot.exports));
     },
   };
+}
+
+/**
+ * Says what the player can do with the Exports as things stand: choose them
+ * while the Lander is landed, unless the Robot is carrying the last ones
+ * chosen to it, with what is aboard it already.
+ */
+function describeExports(snapshot: Snapshot): string {
+  const { aboard, valueAboardMillionDollars } = snapshot.exports;
+  if (snapshot.lander.legEndsAtMinute !== undefined) {
+    return aboard.length === 0
+      ? "The Lander is away. Exports can be loaded once it has landed."
+      : `The Lander is away with ${formatExportLines(aboard)} aboard, to sell for ${formatMillionDollars(valueAboardMillionDollars)} when it reaches Earth.`;
+  }
+  const loading = snapshot.exportLoading;
+  if (loading?.collected === true) {
+    return `The Robot is carrying ${formatExportLines(loading.exports)} to the Lander. More can be loaded once they're aboard.`;
+  }
+  const already =
+    aboard.length === 0
+      ? ""
+      : ` It has ${formatExportLines(aboard)} aboard already, and any more go aboard with them.`;
+  return snapshot.lander.landingPadId === undefined
+    ? `Choose what the Lander carries off the Moon, to sell when it reaches Earth. It takes them from the base's stock as it takes off.${already}`
+    : `Choose what the Lander carries off the Moon, to sell when it reaches Earth. On its landing pad, the Robot carries them from the stockpile to it.${already}`;
 }

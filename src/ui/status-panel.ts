@@ -401,6 +401,7 @@ export function createStatusPanel(
           snapshot.lander,
           snapshot.clock.elapsedMinutes,
           snapshot.exports.aboard,
+          snapshot.exportLoading,
         ),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;

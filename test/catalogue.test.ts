@@ -612,6 +612,10 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(catalogue.lander.cargoHandlingHours * 60)).toBe(
       true,
     );
+    expect(catalogue.lander.exportHandlingHours).toBeGreaterThan(0);
+    expect(Number.isInteger(catalogue.lander.exportHandlingHours * 60)).toBe(
+      true,
+    );
   });
 
   it("has an extraction plant that turns Regolith into oxygen, metals and silicon", () => {

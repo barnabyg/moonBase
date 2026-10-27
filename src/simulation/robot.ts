@@ -24,6 +24,11 @@ import {
 import { addBulk } from "./bulk-resources";
 import type { GameEvent } from "./events";
 import {
+  collectExports,
+  exportHandlingMinutes,
+  finishExportLoading,
+} from "./export-loading";
+import {
   awayMinutes,
   exitPointFrom,
   expeditionOf,
@@ -114,6 +119,22 @@ export type RobotActivity =
       readonly kind: "walking";
       readonly structureId: string;
       readonly destination: WalkingDestination;
+    }
+  | {
+      /**
+       * Walking to the stockpile for the Exports to load onto the Lander on
+       * a landing pad, or carrying them to the Lander.
+       */
+      readonly kind: "walking";
+      readonly purpose: "exports";
+      readonly destination: "stockpile" | "lander";
+    }
+  | {
+      /**
+       * Loading the Exports to load at the stockpile, or putting them aboard
+       * the Lander on a landing pad.
+       */
+      readonly kind: "loading-exports" | "putting-exports-aboard";
     }
   | {
       readonly kind: "walking";
@@ -263,6 +284,7 @@ export function workRobot(
     return layCable(state, robot, workOrder.structureId);
   }
   if (workOrder?.kind === "unload-lander") return unloadLander(state, robot);
+  if (workOrder?.kind === "load-lander") return loadLander(state, robot);
   const maintenance = state.maintenance.find((candidate) =>
     isClaimedBy(robot, candidate.target),
   );
@@ -752,6 +774,46 @@ function unloadLander(state: CampaignState, robot: RobotState): GameEvent[] {
   return [
     { kind: "lander-unloaded", atMinute: state.elapsedMinutes, components },
   ];
+}
+
+/**
+ * Lets the Robot do one game-minute of loading the Exports to load onto
+ * the Lander, standing on a landing pad: it walks to the stockpile and
+ * loads them, taking them out of the base's stock, then carries them to the
+ * Lander and puts them aboard.
+ */
+function loadLander(state: CampaignState, robot: RobotState): GameEvent[] {
+  const loading = state.exportLoading;
+  if (loading === undefined) {
+    robot.workOrder = undefined;
+    robot.activity = { kind: "idle" };
+    return [];
+  }
+  const walkTo = (
+    spot: GroundPosition,
+    destination: "stockpile" | "lander",
+  ): boolean => {
+    if (samePlace(robot.position, spot)) return true;
+    stepRobot(state, robot, spot);
+    robot.activity = { kind: "walking", purpose: "exports", destination };
+    return false;
+  };
+  const { loading: loadingMinutes, total } = exportHandlingMinutes();
+  if (!loading.collected) {
+    const spot = stockpileSpot(state, { workSpot: cargoSpot(state) });
+    if (!walkTo(spot, "stockpile")) return [];
+    robot.activity = { kind: "loading-exports" };
+    loading.workedMinutes += robotPerformance(robot);
+    // Only now do they leave the base's stock: as much of each as is left.
+    if (loading.workedMinutes >= loadingMinutes) collectExports(state, loading);
+    return [];
+  }
+  if (!walkTo(cargoSpot(state), "lander")) return [];
+  robot.activity = { kind: "putting-exports-aboard" };
+  loading.workedMinutes += robotPerformance(robot);
+  if (loading.workedMinutes < total - loadingMinutes) return [];
+  const exports = finishExportLoading(state);
+  return [{ kind: "lander-loaded", atMinute: state.elapsedMinutes, exports }];
 }
 
 /**

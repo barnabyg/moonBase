@@ -39,8 +39,9 @@ export interface LanderState {
    */
   cargo: ComponentCount[];
   /**
-   * The Exports aboard it, in catalogue order: from its take-off until they
-   * are sold as it reaches Earth.
+   * The Exports aboard it, in catalogue order: from its take-off, or on a
+   * landing pad from when the Robot puts them aboard, until they are sold
+   * as it reaches Earth.
    */
   exports: { resourceId: string; kilograms: number }[];
 }
@@ -67,7 +68,11 @@ export interface LanderSnapshot {
 }
 
 export type SendLanderRefusal =
-  "mission-director-aboard" | "lander-away" | "cargo-aboard" | "campaign-ended";
+  | "mission-director-aboard"
+  | "lander-away"
+  | "cargo-aboard"
+  | "exports-loading"
+  | "campaign-ended";
 
 export type SendLanderResult =
   | { readonly ok: true }
@@ -80,8 +85,9 @@ export type SendLanderResult =
 
 /**
  * Sends the landed Lander on its round trip to Earth and back. It can't
- * leave while the Mission Director lives aboard it, or before the Robot has
- * taken its cargo off. It takes off in the game-minute that follows.
+ * leave while the Mission Director lives aboard it, before the Robot has
+ * taken its cargo off, or, on a landing pad, before the Robot has put the
+ * Exports to load aboard. It takes off in the game-minute that follows.
  */
 export function sendLander(state: CampaignState): SendLanderResult {
   if (state.missionDirector.residence === "lander") {
@@ -102,6 +108,15 @@ export function sendLander(state: CampaignState): SendLanderResult {
       "The Lander's cargo hasn't been unloaded yet. The Robot has to carry it to the stockpile first.",
     );
   }
+  if (
+    state.exportLoading !== undefined ||
+    (state.exportsToLoad.length > 0 && padUnderLander(state) !== undefined)
+  ) {
+    return refuse(
+      "exports-loading",
+      "The Exports to load aren't aboard yet. The Robot has to finish loading them onto the Lander first.",
+    );
+  }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);
   return { ok: true };
 }
@@ -110,10 +125,11 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * Flies the Lander through the game-minute that has just passed: it takes
  * off in the first game-minute after it was sent, and each leg of its round
  * trip gives way to the next as it ends, until it lands: on the landing pad,
- * if one is working, or else at the landing site. It takes the Exports to
- * load aboard as it takes off, and sells them as it reaches Earth. It pays
- * for the Launch manifest as it leaves Earth, after the sale, and delivers
- * it as it lands. Taking off or landing anywhere but on a working landing
+ * if one is working, or else at the landing site. Taking off from the
+ * landing site, it takes the Exports to load aboard; on a working landing
+ * pad, the Robot has put them aboard already. It sells them as it reaches
+ * Earth. It pays for the Launch manifest as it leaves Earth, after the
+ * sale, and delivers it as it lands. Taking off or landing anywhere but on a working landing
  * pad blasts Plume Ejecta over the Structures round it.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
@@ -125,8 +141,10 @@ export function flyLander(state: CampaignState): GameEvent[] {
     atMinute === trip.legStartedAtMinute + 1
   ) {
     const fromPad = padAt(state, state.lander.position) !== undefined;
+    if (!fromPad) takeExportsAboard(state);
+    const exports = state.lander.exports.map((line) => ({ ...line }));
     return [
-      { kind: "lander-took-off", atMinute, exports: takeExportsAboard(state) },
+      { kind: "lander-took-off", atMinute, exports },
       ...(fromPad ? [] : blastPlumeEjecta(state, state.lander.position)),
     ];
   }

@@ -21,6 +21,13 @@ import {
 } from "./bulk-forecast";
 import { readClock, type ClockSnapshot } from "./clock";
 import {
+  exportsCarriedBy,
+  planExportLoading,
+  readExportLoading,
+  type ExportLoadingSnapshot,
+  type ExportLoadingState,
+} from "./export-loading";
+import {
   loadExports,
   readExports,
   type ExportLine,
@@ -214,6 +221,8 @@ export interface RobotSnapshot {
   readonly activity: RobotActivity;
   /** The Components the Robot is carrying. */
   readonly carrying: readonly ComponentCount[];
+  /** The Exports the Robot is carrying to the Lander on a landing pad. */
+  readonly carryingExports: readonly ExportLine[];
   /**
    * How intact it is, from 100% down to the data catalogue's floor: a
    * Robot is never Broken.
@@ -496,6 +505,11 @@ export interface Snapshot {
    * landing pad with some, until the cargo is in the base's stock.
    */
   readonly unloading: UnloadingSnapshot | undefined;
+  /**
+   * The Robot's loading of the Exports to load onto the Lander, while it
+   * stands on a landing pad, until they are aboard.
+   */
+  readonly exportLoading: ExportLoadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
   /**
@@ -578,9 +592,10 @@ export interface Campaign {
   /**
    * Sets the kilograms of each Export the Lander is to carry when it next
    * takes off, in place of those set before, to be sold when it reaches
-   * Earth. They stay in the base's stock until then. It is refused over the
-   * Lander's Return Mass or what the base has in stock, and while the Lander
-   * is away.
+   * Earth. They stay in the base's stock until then, or, on a landing pad,
+   * until the Robot loads them to carry them aboard. It is refused over the
+   * Lander's Return Mass or what the base has in stock, while the Lander is
+   * away, and while the Robot is carrying the last ones set to the Lander.
    */
   loadExports(exports: readonly ExportLine[]): LoadExportsResult;
   /**
@@ -607,8 +622,9 @@ export interface CampaignState {
   /** Numbers the next planned Structure. */
   nextStructureNumber: number;
   /**
-   * Numbers the next plan, for a Construction, dismantling or cable to a
-   * Structure cut off from power, so they are worked on in order.
+   * Numbers the next plan, for a Construction, dismantling, unloading or
+   * loading of the Lander, or cable to a Structure cut off from power, so
+   * they are worked on in order.
    */
   nextPlanNumber: number;
   lander: LanderState;
@@ -633,7 +649,9 @@ export interface CampaignState {
   launchManifest: { itemId: string; count: number }[];
   /**
    * What the Lander is to carry when it next takes off, in catalogue order,
-   * each Export once with an amount above none.
+   * each Export once with an amount above none, until they are aboard: on a
+   * landing pad, once the Robot has loaded them, what it took from the
+   * base's stock.
    */
   exportsToLoad: { resourceId: string; kilograms: number }[];
   ended: CampaignEnd | undefined;
@@ -648,6 +666,8 @@ export interface CampaignState {
   dismantlings: DismantlingState[];
   /** The planned unloading of the Lander's cargo, once it has landed on a landing pad with some. */
   unloading: UnloadingState | undefined;
+  /** The planned loading of the Exports to load onto the Lander, while it stands on a landing pad. */
+  exportLoading: ExportLoadingState | undefined;
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
@@ -710,6 +730,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     structures: [],
     dismantlings: [],
     unloading: undefined,
+    exportLoading: undefined,
     cables: [],
     reconnections: [],
     maintenance: [],
@@ -832,7 +853,9 @@ function campaignFrom(state: CampaignState): Campaign {
           message: CAMPAIGN_OVER,
         });
       }
-      return deepFreeze(loadExports(state, exports));
+      const result = loadExports(state, exports);
+      planExportLoading(state);
+      return deepFreeze(result);
     },
     startExpedition() {
       if (state.ended !== undefined) {
@@ -894,6 +917,7 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...robot.position },
           activity: { ...robot.activity },
           carrying: copy(robot.carrying),
+          carryingExports: exportsCarriedBy(state, robot),
           conditionPercent: robot.conditionPercent,
           performance: robotPerformance(robot),
           selfRepair: readSelfRepair(robot),
@@ -955,6 +979,7 @@ function campaignFrom(state: CampaignState): Campaign {
           collected: dismantling.collected,
         })),
         unloading: readUnloading(state),
+        exportLoading: readExportLoading(state),
         cables: state.cables.map((cable) => ({
           fromStructureId: cable.fromStructureId,
           toStructureId: cable.toStructureId,
@@ -1015,6 +1040,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...flyLander(state));
   events.push(...watchMicrometeorites(state));
   planUnloading(state);
+  planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
   events.push(...workMachines(state));

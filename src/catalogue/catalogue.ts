@@ -28,6 +28,13 @@ export interface Catalogue {
      */
     readonly cargoHandlingHours: number;
     /**
+     * The Robot's working time to carry the Exports to load from the
+     * stockpile to the Lander when it stands on a landing pad, in
+     * game-hours: split evenly between loading at the stockpile and putting
+     * them aboard the Lander. Walking comes on top.
+     */
+    readonly exportHandlingHours: number;
+    /**
      * The most mass of Exports the Lander can carry off the Moon each time
      * it leaves. It is fixed: making propellant at the base doesn't raise it.
      */
@@ -637,12 +644,14 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 32,
+  version: 33,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
     roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
     cargoHandlingHours: 1,
+    // As long as carrying a Launch's cargo off it, the other way round.
+    exportHandlingHours: 1,
     // About what the last crewed landing brought home in rock samples, and
     // a little less than a vacuum fabrication plant makes running through a
     // Lunation's Daylight, so that a base making more than one plant's

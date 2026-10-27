@@ -113,7 +113,11 @@ function aboardMachine(robot: RobotSnapshot): boolean {
   );
 }
 
-/** What the Robot faces while it works: the stockpile when loading or unloading there, otherwise the site. */
+/**
+ * What the Robot faces while it works: the stockpile when loading or
+ * unloading there, the Lander when loading or unloading it, otherwise the
+ * site.
+ */
 function workTarget(
   frame: Frame,
   robot: RobotSnapshot,
@@ -131,9 +135,13 @@ function workTarget(
     activity.kind === "loading-components" ||
     activity.kind === "loading-spare-components" ||
     activity.kind === "returning-components" ||
-    activity.kind === "unloading-cargo"
+    activity.kind === "unloading-cargo" ||
+    activity.kind === "loading-exports"
   ) {
     return toScene(frame.current.stockpile.position);
+  }
+  if (activity.kind === "putting-exports-aboard") {
+    return toScene(frame.current.lander.position);
   }
   if ("machineId" in activity) {
     const machine = frame.current.machines.find(
@@ -172,7 +180,8 @@ function poseFor(
   strideAngle: number,
   workCycles: number,
 ): RobotPose {
-  const carrying = robot.carrying.length > 0;
+  const carrying =
+    robot.carrying.length > 0 || robot.carryingExports.length > 0;
   const work = Math.sin(workCycles * Math.PI * 2);
   const poses: Record<RobotActivity["kind"], () => RobotPose> = {
     idle: () => still(carrying),
@@ -279,6 +288,9 @@ function poseFor(
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),
+    // Lifting the Exports off the stockpile, and up into the Lander.
+    "loading-exports": () => lifting(work, carrying),
+    "putting-exports-aboard": () => lifting(work, carrying),
     // Bent over the Structure, working at it with both hands.
     maintaining: () => ({
       legSwing: 0,

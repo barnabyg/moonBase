@@ -27,17 +27,18 @@ import { inStock } from "./stockpile";
 /**
  * A unit of the Robot's work on a Construction, on dismantling a Structure,
  * on laying cable to a Structure cut off from power, on unloading the
- * Lander, on Maintenance of a Structure, Machine or Rover, on parking a
- * Machine or Rover, or on setting a Machine digging. A Robot claims one at
- * a time and carries it out before it looks for another.
+ * Lander or loading Exports onto it, on Maintenance of a Structure, Machine
+ * or Rover, on parking a Machine or Rover, or on setting a Machine digging.
+ * A Robot claims one at a time and carries it out before it looks for
+ * another.
  */
 export type WorkOrder =
   | {
       /**
        * The Structure it is for: one under Construction (whose id it keeps
        * once commissioned), one being dismantled, one cut off from power,
-       * the landing pad the Lander being unloaded landed on, or one to be
-       * maintained.
+       * the landing pad the Lander being unloaded or loaded stands on, or
+       * one to be maintained.
        */
       readonly structureId: string;
       readonly kind: StructureWorkOrderKind;
@@ -75,6 +76,7 @@ export type StructureWorkOrderKind =
   | "dismantle"
   | "return-components"
   | "unload-lander"
+  | "load-lander"
   | "maintain";
 
 /** Why nobody can work on a Construction for now. */
@@ -175,10 +177,11 @@ function missingComponents(
  * Finds the Work Order a Robot should claim next: the first one that nobody
  * else has claimed and that can be worked on now. Maintenance comes first,
  * in the order it was raised, then parking Machines; then the
- * Constructions, dismantling, unloading of the Lander and cables to
- * Structures cut off from power, in the order they were planned; and last,
- * setting a Machine digging. Each Construction's current stage comes before
- * laying its cable, which can be done at any stage before Commissioning.
+ * Constructions, dismantling, unloading and loading of the Lander and
+ * cables to Structures cut off from power, in the order they were planned;
+ * and last, setting a Machine digging. Each Construction's current stage
+ * comes before laying its cable, which can be done at any stage before
+ * Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -239,6 +242,19 @@ export function claimWorkOrder(
               state.unloading !== undefined &&
               free(state.unloading.landingPadId, "unload-lander")
                 ? ("unload-lander" as const)
+                : undefined,
+          },
+        ]),
+    ...(state.exportLoading === undefined
+      ? []
+      : [
+          {
+            planNumber: state.exportLoading.planNumber,
+            structureId: state.exportLoading.landingPadId,
+            next: () =>
+              state.exportLoading !== undefined &&
+              free(state.exportLoading.landingPadId, "load-lander")
+                ? ("load-lander" as const)
                 : undefined,
           },
         ]),
@@ -378,6 +394,9 @@ export function isOpen(state: CampaignState, workOrder: WorkOrder): boolean {
   }
   if (workOrder.kind === "unload-lander") {
     return state.unloading?.landingPadId === workOrder.structureId;
+  }
+  if (workOrder.kind === "load-lander") {
+    return state.exportLoading?.landingPadId === workOrder.structureId;
   }
   const dismantling = state.dismantlings.find(
     (candidate) => candidate.id === workOrder.structureId,

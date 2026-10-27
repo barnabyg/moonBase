@@ -75,10 +75,14 @@ export type GameEvent =
       readonly atMinute: number;
     }
   | {
-      /** The Lander has taken off for Earth, with the Exports to load aboard. */
+      /** The Lander has taken off for Earth, with the Exports aboard. */
       readonly kind: "lander-took-off";
       readonly atMinute: number;
-      /** The Exports that went aboard from the base's stock: none if there were none to load. */
+      /**
+       * The Exports aboard as it took off: from the landing site, those that
+       * went aboard from the base's stock as it did; from a landing pad,
+       * those the Robot put aboard. None if there were none to load.
+       */
       readonly exports: readonly ExportLine[];
     }
   | {
@@ -118,6 +122,13 @@ export type GameEvent =
       readonly atMinute: number;
       /** The Components that joined the base's stock. */
       readonly components: readonly ComponentCount[];
+    }
+  | {
+      /** The Robot has carried the Exports to load from the stockpile aboard the Lander, standing on a landing pad. */
+      readonly kind: "lander-loaded";
+      readonly atMinute: number;
+      /** The Exports it put aboard. */
+      readonly exports: readonly ExportLine[];
     }
   | {
       /** The Lander's take-off or landing has blasted Plume Ejecta over Structures, wearing down their Condition. */

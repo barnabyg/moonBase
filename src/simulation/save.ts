@@ -570,6 +570,15 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 23 to 24: on a landing pad, the Robot carries the Exports to load from
+  // the stockpile to the Lander, as a planned loading. There was none
+  // before; if the Lander stands on a working landing pad with Exports to
+  // load, one is planned in the first game-minute played.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return { ...document, state: { ...state, exportLoading: null } };
+  },
 ];
 
 /**
@@ -989,6 +998,10 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     }),
     structureId: text,
   });
+  // Loading the Exports onto the Lander on a landing pad.
+  const forExports = object({
+    kind: oneOf({ "loading-exports": true, "putting-exports-aboard": true }),
+  });
   // Maintenance of a Machine.
   const forMachine = object({
     kind: oneOf({ "loading-components": true, maintaining: true }),
@@ -1013,17 +1026,25 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         machineId: text,
         destination: oneOf({ stockpile: true, machine: true }),
       }),
-      object({
-        kind: exactly("walking"),
-        structureId: text,
-        destination: oneOf<WalkingDestination>({
-          site: true,
-          stockpile: true,
-          machine: true,
-          cable: true,
-          lander: true,
+      byField(
+        "purpose",
+        object({
+          kind: exactly("walking"),
+          purpose: exactly("exports"),
+          destination: oneOf({ stockpile: true, lander: true }),
         }),
-      }),
+        object({
+          kind: exactly("walking"),
+          structureId: text,
+          destination: oneOf<WalkingDestination>({
+            site: true,
+            stockpile: true,
+            machine: true,
+            cable: true,
+            lander: true,
+          }),
+        }),
+      ),
     ),
   );
   const repairing = object({
@@ -1068,6 +1089,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
+    "loading-exports": forExports,
+    "putting-exports-aboard": forExports,
     maintaining: byField(
       "roverId",
       forRover,
@@ -1104,6 +1127,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
       dismantle: true,
       "return-components": true,
       "unload-lander": true,
+      "load-lander": true,
       maintain: true,
     }),
   });
@@ -1116,6 +1140,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
     dismantle: onStructure,
     "return-components": onStructure,
     "unload-lander": onStructure,
+    "load-lander": onStructure,
     maintain: onStructure,
     "maintain-machine": onMachine,
     "park-machine": onMachine,
@@ -1323,6 +1348,14 @@ const simulationState = object({
       landingPadId: text,
       planNumber: wholeNumber,
       cargo: list(componentCount),
+      workedMinutes: amount,
+      collected: boolean,
+    }),
+  ),
+  exportLoading: optional(
+    object({
+      landingPadId: text,
+      planNumber: wholeNumber,
       workedMinutes: amount,
       collected: boolean,
     }),

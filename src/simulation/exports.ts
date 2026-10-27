@@ -12,15 +12,21 @@ export interface ExportLine {
 export interface ExportsSnapshot {
   /**
    * What the Lander is to carry when it next takes off, in catalogue order,
-   * each Export once with an amount above none. They stay in the base's
-   * stock until then.
+   * each Export once with an amount above none, until they are aboard. They
+   * stay in the base's stock until the Lander takes off from the landing
+   * site, or, on a landing pad, until the Robot loads them at the stockpile
+   * to carry them to it; from then on, they are what the Robot took.
    */
   readonly toLoad: readonly ExportLine[];
   /** The mass of the Exports to load, against the Lander's Return Mass. */
   readonly massKilograms: number;
   /** What the Exports to load would sell for. */
   readonly valueMillionDollars: number;
-  /** The Exports aboard the Lander, from its take-off until they are sold as it reaches Earth. */
+  /**
+   * The Exports aboard the Lander, from its take-off, or on a landing pad
+   * from when the Robot puts them aboard, until they are sold as it
+   * reaches Earth.
+   */
   readonly aboard: readonly ExportLine[];
   /** What the Exports aboard will sell for: nothing once they are sold. */
   readonly valueAboardMillionDollars: number;
@@ -32,6 +38,7 @@ export type LoadExportsRefusal =
   | "over-return-mass"
   | "over-stock"
   | "lander-away"
+  | "exports-collected"
   | "campaign-ended";
 
 export type LoadExportsResult =
@@ -45,10 +52,13 @@ export type LoadExportsResult =
 
 /**
  * Makes these the Exports the Lander is to carry when it next takes off, if
- * they fit within its Return Mass and the base has them in stock; otherwise
- * leaves the Exports to load as they were and says why not. They can only
- * be set while the Lander is landed, and stay in the base's stock until it
- * takes off.
+ * they fit within its Return Mass, with any Exports already aboard, and the
+ * base has them in stock; otherwise leaves the Exports to load as they were
+ * and says why not. They can only be set while the Lander is landed, and
+ * stay in the base's stock until it takes off, or, on a landing pad, until
+ * the Robot loads them to carry them aboard. Once the Robot has loaded
+ * them, they can't be changed until they are aboard; after that, any set
+ * go aboard on top of them, in another round of loading on a landing pad.
  */
 export function loadExports(
   state: CampaignState,
@@ -58,6 +68,12 @@ export function loadExports(
     return refuse(
       "lander-away",
       "The Lander is away. Exports can be loaded once it has landed.",
+    );
+  }
+  if (state.exportLoading?.collected === true) {
+    return refuse(
+      "exports-collected",
+      "The Robot is already carrying the Exports to load to the Lander. More can be loaded once they're aboard.",
     );
   }
   const lines: { resourceId: string; kilograms: number }[] = [];
@@ -79,12 +95,15 @@ export function loadExports(
     else line.kilograms += kilograms;
   }
   const toLoad = inCatalogueOrder(lines);
-  const mass = massOf(toLoad);
+  const aboard = massOf(state.lander.exports);
+  const mass = massOf(toLoad) + aboard;
   const limit = catalogue.lander.returnMassKilograms;
   if (mass > limit) {
+    const already =
+      aboard === 0 ? "" : ` with the ${kilogramsInWords(aboard)} kg aboard`;
     return refuse(
       "over-return-mass",
-      `That would bring the Exports to ${kilogramsInWords(mass)} kg, over the Lander's Return Mass of ${limit} kg.`,
+      `That would bring the Exports to ${kilogramsInWords(mass)} kg${already}, over the Lander's Return Mass of ${limit} kg.`,
     );
   }
   for (const { resourceId, kilograms } of toLoad) {
@@ -101,17 +120,37 @@ export function loadExports(
 }
 
 /**
- * Takes the Exports to load out of the base's stock and aboard the Lander
- * as it takes off, or as much of each as there is in stock if it has fallen
- * since they were set, and returns what went aboard. The Exports to load
- * are then none, until the player sets more.
+ * Takes the Exports to load aboard the Lander as it takes off from the
+ * landing site, straight from the base's stock beside it, and returns what
+ * went aboard.
  */
 export function takeExportsAboard(state: CampaignState): ExportLine[] {
-  const aboard = state.exportsToLoad.flatMap(({ resourceId, kilograms }) => {
-    const taken = Math.min(kilograms, bulkInStock(state, resourceId));
-    addBulk(state, resourceId, -taken);
-    return taken > 0 ? [{ resourceId, kilograms: taken }] : [];
-  });
+  takeExportsFromStock(state);
+  return putExportsAboard(state);
+}
+
+/**
+ * Takes the Exports to load out of the base's stock, or as much of each as
+ * there is if the stock has fallen since they were set, and makes what was
+ * taken the Exports to load.
+ */
+export function takeExportsFromStock(state: CampaignState): void {
+  state.exportsToLoad = state.exportsToLoad.flatMap(
+    ({ resourceId, kilograms }) => {
+      const taken = Math.min(kilograms, bulkInStock(state, resourceId));
+      addBulk(state, resourceId, -taken);
+      return taken > 0 ? [{ resourceId, kilograms: taken }] : [];
+    },
+  );
+}
+
+/**
+ * Puts the Exports to load, already out of the base's stock, aboard the
+ * Lander with any there already, and returns them. The Exports to load are
+ * then none, until the player sets more.
+ */
+export function putExportsAboard(state: CampaignState): ExportLine[] {
+  const aboard = state.exportsToLoad;
   state.exportsToLoad = [];
   state.lander.exports = inCatalogueOrder([...state.lander.exports, ...aboard]);
   return aboard;
