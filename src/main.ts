@@ -86,7 +86,7 @@ const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult);
-const notifications = createNotificationList(rightColumn);
+const notifications = createNotificationList(rightColumn, campaign);
 const techTree = createTechTreeScreen(container, campaign, (event) => {
   notifications.add([event]);
 });

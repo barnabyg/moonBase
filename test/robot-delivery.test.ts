@@ -396,7 +396,7 @@ describe("saving and loading while a Robot arrives", () => {
 });
 
 describe("the interface for a Robot shipped by Launch", () => {
-  it("names it in the landing and arrival notifications, and says in the Base panel what it is doing as it arrives, numbered after the first", () => {
+  it("lists it in the landing notification, names it in the arrival notification and says in the Base panel what it is doing as it arrives, numbered after the first", () => {
     const game = readyToShip();
     setManifest(game, [{ itemId: robotItem.id, count: 1 }]);
     send(game);
@@ -426,8 +426,10 @@ describe("the interface for a Robot shipped by Launch", () => {
     const arrived = skipUntil(game, "robot-arrived").find(
       (event) => event.kind === "robot-arrived",
     );
-    expect(arrived === undefined ? "" : formatEvent(arrived)).toBe(
-      "A Robot has arrived from Earth, and is ready for work at the stockpile",
+    expect(
+      arrived === undefined ? "" : formatEvent(arrived, game.state.robots),
+    ).toBe(
+      "Robot 2 has arrived from Earth, and is ready for work at the stockpile",
     );
   });
 });

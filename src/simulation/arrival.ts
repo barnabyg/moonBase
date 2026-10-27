@@ -56,14 +56,19 @@ export function arrivalSpot(state: CampaignState): GroundPosition {
   return stockpileSpot(state, { workSpot: state.lander.position });
 }
 
+/**
+ * The number in a Robot's id, such as 2 for "robot-2", which stays the
+ * same for as long as the Robot is on the base; or nothing for an id
+ * without one.
+ */
+export function robotNumber(robotId: string): number | undefined {
+  const digits = /^robot-(\d+)$/.exec(robotId)?.[1];
+  return digits === undefined ? undefined : Number(digits);
+}
+
 /** One more than the highest number among the base's Robots' ids. */
 function nextRobotNumber(state: CampaignState): number {
   return (
-    Math.max(
-      0,
-      ...state.robots.map((robot) =>
-        Number(/^robot-(\d+)$/.exec(robot.id)?.[1] ?? 0),
-      ),
-    ) + 1
+    Math.max(0, ...state.robots.map((robot) => robotNumber(robot.id) ?? 0)) + 1
   );
 }

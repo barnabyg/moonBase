@@ -1,4 +1,4 @@
-import type { GameEvent } from "../simulation";
+import type { Campaign, GameEvent } from "../simulation";
 import { formatEvent, formatMoment } from "./format";
 
 /** How many of the latest notifications stay on screen. */
@@ -13,10 +13,13 @@ export interface NotificationList {
 
 /**
  * The notification list: what has happened lately, newest last. It only ever
- * shows events, and never pauses the game or waits for the player.
+ * shows events, and never pauses the game or waits for the player. It reads
+ * the base's Robots from the Campaign as the events come, to say which
+ * Robot each is about when there are several.
  */
 export function createNotificationList(
   container: HTMLElement,
+  campaign: Pick<Campaign, "snapshot">,
 ): NotificationList {
   const list = document.createElement("div");
   list.className = "notifications";
@@ -27,6 +30,7 @@ export function createNotificationList(
 
   return {
     add(events) {
+      const { robots } = campaign.snapshot();
       for (const event of events) {
         const item = document.createElement("p");
         item.className = "notifications__item";
@@ -50,7 +54,7 @@ export function createNotificationList(
         const time = document.createElement("span");
         time.className = "notifications__time";
         time.textContent = formatMoment(event.atMinute);
-        item.append(time, ` ${formatEvent(event)}`);
+        item.append(time, ` ${formatEvent(event, robots)}`);
         list.append(item);
       }
       while (list.childElementCount > MAX_NOTIFICATIONS) {

@@ -11,6 +11,7 @@ import type {
 import { scenario, toGameMinutes, type Scenario } from "./scenario";
 import {
   describeWork,
+  formatEvent,
   isEveryRobotOnExpedition,
   isFor,
   robotLabel,
@@ -467,6 +468,55 @@ describe("the interface with two Robots", () => {
       "Robot 2",
     ]);
     expect(robotLabel("robot-1", [{ id: "robot-1" }])).toBe("Robot");
+  });
+
+  it("numbers each Robot by its id, not by where it comes in the list", () => {
+    const robots = [{ id: "robot-2" }, { id: "robot-1" }];
+
+    expect(robots.map((each) => robotLabel(each.id, robots))).toEqual([
+      "Robot 2",
+      "Robot 1",
+    ]);
+  });
+
+  it("names the Robot that repairs itself in the notifications", () => {
+    const campaign = worn(scenario().campaign, "robot-2", 5);
+    const game = scenarioOf(campaign).plan("light-mast", firstSite);
+    const events: GameEvent[] = [];
+    for (let minute = 0; minute < 24 * 60; minute++) {
+      events.push(...game.campaign.advance(1));
+    }
+    const { robots } = game.state;
+
+    expect(
+      events
+        .filter(
+          (event) =>
+            event.kind === "robot-self-repair-started" ||
+            event.kind === "robot-repaired",
+        )
+        .map((event) => formatEvent(event, robots)),
+    ).toEqual([
+      "Robot 2 at 5% Condition, going to repair itself at the Lander",
+      "Robot 2 repaired itself, back to 100%, using 5 spare Components",
+    ]);
+  });
+
+  it("names the Robot a Micrometeorite strikes in the notification, and a lone Robot just the Robot", () => {
+    const { robots } = scenario().state;
+    const strike: GameEvent = {
+      kind: "micrometeorite-strike",
+      atMinute: 0,
+      target: { kind: "robot", robotId: "robot-2" },
+      conditionPercent: 80,
+    };
+
+    expect(formatEvent(strike, robots)).toBe(
+      "Micrometeorite struck Robot 2, leaving it at 80% Condition",
+    );
+    expect(formatEvent(strike, [{ id: "robot-2" }])).toBe(
+      "Micrometeorite struck the Robot, leaving it at 80% Condition",
+    );
   });
 
   it("says what each Robot at work on a Construction is doing", () => {

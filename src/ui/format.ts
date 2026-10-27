@@ -8,6 +8,7 @@ import {
 } from "../catalogue";
 import {
   readClock,
+  robotNumber,
   type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
@@ -392,8 +393,16 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   };
 }
 
-/** Says what happened in an event, for the notification list, for example "Night has fallen". */
-export function formatEvent(event: GameEvent): string {
+/**
+ * Says what happened in an event, for the notification list, for example
+ * "Night has fallen". Given the base's Robots, it says which Robot an
+ * event is about when there are several, as the Base panel names them;
+ * otherwise it just says "Robot".
+ */
+export function formatEvent(
+  event: GameEvent,
+  robots: readonly Pick<RobotSnapshot, "id">[] = [],
+): string {
   switch (event.kind) {
     case "night-started":
       return "Night has fallen";
@@ -470,14 +479,14 @@ export function formatEvent(event: GameEvent): string {
       ])}`;
     case "robot-self-repair-started":
       return event.makeshift
-        ? `Robot at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
-        : `Robot at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
+        ? `${robotLabel(event.robotId, robots)} at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
+        : `${robotLabel(event.robotId, robots)} at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
     case "robot-repaired":
       return event.spareComponents > 0
-        ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
-        : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+        ? `${robotLabel(event.robotId, robots)} repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
+        : `${robotLabel(event.robotId, robots)} made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
     case "robot-arrived":
-      return "A Robot has arrived from Earth, and is ready for work at the stockpile";
+      return `${robots.length > 1 ? robotLabel(event.robotId, robots) : "A Robot"} has arrived from Earth, and is ready for work at the stockpile`;
     case "expedition-left":
       return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
     case "expedition-returned":
@@ -495,7 +504,7 @@ export function formatEvent(event: GameEvent): string {
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
-      return `Micrometeorite struck the ${strikeTargetLabel(event.target)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
+      return `Micrometeorite struck ${strikeTargetLabel(event.target, robots)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -1054,16 +1063,20 @@ export function isEveryRobotOnExpedition(
 }
 
 /**
- * Names a Robot, for the Base panel: "Robot" while it is the only one,
- * otherwise numbered, for example "Robot 2".
+ * Names a Robot, for the Base panel and the notifications: "Robot" while
+ * it is the only one, otherwise numbered by its id, for example "Robot 2",
+ * so that its name never changes. A Robot whose id has no number is
+ * numbered by where it comes in the list.
  */
 export function robotLabel(
   robotId: string,
   robots: readonly Pick<RobotSnapshot, "id">[],
 ): string {
   if (robots.length <= 1) return "Robot";
-  const index = robots.findIndex((robot) => robot.id === robotId);
-  return `Robot ${index + 1}`;
+  const number =
+    robotNumber(robotId) ??
+    robots.findIndex((robot) => robot.id === robotId) + 1;
+  return `Robot ${number}`;
 }
 
 /**
@@ -1102,17 +1115,25 @@ export function describeExpedition(
   }
 }
 
-/** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
-function strikeTargetLabel(target: StrikeTarget): string {
+/**
+ * Names what a Micrometeorite struck, for example "the solar array", "the
+ * Robot", or "Robot 2" when there are several.
+ */
+function strikeTargetLabel(
+  target: StrikeTarget,
+  robots: readonly Pick<RobotSnapshot, "id">[],
+): string {
   switch (target.kind) {
     case "structure":
-      return structureLabel(target.structureTypeId).toLowerCase();
+      return `the ${structureLabel(target.structureTypeId).toLowerCase()}`;
     case "machine":
-      return machineLabel(target.machineTypeId).toLowerCase();
+      return `the ${machineLabel(target.machineTypeId).toLowerCase()}`;
     case "rover":
-      return catalogue.rover.label;
+      return `the ${catalogue.rover.label}`;
     case "robot":
-      return "Robot";
+      return robots.length > 1
+        ? robotLabel(target.robotId, robots)
+        : "the Robot";
   }
 }
 
