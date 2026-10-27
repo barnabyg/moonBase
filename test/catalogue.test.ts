@@ -2274,10 +2274,16 @@ describe("the Milestones", () => {
   it("are listed in order, each with a unique id and label and a one-line hint", () => {
     const { milestones } = catalogue;
 
-    expect(milestones.slice(0, 3).map((milestone) => milestone.id)).toEqual([
+    expect(milestones.map((milestone) => milestone.id)).toEqual([
       "power-storage",
       "moved-in",
       "lander-departs",
+      "habitat-shielded",
+      "landing-pad",
+      "first-research-task",
+      "first-export",
+      "oxygen-self-sufficient",
+      "water-self-sufficient",
     ]);
     expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
       milestones.length,
@@ -2289,6 +2295,15 @@ describe("the Milestones", () => {
       expect(label.trim()).not.toBe("");
       expect(hint.trim()).not.toBe("");
       expect(hint).not.toContain("\n");
+    }
+  });
+
+  it("judge self-sufficiency only in a life support stock the data catalogue has", () => {
+    for (const { condition } of catalogue.milestones) {
+      if (condition.kind !== "self-sufficient") continue;
+      expect(catalogue.lifeSupportStocks.map((stock) => stock.id)).toContain(
+        condition.stockId,
+      );
     }
   });
 

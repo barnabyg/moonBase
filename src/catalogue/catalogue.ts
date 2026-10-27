@@ -223,7 +223,20 @@ export type MilestoneCondition =
   /** The Mission Director has moved into a Habitat. */
   | { readonly kind: "mission-director-moved-in" }
   /** The Lander takes off for Earth. */
-  | { readonly kind: "lander-took-off" };
+  | { readonly kind: "lander-took-off" }
+  /** The Habitat the Mission Director lives in is shielded. */
+  | { readonly kind: "habitat-shielded" }
+  /** A landing pad is commissioned. */
+  | { readonly kind: "landing-pad-commissioned" }
+  /** A Research Task has been completed. */
+  | { readonly kind: "research-task-completed" }
+  /** Exports are sold, as the Lander reaches Earth with some aboard. */
+  | { readonly kind: "export-sold" }
+  /**
+   * The base is self-sufficient in a life support stock, as the status
+   * panel judges it.
+   */
+  | { readonly kind: "self-sufficient"; readonly stockId: string };
 
 /**
  * Micrometeorite strikes, which the Campaign's seeded generator schedules
@@ -2907,6 +2920,42 @@ export const catalogue: Catalogue = {
       label: "Lander departs",
       hint: "Set the Launch manifest with what the base needs next, then Send the Lander from the status panel: it flies to Earth and comes back with the Launch.",
       condition: { kind: "lander-took-off" },
+    },
+    {
+      id: "habitat-shielded",
+      label: "Habitat shielded",
+      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose tenfold.",
+      condition: { kind: "habitat-shielded" },
+    },
+    {
+      id: "landing-pad",
+      label: "Landing pad",
+      hint: "Put the landing pad's pad panels and beacon on the Launch manifest, then build a landing pad clear of the base, so the Lander stops blasting Plume Ejecta over it.",
+      condition: { kind: "landing-pad-commissioned" },
+    },
+    {
+      id: "first-research-task",
+      label: "First Research Task",
+      hint: "Open Research Tasks in the top bar and start one: it runs by itself and pays Science, which unlocks Designs on the Tech Tree.",
+      condition: { kind: "research-task-completed" },
+    },
+    {
+      id: "first-export",
+      label: "First Export",
+      hint: "Ship an extraction plant and a vacuum fabrication plant to make wafers from Regolith, load them on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
+      condition: { kind: "export-sold" },
+    },
+    {
+      id: "oxygen-self-sufficient",
+      label: "Oxygen self-sufficiency",
+      hint: "Keep an extraction plant making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
+      condition: { kind: "self-sufficient", stockId: "oxygen" },
+    },
+    {
+      id: "water-self-sufficient",
+      label: "Water self-sufficiency",
+      hint: "Ship a water-processing plant and send Expeditions for water ice, until the base's Plants have made at least as much water as the Mission Director drinks over a whole Lunation.",
+      condition: { kind: "self-sufficient", stockId: "water" },
     },
   ],
 };

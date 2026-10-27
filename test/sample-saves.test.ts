@@ -2171,9 +2171,26 @@ describe("the sample saves from before the Milestones", () => {
     },
   );
 
-  it.each(["version-1.moonbase", "version-22.moonbase", "version-32.moonbase"])(
+  it.each([
+    ["version-1.moonbase", ["power-storage", "moved-in"]],
+    ["version-22.moonbase", ["power-storage", "moved-in"]],
+    [
+      "version-31.moonbase",
+      [
+        "power-storage",
+        "moved-in",
+        "habitat-shielded",
+        "landing-pad",
+        "first-research-task",
+      ],
+    ],
+    [
+      "version-32.moonbase",
+      ["power-storage", "moved-in", "first-research-task"],
+    ],
+  ])(
     "%s, saved with the Lander landed, loads with none reached, then reaches those its state meets as play goes on",
-    (name) => {
+    (name, meets) => {
       const campaign = loadSample(name);
       expect(campaign.snapshot().milestones.reachedIds).toEqual([]);
 
@@ -2183,11 +2200,8 @@ describe("the sample saves from before the Milestones", () => {
         events.flatMap((event) =>
           event.kind === "milestone-reached" ? [event.milestoneId] : [],
         ),
-      ).toEqual(["power-storage", "moved-in"]);
-      expect(campaign.snapshot().milestones).toMatchObject({
-        reachedIds: ["power-storage", "moved-in"],
-        currentId: "lander-departs",
-      });
+      ).toEqual(meets);
+      expect(campaign.snapshot().milestones.reachedIds).toEqual(meets);
     },
   );
 });

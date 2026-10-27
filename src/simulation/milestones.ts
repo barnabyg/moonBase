@@ -4,8 +4,9 @@ import {
   type MilestoneCondition,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { findStructureType } from "./construction";
+import { findStructureType, isShielded } from "./construction";
 import type { GameEvent } from "./events";
+import { readSelfSufficiency } from "./self-sufficiency";
 
 /** Which Milestones are reached, and which to aim for now and next. */
 export interface MilestonesSnapshot {
@@ -89,5 +90,30 @@ function holds(
       return state.missionDirector.residence === "habitat";
     case "lander-took-off":
       return events.some((event) => event.kind === "lander-took-off");
+    case "habitat-shielded": {
+      const { missionDirector } = state;
+      if (missionDirector.residence !== "habitat") return false;
+      const habitat = state.structures.find(
+        (structure) => structure.id === missionDirector.habitatId,
+      );
+      return habitat !== undefined && isShielded(state, habitat);
+    }
+    case "landing-pad-commissioned":
+      return state.structures.some(
+        (structure) =>
+          findStructureType(structure.structureTypeId)?.landingPad === true,
+      );
+    case "research-task-completed":
+      return state.completedResearchTaskIds.length > 0;
+    case "export-sold":
+      return events.some(
+        (event) =>
+          event.kind === "lander-reached-earth" && event.sold.length > 0,
+      );
+    case "self-sufficient":
+      return readSelfSufficiency(state).some(
+        (judged) =>
+          judged.stockId === condition.stockId && judged.selfSufficient,
+      );
   }
 }

@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Catalogue } from "../src/catalogue";
+import { catalogue, type Catalogue } from "../src/catalogue";
 import {
   loadCampaign,
+  type Campaign,
   type GameEvent,
   type GroundPosition,
   type Snapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, toGameMinutes, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 // A Habitat on a single solar array can't get through a Night, and these
 // tests keep the Mission Director in one past the first.
@@ -145,7 +147,7 @@ describe("the Milestones", () => {
     expect(game.state.milestones).toEqual({
       reachedIds: ["moved-in", "power-storage"],
       currentId: "lander-departs",
-      nextId: undefined,
+      nextId: "habitat-shielded",
     });
   });
 
@@ -221,3 +223,170 @@ describe("the Milestones", () => {
     expect(loaded.campaign.snapshot()).toEqual(uninterrupted.state);
   });
 });
+
+describe("the later Milestones", () => {
+  it("reach the Habitat shielded as Regolith shielding over the Mission Director's Habitat is commissioned", () => {
+    const game = movedInWithoutStorage();
+    game.plan("regolith-shielding", habitatSite);
+
+    const events = runUntil(game, (state) =>
+      state.milestones.reachedIds.includes("habitat-shielded"),
+    );
+
+    expect(reached(events)).toEqual(["moved-in", "habitat-shielded"]);
+    expect(
+      game.state.structures.find(
+        (structure) => structure.structureTypeId === "habitat",
+      )?.shielded,
+    ).toBe(true);
+  });
+
+  it("reach the landing pad as one is commissioned from Components a Launch would bring", () => {
+    const game = withStock(scenario(), [
+      ["pad-panel", 8],
+      ["pad-beacon", 1],
+    ]);
+    game.plan("landing-pad", { x: -40, y: -40 });
+
+    const events = runUntil(game, (state) => state.constructions.length === 0);
+    events.push(...game.campaign.advance(1));
+
+    expect(reached(events)).toEqual(["landing-pad"]);
+  });
+
+  it("reach the first Research Task as one is completed", () => {
+    const game = scenario();
+    expect(
+      game.campaign.startResearchTask("regolith-sample-analysis"),
+    ).toMatchObject({ ok: true });
+
+    const events = runUntil(
+      game,
+      (state) => state.completedResearchTaskIds.length > 0,
+    );
+
+    expect(reached(events)).toEqual(["first-research-task"]);
+    expect(events.at(-1)).toMatchObject({
+      kind: "milestone-reached",
+      milestoneId: "first-research-task",
+    });
+  });
+
+  it("reach the first Export as it is sold when the Lander reaches Earth, not when it is loaded or taken off", () => {
+    const game = withWafers(movedInWithoutStorage(), 30);
+    expect(
+      game.campaign.loadExports([{ resourceId: "wafers", kilograms: 30 }]),
+    ).toMatchObject({ ok: true });
+    expect(game.campaign.sendLander()).toEqual({ ok: true });
+
+    const toTakeOff = game.campaign.advance(2);
+    expect(toTakeOff.map((event) => event.kind)).toContain("lander-took-off");
+    expect(reached(toTakeOff)).not.toContain("first-export");
+
+    const events = runUntil(game, (state) =>
+      state.milestones.reachedIds.includes("first-export"),
+    );
+    const sale = events.find((event) => event.kind === "lander-reached-earth");
+    expect(sale).toMatchObject({ sold: [{ resourceId: "wafers" }] });
+    expect(
+      events.find(
+        (event) =>
+          event.kind === "milestone-reached" &&
+          event.milestoneId === "first-export",
+      )?.atMinute,
+    ).toBe(sale?.atMinute);
+  });
+
+  it("don't reach the first Export when the Lander reaches Earth with nothing to sell", () => {
+    const game = movedInWithoutStorage();
+    expect(game.campaign.sendLander()).toEqual({ ok: true });
+
+    const events = runUntil(
+      game,
+      (state) => state.lander.state === "turnaround",
+    );
+
+    expect(events.map((event) => event.kind)).toContain("lander-reached-earth");
+    expect(reached(events)).not.toContain("first-export");
+  });
+
+  it("leave no current or next Milestone once all are reached, and the Campaign carries on", () => {
+    const game = withAllReached(scenario());
+
+    expect(game.state.milestones).toEqual({
+      reachedIds: catalogue.milestones.map((milestone) => milestone.id),
+      currentId: undefined,
+      nextId: undefined,
+    });
+
+    const events = game.campaign.advance(24 * 60);
+
+    expect(reached(events)).toEqual([]);
+    expect(game.state.ended).toBeUndefined();
+    expect(game.state.clock.elapsedMinutes).toBe(24 * 60);
+  });
+});
+
+/** The game as saved, with Components added to the base's stock as a Launch would bring them. */
+function withStock(
+  game: Scenario,
+  counts: readonly (readonly [string, number])[],
+): Scenario {
+  return fromCampaign(
+    changed(game.campaign, (state) => {
+      for (const [componentId, count] of counts) {
+        const stock = state.stockpile.components.find(
+          (candidate) => candidate.componentId === componentId,
+        );
+        if (stock === undefined) throw new Error(`expected ${componentId}`);
+        stock.count += count;
+      }
+    }),
+  );
+}
+
+/** The game as saved, with wafers in the base's stock, as if its Plants had made them. */
+function withWafers(game: Scenario, kilograms: number): Scenario {
+  return fromCampaign(
+    changed(game.campaign, (state) => {
+      const wafers = state.bulkResources.find(
+        (stock) => stock.resourceId === "wafers",
+      );
+      if (wafers === undefined) throw new Error("expected wafers");
+      wafers.kilograms = kilograms;
+    }),
+  );
+}
+
+/** The game as saved, with every Milestone reached. */
+function withAllReached(game: Scenario): Scenario {
+  const document = JSON.parse(game.campaign.save()) as {
+    state: { reachedMilestoneIds: string[] };
+  };
+  document.state.reachedMilestoneIds = catalogue.milestones.map(
+    (milestone) => milestone.id,
+  );
+  const loaded = loadCampaign(JSON.stringify(document));
+  if (!loaded.ok) throw new Error(loaded.message);
+  return fromCampaign(loaded.campaign);
+}
+
+function fromCampaign(campaign: Campaign): Scenario {
+  const self: Scenario = {
+    campaign,
+    advance(duration) {
+      campaign.advance(toGameMinutes(duration));
+      return self;
+    },
+    plan(structureTypeId, position) {
+      const result = campaign.planConstruction({ structureTypeId, position });
+      if (!result.ok)
+        throw new Error(`Planning was refused: ${result.message}`);
+      return self;
+    },
+    get state() {
+      return campaign.snapshot();
+    },
+  };
+  return self;
+}
