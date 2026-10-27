@@ -103,3 +103,58 @@ test("Science from a Research Task unlocks a Design, whose Components then appea
     "Click the map to place the large battery bank. Right-click or press Esc to cancel. Its Components aren't in the base's stock, so its Construction will wait for them.",
   );
 });
+
+test("Science unlocks Robots, and then a Robot is on the Launch manifest screen with its mass and price", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  const notifications = page.getByRole("log", { name: "Notifications" });
+  const manifest = page.getByRole("dialog", { name: "Launch manifest" });
+  const robot = manifest.getByRole("row", { name: /^Robot/ });
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+
+  // Not offered before the Design is unlocked.
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  await expect(
+    manifest.getByRole("row", { name: /^Solar panel/ }),
+  ).toBeVisible();
+  await expect(robot).toBeHidden();
+  await manifest.getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  const research = page.getByRole("dialog", { name: "Research Tasks" });
+  await research
+    .getByRole("button", { name: "Start Seismic monitoring" })
+    .click();
+  await research.getByRole("button", { name: "Close" }).click();
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  const completed = notifications.getByText(
+    "Seismic monitoring complete, earning 30 Science",
+  );
+  for (let skips = 0; skips < 20 && !(await completed.isVisible()); skips++) {
+    await skip.click();
+    await nextFrame(page);
+  }
+  await expect(completed).toBeVisible();
+
+  await page.getByRole("button", { name: "Tech Tree" }).click();
+  const tree = page.getByRole("dialog", { name: "Tech Tree" });
+  await tree.getByRole("button", { name: "Unlock Robots" }).click();
+  await expect(
+    notifications.getByText("Robots unlocked, for 20 Science"),
+  ).toBeVisible();
+  await tree.getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  await expect(robot).toContainText("300 kg, $50M");
+  await manifest.getByRole("button", { name: "Add one Robot" }).click();
+  await expect(
+    manifest.getByRole("status", { name: "Payload Mass" }),
+  ).toHaveText("Payload Mass: 300 of 2000 kg");
+  await expect(
+    manifest.getByRole("status", { name: "Launch cost" }),
+  ).toContainText("$200M");
+});

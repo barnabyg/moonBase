@@ -989,8 +989,9 @@ function notes(parts: readonly (string | undefined)[]): { note?: string } {
 
 /**
  * Says what a Robot is doing, and whether it works below par, for the
- * status panel, for example "working", or "repairing itself at the Habitat"
- * and "working at 18%". Its Condition is shown beside it.
+ * status panel, for example "working", "repairing itself at the Habitat"
+ * and "working at 18%", or, for one a Launch has just brought, "climbing
+ * down from the Lander". Its Condition is shown beside it.
  */
 export function formatRobot(
   robot: RobotSnapshot,
@@ -1000,6 +1001,12 @@ export function formatRobot(
   const performance = notes([formatPerformance(robot.performance)]);
   if (isOnExpedition(robot.id, expedition)) {
     return { value: "on an Expedition", ...performance };
+  }
+  if (activity.kind === "climbing-down") {
+    return { value: "climbing down from the Lander", ...performance };
+  }
+  if (activity.kind === "walking-to-stockpile") {
+    return { value: "walking to the stockpile, just arrived", ...performance };
   }
   const where =
     selfRepair === undefined

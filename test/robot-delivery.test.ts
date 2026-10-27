@@ -8,6 +8,7 @@ import {
   type RobotSnapshot,
   type Snapshot,
 } from "../src/simulation";
+import { formatEvent, formatRobot, robotLabel } from "../src/ui/format";
 import { findDesign, unlock } from "./designs";
 import { scenario, type Scenario } from "./scenario";
 
@@ -392,4 +393,41 @@ describe("saving and loading while a Robot arrives", () => {
       );
     },
   );
+});
+
+describe("the interface for a Robot shipped by Launch", () => {
+  it("names it in the landing and arrival notifications, and says in the Base panel what it is doing as it arrives, numbered after the first", () => {
+    const game = readyToShip();
+    setManifest(game, [{ itemId: robotItem.id, count: 1 }]);
+    send(game);
+
+    const landed = skipUntil(game, "lander-landed").find(
+      (event) => event.kind === "lander-landed",
+    );
+    expect(landed === undefined ? "" : formatEvent(landed)).toBe(
+      "Lander landed with 1 × Robot",
+    );
+    const { robots } = game.state;
+    expect(robots.map((each) => robotLabel(each.id, robots))).toEqual([
+      "Robot 1",
+      "Robot 2",
+    ]);
+    expect(formatRobot(robot(game.state, "robot-2"))).toEqual({
+      value: "climbing down from the Lander",
+    });
+    runUntil(
+      game,
+      (state) => robot(state, "robot-2").activity.kind !== "climbing-down",
+    );
+    expect(formatRobot(robot(game.state, "robot-2"))).toEqual({
+      value: "walking to the stockpile, just arrived",
+    });
+
+    const arrived = skipUntil(game, "robot-arrived").find(
+      (event) => event.kind === "robot-arrived",
+    );
+    expect(arrived === undefined ? "" : formatEvent(arrived)).toBe(
+      "A Robot has arrived from Earth, and is ready for work at the stockpile",
+    );
+  });
 });
