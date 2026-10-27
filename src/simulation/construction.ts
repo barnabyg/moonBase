@@ -81,6 +81,11 @@ export interface StructureState {
   conditionPercent: number;
   /** How thickly Dust coats it, from 0% to 100%: only ever a solar array. */
   dustCoatingPercent: number;
+  /**
+   * The id of the recipe it runs, if it is a Plant: one of its type's
+   * recipes in the data catalogue. Undefined for any other Structure.
+   */
+  recipeId: string | undefined;
 }
 
 /**

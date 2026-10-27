@@ -1,4 +1,9 @@
-import { catalogue, type LaunchItem, type ResourceRef } from "../catalogue";
+import {
+  catalogue,
+  type Export,
+  type LaunchItem,
+  type ResourceRef,
+} from "../catalogue";
 import {
   readClock,
   type BulkResourceForecast,
@@ -32,6 +37,9 @@ import type {
   RoverSnapshot,
   DismantlingSnapshot,
   DismantlingStage,
+  ExportLine,
+  ExportLoadingSnapshot,
+  ExportsSnapshot,
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
@@ -166,27 +174,40 @@ export function formatHabitatPower(
 }
 
 /**
- * Says what state the Lander is in and, while it is away, when it next
- * arrives or leaves, for example "Lander: landed, free to fly" or "Lander:
- * in turnaround on Earth, leaves in 3 Earth Days 2 hours".
+ * Says what state the Lander is in, any Exports aboard and, while it is
+ * away, when it next arrives or leaves, for example "Lander: landed on the
+ * landing pad with 40 kg of wafers aboard, free to fly" or "Lander:
+ * travelling to Earth with 40 kg of wafers, arrives in 2 Earth Days 23
+ * hours".
  */
 export function formatLander(
   lander: LanderSnapshot,
   elapsedMinutes: number,
+  exportsAboard: readonly ExportLine[],
+  exportLoading?: ExportLoadingSnapshot,
 ): string {
   const left = formatDuration(
     Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
   );
   const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
+  const aboard =
+    exportsAboard.length === 0
+      ? ""
+      : ` with ${formatExportLines(exportsAboard)} aboard`;
   switch (lander.state) {
     case "landed-occupied":
       return "Lander: landed, with the Mission Director aboard";
     case "landed-free":
-      return lander.cargo.length === 0
-        ? `Lander: landed${onPad}, free to fly`
-        : `Lander: landed${onPad}, its cargo waiting for the Robot to unload it`;
+      if (lander.cargo.length > 0) {
+        return `Lander: landed${onPad}${aboard}, its cargo waiting for the Robot to unload it`;
+      }
+      return exportLoading === undefined
+        ? `Lander: landed${onPad}${aboard}, free to fly`
+        : `Lander: landed${onPad}${aboard}, waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`;
     case "travelling-to-earth":
-      return `Lander: travelling to Earth, arrives in ${left}`;
+      return exportsAboard.length === 0
+        ? `Lander: travelling to Earth, arrives in ${left}`
+        : `Lander: travelling to Earth with ${formatExportLines(exportsAboard)}, arrives in ${left}`;
     case "turnaround":
       return `Lander: in turnaround on Earth, leaves in ${left}`;
     case "travelling-to-moon":
@@ -321,9 +342,13 @@ export function formatEvent(event: GameEvent): string {
     case "solar-particle-event-ended":
       return "Solar Particle Event over";
     case "lander-took-off":
-      return "Lander took off for Earth";
+      return event.exports.length === 0
+        ? "Lander took off for Earth"
+        : `Lander took off for Earth with ${formatExportLines(event.exports)}`;
     case "lander-reached-earth":
-      return "Lander reached Earth for turnaround";
+      return event.sold.length === 0
+        ? "Lander reached Earth for turnaround"
+        : `Lander reached Earth for turnaround, and sold ${formatExportLines(event.sold)} for ${formatMillionDollars(event.earnedMillionDollars)}`;
     case "lander-left-earth":
       return event.chargedMillionDollars === 0
         ? "Lander left Earth for the Moon, with nothing aboard"
@@ -334,6 +359,8 @@ export function formatEvent(event: GameEvent): string {
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
     case "lander-unloaded":
       return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
+    case "lander-loaded":
+      return `Robot loaded the Lander: ${formatExportLines(event.exports)} now aboard`;
     case "plume-ejecta-damage":
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
@@ -479,9 +506,12 @@ export function structureLabel(structureTypeId: string): string {
   );
 }
 
-/** Formats an amount of money, for example "$12.5M" for 12.5 million dollars. */
+/**
+ * Formats an amount of money to the nearest $0.1M, for example "$12.5M" for
+ * 12.5 million dollars, or "$60M" for 60.004 million.
+ */
 export function formatMillionDollars(value: number): string {
-  return `$${Number.isInteger(value) ? value : value.toFixed(1)}M`;
+  return `$${Math.round(value * 10) / 10}M`;
 }
 
 /**
@@ -603,22 +633,86 @@ export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
 }
 
 /**
- * Says what the manifest costs against the Funding balance, for example
- * "Cost: $230M of $400M Funding, including the $150M Launch fee". An empty
- * manifest costs nothing, so the fee is left out until it has an item. Once
- * it is locked, it has been paid for.
+ * Says what the manifest costs against the Funding balance, and what any
+ * Exports aboard the Lander will sell for before it is paid for, for
+ * example "Cost: $230M of $400M Funding, including the $150M Launch fee" or
+ * "Cost: $480M of $400M Funding and $150M from the Exports aboard,
+ * including the $150M Launch fee". An empty manifest costs nothing, so the
+ * fee is left out until it has an item. Once it is locked, it has been paid
+ * for.
  */
 export function formatLaunchCost(
   manifest: LaunchManifestSnapshot,
   fundingMillionDollars: number,
+  valueAboardMillionDollars: number,
 ): string {
   if (manifest.locked) {
     return `Cost: ${formatMillionDollars(manifest.costMillionDollars)}, paid as the Lander left Earth`;
   }
-  const funding = `${formatMillionDollars(fundingMillionDollars)} Funding`;
+  const funding = `${formatMillionDollars(fundingMillionDollars)} Funding${
+    valueAboardMillionDollars === 0
+      ? ""
+      : ` and ${formatMillionDollars(valueAboardMillionDollars)} from the Exports aboard`
+  }`;
   return manifest.items.length === 0
     ? `Cost: nothing of ${funding}, while the manifest is empty`
     : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(catalogue.launch.feeMillionDollars)} Launch fee`;
+}
+
+/**
+ * Lists Exports the way a sentence would, for example "40 kg of wafers and
+ * 10 kg of circuit boards".
+ */
+export function formatExportLines(lines: readonly ExportLine[]): string {
+  return listInWords(
+    lines.map(
+      ({ resourceId, kilograms }) =>
+        `${formatKilograms(kilograms)} of ${resourceLabel(resourceId).toLowerCase()}`,
+    ),
+  );
+}
+
+/** Says an Export's price, for example "$1.5M a kg". */
+export function formatExportPrice(sold: Export): string {
+  return `${formatMillionDollars(sold.priceMillionDollarsPerKilogram)} a kg`;
+}
+
+/**
+ * Formats a stock an Export can be loaded from, rounded down to the tenth of
+ * a kilogram the player can set, for example "46.5 kg".
+ */
+export function formatExportStock(kilograms: number): string {
+  return `${Math.floor(kilograms * 10) / 10} kg`;
+}
+
+/**
+ * Formats an amount the player sets in kilograms, to the nearest tenth, for
+ * example "35.5".
+ */
+export function formatKilogramAmount(kilograms: number): string {
+  return String(Math.round(kilograms * 10) / 10);
+}
+
+/**
+ * Says the mass of the Exports aboard the Lander and to load against its
+ * Return Mass, for example "Return Mass: 40 of 100 kg".
+ */
+export function formatReturnMass(exports: ExportsSnapshot): string {
+  const aboard = exports.aboard.reduce(
+    (total, line) => total + line.kilograms,
+    0,
+  );
+  return `Return Mass: ${formatKilogramAmount(exports.massKilograms + aboard)} of ${catalogue.lander.returnMassKilograms} kg`;
+}
+
+/**
+ * Says what the Exports to load will sell for, for example "Value: $60M,
+ * sold when the Lander reaches Earth".
+ */
+export function formatExportsValue(exports: ExportsSnapshot): string {
+  return exports.toLoad.length === 0
+    ? "Value: nothing, while there are no Exports to load"
+    : `Value: ${formatMillionDollars(exports.valueMillionDollars)}, sold when the Lander reaches Earth`;
 }
 
 function componentLabel(componentId: string): string {
@@ -972,8 +1066,8 @@ function describeRobotWork(
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
     // Only ever done for a Structure being dismantled or maintained, to
-    // unload the Lander, or for the Robot's repair of itself, when it does
-    // nothing for anything else.
+    // unload or load the Lander, or for the Robot's repair of itself, when
+    // it does nothing for anything else.
     case "driving-rover":
     case "on-expedition":
     case "unloading-expedition":
@@ -981,6 +1075,8 @@ function describeRobotWork(
     case "returning-components":
     case "loading-cargo":
     case "unloading-cargo":
+    case "loading-exports":
+    case "putting-exports-aboard":
     case "maintaining":
     case "cleaning":
     case "walking-to-repair":
@@ -1056,6 +1152,38 @@ export function describeUnloading(
       return unloading.collected
         ? `Waiting for the Robot to carry ${cargo} to the stockpile`
         : `Waiting for the Robot to take ${cargo} off the Lander`;
+  }
+}
+
+/**
+ * Says what is happening on the loading of the Exports onto the Lander
+ * right now, for the Work panel: what the Robot is doing with them, or
+ * else that it is waiting for the Robot.
+ */
+export function describeExportLoading(
+  loading: ExportLoadingSnapshot,
+  snapshot: Pick<Snapshot, "robots">,
+): string {
+  const exports = formatExportLines(loading.exports);
+  const robot = snapshot.robots.find(
+    ({ activity }) =>
+      activity.kind === "loading-exports" ||
+      activity.kind === "putting-exports-aboard" ||
+      (activity.kind === "walking" && "purpose" in activity),
+  );
+  switch (robot?.activity.kind) {
+    case "walking":
+      return robot.activity.destination === "stockpile"
+        ? `Robot walking to the stockpile for ${exports}`
+        : `Robot carrying ${exports} to the Lander`;
+    case "loading-exports":
+      return `Robot loading ${exports} at the stockpile`;
+    case "putting-exports-aboard":
+      return `Robot putting ${exports} aboard the Lander`;
+    default:
+      return loading.collected
+        ? `Waiting for the Robot to carry ${exports} to the Lander`
+        : `Waiting for the Robot to load ${exports} at the stockpile`;
   }
 }
 

@@ -12,6 +12,7 @@ import {
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
+import { sellExports, takeExportsAboard } from "./exports";
 import { deliverLaunch, payForLaunch } from "./launch-manifest";
 import { blastPlumeEjecta } from "./plume-ejecta";
 
@@ -37,6 +38,12 @@ export interface LanderState {
    * stockpile: only ever after it has landed on a landing pad.
    */
   cargo: ComponentCount[];
+  /**
+   * The Exports aboard it, in catalogue order: from its take-off, or on a
+   * landing pad from when the Robot puts them aboard, until they are sold
+   * as it reaches Earth.
+   */
+  exports: { resourceId: string; kilograms: number }[];
 }
 
 export interface LanderSnapshot {
@@ -61,7 +68,11 @@ export interface LanderSnapshot {
 }
 
 export type SendLanderRefusal =
-  "mission-director-aboard" | "lander-away" | "cargo-aboard" | "campaign-ended";
+  | "mission-director-aboard"
+  | "lander-away"
+  | "cargo-aboard"
+  | "exports-loading"
+  | "campaign-ended";
 
 export type SendLanderResult =
   | { readonly ok: true }
@@ -74,8 +85,9 @@ export type SendLanderResult =
 
 /**
  * Sends the landed Lander on its round trip to Earth and back. It can't
- * leave while the Mission Director lives aboard it, or before the Robot has
- * taken its cargo off. It takes off in the game-minute that follows.
+ * leave while the Mission Director lives aboard it, before the Robot has
+ * taken its cargo off, or, on a landing pad, before the Robot has put the
+ * Exports to load aboard. It takes off in the game-minute that follows.
  */
 export function sendLander(state: CampaignState): SendLanderResult {
   if (state.missionDirector.residence === "lander") {
@@ -96,6 +108,15 @@ export function sendLander(state: CampaignState): SendLanderResult {
       "The Lander's cargo hasn't been unloaded yet. The Robot has to carry it to the stockpile first.",
     );
   }
+  if (
+    state.exportLoading !== undefined ||
+    (state.exportsToLoad.length > 0 && padUnderLander(state) !== undefined)
+  ) {
+    return refuse(
+      "exports-loading",
+      "The Exports to load aren't aboard yet. The Robot has to finish loading them onto the Lander first.",
+    );
+  }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);
   return { ok: true };
 }
@@ -104,10 +125,12 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * Flies the Lander through the game-minute that has just passed: it takes
  * off in the first game-minute after it was sent, and each leg of its round
  * trip gives way to the next as it ends, until it lands: on the landing pad,
- * if one is working, or else at the landing site. It pays for the Launch
- * manifest as it leaves Earth, and delivers it as it lands. Taking off or
- * landing anywhere but on a working landing pad blasts Plume Ejecta over the
- * Structures round it.
+ * if one is working, or else at the landing site. Taking off from the
+ * landing site, it takes the Exports to load aboard; on a working landing
+ * pad, the Robot has put them aboard already. It sells them as it reaches
+ * Earth. It pays for the Launch manifest as it leaves Earth, after the
+ * sale, and delivers it as it lands. Taking off or landing anywhere but on a working landing
+ * pad blasts Plume Ejecta over the Structures round it.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -118,8 +141,10 @@ export function flyLander(state: CampaignState): GameEvent[] {
     atMinute === trip.legStartedAtMinute + 1
   ) {
     const fromPad = padAt(state, state.lander.position) !== undefined;
+    if (!fromPad) takeExportsAboard(state);
+    const exports = state.lander.exports.map((line) => ({ ...line }));
     return [
-      { kind: "lander-took-off", atMinute },
+      { kind: "lander-took-off", atMinute, exports },
       ...(fromPad ? [] : blastPlumeEjecta(state, state.lander.position)),
     ];
   }
@@ -127,7 +152,9 @@ export function flyLander(state: CampaignState): GameEvent[] {
   switch (trip.leg) {
     case "travelling-to-earth":
       state.lander.trip = startLeg("turnaround", atMinute);
-      return [{ kind: "lander-reached-earth", atMinute }];
+      return [
+        { kind: "lander-reached-earth", atMinute, ...sellExports(state) },
+      ];
     case "turnaround":
       state.lander.trip = startLeg("travelling-to-moon", atMinute);
       return [
@@ -207,11 +234,20 @@ export function padUnderLander(
  * isn't Broken or to be dismantled.
  */
 function workingLandingPad(state: CampaignState): StructureState | undefined {
-  return state.structures.find(
-    (structure) =>
-      findStructureType(structure.structureTypeId)?.landingPad === true &&
-      !isBroken(structure) &&
-      !isDueToBeDismantled(state, structure.id),
+  return state.structures.find((structure) =>
+    isWorkingLandingPad(state, structure),
+  );
+}
+
+/** Whether a Structure is a commissioned landing pad that isn't Broken or to be dismantled. */
+function isWorkingLandingPad(
+  state: CampaignState,
+  structure: StructureState,
+): boolean {
+  return (
+    findStructureType(structure.structureTypeId)?.landingPad === true &&
+    !isBroken(structure) &&
+    !isDueToBeDismantled(state, structure.id)
   );
 }
 
@@ -222,17 +258,21 @@ function landingSpot(state: CampaignState): GroundPosition {
   );
 }
 
-/** The working landing pad centred on a spot, if any. */
+/**
+ * The working landing pad centred on a spot, if any: not only the one the
+ * Lander would land on now, as it may have landed on another while that
+ * one was Broken.
+ */
 function padAt(
   state: CampaignState,
   spot: GroundPosition,
 ): StructureState | undefined {
-  const pad = workingLandingPad(state);
-  return pad !== undefined &&
-    pad.position.x === spot.x &&
-    pad.position.y === spot.y
-    ? pad
-    : undefined;
+  return state.structures.find(
+    (structure) =>
+      structure.position.x === spot.x &&
+      structure.position.y === spot.y &&
+      isWorkingLandingPad(state, structure),
+  );
 }
 
 function startLeg(leg: LanderLeg, atMinute: number): LanderTrip {

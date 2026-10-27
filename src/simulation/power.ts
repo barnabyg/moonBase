@@ -25,7 +25,7 @@ import {
 } from "./driven";
 import { lunationMinutes, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
-import { isPlant, plantDrawKilowatts, recipeOf, wantsToRun } from "./plants";
+import { isPlant, plantDrawKilowatts, recipesOf, wantsToRun } from "./plants";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
@@ -338,7 +338,7 @@ export function hasPowerSource(
 export function usesPower(structureTypeId: string): boolean {
   return (
     Object.values(powerOf(structureTypeId)).some((value) => value > 0) ||
-    (recipeOf(structureTypeId)?.drawKilowatts ?? 0) > 0
+    recipesOf(structureTypeId).some((recipe) => recipe.drawKilowatts > 0)
   );
 }
 

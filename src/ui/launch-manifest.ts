@@ -1,11 +1,24 @@
 import { catalogue } from "../catalogue";
-import type { Campaign, ManifestLine, Snapshot } from "../simulation";
+import type {
+  Campaign,
+  ExportLine,
+  ManifestLine,
+  Snapshot,
+} from "../simulation";
 import { setText } from "./dom";
 import {
+  formatExportLines,
+  formatExportPrice,
+  formatExportStock,
+  formatExportsValue,
+  formatKilogramAmount,
   formatLaunchCost,
   formatLaunchItem,
+  formatMillionDollars,
   formatPayloadMass,
+  formatReturnMass,
   launchItemLabel,
+  resourceLabel,
 } from "./format";
 
 export interface LaunchManifestScreen {
@@ -17,13 +30,16 @@ export interface LaunchManifestScreen {
  * The Launch manifest screen, where the player chooses what the next Launch
  * brings from Earth: each item with its mass and price, how many the
  * manifest has, and its totals against the Payload Mass limit and the
- * Funding balance. It only sends the manifest the player asks for to the
- * Campaign, which decides whether it is allowed and says why not. The game
- * runs on while it is open.
+ * Funding balance, with what any Exports aboard the Lander will sell for.
+ * Below that, they choose the Exports the Lander carries off the Moon: each
+ * with what is in stock, its price and the kilograms to load, and their
+ * totals against the Return Mass. It only sends what the player asks for to
+ * the Campaign, which decides whether it is allowed and says why not. The
+ * game runs on while it is open.
  */
 export function createLaunchManifestScreen(
   container: HTMLElement,
-  campaign: Pick<Campaign, "setLaunchManifest">,
+  campaign: Pick<Campaign, "setLaunchManifest" | "loadExports">,
 ): LaunchManifestScreen {
   const dialog = document.createElement("dialog");
   dialog.className = "launch-manifest";
@@ -106,7 +122,78 @@ export function createLaunchManifestScreen(
   cost.setAttribute("role", "status");
   cost.setAttribute("aria-label", "Launch cost");
 
-  // Why the latest item was refused, until the next change.
+  const exportsTitle = document.createElement("h3");
+  exportsTitle.textContent = "Exports";
+  const exportsIntro = document.createElement("p");
+
+  const exportsTable = document.createElement("table");
+  const exportsHead = document.createElement("thead");
+  const exportsHeadings = document.createElement("tr");
+  for (const text of ["Export", "In stock", "Price", "Kilograms to load"]) {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.textContent = text;
+    exportsHeadings.append(cell);
+  }
+  exportsHead.append(exportsHeadings);
+  const exportsBody = document.createElement("tbody");
+  exportsTable.append(exportsHead, exportsBody);
+
+  /** The Exports to load as of the latest snapshot. */
+  let toLoad: readonly ExportLine[] = [];
+  const kilogramsOf = (resourceId: string): number =>
+    toLoad.find((line) => line.resourceId === resourceId)?.kilograms ?? 0;
+  /** Asks the Campaign to load the kilograms of an Export the player has typed. */
+  const load = (resourceId: string, input: HTMLInputElement): void => {
+    const asked = [
+      ...toLoad.filter((line) => line.resourceId !== resourceId),
+      // An emptied box asks for none.
+      { resourceId, kilograms: input.value === "" ? 0 : Number(input.value) },
+    ];
+    const result = campaign.loadExports(asked);
+    // At once, in case the player changes another before the next snapshot.
+    if (result.ok) toLoad = asked;
+    else input.value = formatKilogramAmount(kilogramsOf(resourceId));
+    refusal.hidden = result.ok;
+    setText(refusal, result.ok ? "" : result.message);
+  };
+
+  const exportRows = catalogue.exports.map((sold) => {
+    const label = resourceLabel(sold.resourceId);
+    const row = document.createElement("tr");
+    const name = document.createElement("th");
+    name.scope = "row";
+    name.textContent = label;
+    const inStock = document.createElement("td");
+    inStock.className = "launch-manifest__count";
+    const price = document.createElement("td");
+    price.textContent = formatExportPrice(sold);
+    const amount = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "any";
+    input.className = "launch-manifest__kilograms";
+    input.setAttribute("aria-label", `Kilograms of ${label} to load`);
+    input.addEventListener("change", () => {
+      load(sold.resourceId, input);
+    });
+    amount.append(input);
+    row.append(name, inStock, price, amount);
+    exportsBody.append(row);
+    return { sold, inStock, input };
+  });
+
+  const returnMass = document.createElement("p");
+  returnMass.className = "launch-manifest__total";
+  returnMass.setAttribute("role", "status");
+  returnMass.setAttribute("aria-label", "Return Mass");
+  const exportsValue = document.createElement("p");
+  exportsValue.className = "launch-manifest__total";
+  exportsValue.setAttribute("role", "status");
+  exportsValue.setAttribute("aria-label", "Export value");
+
+  // Why the latest change was refused, until the next one.
   const refusal = document.createElement("p");
   refusal.className = "launch-manifest__refusal";
   refusal.setAttribute("role", "alert");
@@ -120,7 +207,20 @@ export function createLaunchManifestScreen(
     dialog.close();
   });
 
-  dialog.append(title, intro, table, payloadMass, cost, refusal, close);
+  dialog.append(
+    title,
+    intro,
+    table,
+    payloadMass,
+    cost,
+    exportsTitle,
+    exportsIntro,
+    exportsTable,
+    returnMass,
+    exportsValue,
+    refusal,
+    close,
+  );
   dialog.addEventListener("close", () => {
     refusal.hidden = true;
   });
@@ -151,8 +251,58 @@ export function createLaunchManifestScreen(
         formatLaunchCost(
           snapshot.launchManifest,
           snapshot.fundingMillionDollars,
+          snapshot.exports.valueAboardMillionDollars,
         ),
       );
+
+      toLoad = snapshot.exports.toLoad;
+      const away = snapshot.lander.legEndsAtMinute !== undefined;
+      // Once the Robot has loaded them, they can't change until they're aboard.
+      const carried = snapshot.exportLoading?.collected === true;
+      setText(exportsIntro, describeExports(snapshot));
+      for (const { sold, inStock, input } of exportRows) {
+        setText(
+          inStock,
+          formatExportStock(
+            snapshot.bulkResources.find(
+              (stock) => stock.resourceId === sold.resourceId,
+            )?.kilograms ?? 0,
+          ),
+        );
+        input.disabled = away || carried;
+        // Not while the player is typing in it.
+        if (document.activeElement !== input) {
+          const shown = formatKilogramAmount(kilogramsOf(sold.resourceId));
+          if (input.value !== shown) input.value = shown;
+        }
+      }
+      setText(returnMass, formatReturnMass(snapshot.exports));
+      setText(exportsValue, formatExportsValue(snapshot.exports));
     },
   };
+}
+
+/**
+ * Says what the player can do with the Exports as things stand: choose them
+ * while the Lander is landed, unless the Robot is carrying the last ones
+ * chosen to it, with what is aboard it already.
+ */
+function describeExports(snapshot: Snapshot): string {
+  const { aboard, valueAboardMillionDollars } = snapshot.exports;
+  if (snapshot.lander.legEndsAtMinute !== undefined) {
+    return aboard.length === 0
+      ? "The Lander is away. Exports can be loaded once it has landed."
+      : `The Lander is away with ${formatExportLines(aboard)} aboard, to sell for ${formatMillionDollars(valueAboardMillionDollars)} when it reaches Earth.`;
+  }
+  const loading = snapshot.exportLoading;
+  if (loading?.collected === true) {
+    return `The Robot is carrying ${formatExportLines(loading.exports)} to the Lander. More can be loaded once they're aboard.`;
+  }
+  const already =
+    aboard.length === 0
+      ? ""
+      : ` It has ${formatExportLines(aboard)} aboard already, and any more go aboard with them.`;
+  return snapshot.lander.landingPadId === undefined
+    ? `Choose what the Lander carries off the Moon, to sell when it reaches Earth. It takes them from the base's stock as it takes off.${already}`
+    : `Choose what the Lander carries off the Moon, to sell when it reaches Earth. On its landing pad, the Robot carries them from the stockpile to it.${already}`;
 }

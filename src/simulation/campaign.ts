@@ -20,6 +20,20 @@ import {
   type BulkResourceForecast,
 } from "./bulk-forecast";
 import { readClock, type ClockSnapshot } from "./clock";
+import {
+  exportsCarriedBy,
+  planExportLoading,
+  readExportLoading,
+  type ExportLoadingSnapshot,
+  type ExportLoadingState,
+} from "./export-loading";
+import {
+  loadExports,
+  readExports,
+  type ExportLine,
+  type ExportsSnapshot,
+  type LoadExportsResult,
+} from "./exports";
 import { structurePerformance, wearStructures } from "./condition";
 import { coatSolarArrays } from "./dust-coating";
 import {
@@ -128,7 +142,14 @@ import {
   type ParkingSnapshot,
   type ParkingState,
 } from "./parking";
-import { isPlant, readPlant, runPlants, type PlantSnapshot } from "./plants";
+import {
+  isPlant,
+  readPlant,
+  runPlants,
+  setPlantRecipe,
+  type PlantSnapshot,
+  type SetRecipeResult,
+} from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -207,6 +228,8 @@ export interface RobotSnapshot {
   readonly activity: RobotActivity;
   /** The Components the Robot is carrying. */
   readonly carrying: readonly ComponentCount[];
+  /** The Exports the Robot is carrying to the Lander on a landing pad. */
+  readonly carryingExports: readonly ExportLine[];
   /**
    * How intact it is, from 100% down to the data catalogue's floor: a
    * Robot is never Broken.
@@ -329,6 +352,11 @@ export interface StructureSnapshot {
    * runs.
    */
   readonly plant: PlantSnapshot | undefined;
+  /**
+   * The id of the recipe it runs, if it is a Plant: one of its type's
+   * recipes in the data catalogue. Undefined for any other Structure.
+   */
+  readonly recipeId: string | undefined;
 }
 
 /**
@@ -458,6 +486,8 @@ export interface Snapshot {
   readonly fundingMillionDollars: number;
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
+  /** The Exports to load onto the Lander, those aboard it, and what they come to. */
+  readonly exports: ExportsSnapshot;
   /**
    * Where the Lander's next take-off or landing will blast Plume Ejecta,
    * and how far it reaches, for placing Structures clear of it.
@@ -487,6 +517,11 @@ export interface Snapshot {
    * landing pad with some, until the cargo is in the base's stock.
    */
   readonly unloading: UnloadingSnapshot | undefined;
+  /**
+   * The Robot's loading of the Exports to load onto the Lander, while it
+   * stands on a landing pad, until they are aboard.
+   */
+  readonly exportLoading: ExportLoadingSnapshot | undefined;
   readonly cables: readonly CableSnapshot[];
   readonly power: { readonly networks: readonly PowerNetworkSnapshot[] };
   /**
@@ -567,6 +602,22 @@ export interface Campaign {
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /**
+   * Sets the kilograms of each Export the Lander is to carry when it next
+   * takes off, in place of those set before, to be sold when it reaches
+   * Earth. They stay in the base's stock until then, or, on a landing pad,
+   * until the Robot loads them to carry them aboard. It is refused over the
+   * Lander's Return Mass or what the base has in stock, while the Lander is
+   * away, and while the Robot is carrying the last ones set to the Lander.
+   */
+  loadExports(exports: readonly ExportLine[]): LoadExportsResult;
+  /**
+   * Has a commissioned Plant run another of its recipes, from the next
+   * game-minute on. It is a setting, not a Construction, so no Robot works
+   * on it. It is refused for a Structure that isn't a commissioned Plant,
+   * or a recipe the Plant doesn't have.
+   */
+  setPlantRecipe(structureId: string, recipeId: string): SetRecipeResult;
+  /**
    * Starts an Expedition: the Robot finishes the Work Order it holds, then
    * drives the Rover off the map, and comes back some time later with
    * water ice. It is refused while one is under way or the Rover is Broken.
@@ -590,8 +641,9 @@ export interface CampaignState {
   /** Numbers the next planned Structure. */
   nextStructureNumber: number;
   /**
-   * Numbers the next plan, for a Construction, dismantling or cable to a
-   * Structure cut off from power, so they are worked on in order.
+   * Numbers the next plan, for a Construction, dismantling, unloading or
+   * loading of the Lander, or cable to a Structure cut off from power, so
+   * they are worked on in order.
    */
   nextPlanNumber: number;
   lander: LanderState;
@@ -614,6 +666,13 @@ export interface CampaignState {
   fundingMillionDollars: number;
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
+  /**
+   * What the Lander is to carry when it next takes off, in catalogue order,
+   * each Export once with an amount above none, until they are aboard: on a
+   * landing pad, once the Robot has loaded them, what it took from the
+   * base's stock.
+   */
+  exportsToLoad: { resourceId: string; kilograms: number }[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -626,6 +685,8 @@ export interface CampaignState {
   dismantlings: DismantlingState[];
   /** The planned unloading of the Lander's cargo, once it has landed on a landing pad with some. */
   unloading: UnloadingState | undefined;
+  /** The planned loading of the Exports to load onto the Lander, while it stands on a landing pad. */
+  exportLoading: ExportLoadingState | undefined;
   cables: CableState[];
   /** Planned cables to Structures cut off from power. */
   reconnections: ReconnectionState[];
@@ -649,6 +710,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...landingSite.landerPosition },
       trip: undefined,
       cargo: [],
+      exports: [],
     },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
@@ -659,6 +721,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     spareComponentsWarnedMinutes: undefined,
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
+    exportsToLoad: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -686,6 +749,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     structures: [],
     dismantlings: [],
     unloading: undefined,
+    exportLoading: undefined,
     cables: [],
     reconnections: [],
     maintenance: [],
@@ -800,6 +864,28 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(setLaunchManifest(state, manifest));
     },
+    loadExports(exports) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      const result = loadExports(state, exports);
+      planExportLoading(state);
+      return deepFreeze(result);
+    },
+    setPlantRecipe(structureId, recipeId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(setPlantRecipe(state, structureId, recipeId));
+    },
     startExpedition() {
       if (state.ended !== undefined) {
         return deepFreeze({
@@ -852,6 +938,7 @@ function campaignFrom(state: CampaignState): Campaign {
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({
@@ -859,6 +946,7 @@ function campaignFrom(state: CampaignState): Campaign {
           position: { ...robot.position },
           activity: { ...robot.activity },
           carrying: copy(robot.carrying),
+          carryingExports: exportsCarriedBy(state, robot),
           conditionPercent: robot.conditionPercent,
           performance: robotPerformance(robot),
           selfRepair: readSelfRepair(robot),
@@ -920,6 +1008,7 @@ function campaignFrom(state: CampaignState): Campaign {
           collected: dismantling.collected,
         })),
         unloading: readUnloading(state),
+        exportLoading: readExportLoading(state),
         cables: state.cables.map((cable) => ({
           fromStructureId: cable.fromStructureId,
           toStructureId: cable.toStructureId,
@@ -980,6 +1069,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...flyLander(state));
   events.push(...watchMicrometeorites(state));
   planUnloading(state);
+  planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
   events.push(...workMachines(state));

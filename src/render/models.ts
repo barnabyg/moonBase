@@ -493,6 +493,12 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   }
   if (structureTypeId === "extraction-plant")
     return createPlantModel("reactor");
+  if (structureTypeId === "vacuum-fabrication-plant") {
+    return createPlantModel("chamber");
+  }
+  if (structureTypeId === "circuit-board-plant") {
+    return createPlantModel("oven");
+  }
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -1340,12 +1346,21 @@ const PLANT_FAN_TURNS_PER_SECOND = 1.5;
 /**
  * A Plant: a vessel on a plinth, with the plant that feeds and empties it
  * beside it, and a cooling fan on top that turns while it runs, when the
- * vessel glows. A reactor is tall and narrow, a tank squat and wide. During
- * Assembly the plinth goes down, then the vessel rises.
+ * vessel glows. A reactor is tall and narrow, a tank squat and wide, a
+ * chamber lies on its side, and an oven is a low tunnel with a conveyor
+ * running through it. During Assembly the plinth goes down, then the vessel
+ * rises.
  */
-function createPlantModel(vessel: "reactor" | "tank"): StructureModel {
+function createPlantModel(
+  vessel: "reactor" | "tank" | "chamber" | "oven",
+): StructureModel {
   const plant = new THREE.Group();
-  plant.name = vessel === "reactor" ? "Extraction plant" : "Water plant";
+  plant.name = {
+    reactor: "Extraction plant",
+    tank: "Water plant",
+    chamber: "Vacuum fabrication plant",
+    oven: "Circuit board plant",
+  }[vessel];
   const statusLightMaterial = materials.statusOff.clone();
   const glow = materials.statusOff.clone();
   plant.add(
@@ -1361,19 +1376,84 @@ function createPlantModel(vessel: "reactor" | "tank"): StructureModel {
     ),
   );
   const upper = new THREE.Group();
-  const [radius, height] = vessel === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
+  if (vessel === "chamber") {
+    // A drum lying from front to back, held off the plinth by two cradles.
+    const radius = 0.75;
+    const lying = (mesh: THREE.Mesh) => {
+      mesh.rotation.x = Math.PI / 2;
+      return mesh;
+    };
+    upper.add(
+      lying(
+        part(
+          new THREE.CylinderGeometry(radius, radius, 2.8, 16),
+          materials.foil,
+          [-0.7, 0.45 + radius, 0],
+        ),
+      ),
+      // A band round the vessel that glows while it works.
+      lying(
+        part(
+          new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+          glow,
+          [-0.7, 0.45 + radius, 0.5],
+        ),
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.3, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.4, -0.9],
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.3, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.4, 0.9],
+      ),
+    );
+  } else if (vessel === "oven") {
+    // A tunnel from front to back on two legs, with the conveyor that
+    // carries the boards through it sticking out at both ends.
+    upper.add(
+      part(
+        new THREE.BoxGeometry(1.3, 0.9, 2.4),
+        materials.hull,
+        [-0.7, 1.05, 0],
+      ),
+      // A window along the top that glows while it works.
+      part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [-0.7, 1.52, 0]),
+      part(
+        new THREE.BoxGeometry(0.9, 0.08, 3.1),
+        materials.darkMetal,
+        [-0.7, 0.64, 0],
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.35, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.42, -0.9],
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.35, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.42, 0.9],
+      ),
+    );
+  } else {
+    const [radius, height] = vessel === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
+    upper.add(
+      part(
+        new THREE.CylinderGeometry(radius, radius, height, 16),
+        vessel === "reactor" ? materials.foil : materials.hull,
+        [-0.7, 0.25 + height / 2, 0],
+      ),
+      // A band round the vessel that glows while it works.
+      part(
+        new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+        glow,
+        [-0.7, 0.25 + height * 0.6, 0],
+      ),
+    );
+  }
   upper.add(
-    part(
-      new THREE.CylinderGeometry(radius, radius, height, 16),
-      vessel === "reactor" ? materials.foil : materials.hull,
-      [-0.7, 0.25 + height / 2, 0],
-    ),
-    // A band round the vessel that glows while it works.
-    part(
-      new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
-      glow,
-      [-0.7, 0.25 + height * 0.6, 0],
-    ),
     part(
       new THREE.BoxGeometry(1.4, 1.4, 1.8),
       materials.machinePaint,

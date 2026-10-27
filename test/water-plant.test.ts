@@ -30,10 +30,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 const plantType = catalogue.structureTypes.find(
   (type) => type.id === "water-processing-plant",
 );
-if (plantType?.plant === undefined) {
+// The default recipe, which a newly commissioned Plant runs.
+const recipe: PlantRecipe | undefined = plantType?.recipes?.[0];
+if (plantType === undefined || recipe === undefined) {
   throw new Error("expected a water-processing plant");
 }
-const recipe: PlantRecipe = plantType.plant;
 const icePerHour = recipe.inputs[0]?.kilogramsPerHour ?? Number.NaN;
 const waterPerHour = recipe.outputs[0]?.kilogramsPerHour ?? Number.NaN;
 const arraySite: GroundPosition = { x: 20, y: 12 };

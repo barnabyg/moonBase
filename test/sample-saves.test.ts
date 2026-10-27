@@ -1185,3 +1185,360 @@ describe("the sample save of format version 20", () => {
     });
   });
 });
+
+describe("the sample saves from before the vacuum fabrication plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-20.moonbase"])(
+    "%s loads with no wafers, straight after the silicon, and none of the vacuum fabrication plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      const ids = state.bulkResources.map((stock) => stock.resourceId);
+      expect(ids.indexOf("wafers")).toBe(ids.indexOf("silicon") + 1);
+      expect(
+        state.bulkResources.find((stock) => stock.resourceId === "wafers")
+          ?.kilograms,
+      ).toBe(0);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["crystal-furnace", "wafer-saw"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "crystal-furnace", count: 0 },
+        { componentId: "wafer-saw", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 21", () => {
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with an extraction plant and a vacuum fabrication plant turning Regolith into wafers", () => {
+    const campaign = loadSample("version-21.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.filter((structure) => structure.plant !== undefined)
+        .map((structure) => [structure.structureTypeId, structure.plant]),
+    ).toEqual([
+      ["extraction-plant", { running: true, stoppedFor: undefined }],
+      ["vacuum-fabrication-plant", { running: true, stoppedFor: undefined }],
+    ]);
+    expect(bulkOf(campaign, "wafers")).toBeCloseTo(3.03, 1);
+  });
+
+  it("plays on from where it was saved, the wafers rising while the silicon keeps up once the extraction plant runs for metals and silicon", () => {
+    const campaign = loadSample("version-21.moonbase");
+    const wafers = bulkOf(campaign, "wafers");
+    // It loads running the default recipe, for oxygen, which makes too
+    // little silicon to keep the vacuum fabrication plant going.
+    const extractionPlant = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+    expect(
+      campaign.setPlantRecipe(extractionPlant?.id ?? "", "metals-and-silicon"),
+    ).toEqual({ ok: true });
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "wafers")).toBeGreaterThan(wafers);
+    expect(bulkOf(campaign, "silicon")).toBeGreaterThan(0);
+  });
+});
+
+describe("the sample saves from before Exports", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-21.moonbase"])(
+    "%s loads with no Exports to load and none aboard the Lander",
+    (name) => {
+      expect(loadSample(name).snapshot().exports).toEqual({
+        toLoad: [],
+        massKilograms: 0,
+        valueMillionDollars: 0,
+        aboard: [],
+        valueAboardMillionDollars: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 22", () => {
+  const waferPrice =
+    catalogue.exports.find((sold) => sold.resourceId === "wafers")
+      ?.priceMillionDollarsPerKilogram ?? Number.NaN;
+
+  it("loads with the Mission Director in the Habitat, wafers in stock and 30 kg of them to load onto the Lander", () => {
+    const state = loadSample("version-22.moonbase").snapshot();
+
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.lander.state).toBe("landed-free");
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "wafers")
+        ?.kilograms,
+    ).toBe(46.5);
+    expect(state.exports).toEqual({
+      toLoad: [{ resourceId: "wafers", kilograms: 30 }],
+      massKilograms: 30,
+      valueMillionDollars: 30 * waferPrice,
+      aboard: [],
+      valueAboardMillionDollars: 0,
+    });
+  });
+
+  it("plays on: the Lander takes the wafers aboard as it takes off, and sells them as it reaches Earth", () => {
+    const campaign = loadSample("version-22.moonbase");
+    const funding = campaign.snapshot().fundingMillionDollars;
+    expect(campaign.sendLander()).toEqual({ ok: true });
+
+    const events: GameEvent[] = [];
+    for (
+      let skips = 0;
+      !events.some((event) => event.kind === "lander-reached-earth");
+      skips++
+    ) {
+      if (skips > 100) throw new Error("The Lander never reached Earth.");
+      events.push(...campaign.advanceToNextEvent());
+    }
+
+    const wafers = [{ resourceId: "wafers", kilograms: 30 }];
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "lander-took-off", exports: wafers }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "lander-reached-earth",
+        sold: wafers,
+        earnedMillionDollars: 30 * waferPrice,
+      }),
+    );
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.fundingMillionDollars).toBe(funding + 30 * waferPrice);
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "wafers")
+        ?.kilograms,
+    ).toBe(16.5);
+  });
+});
+
+describe("the sample saves from before the circuit board plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-22.moonbase"])(
+    "%s loads with no circuit boards, straight after the wafers, and none of the circuit board plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      const ids = state.bulkResources.map((stock) => stock.resourceId);
+      expect(ids.indexOf("circuit-boards")).toBe(ids.indexOf("wafers") + 1);
+      expect(
+        state.bulkResources.find(
+          (stock) => stock.resourceId === "circuit-boards",
+        )?.kilograms,
+      ).toBe(0);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["circuit-etcher", "reflow-oven"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "circuit-etcher", count: 0 },
+        { componentId: "reflow-oven", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 23", () => {
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with a circuit board plant turning wafers and metals into circuit boards, and some of each to load onto the Lander", () => {
+    const campaign = loadSample("version-23.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.filter((structure) => structure.plant !== undefined)
+        .map((structure) => [structure.structureTypeId, structure.plant]),
+    ).toEqual([
+      ["circuit-board-plant", { running: true, stoppedFor: undefined }],
+    ]);
+    expect(bulkOf(campaign, "circuit-boards")).toBeCloseTo(4.35, 1);
+    expect(campaign.snapshot().exports.toLoad).toEqual([
+      { resourceId: "wafers", kilograms: 10 },
+      { resourceId: "circuit-boards", kilograms: 3 },
+    ]);
+  });
+
+  it("plays on from where it was saved, the circuit boards rising as the wafers and metals fall", () => {
+    const campaign = loadSample("version-23.moonbase");
+    const before = Object.fromEntries(
+      ["wafers", "metals", "circuit-boards"].map((id) => [
+        id,
+        bulkOf(campaign, id),
+      ]),
+    );
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "circuit-boards")).toBeGreaterThan(
+      before["circuit-boards"] ?? Infinity,
+    );
+    expect(bulkOf(campaign, "wafers")).toBeLessThan(
+      before["wafers"] ?? -Infinity,
+    );
+    expect(bulkOf(campaign, "metals")).toBeLessThan(
+      before["metals"] ?? -Infinity,
+    );
+  });
+});
+
+describe("the sample saves from before the Robot loaded Exports", () => {
+  it.each(["version-1.moonbase", "version-7.moonbase", "version-23.moonbase"])(
+    "%s loads with no loading of Exports onto the Lander",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.exportLoading).toBeUndefined();
+      expect(state.robots.map((robot) => robot.carryingExports)).toEqual(
+        state.robots.map(() => []),
+      );
+    },
+  );
+});
+
+describe("the sample save of format version 24", () => {
+  const wafers = [{ resourceId: "wafers", kilograms: 30 }];
+  const wafersInStock = (campaign: Campaign) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === "wafers")?.kilograms;
+
+  it("loads with the Lander on the landing pad, and the Robot carrying wafers from the stockpile to it", () => {
+    const state = loadSample("version-24.moonbase").snapshot();
+
+    expect(state.lander).toMatchObject({
+      state: "landed-free",
+      position: { x: 40, y: 25 },
+      landingPadId: "structure-4",
+    });
+    expect(state.exportLoading).toEqual({
+      landingPadId: "structure-4",
+      collected: true,
+      stageProgress: 0,
+      exports: wafers,
+    });
+    expect(state.exports).toMatchObject({ toLoad: wafers, aboard: [] });
+    expect(state.robots[0]).toMatchObject({
+      activity: { kind: "walking", purpose: "exports", destination: "lander" },
+      carryingExports: wafers,
+    });
+  });
+
+  it("plays on from where it was saved, until the wafers are aboard and the Lander can be sent", () => {
+    const campaign = loadSample("version-24.moonbase");
+    const before = wafersInStock(campaign);
+    expect(campaign.sendLander()).toMatchObject({
+      ok: false,
+      reason: "exports-loading",
+    });
+    const kinds: string[] = [];
+
+    for (
+      let hours = 0;
+      campaign.snapshot().exportLoading !== undefined;
+      hours++
+    ) {
+      if (hours > 24) throw new Error("The wafers never went aboard.");
+      kinds.push(...campaign.advance(60).map((event) => event.kind));
+    }
+
+    expect(kinds).toContain("lander-loaded");
+    expect(campaign.snapshot().ended).toBeUndefined();
+    expect(campaign.snapshot().exports.aboard).toEqual(wafers);
+    expect(wafersInStock(campaign)).toBe(before);
+    expect(campaign.sendLander()).toEqual({ ok: true });
+  });
+});
+
+describe("the sample saves from before a Plant could choose its recipe", () => {
+  it.each([
+    "version-17.moonbase",
+    "version-19.moonbase",
+    "version-21.moonbase",
+    "version-23.moonbase",
+  ])(
+    "%s loads with each Plant running its default recipe, and no other Structure running any",
+    (name) => {
+      const { structures } = loadSample(name).snapshot();
+
+      expect(
+        structures.some((structure) => structure.plant !== undefined),
+      ).toBe(true);
+      for (const structure of structures) {
+        const recipes = catalogue.structureTypes.find(
+          (type) => type.id === structure.structureTypeId,
+        )?.recipes;
+        expect(structure.recipeId).toBe(recipes?.[0]?.id);
+      }
+    },
+  );
+});
+
+describe("the sample save of format version 25", () => {
+  const plantOf = (campaign: Campaign) => {
+    const plant = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+    if (plant === undefined) throw new Error("expected an extraction plant");
+    return plant;
+  };
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+  const oxygenForecast = (campaign: Campaign) =>
+    campaign
+      .forecasts()
+      .lifeSupport.find((forecast) => forecast.stockId === "oxygen");
+
+  it("loads with the Mission Director in the Habitat, and the extraction plant running for metals and silicon", () => {
+    const campaign = loadSample("version-25.moonbase");
+
+    expect(campaign.snapshot().missionDirector).toMatchObject({
+      residence: "habitat",
+    });
+    expect(plantOf(campaign)).toMatchObject({
+      recipeId: "metals-and-silicon",
+      plant: { running: true, stoppedFor: undefined },
+    });
+    expect(bulkOf(campaign, "silicon")).toBeCloseTo(1.6, 1);
+    expect(oxygenForecast(campaign)?.minutesUntilEmpty).toBeDefined();
+  });
+
+  it("plays on from where it was saved, the silicon rising and the oxygen falling, until the plant is switched back to oxygen", () => {
+    const campaign = loadSample("version-25.moonbase");
+    const silicon = bulkOf(campaign, "silicon");
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "silicon")).toBeGreaterThan(silicon + 3);
+    expect(oxygenForecast(campaign)?.kilogramsPerEarthDay).toBeLessThan(0);
+    expect(campaign.setPlantRecipe(plantOf(campaign).id, "oxygen")).toEqual({
+      ok: true,
+    });
+    campaign.advance(60);
+    expect(oxygenForecast(campaign)?.kilogramsPerEarthDay).toBeGreaterThan(0);
+    expect(campaign.snapshot().ended).toBeUndefined();
+  });
+});

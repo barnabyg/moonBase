@@ -84,7 +84,7 @@ describe("a save document", () => {
 
     expect(document).toMatchObject({
       format: "moonbase-save",
-      version: 20,
+      version: 25,
       random: {
         a: expect.any(Number) as number,
         b: expect.any(Number) as number,
@@ -213,14 +213,14 @@ describe("loading a file", () => {
 
   it("is refused when it comes from a newer format version", () => {
     const text = edited(valid(), (document) => {
-      document.version = 21;
+      document.version = 26;
     });
 
     expect(loadCampaign(text)).toEqual({
       ok: false,
       reason: "newer-version",
       message:
-        "It was saved by a newer version of Moon Base, in save format version 21. This version can load up to version 20.",
+        "It was saved by a newer version of Moon Base, in save format version 26. This version can load up to version 25.",
     });
   });
 
@@ -265,6 +265,14 @@ describe("loading a file", () => {
         if (structure !== undefined) structure["structureTypeId"] = "castle";
       },
       "state.structures.0.structureTypeId isn't a Structure type in the data catalogue",
+    ],
+    [
+      "a recipe for a Structure that isn't a Plant",
+      (document) => {
+        const structure = document.state.structures[0];
+        if (structure !== undefined) structure["recipeId"] = "oxygen";
+      },
+      "state.structures.0.recipeId isn't null, though the Structure isn't a Plant",
     ],
     [
       "random generator state out of range",

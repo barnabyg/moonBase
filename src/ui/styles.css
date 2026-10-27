@@ -248,6 +248,7 @@ body {
 
 .status-panel__dismantle,
 .status-panel__move-in,
+.status-panel__recipe,
 .construction-panel__cancel {
   padding: 2px 8px;
   font: inherit;
@@ -265,12 +266,14 @@ body {
 
 .status-panel__dismantle:hover,
 .status-panel__move-in:hover,
+.status-panel__recipe:hover,
 .construction-panel__cancel:hover {
   border-color: var(--text-muted);
 }
 
 .status-panel__dismantle:focus-visible,
 .status-panel__move-in:focus-visible,
+.status-panel__recipe:focus-visible,
 .construction-panel__cancel:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -282,7 +285,8 @@ body {
   display: none;
 }
 
-.status-panel__move-in {
+.status-panel__move-in,
+.status-panel__recipe {
   margin-left: auto;
 }
 
@@ -444,6 +448,30 @@ body {
 .expeditions h2 {
   margin: 0 0 8px;
   font-size: 1.2rem;
+}
+
+.launch-manifest h3 {
+  margin: 14px 0 6px;
+  font-size: 1rem;
+}
+
+.launch-manifest__kilograms {
+  width: 6em;
+  padding: 1px 4px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+}
+
+.launch-manifest__kilograms:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.launch-manifest__kilograms:disabled {
+  opacity: 0.4;
 }
 
 .launch-manifest p,

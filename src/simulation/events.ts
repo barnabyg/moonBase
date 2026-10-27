@@ -1,4 +1,5 @@
 import type { ComponentCount } from "../catalogue";
+import type { ExportLine } from "./exports";
 import type { ManifestLine } from "./launch-manifest";
 import type { MaintenanceSubject } from "./maintenance";
 import type { StrikeTarget } from "./micrometeorites";
@@ -74,12 +75,27 @@ export type GameEvent =
       readonly atMinute: number;
     }
   | {
-      /**
-       * The Lander has taken off for Earth ("lander-took-off"), or arrived
-       * there for turnaround ("lander-reached-earth").
-       */
-      readonly kind: "lander-took-off" | "lander-reached-earth";
+      /** The Lander has taken off for Earth, with the Exports aboard. */
+      readonly kind: "lander-took-off";
       readonly atMinute: number;
+      /**
+       * The Exports aboard as it took off: from the landing site, those that
+       * went aboard from the base's stock as it did; from a landing pad,
+       * those the Robot put aboard. None if there were none to load.
+       */
+      readonly exports: readonly ExportLine[];
+    }
+  | {
+      /**
+       * The Lander has arrived on Earth for turnaround, and the Exports
+       * aboard have been sold, raising the Funding.
+       */
+      readonly kind: "lander-reached-earth";
+      readonly atMinute: number;
+      /** The Exports sold, in catalogue order: none if nothing was aboard. */
+      readonly sold: readonly ExportLine[];
+      /** The Funding they earned. */
+      readonly earnedMillionDollars: number;
     }
   | {
       /** The Lander has left Earth for the Moon, with the Launch manifest paid for and locked. */
@@ -106,6 +122,13 @@ export type GameEvent =
       readonly atMinute: number;
       /** The Components that joined the base's stock. */
       readonly components: readonly ComponentCount[];
+    }
+  | {
+      /** The Robot has carried the Exports to load from the stockpile aboard the Lander, standing on a landing pad. */
+      readonly kind: "lander-loaded";
+      readonly atMinute: number;
+      /** The Exports it put aboard. */
+      readonly exports: readonly ExportLine[];
     }
   | {
       /** The Lander's take-off or landing has blasted Plume Ejecta over Structures, wearing down their Condition. */

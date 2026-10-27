@@ -1,6 +1,10 @@
 import { catalogue } from "../catalogue";
 import type { CampaignEnd, CampaignState } from "./campaign";
-import type { ConstructionStage, MachineStage } from "./construction";
+import type {
+  ConstructionStage,
+  MachineStage,
+  StructureState,
+} from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
 import type { ExpeditionStage } from "./expeditions";
@@ -489,6 +493,128 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 20 to 21: the vacuum fabrication plant, with two new Components, which
+  // the base's stock keeps a count of after the others, and wafers, which
+  // come among the bulk resources straight after silicon. None of them was
+  // there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "crystal-furnace", count: 0 },
+                  { componentId: "wafer-saw", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? (bulkResources as unknown[]).flatMap((stock) =>
+              isRecord(stock) && stock["resourceId"] === "silicon"
+                ? [stock, { resourceId: "wafers", kilograms: 0 }]
+                : [stock],
+            )
+          : bulkResources,
+      },
+    };
+  },
+  // 21 to 22: Exports, which the player sets to load onto the Lander and it
+  // carries to Earth to sell. There were none before, to load or aboard.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { lander } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        lander: isRecord(lander) ? { ...lander, exports: [] } : lander,
+        exportsToLoad: [],
+      },
+    };
+  },
+  // 22 to 23: the circuit board plant, with two new Components, which the
+  // base's stock keeps a count of after the others, and circuit boards,
+  // which come among the bulk resources straight after wafers. None of them
+  // was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "circuit-etcher", count: 0 },
+                  { componentId: "reflow-oven", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? (bulkResources as unknown[]).flatMap((stock) =>
+              isRecord(stock) && stock["resourceId"] === "wafers"
+                ? [stock, { resourceId: "circuit-boards", kilograms: 0 }]
+                : [stock],
+            )
+          : bulkResources,
+      },
+    };
+  },
+  // 23 to 24: on a landing pad, the Robot carries the Exports to load from
+  // the stockpile to the Lander, as a planned loading. There was none
+  // before; if the Lander stands on a working landing pad with Exports to
+  // load, one is planned in the first game-minute played.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return { ...document, state: { ...state, exportLoading: null } };
+  },
+  // 24 to 25: a Plant can have several recipes, and runs the one chosen for
+  // it. Until now each ran its only one, which is now its default, so each
+  // runs that; any other Structure runs none. The defaults are those when
+  // format version 25 came in, so that changing them later doesn't change
+  // what this migration gives.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    const defaults: Record<string, string> = {
+      "extraction-plant": "oxygen",
+      "water-processing-plant": "water",
+      "vacuum-fabrication-plant": "wafers",
+      "circuit-board-plant": "circuit-boards",
+    };
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) => {
+          if (!isRecord(structure)) return structure;
+          const type = structure["structureTypeId"];
+          return {
+            ...structure,
+            recipeId:
+              typeof type === "string" ? (defaults[type] ?? null) : null,
+          };
+        }),
+      },
+    };
+  },
 ];
 
 /**
@@ -844,6 +970,52 @@ const componentCount = object({
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
+/**
+ * A commissioned Structure, whose recipe must be one of its type's if it
+ * is a Plant, and none if it isn't.
+ */
+const structure: Decoder<StructureState> = (() => {
+  const fields = object({
+    id: text,
+    structureTypeId,
+    position: groundPosition,
+    powered: boolean,
+    lit: boolean,
+    storedKilowattHours: finiteNumber,
+    conditionPercent: finiteNumber,
+    dustCoatingPercent: finiteNumber,
+    recipeId: optional(text),
+  });
+  return (value, path) => {
+    const decoded = fields(value, path);
+    const recipes =
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.recipes ?? [];
+    const known =
+      recipes.length === 0
+        ? decoded.recipeId === undefined
+        : recipes.some((recipe) => recipe.id === decoded.recipeId);
+    if (!known) {
+      throw refuse(
+        at(path, "recipeId"),
+        recipes.length === 0
+          ? "isn't null, though the Structure isn't a Plant"
+          : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+      );
+    }
+    return decoded;
+  };
+})();
+
+const exportLine = object({
+  resourceId: catalogueId(
+    catalogue.exports.map((sold) => ({ id: sold.resourceId })),
+    "Export",
+  ),
+  kilograms: amount,
+});
+
 const missionDirector: Decoder<MissionDirectorResidence> = tagged("residence", {
   lander: object({ residence: exactly("lander") }),
   habitat: object({
@@ -900,6 +1072,10 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     }),
     structureId: text,
   });
+  // Loading the Exports onto the Lander on a landing pad.
+  const forExports = object({
+    kind: oneOf({ "loading-exports": true, "putting-exports-aboard": true }),
+  });
   // Maintenance of a Machine.
   const forMachine = object({
     kind: oneOf({ "loading-components": true, maintaining: true }),
@@ -924,17 +1100,25 @@ const robotActivity: Decoder<RobotActivity> = (() => {
         machineId: text,
         destination: oneOf({ stockpile: true, machine: true }),
       }),
-      object({
-        kind: exactly("walking"),
-        structureId: text,
-        destination: oneOf<WalkingDestination>({
-          site: true,
-          stockpile: true,
-          machine: true,
-          cable: true,
-          lander: true,
+      byField(
+        "purpose",
+        object({
+          kind: exactly("walking"),
+          purpose: exactly("exports"),
+          destination: oneOf({ stockpile: true, lander: true }),
         }),
-      }),
+        object({
+          kind: exactly("walking"),
+          structureId: text,
+          destination: oneOf<WalkingDestination>({
+            site: true,
+            stockpile: true,
+            machine: true,
+            cable: true,
+            lander: true,
+          }),
+        }),
+      ),
     ),
   );
   const repairing = object({
@@ -979,6 +1163,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     "returning-components": working,
     "loading-cargo": working,
     "unloading-cargo": working,
+    "loading-exports": forExports,
+    "putting-exports-aboard": forExports,
     maintaining: byField(
       "roverId",
       forRover,
@@ -1015,6 +1201,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
       dismantle: true,
       "return-components": true,
       "unload-lander": true,
+      "load-lander": true,
       maintain: true,
     }),
   });
@@ -1027,6 +1214,7 @@ const workOrder: Decoder<WorkOrder> = (() => {
     dismantle: onStructure,
     "return-components": onStructure,
     "unload-lander": onStructure,
+    "load-lander": onStructure,
     maintain: onStructure,
     "maintain-machine": onMachine,
     "park-machine": onMachine,
@@ -1088,6 +1276,7 @@ const simulationState = object({
       }),
     ),
     cargo: list(componentCount),
+    exports: list(exportLine),
   }),
   missionDirector,
   lifeSupport: list(
@@ -1118,6 +1307,7 @@ const simulationState = object({
       count: wholeNumber,
     }),
   ),
+  exportsToLoad: list(exportLine),
   ended: optional(campaignEnd),
   robots: list(
     object({
@@ -1199,18 +1389,7 @@ const simulationState = object({
       failedCommissionings: wholeNumber,
     }),
   ),
-  structures: list(
-    object({
-      id: text,
-      structureTypeId,
-      position: groundPosition,
-      powered: boolean,
-      lit: boolean,
-      storedKilowattHours: finiteNumber,
-      conditionPercent: finiteNumber,
-      dustCoatingPercent: finiteNumber,
-    }),
-  ),
+  structures: list(structure),
   dismantlings: list(
     object({
       id: text,
@@ -1232,6 +1411,14 @@ const simulationState = object({
       landingPadId: text,
       planNumber: wholeNumber,
       cargo: list(componentCount),
+      workedMinutes: amount,
+      collected: boolean,
+    }),
+  ),
+  exportLoading: optional(
+    object({
+      landingPadId: text,
+      planNumber: wholeNumber,
       workedMinutes: amount,
       collected: boolean,
     }),

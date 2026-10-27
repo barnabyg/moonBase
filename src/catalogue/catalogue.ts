@@ -27,6 +27,19 @@ export interface Catalogue {
      * at the Lander and unloading at the stockpile. Walking comes on top.
      */
     readonly cargoHandlingHours: number;
+    /**
+     * The Robot's working time to carry the Exports to load from the
+     * stockpile to the Lander when it stands on a landing pad, in
+     * game-hours: split evenly between loading at the stockpile and putting
+     * them aboard the Lander. Walking comes on top.
+     */
+    readonly exportHandlingHours: number;
+    /**
+     * The most mass of Exports the Lander can carry off the Moon each time
+     * it leaves. It is fixed for now: making propellant at the base, which
+     * will raise it, isn't in the game yet.
+     */
+    readonly returnMassKilograms: number;
   };
   /**
    * The base's stock of Components, kept on the ground beside the landing
@@ -95,6 +108,11 @@ export interface Catalogue {
    * in kilograms, in the order the status panel shows them.
    */
   readonly bulkResources: readonly BulkResource[];
+  /**
+   * The bulk resources the base can sell off the Moon for Funding, in the
+   * order the Launch manifest screen shows them.
+   */
+  readonly exports: readonly Export[];
   readonly digging: DiggingRules;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
@@ -461,6 +479,15 @@ export interface BulkResource {
 }
 
 /**
+ * A bulk resource the base can sell as an Export: loaded onto the Lander
+ * within its Return Mass, and sold at a fixed price when it reaches Earth.
+ */
+export interface Export {
+  readonly resourceId: string;
+  readonly priceMillionDollarsPerKilogram: number;
+}
+
+/**
  * Digging: whenever no Construction needs it, a Machine digs a bulk
  * resource from the ground beside the stockpile, until the base's stock of
  * it reaches a level.
@@ -581,10 +608,12 @@ export interface StructureType {
    */
   readonly landingPad: boolean;
   /**
-   * The recipe it runs if it is a Plant: a Structure that turns resources
-   * into products once it is commissioned.
+   * The recipes it can run if it is a Plant: a Structure that turns
+   * resources into products once it is commissioned. It runs one at a
+   * time. The first is the default, which it runs once it is commissioned;
+   * the player can choose another, which it runs from the next game-minute.
    */
-  readonly plant?: PlantRecipe;
+  readonly recipes?: readonly PlantRecipe[];
 }
 
 /**
@@ -595,6 +624,10 @@ export interface StructureType {
  * bank can store, so it never takes power from anything else.
  */
 export interface PlantRecipe {
+  /** Unique among its Plant's recipes. */
+  readonly id: string;
+  /** How the player sees it, for example "Metals and silicon". */
+  readonly label: string;
   readonly inputs: readonly ResourceFlow[];
   readonly outputs: readonly ResourceFlow[];
   readonly drawKilowatts: number;
@@ -618,12 +651,19 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 29,
+  version: 34,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
     roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
     cargoHandlingHours: 1,
+    // As long as carrying a Launch's cargo off it, the other way round.
+    exportHandlingHours: 1,
+    // About what the last crewed landing brought home in rock samples, and
+    // a little less than a vacuum fabrication plant makes running through a
+    // Lunation's Daylight, so that a base making more than one plant's
+    // wafers, or keeping them back, runs up against it.
+    returnMassKilograms: 100,
   },
   stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
@@ -714,7 +754,26 @@ export const catalogue: Catalogue = {
     { id: "regolith", label: "Regolith" },
     { id: "metals", label: "Metals" },
     { id: "silicon", label: "Silicon" },
+    { id: "wafers", label: "Wafers" },
+    { id: "circuit-boards", label: "Circuit boards" },
     { id: "water-ice", label: "Water ice" },
+  ],
+  // A full Return Mass of wafers sells for $150M, the Launch fee. A vacuum
+  // fabrication plant, running through the Daylight, makes about that much
+  // in a Lunation, so it earns back its $65M of Components, the $11M second
+  // solar array it needs and the Launch that brought them in a Lunation or
+  // two. But wafers alone pay for a Launch's flight and nothing it brings:
+  // circuit boards are worth more for their mass.
+  //
+  // A full Return Mass of circuit boards sells for $300M, twice what one of
+  // wafers does: the Launch fee and as much again in what it brings. A
+  // circuit board plant makes 0.4 kg of them an hour, worth $1.2M, from
+  // 0.25 kg of wafers that would sell for under $0.4M, so the wafers earn
+  // over three times as much made into circuit boards, for the power and
+  // time it takes.
+  exports: [
+    { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
+    { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
   ],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.
@@ -741,6 +800,10 @@ export const catalogue: Catalogue = {
     { id: "oxygen-separator", label: "Oxygen separator" },
     { id: "ice-melter", label: "Ice melter" },
     { id: "water-purifier", label: "Water purifier" },
+    { id: "crystal-furnace", label: "Crystal furnace" },
+    { id: "wafer-saw", label: "Wafer saw" },
+    { id: "circuit-etcher", label: "Circuit etcher" },
+    { id: "reflow-oven", label: "Reflow oven" },
   ],
   structureTypes: [
     {
@@ -946,7 +1009,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Regolith is fed through it, so it wears faster than most.
       dustWearPercentPerHour: 0.05,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -957,32 +1020,71 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: false,
       landingPad: false,
-      // A few percent of the Regolith comes out as oxygen, about four
-      // times what the Mission Director breathes while it runs, and much of
-      // the rest as metals and silicon; what is left is slag.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "regolith" },
-            kilogramsPerHour: 4,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "life-support", stockId: "oxygen" },
-            kilogramsPerHour: 0.15,
-          },
-          {
-            resource: { kind: "bulk-resource", resourceId: "metals" },
-            kilogramsPerHour: 0.6,
-          },
-          {
-            resource: { kind: "bulk-resource", resourceId: "silicon" },
-            kilogramsPerHour: 0.4,
-          },
-        ],
-        drawKilowatts: 4,
-      },
+      // Run for oxygen, a few percent of the Regolith comes out as oxygen,
+      // about four times what the Mission Director breathes while it runs,
+      // with a little metal and silicon; run for metals and silicon, it
+      // reduces much more of it to them, and keeps little of the oxygen.
+      // What is left is slag. It runs only in Daylight, 20 of a Lunation's
+      // 29.5 Earth Days, so to make the 24.8 kg of oxygen the Mission
+      // Director uses in a Lunation it has to run for oxygen for about 30%
+      // of the Daylight (0.15 kg an hour for oxygen, 0.01 for metals and
+      // silicon). In the rest it makes under 0.3 kg of silicon an hour,
+      // averaged over the Daylight: less than the 0.35 kg a vacuum
+      // fabrication plant takes. So one extraction plant can't keep the base
+      // self-sufficient in oxygen and feed a vacuum fabrication plant too;
+      // the player switches between the recipes, or imports a second one.
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 4,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.15,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.04,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.02,
+            },
+          ],
+          drawKilowatts: 4,
+        },
+        {
+          id: "metals-and-silicon",
+          label: "Metals and silicon",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 4,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.01,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.6,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 4,
+        },
+      ],
     },
     {
       id: "water-processing-plant",
@@ -1002,7 +1104,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.15,
       dustWearPercentPerHour: 0.03,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1016,21 +1118,146 @@ export const catalogue: Catalogue = {
       // Most of the ice comes out as water; the rest is the dust and grit
       // frozen in with it. Running, it makes six times what the Mission
       // Director drinks, so an Expedition's ice lasts over a week.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "water-ice" },
-            kilogramsPerHour: 1,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "life-support", stockId: "water" },
-            kilogramsPerHour: 0.9,
-          },
-        ],
-        drawKilowatts: 2,
+      recipes: [
+        {
+          id: "water",
+          label: "Water",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "water-ice" },
+              kilogramsPerHour: 1,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "water" },
+              kilogramsPerHour: 0.9,
+            },
+          ],
+          drawKilowatts: 2,
+        },
+      ],
+    },
+    {
+      id: "vacuum-fabrication-plant",
+      label: "Vacuum fabrication plant",
+      footprintRadiusMetres: 2.5,
+      // A furnace that grows silicon crystals in the Moon's vacuum, and a saw
+      // that slices them into wafers.
+      components: [
+        { componentId: "crystal-furnace", count: 1 },
+        { componentId: "wafer-saw", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 2,
       },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Dust in its saw and seals.
+      dustWearPercentPerHour: 0.04,
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // It takes in a little less silicon than an extraction plant makes
+      // running for metals and silicon, so that, running together, the
+      // silicon never quite runs out and it keeps up without stopping and
+      // starting; the saw turns some of it to dust. Its furnace draws 6 kW: on its own, the starting solar array
+      // can spare that beside the Habitat and a battery bank, but the two
+      // Plants together draw 10 kW, all that array makes, so earning money
+      // from wafers takes a second solar array.
+      recipes: [
+        {
+          id: "wafers",
+          label: "Wafers",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.35,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.3,
+            },
+          ],
+          drawKilowatts: 6,
+        },
+      ],
+    },
+    {
+      id: "circuit-board-plant",
+      label: "Circuit board plant",
+      footprintRadiusMetres: 2.5,
+      // An etcher that lays circuits on metal-cored boards, and an oven
+      // that solders the chips cut from the wafers onto them.
+      components: [
+        { componentId: "circuit-etcher", count: 1 },
+        { componentId: "reflow-oven", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Dust in its etcher and on the conveyor through its oven.
+      dustWearPercentPerHour: 0.04,
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // It takes in a little less in wafers than a vacuum fabrication plant
+      // makes, so that, running together, it keeps up without the wafers
+      // running out, and as much metals again, well within what an
+      // extraction plant makes running for metals and silicon, for the
+      // boards' cores and circuits; offcuts
+      // and what is etched away make up the rest. Its oven draws 3 kW, so
+      // the three Plants together, at 13 kW, still run on what two solar
+      // arrays can spare beside the Habitat and a battery bank.
+      recipes: [
+        {
+          id: "circuit-boards",
+          label: "Circuit boards",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.25,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.25,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 3,
+        },
+      ],
     },
   ],
   dismantlingLossShare: 0.2,
@@ -1202,6 +1429,33 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "water-purifier" },
         massKilograms: 150,
         priceMillionDollars: 20,
+      },
+      // A vacuum fabrication plant's worth comes to 750 kg, leaving room on
+      // the same Launch for a second solar array to power it.
+      {
+        id: "crystal-furnace",
+        brings: { kind: "component", componentId: "crystal-furnace" },
+        massKilograms: 500,
+        priceMillionDollars: 40,
+      },
+      {
+        id: "wafer-saw",
+        brings: { kind: "component", componentId: "wafer-saw" },
+        massKilograms: 250,
+        priceMillionDollars: 25,
+      },
+      // A circuit board plant's worth comes to 600 kg.
+      {
+        id: "circuit-etcher",
+        brings: { kind: "component", componentId: "circuit-etcher" },
+        massKilograms: 350,
+        priceMillionDollars: 35,
+      },
+      {
+        id: "reflow-oven",
+        brings: { kind: "component", componentId: "reflow-oven" },
+        massKilograms: 250,
+        priceMillionDollars: 25,
       },
       // In pressurised tanks, which make up the rest of the mass.
       {
