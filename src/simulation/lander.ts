@@ -234,11 +234,20 @@ export function padUnderLander(
  * isn't Broken or to be dismantled.
  */
 function workingLandingPad(state: CampaignState): StructureState | undefined {
-  return state.structures.find(
-    (structure) =>
-      findStructureType(structure.structureTypeId)?.landingPad === true &&
-      !isBroken(structure) &&
-      !isDueToBeDismantled(state, structure.id),
+  return state.structures.find((structure) =>
+    isWorkingLandingPad(state, structure),
+  );
+}
+
+/** Whether a Structure is a commissioned landing pad that isn't Broken or to be dismantled. */
+function isWorkingLandingPad(
+  state: CampaignState,
+  structure: StructureState,
+): boolean {
+  return (
+    findStructureType(structure.structureTypeId)?.landingPad === true &&
+    !isBroken(structure) &&
+    !isDueToBeDismantled(state, structure.id)
   );
 }
 
@@ -249,17 +258,21 @@ function landingSpot(state: CampaignState): GroundPosition {
   );
 }
 
-/** The working landing pad centred on a spot, if any. */
+/**
+ * The working landing pad centred on a spot, if any: not only the one the
+ * Lander would land on now, as it may have landed on another while that
+ * one was Broken.
+ */
 function padAt(
   state: CampaignState,
   spot: GroundPosition,
 ): StructureState | undefined {
-  const pad = workingLandingPad(state);
-  return pad !== undefined &&
-    pad.position.x === spot.x &&
-    pad.position.y === spot.y
-    ? pad
-    : undefined;
+  return state.structures.find(
+    (structure) =>
+      structure.position.x === spot.x &&
+      structure.position.y === spot.y &&
+      isWorkingLandingPad(state, structure),
+  );
 }
 
 function startLeg(leg: LanderLeg, atMinute: number): LanderTrip {

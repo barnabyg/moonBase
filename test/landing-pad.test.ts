@@ -9,6 +9,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { worn } from "./worn";
 
 // The Mission Director has to live in the Habitat through several round
 // trips, and the Funding has to pay for more than one Launch.
@@ -313,5 +314,40 @@ describe("the landing pad", () => {
     );
     expect(loaded.campaign.snapshot()).toEqual(game.state);
     expect(inStock(game.state, "battery-module")).toBeGreaterThanOrEqual(3);
+  });
+
+  it("counts the Lander as on a second landing pad it landed on while the first was Broken, once the first works again", () => {
+    const { game, padId: firstPadId } = withPad();
+    setManifest(game, padComponents);
+    send(game);
+    skipUntil(game, "lander-landed");
+    buildAll(game.plan(padType.id, { x: -40, y: -30 }));
+    const secondPadId =
+      game.state.structures.find(
+        (s) => s.structureTypeId === "landing-pad" && s.id !== firstPadId,
+      )?.id ?? "";
+    const broken = worn(game.campaign, firstPadId, 0);
+    const sent = broken.sendLander();
+    if (!sent.ok) throw new Error(sent.message);
+    for (
+      let skips = 0;
+      broken.snapshot().lander.legEndsAtMinute !== undefined;
+      skips++
+    ) {
+      if (skips > 200) throw new Error("The Lander never landed.");
+      broken.advanceToNextEvent();
+    }
+    expect(broken.snapshot().lander.landingPadId).toBe(secondPadId);
+
+    const mended = worn(broken, firstPadId, 100);
+
+    expect(mended.snapshot().lander).toMatchObject({
+      position: { x: -40, y: -30 },
+      landingPadId: secondPadId,
+    });
+    expect(mended.snapshot().plumeEjecta).toBeUndefined();
+    expect(mended.dismantleStructure(secondPadId)).toMatchObject({
+      ok: false,
+    });
   });
 });
