@@ -146,7 +146,9 @@ describe("the vacuum fabrication plant", () => {
       formatBulkResources(
         campaign.snapshot().bulkResources,
         campaign.forecasts().bulkResources,
-      ),
+      )
+        .map(({ label, value }) => `${label}: ${value}`)
+        .join("; "),
     ).toContain("Silicon: 50 kg; Wafers: 12 kg");
   });
 
@@ -167,7 +169,7 @@ describe("the vacuum fabrication plant", () => {
       },
     });
     expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-      ", stopped: out of Silicon",
+      "stopped: out of Silicon",
     );
   });
 });
