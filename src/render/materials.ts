@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fixedRandom } from "./scenery";
 
 // The materials every model is built from, physically based (ADR-0004), and
@@ -284,6 +285,29 @@ export function rod(
   );
   placeRod(mesh, from, to);
   return mesh;
+}
+
+/**
+ * Many thin rods from point to point, such as a lattice mast or a ladder,
+ * merged into one mesh so that they cost one draw.
+ */
+export function rods(
+  segments: readonly (readonly [THREE.Vector3, THREE.Vector3])[],
+  radius: number,
+  material: THREE.Material,
+  sides = 6,
+): THREE.Mesh {
+  const pieces = segments.map(([from, to]) => {
+    const placed = new THREE.Object3D();
+    placeRod(placed, from, to);
+    placed.updateMatrix();
+    return new THREE.CylinderGeometry(radius, radius, 1, sides, 1, true)
+      .toNonIndexed()
+      .applyMatrix4(placed.matrix);
+  });
+  const merged = mergeGeometries(pieces);
+  for (const piece of pieces) piece.dispose();
+  return part(merged, material, [0, 0, 0]);
 }
 
 /** Stretches a rod of length 1, made by `rod`, from one point to another. */
