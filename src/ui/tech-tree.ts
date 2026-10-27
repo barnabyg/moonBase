@@ -38,91 +38,41 @@ export function createTechTreeScreen(
   screen.lead.textContent =
     "Unlocking a Design permits what it covers, but adds nothing to the base: it still has to be shipped or built.";
 
-  const tabList = document.createElement("div");
-  tabList.className = "tech-tree__tabs";
-  tabList.setAttribute("role", "tablist");
-  tabList.setAttribute("aria-label", "Categories");
-  screen.header.append(tabList);
-
   const tiers = designTiers();
-  const categories = catalogue.designCategories
-    .map((category) => {
-      const designs = catalogue.designs.filter(
+  const shown = catalogue.designCategories
+    .map((category) => ({
+      ...category,
+      designs: catalogue.designs.filter(
         (design) => design.category === category.id,
-      );
-      const tab = document.createElement("button");
-      tab.type = "button";
-      tab.className = "tech-tree__tab";
-      tab.id = `tech-tree-tab-${category.id}`;
-      tab.setAttribute("role", "tab");
-      const name = document.createElement("span");
-      name.textContent = category.label;
-      // How many are unlocked, and a mark when one can be now.
-      const tally = document.createElement("span");
-      tally.className = "tech-tree__tally";
-      tab.append(name, tally);
-      const panel = document.createElement("div");
-      panel.className = "tech-tree__panel";
-      panel.setAttribute("role", "tabpanel");
-      panel.setAttribute("aria-labelledby", tab.id);
-      tab.setAttribute(
-        "aria-controls",
-        (panel.id = `tech-tree-${category.id}`),
-      );
-      const columns = new Map<number, HTMLElement>();
-      for (const tier of [
-        ...new Set(designs.map((d) => tiers.get(d.id) ?? 0)),
-      ].sort((a, b) => a - b)) {
-        const column = document.createElement("div");
-        column.className = "tech-tree__column";
-        const heading = document.createElement("h3");
-        heading.className = "screen__section-title";
-        heading.textContent = tier === 0 ? "Starting" : `Tier ${tier}`;
-        column.append(heading);
-        columns.set(tier, column);
-        panel.append(column);
-      }
-      return {
-        id: category.id,
-        label: category.label,
-        designs,
-        tab,
-        tally,
-        panel,
-        columns,
-      };
-    })
+      ),
+    }))
     .filter((category) => category.designs.length > 0);
-  function select(id: string, focus: boolean): void {
-    for (const category of categories) {
-      const isSelected = category.id === id;
-      category.tab.setAttribute("aria-selected", String(isSelected));
-      category.tab.tabIndex = isSelected ? 0 : -1;
-      category.panel.hidden = !isSelected;
-      if (isSelected && focus) category.tab.focus();
+  const tabs = screen.addTabs("Categories", shown);
+  const categories = shown.map((category, index) => {
+    const { tab, panel } = tabs[index] ?? {};
+    if (tab === undefined || panel === undefined) {
+      throw new Error(`No tab for ${category.label}`);
     }
-    screen.body.scrollTop = 0;
-  }
-  for (const [index, category] of categories.entries()) {
-    category.tab.addEventListener("click", () => {
-      select(category.id, false);
-    });
-    // Arrow keys move between the tabs, as in any tab list.
-    category.tab.addEventListener("keydown", (event) => {
-      const step =
-        event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-      if (step === 0) return;
-      event.preventDefault();
-      const next =
-        categories[(index + step + categories.length) % categories.length];
-      if (next !== undefined) select(next.id, true);
-    });
-    tabList.append(category.tab);
-    screen.body.append(category.panel);
-  }
-  // The first, until the player picks another; it stays picked between visits.
-  const first = categories[0];
-  if (first !== undefined) select(first.id, false);
+    // How many are unlocked, and a mark when one can be now.
+    const tally = document.createElement("span");
+    tally.className = "tech-tree__tally";
+    tab.append(tally);
+    panel.className = "tech-tree__panel";
+    const columns = new Map<number, HTMLElement>();
+    for (const tier of [
+      ...new Set(category.designs.map((d) => tiers.get(d.id) ?? 0)),
+    ].sort((a, b) => a - b)) {
+      const column = document.createElement("div");
+      column.className = "tech-tree__column";
+      const heading = document.createElement("h3");
+      heading.className = "screen__section-title";
+      heading.textContent = tier === 0 ? "Starting" : `Tier ${tier}`;
+      column.append(heading);
+      columns.set(tier, column);
+      panel.append(column);
+    }
+    return { ...category, tab, tally, columns };
+  });
 
   const cards = categories.flatMap((category) =>
     category.designs.map((design) => {

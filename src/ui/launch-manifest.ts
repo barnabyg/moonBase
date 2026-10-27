@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type LaunchItem } from "../catalogue";
 import {
   launchItemLabel,
   type Campaign,
@@ -20,6 +20,7 @@ import {
   formatReturnMass,
   resourceLabel,
 } from "./format";
+import { createGauge, createScreen } from "./screen";
 
 export interface LaunchManifestScreen {
   open(): void;
@@ -28,13 +29,14 @@ export interface LaunchManifestScreen {
 
 /**
  * The Launch manifest screen, where the player chooses what the next Launch
- * brings from Earth: each item with its mass and price, how many the
- * manifest has, and its totals against the Payload Mass limit and the
- * Funding balance, with what any Exports aboard the Lander will sell for.
- * An item whose Design isn't unlocked isn't listed until it is. Below
- * that, they choose the Exports the Lander carries off the Moon: each with
- * what is in stock, its price and the kilograms to load, and their totals
- * against the Return Mass. It only sends what the player asks for to the
+ * brings from Earth and what the Lander carries off the Moon, on a tab
+ * each. On the Launch tab, the totals against the Payload Mass limit and
+ * the Funding balance stay in sight over the items, grouped as Components,
+ * oxygen and water, and Robots, each with its mass and price and how many
+ * the manifest has. An item whose Design isn't unlocked isn't listed until
+ * it is. On the Exports tab, the Return Mass and what the Exports will sell
+ * for stay in sight over each Export, with what is in stock, its price and
+ * the kilograms to load. It only sends what the player asks for to the
  * Campaign, which decides whether it is allowed and says why not. The game
  * runs on while it is open.
  */
@@ -42,28 +44,28 @@ export function createLaunchManifestScreen(
   container: HTMLElement,
   campaign: Pick<Campaign, "setLaunchManifest" | "loadExports">,
 ): LaunchManifestScreen {
-  const dialog = document.createElement("dialog");
-  dialog.className = "launch-manifest";
-  dialog.setAttribute("aria-labelledby", "launch-manifest-title");
-
-  const title = document.createElement("h2");
-  title.id = "launch-manifest-title";
-  title.textContent = "Launch manifest";
-  const intro = document.createElement("p");
-  intro.textContent = "Choose what the next Launch brings from Earth.";
-
-  const table = document.createElement("table");
-  const head = document.createElement("thead");
-  const headings = document.createElement("tr");
-  for (const text of ["Item", "Mass and price", "Count", ""]) {
-    const cell = document.createElement("th");
-    cell.scope = "col";
-    cell.textContent = text;
-    headings.append(cell);
+  const screen = createScreen(container, {
+    className: "launch-manifest",
+    title: "Launch manifest",
+  });
+  screen.lead.textContent =
+    "What the next Launch brings from Earth, and the Exports the Lander takes back to sell.";
+  const [launchTab, exportsTab] = screen.addTabs("Launch manifest", [
+    { id: "launch", label: "Launch" },
+    { id: "exports", label: "Exports" },
+  ]);
+  if (launchTab === undefined || exportsTab === undefined) {
+    throw new Error("The Launch manifest screen has no tabs");
   }
-  head.append(headings);
-  const body = document.createElement("tbody");
-  table.append(head, body);
+
+  const payloadMass = createGauge("Payload Mass");
+  const cost = createGauge("Launch cost");
+  const intro = document.createElement("p");
+  intro.className = "launch-manifest__intro";
+  launchTab.panel.append(
+    createSummary(payloadMass.element, cost.element),
+    intro,
+  );
 
   /** The manifest as of the latest snapshot. */
   let manifest: readonly ManifestLine[] = [];
@@ -78,8 +80,27 @@ export function createLaunchManifestScreen(
     const result = campaign.setLaunchManifest(asked);
     // At once, in case the player clicks again before the next snapshot.
     if (result.ok) manifest = asked;
-    refusal.hidden = result.ok;
-    setText(refusal, result.ok ? "" : result.message);
+    screen.refuse(result.ok ? undefined : result.message);
+  };
+
+  // A table for each kind of item, in the order the catalogue first has one.
+  const groups = new Map<LaunchItemKind, ItemGroup>();
+  const groupOf = (kind: LaunchItemKind): ItemGroup => {
+    const known = groups.get(kind);
+    if (known !== undefined) return known;
+    const label = GROUP_LABELS[kind];
+    const section = document.createElement("section");
+    section.className = "launch-manifest__group";
+    section.setAttribute("aria-label", label);
+    const heading = document.createElement("h3");
+    heading.className = "screen__section-title";
+    heading.textContent = label;
+    const table = createTable(["Item", "Mass and price", "Count", ""]);
+    section.append(heading, table.table);
+    launchTab.panel.append(section);
+    const group = { section, body: table.body };
+    groups.set(kind, group);
+    return group;
   };
 
   const rows = catalogue.launch.items.map((item) => {
@@ -89,6 +110,7 @@ export function createLaunchManifestScreen(
     name.scope = "row";
     name.textContent = label;
     const details = document.createElement("td");
+    details.className = "launch-manifest__details";
     details.textContent = formatLaunchItem(item);
     const count = document.createElement("td");
     count.className = "launch-manifest__count";
@@ -110,35 +132,25 @@ export function createLaunchManifestScreen(
     });
     actions.append(remove, add);
     row.append(name, details, count, actions);
-    body.append(row);
+    groupOf(item.brings.kind).body.append(row);
     return { item, row, count, remove, add };
   });
 
-  const payloadMass = document.createElement("p");
-  payloadMass.className = "launch-manifest__total";
-  payloadMass.setAttribute("role", "status");
-  payloadMass.setAttribute("aria-label", "Payload Mass");
-  const cost = document.createElement("p");
-  cost.className = "launch-manifest__total";
-  cost.setAttribute("role", "status");
-  cost.setAttribute("aria-label", "Launch cost");
-
-  const exportsTitle = document.createElement("h3");
-  exportsTitle.textContent = "Exports";
+  const returnMass = createGauge("Return Mass");
+  const exportsValue = createGauge("Export value");
   const exportsIntro = document.createElement("p");
-
-  const exportsTable = document.createElement("table");
-  const exportsHead = document.createElement("thead");
-  const exportsHeadings = document.createElement("tr");
-  for (const text of ["Export", "In stock", "Price", "Kilograms to load"]) {
-    const cell = document.createElement("th");
-    cell.scope = "col";
-    cell.textContent = text;
-    exportsHeadings.append(cell);
-  }
-  exportsHead.append(exportsHeadings);
-  const exportsBody = document.createElement("tbody");
-  exportsTable.append(exportsHead, exportsBody);
+  exportsIntro.className = "launch-manifest__intro";
+  const exportsTable = createTable([
+    "Export",
+    "In stock",
+    "Price",
+    "Kilograms to load",
+  ]);
+  exportsTab.panel.append(
+    createSummary(returnMass.element, exportsValue.element),
+    exportsIntro,
+    exportsTable.table,
+  );
 
   /** The Exports to load as of the latest snapshot. */
   let toLoad: readonly ExportLine[] = [];
@@ -155,8 +167,7 @@ export function createLaunchManifestScreen(
     // At once, in case the player changes another before the next snapshot.
     if (result.ok) toLoad = asked;
     else input.value = formatKilogramAmount(kilogramsOf(resourceId));
-    refusal.hidden = result.ok;
-    setText(refusal, result.ok ? "" : result.message);
+    screen.refuse(result.ok ? undefined : result.message);
   };
 
   const exportRows = catalogue.exports.map((sold) => {
@@ -168,6 +179,7 @@ export function createLaunchManifestScreen(
     const inStock = document.createElement("td");
     inStock.className = "launch-manifest__count";
     const price = document.createElement("td");
+    price.className = "launch-manifest__details";
     price.textContent = formatExportPrice(sold);
     const amount = document.createElement("td");
     const input = document.createElement("input");
@@ -181,81 +193,59 @@ export function createLaunchManifestScreen(
     });
     amount.append(input);
     row.append(name, inStock, price, amount);
-    exportsBody.append(row);
-    return { sold, inStock, input };
+    exportsTable.body.append(row);
+    return { sold, row, inStock, input };
   });
-
-  const returnMass = document.createElement("p");
-  returnMass.className = "launch-manifest__total";
-  returnMass.setAttribute("role", "status");
-  returnMass.setAttribute("aria-label", "Return Mass");
-  const exportsValue = document.createElement("p");
-  exportsValue.className = "launch-manifest__total";
-  exportsValue.setAttribute("role", "status");
-  exportsValue.setAttribute("aria-label", "Export value");
-
-  // Why the latest change was refused, until the next one.
-  const refusal = document.createElement("p");
-  refusal.className = "launch-manifest__refusal";
-  refusal.setAttribute("role", "alert");
-  refusal.hidden = true;
-
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "launch-manifest__close";
-  close.textContent = "Close";
-  close.addEventListener("click", () => {
-    dialog.close();
-  });
-
-  dialog.append(
-    title,
-    intro,
-    table,
-    payloadMass,
-    cost,
-    exportsTitle,
-    exportsIntro,
-    exportsTable,
-    returnMass,
-    exportsValue,
-    refusal,
-    close,
-  );
-  dialog.addEventListener("close", () => {
-    refusal.hidden = true;
-  });
-  container.append(dialog);
 
   return {
     open() {
-      if (!dialog.open) dialog.showModal();
+      screen.open();
     },
     update(snapshot) {
+      setText(
+        screen.figure,
+        `${formatMillionDollars(snapshot.fundingMillionDollars)} Funding`,
+      );
       manifest = snapshot.launchManifest.items;
       const { locked } = snapshot.launchManifest;
       setText(
         intro,
         locked
           ? "Locked: the Lander has left Earth with this manifest, paid for. A new one starts once it has landed."
-          : "Choose what the next Launch brings from Earth.",
+          : "Choose what the next Launch brings from Earth. It is paid for as the Lander leaves Earth.",
       );
+      intro.classList.toggle("launch-manifest__intro--locked", locked);
       for (const { item, row, count, remove, add } of rows) {
         // Not listed until its Design is unlocked.
         row.hidden = !snapshot.unlockedDesignIds.includes(item.designId);
         const onManifest = countOf(item.id);
         setText(count, String(onManifest));
+        row.classList.toggle("launch-manifest__row--chosen", onManifest > 0);
         remove.disabled = locked || onManifest === 0;
         add.disabled = locked;
       }
-      setText(payloadMass, formatPayloadMass(snapshot.launchManifest));
-      setText(
-        cost,
+      for (const { section, body } of groups.values()) {
+        section.hidden = [...body.rows].every((row) => row.hidden);
+      }
+      // What the manifest can be paid with: the Funding, and what the
+      // Exports aboard will sell for before it is paid.
+      const spendable =
+        snapshot.fundingMillionDollars +
+        snapshot.exports.valueAboardMillionDollars;
+      payloadMass.show(
+        formatPayloadMass(snapshot.launchManifest),
+        snapshot.launchManifest.payloadMassKilograms /
+          catalogue.launch.payloadMassLimitKilograms,
+      );
+      cost.show(
         formatLaunchCost(
           snapshot.launchManifest,
           snapshot.fundingMillionDollars,
           snapshot.exports.valueAboardMillionDollars,
         ),
+        locked || spendable <= 0
+          ? undefined
+          : snapshot.launchManifest.costMillionDollars / spendable,
       );
 
       toLoad = snapshot.exports.toLoad;
@@ -263,7 +253,7 @@ export function createLaunchManifestScreen(
       // Once the Robot has loaded them, they can't change until they're aboard.
       const carried = snapshot.exportLoading?.collected === true;
       setText(exportsIntro, describeExports(snapshot));
-      for (const { sold, inStock, input } of exportRows) {
+      for (const { sold, row, inStock, input } of exportRows) {
         setText(
           inStock,
           formatExportStock(
@@ -273,16 +263,70 @@ export function createLaunchManifestScreen(
           ),
         );
         input.disabled = away || carried;
+        row.classList.toggle(
+          "launch-manifest__row--chosen",
+          kilogramsOf(sold.resourceId) > 0,
+        );
         // Not while the player is typing in it.
         if (document.activeElement !== input) {
           const shown = formatKilogramAmount(kilogramsOf(sold.resourceId));
           if (input.value !== shown) input.value = shown;
         }
       }
-      setText(returnMass, formatReturnMass(snapshot.exports));
-      setText(exportsValue, formatExportsValue(snapshot.exports));
+      const aboard = snapshot.exports.aboard.reduce(
+        (total, line) => total + line.kilograms,
+        0,
+      );
+      returnMass.show(
+        formatReturnMass(snapshot.exports),
+        (snapshot.exports.massKilograms + aboard) /
+          catalogue.lander.returnMassKilograms,
+      );
+      exportsValue.show(formatExportsValue(snapshot.exports), undefined);
     },
   };
+}
+
+type LaunchItemKind = LaunchItem["brings"]["kind"];
+
+interface ItemGroup {
+  readonly section: HTMLElement;
+  readonly body: HTMLTableSectionElement;
+}
+
+/** How the Launch tab heads each kind of item. */
+const GROUP_LABELS: Record<LaunchItemKind, string> = {
+  component: "Components",
+  "life-support": "Oxygen and water",
+  robot: "Robots",
+};
+
+/** The figures that stay in sight at the top of a tab as its list scrolls. */
+function createSummary(...gauges: readonly HTMLElement[]): HTMLElement {
+  const summary = document.createElement("div");
+  summary.className = "launch-manifest__summary";
+  summary.append(...gauges);
+  return summary;
+}
+
+/** A table with its column headings, and the body its rows go in. */
+function createTable(headings: readonly string[]): {
+  readonly table: HTMLTableElement;
+  readonly body: HTMLTableSectionElement;
+} {
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const row = document.createElement("tr");
+  for (const text of headings) {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.textContent = text;
+    row.append(cell);
+  }
+  head.append(row);
+  const body = document.createElement("tbody");
+  table.append(head, body);
+  return { table, body };
 }
 
 /**

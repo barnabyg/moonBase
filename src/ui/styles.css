@@ -662,9 +662,7 @@ body {
 
 /* Dialogs over the map. */
 
-.game-over,
-.launch-manifest,
-.expeditions {
+.game-over {
   max-width: 440px;
   padding: 20px 22px;
   color: var(--text);
@@ -674,9 +672,7 @@ body {
   line-height: 1.5;
 }
 
-.game-over::backdrop,
-.launch-manifest::backdrop,
-.expeditions::backdrop {
+.game-over::backdrop {
   background: rgb(0 0 0 / 60%);
 }
 
@@ -737,130 +733,6 @@ body {
   background: var(--panel-background);
   border: 1px solid var(--panel-border);
   border-radius: 6px;
-}
-
-.launch-manifest {
-  max-width: 520px;
-  max-height: calc(100% - 32px);
-}
-
-.launch-manifest h2,
-.expeditions h2 {
-  margin: 0 0 8px;
-  font-size: 1.2rem;
-}
-
-.launch-manifest h3 {
-  margin: 14px 0 6px;
-  font-size: 1rem;
-}
-
-.launch-manifest__kilograms {
-  width: 6em;
-  padding: 1px 4px;
-  font: inherit;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-}
-
-.launch-manifest__kilograms:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.launch-manifest__kilograms:disabled {
-  opacity: 0.4;
-}
-
-.launch-manifest p,
-.expeditions p {
-  margin: 0 0 10px;
-}
-
-.launch-manifest table {
-  width: 100%;
-  margin-bottom: 10px;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.launch-manifest th,
-.launch-manifest td {
-  padding: 3px 6px;
-  text-align: left;
-}
-
-.launch-manifest thead th {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.launch-manifest tbody th {
-  font-weight: normal;
-}
-
-.launch-manifest__count {
-  text-align: right;
-}
-
-.launch-manifest__actions {
-  white-space: nowrap;
-}
-
-.launch-manifest__total {
-  font-variant-numeric: tabular-nums;
-}
-
-.launch-manifest__refusal,
-.expeditions__refusal {
-  color: var(--warning);
-}
-
-.launch-manifest__refusal[hidden],
-.expeditions__refusal[hidden] {
-  display: none;
-}
-
-.expeditions button {
-  margin: 0 8px 10px 0;
-}
-
-.launch-manifest button,
-.expeditions button {
-  padding: 2px 8px;
-  font: inherit;
-  font-size: 0.85rem;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.launch-manifest__actions button {
-  min-width: 2em;
-}
-
-.launch-manifest__actions button + button {
-  margin-left: 4px;
-}
-
-.launch-manifest button:hover:not(:disabled) {
-  border-color: var(--text-muted);
-}
-
-.launch-manifest button:disabled {
-  cursor: default;
-  opacity: 0.4;
-}
-
-.launch-manifest button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 /* Screens with a header that stays in place over a body that scrolls,
@@ -1009,8 +881,7 @@ body {
 }
 
 .screen__close:focus-visible,
-.screen__button:focus-visible,
-.tech-tree__tab:focus-visible {
+.screen__button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1042,9 +913,49 @@ body {
   content: "✓ ";
 }
 
-/* The Research Tasks screen. */
+.screen__tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  overflow-x: auto;
+}
 
-.research-tasks__now {
+.screen__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.screen__tab:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.screen__tab[aria-selected="true"] {
+  color: var(--text);
+  background: rgb(255 255 255 / 9%);
+  border-color: var(--panel-border);
+}
+
+.screen__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A card at the top of a screen saying what is under way, such as the
+   Research Task running, or how things work while nothing is. */
+.screen__card {
   margin-bottom: 20px;
   padding: 14px 16px;
   background: linear-gradient(
@@ -1056,11 +967,11 @@ body {
   border-radius: 8px;
 }
 
-.research-tasks__now p {
+.screen__card p {
   margin: 0;
 }
 
-.research-tasks__eyebrow {
+.screen__eyebrow {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1068,13 +979,86 @@ body {
   color: var(--accent);
 }
 
+.screen__card--idle {
+  background: var(--panel-raised);
+  border-style: dashed;
+  border-color: var(--panel-border);
+}
+
+.screen__card--idle .screen__eyebrow {
+  color: var(--text-muted);
+}
+
+/* A figure over a bar showing how much of its limit it takes. */
+/* The bars line up at the foot, however the figures above them wrap. */
+.gauge {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gauge__text {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge .meter {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.gauge--full .meter__fill {
+  background: var(--warning);
+}
+
+/* A table of things to choose, row by row. */
+.screen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.screen th,
+.screen td {
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.screen thead th {
+  padding-top: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.screen tbody th {
+  font-weight: normal;
+}
+
+.screen tbody tr {
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+}
+
+.screen tbody tr:hover {
+  background: var(--panel-raised);
+}
+
+/* The Research Tasks screen. */
+
 .research-tasks__now-name {
   margin: 2px 0 0;
   font-size: 1.1rem;
   font-weight: 600;
 }
 
-.research-tasks__now .meter {
+.screen__card .meter {
   height: 6px;
   margin: 10px 0 6px;
   border-radius: 3px;
@@ -1085,17 +1069,7 @@ body {
   color: var(--text-muted);
 }
 
-.research-tasks__now--idle {
-  background: var(--panel-raised);
-  border-style: dashed;
-  border-color: var(--panel-border);
-}
-
-.research-tasks__now--idle .research-tasks__eyebrow {
-  color: var(--text-muted);
-}
-
-.research-tasks__now--idle .research-tasks__now-name {
+.screen__card--idle .research-tasks__now-name {
   margin: 4px 0;
   font-size: 0.9rem;
   font-weight: normal;
@@ -1187,41 +1161,6 @@ body {
   height: min(680px, 100vh - 48px);
 }
 
-.tech-tree__tabs {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 4px;
-  margin-top: 10px;
-  overflow-x: auto;
-}
-
-.tech-tree__tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.tech-tree__tab:hover {
-  color: var(--text);
-  background: var(--panel-raised);
-}
-
-.tech-tree__tab[aria-selected="true"] {
-  color: var(--text);
-  background: rgb(255 255 255 / 9%);
-  border-color: var(--panel-border);
-}
-
 .tech-tree__tally {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -1309,4 +1248,149 @@ body {
 
 .design-card__state--unlockable {
   color: var(--accent);
+}
+
+/* The Launch manifest screen. */
+
+/* The same size whichever tab is shown, so that it doesn't jump. */
+.launch-manifest {
+  height: min(760px, 100vh - 48px);
+}
+
+/* Stays in sight at the top of its tab while the list scrolls past. */
+.launch-manifest__summary {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: -16px -22px 14px;
+  padding: 14px 22px;
+  background: rgb(14 17 23 / 97%);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.launch-manifest__intro {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.launch-manifest__intro--locked {
+  padding: 8px 12px;
+  color: var(--accent);
+  background: rgb(242 193 78 / 8%);
+  border: 1px solid rgb(242 193 78 / 30%);
+  border-radius: 6px;
+}
+
+.launch-manifest__group + .launch-manifest__group {
+  margin-top: 18px;
+}
+
+.launch-manifest__details {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.launch-manifest__count {
+  width: 4em;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* A row with some of it on the manifest, or some to load, stands out. */
+.launch-manifest__row--chosen {
+  background: rgb(242 193 78 / 6%);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.launch-manifest__row--chosen .launch-manifest__count {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.launch-manifest__actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.launch-manifest__actions button {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+}
+
+.launch-manifest__actions button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.launch-manifest__actions button + button {
+  margin-left: -1px;
+  border-radius: 0 5px 5px 0;
+}
+
+.launch-manifest__actions button:hover:not(:disabled) {
+  background: var(--panel-raised);
+  border-color: var(--text-muted);
+}
+
+.launch-manifest__actions button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.launch-manifest__actions button:focus-visible,
+.launch-manifest__kilograms:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.launch-manifest__kilograms {
+  width: 7em;
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--text);
+  background: rgb(0 0 0 / 25%);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+}
+
+.launch-manifest__kilograms:disabled {
+  opacity: 0.4;
+}
+
+/* The Expeditions screen. */
+
+.expeditions {
+  width: min(520px, 100vw - 32px);
+}
+
+.expeditions__status {
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.expeditions__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.expeditions__actions .screen__button {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }

@@ -40,6 +40,7 @@ test("wafers loaded onto the Lander are sold when it reaches Earth, and the Fund
 
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
+  await screen.getByRole("tab", { name: "Exports" }).click();
   await expect(screen.getByRole("row", { name: /Wafers/ })).toContainText(
     "46.5 kg$1.5M a kg",
   );

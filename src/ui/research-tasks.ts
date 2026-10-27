@@ -36,11 +36,11 @@ export function createResearchTasksScreen(
 
   // The one running, or how research works while none is.
   const now = document.createElement("section");
-  now.className = "research-tasks__now";
+  now.className = "screen__card";
   now.setAttribute("role", "status");
   now.setAttribute("aria-label", "Research Task running");
   const nowHeading = document.createElement("p");
-  nowHeading.className = "research-tasks__eyebrow";
+  nowHeading.className = "screen__eyebrow";
   const nowName = document.createElement("p");
   nowName.className = "research-tasks__now-name";
   const nowMeter = createMeter();
@@ -112,7 +112,7 @@ export function createResearchTasksScreen(
           `${formatDuration(running.minutesLeft)} left, then it pays ${formatScience(task?.science ?? 0)}`,
         );
       }
-      now.classList.toggle("research-tasks__now--idle", running === undefined);
+      now.classList.toggle("screen__card--idle", running === undefined);
       nowMeter.fill(running?.progress);
 
       let regrouped = false;

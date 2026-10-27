@@ -1,7 +1,8 @@
 import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot } from "../simulation";
 import { setText } from "./dom";
-import { formatDuration, formatExpedition, resourceLabel } from "./format";
+import { describeExpedition, formatDuration, resourceLabel } from "./format";
+import { createScreen } from "./screen";
 
 export interface ExpeditionsScreen {
   open(): void;
@@ -9,69 +10,71 @@ export interface ExpeditionsScreen {
 }
 
 /**
- * The Expeditions screen, where the player sends the Robot off the map in
- * the Rover, and sees how the Expedition under way is going and when it
- * will be back. It only sends the choice to start one to the Campaign,
- * which decides whether it is allowed and says why not. The game runs on
- * while it is open.
+ * The Expeditions screen, where the player sends a Robot off the map in the
+ * Rover, and sees how the Expedition under way is going and when it will
+ * be back. It only sends the choice to start one to the Campaign, which
+ * decides whether it is allowed and says why not. The game runs on while
+ * it is open.
  */
 export function createExpeditionsScreen(
   container: HTMLElement,
   campaign: Pick<Campaign, "startExpedition">,
 ): ExpeditionsScreen {
-  const dialog = document.createElement("dialog");
-  dialog.className = "expeditions";
-  dialog.setAttribute("aria-labelledby", "expeditions-title");
-
-  const title = document.createElement("h2");
-  title.id = "expeditions-title";
-  title.textContent = "Expeditions";
+  const screen = createScreen(container, {
+    className: "expeditions",
+    title: "Expeditions",
+  });
   const { expeditions } = catalogue;
-  const intro = document.createElement("p");
-  intro.textContent = `The Robot finishes the Work Order it holds, then drives the Rover off the map. It is away for ${formatDuration(expeditions.awayEarthDays * 24 * 60)}, and comes back with ${expeditions.kilograms} kg of ${resourceLabel(expeditions.resourceId).toLowerCase()}. While it is away, every Work Order waits.`;
+  screen.lead.textContent = `A Robot finishes the Work Order it holds, then drives the Rover off the map. It is away for ${formatDuration(expeditions.awayEarthDays * 24 * 60)}, and comes back with ${expeditions.kilograms} kg of ${resourceLabel(expeditions.resourceId).toLowerCase()}.`;
 
+  // The one under way, or that none is.
+  const card = document.createElement("section");
+  card.className = "screen__card";
+  const heading = document.createElement("p");
+  heading.className = "screen__eyebrow";
   const status = document.createElement("p");
   status.className = "expeditions__status";
   status.setAttribute("role", "status");
   status.setAttribute("aria-label", "Expedition under way");
+  card.append(heading, status);
 
   const start = document.createElement("button");
   start.type = "button";
+  start.className = "screen__button";
   start.textContent = "Start an Expedition";
-
-  // Why the latest start was refused, until the screen is closed.
-  const refusal = document.createElement("p");
-  refusal.className = "expeditions__refusal";
-  refusal.setAttribute("role", "alert");
-  refusal.hidden = true;
   start.addEventListener("click", () => {
     const result = campaign.startExpedition();
-    refusal.hidden = result.ok;
-    setText(refusal, result.ok ? "" : result.message);
+    screen.refuse(result.ok ? undefined : result.message);
   });
+  const note = document.createElement("p");
+  note.className = "expeditions__note";
+  note.textContent =
+    "With only one Robot, every Work Order waits while it is away.";
+  const actions = document.createElement("div");
+  actions.className = "expeditions__actions";
+  actions.append(start, note);
 
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "Close";
-  close.addEventListener("click", () => {
-    dialog.close();
-  });
-
-  dialog.append(title, intro, status, start, refusal, close);
-  dialog.addEventListener("close", () => {
-    refusal.hidden = true;
-  });
-  container.append(dialog);
+  screen.body.append(card, actions);
 
   return {
     open() {
-      if (!dialog.open) dialog.showModal();
+      screen.open();
     },
     update(snapshot) {
-      setText(
-        status,
-        formatExpedition(snapshot.expedition, snapshot.clock.elapsedMinutes),
-      );
+      const underWay = snapshot.expedition !== undefined;
+      setText(heading, underWay ? "Under way" : "None under way");
+      const described =
+        snapshot.expedition === undefined
+          ? "A Robot and the Rover are ready to go."
+          : describeExpedition(
+              snapshot.expedition,
+              snapshot.clock.elapsedMinutes,
+            );
+      setText(status, described.charAt(0).toUpperCase() + described.slice(1));
+      card.classList.toggle("screen__card--idle", !underWay);
+      // Its button stays, so that starting another says why it can't.
+      start.classList.toggle("screen__button--primary", !underWay);
+      note.hidden = snapshot.robots.length > 1;
     },
   };
 }

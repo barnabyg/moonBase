@@ -1043,18 +1043,6 @@ export function robotLabel(
 
 /**
  * Says how the Expedition under way is going, and when it will be back,
- * for example "Expedition: away, back in 2 Earth Days 5 hours", or that
- * there is none.
- */
-export function formatExpedition(
-  expedition: ExpeditionSnapshot | undefined,
-  elapsedMinutes: number,
-): string {
-  return `Expedition: ${describeExpedition(expedition, elapsedMinutes)}`;
-}
-
-/**
- * Says how the Expedition under way is going, and when it will be back,
  * for example "away, back in 2 Earth Days 5 hours", or that there is none.
  */
 export function describeExpedition(

@@ -1,4 +1,5 @@
 import { setText } from "./dom";
+import { createMeter } from "./stat";
 
 /**
  * The frame of a screen that opens over the map, such as the Research Tasks
@@ -21,6 +22,53 @@ export interface Screen {
   open(): void;
   /** Shows why a choice was refused, or clears it with undefined. */
   refuse(message: string | undefined): void;
+  /**
+   * Splits the body into tabs, shown one at a time, with the tabs in the
+   * header. The first is shown until the player picks another, which stays
+   * picked between visits.
+   */
+  addTabs(
+    label: string,
+    tabs: readonly { readonly id: string; readonly label: string }[],
+  ): readonly ScreenTab[];
+}
+
+/** A tab of a screen, and the panel it shows in the body. */
+export interface ScreenTab {
+  readonly id: string;
+  readonly tab: HTMLButtonElement;
+  readonly panel: HTMLElement;
+}
+
+/**
+ * A figure such as the Payload Mass, in words a screen reader reads out as
+ * it changes, over a bar showing how much of its limit it takes.
+ */
+export interface Gauge {
+  readonly element: HTMLElement;
+  show(text: string, fraction: number | undefined): void;
+}
+
+export function createGauge(name: string): Gauge {
+  const element = document.createElement("div");
+  element.className = "gauge";
+  const text = document.createElement("p");
+  text.className = "gauge__text";
+  text.setAttribute("role", "status");
+  text.setAttribute("aria-label", name);
+  const meter = createMeter();
+  element.append(text, meter.element);
+  return {
+    element,
+    show(shown, fraction) {
+      setText(text, shown);
+      meter.fill(fraction);
+      element.classList.toggle(
+        "gauge--full",
+        fraction !== undefined && fraction >= 0.95,
+      );
+    },
+  };
 }
 
 export function createScreen(
@@ -79,6 +127,56 @@ export function createScreen(
     refuse(message) {
       refusal.hidden = message === undefined;
       setText(refusal, message ?? "");
+    },
+    addTabs(label, tabs) {
+      const list = document.createElement("div");
+      list.className = "screen__tabs";
+      list.setAttribute("role", "tablist");
+      list.setAttribute("aria-label", label);
+      header.append(list);
+      const entries = tabs.map(({ id, label: name }) => {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "screen__tab";
+        tab.id = `${className}-tab-${id}`;
+        tab.setAttribute("role", "tab");
+        const text = document.createElement("span");
+        text.textContent = name;
+        tab.append(text);
+        const panel = document.createElement("div");
+        panel.id = `${className}-panel-${id}`;
+        panel.setAttribute("role", "tabpanel");
+        panel.setAttribute("aria-labelledby", tab.id);
+        tab.setAttribute("aria-controls", panel.id);
+        list.append(tab);
+        body.append(panel);
+        return { id, tab, panel };
+      });
+      const select = (index: number, focus: boolean): void => {
+        for (const [each, { tab, panel }] of entries.entries()) {
+          const selected = each === index;
+          tab.setAttribute("aria-selected", String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+          panel.hidden = !selected;
+          if (selected && focus) tab.focus();
+        }
+        body.scrollTop = 0;
+      };
+      for (const [index, { tab }] of entries.entries()) {
+        tab.addEventListener("click", () => {
+          select(index, false);
+        });
+        // Arrow keys move between the tabs, as in any tab list.
+        tab.addEventListener("keydown", (event) => {
+          const step =
+            event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+          if (step === 0) return;
+          event.preventDefault();
+          select((index + step + entries.length) % entries.length, true);
+        });
+      }
+      select(0, false);
+      return entries;
     },
   };
 }
