@@ -36,7 +36,8 @@ export interface Catalogue {
     readonly exportHandlingHours: number;
     /**
      * The most mass of Exports the Lander can carry off the Moon each time
-     * it leaves. It is fixed: making propellant at the base doesn't raise it.
+     * it leaves. It is fixed for now: making propellant at the base, which
+     * will raise it, isn't in the game yet.
      */
     readonly returnMassKilograms: number;
   };
