@@ -483,6 +483,8 @@ export function formatEvent(event: GameEvent): string {
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "design-unlocked":
+      return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
       return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
     case "self-sufficiency-lost":
@@ -683,6 +685,14 @@ export function researchTaskLabel(researchTaskId: string): string {
   return (
     catalogue.researchTasks.find((task) => task.id === researchTaskId)?.label ??
     researchTaskId
+  );
+}
+
+/** Names a Design, for example "Large battery banks". */
+export function designLabel(designId: string): string {
+  return (
+    catalogue.designs.find((design) => design.id === designId)?.label ??
+    designId
   );
 }
 

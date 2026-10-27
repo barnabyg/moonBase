@@ -162,6 +162,11 @@ import {
 } from "./research";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
+  startingDesignIds,
+  unlockDesign,
+  type UnlockDesignResult,
+} from "./tech-tree";
+import {
   readSolarParticleEvent,
   scheduleSolarParticleEvent,
   watchSolarParticleEvents,
@@ -500,6 +505,11 @@ export interface Snapshot {
   readonly researchTask: ResearchTaskSnapshot | undefined;
   /** The ids of the Research Tasks completed, in the order they were. */
   readonly completedResearchTaskIds: readonly string[];
+  /**
+   * The ids of the Designs unlocked in the Tech Tree: the starting ones,
+   * then the others in the order they were unlocked.
+   */
+  readonly unlockedDesignIds: readonly string[];
   /** The Exports to load onto the Lander, those aboard it, and what they come to. */
   readonly exports: ExportsSnapshot;
   /**
@@ -644,6 +654,12 @@ export interface Campaign {
    * Only one runs at a time, and each can be completed only once.
    */
   startResearchTask(researchTaskId: string): StartResearchTaskResult;
+  /**
+   * Unlocks a Design in the Tech Tree at once, taking its cost off the
+   * base's Science, once every Design it needs first is unlocked. It adds
+   * nothing to the base. The result carries the notification of it.
+   */
+  unlockDesign(designId: string): UnlockDesignResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -700,6 +716,11 @@ export interface CampaignState {
   researchTask: ResearchTaskState | undefined;
   /** The ids of the Research Tasks completed, in the order they were. */
   completedResearchTaskIds: string[];
+  /**
+   * The ids of the Designs unlocked in the Tech Tree: the starting ones,
+   * then the others in the order they were unlocked.
+   */
+  unlockedDesignIds: string[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -752,6 +773,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     science: 0,
     researchTask: undefined,
     completedResearchTaskIds: [],
+    unlockedDesignIds: startingDesignIds(),
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -936,6 +958,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(startResearchTask(state, researchTaskId));
     },
+    unlockDesign(designId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(unlockDesign(state, designId));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -981,6 +1013,7 @@ function campaignFrom(state: CampaignState): Campaign {
         science: state.science,
         researchTask: readResearchTask(state),
         completedResearchTaskIds: [...state.completedResearchTaskIds],
+        unlockedDesignIds: [...state.unlockedDesignIds],
         exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),

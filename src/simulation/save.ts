@@ -630,6 +630,35 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 26 to 27: the Tech Tree, whose Designs are unlocked with Science.
+  // Everything that could be built or shipped before belongs to a starting
+  // Design, so an older save has those unlocked and no others. They are the
+  // starting Designs when format version 27 came in, so that adding or
+  // changing starting Designs later doesn't change what this migration gives.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        unlockedDesignIds: [
+          "solar-arrays",
+          "battery-banks",
+          "light-masts",
+          "maintenance-spares",
+          "regolith-shielding",
+          "inflatable-habitat",
+          "life-support-resupply",
+          "water-processing",
+          "regolith-extraction",
+          "vacuum-fabrication",
+          "circuit-board-fabrication",
+          "landing-pads",
+        ],
+      },
+    };
+  },
 ];
 
 /**
@@ -987,6 +1016,8 @@ const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
 const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
 
+const designId = catalogueId(catalogue.designs, "Design");
+
 /**
  * A commissioned Structure, whose recipe must be one of its type's if it
  * is a Plant, and none if it isn't.
@@ -1330,6 +1361,7 @@ const simulationState = object({
     object({ researchTaskId, workedMinutes: wholeNumber }),
   ),
   completedResearchTaskIds: list(researchTaskId),
+  unlockedDesignIds: list(designId),
   ended: optional(campaignEnd),
   robots: list(
     object({

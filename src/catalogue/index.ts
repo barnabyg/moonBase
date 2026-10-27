@@ -5,6 +5,8 @@ export type {
   ColdRules,
   ComponentCount,
   ComponentType,
+  Design,
+  DesignCategory,
   DiggingRules,
   DustCoatingRules,
   ExpeditionRules,

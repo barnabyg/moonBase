@@ -70,6 +70,11 @@ export type {
   StartResearchTaskRefusal,
   StartResearchTaskResult,
 } from "./research";
+export type {
+  DesignUnlockedEvent,
+  UnlockDesignRefusal,
+  UnlockDesignResult,
+} from "./tech-tree";
 export type { StrikeTarget } from "./micrometeorites";
 export type { SpareComponentsForecast } from "./spare-forecast";
 export type {

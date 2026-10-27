@@ -152,6 +152,17 @@ export interface Catalogue {
    * the Research Tasks screen lists them. Each can be completed only once.
    */
   readonly researchTasks: readonly ResearchTask[];
+  /** The categories of the Tech Tree, in the order the Tech Tree screen shows them. */
+  readonly designCategories: readonly {
+    readonly id: DesignCategory;
+    readonly label: string;
+  }[];
+  /**
+   * The Tech Tree: every Design, in the order the Tech Tree screen lists
+   * them within their category. The starting ones are unlocked when a
+   * Campaign begins; the rest are unlocked with Science.
+   */
+  readonly designs: readonly Design[];
   readonly plumeEjecta: PlumeEjectaRules;
   readonly maintenance: MaintenanceRules;
   /**
@@ -283,6 +294,8 @@ export interface LaunchRules {
 /** Something a Launch can bring from Earth, as many times over as the player chooses. */
 export interface LaunchItem {
   readonly id: string;
+  /** The Design it belongs to. */
+  readonly designId: string;
   /** What one of it brings: a Component, or a set amount of oxygen or water. */
   readonly brings:
     | { readonly kind: "component"; readonly componentId: string }
@@ -299,7 +312,7 @@ export interface LaunchItem {
 /**
  * A piece of scientific work carried out at the base, which earns Science
  * once it is complete. It needs no Robot, power or Components, only game
- * time. Every one is available from the start.
+ * time.
  */
 export interface ResearchTask {
   readonly id: string;
@@ -308,6 +321,43 @@ export interface ResearchTask {
   readonly lengthHours: number;
   /** The Science it earns when it is complete, a whole amount. */
   readonly science: number;
+  /**
+   * The Design that must be unlocked before it is offered, if any; without
+   * one, it is available from the start.
+   */
+  readonly requiresDesignId?: string;
+}
+
+/** The six categories the Tech Tree's Designs fall into. */
+export type DesignCategory =
+  | "power"
+  | "construction"
+  | "protection"
+  | "life-support"
+  | "industry"
+  | "mobility";
+
+/**
+ * A Design in the Tech Tree: permission to have the Structure types and
+ * Launch items that name it, unlocked with Science once the Designs it
+ * needs first are. Unlocking one never creates anything on the base.
+ */
+export interface Design {
+  readonly id: string;
+  readonly label: string;
+  /** A sentence on what it is, for the Tech Tree screen. */
+  readonly description: string;
+  readonly category: DesignCategory;
+  /**
+   * Whether it is unlocked when a Campaign begins, as everything in the game
+   * before the Tech Tree was. A starting Design needs nothing first and costs
+   * nothing.
+   */
+  readonly starting: boolean;
+  /** The Science it takes to unlock, a whole amount. */
+  readonly scienceCost: number;
+  /** The Designs that must be unlocked before it can be. */
+  readonly prerequisiteDesignIds: readonly string[];
 }
 
 /**
@@ -554,6 +604,8 @@ export interface ComponentCount {
 export interface StructureType {
   readonly id: string;
   readonly label: string;
+  /** The Design it belongs to. */
+  readonly designId: string;
   /** Radius of the ground the Structure stands on; no two footprints may overlap. */
   readonly footprintRadiusMetres: number;
   /**
@@ -670,7 +722,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 35,
+  version: 36,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -828,6 +880,7 @@ export const catalogue: Catalogue = {
     {
       id: "solar-array",
       label: "Solar array",
+      designId: "solar-arrays",
       footprintRadiusMetres: 3,
       components: [
         { componentId: "solar-panel", count: 2 },
@@ -858,6 +911,7 @@ export const catalogue: Catalogue = {
     {
       id: "battery-bank",
       label: "Battery bank",
+      designId: "battery-banks",
       footprintRadiusMetres: 2,
       components: [
         { componentId: "battery-module", count: 3 },
@@ -887,6 +941,7 @@ export const catalogue: Catalogue = {
     {
       id: "light-mast",
       label: "Light mast",
+      designId: "light-masts",
       footprintRadiusMetres: 0.8,
       components: [
         { componentId: "mast-pole", count: 1 },
@@ -916,6 +971,7 @@ export const catalogue: Catalogue = {
     {
       id: "habitat",
       label: "Inflatable Habitat",
+      designId: "inflatable-habitat",
       footprintRadiusMetres: 4,
       components: [
         { componentId: "habitat-core", count: 1 },
@@ -946,6 +1002,7 @@ export const catalogue: Catalogue = {
     {
       id: "regolith-shielding",
       label: "Regolith shielding",
+      designId: "regolith-shielding",
       // The same as the Habitat's, so that the excavator, left beside the
       // Habitat after grading its site, isn't in the way.
       footprintRadiusMetres: 4,
@@ -978,6 +1035,7 @@ export const catalogue: Catalogue = {
     {
       id: "landing-pad",
       label: "Landing pad",
+      designId: "landing-pads",
       // Wide enough for the Lander to stand on with room round it, and for
       // its engine to blast nothing but the pad.
       footprintRadiusMetres: 7,
@@ -1011,6 +1069,7 @@ export const catalogue: Catalogue = {
     {
       id: "extraction-plant",
       label: "Extraction plant",
+      designId: "regolith-extraction",
       footprintRadiusMetres: 3,
       // A reactor that melts Regolith and splits it by electrolysis, and
       // the plant that draws the oxygen off.
@@ -1108,6 +1167,7 @@ export const catalogue: Catalogue = {
     {
       id: "water-processing-plant",
       label: "Water-processing plant",
+      designId: "water-processing",
       footprintRadiusMetres: 2.5,
       // A heated tank that melts the ice, and a still that cleans the water.
       components: [
@@ -1160,6 +1220,7 @@ export const catalogue: Catalogue = {
     {
       id: "vacuum-fabrication-plant",
       label: "Vacuum fabrication plant",
+      designId: "vacuum-fabrication",
       footprintRadiusMetres: 2.5,
       // A furnace that grows silicon crystals in the Moon's vacuum, and a saw
       // that slices them into wafers.
@@ -1218,6 +1279,7 @@ export const catalogue: Catalogue = {
     {
       id: "circuit-board-plant",
       label: "Circuit board plant",
+      designId: "circuit-board-fabrication",
       footprintRadiusMetres: 2.5,
       // An etcher that lays circuits on metal-cored boards, and an oven
       // that solders the chips cut from the wafers onto them.
@@ -1351,54 +1413,63 @@ export const catalogue: Catalogue = {
     items: [
       {
         id: "solar-panel",
+        designId: "solar-arrays",
         brings: { kind: "component", componentId: "solar-panel" },
         massKilograms: 60,
         priceMillionDollars: 4,
       },
       {
         id: "array-mast",
+        designId: "solar-arrays",
         brings: { kind: "component", componentId: "array-mast" },
         massKilograms: 80,
         priceMillionDollars: 3,
       },
       {
         id: "battery-module",
+        designId: "battery-banks",
         brings: { kind: "component", componentId: "battery-module" },
         massKilograms: 120,
         priceMillionDollars: 6,
       },
       {
         id: "battery-cabinet",
+        designId: "battery-banks",
         brings: { kind: "component", componentId: "battery-cabinet" },
         massKilograms: 70,
         priceMillionDollars: 2,
       },
       {
         id: "mast-pole",
+        designId: "light-masts",
         brings: { kind: "component", componentId: "mast-pole" },
         massKilograms: 25,
         priceMillionDollars: 1,
       },
       {
         id: "light-head",
+        designId: "light-masts",
         brings: { kind: "component", componentId: "light-head" },
         massKilograms: 15,
         priceMillionDollars: 2,
       },
       {
         id: "habitat-core",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "habitat-core" },
         massKilograms: 900,
         priceMillionDollars: 200,
       },
       {
         id: "habitat-envelope",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "habitat-envelope" },
         massKilograms: 350,
         priceMillionDollars: 80,
       },
       {
         id: "airlock",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "airlock" },
         massKilograms: 400,
         priceMillionDollars: 60,
@@ -1407,18 +1478,21 @@ export const catalogue: Catalogue = {
       // Launch for a battery bank's modules.
       {
         id: "pad-panel",
+        designId: "landing-pads",
         brings: { kind: "component", componentId: "pad-panel" },
         massKilograms: 150,
         priceMillionDollars: 3,
       },
       {
         id: "pad-beacon",
+        designId: "landing-pads",
         brings: { kind: "component", componentId: "pad-beacon" },
         massKilograms: 40,
         priceMillionDollars: 6,
       },
       {
         id: "spare-component",
+        designId: "maintenance-spares",
         brings: { kind: "component", componentId: "spare-component" },
         massKilograms: 20,
         priceMillionDollars: 1,
@@ -1426,12 +1500,14 @@ export const catalogue: Catalogue = {
       // An extraction plant's worth comes to 1000 kg.
       {
         id: "extraction-reactor",
+        designId: "regolith-extraction",
         brings: { kind: "component", componentId: "extraction-reactor" },
         massKilograms: 700,
         priceMillionDollars: 45,
       },
       {
         id: "oxygen-separator",
+        designId: "regolith-extraction",
         brings: { kind: "component", componentId: "oxygen-separator" },
         massKilograms: 300,
         priceMillionDollars: 30,
@@ -1439,12 +1515,14 @@ export const catalogue: Catalogue = {
       // A water-processing plant's worth comes to 400 kg.
       {
         id: "ice-melter",
+        designId: "water-processing",
         brings: { kind: "component", componentId: "ice-melter" },
         massKilograms: 250,
         priceMillionDollars: 15,
       },
       {
         id: "water-purifier",
+        designId: "water-processing",
         brings: { kind: "component", componentId: "water-purifier" },
         massKilograms: 150,
         priceMillionDollars: 20,
@@ -1453,12 +1531,14 @@ export const catalogue: Catalogue = {
       // the same Launch for a second solar array to power it.
       {
         id: "crystal-furnace",
+        designId: "vacuum-fabrication",
         brings: { kind: "component", componentId: "crystal-furnace" },
         massKilograms: 500,
         priceMillionDollars: 40,
       },
       {
         id: "wafer-saw",
+        designId: "vacuum-fabrication",
         brings: { kind: "component", componentId: "wafer-saw" },
         massKilograms: 250,
         priceMillionDollars: 25,
@@ -1466,12 +1546,14 @@ export const catalogue: Catalogue = {
       // A circuit board plant's worth comes to 600 kg.
       {
         id: "circuit-etcher",
+        designId: "circuit-board-fabrication",
         brings: { kind: "component", componentId: "circuit-etcher" },
         massKilograms: 350,
         priceMillionDollars: 35,
       },
       {
         id: "reflow-oven",
+        designId: "circuit-board-fabrication",
         brings: { kind: "component", componentId: "reflow-oven" },
         massKilograms: 250,
         priceMillionDollars: 25,
@@ -1479,12 +1561,14 @@ export const catalogue: Catalogue = {
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
+        designId: "life-support-resupply",
         brings: { kind: "life-support", stockId: "oxygen", kilograms: 25 },
         massKilograms: 40,
         priceMillionDollars: 2,
       },
       {
         id: "water",
+        designId: "life-support-resupply",
         brings: { kind: "life-support", stockId: "water", kilograms: 50 },
         massKilograms: 60,
         priceMillionDollars: 2,
@@ -1493,7 +1577,8 @@ export const catalogue: Catalogue = {
   },
   // From a few hours to a week. The short ones pay more Science an hour,
   // but the player has to come back to start the next; the long ones run
-  // unattended, through a Night or a whole round trip of the Lander.
+  // unattended, through a Night or a whole round trip of the Lander. Two are
+  // offered only once the Design they study is unlocked.
   researchTasks: [
     {
       id: "regolith-sample-analysis",
@@ -1520,16 +1605,212 @@ export const catalogue: Catalogue = {
       science: 20,
     },
     {
+      id: "sintered-block-testing",
+      label: "Sintered block testing",
+      lengthHours: 48,
+      science: 20,
+      requiresDesignId: "regolith-sintering",
+    },
+    {
       id: "seismic-monitoring",
       label: "Seismic monitoring",
       lengthHours: 72,
       science: 30,
     },
     {
+      id: "electrolysis-yield-trial",
+      label: "Electrolysis yield trial",
+      lengthHours: 96,
+      science: 45,
+      requiresDesignId: "water-electrolysis",
+    },
+    {
       id: "low-frequency-radio-survey",
       label: "Low-frequency radio survey",
       lengthHours: 168,
       science: 60,
+    },
+  ],
+  designCategories: [
+    { id: "power", label: "Power" },
+    { id: "construction", label: "Construction" },
+    { id: "protection", label: "Protection" },
+    { id: "life-support", label: "Life Support" },
+    { id: "industry", label: "Industry" },
+    { id: "mobility", label: "Mobility" },
+  ],
+  // Everything the base could have before the Tech Tree belongs to a
+  // starting Design. The rest cost about as much Science as the Research
+  // Tasks pay, a couple of which are offered only once a Design is unlocked,
+  // so the research list grows with the tree.
+  designs: [
+    {
+      id: "solar-arrays",
+      label: "Solar arrays",
+      description:
+        "Solar panels on a mast, which generate power in Daylight and nothing at Night.",
+      category: "power",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "battery-banks",
+      label: "Battery banks",
+      description:
+        "Battery modules in a cabinet, which store power in Daylight to use at Night.",
+      category: "power",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "large-battery-banks",
+      label: "Large battery banks",
+      description:
+        "Bigger battery banks, to carry more of the base through the Night.",
+      category: "power",
+      starting: false,
+      scienceCost: 25,
+      prerequisiteDesignIds: ["battery-banks"],
+    },
+    {
+      id: "thin-film-solar-cells",
+      label: "Thin-film solar cells",
+      description:
+        "Solar cells laid down on wafers made at the base, rather than shipped from Earth.",
+      category: "power",
+      starting: false,
+      scienceCost: 45,
+      prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
+    },
+    {
+      id: "light-masts",
+      label: "Light Masts",
+      description:
+        "Lights on a pole, which switch on by themselves at Night to light up the ground round them.",
+      category: "construction",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "maintenance-spares",
+      label: "Maintenance spares",
+      description:
+        "Spare Components, which the Robot uses up restoring the Condition of what has worn down.",
+      category: "construction",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "regolith-shielding",
+      label: "Regolith shielding",
+      description:
+        "A shell of Regolith printed over a Habitat, which cuts the Radiation Dose inside.",
+      category: "protection",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "inflatable-habitat",
+      label: "Inflatable Habitat",
+      description:
+        "A Habitat kit with an airlock, which the Mission Director can live in once it is commissioned.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "life-support-resupply",
+      label: "Life support resupply",
+      description: "Oxygen and water in pressurised tanks, shipped from Earth.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "water-processing",
+      label: "Water processing",
+      description:
+        "A Plant that melts water ice and purifies it into water for the Mission Director.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "water-electrolysis",
+      label: "Water electrolysis",
+      description:
+        "Splitting water into oxygen and hydrogen with power from the base.",
+      category: "life-support",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["water-processing"],
+    },
+    {
+      id: "regolith-extraction",
+      label: "Regolith extraction",
+      description:
+        "A Plant that turns Regolith into oxygen, metals and silicon.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "vacuum-fabrication",
+      label: "Vacuum fabrication",
+      description:
+        "A Plant that grows silicon crystals in the Moon's vacuum and saws them into wafers.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "circuit-board-fabrication",
+      label: "Circuit board fabrication",
+      description: "A Plant that etches wafers and metals into circuit boards.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "regolith-sintering",
+      label: "Regolith sintering",
+      description:
+        "Fusing Regolith into hard blocks with heat, for sturdier Structures made on the Moon.",
+      category: "industry",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["regolith-shielding"],
+    },
+    {
+      id: "landing-pads",
+      label: "Landing pads",
+      description:
+        "A paved pad with a beacon, where the Lander lands without blasting Plume Ejecta over the base.",
+      category: "mobility",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "pressurised-rover",
+      label: "Pressurised Rover",
+      description:
+        "A Rover with a cabin, powered for longer journeys from the base.",
+      category: "mobility",
+      starting: false,
+      scienceCost: 55,
+      prerequisiteDesignIds: ["large-battery-banks", "inflatable-habitat"],
     },
   ],
   // Reaching past everything that lands beside the Lander, so the base has

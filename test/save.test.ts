@@ -84,7 +84,7 @@ describe("a save document", () => {
 
     expect(document).toMatchObject({
       format: "moonbase-save",
-      version: 26,
+      version: 27,
       random: {
         a: expect.any(Number) as number,
         b: expect.any(Number) as number,
@@ -213,14 +213,14 @@ describe("loading a file", () => {
 
   it("is refused when it comes from a newer format version", () => {
     const text = edited(valid(), (document) => {
-      document.version = 27;
+      document.version = 28;
     });
 
     expect(loadCampaign(text)).toEqual({
       ok: false,
       reason: "newer-version",
       message:
-        "It was saved by a newer version of Moon Base, in save format version 27. This version can load up to version 26.",
+        "It was saved by a newer version of Moon Base, in save format version 28. This version can load up to version 27.",
     });
   });
 
@@ -280,6 +280,13 @@ describe("loading a file", () => {
         document.state["completedResearchTaskIds"] = ["perpetual-motion"];
       },
       "state.completedResearchTaskIds.0 isn't a Research Task in the data catalogue",
+    ],
+    [
+      "an unlocked Design the data catalogue doesn't have",
+      (document) => {
+        document.state["unlockedDesignIds"] = ["warp-drive"];
+      },
+      "state.unlockedDesignIds.0 isn't a Design in the data catalogue",
     ],
     [
       "random generator state out of range",

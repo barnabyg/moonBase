@@ -1,6 +1,7 @@
 import { catalogue, type ResearchTask } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import type { GameEvent } from "./events";
+import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /** The Research Task running, and how far it has got. */
 export interface ResearchTaskState {
@@ -21,6 +22,7 @@ export interface ResearchTaskSnapshot {
 export type StartResearchTaskRefusal =
   | "unknown-research-task"
   | "already-completed"
+  | "design-locked"
   | "research-task-running"
   | "campaign-ended";
 
@@ -35,7 +37,8 @@ export type StartResearchTaskResult =
 
 /**
  * Starts a Research Task, which runs by itself from the next game-minute,
- * unless it has already been completed or one is running already.
+ * unless it has already been completed, the Design it needs isn't unlocked
+ * yet, or one is running already.
  */
 export function startResearchTask(
   state: CampaignState,
@@ -52,6 +55,13 @@ export function startResearchTask(
     return refuse(
       "already-completed",
       `${task.label} has already been completed, and can't be carried out again.`,
+    );
+  }
+  const needed = task.requiresDesignId;
+  if (needed !== undefined && !isDesignUnlocked(state, needed)) {
+    return refuse(
+      "design-locked",
+      `${task.label} needs the ${designLabel(needed)} Design unlocked first.`,
     );
   }
   const running = state.researchTask;

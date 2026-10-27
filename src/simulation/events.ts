@@ -278,6 +278,18 @@ export type GameEvent =
     }
   | {
       /**
+       * The player has unlocked a Design in the Tech Tree, for the Science
+       * it cost. Unlocking happens at once, so it comes back from the
+       * command, not from advancing the Campaign.
+       */
+      readonly kind: "design-unlocked";
+      readonly atMinute: number;
+      readonly designId: string;
+      /** The Science it cost. */
+      readonly science: number;
+    }
+  | {
+      /**
        * The base has become self-sufficient in a life support stock
        * ("self-sufficiency-gained"): over the data catalogue's window, its
        * Plants made at least as much as the Mission Director used; or it

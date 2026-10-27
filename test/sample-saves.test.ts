@@ -1630,3 +1630,107 @@ describe("the sample save of format version 26", () => {
     ]);
   });
 });
+
+describe("the sample saves from before the Tech Tree", () => {
+  // The starting Designs when format version 27 came in.
+  const startingDesignIds = [
+    "solar-arrays",
+    "battery-banks",
+    "light-masts",
+    "maintenance-spares",
+    "regolith-shielding",
+    "inflatable-habitat",
+    "life-support-resupply",
+    "water-processing",
+    "regolith-extraction",
+    "vacuum-fabrication",
+    "circuit-board-fabrication",
+    "landing-pads",
+  ];
+
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-18.moonbase",
+    "version-25.moonbase",
+    "version-26.moonbase",
+  ])("%s loads with the starting Designs unlocked, and no others", (name) => {
+    expect(loadSample(name).snapshot().unlockedDesignIds).toEqual(
+      startingDesignIds,
+    );
+  });
+
+  it("plays on from where it was saved, until Seismic monitoring completes and its Science unlocks a Design", () => {
+    const campaign = loadSample("version-26.moonbase");
+    const design = catalogue.designs.find(
+      (entry) => entry.id === "large-battery-banks",
+    );
+    if (design === undefined) throw new Error("expected Large battery banks");
+
+    campaign.advance(3 * 24 * 60);
+
+    expect(campaign.snapshot().researchTask).toBeUndefined();
+    expect(campaign.unlockDesign(design.id)).toMatchObject({ ok: true });
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.unlockedDesignIds).toEqual([...startingDesignIds, design.id]);
+  });
+});
+
+describe("the sample save of format version 27", () => {
+  // Saved 6000 game-minutes in, after four Research Tasks paid 45 Science
+  // and Regolith sintering was unlocked for 30, with the Sintered block
+  // testing it opened up 600 game-minutes in. Its length and the Science it
+  // pays come from the data catalogue as it is.
+  const sintered = catalogue.researchTasks.find(
+    (task) => task.id === "sintered-block-testing",
+  );
+  if (sintered === undefined)
+    throw new Error("expected Sintered block testing");
+  const minutesLeft = sintered.lengthHours * 60 - 600;
+
+  it("loads with Regolith sintering unlocked, 15 Science left, and Sintered block testing running", () => {
+    const state = loadSample("version-27.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 5, hour: 4, minute: 0 });
+    expect(state.science).toBe(15);
+    expect(state.unlockedDesignIds).toContain("regolith-sintering");
+    expect(state.unlockedDesignIds).not.toContain("large-battery-banks");
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: "sintered-block-testing",
+      minutesLeft,
+    });
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+      "ice-volatiles-assay",
+      "radiation-environment-survey",
+      "dust-levitation-study",
+    ]);
+  });
+
+  it("plays on from where it was saved, Sintered block testing completing and its Science unlocking another Design", () => {
+    const campaign = loadSample("version-27.moonbase");
+    expect(campaign.unlockDesign("regolith-sintering")).toMatchObject({
+      ok: false,
+      reason: "already-unlocked",
+    });
+
+    const completed = campaign
+      .advance(minutesLeft)
+      .filter((event) => event.kind === "research-task-completed");
+
+    expect(completed).toEqual([
+      {
+        kind: "research-task-completed",
+        atMinute: 6000 + minutesLeft,
+        researchTaskId: "sintered-block-testing",
+        science: sintered.science,
+      },
+    ]);
+    expect(campaign.snapshot().science).toBe(15 + sintered.science);
+    expect(campaign.unlockDesign("large-battery-banks")).toMatchObject({
+      ok: true,
+    });
+    expect(campaign.snapshot().ended).toBeUndefined();
+  });
+});
