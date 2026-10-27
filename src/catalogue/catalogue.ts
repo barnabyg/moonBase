@@ -722,7 +722,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 36,
+  version: 37,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -875,6 +875,8 @@ export const catalogue: Catalogue = {
     { id: "wafer-saw", label: "Wafer saw" },
     { id: "circuit-etcher", label: "Circuit etcher" },
     { id: "reflow-oven", label: "Reflow oven" },
+    { id: "large-battery-module", label: "Large battery module" },
+    { id: "large-battery-cabinet", label: "Large battery cabinet" },
   ],
   structureTypes: [
     {
@@ -931,6 +933,39 @@ export const catalogue: Catalogue = {
         generationKilowatts: 0,
         storageKilowattHours: 60,
         drawKilowatts: 0.25,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // Four times a battery bank's storage, in denser cells, so it ships
+    // about half the mass and costs about half as much for each kWh. It
+    // takes longer to build, and its heaters draw more, if less for each kWh.
+    {
+      id: "large-battery-bank",
+      label: "Large battery bank",
+      designId: "large-battery-banks",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "large-battery-module", count: 4 },
+        { componentId: "large-battery-cabinet", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1.5,
+        assembly: 4,
+        commissioning: 1.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
+      // The heaters that keep the cells warm enough to work.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 240,
+        drawKilowatts: 0.4,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1438,6 +1473,21 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "battery-cabinet" },
         massKilograms: 70,
         priceMillionDollars: 2,
+      },
+      // A large battery bank's worth comes to 840 kg.
+      {
+        id: "large-battery-module",
+        designId: "large-battery-banks",
+        brings: { kind: "component", componentId: "large-battery-module" },
+        massKilograms: 170,
+        priceMillionDollars: 10,
+      },
+      {
+        id: "large-battery-cabinet",
+        designId: "large-battery-banks",
+        brings: { kind: "component", componentId: "large-battery-cabinet" },
+        massKilograms: 160,
+        priceMillionDollars: 5,
       },
       {
         id: "mast-pole",

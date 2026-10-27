@@ -1734,3 +1734,73 @@ describe("the sample save of format version 27", () => {
     expect(campaign.snapshot().ended).toBeUndefined();
   });
 });
+
+describe("the sample saves from before the large battery bank", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-27.moonbase"])(
+    "%s loads with none of the large battery bank's Components, counted last in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.slice(-2)).toEqual([
+        { componentId: "large-battery-module", count: 0 },
+        { componentId: "large-battery-cabinet", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 28", () => {
+  // Saved 3352 game-minutes in, after three Research Tasks paid 25 Science
+  // and Large battery banks was unlocked for all of it, with a large
+  // battery bank an hour into its Assembly beside a solar array.
+  const storageOf = (structureTypeId: string) =>
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)?.power
+      .storageKilowattHours ?? Number.NaN;
+
+  it("loads with Large battery banks unlocked, no Science left, and a large battery bank being assembled from its Components", () => {
+    const state = loadSample("version-28.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 3, hour: 7, minute: 52 });
+    expect(state.science).toBe(0);
+    expect(state.unlockedDesignIds).toContain("large-battery-banks");
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        structureTypeId: "large-battery-bank",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+    ]);
+  });
+
+  it("plays on from where it was saved, the large battery bank being commissioned and storing more than a battery bank can", () => {
+    const campaign = loadSample("version-28.moonbase");
+    expect(campaign.unlockDesign("large-battery-banks")).toMatchObject({
+      ok: false,
+      reason: "already-unlocked",
+    });
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 2 * 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    const network = state.power.networks.find((candidate) =>
+      candidate.structureIds.includes("structure-2"),
+    );
+    expect(network?.storageCapacityKilowattHours).toBe(
+      storageOf("large-battery-bank"),
+    );
+    expect(network?.storedKilowattHours).toBeGreaterThan(
+      storageOf("battery-bank"),
+    );
+  });
+});

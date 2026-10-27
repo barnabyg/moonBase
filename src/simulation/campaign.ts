@@ -162,6 +162,8 @@ import {
 } from "./research";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
+  designLabel,
+  isDesignUnlocked,
   startingDesignIds,
   unlockDesign,
   type UnlockDesignResult,
@@ -594,9 +596,16 @@ export interface Campaign {
    * advances and returns none.
    */
   advanceToNextEvent(): readonly GameEvent[];
-  /** Says whether a Structure could be planned there, without planning it. */
+  /**
+   * Says whether a Structure could be planned there, without planning it.
+   * One whose Design isn't unlocked can't be planned anywhere.
+   */
   checkPlacement(plan: ConstructionPlan): PlacementCheck;
-  /** Plans a Construction, which the Robot then carries out by itself. */
+  /**
+   * Plans a Construction, which the Robot then carries out by itself. A
+   * Structure whose Design isn't unlocked is refused, naming the Design;
+   * Constructions already planned carry on whatever is unlocked.
+   */
   planConstruction(plan: ConstructionPlan): PlanResult;
   /**
    * Cancels an unfinished Construction at once, returning its unused
@@ -622,7 +631,9 @@ export interface Campaign {
   /**
    * Sets what the next Launch is to bring from Earth, in place of the
    * manifest so far. A manifest the Launch can't carry, or the Funding
-   * balance can't pay for, is refused with the limit it would go over.
+   * balance can't pay for, is refused with the limit it would go over, and
+   * one with an item whose Design isn't unlocked is refused, naming the
+   * Design.
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /**
@@ -1181,13 +1192,24 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   return events;
 }
 
-/** Checks a placement, which is always refused once the Campaign has ended. */
+/**
+ * Checks a placement, which is always refused once the Campaign has ended,
+ * and for a Structure whose Design isn't unlocked.
+ */
 function checkCampaignPlacement(
   state: CampaignState,
   plan: ConstructionPlan,
 ): PlacementCheck {
   if (state.ended !== undefined) {
     return { ok: false, reason: "campaign-ended", message: CAMPAIGN_OVER };
+  }
+  const type = findStructureType(plan.structureTypeId);
+  if (type !== undefined && !isDesignUnlocked(state, type.designId)) {
+    return {
+      ok: false,
+      reason: "design-locked",
+      message: `The ${type.label.toLowerCase()} needs the ${designLabel(type.designId)} Design unlocked first.`,
+    };
   }
   return checkPlacement(state, plan);
 }

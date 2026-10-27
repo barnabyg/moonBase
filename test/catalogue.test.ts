@@ -3,10 +3,33 @@ import {
   catalogue,
   type GroundPosition,
   type ResourceFlow,
+  type StructureType,
 } from "../src/catalogue";
 
 const halfWidth = catalogue.map.widthMetres / 2;
 const halfDepth = catalogue.map.depthMetres / 2;
+
+/**
+ * The Designs that must be unlocked by the time a Design is: the starting
+ * ones, the Design itself and every Design it needs first, however far back.
+ */
+function designsUnlockedWith(designId: string): Set<string> {
+  const unlocked = new Set(
+    catalogue.designs
+      .filter((design) => design.starting)
+      .map((design) => design.id),
+  );
+  const visited = new Set<string>();
+  const waiting = [designId];
+  for (let id = waiting.pop(); id !== undefined; id = waiting.pop()) {
+    if (visited.has(id)) continue;
+    visited.add(id);
+    unlocked.add(id);
+    const design = catalogue.designs.find((candidate) => candidate.id === id);
+    waiting.push(...(design?.prerequisiteDesignIds ?? []));
+  }
+  return unlocked;
+}
 
 function isOnMap(position: GroundPosition, margin = 0): boolean {
   return (
@@ -382,18 +405,47 @@ describe("the data catalogue", () => {
     for (const design of others) expect(design.scienceCost).toBeGreaterThan(0);
   });
 
-  it("puts every Structure type and Launch item in exactly one Design, a starting one, so that nothing in the game today is locked", () => {
-    const starting = new Set(
-      catalogue.designs
-        .filter((design) => design.starting)
-        .map((design) => design.id),
-    );
+  it("puts every Structure type and Launch item in exactly one Design the Tech Tree has", () => {
+    const ids = new Set(catalogue.designs.map((design) => design.id));
 
     for (const { designId } of [
       ...catalogue.structureTypes,
       ...catalogue.launch.items,
     ]) {
-      expect(starting).toContain(designId);
+      expect(ids).toContain(designId);
+    }
+  });
+
+  it("has at least one Structure type, with Launch items, behind a Design that isn't a starting one", () => {
+    const locked = (designId: string) =>
+      catalogue.designs.find((design) => design.id === designId)?.starting ===
+      false;
+
+    expect(catalogue.structureTypes.some((type) => locked(type.designId))).toBe(
+      true,
+    );
+    expect(catalogue.launch.items.some((item) => locked(item.designId))).toBe(
+      true,
+    );
+  });
+
+  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass", () => {
+    for (const type of catalogue.structureTypes) {
+      const unlocked = designsUnlockedWith(type.designId);
+      let mass = 0;
+      for (const need of type.components) {
+        const item = catalogue.launch.items.find(
+          (candidate) =>
+            candidate.brings.kind === "component" &&
+            candidate.brings.componentId === need.componentId,
+        );
+        expect(item).toBeDefined();
+        expect(unlocked).toContain(item?.designId);
+        mass += (item?.massKilograms ?? Infinity) * need.count;
+      }
+      expect(mass).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
     }
   });
 
@@ -1110,6 +1162,82 @@ describe("the data catalogue", () => {
         catalogue.launch.payloadMassLimitKilograms,
       );
       expect(type.stageMachines.sitePreparation).toBeDefined();
+    });
+  });
+
+  describe("the large battery bank", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const large = structureType("large-battery-bank");
+    const small = structureType("battery-bank");
+    /** The mass and price of a full set of a Structure's Components by Launch. */
+    const shipped = (type: StructureType) =>
+      type.components.reduce(
+        (total, need) => {
+          const item = catalogue.launch.items.find(
+            (candidate) =>
+              candidate.brings.kind === "component" &&
+              candidate.brings.componentId === need.componentId,
+          );
+          return {
+            kilograms:
+              total.kilograms + (item?.massKilograms ?? Infinity) * need.count,
+            millionDollars:
+              total.millionDollars +
+              (item?.priceMillionDollars ?? Infinity) * need.count,
+          };
+        },
+        { kilograms: 0, millionDollars: 0 },
+      );
+
+    it("belongs to Large battery banks, a Power Design that needs Battery banks first", () => {
+      expect(
+        catalogue.designs.find((design) => design.id === large.designId),
+      ).toMatchObject({
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["battery-banks"],
+      });
+    });
+
+    it("stores at least three times what a battery bank does, for less mass and less money for each kilowatt-hour", () => {
+      const storage = (type: StructureType) => type.power.storageKilowattHours;
+
+      expect(storage(large)).toBeGreaterThanOrEqual(3 * storage(small));
+      expect(shipped(large).kilograms / storage(large)).toBeLessThan(
+        shipped(small).kilograms / storage(small),
+      );
+      expect(shipped(large).millionDollars / storage(large)).toBeLessThan(
+        shipped(small).millionDollars / storage(small),
+      );
+    });
+
+    it("is built from Components of its own, which the starting stock doesn't hold, standing on more ground and taking longer to build than a battery bank", () => {
+      for (const need of large.components) {
+        expect(
+          small.components.some(
+            (other) => other.componentId === need.componentId,
+          ),
+        ).toBe(false);
+        expect(
+          catalogue.startingStock.some(
+            (stock) => stock.componentId === need.componentId,
+          ),
+        ).toBe(false);
+      }
+      const hours = (type: StructureType) =>
+        Object.values(type.stageHours).reduce((sum, value) => sum + value, 0);
+      expect(large.footprintRadiusMetres).toBeGreaterThan(
+        small.footprintRadiusMetres,
+      );
+      expect(hours(large)).toBeGreaterThan(hours(small));
+      // Its heaters keep more cells warm.
+      expect(large.power.drawKilowatts).toBeGreaterThan(
+        small.power.drawKilowatts,
+      );
     });
   });
 

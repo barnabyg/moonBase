@@ -659,6 +659,32 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 27 to 28: the large battery bank, behind the Large battery banks
+  // Design, with two new Components, which the base's stock keeps a count
+  // of after the others. None of them was there before. The later Phase 7
+  // Designs that bring new Components add a migration like this one.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "large-battery-module", count: 0 },
+                  { componentId: "large-battery-cabinet", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**

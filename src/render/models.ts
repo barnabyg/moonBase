@@ -233,7 +233,12 @@ export interface StructureModel {
 
 /** The model for a type of Structure from the data catalogue. */
 export function createStructureModel(structureTypeId: string): StructureModel {
-  if (structureTypeId === "battery-bank") return createBatteryBankModel();
+  if (structureTypeId === "battery-bank") {
+    return createBatteryBankModel(BATTERY_BANK);
+  }
+  if (structureTypeId === "large-battery-bank") {
+    return createBatteryBankModel(LARGE_BATTERY_BANK);
+  }
   if (structureTypeId === "light-mast") return createLightMastModel();
   if (structureTypeId === "habitat") return createHabitatModel();
   if (structureTypeId === "regolith-shielding") {
@@ -620,63 +625,146 @@ function createRegolithShieldingModel(): StructureModel {
   };
 }
 
-const BATTERY_MODULES = 3;
-const CHARGE_SEGMENTS = 5;
 /** The share of Assembly spent sliding the modules in, before the cabinet closes. */
 const MODULES_SHARE = 0.75;
+
+/** The sizes and parts of a battery bank's model, in metres. */
+interface BatteryBankShape {
+  readonly name: string;
+  /** How many modules slide into the cabinet, as the data catalogue has it. */
+  readonly modules: number;
+  /** Width, height and depth of one module. */
+  readonly moduleSize: readonly [number, number, number];
+  /** From the middle of one module to the next. */
+  readonly modulePitch: number;
+  readonly plinthSize: readonly [number, number, number];
+  readonly cabinetSize: readonly [number, number, number];
+  /** Where along the cabinet's roof each radiator fin stands. */
+  readonly finsAt: readonly number[];
+  readonly finHeight: number;
+  /** How many lights in the row that shows how full it is. */
+  readonly chargeSegments: number;
+  /** The height of that row above the ground. */
+  readonly chargeHeight: number;
+  /** Whether a tall radiator panel stands at each end of the cabinet. */
+  readonly endRadiators: boolean;
+}
+
+const BATTERY_BANK: BatteryBankShape = {
+  name: "Battery bank",
+  modules: 3,
+  moduleSize: [0.6, 1.1, 1.1],
+  modulePitch: 0.68,
+  plinthSize: [2.4, 0.2, 1.6],
+  cabinetSize: [2.2, 1.3, 1.3],
+  finsAt: [-0.6, -0.2, 0.2, 0.6],
+  finHeight: 0.3,
+  chargeSegments: 5,
+  chargeHeight: 1.2,
+  endRadiators: false,
+};
+
+/**
+ * A large battery bank: longer, taller and deeper, with a fourth module, a
+ * longer row of charge lights and tall radiator panels at both ends to shed
+ * the heat of its bigger heaters.
+ */
+const LARGE_BATTERY_BANK: BatteryBankShape = {
+  name: "Large battery bank",
+  modules: 4,
+  moduleSize: [0.75, 1.6, 1.7],
+  modulePitch: 0.85,
+  plinthSize: [3.8, 0.25, 2.6],
+  cabinetSize: [3.6, 1.9, 2],
+  finsAt: [-1.4, -0.7, 0, 0.7, 1.4],
+  finHeight: 0.35,
+  chargeSegments: 8,
+  chargeHeight: 1.7,
+  endRadiators: true,
+};
 
 /**
  * A battery bank: an insulated cabinet on a plinth. During Assembly its
  * modules are slid in one by one and then the cabinet closes over them; a row
  * of lights on the front shows how full it is.
  */
-function createBatteryBankModel(): StructureModel {
+function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
   const bank = new THREE.Group();
-  bank.name = "Battery bank";
+  bank.name = shape.name;
+  const [plinthWidth, plinthHeight, plinthDepth] = shape.plinthSize;
+  const [moduleWidth, moduleHeight, moduleDepth] = shape.moduleSize;
+  const [cabinetWidth, cabinetHeight, cabinetDepth] = shape.cabinetSize;
 
   const statusLightMaterial = materials.statusOff.clone();
   bank.add(
     part(
-      new THREE.BoxGeometry(2.4, 0.2, 1.6),
+      new THREE.BoxGeometry(plinthWidth, plinthHeight, plinthDepth),
       materials.darkMetal,
-      [0, 0.1, 0],
+      [0, plinthHeight / 2, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.08, 8, 6),
-      statusLightMaterial,
-      [1.0, 0.28, 0.7],
-    ),
+    part(new THREE.SphereGeometry(0.08, 8, 6), statusLightMaterial, [
+      plinthWidth / 2 - 0.2,
+      plinthHeight + 0.08,
+      plinthDepth / 2 - 0.1,
+    ]),
   );
 
-  const modules = Array.from({ length: BATTERY_MODULES }, (_, index) => {
+  const modules = Array.from({ length: shape.modules }, (_, index) => {
     const module = part(
-      new THREE.BoxGeometry(0.6, 1.1, 1.1),
+      new THREE.BoxGeometry(moduleWidth, moduleHeight, moduleDepth),
       materials.robotJoint,
-      [(index - (BATTERY_MODULES - 1) / 2) * 0.68, 0.75, 0],
+      [
+        (index - (shape.modules - 1) / 2) * shape.modulePitch,
+        plinthHeight + moduleHeight / 2,
+        0,
+      ],
     );
     bank.add(module);
     return module;
   });
+  // How far out in front a module starts before it is slid in.
+  const slideFrom = cabinetDepth + 0.1;
 
   // The insulated cabinet, with radiator fins on top, grows up over the modules.
   const cabinet = new THREE.Group();
+  const roof = plinthHeight + cabinetHeight;
   cabinet.add(
-    part(new THREE.BoxGeometry(2.2, 1.3, 1.3), materials.foil, [0, 0.85, 0]),
-    ...[-0.6, -0.2, 0.2, 0.6].map((x) =>
-      part(new THREE.BoxGeometry(0.06, 0.3, 1.2), materials.hull, [x, 1.65, 0]),
+    part(
+      new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth),
+      materials.foil,
+      [0, plinthHeight + cabinetHeight / 2, 0],
+    ),
+    ...shape.finsAt.map((x) =>
+      part(
+        new THREE.BoxGeometry(0.06, shape.finHeight, cabinetDepth - 0.1),
+        materials.hull,
+        [x, roof + shape.finHeight / 2, 0],
+      ),
     ),
   );
+  if (shape.endRadiators) {
+    const height = cabinetHeight + shape.finHeight;
+    cabinet.add(
+      ...[-1, 1].map((side) =>
+        part(
+          new THREE.BoxGeometry(0.06, height, cabinetDepth - 0.2),
+          materials.aluminium,
+          [side * (cabinetWidth / 2 + 0.12), plinthHeight + height / 2, 0],
+        ),
+      ),
+    );
+  }
   bank.add(cabinet);
 
-  const chargeMaterials = Array.from({ length: CHARGE_SEGMENTS }, () =>
+  const chargeMaterials = Array.from({ length: shape.chargeSegments }, () =>
     materials.statusOff.clone(),
   );
   for (const [index, material] of chargeMaterials.entries()) {
     cabinet.add(
       part(new THREE.BoxGeometry(0.22, 0.12, 0.04), material, [
-        (index - (CHARGE_SEGMENTS - 1) / 2) * 0.3,
-        1.2,
-        0.67,
+        (index - (shape.chargeSegments - 1) / 2) * 0.3,
+        shape.chargeHeight,
+        cabinetDepth / 2 + 0.02,
       ]),
     );
   }
@@ -691,11 +779,11 @@ function createBatteryBankModel(): StructureModel {
     group: bank,
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
-      const modulesIn = Math.min(f / MODULES_SHARE, 1) * BATTERY_MODULES;
+      const modulesIn = Math.min(f / MODULES_SHARE, 1) * shape.modules;
       for (const [index, module] of modules.entries()) {
         const slid = THREE.MathUtils.clamp(modulesIn - index, 0, 1);
         module.visible = slid > 0;
-        module.position.z = (1 - slid) * 1.4;
+        module.position.z = (1 - slid) * slideFrom;
       }
       const closed = (f - MODULES_SHARE) / (1 - MODULES_SHARE);
       cabinet.visible = closed > 0;
@@ -713,7 +801,7 @@ function createBatteryBankModel(): StructureModel {
     },
     setCharge(fraction) {
       const lit = Math.ceil(
-        THREE.MathUtils.clamp(fraction, 0, 1) * CHARGE_SEGMENTS - 1e-9,
+        THREE.MathUtils.clamp(fraction, 0, 1) * shape.chargeSegments - 1e-9,
       );
       for (const [index, material] of chargeMaterials.entries()) {
         light(material, index < lit);

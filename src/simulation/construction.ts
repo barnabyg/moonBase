@@ -22,6 +22,8 @@ export interface ConstructionPlan {
 
 export type PlacementRefusal =
   | "unknown-structure-type"
+  /** The Design the Structure belongs to isn't unlocked. */
+  | "design-locked"
   | "off-map"
   | "overlaps-lander"
   | "overlaps-stockpile"

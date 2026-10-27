@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { loadCampaign, type Campaign } from "../src/simulation";
+import { loadCampaign } from "../src/simulation";
 import { formatEvent } from "../src/ui/format";
+import { earnScience } from "./designs";
 import { scenario } from "./scenario";
 
 const startingIds = catalogue.designs
@@ -21,23 +22,6 @@ if (firstDesign === undefined) {
   throw new Error(
     "The data catalogue needs a Design that needs only starting Designs first.",
   );
-}
-
-/**
- * Completes the Research Tasks on offer from the start, one after another,
- * until the base has at least this much Science.
- */
-function earnScience(campaign: Campaign, science: number): void {
-  for (const task of catalogue.researchTasks) {
-    if (campaign.snapshot().science >= science) return;
-    if (task.requiresDesignId !== undefined) continue;
-    const result = campaign.startResearchTask(task.id);
-    if (!result.ok) throw new Error(result.message);
-    campaign.advance(task.lengthHours * 60);
-  }
-  if (campaign.snapshot().science < science) {
-    throw new Error(`The Research Tasks can't earn ${science} Science.`);
-  }
 }
 
 describe("a new Campaign", () => {

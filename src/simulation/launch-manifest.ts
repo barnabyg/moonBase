@@ -2,6 +2,7 @@ import { catalogue, type LaunchItem } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { valueAboard } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
+import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /** How many of a Launch item the manifest asks for. */
 export interface ManifestLine {
@@ -29,6 +30,8 @@ export interface LaunchManifestSnapshot {
 
 export type ManifestRefusal =
   | "unknown-item"
+  /** The Design the item belongs to isn't unlocked. */
+  | "design-locked"
   | "invalid-count"
   | "over-payload-mass"
   | "over-funding"
@@ -49,8 +52,10 @@ export type ManifestResult =
  * and the Funding balance can pay for it, counting what any Exports aboard
  * the Lander will sell for, as they are sold before it is paid for;
  * otherwise leaves the manifest as it was and says which limit it would go
- * over. Once the Lander has left Earth with the manifest, it is locked until
- * the Lander lands.
+ * over. An item whose Design isn't unlocked is refused, whatever its count;
+ * Components already in stock or on the way are not affected. Once the
+ * Lander has left Earth with the manifest, it is locked until the Lander
+ * lands.
  */
 export function setLaunchManifest(
   state: CampaignState,
@@ -64,10 +69,17 @@ export function setLaunchManifest(
   }
   const lines: { itemId: string; count: number }[] = [];
   for (const { itemId, count } of manifest) {
-    if (findLaunchItem(itemId) === undefined) {
+    const item = findLaunchItem(itemId);
+    if (item === undefined) {
       return refuse(
         "unknown-item",
         `A Launch can't bring anything called "${itemId}".`,
+      );
+    }
+    if (!isDesignUnlocked(state, item.designId)) {
+      return refuse(
+        "design-locked",
+        `${itemLabel(item)} needs the ${designLabel(item.designId)} Design unlocked first.`,
       );
     }
     if (!Number.isSafeInteger(count) || count < 0) {
@@ -183,6 +195,21 @@ function totals(items: readonly ManifestLine[]): {
 /** An amount of money as a refusal gives it, for example "$12.5M", to the nearest $0.1M. */
 function millionDollars(value: number): string {
   return `$${Math.round(value * 10) / 10}M`;
+}
+
+/** Names a Launch item, for a refusal, for example "Solar panel" or "Oxygen, 25 kg". */
+function itemLabel(item: LaunchItem): string {
+  const { brings } = item;
+  if (brings.kind === "component") {
+    return (
+      catalogue.componentTypes.find((type) => type.id === brings.componentId)
+        ?.label ?? brings.componentId
+    );
+  }
+  const stock =
+    catalogue.lifeSupportStocks.find((entry) => entry.id === brings.stockId)
+      ?.label ?? brings.stockId;
+  return `${stock}, ${brings.kilograms} kg`;
 }
 
 function findLaunchItem(id: string): LaunchItem | undefined {
