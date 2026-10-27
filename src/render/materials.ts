@@ -198,6 +198,26 @@ export const materials = {
     roughness: 1,
     flatShading: true,
   }),
+  // A hardened Habitat's envelope: layers of ceramic and aramid fabric,
+  // duller and darker than an inflatable Habitat's.
+  armouredEnvelope: new THREE.MeshStandardMaterial({
+    color: 0x9a9284,
+    metalness: 0.05,
+    roughness: 0.95,
+    flatShading: true,
+  }),
+  // Black rubber boots and covers that seal a joint against Dust.
+  seal: new THREE.MeshStandardMaterial({
+    color: 0x18191b,
+    metalness: 0,
+    roughness: 0.9,
+  }),
+  // The copper electrodes of a dust screen, laid over solar cells.
+  electrode: new THREE.MeshStandardMaterial({
+    color: 0xb8733f,
+    metalness: 0.9,
+    roughness: 0.3,
+  }),
   // Sintered Regolith panels, darker and smoother than the ground round them.
   padPanel: new THREE.MeshStandardMaterial({
     color: 0x5d5a55,

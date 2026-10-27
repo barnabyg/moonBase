@@ -124,9 +124,42 @@ const PANEL_HEIGHT = 4.2;
 const PANEL_FOLDS = 6;
 const MAST_HEIGHT = 1.2;
 
-export function createSolarArrayModel(): SolarArrayModel {
+/** What sets one kind of solar array's model apart from another. */
+interface SolarArrayShape {
+  readonly name: string;
+  /**
+   * Whether its tracking drive and hinges are sealed against Dust: a black
+   * rubber cover over the base, a boot round the foot of the mast and a
+   * strip over each hinge.
+   */
+  readonly sealed: boolean;
+  /** Whether a grid of copper electrodes is laid over the cells, both sides. */
+  readonly dustScreen: boolean;
+}
+
+const SOLAR_ARRAY: SolarArrayShape = {
+  name: "Solar array",
+  sealed: false,
+  dustScreen: false,
+};
+const DUST_SEALED_SOLAR_ARRAY: SolarArrayShape = {
+  name: "Dust-sealed solar array",
+  sealed: true,
+  dustScreen: false,
+};
+const DUST_SCREENED_SOLAR_ARRAY: SolarArrayShape = {
+  name: "Dust-screened solar array",
+  sealed: true,
+  dustScreen: true,
+};
+/** Across each fold of a dust screen's panel, how far up each electrode runs, as a share of the fold. */
+const ELECTRODES_AT = [0.15, 0.38, 0.62, 0.85];
+
+export function createSolarArrayModel(
+  shape: SolarArrayShape = SOLAR_ARRAY,
+): SolarArrayModel {
   const array = new THREE.Group();
-  array.name = "Solar array";
+  array.name = shape.name;
 
   const statusLightMaterial = materials.statusOff.clone();
   const statusLight = part(
@@ -142,6 +175,15 @@ export function createSolarArrayModel(): SolarArrayModel {
     ),
     statusLight,
   );
+  if (shape.sealed) {
+    array.add(
+      part(
+        new THREE.CylinderGeometry(0.75, 0.9, 0.08, 8),
+        materials.seal,
+        [0, 0.34, 0],
+      ),
+    );
+  }
 
   // The part that turns to face the sun.
   const head = new THREE.Group();
@@ -153,6 +195,18 @@ export function createSolarArrayModel(): SolarArrayModel {
     [0, 0.5, 0],
   );
   head.add(mast);
+  if (shape.sealed) {
+    // Pleated, so it stretches as the mast rises.
+    for (const [index, radius] of [0.22, 0.19, 0.16].entries()) {
+      head.add(
+        part(
+          new THREE.CylinderGeometry(radius - 0.02, radius, 0.1, 8),
+          materials.seal,
+          [0, 0.09 + index * 0.1, 0],
+        ),
+      );
+    }
+  }
 
   // The panel is a strip of cells folded like a fan. Each fold is hinged to
   // the one below, and the whole strip rides up on top of the mast.
@@ -171,6 +225,34 @@ export function createSolarArrayModel(): SolarArrayModel {
         [0, foldHeight / 2, 0],
       ),
     );
+    if (shape.sealed && index > 0) {
+      hinge.add(
+        part(
+          new THREE.BoxGeometry(PANEL_WIDTH + 0.04, 0.06, 0.07),
+          materials.seal,
+          [0, 0, 0],
+        ),
+      );
+    }
+    if (shape.dustScreen) {
+      for (const side of [-1, 1]) {
+        hinge.add(
+          ...ELECTRODES_AT.map((share) =>
+            part(
+              new THREE.BoxGeometry(PANEL_WIDTH - 0.1, 0.03, 0.006),
+              materials.electrode,
+              [0, foldHeight * share, side * 0.023],
+            ),
+          ),
+          // The bus bar down one edge that feeds them.
+          part(
+            new THREE.BoxGeometry(0.04, foldHeight, 0.006),
+            materials.electrode,
+            [PANEL_WIDTH / 2 - 0.06, foldHeight / 2, side * 0.023],
+          ),
+        );
+      }
+    }
     parent.add(hinge);
     folds.push(hinge);
     parent = hinge;
@@ -240,7 +322,13 @@ export function createStructureModel(structureTypeId: string): StructureModel {
     return createBatteryBankModel(LARGE_BATTERY_BANK);
   }
   if (structureTypeId === "light-mast") return createLightMastModel();
-  if (structureTypeId === "habitat") return createHabitatModel();
+  if (structureTypeId === "whipple-shielded-battery-bank") {
+    return createBatteryBankModel(WHIPPLE_SHIELDED_BATTERY_BANK);
+  }
+  if (structureTypeId === "habitat") return createHabitatModel(HABITAT);
+  if (structureTypeId === "hardened-habitat") {
+    return createHabitatModel(HARDENED_HABITAT);
+  }
   if (structureTypeId === "regolith-shielding") {
     return createRegolithShieldingModel();
   }
@@ -256,7 +344,13 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "circuit-board-plant") {
     return createPlantModel("oven");
   }
-  const array = createSolarArrayModel();
+  const array = createSolarArrayModel(
+    structureTypeId === "dust-sealed-solar-array"
+      ? DUST_SEALED_SOLAR_ARRAY
+      : structureTypeId === "dust-screened-solar-array"
+        ? DUST_SCREENED_SOLAR_ARRAY
+        : SOLAR_ARRAY,
+  );
   return {
     group: array.group,
     setAssembled: (fraction) => {
@@ -361,15 +455,40 @@ const CORE_SHARE = 0.25;
 /** The share of Assembly by which the envelope is fully inflated; the airlock goes on after. */
 const INFLATED_SHARE = 0.85;
 
+/** What sets one kind of Habitat's model apart from another. */
+interface HabitatShape {
+  readonly name: string;
+  readonly envelopeMaterial: THREE.Material;
+  /** How high up the dome each restraint strap runs, as a share of its radius. */
+  readonly strapsAt: readonly number[];
+}
+
+const HABITAT: HabitatShape = {
+  name: "Inflatable Habitat",
+  envelopeMaterial: materials.envelope,
+  strapsAt: [0.35, 0.75],
+};
+
+/**
+ * A hardened Habitat: the same dome, so that Regolith shielding fits over
+ * it, in a duller, darker armoured envelope, held down by twice as many
+ * straps.
+ */
+const HARDENED_HABITAT: HabitatShape = {
+  name: "Hardened Habitat",
+  envelopeMaterial: materials.armouredEnvelope,
+  strapsAt: [0.18, 0.62, 0.8, 0.94],
+};
+
 /**
  * The inflatable Habitat: a squat fabric dome, held down by straps, round a
  * rigid core on a plinth, with an airlock on one side. During Assembly the
  * core goes up, the envelope inflates round it, and then the airlock is
  * fitted.
  */
-function createHabitatModel(): StructureModel {
+function createHabitatModel(shape: HabitatShape): StructureModel {
   const habitat = new THREE.Group();
-  habitat.name = "Inflatable Habitat";
+  habitat.name = shape.name;
 
   const statusLightMaterial = materials.statusOff.clone();
   habitat.add(
@@ -399,12 +518,12 @@ function createHabitatModel(): StructureModel {
   const domeHeight = 0.75;
   const dome = part(
     new THREE.SphereGeometry(3.4, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
-    materials.envelope,
+    shape.envelopeMaterial,
     [0, 0, 0],
   );
   dome.scale.y = domeHeight;
   envelope.add(dome);
-  for (const [index, height] of [0.35, 0.75].entries()) {
+  for (const [index, height] of shape.strapsAt.entries()) {
     const angle = Math.asin(height);
     const strap = part(
       new THREE.TorusGeometry(3.4 * Math.cos(angle) + 0.02, 0.05, 4, 14),
@@ -648,6 +767,12 @@ interface BatteryBankShape {
   readonly chargeHeight: number;
   /** Whether a tall radiator panel stands at each end of the cabinet. */
   readonly endRadiators: boolean;
+  /**
+   * How far a Whipple shield's bumper plates stand clear of the cabinet's
+   * back, ends and roof, or undefined if it has none. The front, with its
+   * charge lights, is left open.
+   */
+  readonly bumperGap: number | undefined;
 }
 
 const BATTERY_BANK: BatteryBankShape = {
@@ -662,6 +787,17 @@ const BATTERY_BANK: BatteryBankShape = {
   chargeSegments: 5,
   chargeHeight: 1.2,
   endRadiators: false,
+  bumperGap: undefined,
+};
+
+/**
+ * A Whipple-shielded battery bank: a battery bank with thin bumper plates
+ * standing clear of its cabinet on posts.
+ */
+const WHIPPLE_SHIELDED_BATTERY_BANK: BatteryBankShape = {
+  ...BATTERY_BANK,
+  name: "Whipple-shielded battery bank",
+  bumperGap: 0.15,
 };
 
 /**
@@ -681,6 +817,7 @@ const LARGE_BATTERY_BANK: BatteryBankShape = {
   chargeSegments: 8,
   chargeHeight: 1.7,
   endRadiators: true,
+  bumperGap: undefined,
 };
 
 /**
@@ -754,6 +891,9 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
       ),
     );
   }
+  if (shape.bumperGap !== undefined) {
+    cabinet.add(...createBumperPlates(shape, shape.bumperGap));
+  }
   bank.add(cabinet);
 
   const chargeMaterials = Array.from({ length: shape.chargeSegments }, () =>
@@ -809,6 +949,58 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
     },
     setLit: () => undefined,
   };
+}
+
+/**
+ * A Whipple shield's bumper plates round a battery bank's cabinet: one
+ * behind it and one at each end, and one over its radiator fins held
+ * clear of it on posts.
+ */
+function createBumperPlates(
+  shape: BatteryBankShape,
+  gap: number,
+): THREE.Object3D[] {
+  const [, plinthHeight] = shape.plinthSize;
+  const [width, height, depth] = shape.cabinetSize;
+  const middle = plinthHeight + height / 2;
+  const thickness = 0.03;
+  const roofY = plinthHeight + height + shape.finHeight + gap;
+  const plates: [THREE.BoxGeometry, [number, number, number]][] = [
+    [
+      new THREE.BoxGeometry(width, height, thickness),
+      [0, middle, -(depth / 2 + gap)],
+    ],
+    ...[-1, 1].map((side): [THREE.BoxGeometry, [number, number, number]] => [
+      new THREE.BoxGeometry(thickness, height, depth),
+      [side * (width / 2 + gap), middle, 0],
+    ]),
+    [
+      new THREE.BoxGeometry(width + 2 * gap, thickness, depth + gap),
+      [0, roofY, -gap / 2],
+    ],
+  ];
+  const posts = [-1, 1].flatMap((x) =>
+    [-1, 1].map((z) =>
+      part(
+        new THREE.CylinderGeometry(
+          0.025,
+          0.025,
+          roofY - plinthHeight - height,
+          6,
+        ),
+        materials.darkMetal,
+        [
+          x * (width / 2 - 0.1),
+          (roofY + plinthHeight + height) / 2,
+          z * (depth / 2 - 0.1),
+        ],
+      ),
+    ),
+  );
+  return [
+    ...plates.map(([geometry, at]) => part(geometry, materials.aluminium, at)),
+    ...posts,
+  ];
 }
 
 /** How many panels a landing pad is laid from, as the data catalogue has it. */
