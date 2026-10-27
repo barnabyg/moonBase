@@ -618,9 +618,10 @@ export interface Campaign {
    */
   setPlantRecipe(structureId: string, recipeId: string): SetRecipeResult;
   /**
-   * Starts an Expedition: the Robot finishes the Work Order it holds, then
-   * drives the Rover off the map, and comes back some time later with
-   * water ice. It is refused while one is under way or the Rover is Broken.
+   * Starts an Expedition with a Robot that is free, if there is one: the
+   * Robot finishes the Work Order it holds, then drives the Rover off the
+   * map, and comes back some time later with water ice. It is refused
+   * while one is under way or the Rover is Broken.
    */
   startExpedition(): StartExpeditionResult;
   /** Says when things will run out, as things stand. */

@@ -1151,6 +1151,19 @@ function goOnExpedition(
         robot.activity = { kind: "idle" };
         return [{ kind: "expedition-called-off", atMinute }];
       }
+      // Another Robot maintaining or parking the Rover finishes first.
+      if (
+        state.robots.some(
+          ({ id, workOrder }) =>
+            id !== robot.id &&
+            workOrder !== undefined &&
+            "roverId" in workOrder &&
+            workOrder.roverId === rover.id,
+        )
+      ) {
+        robot.activity = { kind: "idle" };
+        return [];
+      }
       const driven: Driven = { kind: "rover", rover };
       if (
         !walkRobotToDriven(

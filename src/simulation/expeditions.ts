@@ -5,10 +5,11 @@ import { isRoverBroken, type RoverState } from "./rovers";
 
 /**
  * Where an Expedition has got to: "boarding", the Robot finishing the Work
- * Order it holds, then walking to the Rover; "driving-out", driving it to
- * the nearest map edge and off the map; "away", beyond the base;
- * "driving-back", driving back onto the map to the stockpile; and
- * "unloading", unloading what it brought back there.
+ * Order it holds, then, once no other Robot holds one for the Rover,
+ * walking to the Rover; "driving-out", driving it to the nearest map edge
+ * and off the map; "away", beyond the base; "driving-back", driving back
+ * onto the map to the stockpile; and "unloading", unloading what it
+ * brought back there.
  */
 export type ExpeditionStage =
   "boarding" | "driving-out" | "away" | "driving-back" | "unloading";
@@ -56,15 +57,20 @@ export type StartExpeditionResult =
 const BEYOND_EDGE_METRES = 10;
 
 /**
- * Starts an Expedition with the first Robot and the first Rover, unless one
- * is already under way or the Rover is Broken. The Robot finishes the Work
- * Order it holds before it leaves.
+ * Starts an Expedition with the first Rover and the first Robot that is
+ * free, holding no Work Order and not repairing itself, or else the first
+ * Robot, unless one is already under way or the Rover is Broken. The Robot
+ * finishes the Work Order it holds before it leaves.
  */
 export function startExpedition(state: CampaignState): StartExpeditionResult {
   if (state.expedition !== undefined) {
     return refuse("under-way", "An Expedition is already under way.");
   }
-  const [robot] = state.robots;
+  const robot =
+    state.robots.find(
+      (candidate) =>
+        candidate.workOrder === undefined && candidate.selfRepair === undefined,
+    ) ?? state.robots[0];
   const [rover] = state.rovers;
   if (robot === undefined || rover === undefined) {
     return refuse("no-rover", "The base has no Rover to go on an Expedition.");
