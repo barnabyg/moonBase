@@ -89,7 +89,7 @@ test("Science from a Research Task unlocks a Design, whose Components then appea
     .click();
   await expect(
     manifest.getByRole("status", { name: "Payload Mass" }),
-  ).toHaveText("Payload Mass: 170 of 2000 kg");
+  ).toHaveText("Payload Mass: 170 of 3400 kg");
   await manifest.getByRole("button", { name: "Close" }).click();
 
   // And its Structure planned, though unlocking added none of its
@@ -154,7 +154,7 @@ test("Science unlocks Robots, and then a Robot is on the Launch manifest screen 
   await manifest.getByRole("button", { name: "Add one Robot" }).click();
   await expect(
     manifest.getByRole("status", { name: "Payload Mass" }),
-  ).toHaveText("Payload Mass: 300 of 2000 kg");
+  ).toHaveText("Payload Mass: 300 of 3400 kg");
   await expect(
     manifest.getByRole("status", { name: "Launch cost" }),
   ).toContainText("$200M");

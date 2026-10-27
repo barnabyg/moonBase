@@ -29,7 +29,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await placeOnClearGround(page);
   await skipUntil(page, "Inflatable Habitat commissioned");
 
-  // The Habitat can't get through a Night on the starting battery bank, and
+  // The Habitat can't get through a Night with no battery bank built, and
   // unshielded it can't take a Solar Particle Event on top of a round trip,
   // so the Mission Director waits aboard the Lander until both are past.
   await skipUntil(page, "Daylight has come");
@@ -44,7 +44,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   // The Machines' Maintenance after the cold of Night has used some or all
   // of the spare Components.
   await expect(stock).toHaveText(
-    /^Components 3 battery modules, 1 battery cabinet, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
+    /^Components 27 battery modules, 9 battery cabinets, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
   );
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
@@ -72,7 +72,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   );
   // Maintenance may have used more spare Components meanwhile.
   await expect(stock).toHaveText(
-    /^Components 2 solar panels, 1 array mast, 3 battery modules, 1 battery cabinet, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
+    /^Components 2 solar panels, 1 array mast, 27 battery modules, 9 battery cabinets, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$/,
   );
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
     "Lander landed with 2 × Solar panel and 1 × Array mast",

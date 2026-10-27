@@ -7,6 +7,7 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 // No Machine feels the cold or draws power for a heater at Night, and the
 // Robot never has to park one, so that power and time pass as the test
@@ -87,17 +88,25 @@ describe("power by priority", () => {
     expect(game.state.structures.every((structure) => structure.powered)).toBe(
       true,
     );
+    // Just enough left for the Habitat's next game-minute, and none for the
+    // Structures after it.
+    const bankId = structureOf(game.state, "battery-bank").id;
+    const campaign = changed(game.campaign, (state) => {
+      for (const saved of state.structures) {
+        saved.storedKilowattHours =
+          saved.id === bankId ? habitatDrawKilowatts / 60 : 0;
+      }
+    });
 
-    runUntil(game, (state) =>
-      state.structures.some((structure) => !structure.powered),
-    );
+    campaign.advance(1);
 
-    expect(structureOf(game.state, "light-mast")).toMatchObject({
+    const state = campaign.snapshot();
+    expect(structureOf(state, "light-mast")).toMatchObject({
       powered: false,
       lit: false,
     });
-    expect(structureOf(game.state, "habitat").powered).toBe(true);
-    expect(game.state.power.networks[0]?.powered).toBe(false);
+    expect(structureOf(state, "habitat").powered).toBe(true);
+    expect(state.power.networks[0]?.powered).toBe(false);
   });
 
   it("supplies the other Structures the same way every time", () => {

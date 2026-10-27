@@ -213,7 +213,13 @@ describe("heaters", () => {
     intoNight(campaign);
     const [network] = campaign.snapshot().power.networks;
 
-    const structuresDraw = 0.05 + 0.25;
+    const structuresDraw = ["solar-array", "battery-bank"].reduce(
+      (sum, id) =>
+        sum +
+        (catalogue.structureTypes.find((type) => type.id === id)?.power
+          .drawKilowatts ?? Number.NaN),
+      0,
+    );
     expect(machines(campaign).map((m) => m.powered)).toEqual([true, true]);
     expect(network?.consumptionKilowatts).toBeCloseTo(
       structuresDraw + heaters,

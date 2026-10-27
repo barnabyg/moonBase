@@ -800,7 +800,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 43,
+  version: 44,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1160,11 +1160,14 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // The heaters that keep the cells warm enough to work.
+      // The heaters that keep the cells warm enough to work: 4.6 kWh through
+      // a Night, so that a battery bank carries most of what it stores
+      // through one. At 0.25 kW they took 57 of its 60 kWh, so that no number
+      // of battery banks could keep the Habitat powered through a Night.
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 60,
-        drawKilowatts: 0.25,
+        drawKilowatts: 0.02,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1202,7 +1205,7 @@ export const catalogue: Catalogue = {
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 60,
-        drawKilowatts: 0.25,
+        drawKilowatts: 0.02,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -2077,8 +2080,15 @@ export const catalogue: Catalogue = {
   startingStock: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
-    { componentId: "battery-module", count: 3 },
-    { componentId: "battery-cabinet", count: 1 },
+    // Nine battery banks, 540 kWh: enough to carry the Habitat, the solar
+    // array and the heaters of the Machines and the Rover, about 460 kWh in
+    // all, through a Night. Nothing that stores more can arrive in time for
+    // the Habitat's first Night: the Milestones put the first Research Task,
+    // and so the Science for Large battery banks, after the landing pad,
+    // whose Components need a Launch, which can't leave until the Mission
+    // Director has moved in.
+    { componentId: "battery-module", count: 27 },
+    { componentId: "battery-cabinet", count: 9 },
     { componentId: "mast-pole", count: 4 },
     { componentId: "light-head", count: 4 },
     // The inflatable Habitat kit.
@@ -2135,12 +2145,17 @@ export const catalogue: Catalogue = {
   // Enough for one well-filled Launch, so the first one has to count.
   // Exports earn more later.
   programmeGrantMillionDollars: 400,
-  // Each Launch carries two tonnes and costs a fixed fee for the flight, on
+  // Each Launch carries 3.4 tonnes and costs a fixed fee for the flight, on
   // top of the price of what it brings. The Habitat kit is by far the
   // dearest, so the Funding runs out before the Payload Mass does if a
-  // Launch brings two.
+  // Launch brings two. The Programme Grant pays for one Launch, and before
+  // the first Export can be sold the Milestones need a landing pad, an
+  // extraction plant and a vacuum fabrication plant, with a second solar
+  // array to power them: 3190 kg in all, so that one Launch has to carry
+  // them, with room for a tank each of oxygen and water and a few spare
+  // Components. Over two Launches of two tonnes they would cost $481M.
   launch: {
-    payloadMassLimitKilograms: 2000,
+    payloadMassLimitKilograms: 3400,
     feeMillionDollars: 150,
     items: [
       {

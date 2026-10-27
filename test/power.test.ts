@@ -315,7 +315,10 @@ describe("the power forecast", () => {
   it.each(["daylight", "night"] as const)(
     "says when stored power will run out, starting in %s",
     (part) => {
-      const game = poweredBase();
+      // A Light Mast draws enough at Night to empty the battery bank before
+      // Daylight comes back.
+      const game = poweredBase().plan("light-mast", { x: 14, y: 20 });
+      runUntilBuilt(game);
       if (part === "night") runUntilNight(game);
       const batteryId = game.state.structures[1]?.id ?? "";
 

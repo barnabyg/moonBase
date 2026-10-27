@@ -198,10 +198,12 @@ describe("a solar array's Dust coating", () => {
     const game = buildAll(
       scenario().plan("solar-array", arraySite).plan("battery-bank", bankSite),
     );
-    // Three hours before Night falls, with the battery bank empty: the
-    // array's output in those hours is all the bank has for the Night.
+    // An hour before Night falls, with the battery bank empty: the array's
+    // output in that hour is all the bank has for the Night, and it runs out
+    // before the Night ends.
+    const hoursLeft = 1;
     game.advance({
-      minutes: game.state.lunation.minutesRemaining - 3 * 60,
+      minutes: game.state.lunation.minutesRemaining - hoursLeft * 60,
     });
     const arrayId = structure(game.state, "solar-array").id;
     const withCoating = (dustCoatingPercent: number) =>
@@ -221,11 +223,21 @@ describe("a solar array's Dust coating", () => {
     const clean = forecast(withCoating(0));
     const heavy = forecast(withCoating(100));
 
-    const nightDraw = 0.25 + 0.05;
-    const storedBy = (kilowatts: number) => 3 * (kilowatts - nightDraw);
-    expect(clean).toBeCloseTo(3 * 60 + (storedBy(10) / nightDraw) * 60, -1);
+    const nightDraw = ["solar-array", "battery-bank"].reduce(
+      (sum, id) =>
+        sum +
+        (catalogue.structureTypes.find((type) => type.id === id)?.power
+          .drawKilowatts ?? Number.NaN),
+      0,
+    );
+    const storedBy = (kilowatts: number) => hoursLeft * (kilowatts - nightDraw);
+    expect(clean).toBeCloseTo(
+      hoursLeft * 60 + (storedBy(10) / nightDraw) * 60,
+      -1,
+    );
     expect(heavy).toBeCloseTo(
-      3 * 60 + (storedBy(10 * (1 - outputLossAtFullCoating)) / nightDraw) * 60,
+      hoursLeft * 60 +
+        (storedBy(10 * (1 - outputLossAtFullCoating)) / nightDraw) * 60,
       -1,
     );
   });

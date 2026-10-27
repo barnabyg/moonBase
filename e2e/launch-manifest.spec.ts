@@ -16,14 +16,14 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
     "60 kg, $4M",
   );
   // An empty manifest costs nothing, so the Launch fee isn't shown yet.
-  await expect(payloadMass).toHaveText("Payload Mass: 0 of 2000 kg");
+  await expect(payloadMass).toHaveText("Payload Mass: 0 of 3400 kg");
   await expect(cost).toHaveText(
     "Cost: nothing of $400M Funding, while the manifest is empty",
   );
 
   await screen.getByRole("button", { name: "Add one Habitat core" }).click();
   await screen.getByRole("button", { name: "Add one Water, 50 kg" }).click();
-  await expect(payloadMass).toHaveText("Payload Mass: 960 of 2000 kg");
+  await expect(payloadMass).toHaveText("Payload Mass: 960 of 3400 kg");
   await expect(cost).toHaveText(
     "Cost: $352M of $400M Funding, including the $150M Launch fee",
   );
@@ -58,17 +58,17 @@ test("the Launch manifest screen refuses an item that would go over the Payload 
   const payloadMass = screen.getByRole("status", { name: "Payload Mass" });
   const addWater = screen.getByRole("button", { name: "Add one Water, 50 kg" });
 
-  // 33 tanks of 60 kg come to 1980 kg, and cost far less than the Funding.
-  for (let tanks = 1; tanks <= 33; tanks++) {
+  // 56 tanks of 60 kg come to 3360 kg, and cost far less than the Funding.
+  for (let tanks = 1; tanks <= 56; tanks++) {
     await addWater.click();
     await expect(payloadMass).toHaveText(
-      `Payload Mass: ${tanks * 60} of 2000 kg`,
+      `Payload Mass: ${tanks * 60} of 3400 kg`,
     );
   }
   await addWater.click();
 
   await expect(screen.getByRole("alert")).toHaveText(
-    "That would bring the manifest's Payload Mass to 2040 kg, over the Launch's limit of 2000 kg.",
+    "That would bring the manifest's Payload Mass to 3420 kg, over the Launch's limit of 3400 kg.",
   );
-  await expect(payloadMass).toHaveText("Payload Mass: 1980 of 2000 kg");
+  await expect(payloadMass).toHaveText("Payload Mass: 3360 of 3400 kg");
 });
