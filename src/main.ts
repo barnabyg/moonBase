@@ -87,6 +87,9 @@ const researchTasks = createResearchTasksScreen(container, campaign);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult);
 const notifications = createNotificationList(rightColumn, campaign);
+// A Design unlocking is the one notification that doesn't come from
+// advance(): the unlockDesign command returns it in its result, so the Tech
+// Tree screen passes it on here. Everything else the game loop hears.
 const techTree = createTechTreeScreen(container, campaign, (event) => {
   notifications.add([event]);
 });

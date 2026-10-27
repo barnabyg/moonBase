@@ -31,11 +31,12 @@ export interface LaunchManifestScreen {
  * brings from Earth: each item with its mass and price, how many the
  * manifest has, and its totals against the Payload Mass limit and the
  * Funding balance, with what any Exports aboard the Lander will sell for.
- * An item whose Design isn't unlocked isn't listed until it is. Below that, they choose the Exports the Lander carries off the Moon: each
- * with what is in stock, its price and the kilograms to load, and their
- * totals against the Return Mass. It only sends what the player asks for to
- * the Campaign, which decides whether it is allowed and says why not. The
- * game runs on while it is open.
+ * An item whose Design isn't unlocked isn't listed until it is. Below
+ * that, they choose the Exports the Lander carries off the Moon: each with
+ * what is in stock, its price and the kilograms to load, and their totals
+ * against the Return Mass. It only sends what the player asks for to the
+ * Campaign, which decides whether it is allowed and says why not. The game
+ * runs on while it is open.
  */
 export function createLaunchManifestScreen(
   container: HTMLElement,
