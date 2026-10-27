@@ -204,7 +204,10 @@ export interface MicrometeoriteRules {
    * next, drawn evenly between these, to the game-minute.
    */
   readonly earthDaysBetween: { readonly min: number; readonly max: number };
-  /** The Condition a strike takes off what it hits, in percentage points, drawn evenly between these. */
+  /**
+   * The Condition a strike takes off what it hits, in percentage points,
+   * drawn evenly between these; a Structure loses its type's share of it.
+   */
   readonly conditionLossPercent: { readonly min: number; readonly max: number };
 }
 
@@ -213,7 +216,10 @@ export interface MicrometeoriteRules {
  * cleans it off as Maintenance.
  */
 export interface DustCoatingRules {
-  /** How much a solar array's coating builds up in each game-hour of Daylight, in percentage points. */
+  /**
+   * How much a solar array's coating builds up in each game-hour of
+   * Daylight, in percentage points, before its type's share of it.
+   */
   readonly percentPerDaylightHour: number;
   /**
    * The share of a solar array's output a full coating takes away, from 0
@@ -282,7 +288,8 @@ export interface PlumeEjectaRules {
   readonly radiusMetres: number;
   /**
    * How much Condition each Structure within reach loses at every take-off
-   * and landing, in percentage points of the 100% it starts with.
+   * and landing, in percentage points of the 100% it starts with, before
+   * its type's share of it.
    */
   readonly conditionLossPercent: number;
 }
@@ -658,6 +665,20 @@ export interface StructureType {
    * isn't Broken and, if it has anything to do with power, has power.
    */
   readonly dustWearPercentPerHour: number;
+  /**
+   * How much of the Hazards that the data catalogue's rules set the same
+   * for every Structure it takes, as a share from 0 to 1 of what the rules
+   * say: 1 takes the full amount, as most Structures do, and a hardened
+   * Structure from a Protection Design takes less.
+   */
+  readonly hazardMultipliers: {
+    /** Of the Dust coating that builds up on a solar array in Daylight. */
+    readonly dustCoating: number;
+    /** Of the Condition each Micrometeorite strike takes off it. */
+    readonly micrometeorites: number;
+    /** Of the Condition each blast of Plume Ejecta takes off it. */
+    readonly plumeEjecta: number;
+  };
   /** What the commissioned Structure does on the power network. */
   readonly power: {
     /** The power it generates in Daylight; nothing generates at Night. */
@@ -734,7 +755,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 38,
+  version: 39,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -891,6 +912,10 @@ export const catalogue: Catalogue = {
     { id: "reflow-oven", label: "Reflow oven" },
     { id: "large-battery-module", label: "Large battery module" },
     { id: "large-battery-cabinet", label: "Large battery cabinet" },
+    { id: "sealed-array-mast", label: "Sealed array mast" },
+    { id: "screened-solar-panel", label: "Screened solar panel" },
+    { id: "whipple-cabinet", label: "Whipple-shielded cabinet" },
+    { id: "armoured-habitat-envelope", label: "Armoured habitat envelope" },
   ],
   structureTypes: [
     {
@@ -912,7 +937,79 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.25,
       // Its tracking drive and panel hinges grind on the Dust.
       dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The drive that keeps the panel turned to the sun.
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array whose tracking drive and panel hinges are sealed in a
+    // sealed array mast, so that Dust wears it down at 0.02 percentage
+    // points an hour rather than 0.05. Otherwise it is a solar array.
+    {
+      id: "dust-sealed-solar-array",
+      label: "Dust-sealed solar array",
+      designId: "dust-sealed-solar-arrays",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "solar-panel", count: 2 },
+        { componentId: "sealed-array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A dust-sealed solar array whose panels carry an electrodynamic dust
+    // screen, which pushes Dust off the cells, so that its coating builds
+    // up at a quarter of the rate: past the cleaning threshold in some four
+    // Lunations' Daylight rather than one.
+    {
+      id: "dust-screened-solar-array",
+      label: "Dust-screened solar array",
+      designId: "electrodynamic-dust-screens",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "screened-solar-panel", count: 2 },
+        { componentId: "sealed-array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: {
+        dustCoating: 0.25,
+        micrometeorites: 1,
+        plumeEjecta: 1,
+      },
       power: {
         generationKilowatts: 10,
         storageKilowattHours: 0,
@@ -942,7 +1039,46 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The heaters that keep the cells warm enough to work.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 60,
+        drawKilowatts: 0.25,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A battery bank in a Whipple-shielded cabinet: a thin bumper plate
+    // standing clear of it shatters a Micrometeorite before it strikes, so
+    // that each strike takes a quarter of the Condition off it. Otherwise
+    // it is a battery bank.
+    {
+      id: "whipple-shielded-battery-bank",
+      label: "Whipple-shielded battery bank",
+      designId: "whipple-shielding",
+      footprintRadiusMetres: 2,
+      components: [
+        { componentId: "battery-module", count: 3 },
+        { componentId: "whipple-cabinet", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 1,
+        assembly: 2,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: {
+        dustCoating: 1,
+        micrometeorites: 0.25,
+        plumeEjecta: 1,
+      },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 60,
@@ -975,6 +1111,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The heaters that keep the cells warm enough to work.
       power: {
         generationKilowatts: 0,
@@ -1005,6 +1142,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
       dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // Its light switches on by itself at Night, and draws nothing in Daylight.
       power: {
         generationKilowatts: 0,
@@ -1036,7 +1174,48 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // Its life support, heaters and controls.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 1.2,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: true,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // An inflatable Habitat whose envelope is layered like a Whipple
+    // shield, so that a Micrometeorite strike and a blast of Plume Ejecta
+    // each take a quarter of the Condition off it. Otherwise it is a
+    // Habitat: the Mission Director can move in, and Regolith shielding
+    // goes over it.
+    {
+      id: "hardened-habitat",
+      label: "Hardened Habitat",
+      designId: "hardened-habitat",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "habitat-core", count: 1 },
+        { componentId: "armoured-habitat-envelope", count: 1 },
+        { componentId: "airlock", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 2,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: {
+        dustCoating: 1,
+        micrometeorites: 0.25,
+        plumeEjecta: 0.25,
+      },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1070,6 +1249,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.1,
       // Packed Regolith has nothing for Dust to wear.
       dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1103,6 +1283,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
       dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The beacon runs off its own small battery.
       power: {
         generationKilowatts: 0,
@@ -1136,6 +1317,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Regolith is fed through it, so it wears faster than most.
       dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1232,6 +1414,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.15,
       dustWearPercentPerHour: 0.03,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1287,6 +1470,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its saw and seals.
       dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1346,6 +1530,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its etcher and on the conveyor through its oven.
       dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1474,6 +1659,22 @@ export const catalogue: Catalogue = {
         massKilograms: 80,
         priceMillionDollars: 3,
       },
+      // Heavier and dearer than an array mast for its seals.
+      {
+        id: "sealed-array-mast",
+        designId: "dust-sealed-solar-arrays",
+        brings: { kind: "component", componentId: "sealed-array-mast" },
+        massKilograms: 100,
+        priceMillionDollars: 6,
+      },
+      // The electrodes woven through the cells add mass and price.
+      {
+        id: "screened-solar-panel",
+        designId: "electrodynamic-dust-screens",
+        brings: { kind: "component", componentId: "screened-solar-panel" },
+        massKilograms: 70,
+        priceMillionDollars: 8,
+      },
       {
         id: "battery-module",
         designId: "battery-banks",
@@ -1487,6 +1688,14 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "battery-cabinet" },
         massKilograms: 70,
         priceMillionDollars: 2,
+      },
+      // A battery cabinet with its bumper plate.
+      {
+        id: "whipple-cabinet",
+        designId: "whipple-shielding",
+        brings: { kind: "component", componentId: "whipple-cabinet" },
+        massKilograms: 110,
+        priceMillionDollars: 5,
       },
       // A large battery bank's worth comes to 840 kg.
       {
@@ -1537,6 +1746,15 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "airlock" },
         massKilograms: 400,
         priceMillionDollars: 60,
+      },
+      // In place of the habitat envelope, a hardened Habitat's worth comes
+      // to 1850 kg, still within one Launch.
+      {
+        id: "armoured-habitat-envelope",
+        designId: "hardened-habitat",
+        brings: { kind: "component", componentId: "armoured-habitat-envelope" },
+        massKilograms: 550,
+        priceMillionDollars: 120,
       },
       // A landing pad's worth comes to 1240 kg, leaving room on the same
       // Launch for a battery bank's modules.
@@ -1693,8 +1911,21 @@ export const catalogue: Catalogue = {
       requiresDesignId: "regolith-sintering",
     },
     {
+      id: "dust-adhesion-trial",
+      label: "Dust adhesion trial",
+      lengthHours: 60,
+      science: 25,
+      requiresDesignId: "dust-sealed-solar-arrays",
+    },
+    {
       id: "seismic-monitoring",
       label: "Seismic monitoring",
+      lengthHours: 72,
+      science: 30,
+    },
+    {
+      id: "plume-erosion-survey",
+      label: "Plume erosion survey",
       lengthHours: 72,
       science: 30,
     },
@@ -1704,6 +1935,19 @@ export const catalogue: Catalogue = {
       lengthHours: 96,
       science: 45,
       requiresDesignId: "water-electrolysis",
+    },
+    {
+      id: "hypervelocity-impact-testing",
+      label: "Hypervelocity impact testing",
+      lengthHours: 120,
+      science: 50,
+      requiresDesignId: "whipple-shielding",
+    },
+    {
+      id: "micrometeorite-flux-count",
+      label: "Micrometeorite flux count",
+      lengthHours: 144,
+      science: 55,
     },
     {
       id: "low-frequency-radio-survey",
@@ -1794,6 +2038,46 @@ export const catalogue: Catalogue = {
       starting: true,
       scienceCost: 0,
       prerequisiteDesignIds: [],
+    },
+    {
+      id: "dust-sealed-solar-arrays",
+      label: "Dust-sealed solar arrays",
+      description:
+        "Solar arrays with their tracking drive and hinges sealed against Dust, so that they wear down more slowly.",
+      category: "protection",
+      starting: false,
+      scienceCost: 20,
+      prerequisiteDesignIds: ["solar-arrays"],
+    },
+    {
+      id: "electrodynamic-dust-screens",
+      label: "Electrodynamic dust screens",
+      description:
+        "Electrodes woven through a dust-sealed solar array's panels, which push Dust off the cells, so that it coats them far more slowly.",
+      category: "protection",
+      starting: false,
+      scienceCost: 35,
+      prerequisiteDesignIds: ["dust-sealed-solar-arrays"],
+    },
+    {
+      id: "whipple-shielding",
+      label: "Whipple shielding",
+      description:
+        "A thin bumper plate standing clear of a battery bank's cabinet, which shatters a Micrometeorite before it strikes.",
+      category: "protection",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
+    },
+    {
+      id: "hardened-habitat",
+      label: "Hardened Habitat",
+      description:
+        "An inflatable Habitat with an envelope layered like a Whipple shield, which Micrometeorites and Plume Ejecta wear down far less.",
+      category: "protection",
+      starting: false,
+      scienceCost: 50,
+      prerequisiteDesignIds: ["whipple-shielding", "inflatable-habitat"],
     },
     {
       id: "inflatable-habitat",

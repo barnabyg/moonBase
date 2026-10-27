@@ -704,6 +704,33 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 29 to 30: the Protection Designs, whose hardened Structures bring four
+  // new Components, which the base's stock keeps a count of after the
+  // others. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "sealed-array-mast", count: 0 },
+                  { componentId: "screened-solar-panel", count: 0 },
+                  { componentId: "whipple-cabinet", count: 0 },
+                  { componentId: "armoured-habitat-envelope", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**

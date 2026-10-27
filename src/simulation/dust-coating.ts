@@ -11,16 +11,18 @@ export function isCoatedByDust(structureTypeId: string): boolean {
 
 /**
  * Lets Dust settle on every solar array during a game-minute of Daylight,
- * at the data catalogue's rate, up to a full coating; none settles at
- * Night.
+ * at the data catalogue's rate times its type's share of Dust coating, up
+ * to a full coating; none settles at Night.
  */
 export function coatSolarArrays(state: CampaignState, daylight: boolean): void {
   if (!daylight) return;
   const perMinute = catalogue.dustCoating.percentPerDaylightHour / 60;
   for (const structure of state.structures) {
-    if (!isCoatedByDust(structure.structureTypeId)) continue;
+    const type = findStructureType(structure.structureTypeId);
+    if (type === undefined || !isCoatedByDust(type.id)) continue;
     structure.dustCoatingPercent = Math.min(
-      structure.dustCoatingPercent + perMinute,
+      structure.dustCoatingPercent +
+        perMinute * type.hazardMultipliers.dustCoating,
       100,
     );
   }

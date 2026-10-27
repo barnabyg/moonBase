@@ -1737,14 +1737,18 @@ describe("the sample save of format version 27", () => {
 
 describe("the sample saves from before the large battery bank", () => {
   it.each(["version-1.moonbase", "version-22.moonbase", "version-27.moonbase"])(
-    "%s loads with none of the large battery bank's Components, counted last in the base's stock",
+    "%s loads with none of the large battery bank's Components, counted after the earlier ones in the base's stock",
     (name) => {
       const state = loadSample(name).snapshot();
 
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.slice(-2)).toEqual([
+      expect(
+        state.stockpile.components.filter((stock) =>
+          stock.componentId.startsWith("large-battery-"),
+        ),
+      ).toEqual([
         { componentId: "large-battery-module", count: 0 },
         { componentId: "large-battery-cabinet", count: 0 },
       ]);
@@ -1883,5 +1887,80 @@ describe("the sample save of format version 29", () => {
     expect(
       state.structures.filter((s) => s.structureTypeId === "light-mast"),
     ).toHaveLength(2);
+  });
+});
+
+describe("the sample saves from before the Protection Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-29.moonbase"])(
+    "%s loads with none of the hardened Structures' own Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.slice(-4)).toEqual([
+        { componentId: "sealed-array-mast", count: 0 },
+        { componentId: "screened-solar-panel", count: 0 },
+        { componentId: "whipple-cabinet", count: 0 },
+        { componentId: "armoured-habitat-envelope", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 30", () => {
+  // Saved 40289 game-minutes in, an hour into the Assembly of a
+  // dust-sealed solar array, built from two solar panels and a sealed
+  // array mast a Launch brought once Dust-sealed solar arrays was
+  // unlocked. The Mission Director moved into the Habitat after the first
+  // Night, so that the Lander could fly.
+  it("loads with Dust-sealed solar arrays unlocked and a dust-sealed solar array being assembled beside the first solar array", () => {
+    const state = loadSample("version-30.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 23, minute: 29 });
+    expect(state.science).toBe(5);
+    expect(state.unlockedDesignIds).toContain("dust-sealed-solar-arrays");
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-4",
+        structureTypeId: "dust-sealed-solar-array",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+    ]);
+  });
+
+  it("plays on from where it was saved, the dust-sealed solar array generating like the first and wearing down by Dust more slowly", () => {
+    const campaign = loadSample("version-30.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 2 * 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    const condition = (id: string) =>
+      campaign.snapshot().structures.find((s) => s.id === id)
+        ?.conditionPercent ?? Number.NaN;
+    const before = [condition("structure-1"), condition("structure-4")];
+
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.structures.find((s) => s.id === "structure-4")).toMatchObject({
+      structureTypeId: "dust-sealed-solar-array",
+      powered: true,
+    });
+    const lost = [
+      (before[0] ?? 0) - condition("structure-1"),
+      (before[1] ?? 0) - condition("structure-4"),
+    ];
+    expect(lost[0]).toBeCloseTo(24 * 0.05);
+    expect(lost[1]).toBeCloseTo(24 * 0.02);
   });
 });

@@ -1,6 +1,11 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { distance, footprintRadius, isBroken } from "./construction";
+import {
+  distance,
+  findStructureType,
+  footprintRadius,
+  isBroken,
+} from "./construction";
 import type { GameEvent } from "./events";
 import { nextPlumeEjectaSpot } from "./lander";
 
@@ -20,8 +25,9 @@ export interface PlumeEjectaDamage {
 /**
  * Blasts Plume Ejecta out from the Lander as it takes off or lands at a
  * spot, wearing down the Condition of every Structure with any of its
- * footprint within reach, by the amount the data catalogue sets. Returns
- * the damage done, if any, and the Structures it left Broken.
+ * footprint within reach, by the amount the data catalogue sets times its
+ * type's share of Plume Ejecta. Returns the damage done, if any, and the
+ * Structures it left Broken.
  */
 export function blastPlumeEjecta(
   state: CampaignState,
@@ -39,8 +45,11 @@ export function blastPlumeEjecta(
     ) {
       continue;
     }
+    const share =
+      findStructureType(structure.structureTypeId)?.hazardMultipliers
+        .plumeEjecta ?? 1;
     structure.conditionPercent = Math.max(
-      structure.conditionPercent - conditionLossPercent,
+      structure.conditionPercent - conditionLossPercent * share,
       0,
     );
     const { id: structureId, structureTypeId, conditionPercent } = structure;

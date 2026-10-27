@@ -697,7 +697,7 @@ describe("the data catalogue", () => {
     const shielding = catalogue.structureTypes.filter(
       (type) => type.shieldsHabitat,
     );
-    const habitat = catalogue.structureTypes.find((type) => type.habitat);
+    const habitats = catalogue.structureTypes.filter((type) => type.habitat);
 
     expect(shielding.map((type) => type.id)).toEqual(["regolith-shielding"]);
     for (const type of shielding) {
@@ -707,10 +707,13 @@ describe("the data catalogue", () => {
         assembly: "regolith-printer",
       });
       expect(type.habitat).toBe(false);
-      // It covers the Habitat it goes over.
-      expect(type.footprintRadiusMetres).toBeGreaterThanOrEqual(
-        habitat?.footprintRadiusMetres ?? Infinity,
-      );
+      // It covers any Habitat it goes over.
+      expect(habitats.length).toBeGreaterThan(0);
+      for (const habitat of habitats) {
+        expect(type.footprintRadiusMetres).toBeGreaterThanOrEqual(
+          habitat.footprintRadiusMetres,
+        );
+      }
       for (const value of Object.values(type.power)) expect(value).toBe(0);
     }
   });
@@ -769,6 +772,19 @@ describe("the data catalogue", () => {
     expect(thresholdPercent).toBeGreaterThan(0);
     expect(thresholdPercent).toBeLessThanOrEqual(100);
     expect(exponent).toBeGreaterThan(0);
+  });
+
+  it("gives every Structure type a share, from 0 to 1, of the Hazards the rules set the same for all, the whole of each but for the hardened Structures of the Protection Designs", () => {
+    for (const type of catalogue.structureTypes) {
+      const category = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      )?.category;
+      for (const share of Object.values(type.hazardMultipliers)) {
+        expect(share).toBeGreaterThan(0);
+        expect(share).toBeLessThanOrEqual(1);
+        if (category !== "protection") expect(share).toBe(1);
+      }
+    }
   });
 
   it("coats solar arrays with Dust in Daylight, cutting their output, until they are cleaned past a threshold", () => {
@@ -1266,6 +1282,143 @@ describe("the data catalogue", () => {
     });
   });
 
+  describe("the Protection Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    type Wear = "dustWear" | keyof StructureType["hazardMultipliers"];
+    const wearOf = (type: StructureType, wear: Wear) =>
+      wear === "dustWear"
+        ? type.dustWearPercentPerHour
+        : type.hazardMultipliers[wear];
+    /** Each hardened Structure, the Structure it replaces, and the wear it takes less of. */
+    const hardened: readonly [string, string, readonly Wear[]][] = [
+      ["dust-sealed-solar-array", "solar-array", ["dustWear"]],
+      ["dust-screened-solar-array", "solar-array", ["dustWear", "dustCoating"]],
+      ["whipple-shielded-battery-bank", "battery-bank", ["micrometeorites"]],
+      ["hardened-habitat", "habitat", ["micrometeorites", "plumeEjecta"]],
+    ];
+    const protection = catalogue.designs.filter(
+      (design) => design.category === "protection" && !design.starting,
+    );
+
+    it("has three to five, each unlocking a hardened Structure, that together cover more than one Hazard", () => {
+      expect(protection.length).toBeGreaterThanOrEqual(3);
+      expect(protection.length).toBeLessThanOrEqual(5);
+      expect(
+        protection.map((design) =>
+          catalogue.structureTypes
+            .filter((type) => type.designId === design.id)
+            .map((type) => type.id),
+        ),
+      ).toEqual(hardened.map(([id]) => [id]));
+      const hazards = new Set(
+        hardened.flatMap(([, , wears]) =>
+          wears.map((wear) => (wear.startsWith("dust") ? "dust" : wear)),
+        ),
+      );
+      expect(hazards.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it("gives the category some depth: some need another Design first that isn't a starting one", () => {
+      const needsMore = protection.filter((design) =>
+        design.prerequisiteDesignIds.some(
+          (id) =>
+            catalogue.designs.find((other) => other.id === id)?.starting ===
+            false,
+        ),
+      );
+
+      expect(needsMore.length).toBeGreaterThan(0);
+    });
+
+    it.each(hardened)(
+      "has the %s wear more slowly than a %s, by the data catalogue",
+      (id, originalId, wears) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+
+        for (const wear of wears) {
+          expect(wearOf(type, wear)).toBeLessThan(wearOf(original, wear));
+          expect(wearOf(type, wear)).toBeGreaterThan(0);
+        }
+        for (const wear of [
+          "dustWear",
+          "dustCoating",
+          "micrometeorites",
+          "plumeEjecta",
+        ] as const) {
+          if (!wears.includes(wear)) {
+            expect(wearOf(type, wear)).toBe(wearOf(original, wear));
+          }
+        }
+      },
+    );
+
+    it.each(hardened)(
+      "has the %s do the same job as a %s, standing on the same ground and built the same way, after its Design is unlocked",
+      (id, originalId) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+        const unlocked = designsUnlockedWith(type.designId);
+
+        expect(designOf(type)).toMatchObject({
+          category: "protection",
+          starting: false,
+        });
+        expect(unlocked).toContain(original.designId);
+        expect(type).toMatchObject({
+          footprintRadiusMetres: original.footprintRadiusMetres,
+          stageHours: original.stageHours,
+          stageMachines: original.stageMachines,
+          commissioningFailureChance: original.commissioningFailureChance,
+          power: original.power,
+          lightRadiusMetres: original.lightRadiusMetres,
+          habitat: original.habitat,
+          shieldsHabitat: original.shieldsHabitat,
+          landingPad: original.landingPad,
+        });
+        expect(type.recipes).toEqual(original.recipes);
+      },
+    );
+
+    it.each(hardened)(
+      "has the %s built from at least one Component of its own, which neither a %s nor the starting stock has",
+      (id, originalId) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+        const own = type.components.filter(
+          (need) =>
+            !original.components.some(
+              (other) => other.componentId === need.componentId,
+            ),
+        );
+
+        expect(own.length).toBeGreaterThan(0);
+        for (const need of own) {
+          expect(
+            catalogue.startingStock.some(
+              (stock) => stock.componentId === need.componentId,
+            ),
+          ).toBe(false);
+        }
+        // As many Components in all, so it takes as long to deliver.
+        const count = (each: StructureType) =>
+          each.components.reduce((sum, need) => sum + need.count, 0);
+        expect(count(type)).toBe(count(original));
+      },
+    );
+  });
+
   it("counts self-sufficiency over a window of a whole number of records, one Lunation by default", () => {
     const { windowLunations, recordHours } = catalogue.selfSufficiency;
     const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
@@ -1278,12 +1431,12 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
-  it("has a Habitat the Mission Director can move into", () => {
+  it("has Habitats the Mission Director can move into: the inflatable Habitat and the hardened one", () => {
     expect(
       catalogue.structureTypes
         .filter((type) => type.habitat)
         .map((type) => type.id),
-    ).toEqual(["habitat"]);
+    ).toEqual(["habitat", "hardened-habitat"]);
   });
 
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {

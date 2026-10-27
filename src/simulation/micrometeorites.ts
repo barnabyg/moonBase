@@ -1,7 +1,7 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
-import { isBroken } from "./construction";
+import { findStructureType, isBroken } from "./construction";
 import type { GameEvent } from "./events";
 import { isAway } from "./expeditions";
 import { damageMachine } from "./machines";
@@ -51,19 +51,12 @@ export function scheduleMicrometeorite(
 }
 
 /**
- * Strikes as the game-minute that has just passed reaches the scheduled
- * strike, then schedules the next. The seeded generator picks one target
- * evenly among the commissioned Structures, the Machines, the Rovers and
- * the Robots, and draws the Condition it loses evenly from the data
- * catalogue's range. A Robot and a Rover away on an Expedition are beyond
- * reach. A Structure, Machine or Rover may be left Broken; a Robot's
- * Condition stops at its floor. Returns the strike, and the event for
- * anything it broke.
+ * Everything a strike could hit now: the commissioned Structures, the
+ * Machines, and the Rovers and Robots not away on an Expedition, in the
+ * order the seeded generator picks from.
  */
-export function watchMicrometeorites(state: CampaignState): GameEvent[] {
-  const atMinute = state.elapsedMinutes;
-  if (atMinute < state.micrometeorite.strikesAtMinute) return [];
-  const targets = [
+function strikeTargets(state: CampaignState) {
+  return [
     ...state.structures.map((structure) => ({
       kind: "structure" as const,
       structure,
@@ -76,6 +69,47 @@ export function watchMicrometeorites(state: CampaignState): GameEvent[] {
       .filter((robot) => !isAway(state, { robotId: robot.id }))
       .map((robot) => ({ kind: "robot" as const, robot })),
   ];
+}
+
+/**
+ * The share of a strike's Condition loss the average thing it could hit
+ * now takes: a Structure its type's share in the data catalogue, anything
+ * else all of it. 1 when there is nothing to hit.
+ */
+export function averageStrikeShare(state: CampaignState): number {
+  const targets = strikeTargets(state);
+  if (targets.length === 0) return 1;
+  return (
+    targets.reduce(
+      (sum, target) =>
+        sum + (target.kind === "structure" ? strikeShare(target.structure) : 1),
+      0,
+    ) / targets.length
+  );
+}
+
+/** The share of a strike's Condition loss a Structure takes, by its type. */
+function strikeShare(structure: { structureTypeId: string }): number {
+  return (
+    findStructureType(structure.structureTypeId)?.hazardMultipliers
+      .micrometeorites ?? 1
+  );
+}
+
+/**
+ * Strikes as the game-minute that has just passed reaches the scheduled
+ * strike, then schedules the next. The seeded generator picks one target
+ * evenly among the commissioned Structures, the Machines, the Rovers and
+ * the Robots, and draws the Condition it loses evenly from the data
+ * catalogue's range; a Structure loses its type's share of that. A Robot
+ * and a Rover away on an Expedition are beyond reach. A Structure, Machine
+ * or Rover may be left Broken; a Robot's Condition stops at its floor.
+ * Returns the strike, and the event for anything it broke.
+ */
+export function watchMicrometeorites(state: CampaignState): GameEvent[] {
+  const atMinute = state.elapsedMinutes;
+  if (atMinute < state.micrometeorite.strikesAtMinute) return [];
+  const targets = strikeTargets(state);
   const target =
     targets[Math.floor(nextFraction(state.random) * targets.length)];
   const { min, max } = catalogue.micrometeorites.conditionLossPercent;
@@ -87,7 +121,7 @@ export function watchMicrometeorites(state: CampaignState): GameEvent[] {
       const { structure } = target;
       const wasBroken = isBroken(structure);
       structure.conditionPercent = Math.max(
-        structure.conditionPercent - loss,
+        structure.conditionPercent - loss * strikeShare(structure),
         0,
       );
       return [
