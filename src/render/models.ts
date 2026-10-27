@@ -439,21 +439,17 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "sintered-regolith-shielding") {
     return createRegolithShieldingModel(SINTERED_REGOLITH_SHIELDING);
   }
-  if (structureTypeId === "landing-pad") return createLandingPadModel();
+  if (structureTypeId === "landing-pad") {
+    return createLandingPadModel(LANDING_PAD);
+  }
+  if (structureTypeId === "lit-landing-pad") {
+    return createLandingPadModel(LIT_LANDING_PAD);
+  }
   if (structureTypeId === "sintered-landing-pad") {
     return createSinteredLandingPadModel();
   }
-  if (structureTypeId === "water-processing-plant") {
-    return createPlantModel("tank");
-  }
-  if (structureTypeId === "extraction-plant")
-    return createPlantModel("reactor");
-  if (structureTypeId === "vacuum-fabrication-plant") {
-    return createPlantModel("chamber");
-  }
-  if (structureTypeId === "circuit-board-plant") {
-    return createPlantModel("oven");
-  }
+  const plant = PLANT_SHAPES[structureTypeId];
+  if (plant !== undefined) return createPlantModel(plant);
   const array = createSolarArrayModel(
     SOLAR_ARRAY_SHAPES[structureTypeId] ?? SOLAR_ARRAY,
   );
@@ -1238,16 +1234,37 @@ function createBumperPlates(
 const PAD_PANELS = 8;
 /** The share of Assembly spent laying the panels, before the beacon goes up. */
 const PAD_PANELS_SHARE = 0.85;
+/** How tall a floodlight's post stands at a lit landing pad's edge. */
+const FLOODLIGHT_HEIGHT = 2.6;
+
+/** The parts of a landing pad's model. */
+interface LandingPadShape {
+  readonly name: string;
+  /** How many floodlights stand round its edge, spaced evenly, clear of the beacon. */
+  readonly floodlights: number;
+}
+
+const LANDING_PAD: LandingPadShape = { name: "Landing pad", floodlights: 0 };
+
+/**
+ * A lit landing pad: a landing pad with a floodlight on a short post at
+ * each quarter of its edge, its lamp tilted in over the pad.
+ */
+const LIT_LANDING_PAD: LandingPadShape = {
+  name: "Lit landing pad",
+  floodlights: 4,
+};
 
 /**
  * A landing pad: a disc of interlocking panels laid flat on the graded
- * ground, with a painted ring for the Lander to aim at and a beacon at its
- * edge. During Assembly the panels go down one by one, then the beacon goes
- * up. Its radius is the data catalogue's footprint.
+ * ground, with a painted ring for the Lander to aim at, a beacon at its
+ * edge and any floodlights round it, which glow while they are on. During
+ * Assembly the panels go down one by one, then the beacon and floodlights
+ * go up. Its radius is the data catalogue's footprint.
  */
-function createLandingPadModel(): StructureModel {
+function createLandingPadModel(shape: LandingPadShape): StructureModel {
   const pad = new THREE.Group();
-  pad.name = "Landing pad";
+  pad.name = shape.name;
   const radius = 6.9;
   const thickness = 0.12;
   const panels = Array.from({ length: PAD_PANELS }, (_, index) => {
@@ -1293,8 +1310,47 @@ function createLandingPadModel(): StructureModel {
   );
   pad.add(beacon);
 
+  const lampMaterial = materials.statusOff.clone();
+  const floodlights = new THREE.Group();
+  for (let index = 0; index < shape.floodlights; index++) {
+    // Halfway between the beacon's place and the next quarter round.
+    const angle = ((index + 0.5) / shape.floodlights) * Math.PI * 2;
+    const floodlight = new THREE.Group();
+    floodlight.position.set(
+      Math.cos(angle) * (radius - 0.35),
+      thickness,
+      -Math.sin(angle) * (radius - 0.35),
+    );
+    // Facing the pad's centre, its lamp tilted down over it.
+    floodlight.rotation.y = angle + Math.PI;
+    const lamp = new THREE.Group();
+    lamp.position.y = FLOODLIGHT_HEIGHT;
+    lamp.rotation.z = -Math.PI / 6;
+    lamp.add(
+      part(
+        new THREE.BoxGeometry(0.3, 0.36, 0.6),
+        materials.darkMetal,
+        [0, 0, 0],
+      ),
+      part(new THREE.BoxGeometry(0.04, 0.3, 0.52), lampMaterial, [0.16, 0, 0]),
+    );
+    floodlight.add(
+      part(
+        new THREE.CylinderGeometry(0.06, 0.09, FLOODLIGHT_HEIGHT, 6),
+        materials.aluminium,
+        [0, FLOODLIGHT_HEIGHT / 2, 0],
+      ),
+      lamp,
+    );
+    floodlights.add(floodlight);
+  }
+  pad.add(floodlights);
+
   return {
     group: pad,
+    // The scene's one light for the floodlights hangs over the pad's
+    // centre, high enough to shine past a Lander standing on it.
+    ...(shape.floodlights > 0 ? { lightHeight: 10 } : {}),
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
       const laid = Math.min(f / PAD_PANELS_SHARE, 1) * PAD_PANELS;
@@ -1303,6 +1359,7 @@ function createLandingPadModel(): StructureModel {
       }
       ring.visible = laid >= PAD_PANELS;
       beacon.visible = f > PAD_PANELS_SHARE;
+      floodlights.visible = f > PAD_PANELS_SHARE;
     },
     setFacing: () => undefined,
     setStatusLight(state) {
@@ -1315,7 +1372,10 @@ function createLandingPadModel(): StructureModel {
       statusLightMaterial.emissive.copy(source.emissive);
     },
     setCharge: () => undefined,
-    setLit: () => undefined,
+    setLit(on) {
+      lampMaterial.color.set(on ? 0xfff4dc : 0x222222);
+      lampMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
+    },
   };
 }
 
@@ -1556,131 +1616,289 @@ export function createRoverModel(): RoverModel {
 
 /** How fast a running Plant's cooling fan turns, in turns per real second. */
 const PLANT_FAN_TURNS_PER_SECOND = 1.5;
+/** The height of the top of a Plant's plinth, which its vessels stand on. */
+const PLINTH_TOP = 0.25;
 
 /**
- * A Plant: a vessel on a plinth, with the plant that feeds and empties it
- * beside it, and a cooling fan on top that turns while it runs, when the
- * vessel glows. A reactor is tall and narrow, a tank squat and wide, a
- * chamber lies on its side, and an oven is a low tunnel with a conveyor
- * running through it. During Assembly the plinth goes down, then the vessel
- * rises.
+ * A vessel standing on a Plant's plinth. A reactor is tall and narrow, a
+ * tank squat and wide, a chamber a drum lying on its side, an oven a low
+ * tunnel with a conveyor running through it, a stack a block of cell
+ * plates, and a hopper a funnel on legs that Regolith is tipped into.
  */
-function createPlantModel(
-  vessel: "reactor" | "tank" | "chamber" | "oven",
-): StructureModel {
+interface PlantVessel {
+  readonly kind: "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper";
+  /** Where its centre stands on the plinth, across and front to back. */
+  readonly at: readonly [number, number];
+  /** How much bigger it is than the plain vessel of its kind; 1 if not given. */
+  readonly scale?: number;
+}
+
+/** The sizes and parts of a Plant's model, in metres. */
+interface PlantShape {
+  readonly name: string;
+  /** The plinth's width across and depth from front to back. */
+  readonly plinth: readonly [number, number];
+  readonly vessels: readonly PlantVessel[];
+  /** Where the box of plant that feeds and empties it stands, across. */
+  readonly feederAt: number;
+}
+
+const EXTRACTION_PLANT: PlantShape = {
+  name: "Extraction plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "reactor", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * A large extraction plant: a wider plinth with a big molten regolith cell,
+ * fed from a hopper of Regolith beside it, and a slimmer oxygen separator
+ * column behind.
+ */
+const LARGE_EXTRACTION_PLANT: PlantShape = {
+  name: "Large extraction plant",
+  plinth: [6.2, 4.6],
+  vessels: [
+    { kind: "reactor", at: [-1.4, 0.3], scale: 1.35 },
+    { kind: "reactor", at: [0.2, -1.4], scale: 0.6 },
+    { kind: "hopper", at: [-1.6, -1.75] },
+  ],
+  feederAt: 1.9,
+};
+
+const WATER_PROCESSING_PLANT: PlantShape = {
+  name: "Water plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "tank", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * An electrolysis plant: a smaller ice melter beside a stack of
+ * electrolyser cells, whose gaps glow while it works.
+ */
+const ELECTROLYSIS_PLANT: PlantShape = {
+  name: "Electrolysis plant",
+  plinth: [4, 3.2],
+  vessels: [
+    { kind: "tank", at: [-1, 0.7], scale: 0.7 },
+    { kind: "stack", at: [-0.6, -0.85] },
+  ],
+  feederAt: 1.1,
+};
+
+const VACUUM_FABRICATION_PLANT: PlantShape = {
+  name: "Vacuum fabrication plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "chamber", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+const CIRCUIT_BOARD_PLANT: PlantShape = {
+  name: "Circuit board plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "oven", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * An integrated fabrication plant: a long plinth carrying a crystal
+ * furnace's drum and, beside it, the oven of the board assembly line, so
+ * that the wafers go straight from one into the other.
+ */
+const INTEGRATED_FABRICATION_PLANT: PlantShape = {
+  name: "Integrated fabrication plant",
+  plinth: [5.2, 3.2],
+  vessels: [
+    { kind: "chamber", at: [-1.7, 0] },
+    { kind: "oven", at: [-0.2, 0] },
+  ],
+  feederAt: 1.5,
+};
+
+/** The Plants, by Structure type. */
+const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
+  "extraction-plant": EXTRACTION_PLANT,
+  "large-extraction-plant": LARGE_EXTRACTION_PLANT,
+  "water-processing-plant": WATER_PROCESSING_PLANT,
+  "electrolysis-plant": ELECTROLYSIS_PLANT,
+  "vacuum-fabrication-plant": VACUUM_FABRICATION_PLANT,
+  "circuit-board-plant": CIRCUIT_BOARD_PLANT,
+  "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
+};
+
+/**
+ * The parts of one vessel, centred across and front to back on the origin
+ * and standing on the plinth, with any band that glows while the Plant
+ * works made of the glow material.
+ */
+function plantVesselParts(
+  kind: PlantVessel["kind"],
+  glow: THREE.Material,
+): THREE.Object3D[] {
+  switch (kind) {
+    case "chamber": {
+      // A drum lying from front to back, held off the plinth by two cradles.
+      const radius = 0.75;
+      const lying = (mesh: THREE.Mesh) => {
+        mesh.rotation.x = Math.PI / 2;
+        return mesh;
+      };
+      return [
+        lying(
+          part(
+            new THREE.CylinderGeometry(radius, radius, 2.8, 16),
+            materials.foil,
+            [0, 0.45 + radius, 0],
+          ),
+        ),
+        // A band round the vessel that glows while it works.
+        lying(
+          part(
+            new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+            glow,
+            [0, 0.45 + radius, 0.5],
+          ),
+        ),
+        ...[-0.9, 0.9].map((z) =>
+          part(new THREE.BoxGeometry(1.2, 0.3, 0.3), materials.darkMetal, [
+            0,
+            0.4,
+            z,
+          ]),
+        ),
+      ];
+    }
+    case "oven":
+      // A tunnel from front to back on two legs, with the conveyor that
+      // carries the boards through it sticking out at both ends.
+      return [
+        part(
+          new THREE.BoxGeometry(1.3, 0.9, 2.4),
+          materials.hull,
+          [0, 1.05, 0],
+        ),
+        // A window along the top that glows while it works.
+        part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [0, 1.52, 0]),
+        part(
+          new THREE.BoxGeometry(0.9, 0.08, 3.1),
+          materials.darkMetal,
+          [0, 0.64, 0],
+        ),
+        ...[-0.9, 0.9].map((z) =>
+          part(new THREE.BoxGeometry(1.2, 0.35, 0.3), materials.darkMetal, [
+            0,
+            0.42,
+            z,
+          ]),
+        ),
+      ];
+    case "stack": {
+      // Cell plates stacked side by side between two end plates, with the
+      // gaps between them glowing while it works.
+      const plates = 7;
+      return [
+        ...Array.from({ length: plates }, (_, index) =>
+          part(
+            new THREE.BoxGeometry(0.14, 1.1, 1.2),
+            index === 0 || index === plates - 1
+              ? materials.darkMetal
+              : materials.hull,
+            [(index - (plates - 1) / 2) * 0.22, 0.85, 0],
+          ),
+        ),
+        part(new THREE.BoxGeometry(1.3, 0.9, 1), glow, [0, 0.8, 0]),
+      ];
+    }
+    case "hopper":
+      // A funnel on four legs, wide end up.
+      return [
+        part(
+          new THREE.CylinderGeometry(0.75, 0.25, 0.9, 8, 1, true),
+          materials.machinePaint,
+          [0, 1.75, 0],
+        ),
+        ...[
+          [-0.45, -0.45],
+          [-0.45, 0.45],
+          [0.45, -0.45],
+          [0.45, 0.45],
+        ].map(([x = 0, z = 0]) =>
+          part(new THREE.BoxGeometry(0.08, 1.3, 0.08), materials.darkMetal, [
+            x,
+            0.9,
+            z,
+          ]),
+        ),
+      ];
+    case "reactor":
+    case "tank": {
+      const [radius, height] = kind === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
+      return [
+        part(
+          new THREE.CylinderGeometry(radius, radius, height, 16),
+          kind === "reactor" ? materials.foil : materials.hull,
+          [0, 0.25 + height / 2, 0],
+        ),
+        // A band round the vessel that glows while it works.
+        part(
+          new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+          glow,
+          [0, 0.25 + height * 0.6, 0],
+        ),
+      ];
+    }
+  }
+}
+
+/**
+ * A Plant: vessels on a plinth, with the plant that feeds and empties them
+ * beside them, and a cooling fan on top that turns while it runs, when the
+ * vessels glow. During Assembly the plinth goes down, then the vessels
+ * rise.
+ */
+function createPlantModel(shape: PlantShape): StructureModel {
   const plant = new THREE.Group();
-  plant.name = {
-    reactor: "Extraction plant",
-    tank: "Water plant",
-    chamber: "Vacuum fabrication plant",
-    oven: "Circuit board plant",
-  }[vessel];
+  plant.name = shape.name;
+  const [width, depth] = shape.plinth;
   const statusLightMaterial = materials.statusOff.clone();
   const glow = materials.statusOff.clone();
   plant.add(
     part(
-      new THREE.BoxGeometry(4, 0.25, 3.2),
+      new THREE.BoxGeometry(width, 0.25, depth),
       materials.darkMetal,
       [0, 0.12, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.08, 8, 6),
-      statusLightMaterial,
-      [1.8, 0.3, 1.5],
-    ),
+    part(new THREE.SphereGeometry(0.08, 8, 6), statusLightMaterial, [
+      width / 2 - 0.2,
+      0.3,
+      depth / 2 - 0.1,
+    ]),
   );
   const upper = new THREE.Group();
-  if (vessel === "chamber") {
-    // A drum lying from front to back, held off the plinth by two cradles.
-    const radius = 0.75;
-    const lying = (mesh: THREE.Mesh) => {
-      mesh.rotation.x = Math.PI / 2;
-      return mesh;
-    };
-    upper.add(
-      lying(
-        part(
-          new THREE.CylinderGeometry(radius, radius, 2.8, 16),
-          materials.foil,
-          [-0.7, 0.45 + radius, 0],
-        ),
-      ),
-      // A band round the vessel that glows while it works.
-      lying(
-        part(
-          new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
-          glow,
-          [-0.7, 0.45 + radius, 0.5],
-        ),
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.3, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.4, -0.9],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.3, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.4, 0.9],
-      ),
-    );
-  } else if (vessel === "oven") {
-    // A tunnel from front to back on two legs, with the conveyor that
-    // carries the boards through it sticking out at both ends.
-    upper.add(
-      part(
-        new THREE.BoxGeometry(1.3, 0.9, 2.4),
-        materials.hull,
-        [-0.7, 1.05, 0],
-      ),
-      // A window along the top that glows while it works.
-      part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [-0.7, 1.52, 0]),
-      part(
-        new THREE.BoxGeometry(0.9, 0.08, 3.1),
-        materials.darkMetal,
-        [-0.7, 0.64, 0],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.35, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.42, -0.9],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.35, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.42, 0.9],
-      ),
-    );
-  } else {
-    const [radius, height] = vessel === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
-    upper.add(
-      part(
-        new THREE.CylinderGeometry(radius, radius, height, 16),
-        vessel === "reactor" ? materials.foil : materials.hull,
-        [-0.7, 0.25 + height / 2, 0],
-      ),
-      // A band round the vessel that glows while it works.
-      part(
-        new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
-        glow,
-        [-0.7, 0.25 + height * 0.6, 0],
-      ),
-    );
+  for (const vessel of shape.vessels) {
+    const group = new THREE.Group();
+    group.add(...plantVesselParts(vessel.kind, glow));
+    // Scaled about the plinth's top, so that it still stands on it.
+    const scale = vessel.scale ?? 1;
+    group.position.set(vessel.at[0], PLINTH_TOP * (1 - scale), vessel.at[1]);
+    group.scale.setScalar(scale);
+    upper.add(group);
   }
   upper.add(
-    part(
-      new THREE.BoxGeometry(1.4, 1.4, 1.8),
-      materials.machinePaint,
-      [1.1, 0.95, 0],
-    ),
-    part(
-      new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8),
-      materials.darkMetal,
-      [0.3, 1.2, 0.6],
-    ),
+    part(new THREE.BoxGeometry(1.4, 1.4, 1.8), materials.machinePaint, [
+      shape.feederAt,
+      0.95,
+      0,
+    ]),
+    part(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), materials.darkMetal, [
+      shape.feederAt - 0.8,
+      1.2,
+      0.6,
+    ]),
   );
   const fan = new THREE.Group();
-  fan.position.set(1.1, 1.75, 0);
+  fan.position.set(shape.feederAt, 1.75, 0);
   for (const angle of [0, Math.PI / 2]) {
     const blade = part(
       new THREE.BoxGeometry(1.1, 0.04, 0.16),
