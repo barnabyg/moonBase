@@ -305,6 +305,40 @@ describe("the data catalogue", () => {
     expect(catalogue.rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
   });
 
+  it("has a handful of Research Tasks with unique ids and labels, each lasting a positive, whole number of game-minutes and paying a whole amount of Science", () => {
+    const { researchTasks } = catalogue;
+
+    expect(researchTasks.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(researchTasks.map((task) => task.id)).size).toBe(
+      researchTasks.length,
+    );
+    expect(new Set(researchTasks.map((task) => task.label)).size).toBe(
+      researchTasks.length,
+    );
+    for (const task of researchTasks) {
+      expect(task.lengthHours).toBeGreaterThan(0);
+      expect(Number.isInteger(task.lengthHours * 60)).toBe(true);
+      expect(Number.isSafeInteger(task.science)).toBe(true);
+      expect(task.science).toBeGreaterThan(0);
+    }
+  });
+
+  it("has some Research Tasks that take hours and some that take Earth Days, the longer ones paying more", () => {
+    const lengths = catalogue.researchTasks.map((task) => task.lengthHours);
+
+    expect(lengths.some((hours) => hours < 24)).toBe(true);
+    expect(lengths.some((hours) => hours >= 3 * 24)).toBe(true);
+    const byLength = [...catalogue.researchTasks].sort(
+      (a, b) => a.lengthHours - b.lengthHours,
+    );
+    for (const [index, task] of byLength.entries()) {
+      const shorter = byLength[index - 1];
+      if (shorter !== undefined && shorter.lengthHours < task.lengthHours) {
+        expect(task.science).toBeGreaterThan(shorter.science);
+      }
+    }
+  });
+
   it("has bulk resources with unique ids and labels, Regolith first", () => {
     const { bulkResources } = catalogue;
 

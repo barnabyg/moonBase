@@ -152,6 +152,14 @@ import {
 } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
+import {
+  readResearchTask,
+  runResearch,
+  startResearchTask,
+  type ResearchTaskSnapshot,
+  type ResearchTaskState,
+  type StartResearchTaskResult,
+} from "./research";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   readSolarParticleEvent,
@@ -486,6 +494,12 @@ export interface Snapshot {
   readonly fundingMillionDollars: number;
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
+  /** The base's Science, earned by completing Research Tasks. */
+  readonly science: number;
+  /** The Research Task running, or undefined if there is none. */
+  readonly researchTask: ResearchTaskSnapshot | undefined;
+  /** The ids of the Research Tasks completed, in the order they were. */
+  readonly completedResearchTaskIds: readonly string[];
   /** The Exports to load onto the Lander, those aboard it, and what they come to. */
   readonly exports: ExportsSnapshot;
   /**
@@ -623,6 +637,13 @@ export interface Campaign {
    * water ice. It is refused while one is under way or the Rover is Broken.
    */
   startExpedition(): StartExpeditionResult;
+  /**
+   * Starts a Research Task, which runs by itself for its length and then
+   * pays its Science. It needs no Robot, power or Components, and carries on
+   * through Night, while the Lander is away and while the Robot is busy.
+   * Only one runs at a time, and each can be completed only once.
+   */
+  startResearchTask(researchTaskId: string): StartResearchTaskResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -673,6 +694,12 @@ export interface CampaignState {
    * base's stock.
    */
   exportsToLoad: { resourceId: string; kilograms: number }[];
+  /** The base's Science, earned by completing Research Tasks. */
+  science: number;
+  /** The Research Task running, if any. */
+  researchTask: ResearchTaskState | undefined;
+  /** The ids of the Research Tasks completed, in the order they were. */
+  completedResearchTaskIds: string[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -722,6 +749,9 @@ export function createCampaign(options: CampaignOptions): Campaign {
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
     exportsToLoad: [],
+    science: 0,
+    researchTask: undefined,
+    completedResearchTaskIds: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -896,6 +926,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(startExpedition(state));
     },
+    startResearchTask(researchTaskId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(startResearchTask(state, researchTaskId));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -938,6 +978,9 @@ function campaignFrom(state: CampaignState): Campaign {
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        science: state.science,
+        researchTask: readResearchTask(state),
+        completedResearchTaskIds: [...state.completedResearchTaskIds],
         exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
@@ -1078,6 +1121,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
   runPlants(state);
+  events.push(...runResearch(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({

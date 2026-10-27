@@ -22,6 +22,7 @@ export type {
   PerformanceCurve,
   PlantRecipe,
   RadiationRules,
+  ResearchTask,
   ResourceFlow,
   ResourceRef,
   RoverType,

@@ -29,6 +29,8 @@ export function createCampaignSlot(first: Campaign): CampaignSlot {
     setPlantRecipe: (structureId, recipeId) =>
       current.setPlantRecipe(structureId, recipeId),
     startExpedition: () => current.startExpedition(),
+    startResearchTask: (researchTaskId) =>
+      current.startResearchTask(researchTaskId),
     forecasts: () => current.forecasts(),
     snapshot: () => current.snapshot(),
     save: () => current.save(),

@@ -65,6 +65,11 @@ export type {
   SetRecipeResult,
 } from "./plants";
 export type { SelfRepairSnapshot } from "./self-repair";
+export type {
+  ResearchTaskSnapshot,
+  StartResearchTaskRefusal,
+  StartResearchTaskResult,
+} from "./research";
 export type { StrikeTarget } from "./micrometeorites";
 export type { SpareComponentsForecast } from "./spare-forecast";
 export type {

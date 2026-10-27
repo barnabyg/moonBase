@@ -479,6 +479,8 @@ export function formatEvent(event: GameEvent): string {
       return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
+    case "research-task-completed":
+      return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
       return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
     case "self-sufficiency-lost":
@@ -667,6 +669,19 @@ export function formatBulkResources(
 /** Says how much Funding the base programme has, for example "$400M". */
 export function formatFunding(fundingMillionDollars: number): string {
   return formatMillionDollars(fundingMillionDollars);
+}
+
+/** Says how much Science the base has or a Research Task pays, for example "20 Science". */
+export function formatScience(science: number): string {
+  return `${science} Science`;
+}
+
+/** Names a Research Task, for example "Seismic monitoring". */
+export function researchTaskLabel(researchTaskId: string): string {
+  return (
+    catalogue.researchTasks.find((task) => task.id === researchTaskId)?.label ??
+    researchTaskId
+  );
 }
 
 /** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */

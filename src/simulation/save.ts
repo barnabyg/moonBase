@@ -615,6 +615,21 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 25 to 26: Research Tasks, which earn Science. None had run before, so
+  // there is no Science, none running and none completed.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        science: 0,
+        researchTask: null,
+        completedResearchTaskIds: [],
+      },
+    };
+  },
 ];
 
 /**
@@ -970,6 +985,8 @@ const componentCount = object({
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
+const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
+
 /**
  * A commissioned Structure, whose recipe must be one of its type's if it
  * is a Plant, and none if it isn't.
@@ -1308,6 +1325,11 @@ const simulationState = object({
     }),
   ),
   exportsToLoad: list(exportLine),
+  science: wholeNumber,
+  researchTask: optional(
+    object({ researchTaskId, workedMinutes: wholeNumber }),
+  ),
+  completedResearchTaskIds: list(researchTaskId),
   ended: optional(campaignEnd),
   robots: list(
     object({

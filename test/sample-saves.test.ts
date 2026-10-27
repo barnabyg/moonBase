@@ -1542,3 +1542,91 @@ describe("the sample save of format version 25", () => {
     expect(campaign.snapshot().ended).toBeUndefined();
   });
 });
+
+describe("the sample saves from before Research Tasks", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-18.moonbase",
+    "version-25.moonbase",
+  ])(
+    "%s loads with no Science, no Research Task running and none completed",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.science).toBe(0);
+      expect(state.researchTask).toBeUndefined();
+      expect(state.completedResearchTaskIds).toEqual([]);
+    },
+  );
+
+  it("plays on from where it was saved, a Research Task started then completing", () => {
+    const campaign = loadSample("version-25.moonbase");
+    const [task] = catalogue.researchTasks;
+    if (task === undefined) throw new Error("expected a Research Task");
+
+    expect(campaign.startResearchTask(task.id)).toEqual({ ok: true });
+    const kinds = campaign
+      .advance(task.lengthHours * 60)
+      .map((event) => event.kind);
+
+    expect(kinds).toContain("research-task-completed");
+    expect(campaign.snapshot().science).toBe(task.science);
+  });
+});
+
+describe("the sample save of format version 26", () => {
+  // Saved 1735 game-minutes in, 1175 of them into Seismic monitoring. Its
+  // length and the Science it pays come from the data catalogue as it is.
+  const seismic = catalogue.researchTasks.find(
+    (task) => task.id === "seismic-monitoring",
+  );
+  if (seismic === undefined) throw new Error("expected Seismic monitoring");
+  const minutesLeft = seismic.lengthHours * 60 - 1175;
+
+  it("loads with Seismic monitoring running, a Regolith sample analysis completed, and the Robot busy with a light mast", () => {
+    const state = loadSample("version-26.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 2, hour: 4, minute: 55 });
+    expect(state.science).toBe(5);
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+    ]);
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: "seismic-monitoring",
+      minutesLeft,
+    });
+    expect(state.constructions.map((c) => c.structureTypeId)).toEqual([
+      "light-mast",
+    ]);
+    expect(state.robots[0]?.activity.kind).not.toBe("idle");
+  });
+
+  it("plays on from where it was saved, until Seismic monitoring completes and pays its Science", () => {
+    const campaign = loadSample("version-26.moonbase");
+    expect(
+      campaign.startResearchTask("regolith-sample-analysis"),
+    ).toMatchObject({ ok: false, reason: "already-completed" });
+
+    const completed = campaign
+      .advance(minutesLeft)
+      .filter((event) => event.kind === "research-task-completed");
+
+    expect(completed).toEqual([
+      {
+        kind: "research-task-completed",
+        atMinute: 1735 + minutesLeft,
+        researchTaskId: "seismic-monitoring",
+        science: seismic.science,
+      },
+    ]);
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.science).toBe(5 + seismic.science);
+    expect(state.researchTask).toBeUndefined();
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+      "seismic-monitoring",
+    ]);
+  });
+});

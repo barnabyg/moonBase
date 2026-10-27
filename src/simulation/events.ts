@@ -267,6 +267,17 @@ export type GameEvent =
     }
   | {
       /**
+       * A Research Task has run its length and is complete: the Science it
+       * pays has been added to the base's, and it can't run again.
+       */
+      readonly kind: "research-task-completed";
+      readonly atMinute: number;
+      readonly researchTaskId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
        * The base has become self-sufficient in a life support stock
        * ("self-sufficiency-gained"): over the data catalogue's window, its
        * Plants made at least as much as the Mission Director used; or it

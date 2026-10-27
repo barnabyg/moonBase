@@ -147,6 +147,11 @@ export interface Catalogue {
    */
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
+  /**
+   * The Research Tasks the base can carry out to earn Science, in the order
+   * the Research Tasks screen lists them. Each can be completed only once.
+   */
+  readonly researchTasks: readonly ResearchTask[];
   readonly plumeEjecta: PlumeEjectaRules;
   readonly maintenance: MaintenanceRules;
   /**
@@ -289,6 +294,20 @@ export interface LaunchItem {
   /** Its mass, packing and any tank included, which counts towards the Payload Mass. */
   readonly massKilograms: number;
   readonly priceMillionDollars: number;
+}
+
+/**
+ * A piece of scientific work carried out at the base, which earns Science
+ * once it is complete. It needs no Robot, power or Components, only game
+ * time. Every one is available from the start.
+ */
+export interface ResearchTask {
+  readonly id: string;
+  readonly label: string;
+  /** How long it runs. Must come to a whole number of game-minutes. */
+  readonly lengthHours: number;
+  /** The Science it earns when it is complete, a whole amount. */
+  readonly science: number;
 }
 
 /**
@@ -651,7 +670,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 34,
+  version: 35,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1472,6 +1491,47 @@ export const catalogue: Catalogue = {
       },
     ],
   },
+  // From a few hours to a week. The short ones pay more Science an hour,
+  // but the player has to come back to start the next; the long ones run
+  // unattended, through a Night or a whole round trip of the Lander.
+  researchTasks: [
+    {
+      id: "regolith-sample-analysis",
+      label: "Regolith sample analysis",
+      lengthHours: 6,
+      science: 5,
+    },
+    {
+      id: "ice-volatiles-assay",
+      label: "Ice volatiles assay",
+      lengthHours: 12,
+      science: 8,
+    },
+    {
+      id: "radiation-environment-survey",
+      label: "Radiation environment survey",
+      lengthHours: 24,
+      science: 12,
+    },
+    {
+      id: "dust-levitation-study",
+      label: "Dust levitation study",
+      lengthHours: 48,
+      science: 20,
+    },
+    {
+      id: "seismic-monitoring",
+      label: "Seismic monitoring",
+      lengthHours: 72,
+      science: 30,
+    },
+    {
+      id: "low-frequency-radio-survey",
+      label: "Low-frequency radio survey",
+      lengthHours: 168,
+      science: 60,
+    },
+  ],
   // Reaching past everything that lands beside the Lander, so the base has
   // to grow away from it. Five take-offs and landings, two and a half round
   // trips, break anything left standing near it.
