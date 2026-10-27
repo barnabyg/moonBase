@@ -758,6 +758,34 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 31 to 32: the Life Support, Industry and Mobility Designs, whose
+  // electrolysis plant, large extraction plant, integrated fabrication
+  // plant and lit landing pad bring four new Components, which the base's
+  // stock keeps a count of after the others. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "electrolyser-stack", count: 0 },
+                  { componentId: "molten-regolith-cell", count: 0 },
+                  { componentId: "board-assembly-line", count: 0 },
+                  { componentId: "landing-floodlight", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**

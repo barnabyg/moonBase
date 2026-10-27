@@ -6,6 +6,7 @@ import {
   type Campaign,
   type GameEvent,
   type GroundPosition,
+  type Snapshot,
 } from "../src/simulation";
 
 /**
@@ -1976,14 +1977,22 @@ describe("the sample save of format version 30", () => {
 
 describe("the sample saves from before the Power and Construction Designs", () => {
   it.each(["version-1.moonbase", "version-22.moonbase", "version-30.moonbase"])(
-    "%s loads with none of the new Power and Construction Structures' own Components, counted last in the base's stock",
+    "%s loads with none of the new Power and Construction Structures' own Components, counted after the earlier ones in the base's stock",
     (name) => {
       const state = loadSample(name).snapshot();
 
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.slice(-3)).toEqual([
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "thin-film-solar-panel",
+            "tall-mast-pole",
+            "prefabricated-array-pack",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
         { componentId: "thin-film-solar-panel", count: 0 },
         { componentId: "tall-mast-pole", count: 0 },
         { componentId: "prefabricated-array-pack", count: 0 },
@@ -2059,5 +2068,94 @@ describe("the sample save of format version 31", () => {
         network.structureIds.includes("structure-6"),
       )?.structureIds,
     ).toContain("structure-1");
+  });
+});
+
+describe("the sample saves from before the Life Support, Industry and Mobility Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-31.moonbase"])(
+    "%s loads with none of the new Life Support, Industry and Mobility Structures' own Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "electrolyser-stack",
+            "molten-regolith-cell",
+            "board-assembly-line",
+            "landing-floodlight",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "electrolyser-stack", count: 0 },
+        { componentId: "molten-regolith-cell", count: 0 },
+        { componentId: "board-assembly-line", count: 0 },
+        { componentId: "landing-floodlight", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 32", () => {
+  // Saved 40297 game-minutes in, an hour into the Assembly of an
+  // electrolysis plant from an ice melter and one of two electrolyser
+  // stacks a Launch brought once Water electrolysis was unlocked, with the
+  // 200 kg of water ice an Expedition brought back in stock.
+  it("loads with Water electrolysis unlocked, an electrolysis plant being assembled, an electrolyser stack in stock and an Expedition's water ice", () => {
+    const state = loadSample("version-32.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 23, minute: 37 });
+    expect(state.unlockedDesignIds).toContain("water-electrolysis");
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+    ]);
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-4",
+        structureTypeId: "electrolysis-plant",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "electrolyser-stack",
+      ),
+    ).toEqual({ componentId: "electrolyser-stack", count: 1 });
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "water-ice"),
+    ).toEqual({ resourceId: "water-ice", kilograms: 200 });
+  });
+
+  it("plays on from where it was saved, the electrolysis plant commissioned within a day and turning the water ice into oxygen", () => {
+    const campaign = loadSample("version-32.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    const oxygen = (state: Snapshot) =>
+      state.lifeSupport.find((stock) => stock.stockId === "oxygen")
+        ?.kilograms ?? Number.NaN;
+    const ice = (state: Snapshot) =>
+      state.bulkResources.find((stock) => stock.resourceId === "water-ice")
+        ?.kilograms ?? Number.NaN;
+    const before = campaign.snapshot();
+
+    campaign.advance(12 * 60);
+
+    const after = campaign.snapshot();
+    expect(after.ended).toBeUndefined();
+    expect(after.lunation.part).toBe("daylight");
+    expect(after.structures.find((s) => s.id === "structure-4")).toMatchObject({
+      structureTypeId: "electrolysis-plant",
+    });
+    expect(ice(after)).toBeLessThan(ice(before));
+    expect(oxygen(after)).toBeGreaterThan(oxygen(before));
   });
 });

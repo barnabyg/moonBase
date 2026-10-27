@@ -69,10 +69,10 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
   await expect(
     screen
       .getByRole("region", { name: "Mobility" })
-      .getByRole("row", { name: /Pressurised Rover/ })
+      .getByRole("row", { name: /Landing pad lights/ })
       .getByRole("cell")
       .nth(2),
-  ).toContainText("Needs Large battery banks first");
+  ).toContainText("Needs Tall Light Masts first");
 
   await screen
     .getByRole("button", { name: "Unlock Large battery banks" })

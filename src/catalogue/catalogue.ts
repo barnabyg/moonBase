@@ -755,7 +755,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 41,
+  version: 42,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -919,6 +919,10 @@ export const catalogue: Catalogue = {
     { id: "thin-film-solar-panel", label: "Thin-film solar panel" },
     { id: "tall-mast-pole", label: "Tall mast pole" },
     { id: "prefabricated-array-pack", label: "Prefabricated array pack" },
+    { id: "electrolyser-stack", label: "Electrolyser stack" },
+    { id: "molten-regolith-cell", label: "Molten regolith cell" },
+    { id: "board-assembly-line", label: "Board assembly line" },
+    { id: "landing-floodlight", label: "Landing floodlight" },
   ],
   structureTypes: [
     {
@@ -1468,6 +1472,45 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: true,
     },
+    // A landing pad with a floodlight on a short post at each quarter of its
+    // edge, which switch on by themselves at Night, so that the Lander can
+    // be seen landing and the Robot unloading it. They light 20 m round its
+    // centre, a little wider than a Light Mast, for 0.45 kW: about what a
+    // Light Mast draws for each square metre, 103 kWh through a Night. A
+    // landing pad lands the Lander whether its lights have power or not.
+    // It ships 1300 kg for $38M, against 1240 kg for $30M, and takes 2
+    // hours longer to assemble.
+    {
+      id: "lit-landing-pad",
+      label: "Lit landing pad",
+      designId: "pressurised-rover",
+      footprintRadiusMetres: 7,
+      components: [
+        { componentId: "pad-panel", count: 8 },
+        { componentId: "pad-beacon", count: 1 },
+        { componentId: "landing-floodlight", count: 4 },
+      ],
+      stageHours: {
+        sitePreparation: 6,
+        componentDelivery: 2,
+        assembly: 10,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0.45,
+      },
+      lightRadiusMetres: 20,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: true,
+    },
     {
       id: "extraction-plant",
       label: "Extraction plant",
@@ -1567,6 +1610,101 @@ export const catalogue: Catalogue = {
         },
       ],
     },
+    // An extraction plant whose reactor is a big molten regolith cell,
+    // which melts Regolith through and splits it by electrolysis, rather
+    // than reducing what it can at the surface of each grain. It runs the
+    // same recipes on 10 kg of Regolith an hour rather than 4, for 8 kW
+    // rather than 4, so it makes more of everything for each kW: 0.4 kg of
+    // oxygen an hour running for oxygen, enough for the Mission Director in
+    // under a seventh of the Daylight, or 1.1 kg of silicon running for
+    // metals and silicon, enough for an integrated fabrication plant or
+    // three vacuum fabrication plants. With an oxygen separator it ships
+    // 1200 kg for $95M, against 1000 kg for $75M: well under half as much
+    // for each kilogram of silicon it makes an hour.
+    {
+      id: "large-extraction-plant",
+      label: "Large extraction plant",
+      designId: "molten-regolith-electrolysis",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "molten-regolith-cell", count: 1 },
+        { componentId: "oxygen-separator", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 1,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      // More Regolith goes through it than through an extraction plant.
+      dustWearPercentPerHour: 0.06,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 10,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.4,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.1,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.05,
+            },
+          ],
+          drawKilowatts: 8,
+        },
+        {
+          id: "metals-and-silicon",
+          label: "Metals and silicon",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 10,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.03,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 1.6,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 1.1,
+            },
+          ],
+          drawKilowatts: 8,
+        },
+      ],
+    },
     {
       id: "water-processing-plant",
       label: "Water-processing plant",
@@ -1618,6 +1756,65 @@ export const catalogue: Catalogue = {
             },
           ],
           drawKilowatts: 2,
+        },
+      ],
+    },
+    // A water-processing plant's ice melter feeding an electrolyser stack,
+    // which splits the water into oxygen and hydrogen; the hydrogen is
+    // vented. Water is eight-ninths oxygen by mass, so most of the ice comes
+    // out as oxygen: 0.4 kg an hour, well over twice what an extraction
+    // plant running for oxygen makes, for 5 kW rather than 4. Running for 62
+    // hours, an eighth of a Lunation's Daylight, it makes the 24.8 kg of
+    // oxygen the Mission Director uses in a Lunation from 31 kg of ice, a
+    // sixth of what an Expedition brings back, and leaves the extraction
+    // plant free to run for metals and silicon.
+    {
+      id: "electrolysis-plant",
+      label: "Electrolysis plant",
+      designId: "water-electrolysis",
+      footprintRadiusMetres: 2.5,
+      components: [
+        { componentId: "ice-melter", count: 1 },
+        { componentId: "electrolyser-stack", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 1.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.03,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "water-ice" },
+              kilogramsPerHour: 0.5,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 5,
         },
       ],
     },
@@ -1743,6 +1940,88 @@ export const catalogue: Catalogue = {
             },
           ],
           drawKilowatts: 3,
+        },
+      ],
+    },
+    // A crystal furnace feeding a board assembly line, which saws the
+    // crystals into wafers and turns them straight into circuit boards, so
+    // that the wafers never leave it. By default it makes 0.5 kg of circuit
+    // boards an hour from 0.45 kg of silicon and 0.3 kg of metals, a
+    // quarter more than a circuit board plant, for 9 kW, as much as a
+    // vacuum fabrication plant and a circuit board plant draw together. It
+    // can run for wafers alone instead: 0.6 kg an hour, twice a vacuum
+    // fabrication plant's, for 8 kW. Either takes more silicon than an
+    // extraction plant makes, so it needs a large extraction plant. It
+    // ships 900 kg for $85M, against 1350 kg for $125M for the two Plants
+    // it stands in for.
+    {
+      id: "integrated-fabrication-plant",
+      label: "Integrated fabrication plant",
+      designId: "integrated-fabrication",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "crystal-furnace", count: 1 },
+        { componentId: "board-assembly-line", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 7,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "circuit-boards",
+          label: "Circuit boards",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.45,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.3,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
+              kilogramsPerHour: 0.5,
+            },
+          ],
+          drawKilowatts: 9,
+        },
+        {
+          id: "wafers",
+          label: "Wafers",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.7,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.6,
+            },
+          ],
+          drawKilowatts: 8,
         },
       ],
     },
@@ -1968,6 +2247,15 @@ export const catalogue: Catalogue = {
         massKilograms: 40,
         priceMillionDollars: 6,
       },
+      // Four of them, round a lit landing pad's edge, add 60 kg to a landing
+      // pad's worth.
+      {
+        id: "landing-floodlight",
+        designId: "pressurised-rover",
+        brings: { kind: "component", componentId: "landing-floodlight" },
+        massKilograms: 15,
+        priceMillionDollars: 2,
+      },
       {
         id: "spare-component",
         designId: "maintenance-spares",
@@ -1990,6 +2278,15 @@ export const catalogue: Catalogue = {
         massKilograms: 300,
         priceMillionDollars: 30,
       },
+      // With an oxygen separator, a large extraction plant's worth comes to
+      // 1200 kg.
+      {
+        id: "molten-regolith-cell",
+        designId: "molten-regolith-electrolysis",
+        brings: { kind: "component", componentId: "molten-regolith-cell" },
+        massKilograms: 900,
+        priceMillionDollars: 65,
+      },
       // A water-processing plant's worth comes to 400 kg.
       {
         id: "ice-melter",
@@ -2004,6 +2301,14 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "water-purifier" },
         massKilograms: 150,
         priceMillionDollars: 20,
+      },
+      // With an ice melter, an electrolysis plant's worth comes to 550 kg.
+      {
+        id: "electrolyser-stack",
+        designId: "water-electrolysis",
+        brings: { kind: "component", componentId: "electrolyser-stack" },
+        massKilograms: 300,
+        priceMillionDollars: 30,
       },
       // A vacuum fabrication plant's worth comes to 750 kg, leaving room on
       // the same Launch for a second solar array to power it.
@@ -2036,6 +2341,15 @@ export const catalogue: Catalogue = {
         massKilograms: 250,
         priceMillionDollars: 25,
       },
+      // With a crystal furnace, an integrated fabrication plant's worth
+      // comes to 900 kg.
+      {
+        id: "board-assembly-line",
+        designId: "integrated-fabrication",
+        brings: { kind: "component", componentId: "board-assembly-line" },
+        massKilograms: 400,
+        priceMillionDollars: 45,
+      },
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
@@ -2050,6 +2364,24 @@ export const catalogue: Catalogue = {
         brings: { kind: "life-support", stockId: "water", kilograms: 50 },
         massKilograms: 60,
         priceMillionDollars: 2,
+      },
+      // Oxygen shipped as a cold liquid in one large insulated tank, and
+      // water in a large light tank: six times as much as a resupply tank
+      // each, a third more oxygen and an eighth more water for each
+      // kilogram shipped, at half the price for each kilogram.
+      {
+        id: "liquid-oxygen-tank",
+        designId: "bulk-supply-tanks",
+        brings: { kind: "life-support", stockId: "oxygen", kilograms: 150 },
+        massKilograms: 180,
+        priceMillionDollars: 6,
+      },
+      {
+        id: "bulk-water-tank",
+        designId: "bulk-supply-tanks",
+        brings: { kind: "life-support", stockId: "water", kilograms: 300 },
+        massKilograms: 320,
+        priceMillionDollars: 6,
       },
       // A humanoid Robot built for the Moon, crated with its spares and
       // tools. With the Launch fee, one costs half the Programme Grant, so
@@ -2114,6 +2446,13 @@ export const catalogue: Catalogue = {
       requiresDesignId: "dust-sealed-solar-arrays",
     },
     {
+      id: "cryogenic-boil-off-trial",
+      label: "Cryogenic boil-off trial",
+      lengthHours: 60,
+      science: 25,
+      requiresDesignId: "bulk-supply-tanks",
+    },
+    {
       id: "seismic-monitoring",
       label: "Seismic monitoring",
       lengthHours: 72,
@@ -2131,6 +2470,13 @@ export const catalogue: Catalogue = {
       lengthHours: 84,
       science: 35,
       requiresDesignId: "thin-film-solar-cells",
+    },
+    {
+      id: "molten-regolith-assay",
+      label: "Molten regolith assay",
+      lengthHours: 90,
+      science: 40,
+      requiresDesignId: "molten-regolith-electrolysis",
     },
     {
       id: "electrolysis-yield-trial",
@@ -2368,11 +2714,21 @@ export const catalogue: Catalogue = {
       id: "water-electrolysis",
       label: "Water electrolysis",
       description:
-        "Splitting water into oxygen and hydrogen with power from the base.",
+        "A Plant that melts water ice and splits the water into oxygen with power from the base, far faster than Regolith gives it up.",
       category: "life-support",
       starting: false,
       scienceCost: 40,
       prerequisiteDesignIds: ["water-processing"],
+    },
+    {
+      id: "bulk-supply-tanks",
+      label: "Bulk supply tanks",
+      description:
+        "Oxygen shipped as a cold liquid, and water, in large light tanks that bring far more for the mass they take up on a Launch, built on what Water electrolysis taught about storing oxygen.",
+      category: "life-support",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
     },
     {
       id: "regolith-extraction",
@@ -2404,6 +2760,29 @@ export const catalogue: Catalogue = {
       prerequisiteDesignIds: [],
     },
     {
+      id: "molten-regolith-electrolysis",
+      label: "Molten regolith electrolysis",
+      description:
+        "A larger extraction plant that melts Regolith through and splits it by electrolysis, making more oxygen, metals and silicon for each kW.",
+      category: "industry",
+      starting: false,
+      scienceCost: 45,
+      prerequisiteDesignIds: ["regolith-extraction"],
+    },
+    {
+      id: "integrated-fabrication",
+      label: "Integrated fabrication",
+      description:
+        "A single Plant that grows wafers and turns them straight into circuit boards, fed with the silicon a large extraction plant makes.",
+      category: "industry",
+      starting: false,
+      scienceCost: 50,
+      prerequisiteDesignIds: [
+        "molten-regolith-electrolysis",
+        "circuit-board-fabrication",
+      ],
+    },
+    {
       id: "landing-pads",
       label: "Landing pads",
       description:
@@ -2425,15 +2804,18 @@ export const catalogue: Catalogue = {
       scienceCost: 20,
       prerequisiteDesignIds: [],
     },
+    // Planned as a Rover with a cabin, but the base has the one Rover and
+    // no rule for another, so the Design whose id a save may hold lights a
+    // landing pad instead.
     {
       id: "pressurised-rover",
-      label: "Pressurised Rover",
+      label: "Landing pad lights",
       description:
-        "A Rover with a cabin, powered for longer journeys from the base.",
+        "Floodlights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",
       category: "mobility",
       starting: false,
-      scienceCost: 55,
-      prerequisiteDesignIds: ["large-battery-banks", "inflatable-habitat"],
+      scienceCost: 35,
+      prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
     },
   ],
   // Reaching past everything that lands beside the Lander, so the base has
