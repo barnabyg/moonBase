@@ -207,19 +207,23 @@ export function pluggedIn(
   for (const driven of everyDriven(state)) {
     if (isDrivenBroken(driven) || isOutOnExpedition(state, driven)) continue;
     const body = bodyOf(driven);
-    const gap = (structure: StructureState) =>
-      distance(body.position, structure.position) -
-      footprintRadius(structure.structureTypeId) -
-      drivenSpec(driven).footprintRadiusMetres;
+    const radius = drivenSpec(driven).footprintRadiusMetres;
     // The earlier Structure wins a tie, so the choice is always the same.
-    const nearest = sockets.reduce<StructureState | undefined>(
-      (best, structure) =>
-        best === undefined || gap(structure) < gap(best) ? structure : best,
-      undefined,
-    );
+    let nearest: StructureState | undefined;
+    let nearestGap = Number.POSITIVE_INFINITY;
+    for (const structure of sockets) {
+      const gap =
+        distance(body.position, structure.position) -
+        footprintRadius(structure.structureTypeId) -
+        radius;
+      if (nearest === undefined || gap < nearestGap) {
+        nearest = structure;
+        nearestGap = gap;
+      }
+    }
     if (
       nearest !== undefined &&
-      gap(nearest) <= catalogue.cold.plugInReachMetres
+      nearestGap <= catalogue.cold.plugInReachMetres
     ) {
       plugs.set(body.id, nearest);
     }
@@ -248,8 +252,12 @@ export function powerSockets(
   );
 }
 
-/** Groups the commissioned Structures into networks joined by complete cables. */
-function structureNetworks(
+/**
+ * Groups the commissioned Structures into networks joined by complete
+ * cables, without the Machines and Rovers plugged in to them (see
+ * `powerNetworks`).
+ */
+export function structureNetworks(
   state: CampaignState,
 ): Omit<PowerNetwork, "heated">[] {
   const group = new Map(
@@ -275,11 +283,11 @@ function structureNetworks(
     members.set(key, [...(members.get(key) ?? []), structure]);
   }
   return [...members.values()].map((structures) => {
+    // Worked out once for each Structure, as networks are grouped many
+    // times a game-minute.
+    const powers = structures.map(workingPower);
     const total = (pick: (power: Power) => number) =>
-      structures.reduce(
-        (sum, structure) => sum + pick(workingPower(structure)),
-        0,
-      );
+      powers.reduce((sum, power) => sum + pick(power), 0);
     return {
       structures,
       daylightGenerationKilowatts: total((power) => power.generationKilowatts),

@@ -17,7 +17,12 @@ import {
 import { isRoverSpokenFor } from "./expeditions";
 import { readLunation } from "./lunation";
 import { isUnderMaintenance } from "./maintenance";
-import { nearestPoweredStructure, pluggedIn, powerSockets } from "./power";
+import {
+  nearestPoweredStructure,
+  pluggedIn,
+  powerSockets,
+  structureNetworks,
+} from "./power";
 
 /**
  * A "park" Work Order: the Robot drives an idle Machine or Rover that isn't
@@ -55,7 +60,8 @@ export interface ParkingSnapshot {
  * its Structure can no longer take a plug.
  */
 export function planParking(state: CampaignState): void {
-  const plugs = pluggedIn(state);
+  const networks = structureNetworks(state);
+  const plugs = pluggedIn(state, networks);
   const parkingTime = isParkingTime(state);
   const needsParking = (driven: Driven) =>
     parkingTime &&
@@ -65,7 +71,7 @@ export function planParking(state: CampaignState): void {
     !isDrivenBroken(driven) &&
     !plugs.has(bodyOf(driven).id) &&
     !isUnderMaintenance(state, drivenTarget(driven));
-  const sockets = powerSockets(state);
+  const sockets = powerSockets(state, networks);
   const stillPowered = (parking: ParkingState) =>
     sockets.some((structure) => structure.id === parking.structureId);
   state.parking = state.parking.filter((parking) => {
