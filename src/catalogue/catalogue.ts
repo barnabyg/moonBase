@@ -1049,11 +1049,11 @@ export const catalogue: Catalogue = {
             },
             {
               resource: { kind: "bulk-resource", resourceId: "metals" },
-              kilogramsPerHour: 0.1,
+              kilogramsPerHour: 0.04,
             },
             {
               resource: { kind: "bulk-resource", resourceId: "silicon" },
-              kilogramsPerHour: 0.05,
+              kilogramsPerHour: 0.02,
             },
           ],
           drawKilowatts: 4,

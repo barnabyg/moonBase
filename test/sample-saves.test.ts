@@ -1232,9 +1232,19 @@ describe("the sample save of format version 21", () => {
     expect(bulkOf(campaign, "wafers")).toBeCloseTo(3.03, 1);
   });
 
-  it("plays on from where it was saved, the wafers rising while the silicon keeps up", () => {
+  it("plays on from where it was saved, the wafers rising while the silicon keeps up once the extraction plant runs for metals and silicon", () => {
     const campaign = loadSample("version-21.moonbase");
     const wafers = bulkOf(campaign, "wafers");
+    // It loads running the default recipe, for oxygen, which makes too
+    // little silicon to keep the vacuum fabrication plant going.
+    const extractionPlant = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+    expect(
+      campaign.setPlantRecipe(extractionPlant?.id ?? "", "metals-and-silicon"),
+    ).toEqual({ ok: true });
 
     campaign.advance(10 * 60);
 
