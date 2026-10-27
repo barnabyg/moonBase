@@ -496,6 +496,9 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "vacuum-fabrication-plant") {
     return createPlantModel("chamber");
   }
+  if (structureTypeId === "circuit-board-plant") {
+    return createPlantModel("oven");
+  }
   const array = createSolarArrayModel();
   return {
     group: array.group,
@@ -1343,18 +1346,20 @@ const PLANT_FAN_TURNS_PER_SECOND = 1.5;
 /**
  * A Plant: a vessel on a plinth, with the plant that feeds and empties it
  * beside it, and a cooling fan on top that turns while it runs, when the
- * vessel glows. A reactor is tall and narrow, a tank squat and wide, and a
- * chamber lies on its side. During Assembly the plinth goes down, then the
- * vessel rises.
+ * vessel glows. A reactor is tall and narrow, a tank squat and wide, a
+ * chamber lies on its side, and an oven is a low tunnel with a conveyor
+ * running through it. During Assembly the plinth goes down, then the vessel
+ * rises.
  */
 function createPlantModel(
-  vessel: "reactor" | "tank" | "chamber",
+  vessel: "reactor" | "tank" | "chamber" | "oven",
 ): StructureModel {
   const plant = new THREE.Group();
   plant.name = {
     reactor: "Extraction plant",
     tank: "Water plant",
     chamber: "Vacuum fabrication plant",
+    oven: "Circuit board plant",
   }[vessel];
   const statusLightMaterial = materials.statusOff.clone();
   const glow = materials.statusOff.clone();
@@ -1403,6 +1408,33 @@ function createPlantModel(
         new THREE.BoxGeometry(1.2, 0.3, 0.3),
         materials.darkMetal,
         [-0.7, 0.4, 0.9],
+      ),
+    );
+  } else if (vessel === "oven") {
+    // A tunnel from front to back on two legs, with the conveyor that
+    // carries the boards through it sticking out at both ends.
+    upper.add(
+      part(
+        new THREE.BoxGeometry(1.3, 0.9, 2.4),
+        materials.hull,
+        [-0.7, 1.05, 0],
+      ),
+      // A window along the top that glows while it works.
+      part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [-0.7, 1.52, 0]),
+      part(
+        new THREE.BoxGeometry(0.9, 0.08, 3.1),
+        materials.darkMetal,
+        [-0.7, 0.64, 0],
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.35, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.42, -0.9],
+      ),
+      part(
+        new THREE.BoxGeometry(1.2, 0.35, 0.3),
+        materials.darkMetal,
+        [-0.7, 0.42, 0.9],
       ),
     );
   } else {

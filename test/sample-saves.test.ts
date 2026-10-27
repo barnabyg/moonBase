@@ -1316,3 +1316,76 @@ describe("the sample save of format version 22", () => {
     ).toBe(16.5);
   });
 });
+
+describe("the sample saves from before the circuit board plant", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-22.moonbase"])(
+    "%s loads with no circuit boards, straight after the wafers, and none of the circuit board plant's Components",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      const ids = state.bulkResources.map((stock) => stock.resourceId);
+      expect(ids.indexOf("circuit-boards")).toBe(ids.indexOf("wafers") + 1);
+      expect(
+        state.bulkResources.find(
+          (stock) => stock.resourceId === "circuit-boards",
+        )?.kilograms,
+      ).toBe(0);
+      expect(
+        state.stockpile.components.filter((stock) =>
+          ["circuit-etcher", "reflow-oven"].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "circuit-etcher", count: 0 },
+        { componentId: "reflow-oven", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 23", () => {
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+
+  it("loads with a circuit board plant turning wafers and metals into circuit boards, and some of each to load onto the Lander", () => {
+    const campaign = loadSample("version-23.moonbase");
+
+    expect(
+      campaign
+        .snapshot()
+        .structures.filter((structure) => structure.plant !== undefined)
+        .map((structure) => [structure.structureTypeId, structure.plant]),
+    ).toEqual([
+      ["circuit-board-plant", { running: true, stoppedFor: undefined }],
+    ]);
+    expect(bulkOf(campaign, "circuit-boards")).toBeCloseTo(4.35, 1);
+    expect(campaign.snapshot().exports.toLoad).toEqual([
+      { resourceId: "wafers", kilograms: 10 },
+      { resourceId: "circuit-boards", kilograms: 3 },
+    ]);
+  });
+
+  it("plays on from where it was saved, the circuit boards rising as the wafers and metals fall", () => {
+    const campaign = loadSample("version-23.moonbase");
+    const before = Object.fromEntries(
+      ["wafers", "metals", "circuit-boards"].map((id) => [
+        id,
+        bulkOf(campaign, id),
+      ]),
+    );
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "circuit-boards")).toBeGreaterThan(
+      before["circuit-boards"] ?? Infinity,
+    );
+    expect(bulkOf(campaign, "wafers")).toBeLessThan(
+      before["wafers"] ?? -Infinity,
+    );
+    expect(bulkOf(campaign, "metals")).toBeLessThan(
+      before["metals"] ?? -Infinity,
+    );
+  });
+});

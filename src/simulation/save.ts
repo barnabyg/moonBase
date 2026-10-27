@@ -537,6 +537,39 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 22 to 23: the circuit board plant, with two new Components, which the
+  // base's stock keeps a count of after the others, and circuit boards,
+  // which come among the bulk resources straight after wafers. None of them
+  // was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, bulkResources } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "circuit-etcher", count: 0 },
+                  { componentId: "reflow-oven", count: 0 },
+                ],
+              }
+            : stockpile,
+        bulkResources: Array.isArray(bulkResources)
+          ? (bulkResources as unknown[]).flatMap((stock) =>
+              isRecord(stock) && stock["resourceId"] === "wafers"
+                ? [stock, { resourceId: "circuit-boards", kilograms: 0 }]
+                : [stock],
+            )
+          : bulkResources,
+      },
+    };
+  },
 ];
 
 /**

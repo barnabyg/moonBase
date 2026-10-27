@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { catalogue, type GroundPosition } from "../src/catalogue";
+import {
+  catalogue,
+  type GroundPosition,
+  type ResourceFlow,
+} from "../src/catalogue";
 
 const halfWidth = catalogue.map.widthMetres / 2;
 const halfDepth = catalogue.map.depthMetres / 2;
@@ -680,6 +684,83 @@ describe("the data catalogue", () => {
       expect(
         (plant?.drawKilowatts ?? 0) + (extraction?.drawKilowatts ?? 0),
       ).toBeGreaterThan(spare);
+    });
+  });
+
+  describe("the circuit board plant", () => {
+    const typeOf = (id: string) =>
+      catalogue.structureTypes.find((type) => type.id === id);
+    const plant = typeOf("circuit-board-plant")?.plant;
+    const rateOf = (
+      flows: readonly ResourceFlow[] | undefined,
+      resourceId: string,
+    ) =>
+      flows?.find(
+        (flow) =>
+          flow.resource.kind === "bulk-resource" &&
+          flow.resource.resourceId === resourceId,
+      )?.kilogramsPerHour ?? Number.NaN;
+    const priceOf = (resourceId: string) =>
+      catalogue.exports.find((sold) => sold.resourceId === resourceId)
+        ?.priceMillionDollarsPerKilogram ?? Number.NaN;
+
+    it("turns wafers and metals into circuit boards, a bulk resource straight after wafers", () => {
+      expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "wafers" },
+        { kind: "bulk-resource", resourceId: "metals" },
+      ]);
+      expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "circuit-boards" },
+      ]);
+      const ids = catalogue.bulkResources.map((resource) => resource.id);
+      expect(ids.indexOf("circuit-boards")).toBe(ids.indexOf("wafers") + 1);
+    });
+
+    it("keeps up with roughly one vacuum fabrication plant's wafers, and takes less metals than an extraction plant makes", () => {
+      const wafersMade = rateOf(
+        typeOf("vacuum-fabrication-plant")?.plant?.outputs,
+        "wafers",
+      );
+      const wafersTaken = rateOf(plant?.inputs, "wafers");
+
+      expect(wafersTaken).toBeLessThanOrEqual(wafersMade);
+      expect(wafersTaken).toBeGreaterThanOrEqual(wafersMade * 0.75);
+      expect(rateOf(plant?.inputs, "metals")).toBeLessThanOrEqual(
+        rateOf(typeOf("extraction-plant")?.plant?.outputs, "metals"),
+      );
+    });
+
+    it("runs with an extraction plant and a vacuum fabrication plant on what two solar arrays can spare", () => {
+      const draw = (id: string) => typeOf(id)?.power.drawKilowatts ?? 0;
+      const spare =
+        2 * (typeOf("solar-array")?.power.generationKilowatts ?? 0) -
+        2 * draw("solar-array") -
+        draw("battery-bank") -
+        draw("habitat");
+      const plants = [
+        "extraction-plant",
+        "vacuum-fabrication-plant",
+        "circuit-board-plant",
+      ].reduce(
+        (sum, id) => sum + (typeOf(id)?.plant?.drawKilowatts ?? Infinity),
+        0,
+      );
+
+      expect(plants).toBeLessThanOrEqual(spare);
+    });
+
+    it("makes circuit boards, an Export that sells a full Return Mass for clearly more than one of wafers", () => {
+      const returnMass = catalogue.lander.returnMassKilograms;
+
+      expect(priceOf("circuit-boards") * returnMass).toBeGreaterThanOrEqual(
+        1.5 * priceOf("wafers") * returnMass,
+      );
+    });
+
+    it("earns more from the wafers it takes in, as circuit boards, than they would sell for as wafers", () => {
+      expect(
+        priceOf("circuit-boards") * rateOf(plant?.outputs, "circuit-boards"),
+      ).toBeGreaterThan(priceOf("wafers") * rateOf(plant?.inputs, "wafers"));
     });
   });
 

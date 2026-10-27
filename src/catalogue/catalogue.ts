@@ -637,7 +637,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 31,
+  version: 32,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -739,6 +739,7 @@ export const catalogue: Catalogue = {
     { id: "metals", label: "Metals" },
     { id: "silicon", label: "Silicon" },
     { id: "wafers", label: "Wafers" },
+    { id: "circuit-boards", label: "Circuit boards" },
     { id: "water-ice", label: "Water ice" },
   ],
   // A full Return Mass of wafers sells for $150M, the Launch fee. A vacuum
@@ -747,7 +748,17 @@ export const catalogue: Catalogue = {
   // solar array it needs and the Launch that brought them in a Lunation or
   // two. But wafers alone pay for a Launch's flight and nothing it brings:
   // circuit boards are worth more for their mass.
-  exports: [{ resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 }],
+  //
+  // A full Return Mass of circuit boards sells for $300M, twice what one of
+  // wafers does: the Launch fee and as much again in what it brings. A
+  // circuit board plant makes 0.4 kg of them an hour, worth $1.2M, from
+  // 0.25 kg of wafers that would sell for under $0.4M, so the wafers earn
+  // over three times as much made into circuit boards, for the power and
+  // time it takes.
+  exports: [
+    { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
+    { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
+  ],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.
   digging: {
@@ -775,6 +786,8 @@ export const catalogue: Catalogue = {
     { id: "water-purifier", label: "Water purifier" },
     { id: "crystal-furnace", label: "Crystal furnace" },
     { id: "wafer-saw", label: "Wafer saw" },
+    { id: "circuit-etcher", label: "Circuit etcher" },
+    { id: "reflow-oven", label: "Reflow oven" },
   ],
   structureTypes: [
     {
@@ -1120,6 +1133,64 @@ export const catalogue: Catalogue = {
         drawKilowatts: 6,
       },
     },
+    {
+      id: "circuit-board-plant",
+      label: "Circuit board plant",
+      footprintRadiusMetres: 2.5,
+      // An etcher that lays circuits on metal-cored boards, and an oven
+      // that solders the chips cut from the wafers onto them.
+      components: [
+        { componentId: "circuit-etcher", count: 1 },
+        { componentId: "reflow-oven", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Dust in its etcher and on the conveyor through its oven.
+      dustWearPercentPerHour: 0.04,
+      // It draws power only while it runs (see its recipe).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      // It takes in a little less in wafers than a vacuum fabrication plant
+      // makes, so that, running together, it keeps up without the wafers
+      // running out, and as much metals again, well within what an
+      // extraction plant makes, for the boards' cores and circuits; offcuts
+      // and what is etched away make up the rest. Its oven draws 3 kW, so
+      // the three Plants together, at 13 kW, still run on what two solar
+      // arrays can spare beside the Habitat and a battery bank.
+      plant: {
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "wafers" },
+            kilogramsPerHour: 0.25,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.25,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
+            kilogramsPerHour: 0.4,
+          },
+        ],
+        drawKilowatts: 3,
+      },
+    },
   ],
   dismantlingLossShare: 0.2,
   startingStock: [
@@ -1302,6 +1373,19 @@ export const catalogue: Catalogue = {
       {
         id: "wafer-saw",
         brings: { kind: "component", componentId: "wafer-saw" },
+        massKilograms: 250,
+        priceMillionDollars: 25,
+      },
+      // A circuit board plant's worth comes to 600 kg.
+      {
+        id: "circuit-etcher",
+        brings: { kind: "component", componentId: "circuit-etcher" },
+        massKilograms: 350,
+        priceMillionDollars: 35,
+      },
+      {
+        id: "reflow-oven",
+        brings: { kind: "component", componentId: "reflow-oven" },
         massKilograms: 250,
         priceMillionDollars: 25,
       },
