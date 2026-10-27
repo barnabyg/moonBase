@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type Design } from "../catalogue";
 import {
   designLabel,
   type Campaign,
@@ -7,6 +7,7 @@ import {
 } from "../simulation";
 import { setText } from "./dom";
 import { describeDesignState, formatScience } from "./format";
+import { createScreen } from "./screen";
 
 export interface TechTreeScreen {
   open(): void;
@@ -14,136 +15,274 @@ export interface TechTreeScreen {
 }
 
 /**
- * The Tech Tree screen, where the player spends Science to unlock a Design:
- * every Design by category, with its cost, the Designs it needs first and
- * whether it is unlocked, can be unlocked now or is out of reach, and why.
- * It only sends the choice to unlock one to the Campaign, which decides
- * whether it is allowed and says why not, and passes on the notification of
- * one unlocked. The game runs on while it is open.
+ * The Tech Tree screen, where the player spends Science to unlock a Design.
+ * A tab for each category shows its Designs as cards, in columns by how far
+ * along the tree each is: the starting ones first, then each one after all
+ * the Designs it needs first. A card has its cost, the Designs it needs
+ * first and whether it is unlocked, can be unlocked now or is out of reach,
+ * and why. The screen only sends the choice to unlock one to the Campaign,
+ * which decides whether it is allowed and says why not, and passes on the
+ * notification of one unlocked. The game runs on while it is open.
  */
 export function createTechTreeScreen(
   container: HTMLElement,
   campaign: Pick<Campaign, "unlockDesign">,
   onUnlocked: (event: DesignUnlockedEvent) => void,
 ): TechTreeScreen {
-  const dialog = document.createElement("dialog");
-  dialog.className = "tech-tree";
-  dialog.setAttribute("aria-labelledby", "tech-tree-title");
-
-  const title = document.createElement("h2");
-  title.id = "tech-tree-title";
-  title.textContent = "Tech Tree";
-  const status = document.createElement("p");
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-label", "Science to spend");
-
-  // Why the latest unlocking was refused, until the next one.
-  const refusal = document.createElement("p");
-  refusal.className = "tech-tree__refusal";
-  refusal.setAttribute("role", "alert");
-  refusal.hidden = true;
-
-  const categories = catalogue.designCategories.map((category) => {
-    const section = document.createElement("section");
-    section.setAttribute("aria-label", category.label);
-    const heading = document.createElement("h3");
-    heading.textContent = category.label;
-    const table = document.createElement("table");
-    const head = document.createElement("thead");
-    const headings = document.createElement("tr");
-    for (const text of ["Design", "Cost", "Needs first", ""]) {
-      const cell = document.createElement("th");
-      cell.scope = "col";
-      cell.textContent = text;
-      headings.append(cell);
-    }
-    head.append(headings);
-    const body = document.createElement("tbody");
-    table.append(head, body);
-    section.append(heading, table);
-    return { id: category.id, section, body };
+  const screen = createScreen(container, {
+    className: "tech-tree",
+    title: "Tech Tree",
   });
+  screen.figure.setAttribute("role", "status");
+  screen.figure.setAttribute("aria-label", "Science to spend");
+  screen.lead.textContent =
+    "Unlocking a Design permits what it covers, but adds nothing to the base: it still has to be shipped or built.";
 
-  const rows = catalogue.designs.map((design) => {
-    const row = document.createElement("tr");
-    const name = document.createElement("th");
-    name.scope = "row";
-    const label = document.createElement("span");
-    label.className = "tech-tree__label";
-    label.textContent = design.label;
-    const description = document.createElement("span");
-    description.className = "tech-tree__description";
-    description.textContent = design.description;
-    name.append(label, description);
-    const cost = document.createElement("td");
+  const tabList = document.createElement("div");
+  tabList.className = "tech-tree__tabs";
+  tabList.setAttribute("role", "tablist");
+  tabList.setAttribute("aria-label", "Categories");
+  screen.header.append(tabList);
+
+  const tiers = designTiers();
+  const categories = catalogue.designCategories
+    .map((category) => {
+      const designs = catalogue.designs.filter(
+        (design) => design.category === category.id,
+      );
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "tech-tree__tab";
+      tab.id = `tech-tree-tab-${category.id}`;
+      tab.setAttribute("role", "tab");
+      const name = document.createElement("span");
+      name.textContent = category.label;
+      // How many are unlocked, and a mark when one can be now.
+      const tally = document.createElement("span");
+      tally.className = "tech-tree__tally";
+      tab.append(name, tally);
+      const panel = document.createElement("div");
+      panel.className = "tech-tree__panel";
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", tab.id);
+      tab.setAttribute(
+        "aria-controls",
+        (panel.id = `tech-tree-${category.id}`),
+      );
+      const columns = new Map<number, HTMLElement>();
+      for (const tier of [
+        ...new Set(designs.map((d) => tiers.get(d.id) ?? 0)),
+      ].sort((a, b) => a - b)) {
+        const column = document.createElement("div");
+        column.className = "tech-tree__column";
+        const heading = document.createElement("h3");
+        heading.className = "screen__section-title";
+        heading.textContent = tier === 0 ? "Starting" : `Tier ${tier}`;
+        column.append(heading);
+        columns.set(tier, column);
+        panel.append(column);
+      }
+      return {
+        id: category.id,
+        label: category.label,
+        designs,
+        tab,
+        tally,
+        panel,
+        columns,
+      };
+    })
+    .filter((category) => category.designs.length > 0);
+  function select(id: string, focus: boolean): void {
+    for (const category of categories) {
+      const isSelected = category.id === id;
+      category.tab.setAttribute("aria-selected", String(isSelected));
+      category.tab.tabIndex = isSelected ? 0 : -1;
+      category.panel.hidden = !isSelected;
+      if (isSelected && focus) category.tab.focus();
+    }
+    screen.body.scrollTop = 0;
+  }
+  for (const [index, category] of categories.entries()) {
+    category.tab.addEventListener("click", () => {
+      select(category.id, false);
+    });
+    // Arrow keys move between the tabs, as in any tab list.
+    category.tab.addEventListener("keydown", (event) => {
+      const step =
+        event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (step === 0) return;
+      event.preventDefault();
+      const next =
+        categories[(index + step + categories.length) % categories.length];
+      if (next !== undefined) select(next.id, true);
+    });
+    tabList.append(category.tab);
+    screen.body.append(category.panel);
+  }
+  // The first, until the player picks another; it stays picked between visits.
+  const first = categories[0];
+  if (first !== undefined) select(first.id, false);
+
+  const cards = categories.flatMap((category) =>
+    category.designs.map((design) => {
+      const card = createCard(design, category.id, (message) => {
+        screen.refuse(message);
+      });
+      category.columns.get(tiers.get(design.id) ?? 0)?.append(card.element);
+      return card;
+    }),
+  );
+
+  function createCard(
+    design: Design,
+    categoryId: string,
+    refuse: (message: string | undefined) => void,
+  ) {
+    const element = document.createElement("article");
+    element.className = "design-card";
+    element.setAttribute("aria-label", design.label);
+    const top = document.createElement("div");
+    top.className = "design-card__top";
+    const name = document.createElement("h4");
+    name.className = "design-card__name";
+    name.textContent = design.label;
+    const cost = document.createElement("span");
+    cost.className = design.starting ? "chip" : "chip chip--science";
     cost.textContent = design.starting
       ? "Starting"
       : formatScience(design.scienceCost);
-    const needs = document.createElement("td");
-    needs.textContent =
-      design.prerequisiteDesignIds.length === 0
-        ? "Nothing"
-        : design.prerequisiteDesignIds.map(designLabel).join(", ");
-    const action = document.createElement("td");
-    action.className = "tech-tree__action";
+    top.append(name, cost);
+    const description = document.createElement("p");
+    description.className = "design-card__description";
+    description.textContent = design.description;
+    element.append(top, description);
+
+    // Each Design it needs first, marked once it is unlocked.
+    const needs = design.prerequisiteDesignIds.map((id) => {
+      const chip = document.createElement("span");
+      chip.className = "chip design-card__need";
+      const prerequisite = catalogue.designs.find((d) => d.id === id);
+      const elsewhere =
+        prerequisite !== undefined && prerequisite.category !== categoryId
+          ? catalogue.designCategories.find(
+              (category) => category.id === prerequisite.category,
+            )?.label
+          : undefined;
+      chip.textContent =
+        elsewhere === undefined
+          ? designLabel(id)
+          : `${designLabel(id)} (${elsewhere})`;
+      return { id, chip };
+    });
+    if (needs.length > 0) {
+      const line = document.createElement("p");
+      line.className = "design-card__needs";
+      const label = document.createElement("span");
+      label.className = "design-card__needs-label";
+      label.textContent = "Needs";
+      line.append(label, ...needs.map(({ chip }) => chip));
+      element.append(line);
+    }
+
+    const foot = document.createElement("div");
+    foot.className = "design-card__foot";
     // Whether it is unlocked, can be now, or why not.
     const state = document.createElement("span");
     const unlock = document.createElement("button");
     unlock.type = "button";
+    unlock.className = "screen__button";
     unlock.textContent = "Unlock";
     unlock.setAttribute("aria-label", `Unlock ${design.label}`);
     unlock.addEventListener("click", () => {
       const result = campaign.unlockDesign(design.id);
-      refusal.hidden = result.ok;
-      setText(refusal, result.ok ? "" : result.message);
+      refuse(result.ok ? undefined : result.message);
       if (result.ok) onUnlocked(result.event);
     });
-    action.append(state, unlock);
-    row.append(name, cost, needs, action);
-    categories
-      .find((category) => category.id === design.category)
-      ?.body.append(row);
-    return { design, state, unlock };
-  });
+    foot.append(state, unlock);
+    element.append(foot);
 
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "Close";
-  close.addEventListener("click", () => {
-    dialog.close();
-  });
-
-  dialog.append(
-    title,
-    status,
-    ...categories
-      .filter((category) => category.body.childElementCount > 0)
-      .map((category) => category.section),
-    refusal,
-    close,
-  );
-  dialog.addEventListener("close", () => {
-    refusal.hidden = true;
-  });
-  container.append(dialog);
+    return {
+      design,
+      element,
+      update(snapshot: Snapshot) {
+        const described = describeDesignState(design, snapshot);
+        setText(
+          state,
+          described.state === "unlocked" ? "✓ Unlocked" : described.text,
+        );
+        state.className = `design-card__state design-card__state--${described.state}`;
+        element.dataset["state"] = described.state;
+        for (const { id, chip } of needs) {
+          chip.classList.toggle(
+            "chip--met",
+            snapshot.unlockedDesignIds.includes(id),
+          );
+        }
+        // One out of reach keeps its button, so that unlocking it says why
+        // it can't; only one that can be unlocked now stands out.
+        unlock.hidden = described.state === "unlocked";
+        unlock.classList.toggle(
+          "screen__button--primary",
+          described.state === "unlockable",
+        );
+        return described.state;
+      },
+    };
+  }
 
   return {
     open() {
-      if (!dialog.open) dialog.showModal();
+      screen.open();
     },
     update(snapshot) {
-      setText(
-        status,
-        `${formatScience(snapshot.science)} to spend. Unlocking a Design permits what it covers, but adds nothing to the base.`,
+      setText(screen.figure, `${formatScience(snapshot.science)} to spend`);
+      const states = new Map(
+        cards.map((card) => [card.design.id, card.update(snapshot)]),
       );
-      for (const { design, state, unlock } of rows) {
-        const described = describeDesignState(design, snapshot);
-        setText(state, described.text);
-        const className = `tech-tree__state tech-tree__state--${described.state}`;
-        if (state.className !== className) state.className = className;
-        // One out of reach keeps its button, so that unlocking it says why it can't.
-        unlock.hidden = described.state === "unlocked";
+      for (const category of categories) {
+        const unlocked = category.designs.filter(
+          (design) => states.get(design.id) === "unlocked",
+        ).length;
+        const unlockable = category.designs.some(
+          (design) => states.get(design.id) === "unlockable",
+        );
+        const tally = `${unlocked}/${category.designs.length}`;
+        setText(category.tally, tally);
+        category.tab.classList.toggle("tech-tree__tab--ready", unlockable);
+        // Its name, then the tally and the mark in words.
+        const name = `${category.label}, ${unlocked} of ${category.designs.length} unlocked${unlockable ? ", a Design can be unlocked now" : ""}`;
+        if (category.tab.getAttribute("aria-label") !== name) {
+          category.tab.setAttribute("aria-label", name);
+          category.tab.title = name;
+        }
       }
     },
   };
+}
+
+/**
+ * How far along the tree each Design is: 0 for a starting one, and for any
+ * other one more than the furthest along of the Designs it needs first.
+ */
+function designTiers(): Map<string, number> {
+  const tiers = new Map<string, number>();
+  function tierOf(design: Design): number {
+    const known = tiers.get(design.id);
+    if (known !== undefined) return known;
+    const tier = design.starting
+      ? 0
+      : 1 +
+        Math.max(
+          0,
+          ...design.prerequisiteDesignIds.map((id) => {
+            const prerequisite = catalogue.designs.find((d) => d.id === id);
+            return prerequisite === undefined ? 0 : tierOf(prerequisite);
+          }),
+        );
+    tiers.set(design.id, tier);
+    return tier;
+  }
+  for (const design of catalogue.designs) tierOf(design);
+  return tiers;
 }

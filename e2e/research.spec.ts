@@ -32,20 +32,25 @@ test("a Research Task started from the Research Tasks screen runs for its length
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
   const screen = page.getByRole("dialog", { name: "Research Tasks" });
-  // Its length and the Science it pays, after its name.
+  const nowRunning = screen.getByRole("status", {
+    name: "Research Task running",
+  });
+  await expect(nowRunning).toContainText("Nothing running");
+  // Its card has its length and the Science it pays.
   const firstTask = screen
-    .getByRole("row", { name: /Regolith sample analysis/ })
-    .getByRole("cell");
-  await expect(firstTask.nth(0)).toHaveText("6 hours");
-  await expect(firstTask.nth(1)).toHaveText("5 Science");
+    .getByRole("region", { name: "Available" })
+    .getByRole("article", { name: "Regolith sample analysis" });
+  await expect(firstTask).toContainText("6 hours");
+  await expect(firstTask).toContainText("5 Science");
   await screen
     .getByRole("button", { name: "Start Regolith sample analysis" })
     .click();
-  await expect(
-    screen.getByRole("status", { name: "Research Task running" }),
-  ).toHaveText(
-    "Running: Regolith sample analysis, 6 hours left. Another can start once it is complete.",
+  await expect(nowRunning).toContainText("Now running");
+  await expect(nowRunning).toContainText("Regolith sample analysis");
+  await expect(nowRunning).toContainText(
+    "6 hours left, then it pays 5 Science",
   );
+  await expect(firstTask).toContainText("Running");
   // A second one is refused, with the reason.
   await screen
     .getByRole("button", { name: "Start Ice volatiles assay" })
@@ -70,10 +75,12 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await expect(running).toHaveText("Task none running");
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
-  // As the player reads it, leaving out the hidden Start button.
-  await expect(firstTask.nth(2)).toHaveText("Completed", {
-    useInnerText: true,
-  });
+  // It has moved under the completed ones.
+  await expect(
+    screen
+      .getByRole("region", { name: "Completed" })
+      .getByRole("article", { name: "Regolith sample analysis" }),
+  ).toContainText("Completed");
   await expect(
     screen.getByRole("button", { name: "Start Regolith sample analysis" }),
   ).toBeHidden();

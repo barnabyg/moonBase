@@ -142,6 +142,7 @@ test("Science unlocks Robots, and then a Robot is on the Launch manifest screen 
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
+  await tree.getByRole("tab", { name: /^Mobility/ }).click();
   await tree.getByRole("button", { name: "Unlock Robots" }).click();
   await expect(
     notifications.getByText("Robots unlocked, for 20 Science"),

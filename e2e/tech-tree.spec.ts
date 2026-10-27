@@ -30,7 +30,7 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
   await page.getByRole("button", { name: "Research Tasks" }).click();
   const research = page.getByRole("dialog", { name: "Research Tasks" });
   await expect(
-    research.getByRole("row", { name: /Sintered block testing/ }),
+    research.getByRole("article", { name: "Sintered block testing" }),
   ).toBeHidden();
   await research
     .getByRole("button", { name: "Start Regolith sample analysis" })
@@ -48,32 +48,37 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const screen = page.getByRole("dialog", { name: "Tech Tree" });
-  await expect(screen.getByRole("status")).toHaveText(
-    "5 Science to spend. Unlocking a Design permits what it covers, but adds nothing to the base.",
+  await expect(
+    screen.getByRole("status", { name: "Science to spend" }),
+  ).toHaveText("5 Science to spend");
+  // Power is shown first, one category to a tab.
+  const power = screen.getByRole("tabpanel", { name: /^Power/ });
+  await expect(screen.getByRole("tab", { name: /^Power/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
   );
-  const power = screen.getByRole("region", { name: "Power" });
   // A starting Design is unlocked, and has no Unlock button.
-  const solar = power.getByRole("row", { name: /^Solar arrays/ });
-  await expect(solar.getByRole("cell").nth(0)).toHaveText("Starting");
-  // As the player reads it, leaving out the hidden Unlock button.
-  await expect(solar.getByRole("cell").nth(2)).toHaveText("Unlocked", {
-    useInnerText: true,
-  });
+  const solar = power.getByRole("article", { name: "Solar arrays" });
+  await expect(solar).toContainText("Starting");
+  await expect(solar).toContainText("Unlocked");
+  await expect(
+    solar.getByRole("button", { name: "Unlock Solar arrays" }),
+  ).toBeHidden();
   // One beyond them, with its cost, what it needs first and why it is out of reach.
-  const large = power.getByRole("row", { name: /Large battery banks/ });
-  await expect(large.getByRole("cell").nth(0)).toHaveText("25 Science");
-  await expect(large.getByRole("cell").nth(1)).toHaveText("Battery banks");
-  await expect(large.getByRole("cell").nth(2)).toContainText(
-    "Needs 20 more Science",
-  );
+  const large = power.getByRole("article", { name: "Large battery banks" });
+  await expect(large).toContainText("25 Science");
+  await expect(large).toContainText("Battery banks");
+  await expect(large).toContainText("Needs 20 more Science");
+  // Another category is a tab away.
+  await screen.getByRole("tab", { name: /^Mobility/ }).click();
+  await expect(power).toBeHidden();
   await expect(
     screen
-      .getByRole("region", { name: "Mobility" })
-      .getByRole("row", { name: /Landing pad lights/ })
-      .getByRole("cell")
-      .nth(2),
+      .getByRole("tabpanel", { name: /^Mobility/ })
+      .getByRole("article", { name: "Landing pad lights" }),
   ).toContainText("Needs Tall Light Masts first");
 
+  await screen.getByRole("tab", { name: /^Power/ }).click();
   await screen
     .getByRole("button", { name: "Unlock Large battery banks" })
     .click();

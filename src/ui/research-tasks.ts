@@ -5,7 +5,9 @@ import {
   type Snapshot,
 } from "../simulation";
 import { setText } from "./dom";
-import { describeResearch, formatDuration, formatScience } from "./format";
+import { formatDuration, formatScience, researchTaskLabel } from "./format";
+import { createScreen } from "./screen";
+import { createMeter } from "./stat";
 
 export interface ResearchTasksScreen {
   open(): void;
@@ -14,109 +16,162 @@ export interface ResearchTasksScreen {
 
 /**
  * The Research Tasks screen, where the player starts a Research Task to earn
- * Science: each with its length and the Science it pays, which one is
- * running and how long it has left, and which have been completed. One
- * that needs a Design isn't listed until that Design is unlocked. It only
- * sends the choice to start one to the Campaign, which decides whether it is
- * allowed and says why not. The game runs on while it is open.
+ * Science: the one running, with how far it has got and how long it has
+ * left, above a card for each of the others with its length and the
+ * Science it pays, and the completed ones below. One that needs a Design
+ * isn't shown until that Design is unlocked. It only sends the choice to
+ * start one to the Campaign, which decides whether it is allowed and says
+ * why not. The game runs on while it is open.
  */
 export function createResearchTasksScreen(
   container: HTMLElement,
   campaign: Pick<Campaign, "startResearchTask">,
 ): ResearchTasksScreen {
-  const dialog = document.createElement("dialog");
-  dialog.className = "research-tasks";
-  dialog.setAttribute("aria-labelledby", "research-tasks-title");
+  const screen = createScreen(container, {
+    className: "research-tasks",
+    title: "Research Tasks",
+  });
+  screen.lead.textContent =
+    "Science is earned only by Research Tasks, and spent on the Tech Tree.";
 
-  const title = document.createElement("h2");
-  title.id = "research-tasks-title";
-  title.textContent = "Research Tasks";
-  const status = document.createElement("p");
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-label", "Research Task running");
+  // The one running, or how research works while none is.
+  const now = document.createElement("section");
+  now.className = "research-tasks__now";
+  now.setAttribute("role", "status");
+  now.setAttribute("aria-label", "Research Task running");
+  const nowHeading = document.createElement("p");
+  nowHeading.className = "research-tasks__eyebrow";
+  const nowName = document.createElement("p");
+  nowName.className = "research-tasks__now-name";
+  const nowMeter = createMeter();
+  const nowDetail = document.createElement("p");
+  nowDetail.className = "research-tasks__now-detail";
+  now.append(nowHeading, nowName, nowMeter.element, nowDetail);
 
-  const table = document.createElement("table");
-  const head = document.createElement("thead");
-  const headings = document.createElement("tr");
-  for (const text of ["Research Task", "Length", "Pays", ""]) {
-    const cell = document.createElement("th");
-    cell.scope = "col";
-    cell.textContent = text;
-    headings.append(cell);
-  }
-  head.append(headings);
-  const body = document.createElement("tbody");
-  table.append(head, body);
+  const available = createGroup("Available");
+  const completed = createGroup("Completed");
+  screen.body.append(now, available.section, completed.section);
 
-  // Why the latest start was refused, until the next one.
-  const refusal = document.createElement("p");
-  refusal.className = "research-tasks__refusal";
-  refusal.setAttribute("role", "alert");
-  refusal.hidden = true;
-
-  const rows = catalogue.researchTasks.map((task) => {
-    const row = document.createElement("tr");
-    const name = document.createElement("th");
-    name.scope = "row";
+  const cards = catalogue.researchTasks.map((task) => {
+    const card = document.createElement("article");
+    card.className = "task-card";
+    card.setAttribute("aria-label", task.label);
+    const name = document.createElement("h4");
+    name.className = "task-card__name";
     name.textContent = task.label;
-    const length = document.createElement("td");
+    const chips = document.createElement("p");
+    chips.className = "task-card__chips";
+    const length = document.createElement("span");
+    length.className = "chip";
     length.textContent = formatDuration(researchTaskMinutes(task));
-    const pays = document.createElement("td");
+    const pays = document.createElement("span");
+    pays.className = "chip chip--science";
     pays.textContent = formatScience(task.science);
-    const action = document.createElement("td");
-    action.className = "research-tasks__action";
-    // Whether it is running or completed, in place of the button.
+    chips.append(length, pays);
+    // Running or completed, in place of the button.
     const state = document.createElement("span");
+    state.className = "task-card__state";
     const start = document.createElement("button");
     start.type = "button";
+    start.className = "screen__button";
     start.textContent = "Start";
     start.setAttribute("aria-label", `Start ${task.label}`);
     start.addEventListener("click", () => {
       const result = campaign.startResearchTask(task.id);
-      refusal.hidden = result.ok;
-      setText(refusal, result.ok ? "" : result.message);
+      screen.refuse(result.ok ? undefined : result.message);
     });
-    action.append(state, start);
-    row.append(name, length, pays, action);
-    body.append(row);
-    return { task, row, state, start };
+    const foot = document.createElement("div");
+    foot.className = "task-card__foot";
+    foot.append(state, start);
+    card.append(name, chips, foot);
+    return { task, card, state, start, done: false };
   });
-
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "Close";
-  close.addEventListener("click", () => {
-    dialog.close();
-  });
-
-  dialog.append(title, status, table, refusal, close);
-  dialog.addEventListener("close", () => {
-    refusal.hidden = true;
-  });
-  container.append(dialog);
 
   return {
     open() {
-      if (!dialog.open) dialog.showModal();
+      screen.open();
     },
     update(snapshot) {
+      setText(screen.figure, formatScience(snapshot.science));
       const running = snapshot.researchTask;
-      setText(status, describeResearch(running));
-      for (const { task, row, state, start } of rows) {
+      if (running === undefined) {
+        setText(nowHeading, "Nothing running");
+        setText(
+          nowName,
+          "Start one below. It runs by itself, with no Robot, power or Components, and pays its Science when complete.",
+        );
+        setText(nowDetail, "One runs at a time, and each runs only once.");
+      } else {
+        const task = catalogue.researchTasks.find(
+          ({ id }) => id === running.researchTaskId,
+        );
+        setText(nowHeading, "Now running");
+        setText(nowName, researchTaskLabel(running.researchTaskId));
+        setText(
+          nowDetail,
+          `${formatDuration(running.minutesLeft)} left, then it pays ${formatScience(task?.science ?? 0)}`,
+        );
+      }
+      now.classList.toggle("research-tasks__now--idle", running === undefined);
+      nowMeter.fill(running?.progress);
+
+      let regrouped = false;
+      for (const entry of cards) {
+        const { task, card, state, start } = entry;
         // One that needs a Design isn't offered until it is unlocked.
         const needed = task.requiresDesignId;
-        row.hidden =
+        card.hidden =
           needed !== undefined && !snapshot.unlockedDesignIds.includes(needed);
-        const shown =
-          running?.researchTaskId === task.id
-            ? "Running"
-            : snapshot.completedResearchTaskIds.includes(task.id)
-              ? "Completed"
-              : "";
-        setText(state, shown);
-        // Another's button stays, so that starting it says why it can't.
-        start.hidden = shown !== "";
+        const isRunning = running?.researchTaskId === task.id;
+        const done = snapshot.completedResearchTaskIds.includes(task.id);
+        setText(state, isRunning ? "Running" : done ? "✓ Completed" : "");
+        card.classList.toggle("task-card--running", isRunning);
+        card.classList.toggle("task-card--completed", done);
+        // Another's button stays while one runs, so that starting it says
+        // why it can't; it is just less prominent.
+        start.hidden = isRunning || done;
+        start.classList.toggle(
+          "screen__button--primary",
+          running === undefined,
+        );
+        if (entry.done !== done) {
+          entry.done = done;
+          regrouped = true;
+        }
+      }
+      if (regrouped || available.list.childElementCount === 0) {
+        // In catalogue order within each group.
+        for (const { card, done } of cards) {
+          (done ? completed : available).list.append(card);
+        }
+      }
+      for (const group of [available, completed]) {
+        const shown = [...group.list.children].filter(
+          (card) => !(card as HTMLElement).hidden,
+        ).length;
+        group.section.hidden = shown === 0;
+        setText(group.count, String(shown));
       }
     },
   };
+}
+
+/** A heading with how many cards are under it, over a grid of them. */
+function createGroup(label: string): {
+  readonly section: HTMLElement;
+  readonly list: HTMLElement;
+  readonly count: HTMLElement;
+} {
+  const section = document.createElement("section");
+  section.className = "research-tasks__group";
+  section.setAttribute("aria-label", label);
+  const heading = document.createElement("h3");
+  heading.className = "screen__section-title";
+  const count = document.createElement("span");
+  count.className = "screen__count";
+  heading.append(label, " ", count);
+  const list = document.createElement("div");
+  list.className = "task-grid";
+  section.append(heading, list);
+  return { section, list, count };
 }

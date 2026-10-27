@@ -9,6 +9,7 @@
   --accent: #f2c14e;
   --good: #6fd08c;
   --warning: #ff8a70;
+  --science: #8fd0ff;
   --meter-track: rgb(255 255 255 / 10%);
   --gutter: 12px;
   --top-bar-height: 52px;
@@ -663,9 +664,7 @@ body {
 
 .game-over,
 .launch-manifest,
-.expeditions,
-.research-tasks,
-.tech-tree {
+.expeditions {
   max-width: 440px;
   padding: 20px 22px;
   color: var(--text);
@@ -677,9 +676,7 @@ body {
 
 .game-over::backdrop,
 .launch-manifest::backdrop,
-.expeditions::backdrop,
-.research-tasks::backdrop,
-.tech-tree::backdrop {
+.expeditions::backdrop {
   background: rgb(0 0 0 / 60%);
 }
 
@@ -742,79 +739,20 @@ body {
   border-radius: 6px;
 }
 
-.launch-manifest,
-.research-tasks,
-.tech-tree {
+.launch-manifest {
   max-width: 520px;
   max-height: calc(100% - 32px);
 }
 
 .launch-manifest h2,
-.expeditions h2,
-.research-tasks h2,
-.tech-tree h2 {
+.expeditions h2 {
   margin: 0 0 8px;
   font-size: 1.2rem;
 }
 
-.launch-manifest h3,
-.tech-tree h3 {
+.launch-manifest h3 {
   margin: 14px 0 6px;
   font-size: 1rem;
-}
-
-.tech-tree {
-  max-width: 640px;
-}
-
-/* The same columns in every category's table. */
-.tech-tree table {
-  table-layout: fixed;
-}
-
-.tech-tree thead th:nth-child(1) {
-  width: 42%;
-}
-
-.tech-tree thead th:nth-child(2) {
-  width: 14%;
-}
-
-.tech-tree thead th:nth-child(3) {
-  width: 20%;
-}
-
-.tech-tree tbody th,
-.tech-tree td {
-  vertical-align: top;
-}
-
-.tech-tree__label,
-.tech-tree__description {
-  display: block;
-}
-
-.tech-tree__description {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.tech-tree__state {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text-muted);
-}
-
-.tech-tree__state--unlocked {
-  color: var(--accent);
-}
-
-/* Stays in sight at the foot of the screen while the tree scrolls past it. */
-.tech-tree__refusal {
-  position: sticky;
-  bottom: 0;
-  padding: 6px 0;
-  background: var(--panel-background);
 }
 
 .launch-manifest__kilograms {
@@ -837,15 +775,11 @@ body {
 }
 
 .launch-manifest p,
-.expeditions p,
-.research-tasks p,
-.tech-tree p {
+.expeditions p {
   margin: 0 0 10px;
 }
 
-.launch-manifest table,
-.research-tasks table,
-.tech-tree table {
+.launch-manifest table {
   width: 100%;
   margin-bottom: 10px;
   border-collapse: collapse;
@@ -854,26 +788,18 @@ body {
 }
 
 .launch-manifest th,
-.launch-manifest td,
-.research-tasks th,
-.tech-tree th,
-.research-tasks td,
-.tech-tree td {
+.launch-manifest td {
   padding: 3px 6px;
   text-align: left;
 }
 
-.launch-manifest thead th,
-.research-tasks thead th,
-.tech-tree thead th {
+.launch-manifest thead th {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.launch-manifest tbody th,
-.research-tasks tbody th,
-.tech-tree tbody th {
+.launch-manifest tbody th {
   font-weight: normal;
 }
 
@@ -881,17 +807,8 @@ body {
   text-align: right;
 }
 
-.launch-manifest__actions,
-.research-tasks__action {
+.launch-manifest__actions {
   white-space: nowrap;
-}
-
-.research-tasks__action span {
-  color: var(--text-muted);
-}
-
-.research-tasks__action span:empty {
-  display: none;
 }
 
 .launch-manifest__total {
@@ -899,16 +816,12 @@ body {
 }
 
 .launch-manifest__refusal,
-.expeditions__refusal,
-.research-tasks__refusal,
-.tech-tree__refusal {
+.expeditions__refusal {
   color: var(--warning);
 }
 
 .launch-manifest__refusal[hidden],
-.expeditions__refusal[hidden],
-.research-tasks__refusal[hidden],
-.tech-tree__refusal[hidden] {
+.expeditions__refusal[hidden] {
   display: none;
 }
 
@@ -917,9 +830,7 @@ body {
 }
 
 .launch-manifest button,
-.expeditions button,
-.research-tasks button,
-.tech-tree button {
+.expeditions button {
   padding: 2px 8px;
   font: inherit;
   font-size: 0.85rem;
@@ -938,9 +849,7 @@ body {
   margin-left: 4px;
 }
 
-.launch-manifest button:hover:not(:disabled),
-.research-tasks button:hover,
-.tech-tree button:hover {
+.launch-manifest button:hover:not(:disabled) {
   border-color: var(--text-muted);
 }
 
@@ -949,9 +858,455 @@ body {
   opacity: 0.4;
 }
 
-.launch-manifest button:focus-visible,
-.research-tasks button:focus-visible,
-.tech-tree button:focus-visible {
+.launch-manifest button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Screens with a header that stays in place over a body that scrolls,
+   such as the Research Tasks screen and the Tech Tree. */
+
+.screen {
+  width: min(720px, 100vw - 32px);
+  max-width: none;
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: rgb(14 17 23 / 94%);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 55%);
+  line-height: 1.45;
+}
+
+.screen[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.screen::backdrop {
+  background: rgb(0 0 0 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.screen__header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 16px 16px 12px 22px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.screen__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.screen__figure {
+  margin: 0;
+  padding: 3px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--science);
+  background: rgb(143 208 255 / 10%);
+  border: 1px solid rgb(143 208 255 / 25%);
+  border-radius: 999px;
+}
+
+.screen__figure:empty {
+  display: none;
+}
+
+.screen__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.screen__close:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+  border-color: var(--panel-border);
+}
+
+.screen__lead {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.screen__body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 22px 22px;
+  overflow: auto;
+}
+
+.screen__refusal {
+  margin: 0;
+  padding: 10px 22px;
+  color: var(--warning);
+  background: rgb(255 138 112 / 8%);
+  border-top: 1px solid rgb(255 138 112 / 30%);
+}
+
+.screen__section-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.screen__count {
+  margin-left: 4px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  background: var(--panel-raised);
+  border-radius: 999px;
+}
+
+.screen__button {
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.screen__button:hover {
+  border-color: var(--text-muted);
+}
+
+.screen__button--primary {
+  font-weight: 600;
+  color: #111;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.screen__button--primary:hover {
+  background: #f6d27a;
+  border-color: #f6d27a;
+}
+
+.screen__close:focus-visible,
+.screen__button:focus-visible,
+.tech-tree__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--panel-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+}
+
+.chip--science {
+  color: var(--science);
+  background: rgb(143 208 255 / 8%);
+  border-color: rgb(143 208 255 / 22%);
+}
+
+.chip--met {
+  color: var(--good);
+  border-color: rgb(111 208 140 / 30%);
+}
+
+.chip--met::before {
+  content: "✓ ";
+}
+
+/* The Research Tasks screen. */
+
+.research-tasks__now {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: linear-gradient(
+    120deg,
+    rgb(242 193 78 / 14%),
+    rgb(242 193 78 / 2%) 70%
+  );
+  border: 1px solid rgb(242 193 78 / 40%);
+  border-radius: 8px;
+}
+
+.research-tasks__now p {
+  margin: 0;
+}
+
+.research-tasks__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.research-tasks__now-name {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.research-tasks__now .meter {
+  height: 6px;
+  margin: 10px 0 6px;
+  border-radius: 3px;
+}
+
+.research-tasks__now-detail {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.research-tasks__now--idle {
+  background: var(--panel-raised);
+  border-style: dashed;
+  border-color: var(--panel-border);
+}
+
+.research-tasks__now--idle .research-tasks__eyebrow {
+  color: var(--text-muted);
+}
+
+.research-tasks__now--idle .research-tasks__now-name {
+  margin: 4px 0;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.research-tasks__group + .research-tasks__group {
+  margin-top: 20px;
+}
+
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.task-card,
+.design-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--panel-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+
+.task-card:hover,
+.design-card:hover {
+  border-color: rgb(255 255 255 / 24%);
+}
+
+.task-card__name,
+.design-card__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.task-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.task-card__foot,
+.design-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin-top: auto;
+}
+
+.task-card__state,
+.design-card__state {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.task-card--running {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgb(242 193 78 / 30%);
+}
+
+.task-card--running .task-card__state {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.task-card--completed {
+  opacity: 0.7;
+}
+
+.task-card--completed .task-card__state {
+  color: var(--good);
+}
+
+/* The Tech Tree. */
+
+/* The same size whichever category is shown, so that it doesn't jump. */
+.tech-tree {
+  width: min(1080px, 100vw - 32px);
+  height: min(680px, 100vh - 48px);
+}
+
+.tech-tree__tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.tech-tree__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tech-tree__tab:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.tech-tree__tab[aria-selected="true"] {
+  color: var(--text);
+  background: rgb(255 255 255 / 9%);
+  border-color: var(--panel-border);
+}
+
+.tech-tree__tally {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+/* A dot on a category with a Design that can be unlocked now. */
+.tech-tree__tab--ready::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.tech-tree__panel {
+  display: grid;
+  grid-auto-columns: minmax(230px, 1fr);
+  grid-auto-flow: column;
+  gap: 22px;
+  align-items: start;
+}
+
+.tech-tree__column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Each column leads on to the next. */
+.tech-tree__column + .tech-tree__column::before {
+  content: "›";
+  position: absolute;
+  top: -4px;
+  left: -16px;
+  font-size: 1.2rem;
+  color: var(--text-faint);
+}
+
+.design-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.design-card__description {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.design-card__needs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+.design-card__needs-label {
+  margin-right: 2px;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.design-card[data-state="unlocked"] {
+  background: rgb(111 208 140 / 5%);
+  border-color: rgb(111 208 140 / 25%);
+}
+
+.design-card__state--unlocked {
+  color: var(--good);
+}
+
+.design-card[data-state="unlockable"] {
+  border-color: rgb(242 193 78 / 70%);
+  box-shadow: 0 0 18px rgb(242 193 78 / 12%);
+}
+
+.design-card__state--unlockable {
+  color: var(--accent);
 }

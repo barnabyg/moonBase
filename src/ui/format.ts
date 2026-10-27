@@ -751,19 +751,6 @@ export function formatResearchTask(
 }
 
 /**
- * Says what the Research Tasks screen can do as things stand, for example
- * "Running: Seismic monitoring, 2 Earth Days 5 hours left. Another can
- * start once it is complete."
- */
-export function describeResearch(
-  running: ResearchTaskSnapshot | undefined,
-): string {
-  return running === undefined
-    ? "None running. Start one, and it runs by itself for its length, then pays its Science. Only one runs at a time, and each can be completed only once."
-    : `Running: ${researchTaskLabel(running.researchTaskId)}, ${formatDuration(running.minutesLeft)} left. Another can start once it is complete.`;
-}
-
-/**
  * Lists what a Launch brings the way a sentence would, for example "2 ×
  * Solar panel and 1 × Oxygen, 25 kg".
  */
