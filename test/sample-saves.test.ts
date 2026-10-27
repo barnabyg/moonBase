@@ -6,6 +6,7 @@ import {
   type Campaign,
   type GameEvent,
   type GroundPosition,
+  type Snapshot,
 } from "../src/simulation";
 
 /**
@@ -1540,5 +1541,621 @@ describe("the sample save of format version 25", () => {
     campaign.advance(60);
     expect(oxygenForecast(campaign)?.kilogramsPerEarthDay).toBeGreaterThan(0);
     expect(campaign.snapshot().ended).toBeUndefined();
+  });
+});
+
+describe("the sample saves from before Research Tasks", () => {
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-18.moonbase",
+    "version-25.moonbase",
+  ])(
+    "%s loads with no Science, no Research Task running and none completed",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.science).toBe(0);
+      expect(state.researchTask).toBeUndefined();
+      expect(state.completedResearchTaskIds).toEqual([]);
+    },
+  );
+
+  it("plays on from where it was saved, a Research Task started then completing", () => {
+    const campaign = loadSample("version-25.moonbase");
+    const [task] = catalogue.researchTasks;
+    if (task === undefined) throw new Error("expected a Research Task");
+
+    expect(campaign.startResearchTask(task.id)).toEqual({ ok: true });
+    const kinds = campaign
+      .advance(task.lengthHours * 60)
+      .map((event) => event.kind);
+
+    expect(kinds).toContain("research-task-completed");
+    expect(campaign.snapshot().science).toBe(task.science);
+  });
+});
+
+describe("the sample save of format version 26", () => {
+  // Saved 1735 game-minutes in, 1175 of them into Seismic monitoring. Its
+  // length and the Science it pays come from the data catalogue as it is.
+  const seismic = catalogue.researchTasks.find(
+    (task) => task.id === "seismic-monitoring",
+  );
+  if (seismic === undefined) throw new Error("expected Seismic monitoring");
+  const minutesLeft = seismic.lengthHours * 60 - 1175;
+
+  it("loads with Seismic monitoring running, a Regolith sample analysis completed, and the Robot busy with a light mast", () => {
+    const state = loadSample("version-26.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 2, hour: 4, minute: 55 });
+    expect(state.science).toBe(5);
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+    ]);
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: "seismic-monitoring",
+      minutesLeft,
+    });
+    expect(state.constructions.map((c) => c.structureTypeId)).toEqual([
+      "light-mast",
+    ]);
+    expect(state.robots[0]?.activity.kind).not.toBe("idle");
+  });
+
+  it("plays on from where it was saved, until Seismic monitoring completes and pays its Science", () => {
+    const campaign = loadSample("version-26.moonbase");
+    expect(
+      campaign.startResearchTask("regolith-sample-analysis"),
+    ).toMatchObject({ ok: false, reason: "already-completed" });
+
+    const completed = campaign
+      .advance(minutesLeft)
+      .filter((event) => event.kind === "research-task-completed");
+
+    expect(completed).toEqual([
+      {
+        kind: "research-task-completed",
+        atMinute: 1735 + minutesLeft,
+        researchTaskId: "seismic-monitoring",
+        science: seismic.science,
+      },
+    ]);
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.science).toBe(5 + seismic.science);
+    expect(state.researchTask).toBeUndefined();
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+      "seismic-monitoring",
+    ]);
+  });
+});
+
+describe("the sample saves from before the Tech Tree", () => {
+  // The starting Designs when format version 27 came in.
+  const startingDesignIds = [
+    "solar-arrays",
+    "battery-banks",
+    "light-masts",
+    "maintenance-spares",
+    "regolith-shielding",
+    "inflatable-habitat",
+    "life-support-resupply",
+    "water-processing",
+    "regolith-extraction",
+    "vacuum-fabrication",
+    "circuit-board-fabrication",
+    "landing-pads",
+  ];
+
+  it.each([
+    "version-1.moonbase",
+    "version-1-ended.moonbase",
+    "version-18.moonbase",
+    "version-25.moonbase",
+    "version-26.moonbase",
+  ])("%s loads with the starting Designs unlocked, and no others", (name) => {
+    expect(loadSample(name).snapshot().unlockedDesignIds).toEqual(
+      startingDesignIds,
+    );
+  });
+
+  it("plays on from where it was saved, until Seismic monitoring completes and its Science unlocks a Design", () => {
+    const campaign = loadSample("version-26.moonbase");
+    const design = catalogue.designs.find(
+      (entry) => entry.id === "large-battery-banks",
+    );
+    if (design === undefined) throw new Error("expected Large battery banks");
+
+    campaign.advance(3 * 24 * 60);
+
+    expect(campaign.snapshot().researchTask).toBeUndefined();
+    expect(campaign.unlockDesign(design.id)).toMatchObject({ ok: true });
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.unlockedDesignIds).toEqual([...startingDesignIds, design.id]);
+  });
+});
+
+describe("the sample save of format version 27", () => {
+  // Saved 6000 game-minutes in, after four Research Tasks paid 45 Science
+  // and Regolith sintering was unlocked for 30, with the Sintered block
+  // testing it opened up 600 game-minutes in. Its length and the Science it
+  // pays come from the data catalogue as it is.
+  const sintered = catalogue.researchTasks.find(
+    (task) => task.id === "sintered-block-testing",
+  );
+  if (sintered === undefined)
+    throw new Error("expected Sintered block testing");
+  const minutesLeft = sintered.lengthHours * 60 - 600;
+
+  it("loads with Regolith sintering unlocked, 15 Science left, and Sintered block testing running", () => {
+    const state = loadSample("version-27.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 5, hour: 4, minute: 0 });
+    expect(state.science).toBe(15);
+    expect(state.unlockedDesignIds).toContain("regolith-sintering");
+    expect(state.unlockedDesignIds).not.toContain("large-battery-banks");
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: "sintered-block-testing",
+      minutesLeft,
+    });
+    expect(state.completedResearchTaskIds).toEqual([
+      "regolith-sample-analysis",
+      "ice-volatiles-assay",
+      "radiation-environment-survey",
+      "dust-levitation-study",
+    ]);
+  });
+
+  it("plays on from where it was saved, Sintered block testing completing and its Science unlocking another Design", () => {
+    const campaign = loadSample("version-27.moonbase");
+    expect(campaign.unlockDesign("regolith-sintering")).toMatchObject({
+      ok: false,
+      reason: "already-unlocked",
+    });
+
+    const completed = campaign
+      .advance(minutesLeft)
+      .filter((event) => event.kind === "research-task-completed");
+
+    expect(completed).toEqual([
+      {
+        kind: "research-task-completed",
+        atMinute: 6000 + minutesLeft,
+        researchTaskId: "sintered-block-testing",
+        science: sintered.science,
+      },
+    ]);
+    expect(campaign.snapshot().science).toBe(15 + sintered.science);
+    expect(campaign.unlockDesign("large-battery-banks")).toMatchObject({
+      ok: true,
+    });
+    expect(campaign.snapshot().ended).toBeUndefined();
+  });
+});
+
+describe("the sample saves from before the large battery bank", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-27.moonbase"])(
+    "%s loads with none of the large battery bank's Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((stock) =>
+          stock.componentId.startsWith("large-battery-"),
+        ),
+      ).toEqual([
+        { componentId: "large-battery-module", count: 0 },
+        { componentId: "large-battery-cabinet", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 28", () => {
+  // Saved 3352 game-minutes in, after three Research Tasks paid 25 Science
+  // and Large battery banks was unlocked for all of it, with a large
+  // battery bank an hour into its Assembly beside a solar array.
+  const storageOf = (structureTypeId: string) =>
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)?.power
+      .storageKilowattHours ?? Number.NaN;
+
+  it("loads with Large battery banks unlocked, no Science left, and a large battery bank being assembled from its Components", () => {
+    const state = loadSample("version-28.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 3, hour: 7, minute: 52 });
+    expect(state.science).toBe(0);
+    expect(state.unlockedDesignIds).toContain("large-battery-banks");
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        structureTypeId: "large-battery-bank",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+    ]);
+  });
+
+  it("plays on from where it was saved, the large battery bank being commissioned and storing more than a battery bank can", () => {
+    const campaign = loadSample("version-28.moonbase");
+    expect(campaign.unlockDesign("large-battery-banks")).toMatchObject({
+      ok: false,
+      reason: "already-unlocked",
+    });
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 2 * 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    const network = state.power.networks.find((candidate) =>
+      candidate.structureIds.includes("structure-2"),
+    );
+    expect(network?.storageCapacityKilowattHours).toBe(
+      storageOf("large-battery-bank"),
+    );
+    expect(network?.storedKilowattHours).toBeGreaterThan(
+      storageOf("battery-bank"),
+    );
+  });
+});
+
+describe("the sample saves from before a Launch could bring a Robot", () => {
+  it.each(["version-1.moonbase", "version-12.moonbase", "version-28.moonbase"])(
+    "%s loads with no Robot arriving, each at work as before",
+    (name) => {
+      const campaign = loadSample(name);
+      const before = campaign.snapshot().robots.map((robot) => robot.id);
+
+      campaign.advance(1);
+
+      const { robots } = campaign.snapshot();
+      expect(robots.map((robot) => robot.id)).toEqual(before);
+      for (const robot of robots) {
+        expect(["climbing-down", "walking-to-stockpile"]).not.toContain(
+          robot.activity.kind,
+        );
+      }
+    },
+  );
+});
+
+describe("the sample save of format version 29", () => {
+  // Saved 39626 game-minutes in, 25 game-minutes after the Lander landed
+  // with a Robot the Robots Design let it bring, two light masts planned
+  // as it landed. The Mission Director waited out the first Night aboard
+  // the Lander, then moved into the Habitat so that it could fly.
+  it("loads with the Robots Design unlocked and the second Robot walking from the Lander to the stockpile, as the first works on a light mast", () => {
+    const state = loadSample("version-29.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 12, minute: 26 });
+    expect(state.unlockedDesignIds).toContain("robots");
+    expect(state.lander).toMatchObject({ state: "landed-free", cargo: [] });
+    expect(state.robots).toEqual([
+      expect.objectContaining({
+        id: "robot-1",
+        activity: expect.objectContaining({
+          structureId: "structure-4",
+        }) as unknown,
+      }),
+      expect.objectContaining({
+        id: "robot-2",
+        activity: { kind: "walking-to-stockpile" },
+        carrying: [],
+      }),
+    ]);
+    expect(state.constructions.map((c) => c.structureTypeId)).toEqual([
+      "light-mast",
+      "light-mast",
+    ]);
+  });
+
+  it("plays on from where it was saved, the second Robot arriving at the stockpile and building a light mast alongside the first", () => {
+    const campaign = loadSample("version-29.moonbase");
+
+    const events: GameEvent[] = [];
+    const secondRobotOn = new Set<string>();
+    for (let minutes = 0; campaign.snapshot().constructions.length > 0;) {
+      if (minutes > 3 * 24 * 60) throw new Error("They were never built.");
+      events.push(...campaign.advance(1));
+      minutes += 1;
+      const activity = campaign.snapshot().robots[1]?.activity;
+      if (activity !== undefined && "structureId" in activity) {
+        secondRobotOn.add(activity.structureId);
+      }
+    }
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "robot-arrived", robotId: "robot-2" }),
+    );
+    expect(
+      [...secondRobotOn].some((id) =>
+        ["structure-4", "structure-5"].includes(id),
+      ),
+    ).toBe(true);
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(
+      state.structures.filter((s) => s.structureTypeId === "light-mast"),
+    ).toHaveLength(2);
+  });
+});
+
+describe("the sample saves from before the Protection Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-29.moonbase"])(
+    "%s loads with none of the hardened Structures' own Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "sealed-array-mast",
+            "screened-solar-panel",
+            "whipple-cabinet",
+            "armoured-habitat-envelope",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "sealed-array-mast", count: 0 },
+        { componentId: "screened-solar-panel", count: 0 },
+        { componentId: "whipple-cabinet", count: 0 },
+        { componentId: "armoured-habitat-envelope", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 30", () => {
+  // Saved 40289 game-minutes in, an hour into the Assembly of a
+  // dust-sealed solar array, built from two solar panels and a sealed
+  // array mast a Launch brought once Dust-sealed solar arrays was
+  // unlocked. The Mission Director moved into the Habitat after the first
+  // Night, so that the Lander could fly.
+  it("loads with Dust-sealed solar arrays unlocked and a dust-sealed solar array being assembled beside the first solar array", () => {
+    const state = loadSample("version-30.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 23, minute: 29 });
+    expect(state.science).toBe(5);
+    expect(state.unlockedDesignIds).toContain("dust-sealed-solar-arrays");
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-4",
+        structureTypeId: "dust-sealed-solar-array",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+    ]);
+  });
+
+  it("plays on from where it was saved, the dust-sealed solar array generating like the first and wearing down by Dust more slowly", () => {
+    const campaign = loadSample("version-30.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 2 * 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    const condition = (id: string) =>
+      campaign.snapshot().structures.find((s) => s.id === id)
+        ?.conditionPercent ?? Number.NaN;
+    const before = [condition("structure-1"), condition("structure-4")];
+
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.structures.find((s) => s.id === "structure-4")).toMatchObject({
+      structureTypeId: "dust-sealed-solar-array",
+      powered: true,
+    });
+    const lost = [
+      (before[0] ?? 0) - condition("structure-1"),
+      (before[1] ?? 0) - condition("structure-4"),
+    ];
+    expect(lost[0]).toBeCloseTo(24 * 0.05);
+    expect(lost[1]).toBeCloseTo(24 * 0.02);
+  });
+});
+
+describe("the sample saves from before the Power and Construction Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-30.moonbase"])(
+    "%s loads with none of the new Power and Construction Structures' own Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "thin-film-solar-panel",
+            "tall-mast-pole",
+            "prefabricated-array-pack",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "thin-film-solar-panel", count: 0 },
+        { componentId: "tall-mast-pole", count: 0 },
+        { componentId: "prefabricated-array-pack", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 31", () => {
+  // Saved 41420 game-minutes in, half an hour into the Assembly of a
+  // prefabricated solar array from one of two prefabricated array packs a
+  // Launch brought once Prefabricated solar arrays was unlocked. The
+  // Lander brought them down onto a sintered landing pad the regolith
+  // printer laid once Regolith sintering was unlocked, after printing
+  // Regolith shielding over the Habitat.
+  it("loads with Prefabricated solar arrays and Regolith sintering unlocked, the Lander on a sintered landing pad, and a prefabricated solar array being assembled", () => {
+    const state = loadSample("version-31.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 29, hour: 18, minute: 20 });
+    expect(state.science).toBe(25);
+    expect(state.unlockedDesignIds).toEqual(
+      expect.arrayContaining([
+        "prefabricated-solar-arrays",
+        "regolith-sintering",
+      ]),
+    );
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+      "regolith-shielding",
+      "sintered-landing-pad",
+    ]);
+    expect(state.lander).toMatchObject({
+      state: "landed-free",
+      position: { x: -40, y: 30 },
+      landingPadId: "structure-5",
+    });
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-6",
+        structureTypeId: "prefabricated-solar-array",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "prefabricated-array-pack",
+      ),
+    ).toEqual({ componentId: "prefabricated-array-pack", count: 1 });
+  });
+
+  it("plays on from where it was saved, the prefabricated solar array commissioned within the hour, powered and cabled to the first solar array", () => {
+    const campaign = loadSample("version-31.moonbase");
+    for (let minutes = 0; campaign.snapshot().constructions.length > 0;) {
+      if (minutes > 60) throw new Error("It was never commissioned.");
+      campaign.advance(1);
+      minutes += 1;
+    }
+
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.structures.find((s) => s.id === "structure-6")).toMatchObject({
+      structureTypeId: "prefabricated-solar-array",
+      powered: true,
+    });
+    expect(
+      state.power.networks.find((network) =>
+        network.structureIds.includes("structure-6"),
+      )?.structureIds,
+    ).toContain("structure-1");
+  });
+});
+
+describe("the sample saves from before the Life Support, Industry and Mobility Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-31.moonbase"])(
+    "%s loads with none of the new Life Support, Industry and Mobility Structures' own Components, counted after the earlier ones in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "electrolyser-stack",
+            "molten-regolith-cell",
+            "board-assembly-line",
+            "landing-floodlight",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
+        { componentId: "electrolyser-stack", count: 0 },
+        { componentId: "molten-regolith-cell", count: 0 },
+        { componentId: "board-assembly-line", count: 0 },
+        { componentId: "landing-floodlight", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 32", () => {
+  // Saved 40297 game-minutes in, an hour into the Assembly of an
+  // electrolysis plant from an ice melter and one of two electrolyser
+  // stacks a Launch brought once Water electrolysis was unlocked, with the
+  // 200 kg of water ice an Expedition brought back in stock.
+  it("loads with Water electrolysis unlocked, an electrolysis plant being assembled, an electrolyser stack in stock and an Expedition's water ice", () => {
+    const state = loadSample("version-32.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 23, minute: 37 });
+    expect(state.unlockedDesignIds).toContain("water-electrolysis");
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+    ]);
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-4",
+        structureTypeId: "electrolysis-plant",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "electrolyser-stack",
+      ),
+    ).toEqual({ componentId: "electrolyser-stack", count: 1 });
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "water-ice"),
+    ).toEqual({ resourceId: "water-ice", kilograms: 200 });
+  });
+
+  it("plays on from where it was saved, the electrolysis plant commissioned within a day and turning the water ice into oxygen", () => {
+    const campaign = loadSample("version-32.moonbase");
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    const oxygen = (state: Snapshot) =>
+      state.lifeSupport.find((stock) => stock.stockId === "oxygen")
+        ?.kilograms ?? Number.NaN;
+    const ice = (state: Snapshot) =>
+      state.bulkResources.find((stock) => stock.resourceId === "water-ice")
+        ?.kilograms ?? Number.NaN;
+    const before = campaign.snapshot();
+
+    campaign.advance(12 * 60);
+
+    const after = campaign.snapshot();
+    expect(after.ended).toBeUndefined();
+    expect(after.lunation.part).toBe("daylight");
+    expect(after.structures.find((s) => s.id === "structure-4")).toMatchObject({
+      structureTypeId: "electrolysis-plant",
+    });
+    expect(ice(after)).toBeLessThan(ice(before));
+    expect(oxygen(after)).toBeGreaterThan(oxygen(before));
   });
 });

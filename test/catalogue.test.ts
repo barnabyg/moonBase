@@ -3,10 +3,57 @@ import {
   catalogue,
   type GroundPosition,
   type ResourceFlow,
+  type StructureType,
 } from "../src/catalogue";
 
 const halfWidth = catalogue.map.widthMetres / 2;
 const halfDepth = catalogue.map.depthMetres / 2;
+
+/**
+ * The Designs that must be unlocked by the time a Design is: the starting
+ * ones, the Design itself and every Design it needs first, however far back.
+ */
+function designsUnlockedWith(designId: string): Set<string> {
+  const unlocked = new Set(
+    catalogue.designs
+      .filter((design) => design.starting)
+      .map((design) => design.id),
+  );
+  const visited = new Set<string>();
+  const waiting = [designId];
+  for (let id = waiting.pop(); id !== undefined; id = waiting.pop()) {
+    if (visited.has(id)) continue;
+    visited.add(id);
+    unlocked.add(id);
+    const design = catalogue.designs.find((candidate) => candidate.id === id);
+    waiting.push(...(design?.prerequisiteDesignIds ?? []));
+  }
+  return unlocked;
+}
+
+/** The mass and price of a full set of a Structure's Components by Launch. */
+function shipped(type: StructureType): {
+  kilograms: number;
+  millionDollars: number;
+} {
+  return type.components.reduce(
+    (total, need) => {
+      const item = catalogue.launch.items.find(
+        (candidate) =>
+          candidate.brings.kind === "component" &&
+          candidate.brings.componentId === need.componentId,
+      );
+      return {
+        kilograms:
+          total.kilograms + (item?.massKilograms ?? Infinity) * need.count,
+        millionDollars:
+          total.millionDollars +
+          (item?.priceMillionDollars ?? Infinity) * need.count,
+      };
+    },
+    { kilograms: 0, millionDollars: 0 },
+  );
+}
 
 function isOnMap(position: GroundPosition, margin = 0): boolean {
   return (
@@ -186,19 +233,32 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("can ship every Component, and oxygen and water in set amounts, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
+  it("can ship every Component once, oxygen and water in set amounts, and a Robot, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
     const { items, payloadMassLimitKilograms, feeMillionDollars } =
       catalogue.launch;
 
     expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
-    const shipped = items.map(({ brings }) =>
-      brings.kind === "component" ? brings.componentId : brings.stockId,
-    );
-    expect(shipped.toSorted()).toEqual(
+    const shipped = items.map(({ brings }) => {
+      switch (brings.kind) {
+        case "component":
+          return brings.componentId;
+        case "life-support":
+          return brings.stockId;
+        case "robot":
+          return "a Robot";
+      }
+    });
+    // Each Component as one item; oxygen and water in tanks of more than
+    // one size.
+    const stockIds = catalogue.lifeSupportStocks.map((stock) => stock.id);
+    expect(shipped.filter((id) => !stockIds.includes(id)).toSorted()).toEqual(
       [
         ...catalogue.componentTypes.map((type) => type.id),
-        ...catalogue.lifeSupportStocks.map((stock) => stock.id),
+        "a Robot",
       ].toSorted(),
+    );
+    expect(new Set(shipped.filter((id) => stockIds.includes(id)))).toEqual(
+      new Set(stockIds),
     );
     for (const item of items) {
       if (item.brings.kind === "life-support") {
@@ -276,6 +336,23 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(selfRepairHours * 60)).toBe(true);
   });
 
+  it("ships exactly one Robot item, a few hundred kilograms, behind a Mobility Design that isn't a starting one, and has it climb down from the Lander in a whole number of game-minutes", () => {
+    const robots = catalogue.launch.items.filter(
+      (item) => item.brings.kind === "robot",
+    );
+
+    expect(robots).toHaveLength(1);
+    const [robot] = robots;
+    expect(robot?.massKilograms).toBeGreaterThanOrEqual(100);
+    expect(robot?.massKilograms).toBeLessThan(1000);
+    expect(
+      catalogue.designs.find((design) => design.id === robot?.designId),
+    ).toMatchObject({ category: "mobility", starting: false });
+    const { climbingDownHours } = catalogue.robot;
+    expect(climbingDownHours).toBeGreaterThan(0);
+    expect(Number.isInteger(climbingDownHours * 60)).toBe(true);
+  });
+
   it("describes Machines that a Robot can drive and activate", () => {
     const { machineTypes } = catalogue;
     expect(new Set(machineTypes.map((type) => type.id)).size).toBe(
@@ -303,6 +380,216 @@ describe("the data catalogue", () => {
     expect(expeditions.unloadingHours).toBeGreaterThan(0);
     expect(Number.isInteger(expeditions.unloadingHours * 60)).toBe(true);
     expect(catalogue.rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);
+  });
+
+  it("has a handful of Research Tasks with unique ids and labels, each lasting a positive, whole number of game-minutes and paying a whole amount of Science", () => {
+    const { researchTasks } = catalogue;
+
+    expect(researchTasks.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(researchTasks.map((task) => task.id)).size).toBe(
+      researchTasks.length,
+    );
+    expect(new Set(researchTasks.map((task) => task.label)).size).toBe(
+      researchTasks.length,
+    );
+    for (const task of researchTasks) {
+      expect(task.lengthHours).toBeGreaterThan(0);
+      expect(Number.isInteger(task.lengthHours * 60)).toBe(true);
+      expect(Number.isSafeInteger(task.science)).toBe(true);
+      expect(task.science).toBeGreaterThan(0);
+    }
+  });
+
+  it("has some Research Tasks that take hours and some that take Earth Days, the longer ones paying more", () => {
+    const lengths = catalogue.researchTasks.map((task) => task.lengthHours);
+
+    expect(lengths.some((hours) => hours < 24)).toBe(true);
+    expect(lengths.some((hours) => hours >= 3 * 24)).toBe(true);
+    const byLength = [...catalogue.researchTasks].sort(
+      (a, b) => a.lengthHours - b.lengthHours,
+    );
+    for (const [index, task] of byLength.entries()) {
+      const shorter = byLength[index - 1];
+      if (shorter !== undefined && shorter.lengthHours < task.lengthHours) {
+        expect(task.science).toBeGreaterThan(shorter.science);
+      }
+    }
+  });
+
+  it("has Designs with unique ids and labels, each with a description, one of the six categories, a whole Science cost and prerequisites the Tech Tree has", () => {
+    const { designs } = catalogue;
+    const ids = new Set(designs.map((design) => design.id));
+
+    expect(ids.size).toBe(designs.length);
+    expect(new Set(designs.map((design) => design.label)).size).toBe(
+      designs.length,
+    );
+    for (const design of designs) {
+      expect(design.description).not.toBe("");
+      expect([
+        "power",
+        "construction",
+        "protection",
+        "life-support",
+        "industry",
+        "mobility",
+      ]).toContain(design.category);
+      expect(Number.isSafeInteger(design.scienceCost)).toBe(true);
+      expect(design.scienceCost).toBeGreaterThanOrEqual(0);
+      expect(new Set(design.prerequisiteDesignIds).size).toBe(
+        design.prerequisiteDesignIds.length,
+      );
+      for (const id of design.prerequisiteDesignIds) {
+        expect(ids).toContain(id);
+        expect(id).not.toBe(design.id);
+      }
+    }
+  });
+
+  it("starts with some Designs unlocked, which need nothing first and cost nothing, and has a few more that cost Science to unlock", () => {
+    const starting = catalogue.designs.filter((design) => design.starting);
+    const others = catalogue.designs.filter((design) => !design.starting);
+
+    expect(starting.length).toBeGreaterThan(0);
+    for (const design of starting) {
+      expect(design.prerequisiteDesignIds).toEqual([]);
+      expect(design.scienceCost).toBe(0);
+    }
+    expect(others.length).toBeGreaterThanOrEqual(3);
+    for (const design of others) expect(design.scienceCost).toBeGreaterThan(0);
+  });
+
+  it("puts every Structure type and Launch item in exactly one Design the Tech Tree has", () => {
+    const ids = new Set(catalogue.designs.map((design) => design.id));
+
+    for (const { designId } of [
+      ...catalogue.structureTypes,
+      ...catalogue.launch.items,
+    ]) {
+      expect(ids).toContain(designId);
+    }
+  });
+
+  it("has at least one Structure type, with Launch items, behind a Design that isn't a starting one", () => {
+    const locked = (designId: string) =>
+      catalogue.designs.find((design) => design.id === designId)?.starting ===
+      false;
+
+    expect(catalogue.structureTypes.some((type) => locked(type.designId))).toBe(
+      true,
+    );
+    expect(catalogue.launch.items.some((item) => locked(item.designId))).toBe(
+      true,
+    );
+  });
+
+  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass", () => {
+    for (const type of catalogue.structureTypes) {
+      const unlocked = designsUnlockedWith(type.designId);
+      let mass = 0;
+      for (const need of type.components) {
+        const item = catalogue.launch.items.find(
+          (candidate) =>
+            candidate.brings.kind === "component" &&
+            candidate.brings.componentId === need.componentId,
+        );
+        expect(item).toBeDefined();
+        expect(unlocked).toContain(item?.designId);
+        mass += (item?.massKilograms ?? Infinity) * need.count;
+      }
+      expect(mass).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
+    }
+  });
+
+  it("has no cycles in the Tech Tree, and every Design can be reached from the starting Designs", () => {
+    // Unlocks in turn every Design whose prerequisites are all unlocked.
+    // A Design on a cycle, or after one, is never reached.
+    const reached = new Set(
+      catalogue.designs
+        .filter((design) => design.starting)
+        .map((design) => design.id),
+    );
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const design of catalogue.designs) {
+        if (
+          !reached.has(design.id) &&
+          design.prerequisiteDesignIds.every((id) => reached.has(id))
+        ) {
+          reached.add(design.id);
+          grew = true;
+        }
+      }
+    }
+
+    expect([...reached].sort()).toEqual(
+      catalogue.designs.map((design) => design.id).sort(),
+    );
+  });
+
+  it("gates some Research Tasks behind a Design the Tech Tree has, so the tree and the research list grow together", () => {
+    const ids = new Set(catalogue.designs.map((design) => design.id));
+    const gated = catalogue.researchTasks.filter(
+      (task) => task.requiresDesignId !== undefined,
+    );
+
+    expect(gated.length).toBeGreaterThan(0);
+    for (const task of gated) expect(ids).toContain(task.requiresDesignId);
+  });
+
+  it("has Research Tasks that pay at least as much Science as every Design beyond the starting ones costs", () => {
+    const paid = catalogue.researchTasks.reduce(
+      (sum, task) => sum + task.science,
+      0,
+    );
+    const cost = catalogue.designs
+      .filter((design) => !design.starting)
+      .reduce((sum, design) => sum + design.scienceCost, 0);
+
+    expect(paid).toBeGreaterThanOrEqual(cost);
+  });
+
+  it("lets a player unlock every Design and complete every Research Task, completing all the Research Tasks on offer, then unlocking the cheapest Design they can, in turn", () => {
+    // A Research Task gated by a Design can only pay for that Design's
+    // successors, so the total alone isn't enough: this plays the tree.
+    const unlocked = new Set(
+      catalogue.designs
+        .filter((design) => design.starting)
+        .map((design) => design.id),
+    );
+    const completed = new Set<string>();
+    let science = 0;
+    for (let progress = true; progress;) {
+      progress = false;
+      for (const task of catalogue.researchTasks) {
+        const offered =
+          task.requiresDesignId === undefined ||
+          unlocked.has(task.requiresDesignId);
+        if (offered && !completed.has(task.id)) {
+          completed.add(task.id);
+          science += task.science;
+          progress = true;
+        }
+      }
+      const next = catalogue.designs
+        .filter(
+          (design) =>
+            !unlocked.has(design.id) &&
+            design.scienceCost <= science &&
+            design.prerequisiteDesignIds.every((id) => unlocked.has(id)),
+        )
+        .sort((a, b) => a.scienceCost - b.scienceCost)[0];
+      if (next !== undefined) {
+        unlocked.add(next.id);
+        science -= next.scienceCost;
+        progress = true;
+      }
+    }
+
+    expect(unlocked.size).toBe(catalogue.designs.length);
+    expect(completed.size).toBe(catalogue.researchTasks.length);
   });
 
   it("has bulk resources with unique ids and labels, Regolith first", () => {
@@ -435,13 +722,13 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("has Regolith shielding, printed over a Habitat by the regolith printer from no Components", () => {
+  it("has Regolith shielding, and any other shielding, printed over a Habitat by the regolith printer from no Components", () => {
     const shielding = catalogue.structureTypes.filter(
       (type) => type.shieldsHabitat,
     );
-    const habitat = catalogue.structureTypes.find((type) => type.habitat);
+    const habitats = catalogue.structureTypes.filter((type) => type.habitat);
 
-    expect(shielding.map((type) => type.id)).toEqual(["regolith-shielding"]);
+    expect(shielding[0]?.id).toBe("regolith-shielding");
     for (const type of shielding) {
       expect(type.components).toEqual([]);
       expect(type.stageMachines).toEqual({
@@ -449,10 +736,13 @@ describe("the data catalogue", () => {
         assembly: "regolith-printer",
       });
       expect(type.habitat).toBe(false);
-      // It covers the Habitat it goes over.
-      expect(type.footprintRadiusMetres).toBeGreaterThanOrEqual(
-        habitat?.footprintRadiusMetres ?? Infinity,
-      );
+      // It covers any Habitat it goes over.
+      expect(habitats.length).toBeGreaterThan(0);
+      for (const habitat of habitats) {
+        expect(type.footprintRadiusMetres).toBeGreaterThanOrEqual(
+          habitat.footprintRadiusMetres,
+        );
+      }
       for (const value of Object.values(type.power)) expect(value).toBe(0);
     }
   });
@@ -511,6 +801,19 @@ describe("the data catalogue", () => {
     expect(thresholdPercent).toBeGreaterThan(0);
     expect(thresholdPercent).toBeLessThanOrEqual(100);
     expect(exponent).toBeGreaterThan(0);
+  });
+
+  it("gives every Structure type a share, from 0 to 1, of the Hazards the rules set the same for all, the whole of each but for the hardened Structures of the Protection Designs", () => {
+    for (const type of catalogue.structureTypes) {
+      const category = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      )?.category;
+      for (const share of Object.values(type.hazardMultipliers)) {
+        expect(share).toBeGreaterThan(0);
+        expect(share).toBeLessThanOrEqual(1);
+        if (category !== "protection") expect(share).toBe(1);
+      }
+    }
   });
 
   it("coats solar arrays with Dust in Daylight, cutting their output, until they are cleaned past a threshold", () => {
@@ -584,10 +887,19 @@ describe("the data catalogue", () => {
     expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
   });
 
-  it("has a landing pad, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
-    const pads = catalogue.structureTypes.filter((type) => type.landingPad);
+  it("has a landing pad behind a starting Design, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {
+    const pads = catalogue.structureTypes.filter(
+      (type) =>
+        type.landingPad &&
+        catalogue.designs.find((design) => design.id === type.designId)
+          ?.starting === true,
+    );
 
     expect(pads).toHaveLength(1);
+    // The first, so that it is the one the build menu offers first.
+    expect(catalogue.structureTypes.find((type) => type.landingPad)).toBe(
+      pads[0],
+    );
     const [pad] = pads;
     expect(pad?.footprintRadiusMetres).toBeGreaterThan(
       catalogue.lander.footprintRadiusMetres,
@@ -932,6 +1244,902 @@ describe("the data catalogue", () => {
     });
   });
 
+  describe("the large battery bank", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const large = structureType("large-battery-bank");
+    const small = structureType("battery-bank");
+
+    it("belongs to Large battery banks, a Power Design that needs Battery banks first", () => {
+      expect(
+        catalogue.designs.find((design) => design.id === large.designId),
+      ).toMatchObject({
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["battery-banks"],
+      });
+    });
+
+    it("stores at least three times what a battery bank does, for less mass and less money for each kilowatt-hour", () => {
+      const storage = (type: StructureType) => type.power.storageKilowattHours;
+
+      expect(storage(large)).toBeGreaterThanOrEqual(3 * storage(small));
+      expect(shipped(large).kilograms / storage(large)).toBeLessThan(
+        shipped(small).kilograms / storage(small),
+      );
+      expect(shipped(large).millionDollars / storage(large)).toBeLessThan(
+        shipped(small).millionDollars / storage(small),
+      );
+    });
+
+    it("is built from Components of its own, which the starting stock doesn't hold, standing on more ground and taking longer to build than a battery bank", () => {
+      for (const need of large.components) {
+        expect(
+          small.components.some(
+            (other) => other.componentId === need.componentId,
+          ),
+        ).toBe(false);
+        expect(
+          catalogue.startingStock.some(
+            (stock) => stock.componentId === need.componentId,
+          ),
+        ).toBe(false);
+      }
+      const hours = (type: StructureType) =>
+        Object.values(type.stageHours).reduce((sum, value) => sum + value, 0);
+      expect(large.footprintRadiusMetres).toBeGreaterThan(
+        small.footprintRadiusMetres,
+      );
+      expect(hours(large)).toBeGreaterThan(hours(small));
+      // Its heaters keep more cells warm.
+      expect(large.power.drawKilowatts).toBeGreaterThan(
+        small.power.drawKilowatts,
+      );
+    });
+  });
+
+  describe("the Power Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    const power = catalogue.designs.filter(
+      (design) => design.category === "power" && !design.starting,
+    );
+
+    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(power.length).toBeGreaterThanOrEqual(3);
+      expect(power.length).toBeLessThanOrEqual(4);
+      expect(
+        power.some((design) =>
+          design.prerequisiteDesignIds.some(
+            (id) =>
+              catalogue.designs.find((other) => other.id === id)?.starting ===
+              false,
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("has a thin-film solar array, behind Thin-film solar cells, which needs Solar arrays and Vacuum fabrication first", () => {
+      expect(designOf(structureType("thin-film-solar-array"))).toMatchObject({
+        id: "thin-film-solar-cells",
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
+      });
+    });
+
+    it("has the thin-film solar array generate more than a solar array, and more for each kilogram shipped, on the same ground", () => {
+      const thinFilm = structureType("thin-film-solar-array");
+      const solar = structureType("solar-array");
+      const perKilogram = (type: StructureType) =>
+        type.power.generationKilowatts / shipped(type).kilograms;
+
+      expect(thinFilm.power.generationKilowatts).toBeGreaterThan(
+        solar.power.generationKilowatts,
+      );
+      expect(perKilogram(thinFilm)).toBeGreaterThanOrEqual(
+        1.5 * perKilogram(solar),
+      );
+      // Dearer, though, for each kilowatt.
+      expect(
+        shipped(thinFilm).millionDollars / thinFilm.power.generationKilowatts,
+      ).toBeGreaterThan(
+        shipped(solar).millionDollars / solar.power.generationKilowatts,
+      );
+      expect(thinFilm).toMatchObject({
+        footprintRadiusMetres: solar.footprintRadiusMetres,
+        stageHours: solar.stageHours,
+        stageMachines: solar.stageMachines,
+        hazardMultipliers: solar.hazardMultipliers,
+      });
+      expect(thinFilm.power.drawKilowatts).toBe(solar.power.drawKilowatts);
+    });
+
+    it("has a tall Light Mast, behind Tall Light Masts, which needs Light Masts and Large battery banks first", () => {
+      expect(designOf(structureType("tall-light-mast"))).toMatchObject({
+        id: "tall-light-masts",
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
+      });
+    });
+
+    it("has the tall Light Mast light at least three times the ground a Light Mast does, drawing more at Night but less for each square metre, and no more through a Night than a large battery bank stores", () => {
+      const tall = structureType("tall-light-mast");
+      const mast = structureType("light-mast");
+      const area = (type: StructureType) => type.lightRadiusMetres ** 2;
+      const nightHours = catalogue.lunation.nightEarthDays * 24;
+
+      expect(area(tall)).toBeGreaterThanOrEqual(3 * area(mast));
+      expect(tall.power.nightDrawKilowatts).toBeGreaterThan(
+        mast.power.nightDrawKilowatts,
+      );
+      expect(tall.power.nightDrawKilowatts / area(tall)).toBeLessThan(
+        mast.power.nightDrawKilowatts / area(mast),
+      );
+      expect(tall.power.nightDrawKilowatts * nightHours).toBeLessThanOrEqual(
+        structureType("large-battery-bank").power.storageKilowattHours,
+      );
+      expect(tall.power.drawKilowatts).toBe(mast.power.drawKilowatts);
+      expect(tall.power.generationKilowatts).toBe(0);
+    });
+
+    it.each([
+      ["thin-film-solar-array", "solar-array"],
+      ["tall-light-mast", "light-mast"],
+    ])(
+      "has the %s built from at least one Component of its own, which neither a %s nor the starting stock has",
+      (id, originalId) => {
+        const own = structureType(id).components.filter(
+          (need) =>
+            !structureType(originalId).components.some(
+              (other) => other.componentId === need.componentId,
+            ),
+        );
+
+        expect(own.length).toBeGreaterThan(0);
+        for (const need of own) {
+          expect(
+            catalogue.startingStock.some(
+              (stock) => stock.componentId === need.componentId,
+            ),
+          ).toBe(false);
+        }
+      },
+    );
+  });
+
+  describe("the Construction Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    const hours = (type: StructureType) =>
+      Object.values(type.stageHours).reduce((sum, value) => sum + value, 0);
+
+    it("has a sintered landing pad, behind Regolith sintering, a Construction Design that needs Regolith shielding first", () => {
+      const pad = structureType("sintered-landing-pad");
+
+      expect(designOf(pad)).toMatchObject({
+        id: "regolith-sintering",
+        category: "construction",
+        starting: false,
+        prerequisiteDesignIds: ["regolith-shielding"],
+      });
+    });
+
+    it("has the sintered landing pad printed from Regolith by the regolith printer, with no Components, taking longer to build than a landing pad shipped from Earth", () => {
+      const sintered = structureType("sintered-landing-pad");
+      const shipped = structureType("landing-pad");
+
+      expect(sintered).toMatchObject({
+        landingPad: true,
+        components: [],
+        stageMachines: {
+          sitePreparation: "excavator",
+          assembly: "regolith-printer",
+        },
+        footprintRadiusMetres: shipped.footprintRadiusMetres,
+        power: shipped.power,
+        hazardMultipliers: shipped.hazardMultipliers,
+      });
+      expect(sintered.stageHours.componentDelivery).toBe(0);
+      expect(hours(sintered)).toBeGreaterThan(hours(shipped));
+      expect(
+        catalogue.launch.items.filter(
+          (item) => item.designId === sintered.designId,
+        ),
+      ).toEqual([]);
+    });
+
+    it("has sintered Regolith shielding, behind Microwave sintering, a Construction Design that needs Regolith sintering first", () => {
+      expect(designOf(structureType("sintered-regolith-shielding"))).toEqual(
+        expect.objectContaining({
+          id: "microwave-sintering",
+          category: "construction",
+          starting: false,
+          prerequisiteDesignIds: ["regolith-sintering"],
+        }),
+      );
+    });
+
+    it("has sintered Regolith shielding printed like Regolith shielding, but in under half the hours", () => {
+      const sintered = structureType("sintered-regolith-shielding");
+      const printed = structureType("regolith-shielding");
+
+      expect(sintered).toMatchObject({
+        shieldsHabitat: true,
+        components: [],
+        stageMachines: printed.stageMachines,
+        footprintRadiusMetres: printed.footprintRadiusMetres,
+        power: printed.power,
+        hazardMultipliers: printed.hazardMultipliers,
+      });
+      expect(sintered.stageHours.sitePreparation).toBe(
+        printed.stageHours.sitePreparation,
+      );
+      expect(sintered.stageHours.assembly).toBeLessThan(
+        printed.stageHours.assembly / 2,
+      );
+      expect(hours(sintered)).toBeLessThan(hours(printed) / 2);
+    });
+
+    it("has a prefabricated solar array, behind Prefabricated solar arrays, a Construction Design that needs Solar arrays first", () => {
+      expect(
+        designOf(structureType("prefabricated-solar-array")),
+      ).toMatchObject({
+        id: "prefabricated-solar-arrays",
+        category: "construction",
+        starting: false,
+        prerequisiteDesignIds: ["solar-arrays"],
+      });
+    });
+
+    it("has the prefabricated solar array generate as a solar array does, but go up in under half the hours and fail Commissioning less often, from one Component of its own, shipped heavier and dearer", () => {
+      const prefabricated = structureType("prefabricated-solar-array");
+      const solar = structureType("solar-array");
+
+      expect(prefabricated).toMatchObject({
+        footprintRadiusMetres: solar.footprintRadiusMetres,
+        stageMachines: solar.stageMachines,
+        power: solar.power,
+        hazardMultipliers: solar.hazardMultipliers,
+        dustWearPercentPerHour: solar.dustWearPercentPerHour,
+      });
+      for (const stage of [
+        "sitePreparation",
+        "componentDelivery",
+        "assembly",
+        "commissioning",
+      ] as const) {
+        expect(prefabricated.stageHours[stage]).toBeLessThan(
+          solar.stageHours[stage],
+        );
+      }
+      expect(hours(prefabricated)).toBeLessThan(hours(solar) / 2);
+      expect(prefabricated.commissioningFailureChance).toBeLessThan(
+        solar.commissioningFailureChance,
+      );
+      const [kit, ...rest] = prefabricated.components;
+      expect(rest).toEqual([]);
+      expect(kit?.count).toBe(1);
+      expect(
+        catalogue.startingStock.some(
+          (stock) => stock.componentId === kit?.componentId,
+        ),
+      ).toBe(false);
+      expect(shipped(prefabricated).kilograms).toBeGreaterThan(
+        shipped(solar).kilograms,
+      );
+      expect(shipped(prefabricated).millionDollars).toBeGreaterThan(
+        shipped(solar).millionDollars,
+      );
+    });
+
+    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      const construction = catalogue.designs.filter(
+        (design) => design.category === "construction" && !design.starting,
+      );
+
+      expect(construction.length).toBeGreaterThanOrEqual(3);
+      expect(construction.length).toBeLessThanOrEqual(4);
+      expect(
+        construction.some((design) =>
+          design.prerequisiteDesignIds.some(
+            (id) =>
+              catalogue.designs.find((other) => other.id === id)?.starting ===
+              false,
+          ),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("has about 25 Designs in the Tech Tree, and no more than 28", () => {
+    expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(28);
+  });
+
+  it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something to build or ship", () => {
+    const permitted = new Set(
+      [...catalogue.structureTypes, ...catalogue.launch.items].map(
+        (entry) => entry.designId,
+      ),
+    );
+    const empty = catalogue.designs
+      .filter((design) => !design.starting && !permitted.has(design.id))
+      .map((design) => design.id);
+
+    expect(empty).toEqual([]);
+  });
+
+  it("represents all six categories in the Tech Tree, each with at least one Design beyond the starting ones", () => {
+    for (const { id } of catalogue.designCategories) {
+      expect(
+        catalogue.designs.some(
+          (design) => design.category === id && !design.starting,
+        ),
+      ).toBe(true);
+    }
+    expect(catalogue.designCategories).toHaveLength(6);
+  });
+
+  describe("the Industry Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (designId: string) => {
+      const found = catalogue.designs.find((design) => design.id === designId);
+      if (found === undefined) throw new Error(`expected a ${designId}`);
+      return found;
+    };
+    const recipeOf = (typeId: string, recipeId: string) => {
+      const found = structureType(typeId).recipes?.find(
+        (recipe) => recipe.id === recipeId,
+      );
+      if (found === undefined) throw new Error(`expected ${recipeId}`);
+      return found;
+    };
+    const rateOf = (flows: readonly ResourceFlow[], id: string) =>
+      flows.find((flow) =>
+        flow.resource.kind === "bulk-resource"
+          ? flow.resource.resourceId === id
+          : flow.resource.stockId === id,
+      )?.kilogramsPerHour ?? 0;
+    const industry = catalogue.designs.filter(
+      (design) => design.category === "industry" && !design.starting,
+    );
+
+    it("has two beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(2);
+      expect(
+        industry.some((design) =>
+          design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
+        ),
+      ).toBe(true);
+    });
+
+    it("has a large extraction plant, behind Molten regolith electrolysis, which needs Regolith extraction first", () => {
+      expect(
+        designOf(structureType("large-extraction-plant").designId),
+      ).toMatchObject({
+        id: "molten-regolith-electrolysis",
+        category: "industry",
+        starting: false,
+        prerequisiteDesignIds: ["regolith-extraction"],
+      });
+    });
+
+    it("has the large extraction plant run the extraction plant's recipes on at least twice the Regolith, making more of everything for each hour and each kW", () => {
+      const large = structureType("large-extraction-plant").recipes ?? [];
+      const original = structureType("extraction-plant").recipes ?? [];
+
+      expect(
+        large.map((recipe) => [
+          recipe.id,
+          recipe.label,
+          recipe.inputs.map((flow) => flow.resource),
+          recipe.outputs.map((flow) => flow.resource),
+        ]),
+      ).toEqual(
+        original.map((recipe) => [
+          recipe.id,
+          recipe.label,
+          recipe.inputs.map((flow) => flow.resource),
+          recipe.outputs.map((flow) => flow.resource),
+        ]),
+      );
+      for (const recipe of large) {
+        const before = recipeOf("extraction-plant", recipe.id);
+        expect(rateOf(recipe.inputs, "regolith")).toBeGreaterThanOrEqual(
+          2 * rateOf(before.inputs, "regolith"),
+        );
+        for (const resource of ["oxygen", "metals", "silicon"]) {
+          const made = rateOf(recipe.outputs, resource);
+          const madeBefore = rateOf(before.outputs, resource);
+          expect(made).toBeGreaterThan(madeBefore);
+          expect(made / recipe.drawKilowatts).toBeGreaterThan(
+            madeBefore / before.drawKilowatts,
+          );
+        }
+      }
+    });
+
+    it("has the large extraction plant built from an oxygen separator and a Component of its own, standing on more ground and shipping less for each kilogram of silicon it makes an hour", () => {
+      const large = structureType("large-extraction-plant");
+      const original = structureType("extraction-plant");
+      const silicon = (typeId: string) =>
+        rateOf(recipeOf(typeId, "metals-and-silicon").outputs, "silicon");
+
+      expect(large.components).toEqual([
+        { componentId: "molten-regolith-cell", count: 1 },
+        { componentId: "oxygen-separator", count: 1 },
+      ]);
+      expect(large.footprintRadiusMetres).toBeGreaterThan(
+        original.footprintRadiusMetres,
+      );
+      expect(
+        shipped(large).kilograms / silicon("large-extraction-plant"),
+      ).toBeLessThan(shipped(original).kilograms / silicon("extraction-plant"));
+    });
+
+    it("has an integrated fabrication plant, behind Integrated fabrication, which needs Molten regolith electrolysis and Circuit board fabrication first", () => {
+      expect(
+        designOf(structureType("integrated-fabrication-plant").designId),
+      ).toMatchObject({
+        id: "integrated-fabrication",
+        category: "industry",
+        starting: false,
+        prerequisiteDesignIds: [
+          "molten-regolith-electrolysis",
+          "circuit-board-fabrication",
+        ],
+      });
+    });
+
+    it("has the integrated fabrication plant make circuit boards straight from silicon and metals by default, or wafers, more of each an hour than the Plants it stands in for, for no more power than both draw together", () => {
+      const [boards, wafers] =
+        structureType("integrated-fabrication-plant").recipes ?? [];
+      if (boards === undefined || wafers === undefined) {
+        throw new Error("expected two recipes");
+      }
+      const fabrication = recipeOf("vacuum-fabrication-plant", "wafers");
+      const circuits = recipeOf("circuit-board-plant", "circuit-boards");
+
+      expect([boards.id, wafers.id]).toEqual(["circuit-boards", "wafers"]);
+      expect(boards.inputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "silicon" },
+        { kind: "bulk-resource", resourceId: "metals" },
+      ]);
+      expect(boards.outputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "circuit-boards" },
+      ]);
+      expect(wafers.inputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "silicon" },
+      ]);
+      expect(wafers.outputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "wafers" },
+      ]);
+      expect(rateOf(boards.outputs, "circuit-boards")).toBeGreaterThan(
+        rateOf(circuits.outputs, "circuit-boards"),
+      );
+      expect(rateOf(wafers.outputs, "wafers")).toBeGreaterThan(
+        rateOf(fabrication.outputs, "wafers"),
+      );
+      for (const recipe of [boards, wafers]) {
+        expect(recipe.drawKilowatts).toBeLessThanOrEqual(
+          fabrication.drawKilowatts + circuits.drawKilowatts,
+        );
+      }
+    });
+
+    it("has the integrated fabrication plant take more silicon than an extraction plant makes, but no more than a large extraction plant makes, running for metals and silicon", () => {
+      const taken = Math.max(
+        ...(structureType("integrated-fabrication-plant").recipes ?? []).map(
+          (recipe) => rateOf(recipe.inputs, "silicon"),
+        ),
+      );
+      const made = (typeId: string) =>
+        rateOf(recipeOf(typeId, "metals-and-silicon").outputs, "silicon");
+
+      expect(taken).toBeGreaterThan(made("extraction-plant"));
+      expect(taken).toBeLessThanOrEqual(made("large-extraction-plant"));
+    });
+
+    it("has the integrated fabrication plant built from a crystal furnace and a Component of its own, shipped lighter and cheaper than a vacuum fabrication plant and a circuit board plant together", () => {
+      const integrated = structureType("integrated-fabrication-plant");
+      const pair = [
+        shipped(structureType("vacuum-fabrication-plant")),
+        shipped(structureType("circuit-board-plant")),
+      ];
+
+      expect(integrated.components).toEqual([
+        { componentId: "crystal-furnace", count: 1 },
+        { componentId: "board-assembly-line", count: 1 },
+      ]);
+      expect(shipped(integrated).kilograms).toBeLessThan(
+        pair.reduce((sum, each) => sum + each.kilograms, 0),
+      );
+      expect(shipped(integrated).millionDollars).toBeLessThan(
+        pair.reduce((sum, each) => sum + each.millionDollars, 0),
+      );
+    });
+  });
+
+  describe("the Mobility Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (designId: string) => {
+      const found = catalogue.designs.find((design) => design.id === designId);
+      if (found === undefined) throw new Error(`expected a ${designId}`);
+      return found;
+    };
+    const mobility = catalogue.designs.filter(
+      (design) => design.category === "mobility" && !design.starting,
+    );
+
+    it("has two beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(mobility).toHaveLength(2);
+      expect(
+        mobility.some((design) =>
+          design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
+        ),
+      ).toBe(true);
+    });
+
+    // The Rover is the only one of its kind, so a Design for another Rover
+    // would need a new rule. The Design that held its place unlocks lights
+    // round a landing pad instead.
+    it("has a lit landing pad, behind Landing pad lights, which needs Landing pads and Tall Light Masts first", () => {
+      expect(designOf(structureType("lit-landing-pad").designId)).toMatchObject(
+        {
+          id: "landing-pad-lights",
+          label: "Landing pad lights",
+          category: "mobility",
+          starting: false,
+          prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
+        },
+      );
+    });
+
+    it("has the lit landing pad stand on a landing pad's ground, built from a landing pad's Components and pad lights of its own, taking longer to assemble", () => {
+      const lit = structureType("lit-landing-pad");
+      const pad = structureType("landing-pad");
+      const own = lit.components.filter(
+        (need) =>
+          !pad.components.some(
+            (other) => other.componentId === need.componentId,
+          ),
+      );
+
+      expect(lit).toMatchObject({
+        landingPad: true,
+        footprintRadiusMetres: pad.footprintRadiusMetres,
+        stageMachines: pad.stageMachines,
+        habitat: false,
+        shieldsHabitat: false,
+      });
+      expect(lit.components).toEqual(
+        expect.arrayContaining([...pad.components]),
+      );
+      expect(own).toEqual([{ componentId: "landing-floodlight", count: 4 }]);
+      expect(lit.stageHours.assembly).toBeGreaterThan(pad.stageHours.assembly);
+      expect(shipped(lit).kilograms).toBeLessThanOrEqual(
+        catalogue.launch.payloadMassLimitKilograms,
+      );
+    });
+
+    it("has the lit landing pad light wider ground than a Light Mast at Night, drawing no more for each square metre lit, and nothing in Daylight", () => {
+      const lit = structureType("lit-landing-pad");
+      const mast = structureType("light-mast");
+      const perArea = (type: StructureType) =>
+        type.power.nightDrawKilowatts / type.lightRadiusMetres ** 2;
+
+      expect(lit.lightRadiusMetres).toBeGreaterThan(mast.lightRadiusMetres);
+      expect(perArea(lit)).toBeLessThanOrEqual(perArea(mast));
+      expect(lit.power).toMatchObject({
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+      });
+      expect(lit.power.nightDrawKilowatts).toBeGreaterThan(0);
+    });
+  });
+
+  describe("the Life Support Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (designId: string) => {
+      const found = catalogue.designs.find((design) => design.id === designId);
+      if (found === undefined) throw new Error(`expected a ${designId}`);
+      return found;
+    };
+    const rateOf = (flows: readonly ResourceFlow[], id: string) =>
+      flows.find((flow) =>
+        flow.resource.kind === "bulk-resource"
+          ? flow.resource.resourceId === id
+          : flow.resource.stockId === id,
+      )?.kilogramsPerHour ?? Number.NaN;
+    /** The life support Launch items of a Design: stock id, kilograms brought and kilograms shipped. */
+    const tanksOf = (designId: string) =>
+      catalogue.launch.items.flatMap((item) =>
+        item.designId === designId && item.brings.kind === "life-support"
+          ? [
+              {
+                stockId: item.brings.stockId,
+                kilograms: item.brings.kilograms,
+                item,
+              },
+            ]
+          : [],
+      );
+    const lifeSupport = catalogue.designs.filter(
+      (design) => design.category === "life-support" && !design.starting,
+    );
+
+    it("has two or three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(lifeSupport.length).toBeGreaterThanOrEqual(2);
+      expect(lifeSupport.length).toBeLessThanOrEqual(3);
+      expect(
+        lifeSupport.some((design) =>
+          design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
+        ),
+      ).toBe(true);
+    });
+
+    it("has an electrolysis plant, behind Water electrolysis, which needs Water processing first", () => {
+      expect(
+        designOf(structureType("electrolysis-plant").designId),
+      ).toMatchObject({
+        id: "water-electrolysis",
+        category: "life-support",
+        starting: false,
+        prerequisiteDesignIds: ["water-processing"],
+      });
+    });
+
+    it("has the electrolysis plant split water ice into oxygen, more for each hour and each kW than an extraction plant running for oxygen, keeping the Mission Director self-sufficient in oxygen in a fifth of the Daylight", () => {
+      const electrolysis = structureType("electrolysis-plant").recipes ?? [];
+      const extraction = structureType("extraction-plant").recipes?.find(
+        (candidate) => candidate.id === "oxygen",
+      );
+      const [recipe] = electrolysis;
+      if (recipe === undefined || extraction === undefined) {
+        throw new Error("expected the recipes");
+      }
+      const oxygen = rateOf(recipe.outputs, "oxygen");
+      const extracted = rateOf(extraction.outputs, "oxygen");
+      const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
+      const used =
+        (catalogue.lifeSupportStocks.find((stock) => stock.id === "oxygen")
+          ?.usePerEarthDayKilograms ?? Number.NaN) *
+        (daylightEarthDays + nightEarthDays);
+
+      expect(electrolysis).toHaveLength(1);
+      expect(recipe.inputs.map((flow) => flow.resource)).toEqual([
+        { kind: "bulk-resource", resourceId: "water-ice" },
+      ]);
+      expect(recipe.outputs.map((flow) => flow.resource)).toEqual([
+        { kind: "life-support", stockId: "oxygen" },
+      ]);
+      expect(oxygen).toBeGreaterThan(2 * extracted);
+      expect(oxygen / recipe.drawKilowatts).toBeGreaterThan(
+        extracted / extraction.drawKilowatts,
+      );
+      expect(used / oxygen).toBeLessThan((daylightEarthDays * 24) / 5);
+    });
+
+    it("has the electrolysis plant built from an ice melter and a Component of its own, shipped lighter and cheaper than an extraction plant", () => {
+      const plant = structureType("electrolysis-plant");
+      const extraction = structureType("extraction-plant");
+
+      expect(plant.components).toEqual([
+        { componentId: "ice-melter", count: 1 },
+        { componentId: "electrolyser-stack", count: 1 },
+      ]);
+      expect(shipped(plant).kilograms).toBeLessThan(
+        shipped(extraction).kilograms,
+      );
+      expect(shipped(plant).millionDollars).toBeLessThan(
+        shipped(extraction).millionDollars,
+      );
+    });
+
+    it("has oxygen and water in bulk tanks, behind Bulk supply tanks, which needs Life support resupply and Water electrolysis first", () => {
+      const tanks = tanksOf("bulk-supply-tanks");
+
+      expect(designOf("bulk-supply-tanks")).toMatchObject({
+        category: "life-support",
+        starting: false,
+        prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
+      });
+      expect(tanks.map((tank) => tank.stockId)).toEqual(["oxygen", "water"]);
+    });
+
+    it("has each bulk tank bring at least five times as much as a resupply tank, more for each kilogram shipped and each dollar", () => {
+      for (const tank of tanksOf("bulk-supply-tanks")) {
+        const resupply = tanksOf("life-support-resupply").find(
+          (other) => other.stockId === tank.stockId,
+        );
+        if (resupply === undefined) throw new Error("expected a resupply");
+
+        expect(tank.kilograms).toBeGreaterThanOrEqual(5 * resupply.kilograms);
+        expect(tank.kilograms / tank.item.massKilograms).toBeGreaterThan(
+          resupply.kilograms / resupply.item.massKilograms,
+        );
+        expect(tank.kilograms / tank.item.priceMillionDollars).toBeGreaterThan(
+          resupply.kilograms / resupply.item.priceMillionDollars,
+        );
+      }
+    });
+  });
+
+  describe("the Protection Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    type Wear = "dustWear" | keyof StructureType["hazardMultipliers"];
+    const wearOf = (type: StructureType, wear: Wear) =>
+      wear === "dustWear"
+        ? type.dustWearPercentPerHour
+        : type.hazardMultipliers[wear];
+    /** Each hardened Structure, the Structure it replaces, and the wear it takes less of. */
+    const hardened: readonly [string, string, readonly Wear[]][] = [
+      ["dust-sealed-solar-array", "solar-array", ["dustWear"]],
+      ["dust-screened-solar-array", "solar-array", ["dustWear", "dustCoating"]],
+      ["whipple-shielded-battery-bank", "battery-bank", ["micrometeorites"]],
+      ["hardened-habitat", "habitat", ["micrometeorites", "plumeEjecta"]],
+    ];
+    const protection = catalogue.designs.filter(
+      (design) => design.category === "protection" && !design.starting,
+    );
+
+    it("has three to five, each unlocking a hardened Structure, that together cover more than one Hazard", () => {
+      expect(protection.length).toBeGreaterThanOrEqual(3);
+      expect(protection.length).toBeLessThanOrEqual(5);
+      expect(
+        protection.map((design) =>
+          catalogue.structureTypes
+            .filter((type) => type.designId === design.id)
+            .map((type) => type.id),
+        ),
+      ).toEqual(hardened.map(([id]) => [id]));
+      const hazards = new Set(
+        hardened.flatMap(([, , wears]) =>
+          wears.map((wear) => (wear.startsWith("dust") ? "dust" : wear)),
+        ),
+      );
+      expect(hazards.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it("gives the category some depth: some need another Design first that isn't a starting one", () => {
+      const needsMore = protection.filter((design) =>
+        design.prerequisiteDesignIds.some(
+          (id) =>
+            catalogue.designs.find((other) => other.id === id)?.starting ===
+            false,
+        ),
+      );
+
+      expect(needsMore.length).toBeGreaterThan(0);
+    });
+
+    it.each(hardened)(
+      "has the %s wear more slowly than a %s, by the data catalogue",
+      (id, originalId, wears) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+
+        for (const wear of wears) {
+          expect(wearOf(type, wear)).toBeLessThan(wearOf(original, wear));
+          expect(wearOf(type, wear)).toBeGreaterThan(0);
+        }
+        for (const wear of [
+          "dustWear",
+          "dustCoating",
+          "micrometeorites",
+          "plumeEjecta",
+        ] as const) {
+          if (!wears.includes(wear)) {
+            expect(wearOf(type, wear)).toBe(wearOf(original, wear));
+          }
+        }
+      },
+    );
+
+    it.each(hardened)(
+      "has the %s do the same job as a %s, standing on the same ground and built the same way, after its Design is unlocked",
+      (id, originalId) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+        const unlocked = designsUnlockedWith(type.designId);
+
+        expect(designOf(type)).toMatchObject({
+          category: "protection",
+          starting: false,
+        });
+        expect(unlocked).toContain(original.designId);
+        expect(type).toMatchObject({
+          footprintRadiusMetres: original.footprintRadiusMetres,
+          stageHours: original.stageHours,
+          stageMachines: original.stageMachines,
+          commissioningFailureChance: original.commissioningFailureChance,
+          power: original.power,
+          lightRadiusMetres: original.lightRadiusMetres,
+          habitat: original.habitat,
+          shieldsHabitat: original.shieldsHabitat,
+          landingPad: original.landingPad,
+        });
+        expect(type.recipes).toEqual(original.recipes);
+      },
+    );
+
+    it.each(hardened)(
+      "has the %s built from at least one Component of its own, which neither a %s nor the starting stock has",
+      (id, originalId) => {
+        const type = structureType(id);
+        const original = structureType(originalId);
+        const own = type.components.filter(
+          (need) =>
+            !original.components.some(
+              (other) => other.componentId === need.componentId,
+            ),
+        );
+
+        expect(own.length).toBeGreaterThan(0);
+        for (const need of own) {
+          expect(
+            catalogue.startingStock.some(
+              (stock) => stock.componentId === need.componentId,
+            ),
+          ).toBe(false);
+        }
+        // As many Components in all, so it takes as long to deliver.
+        const count = (each: StructureType) =>
+          each.components.reduce((sum, need) => sum + need.count, 0);
+        expect(count(type)).toBe(count(original));
+      },
+    );
+  });
+
   it("counts self-sufficiency over a window of a whole number of records, one Lunation by default", () => {
     const { windowLunations, recordHours } = catalogue.selfSufficiency;
     const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
@@ -944,12 +2152,12 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
-  it("has a Habitat the Mission Director can move into", () => {
+  it("has Habitats the Mission Director can move into: the inflatable Habitat and the hardened one", () => {
     expect(
       catalogue.structureTypes
         .filter((type) => type.habitat)
         .map((type) => type.id),
-    ).toEqual(["habitat"]);
+    ).toEqual(["habitat", "hardened-habitat"]);
   });
 
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {

@@ -226,6 +226,15 @@ export type GameEvent =
       readonly spareComponents: number;
     }
   | {
+      /**
+       * A Robot a Launch brought has climbed down from the Lander and
+       * walked to the stockpile, and is ready for work.
+       */
+      readonly kind: "robot-arrived";
+      readonly atMinute: number;
+      readonly robotId: string;
+    }
+  | {
       /** A Micrometeorite has struck, without warning, wearing down what it hit. */
       readonly kind: "micrometeorite-strike";
       readonly atMinute: number;
@@ -264,6 +273,29 @@ export type GameEvent =
       /** The Rover was Broken before the Robot could drive it off, so the Expedition is off. */
       readonly kind: "expedition-called-off";
       readonly atMinute: number;
+    }
+  | {
+      /**
+       * A Research Task has run its length and is complete: the Science it
+       * pays has been added to the base's, and it can't run again.
+       */
+      readonly kind: "research-task-completed";
+      readonly atMinute: number;
+      readonly researchTaskId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
+       * The player has unlocked a Design in the Tech Tree, for the Science
+       * it cost. Unlocking happens at once, so it comes back from the
+       * command, not from advancing the Campaign.
+       */
+      readonly kind: "design-unlocked";
+      readonly atMinute: number;
+      readonly designId: string;
+      /** The Science it cost. */
+      readonly science: number;
     }
   | {
       /**

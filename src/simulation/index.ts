@@ -1,5 +1,9 @@
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
+export { designLabel } from "./tech-tree";
+export { launchItemLabel } from "./launch-manifest";
+export { researchTaskMinutes } from "./research";
+export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
 export type {
@@ -65,6 +69,16 @@ export type {
   SetRecipeResult,
 } from "./plants";
 export type { SelfRepairSnapshot } from "./self-repair";
+export type {
+  ResearchTaskSnapshot,
+  StartResearchTaskRefusal,
+  StartResearchTaskResult,
+} from "./research";
+export type {
+  DesignUnlockedEvent,
+  UnlockDesignRefusal,
+  UnlockDesignResult,
+} from "./tech-tree";
 export type { StrikeTarget } from "./micrometeorites";
 export type { SpareComponentsForecast } from "./spare-forecast";
 export type {

@@ -8,6 +8,7 @@ import {
 } from "./construction";
 import { isDiggingWanted } from "./digging";
 import { isSameDriven, type DrivenTarget } from "./driven";
+import { isRoverSpokenFor } from "./expeditions";
 import type { DismantlingStage } from "./dismantling";
 import { isMachineBroken, machineOn, nearestFreeMachine } from "./machines";
 import {
@@ -174,14 +175,15 @@ function missingComponents(
 }
 
 /**
- * Finds the Work Order a Robot should claim next: the first one that nobody
- * else has claimed and that can be worked on now. Maintenance comes first,
- * in the order it was raised, then parking Machines; then the
- * Constructions, dismantling, unloading and loading of the Lander and
- * cables to Structures cut off from power, in the order they were planned;
- * and last, setting a Machine digging. Each Construction's current stage
- * comes before laying its cable, which can be done at any stage before
- * Commissioning.
+ * Finds the Work Order a Robot should claim next: the first one that can be
+ * worked on now and that no other Robot's Work Order is in the way of (see
+ * `isInTheWay`), leaving the Rover for an Expedition to the Robot going on
+ * it. Maintenance comes first, in the order it was raised, then parking
+ * Machines; then the Constructions, dismantling, unloading and loading of
+ * the Lander and cables to Structures cut off from power, in the order they
+ * were planned; and last, setting a Machine digging. Each Construction's
+ * current stage comes before laying its cable, which can be done at any
+ * stage before Commissioning.
  */
 export function claimWorkOrder(
   state: CampaignState,
@@ -193,7 +195,8 @@ export function claimWorkOrder(
       : [robot.workOrder],
   );
   const isFree = (workOrder: WorkOrder) =>
-    !claimed.some((other) => isSameWorkOrder(other, workOrder));
+    !claimed.some((other) => isInTheWay(other, workOrder)) &&
+    !("roverId" in workOrder && isRoverSpokenFor(state, workOrder.roverId));
   const free = (structureId: string, kind: StructureWorkOrderKind) =>
     isFree({ structureId, kind });
   for (const maintenance of state.maintenance) {
@@ -337,6 +340,36 @@ export function drivenWorkOrder(
         roverId: target.roverId,
         kind: work === "maintain" ? "maintain-rover" : "park-rover",
       };
+}
+
+/** The kinds of Work Order for the stages of a Construction or of dismantling. */
+const stageKinds: readonly WorkOrderKind[] = [
+  ...Object.values(workOrderKinds),
+  ...Object.values(dismantlingKinds),
+];
+
+/**
+ * Whether a Work Order another Robot holds keeps a Robot from claiming one:
+ * they are the same, or are for the same Machine or Rover, which only one
+ * Robot handles at a time, or are for stages of the same Construction or
+ * dismantling. A Robot that finishes a stage still holds its Work Order
+ * until its next game-minute, so the next stage waits for it then, rather
+ * than going to another Robot that would have to walk there.
+ */
+function isInTheWay(held: WorkOrder, wanted: WorkOrder): boolean {
+  if (isSameWorkOrder(held, wanted)) return true;
+  if ("machineId" in held) {
+    return "machineId" in wanted && held.machineId === wanted.machineId;
+  }
+  if ("roverId" in held) {
+    return "roverId" in wanted && held.roverId === wanted.roverId;
+  }
+  return (
+    "structureId" in wanted &&
+    held.structureId === wanted.structureId &&
+    stageKinds.includes(held.kind) &&
+    stageKinds.includes(wanted.kind)
+  );
 }
 
 /** Whether two Work Orders are the same one. */

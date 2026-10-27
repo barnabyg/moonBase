@@ -1,7 +1,9 @@
 import { catalogue, type LaunchItem } from "../catalogue";
+import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { valueAboard } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
+import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /** How many of a Launch item the manifest asks for. */
 export interface ManifestLine {
@@ -29,6 +31,8 @@ export interface LaunchManifestSnapshot {
 
 export type ManifestRefusal =
   | "unknown-item"
+  /** The Design the item belongs to isn't unlocked. */
+  | "design-locked"
   | "invalid-count"
   | "over-payload-mass"
   | "over-funding"
@@ -49,8 +53,10 @@ export type ManifestResult =
  * and the Funding balance can pay for it, counting what any Exports aboard
  * the Lander will sell for, as they are sold before it is paid for;
  * otherwise leaves the manifest as it was and says which limit it would go
- * over. Once the Lander has left Earth with the manifest, it is locked until
- * the Lander lands.
+ * over. An item whose Design isn't unlocked is refused, whatever its count;
+ * Components already in stock or on the way are not affected. Once the
+ * Lander has left Earth with the manifest, it is locked until the Lander
+ * lands.
  */
 export function setLaunchManifest(
   state: CampaignState,
@@ -64,10 +70,17 @@ export function setLaunchManifest(
   }
   const lines: { itemId: string; count: number }[] = [];
   for (const { itemId, count } of manifest) {
-    if (findLaunchItem(itemId) === undefined) {
+    const item = findLaunchItem(itemId);
+    if (item === undefined) {
       return refuse(
         "unknown-item",
         `A Launch can't bring anything called "${itemId}".`,
+      );
+    }
+    if (!isDesignUnlocked(state, item.designId)) {
+      return refuse(
+        "design-locked",
+        `${launchItemLabel(item)} needs the ${designLabel(item.designId)} Design unlocked first.`,
       );
     }
     if (!Number.isSafeInteger(count) || count < 0) {
@@ -130,10 +143,11 @@ export function payForLaunch(state: CampaignState): number {
 
 /**
  * Unloads everything on the Launch manifest as the Lander lands: oxygen and
- * water join the life support stocks, and Components join the base's stock
+ * water join the life support stocks, Components join the base's stock
  * at the stockpile beside the landing site, or, on a landing pad, stay
- * aboard for the Robot to carry there. A new, empty manifest starts, and
- * what was delivered is returned.
+ * aboard for the Robot to carry there, and Robots climb down from it,
+ * wherever it has landed. A new, empty manifest starts, and what was
+ * delivered is returned.
  */
 export function deliverLaunch(
   state: CampaignState,
@@ -151,6 +165,8 @@ export function deliverLaunch(
         (candidate) => candidate.stockId === brings.stockId,
       );
       if (stock !== undefined) stock.kilograms += brings.kilograms * count;
+    } else if (brings?.kind === "robot") {
+      deliverRobots(state, count);
     }
   }
   state.launchManifest = [];
@@ -183,6 +199,22 @@ function totals(items: readonly ManifestLine[]): {
 /** An amount of money as a refusal gives it, for example "$12.5M", to the nearest $0.1M. */
 function millionDollars(value: number): string {
   return `$${Math.round(value * 10) / 10}M`;
+}
+
+/** Names something a Launch can bring, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
+export function launchItemLabel(item: LaunchItem): string {
+  const { brings } = item;
+  if (brings.kind === "robot") return "Robot";
+  if (brings.kind === "component") {
+    return (
+      catalogue.componentTypes.find((type) => type.id === brings.componentId)
+        ?.label ?? brings.componentId
+    );
+  }
+  const stock =
+    catalogue.lifeSupportStocks.find((entry) => entry.id === brings.stockId)
+      ?.label ?? brings.stockId;
+  return `${stock}, ${brings.kilograms} kg`;
 }
 
 function findLaunchItem(id: string): LaunchItem | undefined {

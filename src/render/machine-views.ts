@@ -11,7 +11,7 @@ import {
   type ExcavatorModel,
   type RegolithPrinterModel,
 } from "./machine-models";
-import { shieldingRadiusAt, SHIELDING_HEIGHT } from "./models";
+import { printingAt } from "./models";
 
 /** How fast the excavator's arm digs in and draws back while grading, in cycles per real second. */
 const DIG_CYCLES_PER_SECOND = 0.4;
@@ -21,7 +21,7 @@ const SWEEP_ANGLE = 0.45;
 const BEACON_FLASHES_PER_SECOND = 1;
 /** How fast the print head sweeps to and fro along the layer it is printing, in cycles per real second. */
 const PRINT_SWEEPS_PER_SECOND = 0.15;
-/** How far in from the shielding's outer surface the print head lays Regolith, as a share of its radius. */
+/** How far in from the outer edge of what it prints the print head lays Regolith, as a share of its radius. */
 const PRINT_LINE_SHARE = 0.85;
 /** How far out the printer's head is while it is parked, in metres. */
 const PRINTER_PARKED_REACH = 1.7;
@@ -139,9 +139,9 @@ function showGrading(
 }
 
 /**
- * Sweeps the printer's head to and fro along the top of the layer of
- * Regolith shielding it is printing, rising as the shielding grows, or parks
- * it.
+ * Sweeps the printer's head to and fro along the ring of Regolith it is
+ * printing: rising with Regolith shielding as it grows, or reaching further
+ * out over a sintered landing pad as it spreads. Or parks it.
  */
 function showPrinting(
   model: RegolithPrinterModel,
@@ -160,8 +160,9 @@ function showPrinting(
     return;
   }
   const centre = toScene(site.position);
-  const height = progress * SHIELDING_HEIGHT;
-  const radius = shieldingRadiusAt(height) * PRINT_LINE_SHARE;
+  const printing = printingAt(site.structureTypeId, progress);
+  const height = printing.height;
+  const radius = printing.radius * PRINT_LINE_SHARE;
   const away = Math.hypot(centre.x - position.x, centre.z - position.z);
   // Along the near side of the ring the layer follows, as far round as the
   // head can reach.

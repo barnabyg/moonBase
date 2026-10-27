@@ -1,11 +1,15 @@
 import {
   catalogue,
+  type Design,
   type Export,
   type LaunchItem,
   type ResourceRef,
 } from "../catalogue";
 import {
+  designLabel,
+  launchItemLabel,
   readClock,
+  robotNumber,
   type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
@@ -51,6 +55,7 @@ import type {
   ManifestLine,
   ParkingSnapshot,
   PlantSnapshot,
+  ResearchTaskSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -389,8 +394,16 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   };
 }
 
-/** Says what happened in an event, for the notification list, for example "Night has fallen". */
-export function formatEvent(event: GameEvent): string {
+/**
+ * Says what happened in an event, for the notification list, for example
+ * "Night has fallen". Given the base's Robots, it says which Robot an
+ * event is about when there are several, as the Base panel names them;
+ * otherwise it just says "Robot".
+ */
+export function formatEvent(
+  event: GameEvent,
+  robots: readonly Pick<RobotSnapshot, "id">[] = [],
+): string {
   switch (event.kind) {
     case "night-started":
       return "Night has fallen";
@@ -467,18 +480,24 @@ export function formatEvent(event: GameEvent): string {
       ])}`;
     case "robot-self-repair-started":
       return event.makeshift
-        ? `Robot at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
-        : `Robot at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
+        ? `${robotLabel(event.robotId, robots)} at ${formatCondition(event.conditionPercent)} Condition, going to the ${event.home === "habitat" ? "Habitat" : "Lander"} for a makeshift repair: there aren't enough spare Components`
+        : `${robotLabel(event.robotId, robots)} at ${formatCondition(event.conditionPercent)} Condition, going to repair itself at the ${event.home === "habitat" ? "Habitat" : "Lander"}`;
     case "robot-repaired":
       return event.spareComponents > 0
-        ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
-        : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+        ? `${robotLabel(event.robotId, robots)} repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
+        : `${robotLabel(event.robotId, robots)} made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "robot-arrived":
+      return `${robots.length > 1 ? robotLabel(event.robotId, robots) : "A Robot"} has arrived from Earth, and is ready for work at the stockpile`;
     case "expedition-left":
       return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
     case "expedition-returned":
       return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
+    case "research-task-completed":
+      return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "design-unlocked":
+      return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
       return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
     case "self-sufficiency-lost":
@@ -486,7 +505,7 @@ export function formatEvent(event: GameEvent): string {
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
-      return `Micrometeorite struck the ${strikeTargetLabel(event.target)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
+      return `Micrometeorite struck ${strikeTargetLabel(event.target, robots)}, leaving it at ${formatCondition(event.conditionPercent)} Condition`;
     case "mission-director-died":
       return `The Mission Director has died: ${describeCause(event.cause)}`;
   }
@@ -669,12 +688,66 @@ export function formatFunding(fundingMillionDollars: number): string {
   return formatMillionDollars(fundingMillionDollars);
 }
 
-/** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */
-export function launchItemLabel(item: LaunchItem): string {
-  const { brings } = item;
-  return brings.kind === "component"
-    ? componentLabel(brings.componentId)
-    : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+/** Says how much Science the base has or a Research Task pays, for example "20 Science". */
+export function formatScience(science: number): string {
+  return `${science} Science`;
+}
+
+/** Names a Research Task, for example "Seismic monitoring". */
+export function researchTaskLabel(researchTaskId: string): string {
+  return (
+    catalogue.researchTasks.find((task) => task.id === researchTaskId)?.label ??
+    researchTaskId
+  );
+}
+
+/**
+ * Whether a Design is unlocked, can be unlocked now or is out of reach, in
+ * words for the Tech Tree screen, for example "Can be unlocked now", "Needs
+ * Large battery banks first" or "Needs 12 more Science".
+ */
+export function describeDesignState(
+  design: Design,
+  snapshot: Pick<Snapshot, "science" | "unlockedDesignIds">,
+): {
+  readonly state: "unlocked" | "unlockable" | "out-of-reach";
+  readonly text: string;
+} {
+  if (snapshot.unlockedDesignIds.includes(design.id)) {
+    return { state: "unlocked", text: "Unlocked" };
+  }
+  const missing = design.prerequisiteDesignIds.filter(
+    (id) => !snapshot.unlockedDesignIds.includes(id),
+  );
+  if (missing.length > 0) {
+    return {
+      state: "out-of-reach",
+      text: `Needs ${missing.map(designLabel).join(" and ")} first`,
+    };
+  }
+  if (snapshot.science < design.scienceCost) {
+    return {
+      state: "out-of-reach",
+      text: `Needs ${design.scienceCost - snapshot.science} more Science`,
+    };
+  }
+  return { state: "unlockable", text: "Can be unlocked now" };
+}
+
+/**
+ * Says which Research Task is running and how long it has left, for the
+ * status panel, for example "Seismic monitoring" and "2d 5h left", or that
+ * none is.
+ */
+export function formatResearchTask(
+  running: ResearchTaskSnapshot | undefined,
+): Stat {
+  return running === undefined
+    ? { value: "none running" }
+    : {
+        value: researchTaskLabel(running.researchTaskId),
+        note: `${formatShortDuration(running.minutesLeft)} left`,
+      };
 }
 
 /**
@@ -887,8 +960,9 @@ function notes(parts: readonly (string | undefined)[]): { note?: string } {
 
 /**
  * Says what a Robot is doing, and whether it works below par, for the
- * status panel, for example "working", or "repairing itself at the Habitat"
- * and "working at 18%". Its Condition is shown beside it.
+ * status panel, for example "working", "repairing itself at the Habitat"
+ * and "working at 18%", or, for one a Launch has just brought, "climbing
+ * down from the Lander". Its Condition is shown beside it.
  */
 export function formatRobot(
   robot: RobotSnapshot,
@@ -898,6 +972,12 @@ export function formatRobot(
   const performance = notes([formatPerformance(robot.performance)]);
   if (isOnExpedition(robot.id, expedition)) {
     return { value: "on an Expedition", ...performance };
+  }
+  if (activity.kind === "climbing-down") {
+    return { value: "climbing down from the Lander", ...performance };
+  }
+  if (activity.kind === "walking-to-stockpile") {
+    return { value: "walking to the stockpile, just arrived", ...performance };
   }
   const where =
     selfRepair === undefined
@@ -931,15 +1011,34 @@ export function isOnExpedition(
 }
 
 /**
- * Says how the Expedition under way is going, and when it will be back,
- * for example "Expedition: away, back in 2 Earth Days 5 hours", or that
- * there is none.
+ * Whether every Robot has set off on an Expedition, so that every Work
+ * Order waits until one is back.
  */
-export function formatExpedition(
+export function isEveryRobotOnExpedition(
+  robots: readonly Pick<RobotSnapshot, "id">[],
   expedition: ExpeditionSnapshot | undefined,
-  elapsedMinutes: number,
+): boolean {
+  return (
+    robots.length > 0 &&
+    robots.every((robot) => isOnExpedition(robot.id, expedition))
+  );
+}
+
+/**
+ * Names a Robot, for the Base panel and the notifications: "Robot" while
+ * it is the only one, otherwise numbered by its id, for example "Robot 2",
+ * so that its name never changes. A Robot whose id has no number is
+ * numbered by where it comes in the list.
+ */
+export function robotLabel(
+  robotId: string,
+  robots: readonly Pick<RobotSnapshot, "id">[],
 ): string {
-  return `Expedition: ${describeExpedition(expedition, elapsedMinutes)}`;
+  if (robots.length <= 1) return "Robot";
+  const number =
+    robotNumber(robotId) ??
+    robots.findIndex((robot) => robot.id === robotId) + 1;
+  return `Robot ${number}`;
 }
 
 /**
@@ -966,17 +1065,25 @@ export function describeExpedition(
   }
 }
 
-/** Names what a Micrometeorite struck, for example "solar array" or "Robot". */
-function strikeTargetLabel(target: StrikeTarget): string {
+/**
+ * Names what a Micrometeorite struck, for example "the solar array", "the
+ * Robot", or "Robot 2" when there are several.
+ */
+function strikeTargetLabel(
+  target: StrikeTarget,
+  robots: readonly Pick<RobotSnapshot, "id">[],
+): string {
   switch (target.kind) {
     case "structure":
-      return structureLabel(target.structureTypeId).toLowerCase();
+      return `the ${structureLabel(target.structureTypeId).toLowerCase()}`;
     case "machine":
-      return machineLabel(target.machineTypeId).toLowerCase();
+      return `the ${machineLabel(target.machineTypeId).toLowerCase()}`;
     case "rover":
-      return catalogue.rover.label;
+      return `the ${catalogue.rover.label}`;
     case "robot":
-      return "Robot";
+      return robots.length > 1
+        ? robotLabel(target.robotId, robots)
+        : "the Robot";
   }
 }
 
@@ -1068,7 +1175,7 @@ export function formatWaiting(waiting: ConstructionWait): string {
 
 /**
  * Says what is happening on a Construction right now, for the Construction
- * panel: what a Machine and the Robot are doing on it, or else why it is
+ * panel: what a Machine and each Robot are doing on it, or else why it is
  * waiting.
  */
 export function describeWork(
@@ -1080,7 +1187,8 @@ export function describeWork(
       candidate.activity.kind === "working" &&
       candidate.activity.constructionId === construction.id,
   );
-  const robot = snapshot.robots.find((candidate) =>
+  // One Robot may lay its cable while another works on its stage.
+  const robots = snapshot.robots.filter((candidate) =>
     isFor(candidate.activity, construction.id),
   );
   const work = [
@@ -1089,9 +1197,7 @@ export function describeWork(
       : [
           `${machineLabel(machine.machineTypeId)} ${machineWork(construction)} by itself`,
         ]),
-    ...(robot === undefined
-      ? []
-      : [describeRobotWork(construction, robot, snapshot)]),
+    ...robots.map((robot) => describeRobotWork(construction, robot, snapshot)),
   ];
   if (work.length > 0) return work.join("; ");
   return construction.waiting === undefined
@@ -1174,8 +1280,8 @@ function describeRobotWork(
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
     // Only ever done for a Structure being dismantled or maintained, to
-    // unload or load the Lander, or for the Robot's repair of itself, when
-    // it does nothing for anything else.
+    // unload or load the Lander, for the Robot's repair of itself, or as it
+    // arrives from Earth, when it does nothing for anything else.
     case "driving-rover":
     case "on-expedition":
     case "unloading-expedition":
@@ -1190,6 +1296,8 @@ function describeRobotWork(
     case "walking-to-repair":
     case "loading-spare-components":
     case "repairing-itself":
+    case "climbing-down":
+    case "walking-to-stockpile":
       return "Waiting for the Robot";
   }
 }

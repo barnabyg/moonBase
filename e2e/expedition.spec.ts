@@ -34,7 +34,7 @@ test("an Expedition started from the Expeditions screen comes back with water ic
   await screen.getByRole("button", { name: "Start an Expedition" }).click();
   await expect(
     screen.getByRole("status", { name: "Expedition under way" }),
-  ).toHaveText(/^Expedition: leaving once the Robot/);
+  ).toHaveText(/^Leaving once the Robot/);
   // A second one is refused, with the reason.
   await screen.getByRole("button", { name: "Start an Expedition" }).click();
   await expect(screen.getByRole("alert")).toHaveText(

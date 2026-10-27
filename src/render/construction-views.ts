@@ -9,7 +9,6 @@ import { toScene, type Frame } from "./interpolation";
 import {
   createCrateModel,
   createStructureModel,
-  LIGHT_MAST_HEIGHT,
   type StructureModel,
 } from "./models";
 
@@ -36,10 +35,17 @@ interface StructureView {
   readonly storageKilowattHours: number;
   /** The light that lights the ground round it at Night, if it has one. */
   readonly light: THREE.PointLight | undefined;
+  /** How bright that light is while it is on, in candela. */
+  readonly lightIntensity: number;
 }
 
-/** How bright a Light Mast's light is, in candela. */
-const MAST_LIGHT_INTENSITY = 180;
+/**
+ * How brightly a light lights the ground at the edge of its circle, in lux,
+ * whatever its height: its intensity in candela over the square of the
+ * distance from the light to there. A taller light, lighting a wider
+ * circle, shines brighter.
+ */
+const LIGHT_AT_EDGE_LUX = 0.5;
 
 /**
  * Draws every Construction as it stands, stage by stage: the ground graded
@@ -258,9 +264,12 @@ function showLit(
 ): void {
   view.model.setLit(lit);
   if (view.light !== undefined) {
-    view.light.intensity = lit ? MAST_LIGHT_INTENSITY : 0;
+    view.light.intensity = lit ? view.lightIntensity : 0;
     if (lit) {
-      view.light.distance = Math.hypot(lightRadiusMetres, LIGHT_MAST_HEIGHT);
+      view.light.distance = Math.hypot(
+        lightRadiusMetres,
+        view.model.lightHeight ?? 0,
+      );
     }
   }
 }
@@ -304,17 +313,13 @@ function createView(structureTypeId: string): StructureView {
 
   // Without shadows: a shadow map for every Light Mast would cost too much.
   const lightRadius = type?.lightRadiusMetres ?? 0;
+  const lightHeight = model.lightHeight ?? 0;
+  const lightReach = Math.hypot(lightRadius, lightHeight);
   const light =
-    lightRadius > 0
-      ? new THREE.PointLight(
-          0xfff0d6,
-          0,
-          Math.hypot(lightRadius, LIGHT_MAST_HEIGHT),
-        )
-      : undefined;
+    lightRadius > 0 ? new THREE.PointLight(0xfff0d6, 0, lightReach) : undefined;
   if (light !== undefined) {
     light.name = "Light mast light";
-    light.position.y = LIGHT_MAST_HEIGHT - 0.3;
+    light.position.y = lightHeight - 0.3;
     group.add(light);
   }
   return {
@@ -325,6 +330,7 @@ function createView(structureTypeId: string): StructureView {
     model,
     storageKilowattHours: type?.power.storageKilowattHours ?? 0,
     light,
+    lightIntensity: LIGHT_AT_EDGE_LUX * lightReach ** 2,
   };
 }
 

@@ -152,7 +152,22 @@ import {
 } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
+import {
+  readResearchTask,
+  runResearch,
+  startResearchTask,
+  type ResearchTaskSnapshot,
+  type ResearchTaskState,
+  type StartResearchTaskResult,
+} from "./research";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
+import {
+  designLabel,
+  isDesignUnlocked,
+  startingDesignIds,
+  unlockDesign,
+  type UnlockDesignResult,
+} from "./tech-tree";
 import {
   readSolarParticleEvent,
   scheduleSolarParticleEvent,
@@ -486,6 +501,17 @@ export interface Snapshot {
   readonly fundingMillionDollars: number;
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
+  /** The base's Science, earned by completing Research Tasks. */
+  readonly science: number;
+  /** The Research Task running, or undefined if there is none. */
+  readonly researchTask: ResearchTaskSnapshot | undefined;
+  /** The ids of the Research Tasks completed, in the order they were. */
+  readonly completedResearchTaskIds: readonly string[];
+  /**
+   * The ids of the Designs unlocked in the Tech Tree: the starting ones,
+   * then the others in the order they were unlocked.
+   */
+  readonly unlockedDesignIds: readonly string[];
   /** The Exports to load onto the Lander, those aboard it, and what they come to. */
   readonly exports: ExportsSnapshot;
   /**
@@ -570,9 +596,16 @@ export interface Campaign {
    * advances and returns none.
    */
   advanceToNextEvent(): readonly GameEvent[];
-  /** Says whether a Structure could be planned there, without planning it. */
+  /**
+   * Says whether a Structure could be planned there, without planning it.
+   * One whose Design isn't unlocked can't be planned anywhere.
+   */
   checkPlacement(plan: ConstructionPlan): PlacementCheck;
-  /** Plans a Construction, which the Robot then carries out by itself. */
+  /**
+   * Plans a Construction, which the Robot then carries out by itself. A
+   * Structure whose Design isn't unlocked is refused, naming the Design;
+   * Constructions already planned carry on whatever is unlocked.
+   */
   planConstruction(plan: ConstructionPlan): PlanResult;
   /**
    * Cancels an unfinished Construction at once, returning its unused
@@ -598,7 +631,9 @@ export interface Campaign {
   /**
    * Sets what the next Launch is to bring from Earth, in place of the
    * manifest so far. A manifest the Launch can't carry, or the Funding
-   * balance can't pay for, is refused with the limit it would go over.
+   * balance can't pay for, is refused with the limit it would go over, and
+   * one with an item whose Design isn't unlocked is refused, naming the
+   * Design.
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /**
@@ -618,11 +653,25 @@ export interface Campaign {
    */
   setPlantRecipe(structureId: string, recipeId: string): SetRecipeResult;
   /**
-   * Starts an Expedition: the Robot finishes the Work Order it holds, then
-   * drives the Rover off the map, and comes back some time later with
-   * water ice. It is refused while one is under way or the Rover is Broken.
+   * Starts an Expedition with a Robot that is free, if there is one: the
+   * Robot finishes the Work Order it holds, then drives the Rover off the
+   * map, and comes back some time later with water ice. It is refused
+   * while one is under way or the Rover is Broken.
    */
   startExpedition(): StartExpeditionResult;
+  /**
+   * Starts a Research Task, which runs by itself for its length and then
+   * pays its Science. It needs no Robot, power or Components, and carries on
+   * through Night, while the Lander is away and while the Robot is busy.
+   * Only one runs at a time, and each can be completed only once.
+   */
+  startResearchTask(researchTaskId: string): StartResearchTaskResult;
+  /**
+   * Unlocks a Design in the Tech Tree at once, taking its cost off the
+   * base's Science, once every Design it needs first is unlocked. It adds
+   * nothing to the base. The result carries the notification of it.
+   */
+  unlockDesign(designId: string): UnlockDesignResult;
   /** Says when things will run out, as things stand. */
   forecasts(): Forecasts;
   snapshot(): Snapshot;
@@ -673,6 +722,17 @@ export interface CampaignState {
    * base's stock.
    */
   exportsToLoad: { resourceId: string; kilograms: number }[];
+  /** The base's Science, earned by completing Research Tasks. */
+  science: number;
+  /** The Research Task running, if any. */
+  researchTask: ResearchTaskState | undefined;
+  /** The ids of the Research Tasks completed, in the order they were. */
+  completedResearchTaskIds: string[];
+  /**
+   * The ids of the Designs unlocked in the Tech Tree: the starting ones,
+   * then the others in the order they were unlocked.
+   */
+  unlockedDesignIds: string[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -722,6 +782,10 @@ export function createCampaign(options: CampaignOptions): Campaign {
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
     exportsToLoad: [],
+    science: 0,
+    researchTask: undefined,
+    completedResearchTaskIds: [],
+    unlockedDesignIds: startingDesignIds(),
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -731,6 +795,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       workOrder: undefined,
       conditionPercent: 100,
       selfRepair: undefined,
+      arrival: undefined,
     })),
     machines: landingSite.machines.map((machine, index) => ({
       id: `${machine.machineTypeId}-${index + 1}`,
@@ -896,6 +961,26 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(startExpedition(state));
     },
+    startResearchTask(researchTaskId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(startResearchTask(state, researchTaskId));
+    },
+    unlockDesign(designId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(unlockDesign(state, designId));
+    },
     forecasts() {
       const networks = powerNetworks(state).map((network) => ({
         structureIds: network.structures.map((structure) => structure.id),
@@ -938,6 +1023,10 @@ function campaignFrom(state: CampaignState): Campaign {
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        science: state.science,
+        researchTask: readResearchTask(state),
+        completedResearchTaskIds: [...state.completedResearchTaskIds],
+        unlockedDesignIds: [...state.unlockedDesignIds],
         exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
@@ -1078,6 +1167,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
   runPlants(state);
+  events.push(...runResearch(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({
@@ -1103,13 +1193,24 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   return events;
 }
 
-/** Checks a placement, which is always refused once the Campaign has ended. */
+/**
+ * Checks a placement, which is always refused once the Campaign has ended,
+ * and for a Structure whose Design isn't unlocked.
+ */
 function checkCampaignPlacement(
   state: CampaignState,
   plan: ConstructionPlan,
 ): PlacementCheck {
   if (state.ended !== undefined) {
     return { ok: false, reason: "campaign-ended", message: CAMPAIGN_OVER };
+  }
+  const type = findStructureType(plan.structureTypeId);
+  if (type !== undefined && !isDesignUnlocked(state, type.designId)) {
+    return {
+      ok: false,
+      reason: "design-locked",
+      message: `The ${type.label.toLowerCase()} needs the ${designLabel(type.designId)} Design unlocked first.`,
+    };
   }
   return checkPlacement(state, plan);
 }

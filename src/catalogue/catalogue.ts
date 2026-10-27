@@ -99,6 +99,12 @@ export interface Catalogue {
     readonly makeshiftRepairPercent: number;
     /** A Robot's Condition never falls below this, in percent, so that it is never Broken. */
     readonly conditionFloorPercent: number;
+    /**
+     * How long a Robot a Launch brings takes to climb down from the Lander
+     * once it has landed, before it walks to the stockpile, in game-hours.
+     * Must come to a whole number of game-minutes.
+     */
+    readonly climbingDownHours: number;
   };
   readonly machineTypes: readonly MachineType[];
   readonly rover: RoverType;
@@ -147,6 +153,22 @@ export interface Catalogue {
    */
   readonly programmeGrantMillionDollars: number;
   readonly launch: LaunchRules;
+  /**
+   * The Research Tasks the base can carry out to earn Science, in the order
+   * the Research Tasks screen lists them. Each can be completed only once.
+   */
+  readonly researchTasks: readonly ResearchTask[];
+  /** The categories of the Tech Tree, in the order the Tech Tree screen shows them. */
+  readonly designCategories: readonly {
+    readonly id: DesignCategory;
+    readonly label: string;
+  }[];
+  /**
+   * The Tech Tree: every Design, in the order the Tech Tree screen lists
+   * them within their category. The starting ones are unlocked when a
+   * Campaign begins; the rest are unlocked with Science.
+   */
+  readonly designs: readonly Design[];
   readonly plumeEjecta: PlumeEjectaRules;
   readonly maintenance: MaintenanceRules;
   /**
@@ -182,7 +204,10 @@ export interface MicrometeoriteRules {
    * next, drawn evenly between these, to the game-minute.
    */
   readonly earthDaysBetween: { readonly min: number; readonly max: number };
-  /** The Condition a strike takes off what it hits, in percentage points, drawn evenly between these. */
+  /**
+   * The Condition a strike takes off what it hits, in percentage points,
+   * drawn evenly between these; a Structure loses its type's share of it.
+   */
   readonly conditionLossPercent: { readonly min: number; readonly max: number };
 }
 
@@ -191,7 +216,10 @@ export interface MicrometeoriteRules {
  * cleans it off as Maintenance.
  */
 export interface DustCoatingRules {
-  /** How much a solar array's coating builds up in each game-hour of Daylight, in percentage points. */
+  /**
+   * How much a solar array's coating builds up in each game-hour of
+   * Daylight, in percentage points, before its type's share of it.
+   */
   readonly percentPerDaylightHour: number;
   /**
    * The share of a solar array's output a full coating takes away, from 0
@@ -260,7 +288,8 @@ export interface PlumeEjectaRules {
   readonly radiusMetres: number;
   /**
    * How much Condition each Structure within reach loses at every take-off
-   * and landing, in percentage points of the 100% it starts with.
+   * and landing, in percentage points of the 100% it starts with, before
+   * its type's share of it.
    */
   readonly conditionLossPercent: number;
 }
@@ -278,17 +307,76 @@ export interface LaunchRules {
 /** Something a Launch can bring from Earth, as many times over as the player chooses. */
 export interface LaunchItem {
   readonly id: string;
-  /** What one of it brings: a Component, or a set amount of oxygen or water. */
+  /** The Design it belongs to. */
+  readonly designId: string;
+  /**
+   * What one of it brings: a Component, a set amount of oxygen or water, or
+   * a Robot, which climbs down from the Lander as it lands and joins the
+   * others at work. A Robot isn't a Component, so it never joins the base's
+   * stock.
+   */
   readonly brings:
     | { readonly kind: "component"; readonly componentId: string }
     | {
         readonly kind: "life-support";
         readonly stockId: string;
         readonly kilograms: number;
-      };
+      }
+    | { readonly kind: "robot" };
   /** Its mass, packing and any tank included, which counts towards the Payload Mass. */
   readonly massKilograms: number;
   readonly priceMillionDollars: number;
+}
+
+/**
+ * A piece of scientific work carried out at the base, which earns Science
+ * once it is complete. It needs no Robot, power or Components, only game
+ * time.
+ */
+export interface ResearchTask {
+  readonly id: string;
+  readonly label: string;
+  /** How long it runs. Must come to a whole number of game-minutes. */
+  readonly lengthHours: number;
+  /** The Science it earns when it is complete, a whole amount. */
+  readonly science: number;
+  /**
+   * The Design that must be unlocked before it is offered, if any; without
+   * one, it is available from the start.
+   */
+  readonly requiresDesignId?: string;
+}
+
+/** The six categories the Tech Tree's Designs fall into. */
+export type DesignCategory =
+  | "power"
+  | "construction"
+  | "protection"
+  | "life-support"
+  | "industry"
+  | "mobility";
+
+/**
+ * A Design in the Tech Tree: permission to have the Structure types and
+ * Launch items that name it, unlocked with Science once the Designs it
+ * needs first are. Unlocking one never creates anything on the base.
+ */
+export interface Design {
+  readonly id: string;
+  readonly label: string;
+  /** A sentence on what it is, for the Tech Tree screen. */
+  readonly description: string;
+  readonly category: DesignCategory;
+  /**
+   * Whether it is unlocked when a Campaign begins, as everything in the game
+   * before the Tech Tree was. A starting Design needs nothing first and costs
+   * nothing.
+   */
+  readonly starting: boolean;
+  /** The Science it takes to unlock, a whole amount. */
+  readonly scienceCost: number;
+  /** The Designs that must be unlocked before it can be. */
+  readonly prerequisiteDesignIds: readonly string[];
 }
 
 /**
@@ -535,6 +623,8 @@ export interface ComponentCount {
 export interface StructureType {
   readonly id: string;
   readonly label: string;
+  /** The Design it belongs to. */
+  readonly designId: string;
   /** Radius of the ground the Structure stands on; no two footprints may overlap. */
   readonly footprintRadiusMetres: number;
   /**
@@ -575,6 +665,20 @@ export interface StructureType {
    * isn't Broken and, if it has anything to do with power, has power.
    */
   readonly dustWearPercentPerHour: number;
+  /**
+   * How much of the Hazards that the data catalogue's rules set the same
+   * for every Structure it takes, as a share from 0 to 1 of what the rules
+   * say: 1 takes the full amount, as most Structures do, and a hardened
+   * Structure from a Protection Design takes less.
+   */
+  readonly hazardMultipliers: {
+    /** Of the Dust coating that builds up on a solar array in Daylight. */
+    readonly dustCoating: number;
+    /** Of the Condition each Micrometeorite strike takes off it. */
+    readonly micrometeorites: number;
+    /** Of the Condition each blast of Plume Ejecta takes off it. */
+    readonly plumeEjecta: number;
+  };
   /** What the commissioned Structure does on the power network. */
   readonly power: {
     /** The power it generates in Daylight; nothing generates at Night. */
@@ -651,7 +755,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 34,
+  version: 42,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -705,6 +809,8 @@ export const catalogue: Catalogue = {
     // Enough to keep working, at well under full speed.
     makeshiftRepairPercent: 30,
     conditionFloorPercent: 1,
+    // Down the Lander's ladder, one careful rung at a time.
+    climbingDownHours: 0.25,
   },
   machineTypes: [
     {
@@ -804,11 +910,27 @@ export const catalogue: Catalogue = {
     { id: "wafer-saw", label: "Wafer saw" },
     { id: "circuit-etcher", label: "Circuit etcher" },
     { id: "reflow-oven", label: "Reflow oven" },
+    { id: "large-battery-module", label: "Large battery module" },
+    { id: "large-battery-cabinet", label: "Large battery cabinet" },
+    { id: "sealed-array-mast", label: "Sealed array mast" },
+    { id: "screened-solar-panel", label: "Screened solar panel" },
+    { id: "whipple-cabinet", label: "Whipple-shielded cabinet" },
+    { id: "armoured-habitat-envelope", label: "Armoured habitat envelope" },
+    { id: "thin-film-solar-panel", label: "Thin-film solar panel" },
+    { id: "tall-mast-pole", label: "Tall mast pole" },
+    { id: "prefabricated-array-pack", label: "Prefabricated array pack" },
+    { id: "electrolyser-stack", label: "Electrolyser stack" },
+    { id: "molten-regolith-cell", label: "Molten regolith cell" },
+    { id: "board-assembly-line", label: "Board assembly line" },
+    // Labelled a pad light because the Glossary avoids "floodlight", but
+    // saves from version 32 on name it by this id, so the id stays.
+    { id: "landing-floodlight", label: "Pad light" },
   ],
   structureTypes: [
     {
       id: "solar-array",
       label: "Solar array",
+      designId: "solar-arrays",
       footprintRadiusMetres: 3,
       components: [
         { componentId: "solar-panel", count: 2 },
@@ -824,7 +946,145 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.25,
       // Its tracking drive and panel hinges grind on the Dust.
       dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The drive that keeps the panel turned to the sun.
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array whose tracking drive and panel hinges are sealed in a
+    // sealed array mast, so that Dust wears it down at 0.02 percentage
+    // points an hour rather than 0.05. Otherwise it is a solar array.
+    {
+      id: "dust-sealed-solar-array",
+      label: "Dust-sealed solar array",
+      designId: "dust-sealed-solar-arrays",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "solar-panel", count: 2 },
+        { componentId: "sealed-array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A dust-sealed solar array whose panels carry an electrodynamic dust
+    // screen, which pushes Dust off the cells, so that its coating builds
+    // up at a quarter of the rate: past the cleaning threshold in some four
+    // Lunations' Daylight rather than one.
+    {
+      id: "dust-screened-solar-array",
+      label: "Dust-screened solar array",
+      designId: "electrodynamic-dust-screens",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "screened-solar-panel", count: 2 },
+        { componentId: "sealed-array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: {
+        dustCoating: 0.25,
+        micrometeorites: 1,
+        plumeEjecta: 1,
+      },
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array whose panels are thin-film cells on a light, flexible
+    // backing, stretched wider and taller on the same mast, so that it
+    // generates 15 kW rather than 10 from 150 kg shipped rather than 200:
+    // twice as much for each kilogram, though more for each kW in money.
+    {
+      id: "thin-film-solar-array",
+      label: "Thin-film solar array",
+      designId: "thin-film-solar-cells",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "thin-film-solar-panel", count: 2 },
+        { componentId: "array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 15,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array put together and tested on Earth, its panel folded on
+    // its mast on a skid, so that it stands on less grading, comes off the
+    // stockpile as one Component and only has to be unfolded: 3 hours to
+    // build rather than 7, and it fails Commissioning one time in ten rather
+    // than one in four. It ships 230 kg for $14M, against 200 kg for $11M.
+    {
+      id: "prefabricated-solar-array",
+      label: "Prefabricated solar array",
+      designId: "prefabricated-solar-arrays",
+      footprintRadiusMetres: 3,
+      components: [{ componentId: "prefabricated-array-pack", count: 1 }],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 0.5,
+        assembly: 1,
+        commissioning: 0.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       power: {
         generationKilowatts: 10,
         storageKilowattHours: 0,
@@ -839,6 +1099,7 @@ export const catalogue: Catalogue = {
     {
       id: "battery-bank",
       label: "Battery bank",
+      designId: "battery-banks",
       footprintRadiusMetres: 2,
       components: [
         { componentId: "battery-module", count: 3 },
@@ -853,6 +1114,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The heaters that keep the cells warm enough to work.
       power: {
         generationKilowatts: 0,
@@ -865,9 +1127,82 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: false,
     },
+    // A battery bank in a Whipple-shielded cabinet: a thin bumper plate
+    // standing clear of it shatters a Micrometeorite before it strikes, so
+    // that each strike takes a quarter of the Condition off it. Otherwise
+    // it is a battery bank.
+    {
+      id: "whipple-shielded-battery-bank",
+      label: "Whipple-shielded battery bank",
+      designId: "whipple-shielding",
+      footprintRadiusMetres: 2,
+      components: [
+        { componentId: "battery-module", count: 3 },
+        { componentId: "whipple-cabinet", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 1,
+        assembly: 2,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: {
+        dustCoating: 1,
+        micrometeorites: 0.25,
+        plumeEjecta: 1,
+      },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 60,
+        drawKilowatts: 0.25,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // Four times a battery bank's storage, in denser cells, so it ships
+    // about half the mass and costs about half as much for each kWh. It
+    // takes longer to build, and its heaters draw more, if less for each kWh.
+    {
+      id: "large-battery-bank",
+      label: "Large battery bank",
+      designId: "large-battery-banks",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "large-battery-module", count: 4 },
+        { componentId: "large-battery-cabinet", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1.5,
+        assembly: 4,
+        commissioning: 1.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // The heaters that keep the cells warm enough to work.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 240,
+        drawKilowatts: 0.4,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
     {
       id: "light-mast",
       label: "Light mast",
+      designId: "light-masts",
       footprintRadiusMetres: 0.8,
       components: [
         { componentId: "mast-pole", count: 1 },
@@ -882,6 +1217,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
       dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // Its light switches on by itself at Night, and draws nothing in Daylight.
       power: {
         generationKilowatts: 0,
@@ -894,9 +1230,44 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: false,
     },
+    // A Light Mast on a pole twice as tall, with two light heads, lighting
+    // a circle twice as wide: four times the ground for two and a half
+    // times the power. Through a Night it draws 228 kWh, a little less than
+    // a large battery bank stores.
+    {
+      id: "tall-light-mast",
+      label: "Tall Light Mast",
+      designId: "tall-light-masts",
+      footprintRadiusMetres: 1.2,
+      components: [
+        { componentId: "tall-mast-pole", count: 1 },
+        { componentId: "light-head", count: 2 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 0.5,
+        assembly: 2,
+        commissioning: 0.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 1,
+      },
+      lightRadiusMetres: 36,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
     {
       id: "habitat",
       label: "Inflatable Habitat",
+      designId: "inflatable-habitat",
       footprintRadiusMetres: 4,
       components: [
         { componentId: "habitat-core", count: 1 },
@@ -912,7 +1283,48 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // Its life support, heaters and controls.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 1.2,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: true,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // An inflatable Habitat whose envelope is layered like a Whipple
+    // shield, so that a Micrometeorite strike and a blast of Plume Ejecta
+    // each take a quarter of the Condition off it. Otherwise it is a
+    // Habitat: the Mission Director can move in, and Regolith shielding
+    // goes over it.
+    {
+      id: "hardened-habitat",
+      label: "Hardened Habitat",
+      designId: "hardened-habitat",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "habitat-core", count: 1 },
+        { componentId: "armoured-habitat-envelope", count: 1 },
+        { componentId: "airlock", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 2,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: {
+        dustCoating: 1,
+        micrometeorites: 0.25,
+        plumeEjecta: 0.25,
+      },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -927,6 +1339,7 @@ export const catalogue: Catalogue = {
     {
       id: "regolith-shielding",
       label: "Regolith shielding",
+      designId: "regolith-shielding",
       // The same as the Habitat's, so that the excavator, left beside the
       // Habitat after grading its site, isn't in the way.
       footprintRadiusMetres: 4,
@@ -945,6 +1358,41 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.1,
       // Packed Regolith has nothing for Dust to wear.
       dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: true,
+      landingPad: false,
+    },
+    // Regolith shielding whose every layer is fused by microwaves as the
+    // regolith printer lays it, rather than left to settle under the next,
+    // so that the printer lays it in 20 hours rather than 48: 25 hours in
+    // all rather than 53, under an unshielded Habitat's Radiation Dose.
+    {
+      id: "sintered-regolith-shielding",
+      label: "Sintered Regolith shielding",
+      designId: "microwave-sintering",
+      footprintRadiusMetres: 4,
+      components: [],
+      stageHours: {
+        sitePreparation: 3,
+        componentDelivery: 0,
+        assembly: 20,
+        commissioning: 2,
+      },
+      stageMachines: {
+        sitePreparation: "excavator",
+        assembly: "regolith-printer",
+      },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -959,6 +1407,7 @@ export const catalogue: Catalogue = {
     {
       id: "landing-pad",
       label: "Landing pad",
+      designId: "landing-pads",
       // Wide enough for the Lander to stand on with room round it, and for
       // its engine to blast nothing but the pad.
       footprintRadiusMetres: 7,
@@ -977,6 +1426,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.1,
       dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // The beacon runs off its own small battery.
       power: {
         generationKilowatts: 0,
@@ -989,9 +1439,84 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: true,
     },
+    // A landing pad the regolith printer lays from Regolith, fusing it into
+    // a hard slab as it goes, so that nothing has to be shipped from Earth
+    // for it: the Lander comes down on its own radar, with no beacon. It
+    // stands on the same ground as a landing pad shipped from Earth, but
+    // takes 43 hours to build rather than 17, most of them printing.
+    {
+      id: "sintered-landing-pad",
+      label: "Sintered landing pad",
+      designId: "regolith-sintering",
+      footprintRadiusMetres: 7,
+      components: [],
+      stageHours: {
+        sitePreparation: 6,
+        componentDelivery: 0,
+        assembly: 36,
+        commissioning: 1,
+      },
+      stageMachines: {
+        sitePreparation: "excavator",
+        assembly: "regolith-printer",
+      },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: true,
+    },
+    // A landing pad with a pad light on a short post at each quarter of its
+    // edge, which switch on by themselves at Night, so that the Lander can
+    // be seen landing and the Robot unloading it. They light 20 m round its
+    // centre, a little wider than a Light Mast, for 0.45 kW: about what a
+    // Light Mast draws for each square metre, 103 kWh through a Night. A
+    // landing pad lands the Lander whether its lights have power or not.
+    // It ships 1300 kg for $38M, against 1240 kg for $30M, and takes 2
+    // hours longer to assemble.
+    {
+      id: "lit-landing-pad",
+      label: "Lit landing pad",
+      designId: "landing-pad-lights",
+      footprintRadiusMetres: 7,
+      components: [
+        { componentId: "pad-panel", count: 8 },
+        { componentId: "pad-beacon", count: 1 },
+        { componentId: "landing-floodlight", count: 4 },
+      ],
+      stageHours: {
+        sitePreparation: 6,
+        componentDelivery: 2,
+        assembly: 10,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0.45,
+      },
+      lightRadiusMetres: 20,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: true,
+    },
     {
       id: "extraction-plant",
       label: "Extraction plant",
+      designId: "regolith-extraction",
       footprintRadiusMetres: 3,
       // A reactor that melts Regolith and splits it by electrolysis, and
       // the plant that draws the oxygen off.
@@ -1009,6 +1534,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Regolith is fed through it, so it wears faster than most.
       dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1086,9 +1612,105 @@ export const catalogue: Catalogue = {
         },
       ],
     },
+    // An extraction plant whose reactor is a big molten regolith cell,
+    // which melts Regolith through and splits it by electrolysis, rather
+    // than reducing what it can at the surface of each grain. It runs the
+    // same recipes on 10 kg of Regolith an hour rather than 4, for 8 kW
+    // rather than 4, so it makes more of everything for each kW: 0.4 kg of
+    // oxygen an hour running for oxygen, enough for the Mission Director in
+    // under a seventh of the Daylight, or 1.1 kg of silicon running for
+    // metals and silicon, enough for an integrated fabrication plant or
+    // three vacuum fabrication plants. With an oxygen separator it ships
+    // 1200 kg for $95M, against 1000 kg for $75M: well under half as much
+    // for each kilogram of silicon it makes an hour.
+    {
+      id: "large-extraction-plant",
+      label: "Large extraction plant",
+      designId: "molten-regolith-electrolysis",
+      footprintRadiusMetres: 4,
+      components: [
+        { componentId: "molten-regolith-cell", count: 1 },
+        { componentId: "oxygen-separator", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 4,
+        componentDelivery: 1,
+        assembly: 8,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      // More Regolith goes through it than through an extraction plant.
+      dustWearPercentPerHour: 0.06,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 10,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.4,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.1,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.05,
+            },
+          ],
+          drawKilowatts: 8,
+        },
+        {
+          id: "metals-and-silicon",
+          label: "Metals and silicon",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 10,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.03,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 1.6,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 1.1,
+            },
+          ],
+          drawKilowatts: 8,
+        },
+      ],
+    },
     {
       id: "water-processing-plant",
       label: "Water-processing plant",
+      designId: "water-processing",
       footprintRadiusMetres: 2.5,
       // A heated tank that melts the ice, and a still that cleans the water.
       components: [
@@ -1104,6 +1726,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.15,
       dustWearPercentPerHour: 0.03,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1138,9 +1761,69 @@ export const catalogue: Catalogue = {
         },
       ],
     },
+    // A water-processing plant's ice melter feeding an electrolyser stack,
+    // which splits the water into oxygen and hydrogen; the hydrogen is
+    // vented. Water is eight-ninths oxygen by mass, so most of the ice comes
+    // out as oxygen: 0.4 kg an hour, well over twice what an extraction
+    // plant running for oxygen makes, for 5 kW rather than 4. Running for 62
+    // hours, an eighth of a Lunation's Daylight, it makes the 24.8 kg of
+    // oxygen the Mission Director uses in a Lunation from 31 kg of ice, a
+    // sixth of what an Expedition brings back, and leaves the extraction
+    // plant free to run for metals and silicon.
+    {
+      id: "electrolysis-plant",
+      label: "Electrolysis plant",
+      designId: "water-electrolysis",
+      footprintRadiusMetres: 2.5,
+      components: [
+        { componentId: "ice-melter", count: 1 },
+        { componentId: "electrolyser-stack", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 5,
+        commissioning: 1.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      dustWearPercentPerHour: 0.03,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "water-ice" },
+              kilogramsPerHour: 0.5,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 5,
+        },
+      ],
+    },
     {
       id: "vacuum-fabrication-plant",
       label: "Vacuum fabrication plant",
+      designId: "vacuum-fabrication",
       footprintRadiusMetres: 2.5,
       // A furnace that grows silicon crystals in the Moon's vacuum, and a saw
       // that slices them into wafers.
@@ -1158,6 +1841,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its saw and seals.
       dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1199,6 +1883,7 @@ export const catalogue: Catalogue = {
     {
       id: "circuit-board-plant",
       label: "Circuit board plant",
+      designId: "circuit-board-fabrication",
       footprintRadiusMetres: 2.5,
       // An etcher that lays circuits on metal-cored boards, and an oven
       // that solders the chips cut from the wafers onto them.
@@ -1216,6 +1901,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its etcher and on the conveyor through its oven.
       dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
@@ -1256,6 +1942,88 @@ export const catalogue: Catalogue = {
             },
           ],
           drawKilowatts: 3,
+        },
+      ],
+    },
+    // A crystal furnace feeding a board assembly line, which saws the
+    // crystals into wafers and turns them straight into circuit boards, so
+    // that the wafers never leave it. By default it makes 0.5 kg of circuit
+    // boards an hour from 0.45 kg of silicon and 0.3 kg of metals, a
+    // quarter more than a circuit board plant, for 9 kW, as much as a
+    // vacuum fabrication plant and a circuit board plant draw together. It
+    // can run for wafers alone instead: 0.6 kg an hour, twice a vacuum
+    // fabrication plant's, for 8 kW. Either takes more silicon than an
+    // extraction plant makes, so it needs a large extraction plant. It
+    // ships 900 kg for $85M, against 1350 kg for $125M for the two Plants
+    // it stands in for.
+    {
+      id: "integrated-fabrication-plant",
+      label: "Integrated fabrication plant",
+      designId: "integrated-fabrication",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "crystal-furnace", count: 1 },
+        { componentId: "board-assembly-line", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 7,
+        commissioning: 3,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.04,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // It draws power only while it runs (see its recipes).
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      recipes: [
+        {
+          id: "circuit-boards",
+          label: "Circuit boards",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.45,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.3,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
+              kilogramsPerHour: 0.5,
+            },
+          ],
+          drawKilowatts: 9,
+        },
+        {
+          id: "wafers",
+          label: "Wafers",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.7,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.6,
+            },
+          ],
+          drawKilowatts: 8,
         },
       ],
     },
@@ -1332,74 +2100,167 @@ export const catalogue: Catalogue = {
     items: [
       {
         id: "solar-panel",
+        designId: "solar-arrays",
         brings: { kind: "component", componentId: "solar-panel" },
         massKilograms: 60,
         priceMillionDollars: 4,
       },
       {
         id: "array-mast",
+        designId: "solar-arrays",
         brings: { kind: "component", componentId: "array-mast" },
         massKilograms: 80,
         priceMillionDollars: 3,
       },
+      // Heavier and dearer than an array mast for its seals.
+      {
+        id: "sealed-array-mast",
+        designId: "dust-sealed-solar-arrays",
+        brings: { kind: "component", componentId: "sealed-array-mast" },
+        massKilograms: 100,
+        priceMillionDollars: 6,
+      },
+      // The electrodes woven through the cells add mass and price.
+      {
+        id: "screened-solar-panel",
+        designId: "electrodynamic-dust-screens",
+        brings: { kind: "component", componentId: "screened-solar-panel" },
+        massKilograms: 70,
+        priceMillionDollars: 8,
+      },
+      // A thin-film solar array's worth, with an array mast, comes to 150 kg.
+      {
+        id: "thin-film-solar-panel",
+        designId: "thin-film-solar-cells",
+        brings: { kind: "component", componentId: "thin-film-solar-panel" },
+        massKilograms: 35,
+        priceMillionDollars: 7,
+      },
+      // A whole solar array, folded on its mast on a skid.
+      {
+        id: "prefabricated-array-pack",
+        designId: "prefabricated-solar-arrays",
+        brings: { kind: "component", componentId: "prefabricated-array-pack" },
+        massKilograms: 230,
+        priceMillionDollars: 14,
+      },
       {
         id: "battery-module",
+        designId: "battery-banks",
         brings: { kind: "component", componentId: "battery-module" },
         massKilograms: 120,
         priceMillionDollars: 6,
       },
       {
         id: "battery-cabinet",
+        designId: "battery-banks",
         brings: { kind: "component", componentId: "battery-cabinet" },
         massKilograms: 70,
         priceMillionDollars: 2,
       },
+      // A battery cabinet with its bumper plate.
+      {
+        id: "whipple-cabinet",
+        designId: "whipple-shielding",
+        brings: { kind: "component", componentId: "whipple-cabinet" },
+        massKilograms: 110,
+        priceMillionDollars: 5,
+      },
+      // A large battery bank's worth comes to 840 kg.
+      {
+        id: "large-battery-module",
+        designId: "large-battery-banks",
+        brings: { kind: "component", componentId: "large-battery-module" },
+        massKilograms: 170,
+        priceMillionDollars: 10,
+      },
+      {
+        id: "large-battery-cabinet",
+        designId: "large-battery-banks",
+        brings: { kind: "component", componentId: "large-battery-cabinet" },
+        massKilograms: 160,
+        priceMillionDollars: 5,
+      },
       {
         id: "mast-pole",
+        designId: "light-masts",
         brings: { kind: "component", componentId: "mast-pole" },
         massKilograms: 25,
         priceMillionDollars: 1,
       },
       {
         id: "light-head",
+        designId: "light-masts",
         brings: { kind: "component", componentId: "light-head" },
         massKilograms: 15,
         priceMillionDollars: 2,
       },
+      // With its two light heads, a tall Light Mast's worth comes to 100 kg.
+      {
+        id: "tall-mast-pole",
+        designId: "tall-light-masts",
+        brings: { kind: "component", componentId: "tall-mast-pole" },
+        massKilograms: 70,
+        priceMillionDollars: 3,
+      },
       {
         id: "habitat-core",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "habitat-core" },
         massKilograms: 900,
         priceMillionDollars: 200,
       },
       {
         id: "habitat-envelope",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "habitat-envelope" },
         massKilograms: 350,
         priceMillionDollars: 80,
       },
       {
         id: "airlock",
+        designId: "inflatable-habitat",
         brings: { kind: "component", componentId: "airlock" },
         massKilograms: 400,
         priceMillionDollars: 60,
+      },
+      // In place of the habitat envelope, a hardened Habitat's worth comes
+      // to 1850 kg, still within one Launch.
+      {
+        id: "armoured-habitat-envelope",
+        designId: "hardened-habitat",
+        brings: { kind: "component", componentId: "armoured-habitat-envelope" },
+        massKilograms: 550,
+        priceMillionDollars: 120,
       },
       // A landing pad's worth comes to 1240 kg, leaving room on the same
       // Launch for a battery bank's modules.
       {
         id: "pad-panel",
+        designId: "landing-pads",
         brings: { kind: "component", componentId: "pad-panel" },
         massKilograms: 150,
         priceMillionDollars: 3,
       },
       {
         id: "pad-beacon",
+        designId: "landing-pads",
         brings: { kind: "component", componentId: "pad-beacon" },
         massKilograms: 40,
         priceMillionDollars: 6,
       },
+      // Four of them, round a lit landing pad's edge, add 60 kg to a landing
+      // pad's worth.
+      {
+        id: "landing-floodlight",
+        designId: "landing-pad-lights",
+        brings: { kind: "component", componentId: "landing-floodlight" },
+        massKilograms: 15,
+        priceMillionDollars: 2,
+      },
       {
         id: "spare-component",
+        designId: "maintenance-spares",
         brings: { kind: "component", componentId: "spare-component" },
         massKilograms: 20,
         priceMillionDollars: 1,
@@ -1407,39 +2268,62 @@ export const catalogue: Catalogue = {
       // An extraction plant's worth comes to 1000 kg.
       {
         id: "extraction-reactor",
+        designId: "regolith-extraction",
         brings: { kind: "component", componentId: "extraction-reactor" },
         massKilograms: 700,
         priceMillionDollars: 45,
       },
       {
         id: "oxygen-separator",
+        designId: "regolith-extraction",
         brings: { kind: "component", componentId: "oxygen-separator" },
         massKilograms: 300,
         priceMillionDollars: 30,
       },
+      // With an oxygen separator, a large extraction plant's worth comes to
+      // 1200 kg.
+      {
+        id: "molten-regolith-cell",
+        designId: "molten-regolith-electrolysis",
+        brings: { kind: "component", componentId: "molten-regolith-cell" },
+        massKilograms: 900,
+        priceMillionDollars: 65,
+      },
       // A water-processing plant's worth comes to 400 kg.
       {
         id: "ice-melter",
+        designId: "water-processing",
         brings: { kind: "component", componentId: "ice-melter" },
         massKilograms: 250,
         priceMillionDollars: 15,
       },
       {
         id: "water-purifier",
+        designId: "water-processing",
         brings: { kind: "component", componentId: "water-purifier" },
         massKilograms: 150,
         priceMillionDollars: 20,
+      },
+      // With an ice melter, an electrolysis plant's worth comes to 550 kg.
+      {
+        id: "electrolyser-stack",
+        designId: "water-electrolysis",
+        brings: { kind: "component", componentId: "electrolyser-stack" },
+        massKilograms: 300,
+        priceMillionDollars: 30,
       },
       // A vacuum fabrication plant's worth comes to 750 kg, leaving room on
       // the same Launch for a second solar array to power it.
       {
         id: "crystal-furnace",
+        designId: "vacuum-fabrication",
         brings: { kind: "component", componentId: "crystal-furnace" },
         massKilograms: 500,
         priceMillionDollars: 40,
       },
       {
         id: "wafer-saw",
+        designId: "vacuum-fabrication",
         brings: { kind: "component", componentId: "wafer-saw" },
         massKilograms: 250,
         priceMillionDollars: 25,
@@ -1447,31 +2331,495 @@ export const catalogue: Catalogue = {
       // A circuit board plant's worth comes to 600 kg.
       {
         id: "circuit-etcher",
+        designId: "circuit-board-fabrication",
         brings: { kind: "component", componentId: "circuit-etcher" },
         massKilograms: 350,
         priceMillionDollars: 35,
       },
       {
         id: "reflow-oven",
+        designId: "circuit-board-fabrication",
         brings: { kind: "component", componentId: "reflow-oven" },
         massKilograms: 250,
         priceMillionDollars: 25,
       },
+      // With a crystal furnace, an integrated fabrication plant's worth
+      // comes to 900 kg.
+      {
+        id: "board-assembly-line",
+        designId: "integrated-fabrication",
+        brings: { kind: "component", componentId: "board-assembly-line" },
+        massKilograms: 400,
+        priceMillionDollars: 45,
+      },
       // In pressurised tanks, which make up the rest of the mass.
       {
         id: "oxygen",
+        designId: "life-support-resupply",
         brings: { kind: "life-support", stockId: "oxygen", kilograms: 25 },
         massKilograms: 40,
         priceMillionDollars: 2,
       },
       {
         id: "water",
+        designId: "life-support-resupply",
         brings: { kind: "life-support", stockId: "water", kilograms: 50 },
         massKilograms: 60,
         priceMillionDollars: 2,
       },
+      // Oxygen shipped as a cold liquid in one large insulated tank, and
+      // water in a large light tank: six times as much as a resupply tank
+      // each, a third more oxygen and an eighth more water for each
+      // kilogram shipped, at half the price for each kilogram.
+      {
+        id: "liquid-oxygen-tank",
+        designId: "bulk-supply-tanks",
+        brings: { kind: "life-support", stockId: "oxygen", kilograms: 150 },
+        massKilograms: 180,
+        priceMillionDollars: 6,
+      },
+      {
+        id: "bulk-water-tank",
+        designId: "bulk-supply-tanks",
+        brings: { kind: "life-support", stockId: "water", kilograms: 300 },
+        massKilograms: 320,
+        priceMillionDollars: 6,
+      },
+      // A humanoid Robot built for the Moon, crated with its spares and
+      // tools. With the Launch fee, one costs half the Programme Grant, so
+      // a second Robot is a real choice against Components and supplies.
+      {
+        id: "robot",
+        designId: "robots",
+        brings: { kind: "robot" },
+        massKilograms: 300,
+        priceMillionDollars: 50,
+      },
     ],
   },
+  // From a few hours to a week. The short ones pay more Science an hour,
+  // but the player has to come back to start the next; the long ones run
+  // unattended, through a Night or a whole round trip of the Lander. Some
+  // are offered only once the Design they study is unlocked.
+  researchTasks: [
+    {
+      id: "regolith-sample-analysis",
+      label: "Regolith sample analysis",
+      lengthHours: 6,
+      science: 5,
+    },
+    {
+      id: "ice-volatiles-assay",
+      label: "Ice volatiles assay",
+      lengthHours: 12,
+      science: 8,
+    },
+    {
+      id: "radiation-environment-survey",
+      label: "Radiation environment survey",
+      lengthHours: 24,
+      science: 12,
+    },
+    {
+      id: "robot-teamwork-trial",
+      label: "Robot teamwork trial",
+      lengthHours: 36,
+      science: 16,
+      requiresDesignId: "robots",
+    },
+    {
+      id: "dust-levitation-study",
+      label: "Dust levitation study",
+      lengthHours: 48,
+      science: 20,
+    },
+    {
+      id: "sintered-block-testing",
+      label: "Sintered block testing",
+      lengthHours: 48,
+      science: 20,
+      requiresDesignId: "regolith-sintering",
+    },
+    {
+      id: "dust-adhesion-trial",
+      label: "Dust adhesion trial",
+      lengthHours: 60,
+      science: 25,
+      requiresDesignId: "dust-sealed-solar-arrays",
+    },
+    {
+      id: "cryogenic-boil-off-trial",
+      label: "Cryogenic boil-off trial",
+      lengthHours: 60,
+      science: 25,
+      requiresDesignId: "bulk-supply-tanks",
+    },
+    {
+      id: "seismic-monitoring",
+      label: "Seismic monitoring",
+      lengthHours: 72,
+      science: 30,
+    },
+    {
+      id: "plume-erosion-survey",
+      label: "Plume erosion survey",
+      lengthHours: 72,
+      science: 30,
+    },
+    {
+      id: "thin-film-cell-ageing-study",
+      label: "Thin-film cell ageing study",
+      lengthHours: 84,
+      science: 35,
+      requiresDesignId: "thin-film-solar-cells",
+    },
+    {
+      id: "molten-regolith-assay",
+      label: "Molten regolith assay",
+      lengthHours: 90,
+      science: 40,
+      requiresDesignId: "molten-regolith-electrolysis",
+    },
+    {
+      id: "electrolysis-yield-trial",
+      label: "Electrolysis yield trial",
+      lengthHours: 96,
+      science: 45,
+      requiresDesignId: "water-electrolysis",
+    },
+    {
+      id: "night-surface-photometry",
+      label: "Night surface photometry",
+      lengthHours: 108,
+      science: 48,
+      requiresDesignId: "tall-light-masts",
+    },
+    {
+      id: "hypervelocity-impact-testing",
+      label: "Hypervelocity impact testing",
+      lengthHours: 120,
+      science: 50,
+      requiresDesignId: "whipple-shielding",
+    },
+    {
+      id: "thermal-cycling-survey",
+      label: "Thermal cycling survey",
+      lengthHours: 132,
+      science: 52,
+    },
+    {
+      id: "micrometeorite-flux-count",
+      label: "Micrometeorite flux count",
+      lengthHours: 144,
+      science: 55,
+    },
+    {
+      id: "low-frequency-radio-survey",
+      label: "Low-frequency radio survey",
+      lengthHours: 168,
+      science: 60,
+    },
+  ],
+  designCategories: [
+    { id: "power", label: "Power" },
+    { id: "construction", label: "Construction" },
+    { id: "protection", label: "Protection" },
+    { id: "life-support", label: "Life Support" },
+    { id: "industry", label: "Industry" },
+    { id: "mobility", label: "Mobility" },
+  ],
+  // Everything the base could have before the Tech Tree belongs to a
+  // starting Design. The rest cost about as much Science as the Research
+  // Tasks pay, a couple of which are offered only once a Design is unlocked,
+  // so the research list grows with the tree.
+  designs: [
+    {
+      id: "solar-arrays",
+      label: "Solar arrays",
+      description:
+        "Solar panels on a mast, which generate power in Daylight and nothing at Night.",
+      category: "power",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "battery-banks",
+      label: "Battery banks",
+      description:
+        "Battery modules in a cabinet, which store power in Daylight to use at Night.",
+      category: "power",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "large-battery-banks",
+      label: "Large battery banks",
+      description:
+        "Bigger battery banks, to carry more of the base through the Night.",
+      category: "power",
+      starting: false,
+      scienceCost: 25,
+      prerequisiteDesignIds: ["battery-banks"],
+    },
+    {
+      id: "thin-film-solar-cells",
+      label: "Thin-film solar cells",
+      description:
+        "Thin, light solar cells on a flexible backing, for a solar array that generates more for the mass it ships.",
+      category: "power",
+      starting: false,
+      scienceCost: 45,
+      prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
+    },
+    {
+      id: "tall-light-masts",
+      label: "Tall Light Masts",
+      description:
+        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing about what a large battery bank stores.",
+      category: "power",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
+    },
+    {
+      id: "light-masts",
+      label: "Light Masts",
+      description:
+        "Lights on a pole, which switch on by themselves at Night to light up the ground round them.",
+      category: "construction",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "maintenance-spares",
+      label: "Maintenance spares",
+      description:
+        "Spare Components, which the Robot uses up restoring the Condition of what has worn down.",
+      category: "construction",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "prefabricated-solar-arrays",
+      label: "Prefabricated solar arrays",
+      description:
+        "Solar arrays put together and tested on Earth, shipped folded on their mast, so that they go up in under half the hours.",
+      category: "construction",
+      starting: false,
+      scienceCost: 20,
+      prerequisiteDesignIds: ["solar-arrays"],
+    },
+    {
+      id: "regolith-sintering",
+      label: "Regolith sintering",
+      description:
+        "Fusing Regolith into a hard slab with heat as it is printed, so that the regolith printer can lay a landing pad with no Components from Earth.",
+      category: "construction",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["regolith-shielding"],
+    },
+    {
+      id: "microwave-sintering",
+      label: "Microwave sintering",
+      description:
+        "Microwaves that fuse each layer of Regolith as the regolith printer lays it, so that it prints shielding over a Habitat in under half the hours.",
+      category: "construction",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["regolith-sintering"],
+    },
+    {
+      id: "regolith-shielding",
+      label: "Regolith shielding",
+      description:
+        "A shell of Regolith printed over a Habitat, which cuts the Radiation Dose inside.",
+      category: "protection",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "dust-sealed-solar-arrays",
+      label: "Dust-sealed solar arrays",
+      description:
+        "Solar arrays with their tracking drive and hinges sealed against Dust, so that they wear down more slowly.",
+      category: "protection",
+      starting: false,
+      scienceCost: 20,
+      prerequisiteDesignIds: ["solar-arrays"],
+    },
+    {
+      id: "electrodynamic-dust-screens",
+      label: "Electrodynamic dust screens",
+      description:
+        "Electrodes woven through a dust-sealed solar array's panels, which push Dust off the cells, so that it coats them far more slowly.",
+      category: "protection",
+      starting: false,
+      scienceCost: 35,
+      prerequisiteDesignIds: ["dust-sealed-solar-arrays"],
+    },
+    {
+      id: "whipple-shielding",
+      label: "Whipple shielding",
+      description:
+        "A thin bumper plate standing clear of a battery bank's cabinet, which shatters a Micrometeorite before it strikes.",
+      category: "protection",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
+    },
+    {
+      id: "hardened-habitat",
+      label: "Hardened Habitat",
+      description:
+        "An inflatable Habitat with an envelope layered like a Whipple shield, which Micrometeorites and Plume Ejecta wear down far less.",
+      category: "protection",
+      starting: false,
+      scienceCost: 50,
+      prerequisiteDesignIds: ["whipple-shielding", "inflatable-habitat"],
+    },
+    {
+      id: "inflatable-habitat",
+      label: "Inflatable Habitat",
+      description:
+        "A Habitat kit with an airlock, which the Mission Director can live in once it is commissioned.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "life-support-resupply",
+      label: "Life support resupply",
+      description: "Oxygen and water in pressurised tanks, shipped from Earth.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "water-processing",
+      label: "Water processing",
+      description:
+        "A Plant that melts water ice and purifies it into water for the Mission Director.",
+      category: "life-support",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "water-electrolysis",
+      label: "Water electrolysis",
+      description:
+        "A Plant that melts water ice and splits the water into oxygen with power from the base, far faster than Regolith gives it up.",
+      category: "life-support",
+      starting: false,
+      scienceCost: 40,
+      prerequisiteDesignIds: ["water-processing"],
+    },
+    {
+      id: "bulk-supply-tanks",
+      label: "Bulk supply tanks",
+      description:
+        "Oxygen shipped as a cold liquid, and water, in large light tanks that bring far more for the mass they take up on a Launch, built on what Water electrolysis taught about storing oxygen.",
+      category: "life-support",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
+    },
+    {
+      id: "regolith-extraction",
+      label: "Regolith extraction",
+      description:
+        "A Plant that turns Regolith into oxygen, metals and silicon.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "vacuum-fabrication",
+      label: "Vacuum fabrication",
+      description:
+        "A Plant that grows silicon crystals in the Moon's vacuum and saws them into wafers.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "circuit-board-fabrication",
+      label: "Circuit board fabrication",
+      description: "A Plant that etches wafers and metals into circuit boards.",
+      category: "industry",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    {
+      id: "molten-regolith-electrolysis",
+      label: "Molten regolith electrolysis",
+      description:
+        "A larger extraction plant that melts Regolith through and splits it by electrolysis, making more oxygen, metals and silicon for each kW.",
+      category: "industry",
+      starting: false,
+      scienceCost: 45,
+      prerequisiteDesignIds: ["regolith-extraction"],
+    },
+    {
+      id: "integrated-fabrication",
+      label: "Integrated fabrication",
+      description:
+        "A single Plant that grows wafers and turns them straight into circuit boards, fed with the silicon a large extraction plant makes.",
+      category: "industry",
+      starting: false,
+      scienceCost: 50,
+      prerequisiteDesignIds: [
+        "molten-regolith-electrolysis",
+        "circuit-board-fabrication",
+      ],
+    },
+    {
+      id: "landing-pads",
+      label: "Landing pads",
+      description:
+        "A paved pad with a beacon, where the Lander lands without blasting Plume Ejecta over the base.",
+      category: "mobility",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    // Cheap, and needing nothing first, so that the first few Research
+    // Tasks pay for a second Robot to share the work.
+    {
+      id: "robots",
+      label: "Robots",
+      description:
+        "More of the humanoid Robots that carry out the Work Orders, shipped from Earth to share the work.",
+      category: "mobility",
+      starting: false,
+      scienceCost: 20,
+      prerequisiteDesignIds: [],
+    },
+    // Planned as a Rover with a cabin, but the base has the one Rover and
+    // no rule for another, so this Mobility Design lights a landing pad
+    // instead.
+    {
+      id: "landing-pad-lights",
+      label: "Landing pad lights",
+      description:
+        "Lights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",
+      category: "mobility",
+      starting: false,
+      scienceCost: 35,
+      prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
+    },
+  ],
   // Reaching past everything that lands beside the Lander, so the base has
   // to grow away from it. Five take-offs and landings, two and a half round
   // trips, break anything left standing near it.

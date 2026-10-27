@@ -12,7 +12,9 @@ import { createGameOverScreen } from "./ui/game-over";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
+import { createResearchTasksScreen } from "./ui/research-tasks";
 import { createStatusPanel } from "./ui/status-panel";
+import { createTechTreeScreen } from "./ui/tech-tree";
 import { createTopBar } from "./ui/top-bar";
 
 /**
@@ -81,17 +83,36 @@ container.append(topBarSlot, leftColumn, rightColumn);
 const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
+const researchTasks = createResearchTasksScreen(container, campaign);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult);
-const notifications = createNotificationList(rightColumn);
+const notifications = createNotificationList(rightColumn, campaign);
+// A Design unlocking is the one notification that doesn't come from
+// advance(): the unlockDesign command returns it in its result, so the Tech
+// Tree screen passes it on here. Everything else the game loop hears.
+const techTree = createTechTreeScreen(container, campaign, (event) => {
+  notifications.add([event]);
+});
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
   },
 });
-const topBar = createTopBar(topBarSlot, loop, saveFiles, showResult, () => {
-  launchManifest.open();
-});
+const topBar = createTopBar(
+  topBarSlot,
+  loop,
+  saveFiles,
+  showResult,
+  () => {
+    launchManifest.open();
+  },
+  () => {
+    researchTasks.open();
+  },
+  () => {
+    techTree.open();
+  },
+);
 const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
   expeditions.open();
 });
@@ -121,6 +142,8 @@ function frame(time: number): void {
   constructionPanel.update(snapshot);
   launchManifest.update(snapshot);
   expeditions.update(snapshot);
+  researchTasks.update(snapshot);
+  techTree.update(snapshot);
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);

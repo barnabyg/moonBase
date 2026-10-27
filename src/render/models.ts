@@ -124,9 +124,82 @@ const PANEL_HEIGHT = 4.2;
 const PANEL_FOLDS = 6;
 const MAST_HEIGHT = 1.2;
 
-export function createSolarArrayModel(): SolarArrayModel {
+/** What sets one kind of solar array's model apart from another. */
+interface SolarArrayShape {
+  readonly name: string;
+  /**
+   * Whether its tracking drive and hinges are sealed against Dust: a black
+   * rubber cover over the base, a boot round the foot of the mast and a
+   * strip over each hinge.
+   */
+  readonly sealed: boolean;
+  /** Whether a grid of copper electrodes is laid over the cells, both sides. */
+  readonly dustScreen: boolean;
+  /** How wide the panel is, and how thick each fold of it. */
+  readonly panelWidth: number;
+  readonly panelThickness: number;
+  readonly cells: THREE.Material;
+  /** Whether a thin boom runs up each edge of the panel, holding it taut. */
+  readonly edgeBooms: boolean;
+  /**
+   * Whether it stands on the steel skid it was shipped on, with a lifting
+   * eye at each corner.
+   */
+  readonly skid: boolean;
+}
+
+const SOLAR_ARRAY: SolarArrayShape = {
+  name: "Solar array",
+  sealed: false,
+  dustScreen: false,
+  panelWidth: PANEL_WIDTH,
+  panelThickness: 0.04,
+  cells: materials.solarCell,
+  edgeBooms: false,
+  skid: false,
+};
+const DUST_SEALED_SOLAR_ARRAY: SolarArrayShape = {
+  ...SOLAR_ARRAY,
+  name: "Dust-sealed solar array",
+  sealed: true,
+};
+const DUST_SCREENED_SOLAR_ARRAY: SolarArrayShape = {
+  ...SOLAR_ARRAY,
+  name: "Dust-screened solar array",
+  sealed: true,
+  dustScreen: true,
+};
+/**
+ * A thin-film solar array: a wider, thinner panel of dull bronze-violet
+ * cells on a flexible backing, held taut by a boom up each edge.
+ */
+const THIN_FILM_SOLAR_ARRAY: SolarArrayShape = {
+  ...SOLAR_ARRAY,
+  name: "Thin-film solar array",
+  panelWidth: 3.4,
+  panelThickness: 0.015,
+  cells: materials.thinFilmCell,
+  edgeBooms: true,
+};
+/**
+ * A prefabricated solar array: a solar array standing on the yellow steel
+ * skid it was shipped and lifted on.
+ */
+const PREFABRICATED_SOLAR_ARRAY: SolarArrayShape = {
+  ...SOLAR_ARRAY,
+  name: "Prefabricated solar array",
+  skid: true,
+};
+/** The length and width of a prefabricated solar array's skid. */
+const SKID_SIZE = [2.8, 1.8] as const;
+/** Across each fold of a dust screen's panel, how far up each electrode runs, as a share of the fold. */
+const ELECTRODES_AT = [0.15, 0.38, 0.62, 0.85];
+
+export function createSolarArrayModel(
+  shape: SolarArrayShape = SOLAR_ARRAY,
+): SolarArrayModel {
   const array = new THREE.Group();
-  array.name = "Solar array";
+  array.name = shape.name;
 
   const statusLightMaterial = materials.statusOff.clone();
   const statusLight = part(
@@ -142,6 +215,16 @@ export function createSolarArrayModel(): SolarArrayModel {
     ),
     statusLight,
   );
+  if (shape.sealed) {
+    array.add(
+      part(
+        new THREE.CylinderGeometry(0.75, 0.9, 0.08, 8),
+        materials.seal,
+        [0, 0.34, 0],
+      ),
+    );
+  }
+  if (shape.skid) array.add(...createSkid());
 
   // The part that turns to face the sun.
   const head = new THREE.Group();
@@ -153,6 +236,18 @@ export function createSolarArrayModel(): SolarArrayModel {
     [0, 0.5, 0],
   );
   head.add(mast);
+  if (shape.sealed) {
+    // Pleated, so it stretches as the mast rises.
+    for (const [index, radius] of [0.22, 0.19, 0.16].entries()) {
+      head.add(
+        part(
+          new THREE.CylinderGeometry(radius - 0.02, radius, 0.1, 8),
+          materials.seal,
+          [0, 0.09 + index * 0.1, 0],
+        ),
+      );
+    }
+  }
 
   // The panel is a strip of cells folded like a fan. Each fold is hinged to
   // the one below, and the whole strip rides up on top of the mast.
@@ -166,11 +261,54 @@ export function createSolarArrayModel(): SolarArrayModel {
     hinge.position.y = index === 0 ? 0 : foldHeight;
     hinge.add(
       part(
-        new THREE.BoxGeometry(PANEL_WIDTH, foldHeight, 0.04),
-        materials.solarCell,
+        new THREE.BoxGeometry(
+          shape.panelWidth,
+          foldHeight,
+          shape.panelThickness,
+        ),
+        shape.cells,
         [0, foldHeight / 2, 0],
       ),
     );
+    if (shape.sealed && index > 0) {
+      hinge.add(
+        part(
+          new THREE.BoxGeometry(shape.panelWidth + 0.04, 0.06, 0.07),
+          materials.seal,
+          [0, 0, 0],
+        ),
+      );
+    }
+    if (shape.edgeBooms) {
+      hinge.add(
+        ...[-1, 1].map((side) =>
+          part(
+            new THREE.CylinderGeometry(0.02, 0.02, foldHeight, 5),
+            materials.aluminium,
+            [(side * shape.panelWidth) / 2, foldHeight / 2, 0],
+          ),
+        ),
+      );
+    }
+    if (shape.dustScreen) {
+      for (const side of [-1, 1]) {
+        hinge.add(
+          ...ELECTRODES_AT.map((share) =>
+            part(
+              new THREE.BoxGeometry(shape.panelWidth - 0.1, 0.03, 0.006),
+              materials.electrode,
+              [0, foldHeight * share, side * 0.023],
+            ),
+          ),
+          // The bus bar down one edge that feeds them.
+          part(
+            new THREE.BoxGeometry(0.04, foldHeight, 0.006),
+            materials.electrode,
+            [shape.panelWidth / 2 - 0.06, foldHeight / 2, side * 0.023],
+          ),
+        );
+      }
+    }
     parent.add(hinge);
     folds.push(hinge);
     parent = hinge;
@@ -212,6 +350,41 @@ export function createSolarArrayModel(): SolarArrayModel {
   };
 }
 
+/**
+ * The steel skid a prefabricated solar array was shipped and lifted on: two
+ * runners joined by cross beams under its base, with a lifting eye at each
+ * corner.
+ */
+function createSkid(): THREE.Object3D[] {
+  const [length, width] = SKID_SIZE;
+  const runners = [-1, 1].map((side) =>
+    part(new THREE.BoxGeometry(length, 0.14, 0.18), materials.machinePaint, [
+      0,
+      0.07,
+      (side * width) / 2,
+    ]),
+  );
+  const beams = [-1, 1].map((side) =>
+    part(new THREE.BoxGeometry(0.16, 0.12, width), materials.machinePaint, [
+      (side * (length - 0.3)) / 2,
+      0.06,
+      0,
+    ]),
+  );
+  const eyes = [-1, 1].flatMap((x) =>
+    [-1, 1].map((z) => {
+      const eye = part(
+        new THREE.TorusGeometry(0.08, 0.025, 4, 10),
+        materials.darkMetal,
+        [(x * (length - 0.15)) / 2, 0.22, (z * width) / 2],
+      );
+      eye.rotation.y = Math.PI / 2;
+      return eye;
+    }),
+  );
+  return [...runners, ...beams, ...eyes];
+}
+
 /** The parts of a Structure the Construction views animate, whatever its type. */
 export interface StructureModel {
   readonly group: THREE.Group;
@@ -229,29 +402,57 @@ export interface StructureModel {
   setRunning?(running: boolean, realSeconds: number): void;
   /** Shows that the Mission Director lives in a Habitat; nothing for anything else. */
   setOccupied?(occupied: boolean): void;
+  /** How high above the ground any light it has shines from. */
+  readonly lightHeight?: number;
 }
+
+/** The solar arrays that look different from a plain one, by Structure type. */
+const SOLAR_ARRAY_SHAPES: Readonly<Record<string, SolarArrayShape>> = {
+  "dust-sealed-solar-array": DUST_SEALED_SOLAR_ARRAY,
+  "dust-screened-solar-array": DUST_SCREENED_SOLAR_ARRAY,
+  "thin-film-solar-array": THIN_FILM_SOLAR_ARRAY,
+  "prefabricated-solar-array": PREFABRICATED_SOLAR_ARRAY,
+};
 
 /** The model for a type of Structure from the data catalogue. */
 export function createStructureModel(structureTypeId: string): StructureModel {
-  if (structureTypeId === "battery-bank") return createBatteryBankModel();
-  if (structureTypeId === "light-mast") return createLightMastModel();
-  if (structureTypeId === "habitat") return createHabitatModel();
+  if (structureTypeId === "battery-bank") {
+    return createBatteryBankModel(BATTERY_BANK);
+  }
+  if (structureTypeId === "large-battery-bank") {
+    return createBatteryBankModel(LARGE_BATTERY_BANK);
+  }
+  if (structureTypeId === "light-mast") return createLightMastModel(LIGHT_MAST);
+  if (structureTypeId === "tall-light-mast") {
+    return createLightMastModel(TALL_LIGHT_MAST);
+  }
+  if (structureTypeId === "whipple-shielded-battery-bank") {
+    return createBatteryBankModel(WHIPPLE_SHIELDED_BATTERY_BANK);
+  }
+  if (structureTypeId === "habitat") return createHabitatModel(HABITAT);
+  if (structureTypeId === "hardened-habitat") {
+    return createHabitatModel(HARDENED_HABITAT);
+  }
   if (structureTypeId === "regolith-shielding") {
-    return createRegolithShieldingModel();
+    return createRegolithShieldingModel(REGOLITH_SHIELDING);
   }
-  if (structureTypeId === "landing-pad") return createLandingPadModel();
-  if (structureTypeId === "water-processing-plant") {
-    return createPlantModel("tank");
+  if (structureTypeId === "sintered-regolith-shielding") {
+    return createRegolithShieldingModel(SINTERED_REGOLITH_SHIELDING);
   }
-  if (structureTypeId === "extraction-plant")
-    return createPlantModel("reactor");
-  if (structureTypeId === "vacuum-fabrication-plant") {
-    return createPlantModel("chamber");
+  if (structureTypeId === "landing-pad") {
+    return createLandingPadModel(LANDING_PAD);
   }
-  if (structureTypeId === "circuit-board-plant") {
-    return createPlantModel("oven");
+  if (structureTypeId === "lit-landing-pad") {
+    return createLandingPadModel(LIT_LANDING_PAD);
   }
-  const array = createSolarArrayModel();
+  if (structureTypeId === "sintered-landing-pad") {
+    return createSinteredLandingPadModel();
+  }
+  const plant = PLANT_SHAPES[structureTypeId];
+  if (plant !== undefined) return createPlantModel(plant);
+  const array = createSolarArrayModel(
+    SOLAR_ARRAY_SHAPES[structureTypeId] ?? SOLAR_ARRAY,
+  );
   return {
     group: array.group,
     setAssembled: (fraction) => {
@@ -268,70 +469,154 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   };
 }
 
-/** The height of a Light Mast's light above the ground. */
-export const LIGHT_MAST_HEIGHT = 6;
 /** The share of Assembly spent raising the pole, before the light goes on top. */
 const POLE_SHARE = 0.7;
+
+/** The sizes and parts of a Light Mast's model, in metres. */
+interface LightMastShape {
+  readonly name: string;
+  /** The height of its light above the ground. */
+  readonly height: number;
+  /** The radius of its weighted base at the ground. */
+  readonly baseRadius: number;
+  readonly poleRadius: number;
+  /** How many bars of lights cross on top, each with a light at both ends. */
+  readonly lightBars: number;
+  /** Whether guy wires hold the pole up, from three anchors round the base. */
+  readonly guyed: boolean;
+}
+
+const LIGHT_MAST: LightMastShape = {
+  name: "Light mast",
+  height: 6,
+  baseRadius: 0.65,
+  poleRadius: 0.09,
+  lightBars: 1,
+  guyed: false,
+};
+
+/**
+ * A tall Light Mast: a pole nearly twice as tall and stouter, held by three
+ * guy wires, with two bars of lights crossed on top, one for each light
+ * head.
+ */
+const TALL_LIGHT_MAST: LightMastShape = {
+  name: "Tall Light Mast",
+  height: 11,
+  baseRadius: 1,
+  poleRadius: 0.14,
+  lightBars: 2,
+  guyed: true,
+};
 
 /**
  * A Light Mast: a tall pole on a weighted base, with a bar of lights on top
  * that glow while they are on. During Assembly the pole rises and then the
  * light bar goes on top.
  */
-function createLightMastModel(): StructureModel {
+function createLightMastModel(shape: LightMastShape): StructureModel {
   const mast = new THREE.Group();
-  mast.name = "Light mast";
+  mast.name = shape.name;
+  const baseHeight = 0.25 * (shape.baseRadius / LIGHT_MAST.baseRadius);
+  const scale = shape.baseRadius / LIGHT_MAST.baseRadius;
 
   const statusLightMaterial = materials.statusOff.clone();
   mast.add(
     part(
-      new THREE.CylinderGeometry(0.55, 0.65, 0.25, 8),
+      new THREE.CylinderGeometry(
+        shape.baseRadius - 0.1 * scale,
+        shape.baseRadius,
+        baseHeight,
+        8,
+      ),
       materials.darkMetal,
-      [0, 0.125, 0],
+      [0, baseHeight / 2, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.07, 8, 6),
-      statusLightMaterial,
-      [0.45, 0.3, 0.3],
-    ),
+    part(new THREE.SphereGeometry(0.07, 8, 6), statusLightMaterial, [
+      0.45 * scale,
+      baseHeight + 0.05,
+      0.3 * scale,
+    ]),
   );
 
-  const poleLength = LIGHT_MAST_HEIGHT - 0.25;
+  const poleLength = shape.height - baseHeight;
   const pole = part(
-    new THREE.CylinderGeometry(0.06, 0.09, 1, 8),
+    new THREE.CylinderGeometry(shape.poleRadius * 0.67, shape.poleRadius, 1, 8),
     materials.hull,
     [0, 0, 0],
   );
   mast.add(pole);
 
-  // The bar of lights faces every way, so the light falls all round.
+  // The bars of lights face every way, so the light falls all round.
   const lightMaterial = materials.statusOff.clone();
   const head = new THREE.Group();
-  head.position.y = LIGHT_MAST_HEIGHT;
-  head.add(
-    part(
-      new THREE.BoxGeometry(1.2, 0.12, 0.12),
-      materials.darkMetal,
-      [0, 0, 0],
-    ),
-    ...[-0.45, 0.45].map((x) =>
-      part(new THREE.BoxGeometry(0.32, 0.22, 0.32), lightMaterial, [
-        x,
-        -0.1,
-        0,
-      ]),
-    ),
-  );
+  head.position.y = shape.height;
+  for (let bar = 0; bar < shape.lightBars; bar++) {
+    const lights = new THREE.Group();
+    lights.rotation.y = (bar * Math.PI) / shape.lightBars;
+    lights.position.y = bar * 0.14;
+    lights.add(
+      part(
+        new THREE.BoxGeometry(1.2, 0.12, 0.12),
+        materials.darkMetal,
+        [0, 0, 0],
+      ),
+      ...[-0.45, 0.45].map((x) =>
+        part(new THREE.BoxGeometry(0.32, 0.22, 0.32), lightMaterial, [
+          x,
+          -0.1,
+          0,
+        ]),
+      ),
+    );
+    head.add(lights);
+  }
   mast.add(head);
+
+  // Guy wires from three quarters of the way up to anchors round the base,
+  // fitted once the pole is up.
+  const guys = new THREE.Group();
+  if (shape.guyed) {
+    const top = new THREE.Vector3(0, shape.height * 0.75, 0);
+    for (let index = 0; index < 3; index++) {
+      const angle = (index / 3) * Math.PI * 2 + Math.PI / 6;
+      const anchor = new THREE.Vector3(
+        Math.cos(angle) * (shape.baseRadius + 0.05),
+        0.05,
+        Math.sin(angle) * (shape.baseRadius + 0.05),
+      );
+      const wire = part(
+        new THREE.CylinderGeometry(0.012, 0.012, top.distanceTo(anchor), 4),
+        materials.aluminium,
+        [0, 0, 0],
+      );
+      wire.position.copy(top.clone().add(anchor).multiplyScalar(0.5));
+      wire.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        top.clone().sub(anchor).normalize(),
+      );
+      guys.add(
+        wire,
+        part(
+          new THREE.CylinderGeometry(0.06, 0.08, 0.1, 6),
+          materials.darkMetal,
+          [anchor.x, 0.05, anchor.z],
+        ),
+      );
+    }
+  }
+  mast.add(guys);
 
   return {
     group: mast,
+    lightHeight: shape.height,
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
       const raised = Math.max(Math.min(f / POLE_SHARE, 1), 0.01);
       pole.scale.y = poleLength * raised;
-      pole.position.y = 0.25 + (poleLength * raised) / 2;
+      pole.position.y = baseHeight + (poleLength * raised) / 2;
       head.visible = f > POLE_SHARE;
+      guys.visible = f > POLE_SHARE;
     },
     setFacing: () => undefined,
     setStatusLight(state) {
@@ -356,15 +641,40 @@ const CORE_SHARE = 0.25;
 /** The share of Assembly by which the envelope is fully inflated; the airlock goes on after. */
 const INFLATED_SHARE = 0.85;
 
+/** What sets one kind of Habitat's model apart from another. */
+interface HabitatShape {
+  readonly name: string;
+  readonly envelopeMaterial: THREE.Material;
+  /** How high up the dome each restraint strap runs, as a share of its radius. */
+  readonly strapsAt: readonly number[];
+}
+
+const HABITAT: HabitatShape = {
+  name: "Inflatable Habitat",
+  envelopeMaterial: materials.envelope,
+  strapsAt: [0.35, 0.75],
+};
+
+/**
+ * A hardened Habitat: the same dome, so that Regolith shielding fits over
+ * it, in a duller, darker armoured envelope, held down by twice as many
+ * straps.
+ */
+const HARDENED_HABITAT: HabitatShape = {
+  name: "Hardened Habitat",
+  envelopeMaterial: materials.armouredEnvelope,
+  strapsAt: [0.18, 0.62, 0.8, 0.94],
+};
+
 /**
  * The inflatable Habitat: a squat fabric dome, held down by straps, round a
  * rigid core on a plinth, with an airlock on one side. During Assembly the
  * core goes up, the envelope inflates round it, and then the airlock is
  * fitted.
  */
-function createHabitatModel(): StructureModel {
+function createHabitatModel(shape: HabitatShape): StructureModel {
   const habitat = new THREE.Group();
-  habitat.name = "Inflatable Habitat";
+  habitat.name = shape.name;
 
   const statusLightMaterial = materials.statusOff.clone();
   habitat.add(
@@ -394,12 +704,12 @@ function createHabitatModel(): StructureModel {
   const domeHeight = 0.75;
   const dome = part(
     new THREE.SphereGeometry(3.4, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
-    materials.envelope,
+    shape.envelopeMaterial,
     [0, 0, 0],
   );
   dome.scale.y = domeHeight;
   envelope.add(dome);
-  for (const [index, height] of [0.35, 0.75].entries()) {
+  for (const [index, height] of shape.strapsAt.entries()) {
     const angle = Math.asin(height);
     const strap = part(
       new THREE.TorusGeometry(3.4 * Math.cos(angle) + 0.02, 0.05, 4, 14),
@@ -562,17 +872,48 @@ const flagEmblem = new THREE.MeshStandardMaterial({
 });
 
 /** How high Regolith shielding rises over the Habitat's dome. */
-export const SHIELDING_HEIGHT = 3.4;
+const SHIELDING_HEIGHT = 3.4;
 /** The radius of the shielding where it meets the ground, just inside its footprint. */
 const SHIELDING_BASE_RADIUS = 3.95;
-/** How many layers the regolith printer lays the shielding down in. */
-const SHIELDING_LAYERS = 12;
+
+/** What sets one kind of Regolith shielding's model apart from another. */
+interface ShieldingShape {
+  readonly name: string;
+  /** How many layers the regolith printer lays it down in. */
+  readonly layers: number;
+  /** How many flat faces round each layer. */
+  readonly sides: number;
+  readonly material: THREE.Material;
+  /** Whether a glassy seam shows where each layer meets the next. */
+  readonly seams: boolean;
+}
+
+const REGOLITH_SHIELDING: ShieldingShape = {
+  name: "Regolith shielding",
+  layers: 12,
+  sides: 20,
+  material: materials.regolith,
+  seams: false,
+};
+
+/**
+ * Sintered Regolith shielding: the same dome, in more and thinner courses
+ * of darker, fused Regolith, each with a glassy seam along its top, and
+ * fewer, flatter faces round it.
+ */
+const SINTERED_REGOLITH_SHIELDING: ShieldingShape = {
+  name: "Sintered Regolith shielding",
+  layers: 16,
+  sides: 14,
+  material: materials.sinteredRegolith,
+  seams: true,
+};
 
 /**
  * The radius of Regolith shielding's outer surface at a height above the
  * ground: a rounded dome over the Habitat.
  */
-export function shieldingRadiusAt(height: number): number {
+function shieldingRadiusAt(height: number): number {
   const h = THREE.MathUtils.clamp(height / SHIELDING_HEIGHT, 0, 1);
   return SHIELDING_BASE_RADIUS * Math.sqrt(1 - h * h);
 }
@@ -582,22 +923,32 @@ export function shieldingRadiusAt(height: number): number {
  * with the airlock's hatch left showing. During Assembly it builds up layer
  * by layer from the ground, the layer being printed growing as it goes.
  */
-function createRegolithShieldingModel(): StructureModel {
+function createRegolithShieldingModel(shape: ShieldingShape): StructureModel {
   const shielding = new THREE.Group();
-  shielding.name = "Regolith shielding";
-  const layerHeight = SHIELDING_HEIGHT / SHIELDING_LAYERS;
-  const layers = Array.from({ length: SHIELDING_LAYERS }, (_, index) => {
+  shielding.name = shape.name;
+  const layerHeight = SHIELDING_HEIGHT / shape.layers;
+  const layers = Array.from({ length: shape.layers }, (_, index) => {
     const bottom = index * layerHeight;
+    const top = bottom + layerHeight;
     const geometry = new THREE.CylinderGeometry(
-      shieldingRadiusAt(bottom + layerHeight),
+      shieldingRadiusAt(top),
       shieldingRadiusAt(bottom),
       layerHeight,
-      20,
+      shape.sides,
     );
     // Grows upwards from its base as it is printed.
     geometry.translate(0, layerHeight / 2, 0);
-    const layer = part(geometry, materials.regolith, [0, bottom, 0]);
+    const layer = part(geometry, shape.material, [0, bottom, 0]);
     layer.name = `Layer ${index + 1}`;
+    if (shape.seams && shieldingRadiusAt(top) > 0.3) {
+      const seam = part(
+        new THREE.TorusGeometry(shieldingRadiusAt(top), 0.035, 3, shape.sides),
+        materials.sinteredGlaze,
+        [0, layerHeight, 0],
+      );
+      seam.rotation.x = Math.PI / 2;
+      layer.add(seam);
+    }
     shielding.add(layer);
     return layer;
   });
@@ -605,7 +956,7 @@ function createRegolithShieldingModel(): StructureModel {
   return {
     group: shielding,
     setAssembled(fraction) {
-      const printed = THREE.MathUtils.clamp(fraction, 0, 1) * SHIELDING_LAYERS;
+      const printed = THREE.MathUtils.clamp(fraction, 0, 1) * shape.layers;
       for (const [index, layer] of layers.entries()) {
         const done = THREE.MathUtils.clamp(printed - index, 0, 1);
         layer.visible = done > 0;
@@ -620,63 +971,167 @@ function createRegolithShieldingModel(): StructureModel {
   };
 }
 
-const BATTERY_MODULES = 3;
-const CHARGE_SEGMENTS = 5;
 /** The share of Assembly spent sliding the modules in, before the cabinet closes. */
 const MODULES_SHARE = 0.75;
+
+/** The sizes and parts of a battery bank's model, in metres. */
+interface BatteryBankShape {
+  readonly name: string;
+  /** How many modules slide into the cabinet, as the data catalogue has it. */
+  readonly modules: number;
+  /** Width, height and depth of one module. */
+  readonly moduleSize: readonly [number, number, number];
+  /** From the middle of one module to the next. */
+  readonly modulePitch: number;
+  readonly plinthSize: readonly [number, number, number];
+  readonly cabinetSize: readonly [number, number, number];
+  /** Where along the cabinet's roof each radiator fin stands. */
+  readonly finsAt: readonly number[];
+  readonly finHeight: number;
+  /** How many lights in the row that shows how full it is. */
+  readonly chargeSegments: number;
+  /** The height of that row above the ground. */
+  readonly chargeHeight: number;
+  /** Whether a tall radiator panel stands at each end of the cabinet. */
+  readonly endRadiators: boolean;
+  /**
+   * How far a Whipple shield's bumper plates stand clear of the cabinet's
+   * back, ends and roof, or undefined if it has none. The front, with its
+   * charge lights, is left open.
+   */
+  readonly bumperGap: number | undefined;
+}
+
+const BATTERY_BANK: BatteryBankShape = {
+  name: "Battery bank",
+  modules: 3,
+  moduleSize: [0.6, 1.1, 1.1],
+  modulePitch: 0.68,
+  plinthSize: [2.4, 0.2, 1.6],
+  cabinetSize: [2.2, 1.3, 1.3],
+  finsAt: [-0.6, -0.2, 0.2, 0.6],
+  finHeight: 0.3,
+  chargeSegments: 5,
+  chargeHeight: 1.2,
+  endRadiators: false,
+  bumperGap: undefined,
+};
+
+/**
+ * A Whipple-shielded battery bank: a battery bank with thin bumper plates
+ * standing clear of its cabinet on posts.
+ */
+const WHIPPLE_SHIELDED_BATTERY_BANK: BatteryBankShape = {
+  ...BATTERY_BANK,
+  name: "Whipple-shielded battery bank",
+  bumperGap: 0.15,
+};
+
+/**
+ * A large battery bank: longer, taller and deeper, with a fourth module, a
+ * longer row of charge lights and tall radiator panels at both ends to shed
+ * the heat of its bigger heaters.
+ */
+const LARGE_BATTERY_BANK: BatteryBankShape = {
+  name: "Large battery bank",
+  modules: 4,
+  moduleSize: [0.75, 1.6, 1.7],
+  modulePitch: 0.85,
+  plinthSize: [3.8, 0.25, 2.6],
+  cabinetSize: [3.6, 1.9, 2],
+  finsAt: [-1.4, -0.7, 0, 0.7, 1.4],
+  finHeight: 0.35,
+  chargeSegments: 8,
+  chargeHeight: 1.7,
+  endRadiators: true,
+  bumperGap: undefined,
+};
 
 /**
  * A battery bank: an insulated cabinet on a plinth. During Assembly its
  * modules are slid in one by one and then the cabinet closes over them; a row
  * of lights on the front shows how full it is.
  */
-function createBatteryBankModel(): StructureModel {
+function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
   const bank = new THREE.Group();
-  bank.name = "Battery bank";
+  bank.name = shape.name;
+  const [plinthWidth, plinthHeight, plinthDepth] = shape.plinthSize;
+  const [moduleWidth, moduleHeight, moduleDepth] = shape.moduleSize;
+  const [cabinetWidth, cabinetHeight, cabinetDepth] = shape.cabinetSize;
 
   const statusLightMaterial = materials.statusOff.clone();
   bank.add(
     part(
-      new THREE.BoxGeometry(2.4, 0.2, 1.6),
+      new THREE.BoxGeometry(plinthWidth, plinthHeight, plinthDepth),
       materials.darkMetal,
-      [0, 0.1, 0],
+      [0, plinthHeight / 2, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.08, 8, 6),
-      statusLightMaterial,
-      [1.0, 0.28, 0.7],
-    ),
+    part(new THREE.SphereGeometry(0.08, 8, 6), statusLightMaterial, [
+      plinthWidth / 2 - 0.2,
+      plinthHeight + 0.08,
+      plinthDepth / 2 - 0.1,
+    ]),
   );
 
-  const modules = Array.from({ length: BATTERY_MODULES }, (_, index) => {
+  const modules = Array.from({ length: shape.modules }, (_, index) => {
     const module = part(
-      new THREE.BoxGeometry(0.6, 1.1, 1.1),
+      new THREE.BoxGeometry(moduleWidth, moduleHeight, moduleDepth),
       materials.robotJoint,
-      [(index - (BATTERY_MODULES - 1) / 2) * 0.68, 0.75, 0],
+      [
+        (index - (shape.modules - 1) / 2) * shape.modulePitch,
+        plinthHeight + moduleHeight / 2,
+        0,
+      ],
     );
     bank.add(module);
     return module;
   });
+  // How far out in front a module starts before it is slid in.
+  const slideFrom = cabinetDepth + 0.1;
 
   // The insulated cabinet, with radiator fins on top, grows up over the modules.
   const cabinet = new THREE.Group();
+  const roof = plinthHeight + cabinetHeight;
   cabinet.add(
-    part(new THREE.BoxGeometry(2.2, 1.3, 1.3), materials.foil, [0, 0.85, 0]),
-    ...[-0.6, -0.2, 0.2, 0.6].map((x) =>
-      part(new THREE.BoxGeometry(0.06, 0.3, 1.2), materials.hull, [x, 1.65, 0]),
+    part(
+      new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth),
+      materials.foil,
+      [0, plinthHeight + cabinetHeight / 2, 0],
+    ),
+    ...shape.finsAt.map((x) =>
+      part(
+        new THREE.BoxGeometry(0.06, shape.finHeight, cabinetDepth - 0.1),
+        materials.hull,
+        [x, roof + shape.finHeight / 2, 0],
+      ),
     ),
   );
+  if (shape.endRadiators) {
+    const height = cabinetHeight + shape.finHeight;
+    cabinet.add(
+      ...[-1, 1].map((side) =>
+        part(
+          new THREE.BoxGeometry(0.06, height, cabinetDepth - 0.2),
+          materials.aluminium,
+          [side * (cabinetWidth / 2 + 0.12), plinthHeight + height / 2, 0],
+        ),
+      ),
+    );
+  }
+  if (shape.bumperGap !== undefined) {
+    cabinet.add(...createBumperPlates(shape, shape.bumperGap));
+  }
   bank.add(cabinet);
 
-  const chargeMaterials = Array.from({ length: CHARGE_SEGMENTS }, () =>
+  const chargeMaterials = Array.from({ length: shape.chargeSegments }, () =>
     materials.statusOff.clone(),
   );
   for (const [index, material] of chargeMaterials.entries()) {
     cabinet.add(
       part(new THREE.BoxGeometry(0.22, 0.12, 0.04), material, [
-        (index - (CHARGE_SEGMENTS - 1) / 2) * 0.3,
-        1.2,
-        0.67,
+        (index - (shape.chargeSegments - 1) / 2) * 0.3,
+        shape.chargeHeight,
+        cabinetDepth / 2 + 0.02,
       ]),
     );
   }
@@ -691,11 +1146,11 @@ function createBatteryBankModel(): StructureModel {
     group: bank,
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
-      const modulesIn = Math.min(f / MODULES_SHARE, 1) * BATTERY_MODULES;
+      const modulesIn = Math.min(f / MODULES_SHARE, 1) * shape.modules;
       for (const [index, module] of modules.entries()) {
         const slid = THREE.MathUtils.clamp(modulesIn - index, 0, 1);
         module.visible = slid > 0;
-        module.position.z = (1 - slid) * 1.4;
+        module.position.z = (1 - slid) * slideFrom;
       }
       const closed = (f - MODULES_SHARE) / (1 - MODULES_SHARE);
       cabinet.visible = closed > 0;
@@ -713,7 +1168,7 @@ function createBatteryBankModel(): StructureModel {
     },
     setCharge(fraction) {
       const lit = Math.ceil(
-        THREE.MathUtils.clamp(fraction, 0, 1) * CHARGE_SEGMENTS - 1e-9,
+        THREE.MathUtils.clamp(fraction, 0, 1) * shape.chargeSegments - 1e-9,
       );
       for (const [index, material] of chargeMaterials.entries()) {
         light(material, index < lit);
@@ -723,20 +1178,93 @@ function createBatteryBankModel(): StructureModel {
   };
 }
 
+/**
+ * A Whipple shield's bumper plates round a battery bank's cabinet: one
+ * behind it and one at each end, and one over its radiator fins held
+ * clear of it on posts.
+ */
+function createBumperPlates(
+  shape: BatteryBankShape,
+  gap: number,
+): THREE.Object3D[] {
+  const [, plinthHeight] = shape.plinthSize;
+  const [width, height, depth] = shape.cabinetSize;
+  const middle = plinthHeight + height / 2;
+  const thickness = 0.03;
+  const roofY = plinthHeight + height + shape.finHeight + gap;
+  const plates: [THREE.BoxGeometry, [number, number, number]][] = [
+    [
+      new THREE.BoxGeometry(width, height, thickness),
+      [0, middle, -(depth / 2 + gap)],
+    ],
+    ...[-1, 1].map((side): [THREE.BoxGeometry, [number, number, number]] => [
+      new THREE.BoxGeometry(thickness, height, depth),
+      [side * (width / 2 + gap), middle, 0],
+    ]),
+    [
+      new THREE.BoxGeometry(width + 2 * gap, thickness, depth + gap),
+      [0, roofY, -gap / 2],
+    ],
+  ];
+  const posts = [-1, 1].flatMap((x) =>
+    [-1, 1].map((z) =>
+      part(
+        new THREE.CylinderGeometry(
+          0.025,
+          0.025,
+          roofY - plinthHeight - height,
+          6,
+        ),
+        materials.darkMetal,
+        [
+          x * (width / 2 - 0.1),
+          (roofY + plinthHeight + height) / 2,
+          z * (depth / 2 - 0.1),
+        ],
+      ),
+    ),
+  );
+  return [
+    ...plates.map(([geometry, at]) => part(geometry, materials.aluminium, at)),
+    ...posts,
+  ];
+}
+
 /** How many panels a landing pad is laid from, as the data catalogue has it. */
 const PAD_PANELS = 8;
 /** The share of Assembly spent laying the panels, before the beacon goes up. */
 const PAD_PANELS_SHARE = 0.85;
+/** How tall a pad light's post stands at a lit landing pad's edge. */
+const PAD_LIGHT_HEIGHT = 2.6;
+
+/** The parts of a landing pad's model. */
+interface LandingPadShape {
+  readonly name: string;
+  /** How many pad lights stand round its edge, spaced evenly, clear of the beacon. */
+  readonly padLights: number;
+}
+
+const LANDING_PAD: LandingPadShape = { name: "Landing pad", padLights: 0 };
+
+/**
+ * A lit landing pad: a landing pad with a pad light on a short post at
+ * each quarter of its edge, its head tilted in over the pad.
+ */
+const LIT_LANDING_PAD: LandingPadShape = {
+  name: "Lit landing pad",
+  padLights: 4,
+};
 
 /**
  * A landing pad: a disc of interlocking panels laid flat on the graded
- * ground, with a painted ring for the Lander to aim at and a beacon at its
- * edge. During Assembly the panels go down one by one, then the beacon goes
- * up. Its radius is the data catalogue's footprint.
+ * ground, with a painted ring for the Lander to aim at, a beacon at its
+ * edge and any pad lights round it, which glow while they are on. During
+ * Assembly the panels go down one by one, then the beacon and pad lights
+ * go up. Its radius is the data catalogue's footprint.
  */
-function createLandingPadModel(): StructureModel {
+function createLandingPadModel(shape: LandingPadShape): StructureModel {
   const pad = new THREE.Group();
-  pad.name = "Landing pad";
+  pad.name = shape.name;
   const radius = 6.9;
   const thickness = 0.12;
   const panels = Array.from({ length: PAD_PANELS }, (_, index) => {
@@ -782,8 +1310,47 @@ function createLandingPadModel(): StructureModel {
   );
   pad.add(beacon);
 
+  const lightMaterial = materials.statusOff.clone();
+  const padLights = new THREE.Group();
+  for (let index = 0; index < shape.padLights; index++) {
+    // Halfway between the beacon's place and the next quarter round.
+    const angle = ((index + 0.5) / shape.padLights) * Math.PI * 2;
+    const padLight = new THREE.Group();
+    padLight.position.set(
+      Math.cos(angle) * (radius - 0.35),
+      thickness,
+      -Math.sin(angle) * (radius - 0.35),
+    );
+    // Facing the pad's centre, its head tilted down over it.
+    padLight.rotation.y = angle + Math.PI;
+    const head = new THREE.Group();
+    head.position.y = PAD_LIGHT_HEIGHT;
+    head.rotation.z = -Math.PI / 6;
+    head.add(
+      part(
+        new THREE.BoxGeometry(0.3, 0.36, 0.6),
+        materials.darkMetal,
+        [0, 0, 0],
+      ),
+      part(new THREE.BoxGeometry(0.04, 0.3, 0.52), lightMaterial, [0.16, 0, 0]),
+    );
+    padLight.add(
+      part(
+        new THREE.CylinderGeometry(0.06, 0.09, PAD_LIGHT_HEIGHT, 6),
+        materials.aluminium,
+        [0, PAD_LIGHT_HEIGHT / 2, 0],
+      ),
+      head,
+    );
+    padLights.add(padLight);
+  }
+  pad.add(padLights);
+
   return {
     group: pad,
+    // The scene's one light for the pad lights hangs over the pad's
+    // centre, high enough to shine past a Lander standing on it.
+    ...(shape.padLights > 0 ? { lightHeight: 10 } : {}),
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
       const laid = Math.min(f / PAD_PANELS_SHARE, 1) * PAD_PANELS;
@@ -792,6 +1359,102 @@ function createLandingPadModel(): StructureModel {
       }
       ring.visible = laid >= PAD_PANELS;
       beacon.visible = f > PAD_PANELS_SHARE;
+      padLights.visible = f > PAD_PANELS_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit(on) {
+      lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
+      lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
+    },
+  };
+}
+
+/** The radius of a sintered landing pad, just inside its footprint, and its thickness. */
+const SINTERED_PAD_RADIUS = 6.9;
+const SINTERED_PAD_THICKNESS = 0.18;
+/** How many rings the regolith printer lays a sintered landing pad in, from the middle out. */
+const SINTERED_PAD_RINGS = 9;
+/** How far out the raised ring the Lander aims at runs. */
+const SINTERED_PAD_AIM_RADIUS = 3.75;
+
+/**
+ * A sintered landing pad: a seamless disc of dark, fused Regolith, printed
+ * in rings from the middle out, with a raised ring for the Lander to aim at
+ * and a low lip round its edge, rather than painted panels and a beacon. A
+ * small lamp set flush at its edge is its status light. During Assembly the
+ * rings go down one by one.
+ */
+function createSinteredLandingPadModel(): StructureModel {
+  const pad = new THREE.Group();
+  pad.name = "Sintered landing pad";
+  const width = SINTERED_PAD_RADIUS / SINTERED_PAD_RINGS;
+  // Alternate rings a shade apart, so that the courses show.
+  const shades = [materials.sinteredRegolith, materials.padPanel];
+  const rings = Array.from({ length: SINTERED_PAD_RINGS }, (_, index) => {
+    const inner = index * width;
+    const outer = inner + width;
+    // A rectangular cross-section, turned round the middle.
+    const ring = part(
+      new THREE.LatheGeometry(
+        [
+          new THREE.Vector2(inner, 0),
+          new THREE.Vector2(outer, 0),
+          new THREE.Vector2(outer, SINTERED_PAD_THICKNESS),
+          new THREE.Vector2(inner, SINTERED_PAD_THICKNESS),
+          new THREE.Vector2(inner, 0),
+        ],
+        36,
+      ),
+      shades[index % 2] ?? materials.sinteredRegolith,
+      [0, 0, 0],
+    );
+    ring.name = `Ring ${index + 1}`;
+    pad.add(ring);
+    return ring;
+  });
+
+  const ridge = (radius: number, thickness: number) => {
+    const torus = part(
+      new THREE.TorusGeometry(radius, thickness, 4, 48),
+      materials.sinteredGlaze,
+      [0, SINTERED_PAD_THICKNESS, 0],
+    );
+    torus.rotation.x = Math.PI / 2;
+    return torus;
+  };
+  const aim = ridge(SINTERED_PAD_AIM_RADIUS, 0.09);
+  const lip = ridge(SINTERED_PAD_RADIUS - 0.12, 0.14);
+  pad.add(aim, lip);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  const statusLight = part(
+    new THREE.CylinderGeometry(0.14, 0.14, 0.06, 10),
+    statusLightMaterial,
+    [SINTERED_PAD_RADIUS - 0.5, SINTERED_PAD_THICKNESS + 0.03, 0],
+  );
+  pad.add(statusLight);
+
+  return {
+    group: pad,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const printed = f * SINTERED_PAD_RINGS;
+      for (const [index, ring] of rings.entries()) {
+        ring.visible = printed - index > 0;
+      }
+      aim.visible = printed * width > SINTERED_PAD_AIM_RADIUS;
+      lip.visible = f >= 1;
+      statusLight.visible = f >= 1;
     },
     setFacing: () => undefined,
     setStatusLight(state) {
@@ -806,6 +1469,28 @@ function createLandingPadModel(): StructureModel {
     setCharge: () => undefined,
     setLit: () => undefined,
   };
+}
+
+/**
+ * Where the regolith printer is laying Regolith on a Structure it prints,
+ * as Assembly goes from 0 to 1: how high above the ground, and how far out
+ * from the Structure's centre the ring it follows runs. A sintered landing
+ * pad is laid flat from the middle out; shielding rises over the Habitat's
+ * dome layer by layer.
+ */
+export function printingAt(
+  structureTypeId: string,
+  progress: number,
+): { readonly height: number; readonly radius: number } {
+  const f = THREE.MathUtils.clamp(progress, 0, 1);
+  if (structureTypeId === "sintered-landing-pad") {
+    return {
+      height: SINTERED_PAD_THICKNESS,
+      radius: Math.max(f, 0.05) * SINTERED_PAD_RADIUS,
+    };
+  }
+  const height = f * SHIELDING_HEIGHT;
+  return { height, radius: shieldingRadiusAt(height) };
 }
 
 /** A packing crate holding one Component, standing on the ground. */
@@ -931,131 +1616,289 @@ export function createRoverModel(): RoverModel {
 
 /** How fast a running Plant's cooling fan turns, in turns per real second. */
 const PLANT_FAN_TURNS_PER_SECOND = 1.5;
+/** The height of the top of a Plant's plinth, which its vessels stand on. */
+const PLINTH_TOP = 0.25;
 
 /**
- * A Plant: a vessel on a plinth, with the plant that feeds and empties it
- * beside it, and a cooling fan on top that turns while it runs, when the
- * vessel glows. A reactor is tall and narrow, a tank squat and wide, a
- * chamber lies on its side, and an oven is a low tunnel with a conveyor
- * running through it. During Assembly the plinth goes down, then the vessel
- * rises.
+ * A vessel standing on a Plant's plinth. A reactor is tall and narrow, a
+ * tank squat and wide, a chamber a drum lying on its side, an oven a low
+ * tunnel with a conveyor running through it, a stack a block of cell
+ * plates, and a hopper a funnel on legs that Regolith is tipped into.
  */
-function createPlantModel(
-  vessel: "reactor" | "tank" | "chamber" | "oven",
-): StructureModel {
+interface PlantVessel {
+  readonly kind: "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper";
+  /** Where its centre stands on the plinth, across and front to back. */
+  readonly at: readonly [number, number];
+  /** How much bigger it is than the plain vessel of its kind; 1 if not given. */
+  readonly scale?: number;
+}
+
+/** The sizes and parts of a Plant's model, in metres. */
+interface PlantShape {
+  readonly name: string;
+  /** The plinth's width across and depth from front to back. */
+  readonly plinth: readonly [number, number];
+  readonly vessels: readonly PlantVessel[];
+  /** Where the box of plant that feeds and empties it stands, across. */
+  readonly feederAt: number;
+}
+
+const EXTRACTION_PLANT: PlantShape = {
+  name: "Extraction plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "reactor", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * A large extraction plant: a wider plinth with a big molten regolith cell,
+ * fed from a hopper of Regolith beside it, and a slimmer oxygen separator
+ * column behind.
+ */
+const LARGE_EXTRACTION_PLANT: PlantShape = {
+  name: "Large extraction plant",
+  plinth: [6.2, 4.6],
+  vessels: [
+    { kind: "reactor", at: [-1.4, 0.3], scale: 1.35 },
+    { kind: "reactor", at: [0.2, -1.4], scale: 0.6 },
+    { kind: "hopper", at: [-1.6, -1.75] },
+  ],
+  feederAt: 1.9,
+};
+
+const WATER_PROCESSING_PLANT: PlantShape = {
+  name: "Water plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "tank", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * An electrolysis plant: a smaller ice melter beside a stack of
+ * electrolyser cells, whose gaps glow while it works.
+ */
+const ELECTROLYSIS_PLANT: PlantShape = {
+  name: "Electrolysis plant",
+  plinth: [4, 3.2],
+  vessels: [
+    { kind: "tank", at: [-1, 0.7], scale: 0.7 },
+    { kind: "stack", at: [-0.6, -0.85] },
+  ],
+  feederAt: 1.1,
+};
+
+const VACUUM_FABRICATION_PLANT: PlantShape = {
+  name: "Vacuum fabrication plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "chamber", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+const CIRCUIT_BOARD_PLANT: PlantShape = {
+  name: "Circuit board plant",
+  plinth: [4, 3.2],
+  vessels: [{ kind: "oven", at: [-0.7, 0] }],
+  feederAt: 1.1,
+};
+
+/**
+ * An integrated fabrication plant: a long plinth carrying a crystal
+ * furnace's drum and, beside it, the oven of the board assembly line, so
+ * that the wafers go straight from one into the other.
+ */
+const INTEGRATED_FABRICATION_PLANT: PlantShape = {
+  name: "Integrated fabrication plant",
+  plinth: [5.2, 3.2],
+  vessels: [
+    { kind: "chamber", at: [-1.7, 0] },
+    { kind: "oven", at: [-0.2, 0] },
+  ],
+  feederAt: 1.5,
+};
+
+/** The Plants, by Structure type. */
+const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
+  "extraction-plant": EXTRACTION_PLANT,
+  "large-extraction-plant": LARGE_EXTRACTION_PLANT,
+  "water-processing-plant": WATER_PROCESSING_PLANT,
+  "electrolysis-plant": ELECTROLYSIS_PLANT,
+  "vacuum-fabrication-plant": VACUUM_FABRICATION_PLANT,
+  "circuit-board-plant": CIRCUIT_BOARD_PLANT,
+  "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
+};
+
+/**
+ * The parts of one vessel, centred across and front to back on the origin
+ * and standing on the plinth, with any band that glows while the Plant
+ * works made of the glow material.
+ */
+function plantVesselParts(
+  kind: PlantVessel["kind"],
+  glow: THREE.Material,
+): THREE.Object3D[] {
+  switch (kind) {
+    case "chamber": {
+      // A drum lying from front to back, held off the plinth by two cradles.
+      const radius = 0.75;
+      const lying = (mesh: THREE.Mesh) => {
+        mesh.rotation.x = Math.PI / 2;
+        return mesh;
+      };
+      return [
+        lying(
+          part(
+            new THREE.CylinderGeometry(radius, radius, 2.8, 16),
+            materials.foil,
+            [0, 0.45 + radius, 0],
+          ),
+        ),
+        // A band round the vessel that glows while it works.
+        lying(
+          part(
+            new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+            glow,
+            [0, 0.45 + radius, 0.5],
+          ),
+        ),
+        ...[-0.9, 0.9].map((z) =>
+          part(new THREE.BoxGeometry(1.2, 0.3, 0.3), materials.darkMetal, [
+            0,
+            0.4,
+            z,
+          ]),
+        ),
+      ];
+    }
+    case "oven":
+      // A tunnel from front to back on two legs, with the conveyor that
+      // carries the boards through it sticking out at both ends.
+      return [
+        part(
+          new THREE.BoxGeometry(1.3, 0.9, 2.4),
+          materials.hull,
+          [0, 1.05, 0],
+        ),
+        // A window along the top that glows while it works.
+        part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [0, 1.52, 0]),
+        part(
+          new THREE.BoxGeometry(0.9, 0.08, 3.1),
+          materials.darkMetal,
+          [0, 0.64, 0],
+        ),
+        ...[-0.9, 0.9].map((z) =>
+          part(new THREE.BoxGeometry(1.2, 0.35, 0.3), materials.darkMetal, [
+            0,
+            0.42,
+            z,
+          ]),
+        ),
+      ];
+    case "stack": {
+      // Cell plates stacked side by side between two end plates, with the
+      // gaps between them glowing while it works.
+      const plates = 7;
+      return [
+        ...Array.from({ length: plates }, (_, index) =>
+          part(
+            new THREE.BoxGeometry(0.14, 1.1, 1.2),
+            index === 0 || index === plates - 1
+              ? materials.darkMetal
+              : materials.hull,
+            [(index - (plates - 1) / 2) * 0.22, 0.85, 0],
+          ),
+        ),
+        part(new THREE.BoxGeometry(1.3, 0.9, 1), glow, [0, 0.8, 0]),
+      ];
+    }
+    case "hopper":
+      // A funnel on four legs, wide end up.
+      return [
+        part(
+          new THREE.CylinderGeometry(0.75, 0.25, 0.9, 8, 1, true),
+          materials.machinePaint,
+          [0, 1.75, 0],
+        ),
+        ...[
+          [-0.45, -0.45],
+          [-0.45, 0.45],
+          [0.45, -0.45],
+          [0.45, 0.45],
+        ].map(([x = 0, z = 0]) =>
+          part(new THREE.BoxGeometry(0.08, 1.3, 0.08), materials.darkMetal, [
+            x,
+            0.9,
+            z,
+          ]),
+        ),
+      ];
+    case "reactor":
+    case "tank": {
+      const [radius, height] = kind === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
+      return [
+        part(
+          new THREE.CylinderGeometry(radius, radius, height, 16),
+          kind === "reactor" ? materials.foil : materials.hull,
+          [0, 0.25 + height / 2, 0],
+        ),
+        // A band round the vessel that glows while it works.
+        part(
+          new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
+          glow,
+          [0, 0.25 + height * 0.6, 0],
+        ),
+      ];
+    }
+  }
+}
+
+/**
+ * A Plant: vessels on a plinth, with the plant that feeds and empties them
+ * beside them, and a cooling fan on top that turns while it runs, when the
+ * vessels glow. During Assembly the plinth goes down, then the vessels
+ * rise.
+ */
+function createPlantModel(shape: PlantShape): StructureModel {
   const plant = new THREE.Group();
-  plant.name = {
-    reactor: "Extraction plant",
-    tank: "Water plant",
-    chamber: "Vacuum fabrication plant",
-    oven: "Circuit board plant",
-  }[vessel];
+  plant.name = shape.name;
+  const [width, depth] = shape.plinth;
   const statusLightMaterial = materials.statusOff.clone();
   const glow = materials.statusOff.clone();
   plant.add(
     part(
-      new THREE.BoxGeometry(4, 0.25, 3.2),
+      new THREE.BoxGeometry(width, 0.25, depth),
       materials.darkMetal,
       [0, 0.12, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.08, 8, 6),
-      statusLightMaterial,
-      [1.8, 0.3, 1.5],
-    ),
+    part(new THREE.SphereGeometry(0.08, 8, 6), statusLightMaterial, [
+      width / 2 - 0.2,
+      0.3,
+      depth / 2 - 0.1,
+    ]),
   );
   const upper = new THREE.Group();
-  if (vessel === "chamber") {
-    // A drum lying from front to back, held off the plinth by two cradles.
-    const radius = 0.75;
-    const lying = (mesh: THREE.Mesh) => {
-      mesh.rotation.x = Math.PI / 2;
-      return mesh;
-    };
-    upper.add(
-      lying(
-        part(
-          new THREE.CylinderGeometry(radius, radius, 2.8, 16),
-          materials.foil,
-          [-0.7, 0.45 + radius, 0],
-        ),
-      ),
-      // A band round the vessel that glows while it works.
-      lying(
-        part(
-          new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
-          glow,
-          [-0.7, 0.45 + radius, 0.5],
-        ),
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.3, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.4, -0.9],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.3, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.4, 0.9],
-      ),
-    );
-  } else if (vessel === "oven") {
-    // A tunnel from front to back on two legs, with the conveyor that
-    // carries the boards through it sticking out at both ends.
-    upper.add(
-      part(
-        new THREE.BoxGeometry(1.3, 0.9, 2.4),
-        materials.hull,
-        [-0.7, 1.05, 0],
-      ),
-      // A window along the top that glows while it works.
-      part(new THREE.BoxGeometry(0.8, 0.04, 1.8), glow, [-0.7, 1.52, 0]),
-      part(
-        new THREE.BoxGeometry(0.9, 0.08, 3.1),
-        materials.darkMetal,
-        [-0.7, 0.64, 0],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.35, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.42, -0.9],
-      ),
-      part(
-        new THREE.BoxGeometry(1.2, 0.35, 0.3),
-        materials.darkMetal,
-        [-0.7, 0.42, 0.9],
-      ),
-    );
-  } else {
-    const [radius, height] = vessel === "reactor" ? [0.9, 3.2] : [1.3, 1.6];
-    upper.add(
-      part(
-        new THREE.CylinderGeometry(radius, radius, height, 16),
-        vessel === "reactor" ? materials.foil : materials.hull,
-        [-0.7, 0.25 + height / 2, 0],
-      ),
-      // A band round the vessel that glows while it works.
-      part(
-        new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.2, 16),
-        glow,
-        [-0.7, 0.25 + height * 0.6, 0],
-      ),
-    );
+  for (const vessel of shape.vessels) {
+    const group = new THREE.Group();
+    group.add(...plantVesselParts(vessel.kind, glow));
+    // Scaled about the plinth's top, so that it still stands on it.
+    const scale = vessel.scale ?? 1;
+    group.position.set(vessel.at[0], PLINTH_TOP * (1 - scale), vessel.at[1]);
+    group.scale.setScalar(scale);
+    upper.add(group);
   }
   upper.add(
-    part(
-      new THREE.BoxGeometry(1.4, 1.4, 1.8),
-      materials.machinePaint,
-      [1.1, 0.95, 0],
-    ),
-    part(
-      new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8),
-      materials.darkMetal,
-      [0.3, 1.2, 0.6],
-    ),
+    part(new THREE.BoxGeometry(1.4, 1.4, 1.8), materials.machinePaint, [
+      shape.feederAt,
+      0.95,
+      0,
+    ]),
+    part(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), materials.darkMetal, [
+      shape.feederAt - 0.8,
+      1.2,
+      0.6,
+    ]),
   );
   const fan = new THREE.Group();
-  fan.position.set(1.1, 1.75, 0);
+  fan.position.set(shape.feederAt, 1.75, 0);
   for (const angle of [0, Math.PI / 2]) {
     const blade = part(
       new THREE.BoxGeometry(1.1, 0.04, 0.16),

@@ -615,6 +615,177 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 25 to 26: Research Tasks, which earn Science. None had run before, so
+  // there is no Science, none running and none completed.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        science: 0,
+        researchTask: null,
+        completedResearchTaskIds: [],
+      },
+    };
+  },
+  // 26 to 27: the Tech Tree, whose Designs are unlocked with Science.
+  // Everything that could be built or shipped before belongs to a starting
+  // Design, so an older save has those unlocked and no others. They are the
+  // starting Designs when format version 27 came in, so that adding or
+  // changing starting Designs later doesn't change what this migration gives.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        unlockedDesignIds: [
+          "solar-arrays",
+          "battery-banks",
+          "light-masts",
+          "maintenance-spares",
+          "regolith-shielding",
+          "inflatable-habitat",
+          "life-support-resupply",
+          "water-processing",
+          "regolith-extraction",
+          "vacuum-fabrication",
+          "circuit-board-fabrication",
+          "landing-pads",
+        ],
+      },
+    };
+  },
+  // 27 to 28: the large battery bank, behind the Large battery banks
+  // Design, with two new Components, which the base's stock keeps a count
+  // of after the others. None of them was there before. The later Phase 7
+  // Designs that bring new Components add a migration like this one.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "large-battery-module", count: 0 },
+                  { componentId: "large-battery-cabinet", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
+  // 28 to 29: a Launch can bring a Robot, behind the Robots Design, which
+  // climbs down from the Lander as it lands and walks to the stockpile
+  // before it works. No Launch brought one before, so no Robot is
+  // arriving.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["robots"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        robots: state["robots"].map((robot: unknown) =>
+          isRecord(robot) ? { ...robot, arrival: null } : robot,
+        ),
+      },
+    };
+  },
+  // 29 to 30: the Protection Designs, whose hardened Structures bring four
+  // new Components, which the base's stock keeps a count of after the
+  // others. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "sealed-array-mast", count: 0 },
+                  { componentId: "screened-solar-panel", count: 0 },
+                  { componentId: "whipple-cabinet", count: 0 },
+                  { componentId: "armoured-habitat-envelope", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
+  // 30 to 31: the Power and Construction Designs, whose thin-film solar
+  // array, tall Light Mast and prefabricated solar array bring three new
+  // Components, which the base's stock keeps a count of after the others.
+  // None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "thin-film-solar-panel", count: 0 },
+                  { componentId: "tall-mast-pole", count: 0 },
+                  { componentId: "prefabricated-array-pack", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
+  // 31 to 32: the Life Support, Industry and Mobility Designs, whose
+  // electrolysis plant, large extraction plant, integrated fabrication
+  // plant and lit landing pad bring four new Components, which the base's
+  // stock keeps a count of after the others. None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "electrolyser-stack", count: 0 },
+                  { componentId: "molten-regolith-cell", count: 0 },
+                  { componentId: "board-assembly-line", count: 0 },
+                  { componentId: "landing-floodlight", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**
@@ -970,6 +1141,10 @@ const componentCount = object({
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
+const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
+
+const designId = catalogueId(catalogue.designs, "Design");
+
 /**
  * A commissioned Structure, whose recipe must be one of its type's if it
  * is a Plant, and none if it isn't.
@@ -1150,6 +1325,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     ),
     "on-expedition": object({ kind: exactly("on-expedition") }),
     "unloading-expedition": object({ kind: exactly("unloading-expedition") }),
+    "climbing-down": object({ kind: exactly("climbing-down") }),
+    "walking-to-stockpile": object({ kind: exactly("walking-to-stockpile") }),
     "loading-components": byField(
       "roverId",
       forRover,
@@ -1308,6 +1485,12 @@ const simulationState = object({
     }),
   ),
   exportsToLoad: list(exportLine),
+  science: wholeNumber,
+  researchTask: optional(
+    object({ researchTaskId, workedMinutes: wholeNumber }),
+  ),
+  completedResearchTaskIds: list(researchTaskId),
+  unlockedDesignIds: list(designId),
   ended: optional(campaignEnd),
   robots: list(
     object({
@@ -1325,6 +1508,7 @@ const simulationState = object({
           workedMinutes: wholeNumber,
         }),
       ),
+      arrival: optional(object({ workedMinutes: wholeNumber })),
     }),
   ),
   machines: list(

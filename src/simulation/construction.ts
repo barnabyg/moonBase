@@ -22,6 +22,8 @@ export interface ConstructionPlan {
 
 export type PlacementRefusal =
   | "unknown-structure-type"
+  /** The Design the Structure belongs to isn't unlocked. */
+  | "design-locked"
   | "off-map"
   | "overlaps-lander"
   | "overlaps-stockpile"
@@ -131,6 +133,20 @@ function footings(
 
 export function findStructureType(id: string): StructureType | undefined {
   return catalogue.structureTypes.find((type) => type.id === id);
+}
+
+/** A Hazard a Structure may take only a share of, by its type. */
+export type StructureHazard = keyof StructureType["hazardMultipliers"];
+
+/**
+ * The share of a Hazard a type of Structure takes, from 0 to 1, as the data
+ * catalogue sets it; the full amount for a type it doesn't have.
+ */
+export function hazardShare(
+  structureTypeId: string,
+  hazard: StructureHazard,
+): number {
+  return findStructureType(structureTypeId)?.hazardMultipliers[hazard] ?? 1;
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   formatMissionDirector,
   formatPower,
   formatRadiationDose,
+  formatResearchTask,
   formatSelfSufficiency,
   formatSolarParticleEvent,
   formatSpareComponents,
@@ -32,10 +33,10 @@ export interface StatusPanel {
 
 /**
  * The HTML status panel, in sections the player can fold away: how the
- * Mission Director is keeping, the base's power, its stock, and the Lander
- * and Expeditions. It reads simulation snapshots and forecasts, and sends a
- * choice to send the Lander to the Campaign, which decides whether it is
- * allowed and says why not.
+ * Mission Director is keeping, the base's power, its stock, the Lander and
+ * Expeditions, and the Research Task running. It reads simulation snapshots
+ * and forecasts, and sends a choice to send the Lander to the Campaign,
+ * which decides whether it is allowed and says why not.
  */
 export function createStatusPanel(
   container: HTMLElement,
@@ -149,11 +150,17 @@ export function createStatusPanel(
   actions.append(sendLander, expeditions);
   travelSection.body.append(lander.element, expedition.element, actions);
 
+  // The Research Task running, how long it has left and how far it has got.
+  const researchSection = createPanelSection("research", "Research");
+  const researchTask = createStatLine("Task", "Research Task");
+  researchSection.body.append(researchTask.element);
+
   const sections = [
     missionDirectorSection,
     powerSection,
     stockSection,
     travelSection,
+    researchSection,
   ];
   panel.append(...sections.map((section) => section.element));
   container.append(panel);
@@ -307,6 +314,9 @@ export function createStatusPanel(
           snapshot.clock.elapsedMinutes,
         ),
       });
+
+      researchTask.show(formatResearchTask(snapshot.researchTask));
+      researchTask.fill(snapshot.researchTask?.progress);
 
       for (const section of sections) section.refreshWarning();
     },

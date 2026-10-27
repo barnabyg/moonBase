@@ -1,0 +1,420 @@
+{
+  "format": "moonbase-save",
+  "version": 28,
+  "random": {
+    "a": -117744850,
+    "b": 3228718928,
+    "c": 1776970618,
+    "d": 2933813590
+  },
+  "state": {
+    "elapsedMinutes": 3352,
+    "nextStructureNumber": 3,
+    "nextPlanNumber": 3,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": [],
+      "exports": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "selfSufficiency": [
+      {
+        "stockId": "oxygen",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          }
+        ]
+      },
+      {
+        "stockId": "water",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          }
+        ]
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 35144,
+      "startsAtMinute": 35384,
+      "endsAtMinute": 37024
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 16989
+    },
+    "spareComponentsWarnedMinutes": null,
+    "fundingMillionDollars": 400,
+    "launchManifest": [],
+    "exportsToLoad": [],
+    "science": 0,
+    "researchTask": null,
+    "completedResearchTaskIds": [
+      "regolith-sample-analysis",
+      "ice-volatiles-assay",
+      "radiation-environment-survey"
+    ],
+    "unlockedDesignIds": [
+      "solar-arrays",
+      "battery-banks",
+      "light-masts",
+      "maintenance-spares",
+      "regolith-shielding",
+      "inflatable-habitat",
+      "life-support-resupply",
+      "water-processing",
+      "regolith-extraction",
+      "vacuum-fabrication",
+      "circuit-board-fabrication",
+      "landing-pads",
+      "large-battery-banks"
+    ],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 26.927114881610496,
+          "y": 22.43926240134208
+        },
+        "activity": {
+          "kind": "assembling",
+          "structureId": "structure-2"
+        },
+        "carrying": [],
+        "workOrder": {
+          "structureId": "structure-2",
+          "kind": "assemble"
+        },
+        "conditionPercent": 96.97333333333609,
+        "selfRepair": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 33.917928525946614,
+          "y": 28.264940438288846
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 89.5933333333428,
+        "powered": false
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "rovers": [
+      {
+        "id": "rover-1",
+        "position": {
+          "x": 0,
+          "y": 13
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 3
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 1
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        },
+        {
+          "componentId": "extraction-reactor",
+          "count": 0
+        },
+        {
+          "componentId": "oxygen-separator",
+          "count": 0
+        },
+        {
+          "componentId": "ice-melter",
+          "count": 0
+        },
+        {
+          "componentId": "water-purifier",
+          "count": 0
+        },
+        {
+          "componentId": "crystal-furnace",
+          "count": 0
+        },
+        {
+          "componentId": "wafer-saw",
+          "count": 0
+        },
+        {
+          "componentId": "circuit-etcher",
+          "count": 0
+        },
+        {
+          "componentId": "reflow-oven",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-cabinet",
+          "count": 0
+        }
+      ]
+    },
+    "bulkResources": [
+      {
+        "resourceId": "regolith",
+        "kilograms": 1000
+      },
+      {
+        "resourceId": "metals",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "silicon",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "wafers",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "circuit-boards",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "water-ice",
+        "kilograms": 0
+      }
+    ],
+    "constructions": [
+      {
+        "id": "structure-2",
+        "structureTypeId": "large-battery-bank",
+        "position": {
+          "x": 30,
+          "y": 25
+        },
+        "planNumber": 2,
+        "workSpot": {
+          "x": 26.927114881610496,
+          "y": 22.43926240134208
+        },
+        "stage": "assembly",
+        "workedMinutes": 60,
+        "componentsTaken": true,
+        "failedCommissionings": 0
+      }
+    ],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 98.0150000000018,
+        "dustCoatingPercent": 3.9699999999998155,
+        "recipeId": null
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "exportLoading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 21.82913228254908,
+          "y": 14.377871967313801
+        },
+        "end": {
+          "x": 28.17086771745092,
+          "y": 22.6221280326862
+        },
+        "route": [
+          {
+            "x": 21.82913228254908,
+            "y": 14.377871967313801
+          },
+          {
+            "x": 28.17086771745092,
+            "y": 22.6221280326862
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": [],
+    "expedition": null
+  }
+}

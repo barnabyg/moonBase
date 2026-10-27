@@ -9,6 +9,7 @@ import { readLunation } from "./lunation";
 import { findMachineType, isMachineBroken } from "./machines";
 import { isRoverBroken } from "./rovers";
 import { findWorn, spareComponentsFor, visitFor } from "./maintenance";
+import { averageStrikeShare } from "./micrometeorites";
 import { inStock } from "./stockpile";
 
 /** How long the base's stock of spare Components will last, as things stand. */
@@ -24,7 +25,7 @@ export interface SpareComponentsForecast {
    * How many spare Components an Earth Day of wear at the current rate
    * calls for, at the Maintenance rate: Dust on what is operating now, the
    * cold on Machines and Rovers unpowered at Night, the Robot's wear, and
-   * the average damage Micrometeorites do.
+   * the average damage Micrometeorites do to what they could hit now.
    */
   readonly perEarthDay: number;
   /**
@@ -114,7 +115,8 @@ export function watchSpareComponents(
  * points an hour, all added together: Dust on the Structures operating,
  * the Machines working or being driven, the Rovers being driven and the
  * Robots at work, the cold on Machines and Rovers unpowered at Night, and
- * the average damage of Micrometeorites.
+ * the average damage of Micrometeorites, for the average share of it that
+ * what they could hit now takes.
  */
 function wearPercentPerHour(state: CampaignState): number {
   const structures = state.structures
@@ -176,8 +178,8 @@ function wearPercentPerHour(state: CampaignState): number {
   ).length;
   const { earthDaysBetween, conditionLossPercent } = catalogue.micrometeorites;
   const strikes =
-    (conditionLossPercent.min + conditionLossPercent.max) /
-    2 /
+    (((conditionLossPercent.min + conditionLossPercent.max) / 2) *
+      averageStrikeShare(state)) /
     (((earthDaysBetween.min + earthDaysBetween.max) / 2) * 24);
   return (
     structures +

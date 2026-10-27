@@ -3,6 +3,7 @@ import {
   type ComponentCount,
   type GroundPosition,
 } from "../catalogue";
+import { isClimbingDown } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import {
@@ -71,6 +72,7 @@ export type SendLanderRefusal =
   | "mission-director-aboard"
   | "lander-away"
   | "cargo-aboard"
+  | "robot-aboard"
   | "exports-loading"
   | "campaign-ended";
 
@@ -86,8 +88,9 @@ export type SendLanderResult =
 /**
  * Sends the landed Lander on its round trip to Earth and back. It can't
  * leave while the Mission Director lives aboard it, before the Robot has
- * taken its cargo off, or, on a landing pad, before the Robot has put the
- * Exports to load aboard. It takes off in the game-minute that follows.
+ * taken its cargo off, while a Robot it brought is climbing down from it,
+ * or, on a landing pad, before the Robot has put the Exports to load
+ * aboard. It takes off in the game-minute that follows.
  */
 export function sendLander(state: CampaignState): SendLanderResult {
   if (state.missionDirector.residence === "lander") {
@@ -106,6 +109,12 @@ export function sendLander(state: CampaignState): SendLanderResult {
     return refuse(
       "cargo-aboard",
       "The Lander's cargo hasn't been unloaded yet. The Robot has to carry it to the stockpile first.",
+    );
+  }
+  if (state.robots.some(isClimbingDown)) {
+    return refuse(
+      "robot-aboard",
+      "The Lander can't leave while a Robot is still climbing down from it.",
     );
   }
   if (

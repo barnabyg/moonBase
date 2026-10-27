@@ -198,6 +198,49 @@ export const materials = {
     roughness: 1,
     flatShading: true,
   }),
+  // A hardened Habitat's envelope: layers of ceramic and aramid fabric,
+  // duller and darker than an inflatable Habitat's.
+  armouredEnvelope: new THREE.MeshStandardMaterial({
+    color: 0x9a9284,
+    metalness: 0.05,
+    roughness: 0.95,
+    flatShading: true,
+  }),
+  // Black rubber boots and covers that seal a joint against Dust.
+  seal: new THREE.MeshStandardMaterial({
+    color: 0x18191b,
+    metalness: 0,
+    roughness: 0.9,
+  }),
+  // The copper electrodes of a dust screen, laid over solar cells.
+  electrode: new THREE.MeshStandardMaterial({
+    color: 0xb8733f,
+    metalness: 0.9,
+    roughness: 0.3,
+  }),
+  // Thin-film solar cells on a flexible backing: a dull bronze-violet,
+  // less glassy than the crystalline cells of a solar array.
+  thinFilmCell: new THREE.MeshStandardMaterial({
+    color: 0x4a3340,
+    metalness: 0.35,
+    roughness: 0.45,
+    side: THREE.DoubleSide,
+  }),
+  // Regolith fused by heat as the regolith printer lays it: darker than
+  // printed Regolith, with a faint glassy sheen.
+  sinteredRegolith: new THREE.MeshStandardMaterial({
+    color: 0x5a544c,
+    metalness: 0.1,
+    roughness: 0.6,
+    flatShading: true,
+  }),
+  // The glassy skin where one sintered course of Regolith meets the next.
+  sinteredGlaze: new THREE.MeshStandardMaterial({
+    color: 0x3a3632,
+    metalness: 0.2,
+    roughness: 0.45,
+    flatShading: true,
+  }),
   // Sintered Regolith panels, darker and smoother than the ground round them.
   padPanel: new THREE.MeshStandardMaterial({
     color: 0x5d5a55,

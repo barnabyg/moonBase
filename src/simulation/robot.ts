@@ -21,6 +21,7 @@ import {
   takeOffBase,
   type DismantlingState,
 } from "./dismantling";
+import { arrivalSpot, isClimbingDown, type ArrivalState } from "./arrival";
 import { addBulk } from "./bulk-resources";
 import type { GameEvent } from "./events";
 import {
@@ -194,6 +195,13 @@ export type RobotActivity =
       readonly kind: "loading-spare-components" | "repairing-itself";
     }
   | {
+      /**
+       * Brought by a Launch, climbing down from the Lander as it lands, or
+       * then walking to the stockpile, to join the others at work.
+       */
+      readonly kind: "climbing-down" | "walking-to-stockpile";
+    }
+  | {
       /** Driving a Machine to the site, aboard it, or setting it going there. */
       readonly kind: "driving-machine" | "activating-machine";
       readonly structureId: string;
@@ -245,6 +253,11 @@ export interface RobotState {
   conditionPercent: number;
   /** Its repair of itself, which goes ahead of everything, while it is under way. */
   selfRepair: SelfRepairState | undefined;
+  /**
+   * Its arrival, once a Launch has brought it, until it is at the stockpile
+   * ready for work: it goes ahead of everything.
+   */
+  arrival: ArrivalState | undefined;
 }
 
 /** How close to the Lander's centre a Robot may walk. */
@@ -253,18 +266,20 @@ const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 /**
  * Lets the Robot do one game-minute of work, as fast as its Condition
  * allows: first wearing it down by Dust for the game-minute before, if it
- * wasn't idle. Once it has set off on an Expedition, it does nothing else
- * until the Expedition is over. Otherwise, below the data catalogue's
- * threshold, it repairs itself ahead of everything else; then it works on
- * its Work Order, and once it has none, it sets off on any Expedition it
- * is to go on, or else claims the next Work Order in plan order. Returns
- * any events.
+ * wasn't idle. A Robot a Launch has just brought does nothing but arrive
+ * until it is at the stockpile. Once it has set off on an Expedition, it
+ * does nothing else until the Expedition is over. Otherwise, below the
+ * data catalogue's threshold, it repairs itself ahead of everything else;
+ * then it works on its Work Order, and once it has none, it sets off on
+ * any Expedition it is to go on, or else claims the next Work Order in
+ * plan order. Returns any events.
  */
 export function workRobot(
   state: CampaignState,
   robot: RobotState,
 ): GameEvent[] {
   wearRobot(robot);
+  if (robot.arrival !== undefined) return arrive(state, robot, robot.arrival);
   if (robot.workOrder !== undefined && !isOpen(state, robot.workOrder)) {
     robot.workOrder = undefined;
   }
@@ -1046,6 +1061,38 @@ function stepRobot(
 }
 
 /**
+ * Lets a Robot a Launch has just brought do one game-minute of arriving: it
+ * climbs down from the Lander, then walks to the stockpile, where it is
+ * ready for work. Returns the event once it is there.
+ */
+function arrive(
+  state: CampaignState,
+  robot: RobotState,
+  arrival: ArrivalState,
+): GameEvent[] {
+  if (isClimbingDown(robot)) {
+    robot.activity = { kind: "climbing-down" };
+    arrival.workedMinutes += 1;
+    return [];
+  }
+  const spot = arrivalSpot(state);
+  if (!samePlace(robot.position, spot)) {
+    stepRobot(state, robot, spot);
+    robot.activity = { kind: "walking-to-stockpile" };
+    return [];
+  }
+  robot.arrival = undefined;
+  robot.activity = { kind: "idle" };
+  return [
+    {
+      kind: "robot-arrived",
+      atMinute: state.elapsedMinutes,
+      robotId: robot.id,
+    },
+  ];
+}
+
+/**
  * Lets the Robot do one game-minute of repairing itself: it fetches the
  * spare Components it needs from the stockpile, if it set off for them,
  * and loads them, then walks to where the Mission Director lives and
@@ -1150,6 +1197,19 @@ function goOnExpedition(
         state.expedition = undefined;
         robot.activity = { kind: "idle" };
         return [{ kind: "expedition-called-off", atMinute }];
+      }
+      // Another Robot maintaining or parking the Rover finishes first.
+      if (
+        state.robots.some(
+          ({ id, workOrder }) =>
+            id !== robot.id &&
+            workOrder !== undefined &&
+            "roverId" in workOrder &&
+            workOrder.roverId === rover.id,
+        )
+      ) {
+        robot.activity = { kind: "idle" };
+        return [];
       }
       const driven: Driven = { kind: "rover", rover };
       if (

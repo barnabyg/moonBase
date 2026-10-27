@@ -1,6 +1,10 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { findStructureType, type StructureState } from "./construction";
+import {
+  findStructureType,
+  hazardShare,
+  type StructureState,
+} from "./construction";
 
 /** Whether Dust coats a type of Structure: only solar arrays, those that generate power. */
 export function isCoatedByDust(structureTypeId: string): boolean {
@@ -11,8 +15,8 @@ export function isCoatedByDust(structureTypeId: string): boolean {
 
 /**
  * Lets Dust settle on every solar array during a game-minute of Daylight,
- * at the data catalogue's rate, up to a full coating; none settles at
- * Night.
+ * at the data catalogue's rate times its type's share of Dust coating, up
+ * to a full coating; none settles at Night.
  */
 export function coatSolarArrays(state: CampaignState, daylight: boolean): void {
   if (!daylight) return;
@@ -20,7 +24,8 @@ export function coatSolarArrays(state: CampaignState, daylight: boolean): void {
   for (const structure of state.structures) {
     if (!isCoatedByDust(structure.structureTypeId)) continue;
     structure.dustCoatingPercent = Math.min(
-      structure.dustCoatingPercent + perMinute,
+      structure.dustCoatingPercent +
+        perMinute * hazardShare(structure.structureTypeId, "dustCoating"),
       100,
     );
   }
