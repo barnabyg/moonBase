@@ -209,8 +209,14 @@ describe("parking", () => {
 
 describe("heaters", () => {
   it("draw their power from the network of plugged-in Machines at Night, and the power forecast counts them", () => {
-    const { campaign } = poweredBase();
-    intoNight(campaign);
+    const { campaign: base } = poweredBase();
+    intoNight(base);
+    // Little enough left in the battery bank that it runs out in the Night.
+    const campaign = changed(base, (state) => {
+      for (const saved of state.structures) {
+        if (saved.storedKilowattHours > 0) saved.storedKilowattHours = 20;
+      }
+    });
     const [network] = campaign.snapshot().power.networks;
 
     const structuresDraw = ["solar-array", "battery-bank"].reduce(

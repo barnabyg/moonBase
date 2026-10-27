@@ -831,7 +831,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 47,
+  version: 48,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1192,14 +1192,14 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // The heaters that keep the cells warm enough to work: 4.6 kWh through
-      // a Night, so that a battery bank carries most of what it stores
-      // through one. At 0.25 kW they took 57 of its 60 kWh, so that no number
-      // of battery banks could keep the Habitat powered through a Night.
+      // A pack of modern cells, about what a small electric car carries. The
+      // heaters that keep them warm enough to work take 16 kWh through a
+      // Night, a twelfth of what it stores, so that a battery bank carries
+      // most of it through one.
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 60,
-        drawKilowatts: 0.02,
+        storageKilowattHours: 200,
+        drawKilowatts: 0.07,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1236,8 +1236,8 @@ export const catalogue: Catalogue = {
       },
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 60,
-        drawKilowatts: 0.02,
+        storageKilowattHours: 200,
+        drawKilowatts: 0.07,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1271,8 +1271,8 @@ export const catalogue: Catalogue = {
       // battery bank's, for four times the storage.
       power: {
         generationKilowatts: 0,
-        storageKilowattHours: 240,
-        drawKilowatts: 0.06,
+        storageKilowattHours: 800,
+        drawKilowatts: 0.2,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -1313,8 +1313,8 @@ export const catalogue: Catalogue = {
     },
     // A Light Mast on a pole twice as tall, with two light heads, lighting
     // a circle twice as wide: four times the ground for two and a half
-    // times the power. Through a Night it draws 228 kWh, a little less than
-    // a large battery bank stores.
+    // times the power. Through a Night it draws 228 kWh, a little more than
+    // a battery bank stores.
     {
       id: "tall-light-mast",
       label: "Tall Light Mast",
@@ -2152,15 +2152,15 @@ export const catalogue: Catalogue = {
   startingStock: [
     { componentId: "solar-panel", count: 2 },
     { componentId: "array-mast", count: 1 },
-    // Nine battery banks, 540 kWh: enough to carry the Habitat, the solar
-    // array and the heaters of the Machines and the Rover, about 460 kWh in
-    // all, through a Night. Nothing that stores more can arrive in time for
-    // the Habitat's first Night: the Milestones put the first Research Task,
-    // and so the Science for Large battery banks, after the landing pad,
-    // whose Components need a Launch, which can't leave until the Mission
-    // Director has moved in.
-    { componentId: "battery-module", count: 27 },
-    { componentId: "battery-cabinet", count: 9 },
+    // Three battery banks, 600 kWh: enough to carry the Habitat, two solar
+    // arrays, their own heaters and those of the Machines and the Rover,
+    // about 480 kWh in all, through a Night, and two would not be. Nothing
+    // that stores more can arrive in time for the Habitat's first Night:
+    // the Milestones put the first Research Task, and so the Science for
+    // Large battery banks, after the landing pad, whose Components need a
+    // Launch, which can't leave until the Mission Director has moved in.
+    { componentId: "battery-module", count: 9 },
+    { componentId: "battery-cabinet", count: 3 },
     { componentId: "mast-pole", count: 4 },
     { componentId: "light-head", count: 4 },
     // The inflatable Habitat kit.
@@ -2195,47 +2195,46 @@ export const catalogue: Catalogue = {
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
   // surface, so that the limit comes in 20 Earth Days and shielding the
-  // Habitat is urgent. Shielding cuts it to a three-hundredth, about what
-  // a few metres of Regolith leave, so that a shielded Habitat, Solar
-  // Particle Events and all, takes many years to reach the limit and an
-  // open-ended Campaign can go on. At a tenth it came in about four months
-  // whatever the player did.
+  // Habitat is urgent. Regolith shielding cuts it to a twentieth, so that
+  // with Solar Particle Events the limit still comes in about nine
+  // Lunations; a water wall over the shielding cuts it to a tenth of that
+  // again, so that it comes only after many years and an open-ended
+  // Campaign can go on.
   radiation: {
     doseRateMillisievertsPerEarthDay: {
       lander: 0,
       habitat: 30,
-      shieldedHabitat: 0.1,
-      waterWalledHabitat: 0.05,
+      shieldedHabitat: 1.5,
+      waterWalledHabitat: 0.15,
     },
     doseLimitMillisieverts: 600,
     warningEarthDaysLeft: [7, 3, 1],
   },
   // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
-  // Day or so takes half the dose limit in an unshielded Habitat, but next
-  // to nothing in a shielded one.
+  // Day or so takes half the dose limit in an unshielded Habitat, a
+  // fortieth in a shielded one and a four-hundredth in a water-walled one.
   solarParticleEvents: {
     earthDaysBetween: { min: 10, max: 30 },
     durationHours: { min: 6, max: 30 },
     warningHours: 4,
     doseRateMultiplier: 10,
   },
-  // Enough for one well-filled Launch, so the first one has to count, and
-  // for part of the second, which the first sale of wafers can't pay for on
-  // its own: they sell for no more than the Launch fee. So the second Launch
-  // can bring a circuit board plant, whose circuit boards pay for every
-  // Launch after it, with what the base needs besides.
-  programmeGrantMillionDollars: 500,
-  // Each Launch carries 3.4 tonnes and costs a fixed fee for the flight, on
+  // Enough for the Launches before the base earns: the first brings the
+  // landing pad with oxygen, water and spare Components ($200M), the second
+  // the export Plants and a second solar array ($301M), and the one after
+  // the first sale of wafers, which sell for no more than the Launch fee, a
+  // circuit board plant and a water-processing plant with what the base
+  // needs besides (about $265M, the sale paying $150M of it). From then on
+  // circuit boards pay for every Launch.
+  programmeGrantMillionDollars: 650,
+  // Each Launch carries two tonnes and costs a fixed fee for the flight, on
   // top of the price of what it brings. The Habitat kit is by far the
   // dearest, so the Funding runs out before the Payload Mass does if a
-  // Launch brings two. The Programme Grant pays for one Launch, and before
-  // the first Export can be sold the Milestones need a landing pad, an
-  // extraction plant and a vacuum fabrication plant, with a second solar
-  // array to power them: 3190 kg in all, so that one Launch has to carry
-  // them, with room for a tank each of oxygen and water and a few spare
-  // Components. Over two Launches of two tonnes they would cost $481M.
+  // Launch brings two. A landing pad and supplies fill one Launch, and an
+  // extraction plant, a vacuum fabrication plant and a second solar array
+  // to power them (1950 kg) another.
   launch: {
-    payloadMassLimitKilograms: 3400,
+    payloadMassLimitKilograms: 2000,
     feeMillionDollars: 150,
     items: [
       {
@@ -2732,7 +2731,7 @@ export const catalogue: Catalogue = {
       id: "tall-light-masts",
       label: "Tall Light Masts",
       description:
-        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing about what a large battery bank stores.",
+        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing a little more than a battery bank stores.",
       category: "power",
       starting: false,
       scienceCost: 30,
@@ -3038,13 +3037,13 @@ export const catalogue: Catalogue = {
     {
       id: "lander-departs",
       label: "Lander departs",
-      hint: "The Programme Grant pays for one well-filled Launch: put a landing pad, an extraction plant, a vacuum fabrication plant and a second solar array on the Launch manifest, with oxygen, water and spare Components, then Send the Lander from the status panel.",
+      hint: "The Programme Grant pays for the Launches until Exports earn: put a landing pad's panels and beacon on the Launch manifest, with oxygen, water and spare Components, then Send the Lander from the status panel. Keep enough for the export Plants on the next.",
       condition: { kind: "lander-took-off" },
     },
     {
       id: "habitat-shielded",
       label: "Habitat shielded",
-      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose inside to almost nothing.",
+      hint: "Plan Regolith shielding over the Mission Director's Habitat: the excavator digs the Regolith and the Regolith printer prints it, cutting the Radiation Dose inside to a twentieth.",
       condition: { kind: "habitat-shielded" },
     },
     {
@@ -3062,7 +3061,7 @@ export const catalogue: Catalogue = {
     {
       id: "first-export",
       label: "First Export",
-      hint: "Ship an extraction plant and a vacuum fabrication plant to make wafers from Regolith, load them on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
+      hint: "Ship an extraction plant, a vacuum fabrication plant and a second solar array to power them, to make wafers from Regolith; load the wafers on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
       condition: { kind: "export-sold" },
     },
     {

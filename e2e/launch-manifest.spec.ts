@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
 
@@ -17,7 +19,7 @@ function launchItem(id: string): {
 const core = launchItem("habitat-core");
 const water = launchItem("water");
 
-test("the Launch manifest screen totals the items chosen against the Payload Mass limit and the Funding, and refuses one the Funding can't pay for", async ({
+test("the Launch manifest screen totals the items chosen against the Payload Mass limit and the Funding", async ({
   page,
 }) => {
   await page.goto("/?seed=1");
@@ -48,12 +50,61 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
     `Cost: $${oneCost}M of $${grant}M Funding, including the $${fee}M Launch fee`,
   );
 
-  // The Habitat core is the dearest item, so a second one is more than the
-  // Programme Grant can pay for.
-  expect(oneCost + core.priceMillionDollars).toBeGreaterThan(grant);
+  await screen.getByRole("button", { name: "Remove one Habitat core" }).click();
+  await screen.getByRole("button", { name: "Remove one Water, 50 kg" }).click();
+  await expect(cost).toHaveText(
+    `Cost: nothing of $${grant}M Funding, while the manifest is empty`,
+  );
+  await screen.getByRole("button", { name: "Close" }).click();
+  await expect(screen).toBeHidden();
+});
+
+/**
+ * A sample save of a Campaign with the Lander free to fly, an empty Launch
+ * manifest and less Funding than the Programme Grant: what the grant was
+ * when it was saved.
+ */
+const sampleSave = fileURLToPath(
+  new URL("../test/saves/version-33.moonbase", import.meta.url),
+);
+const savedFunding = (
+  JSON.parse(readFileSync(sampleSave, "utf8")) as {
+    state: { fundingMillionDollars: number };
+  }
+).state.fundingMillionDollars;
+
+test("the Launch manifest screen refuses an item the Funding can't pay for", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page.getByRole("button", { name: "Pause" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(sampleSave);
+  await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
+    `$${savedFunding}M`,
+  );
+
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  const screen = page.getByRole("dialog", { name: "Launch manifest" });
+  const cost = screen.getByRole("status", { name: "Launch cost" });
+  await screen.getByRole("button", { name: "Add one Habitat core" }).click();
+  await screen.getByRole("button", { name: "Add one Water, 50 kg" }).click();
+  const oneCost = fee + core.priceMillionDollars + water.priceMillionDollars;
+  await expect(cost).toHaveText(
+    `Cost: $${oneCost}M of $${savedFunding}M Funding, including the $${fee}M Launch fee`,
+  );
+
+  // The Habitat core is the dearest item, so a second one, within the
+  // Payload Mass limit, is more than the Funding can pay for.
+  expect(oneCost).toBeLessThanOrEqual(savedFunding);
+  expect(oneCost + core.priceMillionDollars).toBeGreaterThan(savedFunding);
+  expect(2 * core.massKilograms + water.massKilograms).toBeLessThanOrEqual(
+    limit,
+  );
   await screen.getByRole("button", { name: "Add one Habitat core" }).click();
   await expect(screen.getByRole("alert")).toHaveText(
-    `That would bring the manifest's cost to $${oneCost + core.priceMillionDollars}M, more than the Funding balance of $${grant}M.`,
+    `That would bring the manifest's cost to $${oneCost + core.priceMillionDollars}M, more than the Funding balance of $${savedFunding}M.`,
   );
   // Its count, after its name and its mass and price.
   await expect(
@@ -62,14 +113,6 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
       .getByRole("cell")
       .nth(1),
   ).toHaveText("1");
-
-  await screen.getByRole("button", { name: "Remove one Habitat core" }).click();
-  await screen.getByRole("button", { name: "Remove one Water, 50 kg" }).click();
-  await expect(cost).toHaveText(
-    `Cost: nothing of $${grant}M Funding, while the manifest is empty`,
-  );
-  await screen.getByRole("button", { name: "Close" }).click();
-  await expect(screen).toBeHidden();
 });
 
 test("the Launch manifest screen refuses an item that would go over the Payload Mass limit", async ({

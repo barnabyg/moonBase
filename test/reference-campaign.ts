@@ -59,6 +59,12 @@ export interface Play {
 /** How many Lunations the play guide keeps the base going after the last Milestone. */
 export const PLAY_ON_LUNATIONS = 3;
 
+/**
+ * The most Lunations the play guide keeps the base going after the last
+ * Milestone, waiting for the water wall to have stood a whole Lunation.
+ */
+const LONGEST_PLAY_ON_LUNATIONS = 8;
+
 /** How long the play guide waits for anything before it gives up. */
 const LONGEST_WAIT: Duration = { earthDays: 60 };
 
@@ -78,10 +84,6 @@ const site = {
     { x: 42, y: -20 },
     { x: 46.5, y: -20 },
     { x: 51, y: -20 },
-    { x: 33, y: -25 },
-    { x: 37.5, y: -25 },
-    { x: 42, y: -25 },
-    { x: 46.5, y: -25 },
   ],
   landingPad: { x: 15, y: -40 },
   secondSolarArray: { x: 36, y: -33 },
@@ -99,7 +101,10 @@ export const referenceSteps: readonly PlayStep[] = [
       "Build the starting solar array and every battery bank in the starting stock east of the landing site, beyond the reach of the Lander's Plume Ejecta.",
     play(play) {
       play.plan("solar-array", site.solarArray);
-      for (const position of site.batteryBanks) {
+      for (const position of site.batteryBanks.slice(
+        0,
+        batteryBanksInStartingStock(),
+      )) {
         play.plan("battery-bank", position);
       }
       play.waitForMilestone("power-storage");
@@ -132,20 +137,14 @@ export const referenceSteps: readonly PlayStep[] = [
   {
     milestoneId: "lander-departs",
     description:
-      "Put a landing pad, an extraction plant, a vacuum fabrication plant and a second solar array to power them on the Launch manifest, with a tank each of oxygen and water and five spare Components, then send the Lander.",
+      "Put a landing pad on the Launch manifest, with two tanks of oxygen, three of water and ten spare Components, then send the Lander.",
     play(play) {
       play.setManifest([
         { itemId: "pad-panel", count: 8 },
         { itemId: "pad-beacon", count: 1 },
-        { itemId: "extraction-reactor", count: 1 },
-        { itemId: "oxygen-separator", count: 1 },
-        { itemId: "crystal-furnace", count: 1 },
-        { itemId: "wafer-saw", count: 1 },
-        { itemId: "solar-panel", count: 2 },
-        { itemId: "array-mast", count: 1 },
-        { itemId: "oxygen", count: 1 },
-        { itemId: "water", count: 1 },
-        { itemId: "spare-component", count: 5 },
+        { itemId: "oxygen", count: 2 },
+        { itemId: "water", count: 3 },
+        { itemId: "spare-component", count: 10 },
       ]);
       succeed(play.campaign.sendLander(), "Sending the Lander");
       play.waitForMilestone("lander-departs");
@@ -163,33 +162,43 @@ export const referenceSteps: readonly PlayStep[] = [
   {
     milestoneId: "landing-pad",
     description:
-      "Once the Lander is back, plan the landing pad south of the landing site, then the second solar array, the extraction plant and the vacuum fabrication plant beside the base.",
+      "Once the Lander is back, plan the landing pad south of the landing site.",
     play(play) {
       play.waitUntil(
         "the Lander back with the first Launch",
         (state) => state.lander.state === "landed-free",
       );
       play.plan("landing-pad", site.landingPad);
-      play.plan("solar-array", site.secondSolarArray);
-      play.plan("extraction-plant", site.extractionPlant);
-      play.plan("vacuum-fabrication-plant", site.vacuumFabricationPlant);
       play.waitForMilestone("landing-pad");
     },
   },
   {
     milestoneId: "first-research-task",
     description:
-      "Start the shortest Research Task, and keep one running from then on.",
+      "Start the shortest Research Task, and keep one running from then on; unlock Water-wall shielding once they have paid for it.",
     play(play) {
       play.keepUp(keepResearching);
+      play.keepUp(unlockWaterWall);
       play.waitForMilestone("first-research-task");
     },
   },
   {
     milestoneId: "first-export",
     description:
-      "Run the extraction plant for metals and silicon to feed the vacuum fabrication plant until there is a full Return Mass of wafers, load them, send the Lander, and once it is away put a water-processing plant, a circuit board plant, a tank of oxygen, two of water and fifteen spare Components on the Launch manifest, leaving out the circuit board plant if the Funding can't run to it; build the circuit board plant once it comes.",
+      "Send the Lander for an extraction plant, a vacuum fabrication plant and a second solar array, and plan them beside the base. Run the extraction plant for metals and silicon to feed the vacuum fabrication plant until there is a full Return Mass of wafers, load them, send the Lander, and once it is away put a water-processing plant, a circuit board plant, a tank of oxygen, two of water and fifteen spare Components on the Launch manifest, and water-wall bladders once Water-wall shielding is unlocked, leaving out what the Funding can't run to; build each once it comes.",
     play(play) {
+      play.setManifest([
+        { itemId: "extraction-reactor", count: 1 },
+        { itemId: "oxygen-separator", count: 1 },
+        { itemId: "crystal-furnace", count: 1 },
+        { itemId: "wafer-saw", count: 1 },
+        { itemId: "solar-panel", count: 2 },
+        { itemId: "array-mast", count: 1 },
+      ]);
+      succeed(play.campaign.sendLander(), "Sending the Lander");
+      play.plan("solar-array", site.secondSolarArray);
+      play.plan("extraction-plant", site.extractionPlant);
+      play.plan("vacuum-fabrication-plant", site.vacuumFabricationPlant);
       const extractionId = play.waitForStructure("extraction-plant");
       succeed(
         play.campaign.setPlantRecipe(extractionId, "metals-and-silicon"),
@@ -208,6 +217,11 @@ export const referenceSteps: readonly PlayStep[] = [
         ]),
         "Loading the wafers",
       );
+      // On a landing pad, the Robot carries them aboard first.
+      play.waitUntil(
+        "the wafers aboard the Lander",
+        (state) => state.exportLoading === undefined,
+      );
       succeed(play.campaign.sendLander(), "Sending the Lander");
       // What the wafers aboard will sell for counts towards the Funding, so
       // the manifest that spends it is set once they are aboard.
@@ -222,8 +236,9 @@ export const referenceSteps: readonly PlayStep[] = [
         { itemId: "water", count: 2 },
         { itemId: "spare-component", count: 15 },
       ];
-      setAffordableManifest(play, needed, circuitBoardPlant);
+      setAffordableManifest(play, needed, wantedFromEarth(play.state));
       play.keepUp(buildCircuitBoardPlant);
+      play.keepUp(buildWaterWall);
       play.waitForMilestone("first-export");
     },
   },
@@ -256,22 +271,148 @@ export const referenceSteps: readonly PlayStep[] = [
   },
   {
     milestoneId: undefined,
-    description: `Keep the base going for ${PLAY_ON_LUNATIONS} Lunations: run the extraction plant for oxygen whenever the oxygen runs low and for metals and silicon otherwise, send the Rover for water ice once the ice is used up and the water is getting low, and send the Lander whenever there is a full Return Mass of circuit boards (or of wafers, before there is a circuit board plant), with oxygen, water and spare Components on the Launch manifest as they are needed, and a circuit board plant if the base has none.`,
+    description: `Keep the base going for at least ${PLAY_ON_LUNATIONS} Lunations, and until a water wall has stood over the Habitat for a whole Lunation: run the extraction plant for oxygen whenever the oxygen runs low and for metals and silicon otherwise; send the Rover for water ice once the ice is used up and the water is getting low, or short of what the water wall needs; send the Lander whenever there is a full Return Mass of circuit boards (or of wafers, before there is a circuit board plant), with oxygen, water and spare Components on the Launch manifest as they are needed, and, as the Funding allows, a circuit board plant if the base has none, then water-wall bladders.`,
     play(play) {
       play.keepUp(balanceOxygen);
       play.keepUp(fetchWaterIce);
       play.keepUp(tradeWithEarth());
-      const until =
-        play.state.clock.elapsedMinutes +
-        PLAY_ON_LUNATIONS * lunationMinutes(catalogue.lunation).lunation;
+      const start = play.state.clock.elapsedMinutes;
+      const lunation = lunationMinutes(catalogue.lunation).lunation;
+      let walledAt: number | undefined;
       play.waitUntil(
-        `${PLAY_ON_LUNATIONS} more Lunations`,
-        (state) => state.clock.elapsedMinutes >= until,
-        { earthDays: PLAY_ON_LUNATIONS * 30 + 1 },
+        `${PLAY_ON_LUNATIONS} more Lunations, with a water wall standing for the last`,
+        (state) => {
+          if (
+            walledAt === undefined &&
+            habitatOf(state)?.waterWalled === true
+          ) {
+            walledAt = state.clock.elapsedMinutes;
+          }
+          const now = state.clock.elapsedMinutes;
+          return (
+            now >= start + PLAY_ON_LUNATIONS * lunation &&
+            walledAt !== undefined &&
+            now >= walledAt + lunation
+          );
+        },
+        { earthDays: LONGEST_PLAY_ON_LUNATIONS * 30 },
       );
     },
   },
 ];
+
+/** How many battery banks the starting stock holds the Components for. */
+function batteryBanksInStartingStock(): number {
+  const bank = catalogue.structureTypes.find(
+    (type) => type.id === "battery-bank",
+  );
+  return Math.min(
+    ...(bank?.components ?? []).map((need) =>
+      Math.floor(
+        (catalogue.startingStock.find(
+          (stock) => stock.componentId === need.componentId,
+        )?.count ?? 0) / need.count,
+      ),
+    ),
+  );
+}
+
+function habitatOf(
+  state: Snapshot,
+): Snapshot["structures"][number] | undefined {
+  return state.structures.find(
+    (structure) =>
+      structure.structureTypeId === "habitat" ||
+      structure.structureTypeId === "hardened-habitat",
+  );
+}
+
+/** The water wall, as the data catalogue has it. */
+const waterWall = catalogue.structureTypes.find(
+  (type) => type.waterWall !== undefined,
+);
+
+/** The Launch items that make a water wall: its bladders. */
+const waterWallBladders: readonly ManifestLine[] = (
+  waterWall?.components ?? []
+).map((need) => ({ itemId: need.componentId, count: need.count }));
+
+/** Unlocks the water wall's Design once the Research Tasks have paid for it. */
+function unlockWaterWall(play: Play): void {
+  const design = catalogue.designs.find(
+    (candidate) => candidate.id === waterWall?.designId,
+  );
+  const { state } = play;
+  if (
+    design === undefined ||
+    state.unlockedDesignIds.includes(design.id) ||
+    state.science < design.scienceCost
+  ) {
+    return;
+  }
+  succeed(play.campaign.unlockDesign(design.id), `Unlocking ${design.label}`);
+}
+
+/** Plans the water wall over the Habitat once its bladders are in stock. */
+function buildWaterWall(play: Play): void {
+  const { state } = play;
+  if (
+    waterWall === undefined ||
+    isPlannedOrBuilt(state, waterWall.id) ||
+    !hasInStock(state, waterWallBladders)
+  ) {
+    return;
+  }
+  play.plan(waterWall.id, site.habitat);
+}
+
+/**
+ * What the base still wants to ship, most wanted first, as the Funding
+ * allows: a circuit board plant, then a water wall's bladders once its
+ * Design is unlocked.
+ */
+function wantedFromEarth(state: Snapshot): (readonly ManifestLine[])[] {
+  const wanted: (readonly ManifestLine[])[] = [];
+  if (!isPlannedOrBuilt(state, "circuit-board-plant")) {
+    wanted.push(circuitBoardPlant);
+  }
+  if (
+    waterWall !== undefined &&
+    state.unlockedDesignIds.includes(waterWall.designId) &&
+    !isPlannedOrBuilt(state, waterWall.id) &&
+    !hasInStock(state, waterWallBladders)
+  ) {
+    wanted.push(waterWallBladders);
+  }
+  return wanted;
+}
+
+function hasInStock(state: Snapshot, lines: readonly ManifestLine[]): boolean {
+  return lines.every(
+    (line) =>
+      (state.stockpile.components.find(
+        (stock) => stock.componentId === line.itemId,
+      )?.count ?? 0) >= line.count,
+  );
+}
+
+/**
+ * The water the base keeps on hand: enough, once the water ice is used up,
+ * to send the Rover for more; more while a water wall waits to be filled.
+ */
+function waterWanted(state: Snapshot): number {
+  const rules = waterWall?.waterWall;
+  const fillingWall =
+    rules !== undefined &&
+    state.constructions.some(
+      (construction) => construction.structureTypeId === waterWall?.id,
+    );
+  if (!fillingWall) return WATER_LOW_KILOGRAMS;
+  const use =
+    catalogue.lifeSupportStocks.find((stock) => stock.id === rules.stockId)
+      ?.usePerEarthDayKilograms ?? 0;
+  return WATER_LOW_KILOGRAMS + rules.kilograms + rules.reserveEarthDays * use;
+}
 
 /** The Launch items that make a circuit board plant. */
 const circuitBoardPlant: readonly ManifestLine[] = [
@@ -280,19 +421,17 @@ const circuitBoardPlant: readonly ManifestLine[] = [
 ];
 
 /**
- * Sets the Launch manifest to what is needed and what is wanted, or, if the
- * Funding can't run to both, to what is needed alone.
+ * Sets the Launch manifest to what is needed and as much of what is wanted,
+ * most wanted first, as the Funding runs to.
  */
 function setAffordableManifest(
   play: Play,
   needed: readonly ManifestLine[],
-  wanted: readonly ManifestLine[],
+  wanted: readonly (readonly ManifestLine[])[],
 ): void {
-  if (
-    wanted.length > 0 &&
-    play.campaign.setLaunchManifest([...needed, ...wanted]).ok
-  ) {
-    return;
+  for (let count = wanted.length; count > 0; count--) {
+    const manifest = [...needed, ...wanted.slice(0, count).flat()];
+    if (play.campaign.setLaunchManifest(manifest).ok) return;
   }
   play.setManifest(needed);
 }
@@ -306,13 +445,12 @@ function isPlannedOrBuilt(state: Snapshot, structureTypeId: string): boolean {
 /** Builds the circuit board plant beside the base once its Components are in stock. */
 function buildCircuitBoardPlant(play: Play): void {
   const { state } = play;
-  const inStock = circuitBoardPlant.every(
-    (line) =>
-      (state.stockpile.components.find(
-        (stock) => stock.componentId === line.itemId,
-      )?.count ?? 0) >= line.count,
-  );
-  if (isPlannedOrBuilt(state, "circuit-board-plant") || !inStock) return;
+  if (
+    isPlannedOrBuilt(state, "circuit-board-plant") ||
+    !hasInStock(state, circuitBoardPlant)
+  ) {
+    return;
+  }
   play.plan("circuit-board-plant", site.circuitBoardPlant);
 }
 
@@ -357,7 +495,7 @@ function fetchWaterIce(play: Play): void {
   if (
     state.expedition !== undefined ||
     bulkInStock(state, "water-ice") > 0 ||
-    lifeSupportInStock(state, "water") >= WATER_LOW_KILOGRAMS ||
+    lifeSupportInStock(state, "water") >= waterWanted(state) ||
     state.rovers.every((rover) => rover.conditionPercent <= 0)
   ) {
     return;
@@ -424,7 +562,7 @@ function tradeWithEarth(): (play: Play) => void {
         count: SPARES_KEPT - spares,
       });
     }
-    setAffordableManifest(play, needed, boards ? [] : circuitBoardPlant);
+    setAffordableManifest(play, needed, wantedFromEarth(state));
   };
 }
 
@@ -527,15 +665,31 @@ export interface ReferenceTimeline {
   /**
    * How fast the Radiation Dose rose over the last Lunation played, Solar
    * Particle Events and all, and how many Earth Days it would take at that
-   * rate to reach the limit from where it ended: undefined if it didn't
-   * rise.
+   * rate to reach the limit from where it ended.
    */
-  readonly radiationDoseAtEnd: {
-    readonly millisievertsPerEarthDay: number;
-    readonly earthDaysUntilLimit: number | undefined;
-  };
+  readonly radiationDoseAtEnd: DoseRate;
+  /** The game-minute the water wall over the Habitat was commissioned, if it was. */
+  readonly waterWallAtMinute: number | undefined;
+  /**
+   * How fast the Radiation Dose rose over the Lunation before the water
+   * wall was commissioned, under Regolith shielding alone, and how many
+   * Earth Days it would take at that rate to reach the limit from where it
+   * ended: what the Mission Director would face without the water wall.
+   * Undefined if there was no water wall.
+   */
+  readonly radiationDoseWithoutWaterWall: DoseRate | undefined;
   /** The Funding balance as the play guide ended. */
   readonly fundingAtEndMillionDollars: number;
+}
+
+/**
+ * A rate the Radiation Dose rose at, in millisieverts an Earth Day, and the
+ * Earth Days it would take at that rate to reach the limit from where the
+ * Campaign ended: undefined if it didn't rise.
+ */
+export interface DoseRate {
+  readonly millisievertsPerEarthDay: number;
+  readonly earthDaysUntilLimit: number | undefined;
 }
 
 /** Plays the reference Campaign from a fresh Campaign to the end of the play guide, or until it gives up. */
@@ -640,6 +794,7 @@ function recorder(campaign: Campaign) {
   let funding: Extreme = { value: start.fundingMillionDollars, atMinute: 0 };
   let dose: Extreme = { value: start.radiationDoseMillisieverts, atMinute: 0 };
   const doses: Extreme[] = [dose];
+  let waterWallAtMinute: number | undefined;
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
@@ -648,6 +803,11 @@ function recorder(campaign: Campaign) {
             milestoneId: event.milestoneId,
             atMinute: event.atMinute,
           });
+        } else if (
+          event.kind === "construction-completed" &&
+          event.structureTypeId === waterWall?.id
+        ) {
+          waterWallAtMinute ??= event.atMinute;
         } else if (event.kind === "lander-left-earth") {
           launches.push({
             atMinute: event.atMinute,
@@ -703,14 +863,28 @@ function recorder(campaign: Campaign) {
       const state = campaign.snapshot();
       const end = state.clock.elapsedMinutes;
       const lunation = lunationMinutes(catalogue.lunation).lunation;
-      const from =
-        doses.find((sample) => sample.atMinute >= end - lunation) ?? dose;
-      const perEarthDay =
-        end > from.atMinute
-          ? ((state.radiationDoseMillisieverts - from.value) /
-              (end - from.atMinute)) *
-            MINUTES_PER_EARTH_DAY
-          : 0;
+      /** The dose rate over the Lunation up to a game-minute, and the limit at that rate from where the Campaign ended. */
+      const rateUpTo = (until: number): DoseRate => {
+        const from =
+          doses.find((sample) => sample.atMinute >= until - lunation) ?? dose;
+        const to =
+          [...doses].reverse().find((sample) => sample.atMinute <= until) ??
+          dose;
+        const perEarthDay =
+          to.atMinute > from.atMinute
+            ? ((to.value - from.value) / (to.atMinute - from.atMinute)) *
+              MINUTES_PER_EARTH_DAY
+            : 0;
+        return {
+          millisievertsPerEarthDay: perEarthDay,
+          earthDaysUntilLimit:
+            perEarthDay > 0
+              ? (catalogue.radiation.doseLimitMillisieverts -
+                  state.radiationDoseMillisieverts) /
+                perEarthDay
+              : undefined,
+        };
+      };
       return {
         seed: REFERENCE_SEED,
         milestones,
@@ -732,19 +906,24 @@ function recorder(campaign: Campaign) {
           lowestFundingMillionDollars: funding,
           highestRadiationDoseMillisieverts: dose,
         },
-        radiationDoseAtEnd: {
-          millisievertsPerEarthDay: perEarthDay,
-          earthDaysUntilLimit:
-            perEarthDay > 0
-              ? (catalogue.radiation.doseLimitMillisieverts -
-                  state.radiationDoseMillisieverts) /
-                perEarthDay
-              : undefined,
-        },
+        radiationDoseAtEnd: rateUpTo(end),
+        waterWallAtMinute,
+        radiationDoseWithoutWaterWall:
+          waterWallAtMinute === undefined
+            ? undefined
+            : rateUpTo(waterWallAtMinute),
         fundingAtEndMillionDollars: state.fundingMillionDollars,
       };
     },
   };
+}
+
+/** Says how fast the Radiation Dose rose, and how soon it would reach the limit from where the Campaign ended at that rate. */
+function describeRate(over: string, rate: DoseRate): string {
+  const { millisievertsPerEarthDay, earthDaysUntilLimit } = rate;
+  return earthDaysUntilLimit === undefined
+    ? `${over} the Radiation Dose didn't rise.`
+    : `${over} the Radiation Dose rose ${millisievertsPerEarthDay.toFixed(2)} mSv an Earth Day; at that rate it would reach the limit from where it ended in ${earthDaysUntilLimit.toFixed(0)} Earth Days (${(earthDaysUntilLimit / 365.25).toFixed(1)} years).`;
 }
 
 /** The timeline as lines of text, for `npm run reference-campaign`. */
@@ -812,13 +991,21 @@ export function formatTimeline(timeline: ReferenceTimeline): string[] {
     "  (Oxygen, water and Habitat power count only while the Mission Director lives in the Habitat.)",
     "",
     `The play guide ended on Earth Day ${(timeline.endMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}, with ${money(timeline.fundingAtEndMillionDollars)} of Funding.`,
-    (() => {
-      const { millisievertsPerEarthDay, earthDaysUntilLimit } =
-        timeline.radiationDoseAtEnd;
-      return earthDaysUntilLimit === undefined
-        ? "Over its last Lunation the Radiation Dose didn't rise."
-        : `Over its last Lunation the Radiation Dose rose ${millisievertsPerEarthDay.toFixed(2)} mSv an Earth Day; at that rate it would reach the limit in ${earthDaysUntilLimit.toFixed(0)} Earth Days (${(earthDaysUntilLimit / 365.25).toFixed(1)} years).`;
-    })(),
+    timeline.waterWallAtMinute === undefined
+      ? "No water wall was built."
+      : `The water wall over the Habitat was commissioned on Earth Day ${(timeline.waterWallAtMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}.`,
+    describeRate(
+      "Over the play guide's last Lunation",
+      timeline.radiationDoseAtEnd,
+    ),
+    ...(timeline.radiationDoseWithoutWaterWall === undefined
+      ? []
+      : [
+          describeRate(
+            "Over the Lunation before the water wall, under Regolith shielding alone,",
+            timeline.radiationDoseWithoutWaterWall,
+          ),
+        ]),
   ];
   if (timeline.failure !== undefined) {
     lines.push(`It gave up: ${timeline.failure}`);

@@ -11,7 +11,7 @@ import {
 } from "../src/simulation";
 import { formatEvent, formatLander } from "../src/ui/format";
 import { scenario } from "./scenario";
-import { changed } from "./worn";
+import { changed, withFunding } from "./worn";
 
 // The Mission Director has to live in the Habitat for a whole round trip,
 // longer than the starting stock keeps a Habitat powered or the dose low.
@@ -362,53 +362,44 @@ describe("the Lander reaching Earth", () => {
 });
 
 describe("a manifest paid for by that trip's Exports", () => {
-  // A Habitat kit, and enough battery modules on top to cost more than the
-  // Programme Grant and 2 kg of wafers together, within a Launch's Payload
-  // Mass.
-  const priceOf = (itemId: string) =>
-    launch.items.find((item) => item.id === itemId)?.priceMillionDollars ??
-    Number.NaN;
-  const kit: ManifestLine[] = [
+  // A Habitat kit, within a Launch's Payload Mass.
+  const dear: ManifestLine[] = [
     { itemId: "habitat-core", count: 1 },
     { itemId: "habitat-envelope", count: 1 },
     { itemId: "airlock", count: 1 },
   ];
-  const priceOfAll = (lines: readonly ManifestLine[]) =>
-    lines.reduce(
-      (total, { itemId, count }) => total + priceOf(itemId) * count,
+  const cost =
+    launch.feeMillionDollars +
+    dear.reduce(
+      (total, { itemId, count }) =>
+        total +
+        (launch.items.find((item) => item.id === itemId)?.priceMillionDollars ??
+          Number.NaN) *
+          count,
       0,
     );
-  const modules = Math.max(
-    Math.floor(
-      (programmeGrant +
-        2 * waferPrice -
-        launch.feeMillionDollars -
-        priceOfAll(kit)) /
-        priceOf("battery-module"),
-    ) + 1,
-    0,
-  );
-  const dear: ManifestLine[] = [
-    ...kit,
-    { itemId: "battery-module", count: modules },
-  ];
-  const cost = launch.feeMillionDollars + priceOfAll(dear);
+  // Funding that falls short of it by more than 2 kg of wafers sell for,
+  // but not by what a full Return Mass of them sells for: what the Programme
+  // Grant would have come down to after earlier Launches.
+  const funding = cost - (2 * waferPrice + returnMass * waferPrice) / 2;
+  const landerFreeWithFunding = (wafers: number) =>
+    withFunding(landerFreeWith(wafers), funding);
 
   it("is refused before the Exports are aboard, on the Funding balance alone", () => {
-    const campaign = landerFreeWith(returnMass);
+    const campaign = landerFreeWithFunding(returnMass);
     load(campaign, wafers(returnMass));
-    expect(cost).toBeGreaterThan(programmeGrant);
-    expect(cost).toBeLessThanOrEqual(programmeGrant + returnMass * waferPrice);
+    expect(cost).toBeGreaterThan(funding);
+    expect(cost).toBeLessThanOrEqual(funding + returnMass * waferPrice);
 
     expect(campaign.setLaunchManifest(dear)).toEqual({
       ok: false,
       reason: "over-funding",
-      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${programmeGrant}M.`,
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M.`,
     });
   });
 
   it("is accepted while they are aboard, counting what they will sell for, and is paid for as the Lander leaves Earth", () => {
-    const campaign = landerFreeWith(returnMass);
+    const campaign = landerFreeWithFunding(returnMass);
     load(campaign, wafers(returnMass));
     send(campaign);
     skipUntil(campaign, "lander-took-off");
@@ -417,22 +408,22 @@ describe("a manifest paid for by that trip's Exports", () => {
 
     skipUntil(campaign, "lander-left-earth");
     expect(campaign.snapshot().fundingMillionDollars).toBe(
-      programmeGrant + returnMass * waferPrice - cost,
+      funding + returnMass * waferPrice - cost,
     );
     expect(campaign.snapshot().fundingMillionDollars).toBeGreaterThanOrEqual(0);
   });
 
   it("is refused while they are aboard if it costs more than the Funding balance and their value together, saying both", () => {
-    const campaign = landerFreeWith(10);
+    const campaign = landerFreeWithFunding(10);
     load(campaign, wafers(2));
-    expect(cost).toBeGreaterThan(programmeGrant + 2 * waferPrice);
+    expect(cost).toBeGreaterThan(funding + 2 * waferPrice);
     send(campaign);
     skipUntil(campaign, "lander-took-off");
 
     expect(campaign.setLaunchManifest(dear)).toEqual({
       ok: false,
       reason: "over-funding",
-      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${programmeGrant}M and the $${2 * waferPrice}M the Exports aboard will sell for.`,
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M and the $${2 * waferPrice}M the Exports aboard will sell for.`,
     });
   });
 });

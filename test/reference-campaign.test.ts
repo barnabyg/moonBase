@@ -7,10 +7,10 @@ import {
 } from "./reference-campaign";
 import { toGameMinutes } from "./scenario";
 
-// The reference Campaign plays some 150 Earth Days a game-minute at a time,
-// which takes about 25 s on a developer machine, and CI runs Vitest about
-// 2.5 times slower, so about a minute there (see README, "Timeouts"). This
-// limit is five times that, so that it stops only a Campaign that hangs; it
+// The reference Campaign plays some 170 Earth Days a game-minute at a time,
+// which takes about 20 s on a developer machine, and CI runs Vitest about
+// 2.5 times slower, so about 50 s there (see README, "Timeouts"). This
+// limit is six times that, so that it stops only a Campaign that hangs; it
 // is set here rather than raised for the whole suite.
 const timeoutMs = 300_000;
 
@@ -87,7 +87,7 @@ describe("the reference Campaign", () => {
     );
   });
 
-  it("ends with Export income covering a typical Launch, and the Radiation Dose years from the limit", () => {
+  it("ends with Export income covering a typical Launch, and the Radiation Dose years from the limit thanks to the water wall, where without it the limit would come within a year", () => {
     const lastSale = timeline.sales.at(-1);
     const charges = timeline.launches
       .map((launch) => launch.chargedMillionDollars)
@@ -96,8 +96,12 @@ describe("the reference Campaign", () => {
     expect(lastSale?.earnedMillionDollars).toBeGreaterThanOrEqual(
       typicalLaunch,
     );
+    expect(timeline.waterWallAtMinute).toBeDefined();
     expect(timeline.radiationDoseAtEnd.earthDaysUntilLimit).toBeGreaterThan(
-      5 * 365,
+      3 * 365,
     );
+    expect(
+      timeline.radiationDoseWithoutWaterWall?.earthDaysUntilLimit,
+    ).toBeLessThan(365);
   });
 });

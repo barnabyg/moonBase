@@ -16,6 +16,26 @@ import {
  */
 const samples = new URL("./saves/", import.meta.url);
 
+/**
+ * Runs a loaded sample until its battery banks are full, so that its Plants
+ * get power again: they run only on what no battery bank can store, and a
+ * battery bank may store more now than when the sample was saved.
+ */
+function untilBatteriesFull(campaign: Campaign): void {
+  for (let hours = 0; ; hours++) {
+    const full = campaign
+      .snapshot()
+      .power.networks.every(
+        (network) =>
+          network.storedKilowattHours >=
+          network.storageCapacityKilowattHours - 1e-6,
+      );
+    if (full) return;
+    if (hours > 3 * 24) throw new Error("The battery banks never filled.");
+    campaign.advance(60);
+  }
+}
+
 function loadSample(name: string): Campaign {
   const result = loadCampaign(readFileSync(new URL(name, samples), "utf8"));
   if (!result.ok) throw new Error(`${name}: ${result.message}`);
@@ -1530,6 +1550,7 @@ describe("the sample save of format version 25", () => {
 
   it("plays on from where it was saved, the silicon rising and the oxygen falling, until the plant is switched back to oxygen", () => {
     const campaign = loadSample("version-25.moonbase");
+    untilBatteriesFull(campaign);
     const silicon = bulkOf(campaign, "silicon");
 
     campaign.advance(10 * 60);
@@ -2140,6 +2161,7 @@ describe("the sample save of format version 32", () => {
       if (hours > 24) throw new Error("It was never commissioned.");
       campaign.advance(60);
     }
+    untilBatteriesFull(campaign);
     const oxygen = (state: Snapshot) =>
       state.lifeSupport.find((stock) => stock.stockId === "oxygen")
         ?.kilograms ?? Number.NaN;

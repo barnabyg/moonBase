@@ -207,12 +207,21 @@ describe("the Habitat power forecast", () => {
 describe("letting the battery run flat at Night with the Mission Director in the Habitat", () => {
   it("warns on the first game-minute when the Mission Director moves in with less power left than a warning level", () => {
     const game = poweredBase();
-    runUntil(game, (state) => state.lunation.part === "night");
-    game.advance({ hours: 20 });
-    const habitatId = moveIn(game);
-    const forecast = forecastPowerLost(game);
     const [firstLevel = 0, secondLevel = 0] =
       catalogue.habitatPowerWarningHoursLeft.map((hours) => hours * 60);
+    runUntil(game, (state) => state.lunation.part === "night");
+    // An hour inside the first warning level of what is stored, at the
+    // Night's rate.
+    runUntil(game, (state) => {
+      const [network] = state.power.networks;
+      return (
+        network !== undefined &&
+        (network.storedKilowattHours / network.consumptionKilowatts) * 60 <
+          firstLevel - 60
+      );
+    });
+    const habitatId = moveIn(game);
+    const forecast = forecastPowerLost(game);
     expect(forecast).toBeLessThan(firstLevel);
     expect(forecast).toBeGreaterThan(secondLevel + 1);
 

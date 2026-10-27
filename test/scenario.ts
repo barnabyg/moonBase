@@ -32,7 +32,11 @@ export interface Scenario {
 
 /** Starts a Campaign for a scenario test: given a seed, advance time, then read the state. */
 export function scenario(seed: number = DEFAULT_SEED): Scenario {
-  const campaign = createCampaign({ seed });
+  return scenarioOf(createCampaign({ seed }));
+}
+
+/** A scenario test of a Campaign already under way, such as one loaded from a save. */
+export function scenarioOf(campaign: Campaign): Scenario {
   const self: Scenario = {
     campaign,
     advance(duration) {
