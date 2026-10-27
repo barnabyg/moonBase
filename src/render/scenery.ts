@@ -5,7 +5,7 @@ import type { MapSnapshot } from "../simulation";
 // horizon. The sun and its long shadows are in lighting.ts.
 
 /** A small, fixed pseudo-random sequence, so the scenery looks the same on every load. */
-function fixedRandom(seed: number): () => number {
+export function fixedRandom(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;

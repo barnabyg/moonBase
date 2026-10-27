@@ -270,9 +270,10 @@ describe("Exports to load with the Lander on a landing pad", () => {
         state.exports.aboard,
         state.exportLoading,
       ),
-    ).toBe(
-      "Lander: landed on the landing pad with 40 kg of wafers aboard, free to fly",
-    );
+    ).toEqual({
+      value: "landed on the landing pad with 40 kg of wafers aboard",
+      note: "free to fly",
+    });
 
     send(campaign);
     const takeOff = eventOf(
@@ -302,9 +303,10 @@ describe("Exports to load with the Lander on a landing pad", () => {
         state.exports.aboard,
         state.exportLoading,
       ),
-    ).toBe(
-      "Lander: landed on the landing pad, waiting for the Robot to load 40 kg of wafers",
-    );
+    ).toEqual({
+      value: "landed on the landing pad",
+      note: "waiting for the Robot to load 40 kg of wafers",
+    });
     advanceUntil(campaign, collected);
     expect(campaign.sendLander()).toEqual(refusal);
 

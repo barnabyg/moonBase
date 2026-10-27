@@ -1,162 +1,8 @@
 import * as THREE from "three";
+import { lightWindow, materials, part, windowGlass } from "./materials";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
-
-const materials = {
-  foil: new THREE.MeshStandardMaterial({
-    color: 0xc8a13a,
-    metalness: 0.7,
-    roughness: 0.35,
-  }),
-  hull: new THREE.MeshStandardMaterial({
-    color: 0xd9dbde,
-    metalness: 0.2,
-    roughness: 0.6,
-  }),
-  darkMetal: new THREE.MeshStandardMaterial({
-    color: 0x3a3d42,
-    metalness: 0.8,
-    roughness: 0.4,
-  }),
-  robotShell: new THREE.MeshStandardMaterial({
-    color: 0xeef0f2,
-    metalness: 0.1,
-    roughness: 0.5,
-  }),
-  robotJoint: new THREE.MeshStandardMaterial({
-    color: 0x2b2e33,
-    metalness: 0.5,
-    roughness: 0.6,
-  }),
-  visor: new THREE.MeshStandardMaterial({
-    color: 0x1b2a3a,
-    metalness: 0.9,
-    roughness: 0.15,
-  }),
-  solarCell: new THREE.MeshStandardMaterial({
-    color: 0x1d2b4f,
-    metalness: 0.6,
-    roughness: 0.25,
-    side: THREE.DoubleSide,
-  }),
-  machinePaint: new THREE.MeshStandardMaterial({
-    color: 0xd9a520,
-    metalness: 0.3,
-    roughness: 0.55,
-  }),
-  track: new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a,
-    metalness: 0.4,
-    roughness: 0.9,
-  }),
-  // The Habitat's inflatable envelope: a woven, coated fabric.
-  envelope: new THREE.MeshStandardMaterial({
-    color: 0xe8e4da,
-    metalness: 0,
-    roughness: 0.85,
-    flatShading: true,
-  }),
-  // Printed Regolith: grey-brown, rough and matte.
-  regolith: new THREE.MeshStandardMaterial({
-    color: 0x8a857c,
-    metalness: 0,
-    roughness: 1,
-    flatShading: true,
-  }),
-  // Sintered Regolith panels, darker and smoother than the ground round them.
-  padPanel: new THREE.MeshStandardMaterial({
-    color: 0x5d5a55,
-    metalness: 0.05,
-    roughness: 0.75,
-  }),
-  padMarking: new THREE.MeshStandardMaterial({
-    color: 0xe8c33a,
-    metalness: 0,
-    roughness: 0.6,
-  }),
-  crate: new THREE.MeshStandardMaterial({
-    color: 0xb9b2a2,
-    metalness: 0.1,
-    roughness: 0.8,
-  }),
-  statusOff: new THREE.MeshStandardMaterial({ color: 0x222222 }),
-  statusTesting: new THREE.MeshStandardMaterial({
-    color: 0xffb020,
-    emissive: 0xffa000,
-  }),
-  statusOn: new THREE.MeshStandardMaterial({
-    color: 0x40ff70,
-    emissive: 0x20d050,
-  }),
-};
-
-function part(
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material,
-  position: [number, number, number],
-): THREE.Mesh {
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...position);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-/** The Lander, with its four legs reaching out to its footprint radius. */
-export function createLanderModel(footprintRadius: number): THREE.Group {
-  const lander = new THREE.Group();
-  lander.name = "Lander";
-
-  const descentStageHeight = 1.8;
-  const descentStageBase = 1.6;
-  lander.add(
-    part(
-      new THREE.CylinderGeometry(2.2, 2.2, descentStageHeight, 8),
-      materials.foil,
-      [0, descentStageBase + descentStageHeight / 2, 0],
-    ),
-    part(new THREE.CylinderGeometry(1.5, 1.9, 2.4, 6), materials.hull, [
-      0,
-      descentStageBase + descentStageHeight + 1.2,
-      0,
-    ]),
-    part(new THREE.ConeGeometry(0.9, 1.3, 12, 1, true), materials.darkMetal, [
-      0,
-      descentStageBase - 0.4,
-      0,
-    ]),
-    part(
-      new THREE.BoxGeometry(0.8, 0.5, 0.6),
-      materials.darkMetal,
-      [0, 5.4, 1.45],
-    ),
-  );
-
-  const legTop = new THREE.Vector3(1.9, descentStageBase + 0.6, 0);
-  const foot = new THREE.Vector3(footprintRadius - 0.35, 0.12, 0);
-  const legLength = legTop.distanceTo(foot);
-  for (let index = 0; index < 4; index++) {
-    const leg = new THREE.Group();
-    leg.rotation.y = (index * Math.PI) / 2 + Math.PI / 4;
-    const strut = part(
-      new THREE.CylinderGeometry(0.09, 0.09, legLength, 6),
-      materials.darkMetal,
-      [(legTop.x + foot.x) / 2, (legTop.y + foot.y) / 2, 0],
-    );
-    strut.rotation.z = Math.atan2(legTop.x - foot.x, legTop.y - foot.y);
-    leg.add(
-      strut,
-      part(
-        new THREE.CylinderGeometry(0.35, 0.4, 0.12, 8),
-        materials.darkMetal,
-        [foot.x, 0.06, 0],
-      ),
-    );
-    lander.add(leg);
-  }
-  return lander;
-}
 
 export interface PlumeModel {
   readonly group: THREE.Group;
@@ -254,102 +100,6 @@ export function createPlumeModel(radius: number): PlumeModel {
       plumeMaterials.dust.opacity = 0.4 * strength;
       plumeMaterials.haze.opacity = 0.35 * strength;
       plumeMaterials.exhaust.opacity = 0.35 + 0.25 * Math.sin(realSeconds * 40);
-    },
-  };
-}
-
-/** How the Robot holds itself, in radians: positive leans and lifts forward. */
-export interface RobotPose {
-  /** Each leg's swing from the hip; the other leg mirrors it. */
-  readonly legSwing: number;
-  /** Sitting, with both legs forward from the hip, as when driving a Machine. */
-  readonly seated: boolean;
-  readonly leftArm: number;
-  readonly rightArm: number;
-  readonly lean: number;
-  readonly carrying: boolean;
-}
-
-export interface RobotModel {
-  readonly group: THREE.Group;
-  pose(pose: RobotPose): void;
-}
-
-/** A humanoid Robot about 1.8 m tall, facing along its local +z axis. */
-export function createRobotModel(): RobotModel {
-  const robot = new THREE.Group();
-  robot.name = "Robot";
-
-  const limb = (width: number, length: number) =>
-    new THREE.BoxGeometry(width, length, width);
-  /** A limb hanging from a joint, so that turning the joint swings it. */
-  const jointed = (
-    geometry: THREE.BufferGeometry,
-    joint: [number, number, number],
-    length: number,
-  ): THREE.Group => {
-    const pivot = new THREE.Group();
-    pivot.position.set(...joint);
-    pivot.add(part(geometry, materials.robotShell, [0, -length / 2, 0]));
-    return pivot;
-  };
-
-  const hipHeight = 0.86;
-  const leftLeg = jointed(limb(0.16, 0.85), [-0.12, hipHeight, 0], 0.85);
-  const rightLeg = jointed(limb(0.16, 0.85), [0.12, hipHeight, 0], 0.85);
-
-  // Everything above the hips leans forward as one.
-  const upperBody = new THREE.Group();
-  upperBody.position.y = hipHeight;
-  const leftArm = jointed(limb(0.12, 0.65), [-0.31, 0.65, 0], 0.65);
-  const rightArm = jointed(limb(0.12, 0.65), [0.31, 0.65, 0], 0.65);
-  const crate = part(
-    new THREE.BoxGeometry(0.5, 0.35, 0.4),
-    materials.crate,
-    [0, 0.45, 0.45],
-  );
-  upperBody.add(
-    part(
-      new THREE.BoxGeometry(0.4, 0.14, 0.22),
-      materials.robotJoint,
-      [0, 0.04, 0],
-    ),
-    part(
-      new THREE.BoxGeometry(0.46, 0.55, 0.26),
-      materials.robotShell,
-      [0, 0.39, 0],
-    ),
-    leftArm,
-    rightArm,
-    part(
-      new THREE.CylinderGeometry(0.05, 0.06, 0.08, 6),
-      materials.robotJoint,
-      [0, 0.7, 0],
-    ),
-    part(
-      new THREE.BoxGeometry(0.24, 0.22, 0.24),
-      materials.robotShell,
-      [0, 0.84, 0],
-    ),
-    part(
-      new THREE.BoxGeometry(0.2, 0.08, 0.02),
-      materials.visor,
-      [0, 0.86, 0.125],
-    ),
-    crate,
-  );
-  robot.add(leftLeg, rightLeg, upperBody);
-
-  return {
-    group: robot,
-    pose(pose) {
-      // Three.js turns a positive x rotation backwards, so negate to lift forwards.
-      leftLeg.rotation.x = pose.seated ? -Math.PI / 2 : -pose.legSwing;
-      rightLeg.rotation.x = pose.seated ? -Math.PI / 2 : pose.legSwing;
-      leftArm.rotation.x = -pose.leftArm;
-      rightArm.rotation.x = -pose.rightArm;
-      upperBody.rotation.x = pose.lean;
-      crate.visible = pose.carrying;
     },
   };
 }
@@ -477,6 +227,8 @@ export interface StructureModel {
   setLit(on: boolean): void;
   /** Shows a Plant at work, or standing still; nothing for anything else. */
   setRunning?(running: boolean, realSeconds: number): void;
+  /** Shows that the Mission Director lives in a Habitat; nothing for anything else. */
+  setOccupied?(occupied: boolean): void;
 }
 
 /** The model for a type of Structure from the data catalogue. */
@@ -678,6 +430,84 @@ function createHabitatModel(): StructureModel {
   airlock.add(tube, hatch);
   habitat.add(airlock);
 
+  // Windows that glow while the Mission Director lives inside: portholes
+  // round the envelope, and one in the hatch that still shows once
+  // Regolith shielding covers the rest, with a lamp over it.
+  const glass = windowGlass.clone();
+  const portholeHeight = Math.sin(THREE.MathUtils.degToRad(25));
+  for (const degrees of [30, 150, 210, 330]) {
+    const angle = THREE.MathUtils.degToRad(degrees);
+    const out = 3.4 * Math.sqrt(1 - portholeHeight ** 2) - 0.03;
+    const at = new THREE.Vector3(
+      Math.sin(angle) * out,
+      3.4 * portholeHeight * domeHeight,
+      Math.cos(angle) * out,
+    );
+    // Facing straight out from the squashed dome.
+    const normal = new THREE.Vector3(
+      at.x,
+      at.y / domeHeight ** 2,
+      at.z,
+    ).normalize();
+    const porthole = new THREE.Group();
+    porthole.position.copy(at);
+    porthole.lookAt(at.clone().add(normal));
+    porthole.add(
+      part(
+        new THREE.TorusGeometry(0.3, 0.05, 6, 20),
+        materials.darkMetal,
+        [0, 0, 0],
+      ),
+      part(new THREE.CircleGeometry(0.29, 20), glass, [0, 0, 0.01]),
+    );
+    envelope.add(porthole);
+  }
+  const hatchWindow = part(
+    new THREE.CircleGeometry(0.15, 16),
+    glass,
+    [0.87, 0.12, 0],
+  );
+  hatchWindow.rotation.y = Math.PI / 2;
+  const hatchLamp = materials.statusOff.clone();
+  airlock.add(
+    hatchWindow,
+    part(new THREE.BoxGeometry(0.12, 0.08, 0.3), hatchLamp, [0.84, 0.64, 0]),
+  );
+
+  // The mission flag, raised on top of the core when the Mission Director
+  // moves in, high enough to fly above Regolith shielding. With no air to
+  // fly in, it hangs from a rod along its top.
+  const flag = new THREE.Group();
+  const poleTop = 4.9;
+  flag.add(
+    part(
+      new THREE.CylinderGeometry(0.03, 0.03, poleTop - 2.9, 6),
+      materials.aluminium,
+      [0, (poleTop + 2.9) / 2, 0],
+    ),
+    part(
+      new THREE.CylinderGeometry(0.02, 0.02, 1.05, 6).rotateZ(Math.PI / 2),
+      materials.aluminium,
+      [0.52, poleTop - 0.02, 0],
+    ),
+    part(new THREE.PlaneGeometry(1.0, 0.62), flagCloth, [
+      0.53,
+      poleTop - 0.34,
+      0,
+    ]),
+    ...[-1, 1].map((side) => {
+      const emblem = part(new THREE.CircleGeometry(0.17, 20), flagEmblem, [
+        0.53,
+        poleTop - 0.34,
+        side * 0.004,
+      ]);
+      emblem.rotation.y = side < 0 ? Math.PI : 0;
+      return emblem;
+    }),
+  );
+  flag.visible = false;
+  habitat.add(flag);
+
   return {
     group: habitat,
     setAssembled(fraction) {
@@ -711,8 +541,25 @@ function createHabitatModel(): StructureModel {
     },
     setCharge: () => undefined,
     setLit: () => undefined,
+    setOccupied(occupied) {
+      lightWindow(glass, occupied);
+      hatchLamp.color.set(occupied ? 0xfff4dc : 0x222222);
+      hatchLamp.emissive.set(occupied ? 0xfff0d0 : 0x000000);
+      flag.visible = occupied;
+    },
   };
 }
+
+/** The mission flag's cloth, and the white disc of the Moon on it. */
+const flagCloth = new THREE.MeshStandardMaterial({
+  color: 0xe0661b,
+  roughness: 0.9,
+  side: THREE.DoubleSide,
+});
+const flagEmblem = new THREE.MeshStandardMaterial({
+  color: 0xf4f2ec,
+  roughness: 0.9,
+});
 
 /** How high Regolith shielding rises over the Habitat's dome. */
 export const SHIELDING_HEIGHT = 3.4;
@@ -1022,264 +869,6 @@ export function createStockpileModel(footprintRadius: number): {
 
 /** The height of every Machine's deck, where a Robot sits to drive it. */
 export const MACHINE_SEAT_HEIGHT = 1.15;
-
-/**
- * A small tracked excavator, facing along its local +z axis. Its upper body
- * turns on the tracks, and its boom, stick and bucket reach forward to grade
- * the ground.
- */
-export interface ExcavatorModel {
-  readonly group: THREE.Group;
-  /** Turns the upper body relative to the tracks (radians, as for Object3D.rotation.y). */
-  setSlew(angle: number): void;
-  /** From 0, the arm tucked in, to 1, reaching out with the bucket on the ground. */
-  setReach(fraction: number): void;
-  /** The beacon that flashes while the Machine works by itself. */
-  setBeacon(on: boolean): void;
-}
-
-export function createExcavatorModel(): ExcavatorModel {
-  const excavator = new THREE.Group();
-  excavator.name = "Excavator";
-
-  for (const side of [-1, 1]) {
-    excavator.add(
-      part(new THREE.BoxGeometry(0.5, 0.5, 2.8), materials.track, [
-        side * 0.95,
-        0.25,
-        0,
-      ]),
-    );
-  }
-  excavator.add(
-    part(
-      new THREE.CylinderGeometry(0.8, 0.9, 0.3, 12),
-      materials.darkMetal,
-      [0, 0.6, 0],
-    ),
-  );
-
-  // Everything above the turntable turns as one.
-  const upper = new THREE.Group();
-  upper.position.y = 0.75;
-  excavator.add(upper);
-  const beaconMaterial = materials.statusOff.clone();
-  upper.add(
-    part(
-      new THREE.BoxGeometry(1.7, 0.4, 2.0),
-      materials.machinePaint,
-      [0, 0.2, -0.1],
-    ),
-    // The counterweight behind the seat.
-    part(
-      new THREE.BoxGeometry(1.6, 0.6, 0.45),
-      materials.machinePaint,
-      [0, 0.7, -0.9],
-    ),
-    // The seat back.
-    part(
-      new THREE.BoxGeometry(0.5, 0.5, 0.1),
-      materials.darkMetal,
-      [0, 0.65, -0.35],
-    ),
-    part(
-      new THREE.SphereGeometry(0.08, 8, 6),
-      beaconMaterial,
-      [0.6, 1.08, -0.9],
-    ),
-  );
-
-  // The boom rises from the front of the deck, the stick hangs from its end,
-  // and the bucket from the stick's.
-  const boom = new THREE.Group();
-  boom.position.set(0.55, 0.45, 0.8);
-  upper.add(boom);
-  const boomLength = 2.2;
-  const stickLength = 1.5;
-  boom.add(
-    part(
-      new THREE.BoxGeometry(0.22, 0.22, boomLength),
-      materials.machinePaint,
-      [0, 0, boomLength / 2],
-    ),
-  );
-  const stick = new THREE.Group();
-  stick.position.z = boomLength;
-  boom.add(stick);
-  stick.add(
-    part(
-      new THREE.BoxGeometry(0.16, stickLength, 0.16),
-      materials.machinePaint,
-      [0, -stickLength / 2, 0],
-    ),
-  );
-  const bucket = part(
-    new THREE.BoxGeometry(0.7, 0.35, 0.45),
-    materials.darkMetal,
-    [0, -stickLength - 0.1, 0.15],
-  );
-  stick.add(bucket);
-
-  return {
-    group: excavator,
-    setSlew(angle) {
-      upper.rotation.y = angle;
-    },
-    setReach(fraction) {
-      const f = THREE.MathUtils.clamp(fraction, 0, 1);
-      // Tucked: boom raised high and stick folded in. Reaching: boom lowered
-      // towards the ground and the stick swung out.
-      boom.rotation.x = THREE.MathUtils.lerp(-0.9, -0.15, f);
-      stick.rotation.x = THREE.MathUtils.lerp(0.9, -0.35, f);
-    },
-    setBeacon(on) {
-      const source = on ? materials.statusTesting : materials.statusOff;
-      beaconMaterial.color.copy(source.color);
-      beaconMaterial.emissive.copy(source.emissive);
-    },
-  };
-}
-
-/**
- * A regolith printer on tracks, facing along its local +z axis. Its upper
- * body turns on the tracks; a carriage runs up and down a mast at the front,
- * carrying a boom that reaches out with the print head hanging from its end,
- * fed from a hopper of Regolith scooped from the ground.
- */
-export interface RegolithPrinterModel {
-  readonly group: THREE.Group;
-  /** Turns the upper body relative to the tracks (radians, as for Object3D.rotation.y). */
-  setSlew(angle: number): void;
-  /** How far out the print head is from the turntable's centre, in metres. */
-  setReach(metres: number): void;
-  /** How high the print head's nozzle is above the ground, in metres. */
-  setNozzleHeight(metres: number): void;
-  /** The beacon that flashes while the Machine works by itself. */
-  setBeacon(on: boolean): void;
-}
-
-/** How far from the turntable's centre the printer's mast stands. */
-const PRINTER_MAST_REACH = 0.7;
-/** How far below the boom the print head's nozzle hangs. */
-const PRINT_HEAD_DROP = 0.55;
-/** How high the turntable's top is above the ground. */
-const PRINTER_TURNTABLE_HEIGHT = 0.75;
-const PRINTER_MAST_HEIGHT = 4.2;
-
-export function createRegolithPrinterModel(): RegolithPrinterModel {
-  const printer = new THREE.Group();
-  printer.name = "Regolith printer";
-
-  for (const side of [-1, 1]) {
-    printer.add(
-      part(new THREE.BoxGeometry(0.5, 0.5, 3), materials.track, [
-        side * 1.05,
-        0.25,
-        0,
-      ]),
-    );
-  }
-  printer.add(
-    part(
-      new THREE.CylinderGeometry(0.9, 1, 0.3, 12),
-      materials.darkMetal,
-      [0, 0.6, 0],
-    ),
-  );
-
-  // Everything above the turntable turns as one.
-  const upper = new THREE.Group();
-  upper.position.y = PRINTER_TURNTABLE_HEIGHT;
-  printer.add(upper);
-  const deckHeight = MACHINE_SEAT_HEIGHT - PRINTER_TURNTABLE_HEIGHT;
-  const beaconMaterial = materials.statusOff.clone();
-  upper.add(
-    // The deck, level with every Machine's seat.
-    part(new THREE.BoxGeometry(1.9, deckHeight, 2.2), materials.hull, [
-      0,
-      deckHeight / 2,
-      0,
-    ]),
-    // The hopper of Regolith behind the seat, wider at the top.
-    part(
-      new THREE.CylinderGeometry(0.75, 0.45, 0.9, 6),
-      materials.machinePaint,
-      [0, deckHeight + 0.45, -0.6],
-    ),
-    part(new THREE.SphereGeometry(0.08, 8, 6), beaconMaterial, [
-      0.75,
-      deckHeight + 1,
-      -0.6,
-    ]),
-    part(
-      new THREE.BoxGeometry(0.2, PRINTER_MAST_HEIGHT, 0.2),
-      materials.darkMetal,
-      [0, PRINTER_MAST_HEIGHT / 2, PRINTER_MAST_REACH],
-    ),
-  );
-
-  // The carriage on the mast, and the boom it carries out to the print head.
-  const carriage = new THREE.Group();
-  carriage.position.z = PRINTER_MAST_REACH;
-  upper.add(carriage);
-  carriage.add(
-    part(
-      new THREE.BoxGeometry(0.4, 0.35, 0.4),
-      materials.machinePaint,
-      [0, 0, 0],
-    ),
-  );
-  const boom = part(
-    new THREE.BoxGeometry(0.16, 0.16, 1),
-    materials.machinePaint,
-    [0, 0, 0],
-  );
-  carriage.add(boom);
-  const head = new THREE.Group();
-  carriage.add(head);
-  head.add(
-    part(
-      new THREE.BoxGeometry(0.3, 0.3, 0.3),
-      materials.darkMetal,
-      [0, -0.2, 0],
-    ),
-    part(new THREE.ConeGeometry(0.1, 0.25, 6), materials.darkMetal, [
-      0,
-      -PRINT_HEAD_DROP + 0.125,
-      0,
-    ]),
-  );
-  // The carriage runs between the deck and the top of the mast.
-  const lowest = MACHINE_SEAT_HEIGHT + 0.2 - PRINT_HEAD_DROP;
-  const highest =
-    PRINTER_TURNTABLE_HEIGHT + PRINTER_MAST_HEIGHT - 0.2 - PRINT_HEAD_DROP;
-
-  const model: RegolithPrinterModel = {
-    group: printer,
-    setSlew(angle) {
-      upper.rotation.y = angle;
-    },
-    setReach(metres) {
-      const out = Math.max(metres - PRINTER_MAST_REACH, 0.3);
-      boom.scale.z = out;
-      boom.position.z = out / 2;
-      head.position.z = out;
-    },
-    setNozzleHeight(metres) {
-      const height = THREE.MathUtils.clamp(metres, lowest, highest);
-      carriage.position.y = height + PRINT_HEAD_DROP - PRINTER_TURNTABLE_HEIGHT;
-    },
-    setBeacon(on) {
-      const source = on ? materials.statusTesting : materials.statusOff;
-      beaconMaterial.color.copy(source.color);
-      beaconMaterial.emissive.copy(source.emissive);
-    },
-  };
-  // Parked with the boom drawn in and the head held low.
-  model.setReach(PRINTER_MAST_REACH + 1);
-  model.setNozzleHeight(lowest);
-  return model;
-}
 
 /** A Rover's model, facing along its local +z axis. */
 export interface RoverModel {

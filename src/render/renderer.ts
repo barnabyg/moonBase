@@ -7,6 +7,7 @@ import { createConstructionViews } from "./construction-views";
 import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
 import { createMachineViews } from "./machine-views";
+import { createMissionDirectorView } from "./mission-director-view";
 import { createLanderView } from "./lander-view";
 import { createStockpileModel } from "./models";
 import {
@@ -82,6 +83,7 @@ export function createRenderer(
     catalogue.stockpile.footprintRadiusMetres,
   );
   scene.add(stockpile.group);
+  const missionDirector = createMissionDirectorView(scene);
   const robots = createRobotViews(scene);
   const machines = createMachineViews(scene);
   const rovers = createRoverViews(scene);
@@ -128,7 +130,14 @@ export function createRenderer(
       machines.update(frame, realSeconds);
       rovers.update(frame);
       cables.update(frame);
-      constructions.update(frame, realSeconds, lighting.sunFacing);
+      missionDirector.update(frame, realSeconds);
+      // Their Habitat lights up once they reach it.
+      const home =
+        current.missionDirector.residence === "habitat" &&
+        missionDirector.walkingTo !== current.missionDirector.habitatId
+          ? current.missionDirector.habitatId
+          : undefined;
+      constructions.update(frame, realSeconds, lighting.sunFacing, home);
       webgl.render(scene, camera);
     },
     pickGround(clientX, clientY) {
@@ -148,6 +157,7 @@ export function createRenderer(
       placementPreview.show(preview);
     },
     startAfresh() {
+      missionDirector.clear();
       robots.clear();
       machines.clear();
       rovers.clear();

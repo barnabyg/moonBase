@@ -175,7 +175,9 @@ describe("the circuit board plant", () => {
       formatBulkResources(
         campaign.snapshot().bulkResources,
         campaign.forecasts().bulkResources,
-      ),
+      )
+        .map(({ label, value }) => `${label}: ${value}`)
+        .join("; "),
     ).toContain("Wafers: 12 kg; Circuit boards: 7 kg");
   });
 
@@ -201,7 +203,7 @@ describe("the circuit board plant", () => {
         },
       });
       expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-        `, stopped: out of ${label}`,
+        `stopped: out of ${label}`,
       );
     },
   );
@@ -216,7 +218,7 @@ describe("the circuit board plant", () => {
     expect(bulk(state, "circuit-boards")).toBe(0);
     const { plant } = plantOf(state);
     expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-      ", stopped: out of Metals",
+      "stopped: out of Metals",
     );
   });
 });

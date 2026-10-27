@@ -29,7 +29,7 @@ async function nextFrame(page: Page): Promise<void> {
 async function pausedGameUnderWay(page: Page): Promise<Locator> {
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
-  await panel.getByRole("button", { name: "Pause" }).click();
+  await page.getByRole("button", { name: "Pause" }).click();
   const solarArray = page
     .getByRole("complementary", { name: "Build menu" })
     .getByRole("button", { name: /Solar array/ });
@@ -40,7 +40,7 @@ async function pausedGameUnderWay(page: Page): Promise<Locator> {
   const commissioned = page
     .getByRole("log", { name: "Notifications" })
     .getByText("Solar array commissioned");
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   for (
     let skips = 0;
     skips < 10 && !(await commissioned.isVisible());
@@ -52,6 +52,14 @@ async function pausedGameUnderWay(page: Page): Promise<Locator> {
   await expect(commissioned).toBeVisible();
   await nextFrame(page);
   return panel;
+}
+
+/** Every status in the top bar and the status panel, the game clock first. */
+function shownStatuses(page: Page, panel: Locator): Locator {
+  return page
+    .getByRole("region", { name: "Game controls" })
+    .getByRole("status")
+    .or(panel.getByRole("status"));
 }
 
 /** Clicks the button and saves the file it downloads, returning its path. */
@@ -83,11 +91,11 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   page,
 }, testInfo) => {
   const panel = await pausedGameUnderWay(page);
-  const statuses = panel.getByRole("status");
+  const statuses = shownStatuses(page, panel);
   const work = page.getByRole("complementary", { name: "Work" });
   const saved = {
     statuses: await statuses.allTextContents(),
-    structures: await panel
+    structures: await page
       .getByRole("list", { name: "Structures" })
       .textContent(),
     work: await work.textContent(),
@@ -96,40 +104,40 @@ test("a Campaign saved to a file carries on from the saved state when the file i
 
   const file = await saveWith(
     page,
-    panel.getByRole("button", { name: "Save", exact: true }),
+    page.getByRole("button", { name: "Save", exact: true }),
     (name) => testInfo.outputPath(name),
   );
   expect(file.name).toMatch(/^moon-base-earth-day-\d+-\d{4}\.moonbase$/);
 
   await page.reload();
-  await panel.getByRole("button", { name: "Pause" }).click();
+  await page.getByRole("button", { name: "Pause" }).click();
   await expect(statuses.first()).toHaveText(/^Earth Day 1, 00:/);
   await loadWith(
     page,
-    panel.getByRole("button", { name: "Load", exact: true }),
+    page.getByRole("button", { name: "Load", exact: true }),
     file.path,
   );
 
   await expect(statuses).toHaveText(saved.statuses);
-  await expect(panel.getByRole("list", { name: "Structures" })).toHaveText(
+  await expect(page.getByRole("list", { name: "Structures" })).toHaveText(
     saved.structures ?? "",
   );
   await expect(work).toHaveText(saved.work ?? "");
   // It carries on from there.
-  await panel.getByRole("button", { name: "20x" }).click();
+  await page.getByRole("button", { name: "20x" }).click();
   await expect(statuses.first()).not.toHaveText(saved.statuses[0] ?? "");
 });
 
 test("a file that isn't a save is refused with the reason, and the Campaign carries on", async ({
   page,
 }) => {
-  const panel = await pausedGameUnderWay(page);
-  const clock = panel.getByRole("status", { name: "Game clock" });
+  await pausedGameUnderWay(page);
+  const clock = page.getByRole("status", { name: "Game clock" });
   const before = await clock.textContent();
 
   await loadWith(
     page,
-    panel.getByRole("button", { name: "Load", exact: true }),
+    page.getByRole("button", { name: "Load", exact: true }),
     {
       name: "notes.moonbase",
       mimeType: "text/plain",
@@ -137,11 +145,11 @@ test("a file that isn't a save is refused with the reason, and the Campaign carr
     },
   );
 
-  await expect(panel.getByRole("alert")).toHaveText(
+  await expect(page.getByRole("alert")).toHaveText(
     `Couldn't load "notes.moonbase". It isn't a Moon Base save file.`,
   );
   await expect(clock).toHaveText(before ?? "");
-  await panel.getByRole("button", { name: "20x" }).click();
+  await page.getByRole("button", { name: "20x" }).click();
   await expect(clock).not.toHaveText(before ?? "");
 });
 
@@ -149,17 +157,17 @@ test("the game-over screen saves the ended Campaign, and loads a saved one in it
   page,
 }, testInfo) => {
   const panel = await pausedGameUnderWay(page);
-  const statuses = panel.getByRole("status");
+  const statuses = shownStatuses(page, panel);
   const savedStatuses = await statuses.allTextContents();
   const alive = await saveWith(
     page,
-    panel.getByRole("button", { name: "Save", exact: true }),
+    page.getByRole("button", { name: "Save", exact: true }),
     (name) => testInfo.outputPath(`alive-${name}`),
   );
 
   await loadWith(
     page,
-    panel.getByRole("button", { name: "Load", exact: true }),
+    page.getByRole("button", { name: "Load", exact: true }),
     endedSave,
   );
   const gameOver = page.getByRole("dialog", { name: "Game over" });

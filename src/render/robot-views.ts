@@ -5,12 +5,12 @@ import type {
   RobotSnapshot,
 } from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
+import { MACHINE_SEAT_HEIGHT } from "./models";
 import {
   createRobotModel,
-  MACHINE_SEAT_HEIGHT,
   type RobotModel,
   type RobotPose,
-} from "./models";
+} from "./robot-model";
 
 /** The distance the Robot covers in one full walking stride, in metres. */
 const STRIDE_METRES = 1.4;

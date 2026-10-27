@@ -31,13 +31,12 @@ test("wafers loaded onto the Lander are sold when it reaches Earth, and the Fund
   page,
 }) => {
   await page.goto("/?seed=1");
-  const panel = page.getByRole("complementary", { name: "Status panel" });
-  await panel.getByRole("button", { name: "Pause" }).click();
+  await page.getByRole("button", { name: "Pause" }).click();
   const chooser = page.waitForEvent("filechooser");
-  await panel.getByRole("button", { name: "Load", exact: true }).click();
+  await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(wafersSave);
   const funding = page.getByRole("status", { name: "Funding" });
-  await expect(funding).toHaveText("Funding: $400M");
+  await expect(funding).toHaveText("$400M");
 
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
@@ -70,15 +69,15 @@ test("wafers loaded onto the Lander are sold when it reaches Earth, and the Fund
   await page.getByRole("button", { name: "Send the Lander" }).click();
   await skipUntil(page, "Lander took off for Earth with 40 kg of wafers");
   await expect(page.getByRole("status", { name: "Lander" })).toContainText(
-    "Lander: travelling to Earth with 40 kg of wafers",
+    "Lander travelling to Earth with 40 kg of wafers",
   );
   await expect(
     page.getByRole("status", { name: "Bulk resources" }),
-  ).toContainText("Wafers: 6 kg");
+  ).toContainText("Wafers 6 kg");
   await skipUntil(page, "Lander reached Earth");
 
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
     "Lander reached Earth for turnaround, and sold 40 kg of wafers for $60M",
   );
-  await expect(funding).toHaveText("Funding: $460M");
+  await expect(funding).toHaveText("$460M");
 });

@@ -8,11 +8,10 @@ import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
   createExcavatorModel,
   createRegolithPrinterModel,
-  shieldingRadiusAt,
-  SHIELDING_HEIGHT,
   type ExcavatorModel,
   type RegolithPrinterModel,
-} from "./models";
+} from "./machine-models";
+import { shieldingRadiusAt, SHIELDING_HEIGHT } from "./models";
 
 /** How fast the excavator's arm digs in and draws back while grading, in cycles per real second. */
 const DIG_CYCLES_PER_SECOND = 0.4;

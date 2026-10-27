@@ -5,7 +5,7 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
 }) => {
   await page.goto("/?seed=1");
   await expect(page.getByRole("status", { name: "Funding" })).toHaveText(
-    "Funding: $400M",
+    "$400M",
   );
 
   await page.getByRole("button", { name: "Launch manifest" }).click();

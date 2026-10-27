@@ -20,8 +20,8 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
 }) => {
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
-  await panel.getByRole("button", { name: "Pause" }).click();
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  await page.getByRole("button", { name: "Pause" }).click();
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   const notifications = page.getByRole("log", { name: "Notifications" });
   const event = panel.getByRole("status", { name: "Solar Particle Event" });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
@@ -40,7 +40,7 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
     notifications.getByText(/Solar Particle Event coming in 4 hours/),
   );
   await expect(event).toHaveText(
-    /^Solar Particle Event: starts in 4 hours, lasts .+, 10× the dose rate$/,
+    /^Solar Particle Event starts in 4h, lasts .+ · 10× the dose rate$/,
   );
 
   await skip.click();
@@ -48,10 +48,10 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
     notifications.getByText(/Solar Particle Event under way, for /),
   ).toBeVisible();
   await expect(event).toHaveText(
-    /^Solar Particle Event: under way, ends in .+, 10× the dose rate$/,
+    /^Solar Particle Event under way, ends in .+ · 10× the dose rate$/,
   );
   await expect(radiationDose).toHaveText(
-    "Radiation Dose: 0.0 of 600 mSv, none aboard the Lander",
+    "Radiation 0.0 / 600 mSv · none aboard the Lander",
   );
 
   await skip.click();

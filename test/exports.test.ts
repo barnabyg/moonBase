@@ -271,7 +271,10 @@ describe("the Lander taking off", () => {
         state.clock.elapsedMinutes,
         state.exports.aboard,
       ),
-    ).toMatch(/^Lander: travelling to Earth with 40 kg of wafers, arrives in /);
+    ).toEqual({
+      value: "travelling to Earth with 40 kg of wafers",
+      note: expect.stringMatching(/^arrives in /) as unknown,
+    });
   });
 
   it("takes what there is, if the stock has fallen below the Exports to load since they were set", () => {
