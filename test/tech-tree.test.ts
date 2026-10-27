@@ -85,11 +85,19 @@ describe("unlocking a Design is refused, with the reason, and nothing changes", 
 
   it("for one whose prerequisite isn't unlocked yet, naming the prerequisite", () => {
     const { campaign } = scenario();
+    // The first Design that needs one beyond the starting ones, and the
+    // first of those it needs.
+    const notStarting = (id: string) => !startingIds.includes(id);
     const later = catalogue.designs.find((design) =>
-      design.prerequisiteDesignIds.includes(firstDesign.id),
+      design.prerequisiteDesignIds.some(notStarting),
     );
-    if (later === undefined) {
-      throw new Error(`expected a Design that needs ${firstDesign.label}`);
+    const needed = catalogue.designs.find(
+      (design) => design.id === later?.prerequisiteDesignIds.find(notStarting),
+    );
+    if (later === undefined || needed === undefined) {
+      throw new Error(
+        "expected a Design that needs one beyond the starting Designs",
+      );
     }
     earnScience(campaign, later.scienceCost);
     const before = campaign.snapshot();
@@ -97,7 +105,7 @@ describe("unlocking a Design is refused, with the reason, and nothing changes", 
     expect(campaign.unlockDesign(later.id)).toEqual({
       ok: false,
       reason: "prerequisite-missing",
-      message: `${later.label} needs ${firstDesign.label} unlocked first.`,
+      message: `${later.label} needs ${needed.label} unlocked first.`,
     });
     expect(campaign.snapshot().science).toBe(before.science);
     expect(campaign.snapshot().unlockedDesignIds).toEqual(

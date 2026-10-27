@@ -476,6 +476,8 @@ export function formatEvent(event: GameEvent): string {
       return event.spareComponents > 0
         ? `Robot repaired itself, back to ${formatCondition(event.conditionPercent)}, using ${plural(event.spareComponents, "spare Component")}`
         : `Robot made a makeshift repair, back to ${formatCondition(event.conditionPercent)}, and works on slowly`;
+    case "robot-arrived":
+      return "A Robot has arrived from Earth, and is ready for work at the stockpile";
     case "expedition-left":
       return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
     case "expedition-returned":
@@ -764,12 +766,17 @@ export function describeResearch(
     : `Running: ${researchTaskLabel(running.researchTaskId)}, ${formatDuration(running.minutesLeft)} left. Another can start once it is complete.`;
 }
 
-/** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */
+/** Names something a Launch can bring, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
 export function launchItemLabel(item: LaunchItem): string {
   const { brings } = item;
-  return brings.kind === "component"
-    ? componentLabel(brings.componentId)
-    : `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+  switch (brings.kind) {
+    case "component":
+      return componentLabel(brings.componentId);
+    case "life-support":
+      return `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
+    case "robot":
+      return "Robot";
+  }
 }
 
 /**
@@ -1295,8 +1302,8 @@ function describeRobotWork(
         ? "Robot testing it before it goes live"
         : `Commissioning failed ${plural(construction.failedCommissionings, "time")}; Robot retrying`;
     // Only ever done for a Structure being dismantled or maintained, to
-    // unload or load the Lander, or for the Robot's repair of itself, when
-    // it does nothing for anything else.
+    // unload or load the Lander, for the Robot's repair of itself, or as it
+    // arrives from Earth, when it does nothing for anything else.
     case "driving-rover":
     case "on-expedition":
     case "unloading-expedition":
@@ -1311,6 +1318,8 @@ function describeRobotWork(
     case "walking-to-repair":
     case "loading-spare-components":
     case "repairing-itself":
+    case "climbing-down":
+    case "walking-to-stockpile":
       return "Waiting for the Robot";
   }
 }

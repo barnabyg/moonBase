@@ -99,6 +99,12 @@ export interface Catalogue {
     readonly makeshiftRepairPercent: number;
     /** A Robot's Condition never falls below this, in percent, so that it is never Broken. */
     readonly conditionFloorPercent: number;
+    /**
+     * How long a Robot a Launch brings takes to climb down from the Lander
+     * once it has landed, before it walks to the stockpile, in game-hours.
+     * Must come to a whole number of game-minutes.
+     */
+    readonly climbingDownHours: number;
   };
   readonly machineTypes: readonly MachineType[];
   readonly rover: RoverType;
@@ -296,14 +302,20 @@ export interface LaunchItem {
   readonly id: string;
   /** The Design it belongs to. */
   readonly designId: string;
-  /** What one of it brings: a Component, or a set amount of oxygen or water. */
+  /**
+   * What one of it brings: a Component, a set amount of oxygen or water, or
+   * a Robot, which climbs down from the Lander as it lands and joins the
+   * others at work. A Robot isn't a Component, so it never joins the base's
+   * stock.
+   */
   readonly brings:
     | { readonly kind: "component"; readonly componentId: string }
     | {
         readonly kind: "life-support";
         readonly stockId: string;
         readonly kilograms: number;
-      };
+      }
+    | { readonly kind: "robot" };
   /** Its mass, packing and any tank included, which counts towards the Payload Mass. */
   readonly massKilograms: number;
   readonly priceMillionDollars: number;
@@ -722,7 +734,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 37,
+  version: 38,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -776,6 +788,8 @@ export const catalogue: Catalogue = {
     // Enough to keep working, at well under full speed.
     makeshiftRepairPercent: 30,
     conditionFloorPercent: 1,
+    // Down the Lander's ladder, one careful rung at a time.
+    climbingDownHours: 0.25,
   },
   machineTypes: [
     {
@@ -1623,12 +1637,22 @@ export const catalogue: Catalogue = {
         massKilograms: 60,
         priceMillionDollars: 2,
       },
+      // A humanoid Robot built for the Moon, crated with its spares and
+      // tools. With the Launch fee, one costs half the Programme Grant, so
+      // a second Robot is a real choice against Components and supplies.
+      {
+        id: "robot",
+        designId: "robots",
+        brings: { kind: "robot" },
+        massKilograms: 300,
+        priceMillionDollars: 50,
+      },
     ],
   },
   // From a few hours to a week. The short ones pay more Science an hour,
   // but the player has to come back to start the next; the long ones run
-  // unattended, through a Night or a whole round trip of the Lander. Two are
-  // offered only once the Design they study is unlocked.
+  // unattended, through a Night or a whole round trip of the Lander. Three
+  // are offered only once the Design they study is unlocked.
   researchTasks: [
     {
       id: "regolith-sample-analysis",
@@ -1647,6 +1671,13 @@ export const catalogue: Catalogue = {
       label: "Radiation environment survey",
       lengthHours: 24,
       science: 12,
+    },
+    {
+      id: "robot-teamwork-trial",
+      label: "Robot teamwork trial",
+      lengthHours: 36,
+      science: 16,
+      requiresDesignId: "robots",
     },
     {
       id: "dust-levitation-study",
@@ -1850,6 +1881,18 @@ export const catalogue: Catalogue = {
       category: "mobility",
       starting: true,
       scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    // Cheap, and needing nothing first, so that the first few Research
+    // Tasks pay for a second Robot to share the work.
+    {
+      id: "robots",
+      label: "Robots",
+      description:
+        "More of the humanoid Robots that carry out the Work Orders, shipped from Earth to share the work.",
+      category: "mobility",
+      starting: false,
+      scienceCost: 20,
       prerequisiteDesignIds: [],
     },
     {

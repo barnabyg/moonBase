@@ -226,6 +226,15 @@ export type GameEvent =
       readonly spareComponents: number;
     }
   | {
+      /**
+       * A Robot a Launch brought has climbed down from the Lander and
+       * walked to the stockpile, and is ready for work.
+       */
+      readonly kind: "robot-arrived";
+      readonly atMinute: number;
+      readonly robotId: string;
+    }
+  | {
       /** A Micrometeorite has struck, without warning, wearing down what it hit. */
       readonly kind: "micrometeorite-strike";
       readonly atMinute: number;

@@ -795,6 +795,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       workOrder: undefined,
       conditionPercent: 100,
       selfRepair: undefined,
+      arrival: undefined,
     })),
     machines: landingSite.machines.map((machine, index) => ({
       id: `${machine.machineTypeId}-${index + 1}`,

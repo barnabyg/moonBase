@@ -1804,3 +1804,84 @@ describe("the sample save of format version 28", () => {
     );
   });
 });
+
+describe("the sample saves from before a Launch could bring a Robot", () => {
+  it.each(["version-1.moonbase", "version-12.moonbase", "version-28.moonbase"])(
+    "%s loads with no Robot arriving, each at work as before",
+    (name) => {
+      const campaign = loadSample(name);
+      const before = campaign.snapshot().robots.map((robot) => robot.id);
+
+      campaign.advance(1);
+
+      const { robots } = campaign.snapshot();
+      expect(robots.map((robot) => robot.id)).toEqual(before);
+      for (const robot of robots) {
+        expect(["climbing-down", "walking-to-stockpile"]).not.toContain(
+          robot.activity.kind,
+        );
+      }
+    },
+  );
+});
+
+describe("the sample save of format version 29", () => {
+  // Saved 39626 game-minutes in, 25 game-minutes after the Lander landed
+  // with a Robot the Robots Design let it bring, two light masts planned
+  // as it landed. The Mission Director waited out the first Night aboard
+  // the Lander, then moved into the Habitat so that it could fly.
+  it("loads with the Robots Design unlocked and the second Robot walking from the Lander to the stockpile, as the first works on a light mast", () => {
+    const state = loadSample("version-29.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 28, hour: 12, minute: 26 });
+    expect(state.unlockedDesignIds).toContain("robots");
+    expect(state.lander).toMatchObject({ state: "landed-free", cargo: [] });
+    expect(state.robots).toEqual([
+      expect.objectContaining({
+        id: "robot-1",
+        activity: expect.objectContaining({
+          structureId: "structure-4",
+        }) as unknown,
+      }),
+      expect.objectContaining({
+        id: "robot-2",
+        activity: { kind: "walking-to-stockpile" },
+        carrying: [],
+      }),
+    ]);
+    expect(state.constructions.map((c) => c.structureTypeId)).toEqual([
+      "light-mast",
+      "light-mast",
+    ]);
+  });
+
+  it("plays on from where it was saved, the second Robot arriving at the stockpile and building a light mast alongside the first", () => {
+    const campaign = loadSample("version-29.moonbase");
+
+    const events: GameEvent[] = [];
+    const secondRobotOn = new Set<string>();
+    for (let minutes = 0; campaign.snapshot().constructions.length > 0;) {
+      if (minutes > 3 * 24 * 60) throw new Error("They were never built.");
+      events.push(...campaign.advance(1));
+      minutes += 1;
+      const activity = campaign.snapshot().robots[1]?.activity;
+      if (activity !== undefined && "structureId" in activity) {
+        secondRobotOn.add(activity.structureId);
+      }
+    }
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "robot-arrived", robotId: "robot-2" }),
+    );
+    expect(
+      [...secondRobotOn].some((id) =>
+        ["structure-4", "structure-5"].includes(id),
+      ),
+    ).toBe(true);
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(
+      state.structures.filter((s) => s.structureTypeId === "light-mast"),
+    ).toHaveLength(2);
+  });
+});

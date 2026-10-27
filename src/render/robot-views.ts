@@ -102,6 +102,7 @@ function onFoot(robot: RobotSnapshot): boolean {
   return (
     robot.activity.kind === "walking" ||
     robot.activity.kind === "walking-to-repair" ||
+    robot.activity.kind === "walking-to-stockpile" ||
     robot.activity.kind === "laying-cable"
   );
 }
@@ -115,8 +116,8 @@ function aboardMachine(robot: RobotSnapshot): boolean {
 
 /**
  * What the Robot faces while it works: the stockpile when loading or
- * unloading there, the Lander when loading or unloading it, otherwise the
- * site.
+ * unloading there, the Lander when loading or unloading it or climbing
+ * down from it, otherwise the site.
  */
 function workTarget(
   frame: Frame,
@@ -140,7 +141,10 @@ function workTarget(
   ) {
     return toScene(frame.current.stockpile.position);
   }
-  if (activity.kind === "putting-exports-aboard") {
+  if (
+    activity.kind === "putting-exports-aboard" ||
+    activity.kind === "climbing-down"
+  ) {
     return toScene(frame.current.lander.position);
   }
   if ("machineId" in activity) {
@@ -288,6 +292,28 @@ function poseFor(
     // Lifting the Lander's cargo down, and onto the stockpile.
     "loading-cargo": () => lifting(work, carrying),
     "unloading-cargo": () => lifting(work, carrying),
+    // Facing the Lander's ladder, reaching up a rung with one hand, then
+    // the other, as it climbs down.
+    "climbing-down": () => ({
+      legSwing: work * 0.3,
+      leftArm: 2.4 + work * 0.3,
+      rightArm: 2.4 - work * 0.3,
+      lean: -0.05,
+      seated: false,
+      carrying,
+    }),
+    // Walking from the Lander to the stockpile, as it arrives from Earth.
+    "walking-to-stockpile": () => {
+      const swing = Math.sin(strideAngle) * 0.45;
+      return {
+        legSwing: swing,
+        leftArm: swing * 0.8,
+        rightArm: -swing * 0.8,
+        lean: 0.05,
+        seated: false,
+        carrying,
+      };
+    },
     // Lifting the Exports off the stockpile, and up into the Lander.
     "loading-exports": () => lifting(work, carrying),
     "putting-exports-aboard": () => lifting(work, carrying),

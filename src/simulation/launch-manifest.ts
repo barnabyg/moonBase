@@ -1,4 +1,5 @@
 import { catalogue, type LaunchItem } from "../catalogue";
+import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { valueAboard } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
@@ -142,10 +143,11 @@ export function payForLaunch(state: CampaignState): number {
 
 /**
  * Unloads everything on the Launch manifest as the Lander lands: oxygen and
- * water join the life support stocks, and Components join the base's stock
+ * water join the life support stocks, Components join the base's stock
  * at the stockpile beside the landing site, or, on a landing pad, stay
- * aboard for the Robot to carry there. A new, empty manifest starts, and
- * what was delivered is returned.
+ * aboard for the Robot to carry there, and Robots climb down from it,
+ * wherever it has landed. A new, empty manifest starts, and what was
+ * delivered is returned.
  */
 export function deliverLaunch(
   state: CampaignState,
@@ -163,6 +165,8 @@ export function deliverLaunch(
         (candidate) => candidate.stockId === brings.stockId,
       );
       if (stock !== undefined) stock.kilograms += brings.kilograms * count;
+    } else if (brings?.kind === "robot") {
+      deliverRobots(state, count);
     }
   }
   state.launchManifest = [];
@@ -197,9 +201,10 @@ function millionDollars(value: number): string {
   return `$${Math.round(value * 10) / 10}M`;
 }
 
-/** Names a Launch item, for a refusal, for example "Solar panel" or "Oxygen, 25 kg". */
+/** Names a Launch item, for a refusal, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
 function itemLabel(item: LaunchItem): string {
   const { brings } = item;
+  if (brings.kind === "robot") return "Robot";
   if (brings.kind === "component") {
     return (
       catalogue.componentTypes.find((type) => type.id === brings.componentId)

@@ -209,18 +209,26 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("can ship every Component, and oxygen and water in set amounts, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
+  it("can ship every Component, oxygen and water in set amounts, and a Robot, each with a mass and a price that one Launch on the Programme Grant can carry", () => {
     const { items, payloadMassLimitKilograms, feeMillionDollars } =
       catalogue.launch;
 
     expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
-    const shipped = items.map(({ brings }) =>
-      brings.kind === "component" ? brings.componentId : brings.stockId,
-    );
+    const shipped = items.map(({ brings }) => {
+      switch (brings.kind) {
+        case "component":
+          return brings.componentId;
+        case "life-support":
+          return brings.stockId;
+        case "robot":
+          return "a Robot";
+      }
+    });
     expect(shipped.toSorted()).toEqual(
       [
         ...catalogue.componentTypes.map((type) => type.id),
         ...catalogue.lifeSupportStocks.map((stock) => stock.id),
+        "a Robot",
       ].toSorted(),
     );
     for (const item of items) {
@@ -297,6 +305,23 @@ describe("the data catalogue", () => {
     expect(makeshiftRepairPercent).toBeLessThan(performance.thresholdPercent);
     expect(selfRepairHours).toBeGreaterThan(0);
     expect(Number.isInteger(selfRepairHours * 60)).toBe(true);
+  });
+
+  it("ships exactly one Robot item, a few hundred kilograms, behind a Mobility Design that isn't a starting one, and has it climb down from the Lander in a whole number of game-minutes", () => {
+    const robots = catalogue.launch.items.filter(
+      (item) => item.brings.kind === "robot",
+    );
+
+    expect(robots).toHaveLength(1);
+    const [robot] = robots;
+    expect(robot?.massKilograms).toBeGreaterThanOrEqual(100);
+    expect(robot?.massKilograms).toBeLessThan(1000);
+    expect(
+      catalogue.designs.find((design) => design.id === robot?.designId),
+    ).toMatchObject({ category: "mobility", starting: false });
+    const { climbingDownHours } = catalogue.robot;
+    expect(climbingDownHours).toBeGreaterThan(0);
+    expect(Number.isInteger(climbingDownHours * 60)).toBe(true);
   });
 
   it("describes Machines that a Robot can drive and activate", () => {

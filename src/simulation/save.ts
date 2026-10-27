@@ -685,6 +685,25 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 28 to 29: a Launch can bring a Robot, behind the Robots Design, which
+  // climbs down from the Lander as it lands and walks to the stockpile
+  // before it works. No Launch brought one before, so no Robot is
+  // arriving.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["robots"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        robots: state["robots"].map((robot: unknown) =>
+          isRecord(robot) ? { ...robot, arrival: null } : robot,
+        ),
+      },
+    };
+  },
 ];
 
 /**
@@ -1224,6 +1243,8 @@ const robotActivity: Decoder<RobotActivity> = (() => {
     ),
     "on-expedition": object({ kind: exactly("on-expedition") }),
     "unloading-expedition": object({ kind: exactly("unloading-expedition") }),
+    "climbing-down": object({ kind: exactly("climbing-down") }),
+    "walking-to-stockpile": object({ kind: exactly("walking-to-stockpile") }),
     "loading-components": byField(
       "roverId",
       forRover,
@@ -1405,6 +1426,7 @@ const simulationState = object({
           workedMinutes: wholeNumber,
         }),
       ),
+      arrival: optional(object({ workedMinutes: wholeNumber })),
     }),
   ),
   machines: list(
