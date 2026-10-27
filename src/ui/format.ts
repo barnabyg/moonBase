@@ -3,10 +3,11 @@ import {
   type Design,
   type Export,
   type LaunchItem,
-  type ResearchTask,
   type ResourceRef,
 } from "../catalogue";
 import {
+  designLabel,
+  launchItemLabel,
   readClock,
   robotNumber,
   type BulkResourceForecast,
@@ -700,14 +701,6 @@ export function researchTaskLabel(researchTaskId: string): string {
   );
 }
 
-/** Names a Design, for example "Large battery banks". */
-export function designLabel(designId: string): string {
-  return (
-    catalogue.designs.find((design) => design.id === designId)?.label ??
-    designId
-  );
-}
-
 /**
  * Whether a Design is unlocked, can be unlocked now or is out of reach, in
  * words for the Tech Tree screen, for example "Can be unlocked now", "Needs
@@ -741,11 +734,6 @@ export function describeDesignState(
   return { state: "unlockable", text: "Can be unlocked now" };
 }
 
-/** How long a Research Task runs, in game-minutes. */
-export function researchTaskMinutes(task: ResearchTask): number {
-  return Math.round(task.lengthHours * 60);
-}
-
 /**
  * Says which Research Task is running and how long it has left, for the
  * status panel, for example "Seismic monitoring" and "2d 5h left", or that
@@ -773,19 +761,6 @@ export function describeResearch(
   return running === undefined
     ? "None running. Start one, and it runs by itself for its length, then pays its Science. Only one runs at a time, and each can be completed only once."
     : `Running: ${researchTaskLabel(running.researchTaskId)}, ${formatDuration(running.minutesLeft)} left. Another can start once it is complete.`;
-}
-
-/** Names something a Launch can bring, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
-export function launchItemLabel(item: LaunchItem): string {
-  const { brings } = item;
-  switch (brings.kind) {
-    case "component":
-      return componentLabel(brings.componentId);
-    case "life-support":
-      return `${stockLabel(brings.stockId)}, ${brings.kilograms} kg`;
-    case "robot":
-      return "Robot";
-  }
 }
 
 /**

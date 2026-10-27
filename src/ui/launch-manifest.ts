@@ -1,9 +1,10 @@
 import { catalogue } from "../catalogue";
-import type {
-  Campaign,
-  ExportLine,
-  ManifestLine,
-  Snapshot,
+import {
+  launchItemLabel,
+  type Campaign,
+  type ExportLine,
+  type ManifestLine,
+  type Snapshot,
 } from "../simulation";
 import { setText } from "./dom";
 import {
@@ -17,7 +18,6 @@ import {
   formatMillionDollars,
   formatPayloadMass,
   formatReturnMass,
-  launchItemLabel,
   resourceLabel,
 } from "./format";
 

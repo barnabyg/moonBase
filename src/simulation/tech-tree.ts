@@ -50,11 +50,11 @@ export function unlockDesign(
       `There is no Design called "${designId}" in the Tech Tree.`,
     );
   }
-  if (state.unlockedDesignIds.includes(design.id)) {
+  if (isDesignUnlocked(state, design.id)) {
     return refuse("already-unlocked", `${design.label} is already unlocked.`);
   }
   const missing = design.prerequisiteDesignIds.find(
-    (id) => !state.unlockedDesignIds.includes(id),
+    (id) => !isDesignUnlocked(state, id),
   );
   if (missing !== undefined) {
     return refuse(
@@ -89,7 +89,7 @@ export function isDesignUnlocked(
   return state.unlockedDesignIds.includes(designId);
 }
 
-/** Names a Design, for a refusal. */
+/** Names a Design, for example "Large battery banks". */
 export function designLabel(designId: string): string {
   return findDesign(designId)?.label ?? designId;
 }

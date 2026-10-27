@@ -1,12 +1,11 @@
 import { catalogue } from "../catalogue";
-import type { Campaign, Snapshot } from "../simulation";
-import { setText } from "./dom";
 import {
-  describeResearch,
-  formatDuration,
-  formatScience,
   researchTaskMinutes,
-} from "./format";
+  type Campaign,
+  type Snapshot,
+} from "../simulation";
+import { setText } from "./dom";
+import { describeResearch, formatDuration, formatScience } from "./format";
 
 export interface ResearchTasksScreen {
   open(): void;

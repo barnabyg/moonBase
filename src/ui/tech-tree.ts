@@ -1,7 +1,12 @@
 import { catalogue } from "../catalogue";
-import type { Campaign, DesignUnlockedEvent, Snapshot } from "../simulation";
+import {
+  designLabel,
+  type Campaign,
+  type DesignUnlockedEvent,
+  type Snapshot,
+} from "../simulation";
 import { setText } from "./dom";
-import { describeDesignState, designLabel, formatScience } from "./format";
+import { describeDesignState, formatScience } from "./format";
 
 export interface TechTreeScreen {
   open(): void;

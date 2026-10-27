@@ -80,7 +80,7 @@ export function setLaunchManifest(
     if (!isDesignUnlocked(state, item.designId)) {
       return refuse(
         "design-locked",
-        `${itemLabel(item)} needs the ${designLabel(item.designId)} Design unlocked first.`,
+        `${launchItemLabel(item)} needs the ${designLabel(item.designId)} Design unlocked first.`,
       );
     }
     if (!Number.isSafeInteger(count) || count < 0) {
@@ -201,8 +201,8 @@ function millionDollars(value: number): string {
   return `$${Math.round(value * 10) / 10}M`;
 }
 
-/** Names a Launch item, for a refusal, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
-function itemLabel(item: LaunchItem): string {
+/** Names something a Launch can bring, for example "Solar panel", "Oxygen, 25 kg" or "Robot". */
+export function launchItemLabel(item: LaunchItem): string {
   const { brings } = item;
   if (brings.kind === "robot") return "Robot";
   if (brings.kind === "component") {

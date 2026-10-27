@@ -87,7 +87,7 @@ export function runResearch(state: CampaignState): GameEvent[] {
   if (running === undefined) return [];
   running.workedMinutes += 1;
   const task = findResearchTask(running.researchTaskId);
-  if (task === undefined || running.workedMinutes < lengthMinutes(task)) {
+  if (task === undefined || running.workedMinutes < researchTaskMinutes(task)) {
     return [];
   }
   state.researchTask = undefined;
@@ -110,7 +110,7 @@ export function readResearchTask(
   if (running === undefined) return undefined;
   const task = findResearchTask(running.researchTaskId);
   if (task === undefined) return undefined;
-  const length = lengthMinutes(task);
+  const length = researchTaskMinutes(task);
   return {
     researchTaskId: running.researchTaskId,
     progress: Math.min(running.workedMinutes / length, 1),
@@ -119,7 +119,7 @@ export function readResearchTask(
 }
 
 /** How long a Research Task runs, in game-minutes. */
-function lengthMinutes(task: ResearchTask): number {
+export function researchTaskMinutes(task: ResearchTask): number {
   return Math.round(task.lengthHours * 60);
 }
 

@@ -1,5 +1,8 @@
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
+export { designLabel } from "./tech-tree";
+export { launchItemLabel } from "./launch-manifest";
+export { researchTaskMinutes } from "./research";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
