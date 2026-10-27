@@ -1234,32 +1234,32 @@ function createBumperPlates(
 const PAD_PANELS = 8;
 /** The share of Assembly spent laying the panels, before the beacon goes up. */
 const PAD_PANELS_SHARE = 0.85;
-/** How tall a floodlight's post stands at a lit landing pad's edge. */
-const FLOODLIGHT_HEIGHT = 2.6;
+/** How tall a pad light's post stands at a lit landing pad's edge. */
+const PAD_LIGHT_HEIGHT = 2.6;
 
 /** The parts of a landing pad's model. */
 interface LandingPadShape {
   readonly name: string;
-  /** How many floodlights stand round its edge, spaced evenly, clear of the beacon. */
-  readonly floodlights: number;
+  /** How many pad lights stand round its edge, spaced evenly, clear of the beacon. */
+  readonly padLights: number;
 }
 
-const LANDING_PAD: LandingPadShape = { name: "Landing pad", floodlights: 0 };
+const LANDING_PAD: LandingPadShape = { name: "Landing pad", padLights: 0 };
 
 /**
- * A lit landing pad: a landing pad with a floodlight on a short post at
- * each quarter of its edge, its lamp tilted in over the pad.
+ * A lit landing pad: a landing pad with a pad light on a short post at
+ * each quarter of its edge, its head tilted in over the pad.
  */
 const LIT_LANDING_PAD: LandingPadShape = {
   name: "Lit landing pad",
-  floodlights: 4,
+  padLights: 4,
 };
 
 /**
  * A landing pad: a disc of interlocking panels laid flat on the graded
  * ground, with a painted ring for the Lander to aim at, a beacon at its
- * edge and any floodlights round it, which glow while they are on. During
- * Assembly the panels go down one by one, then the beacon and floodlights
+ * edge and any pad lights round it, which glow while they are on. During
+ * Assembly the panels go down one by one, then the beacon and pad lights
  * go up. Its radius is the data catalogue's footprint.
  */
 function createLandingPadModel(shape: LandingPadShape): StructureModel {
@@ -1310,47 +1310,47 @@ function createLandingPadModel(shape: LandingPadShape): StructureModel {
   );
   pad.add(beacon);
 
-  const lampMaterial = materials.statusOff.clone();
-  const floodlights = new THREE.Group();
-  for (let index = 0; index < shape.floodlights; index++) {
+  const lightMaterial = materials.statusOff.clone();
+  const padLights = new THREE.Group();
+  for (let index = 0; index < shape.padLights; index++) {
     // Halfway between the beacon's place and the next quarter round.
-    const angle = ((index + 0.5) / shape.floodlights) * Math.PI * 2;
-    const floodlight = new THREE.Group();
-    floodlight.position.set(
+    const angle = ((index + 0.5) / shape.padLights) * Math.PI * 2;
+    const padLight = new THREE.Group();
+    padLight.position.set(
       Math.cos(angle) * (radius - 0.35),
       thickness,
       -Math.sin(angle) * (radius - 0.35),
     );
-    // Facing the pad's centre, its lamp tilted down over it.
-    floodlight.rotation.y = angle + Math.PI;
-    const lamp = new THREE.Group();
-    lamp.position.y = FLOODLIGHT_HEIGHT;
-    lamp.rotation.z = -Math.PI / 6;
-    lamp.add(
+    // Facing the pad's centre, its head tilted down over it.
+    padLight.rotation.y = angle + Math.PI;
+    const head = new THREE.Group();
+    head.position.y = PAD_LIGHT_HEIGHT;
+    head.rotation.z = -Math.PI / 6;
+    head.add(
       part(
         new THREE.BoxGeometry(0.3, 0.36, 0.6),
         materials.darkMetal,
         [0, 0, 0],
       ),
-      part(new THREE.BoxGeometry(0.04, 0.3, 0.52), lampMaterial, [0.16, 0, 0]),
+      part(new THREE.BoxGeometry(0.04, 0.3, 0.52), lightMaterial, [0.16, 0, 0]),
     );
-    floodlight.add(
+    padLight.add(
       part(
-        new THREE.CylinderGeometry(0.06, 0.09, FLOODLIGHT_HEIGHT, 6),
+        new THREE.CylinderGeometry(0.06, 0.09, PAD_LIGHT_HEIGHT, 6),
         materials.aluminium,
-        [0, FLOODLIGHT_HEIGHT / 2, 0],
+        [0, PAD_LIGHT_HEIGHT / 2, 0],
       ),
-      lamp,
+      head,
     );
-    floodlights.add(floodlight);
+    padLights.add(padLight);
   }
-  pad.add(floodlights);
+  pad.add(padLights);
 
   return {
     group: pad,
-    // The scene's one light for the floodlights hangs over the pad's
+    // The scene's one light for the pad lights hangs over the pad's
     // centre, high enough to shine past a Lander standing on it.
-    ...(shape.floodlights > 0 ? { lightHeight: 10 } : {}),
+    ...(shape.padLights > 0 ? { lightHeight: 10 } : {}),
     setAssembled(fraction) {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
       const laid = Math.min(f / PAD_PANELS_SHARE, 1) * PAD_PANELS;
@@ -1359,7 +1359,7 @@ function createLandingPadModel(shape: LandingPadShape): StructureModel {
       }
       ring.visible = laid >= PAD_PANELS;
       beacon.visible = f > PAD_PANELS_SHARE;
-      floodlights.visible = f > PAD_PANELS_SHARE;
+      padLights.visible = f > PAD_PANELS_SHARE;
     },
     setFacing: () => undefined,
     setStatusLight(state) {
@@ -1373,8 +1373,8 @@ function createLandingPadModel(shape: LandingPadShape): StructureModel {
     },
     setCharge: () => undefined,
     setLit(on) {
-      lampMaterial.color.set(on ? 0xfff4dc : 0x222222);
-      lampMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
+      lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
+      lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
     },
   };
 }

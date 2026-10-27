@@ -1828,7 +1828,7 @@ describe("the data catalogue", () => {
       );
     });
 
-    it("has the lit landing pad stand on a landing pad's ground, built from a landing pad's Components and floodlights of its own, taking longer to assemble", () => {
+    it("has the lit landing pad stand on a landing pad's ground, built from a landing pad's Components and pad lights of its own, taking longer to assemble", () => {
       const lit = structureType("lit-landing-pad");
       const pad = structureType("landing-pad");
       const own = lit.components.filter(

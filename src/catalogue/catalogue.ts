@@ -922,7 +922,9 @@ export const catalogue: Catalogue = {
     { id: "electrolyser-stack", label: "Electrolyser stack" },
     { id: "molten-regolith-cell", label: "Molten regolith cell" },
     { id: "board-assembly-line", label: "Board assembly line" },
-    { id: "landing-floodlight", label: "Landing floodlight" },
+    // Labelled a pad light because the Glossary avoids "floodlight", but
+    // saves from version 32 on name it by this id, so the id stays.
+    { id: "landing-floodlight", label: "Pad light" },
   ],
   structureTypes: [
     {
@@ -1472,7 +1474,7 @@ export const catalogue: Catalogue = {
       shieldsHabitat: false,
       landingPad: true,
     },
-    // A landing pad with a floodlight on a short post at each quarter of its
+    // A landing pad with a pad light on a short post at each quarter of its
     // edge, which switch on by themselves at Night, so that the Lander can
     // be seen landing and the Robot unloading it. They light 20 m round its
     // centre, a little wider than a Light Mast, for 0.45 kW: about what a
@@ -2811,7 +2813,7 @@ export const catalogue: Catalogue = {
       id: "landing-pad-lights",
       label: "Landing pad lights",
       description:
-        "Floodlights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",
+        "Lights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",
       category: "mobility",
       starting: false,
       scienceCost: 35,
