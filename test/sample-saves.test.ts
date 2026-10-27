@@ -1457,3 +1457,78 @@ describe("the sample save of format version 24", () => {
     expect(campaign.sendLander()).toEqual({ ok: true });
   });
 });
+
+describe("the sample saves from before a Plant could choose its recipe", () => {
+  it.each([
+    "version-17.moonbase",
+    "version-19.moonbase",
+    "version-21.moonbase",
+    "version-23.moonbase",
+  ])(
+    "%s loads with each Plant running its default recipe, and no other Structure running any",
+    (name) => {
+      const { structures } = loadSample(name).snapshot();
+
+      expect(
+        structures.some((structure) => structure.plant !== undefined),
+      ).toBe(true);
+      for (const structure of structures) {
+        const recipes = catalogue.structureTypes.find(
+          (type) => type.id === structure.structureTypeId,
+        )?.recipes;
+        expect(structure.recipeId).toBe(recipes?.[0]?.id);
+      }
+    },
+  );
+});
+
+describe("the sample save of format version 25", () => {
+  const plantOf = (campaign: Campaign) => {
+    const plant = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+    if (plant === undefined) throw new Error("expected an extraction plant");
+    return plant;
+  };
+  const bulkOf = (campaign: Campaign, resourceId: string) =>
+    campaign
+      .snapshot()
+      .bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? Number.NaN;
+  const oxygenForecast = (campaign: Campaign) =>
+    campaign
+      .forecasts()
+      .lifeSupport.find((forecast) => forecast.stockId === "oxygen");
+
+  it("loads with the Mission Director in the Habitat, and the extraction plant running for metals and silicon", () => {
+    const campaign = loadSample("version-25.moonbase");
+
+    expect(campaign.snapshot().missionDirector).toMatchObject({
+      residence: "habitat",
+    });
+    expect(plantOf(campaign)).toMatchObject({
+      recipeId: "metals-and-silicon",
+      plant: { running: true, stoppedFor: undefined },
+    });
+    expect(bulkOf(campaign, "silicon")).toBeCloseTo(1.6, 1);
+    expect(oxygenForecast(campaign)?.minutesUntilEmpty).toBeDefined();
+  });
+
+  it("plays on from where it was saved, the silicon rising and the oxygen falling, until the plant is switched back to oxygen", () => {
+    const campaign = loadSample("version-25.moonbase");
+    const silicon = bulkOf(campaign, "silicon");
+
+    campaign.advance(10 * 60);
+
+    expect(bulkOf(campaign, "silicon")).toBeGreaterThan(silicon + 3);
+    expect(oxygenForecast(campaign)?.kilogramsPerEarthDay).toBeLessThan(0);
+    expect(campaign.setPlantRecipe(plantOf(campaign).id, "oxygen")).toEqual({
+      ok: true,
+    });
+    campaign.advance(60);
+    expect(oxygenForecast(campaign)?.kilogramsPerEarthDay).toBeGreaterThan(0);
+    expect(campaign.snapshot().ended).toBeUndefined();
+  });
+});

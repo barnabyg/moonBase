@@ -59,7 +59,7 @@ function base(movedIn = true): Campaign {
       createCampaign({ seed: DEFAULT_SEED }),
       (state) => {
         for (const type of catalogue.structureTypes) {
-          if (type.plant === undefined) continue;
+          if (type.recipes === undefined) continue;
           for (const need of type.components) {
             const stock = state.stockpile.components.find(
               (candidate) => candidate.componentId === need.componentId,

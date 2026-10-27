@@ -39,7 +39,7 @@ export function structurePerformance(
     (type.power.generationKilowatts > 0 ||
       type.power.storageKilowattHours > 0 ||
       type.lightRadiusMetres > 0 ||
-      type.plant !== undefined);
+      type.recipes !== undefined);
 
   return partial
     ? performanceAt(catalogue.structurePerformance, structure.conditionPercent)

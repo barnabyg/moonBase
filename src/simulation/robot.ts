@@ -57,6 +57,7 @@ import {
   type MaintenanceState,
 } from "./maintenance";
 import type { ParkingState } from "./parking";
+import { defaultRecipeId } from "./plants";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
 import { stepTowards } from "./walking";
@@ -612,6 +613,7 @@ function finishCommissioning(
     storedKilowattHours: 0,
     conditionPercent: 100,
     dustCoatingPercent: 0,
+    recipeId: defaultRecipeId(construction.structureTypeId),
   });
   return [
     {

@@ -607,10 +607,12 @@ export interface StructureType {
    */
   readonly landingPad: boolean;
   /**
-   * The recipe it runs if it is a Plant: a Structure that turns resources
-   * into products once it is commissioned.
+   * The recipes it can run if it is a Plant: a Structure that turns
+   * resources into products once it is commissioned. It runs one at a
+   * time. The first is the default, which it runs once it is commissioned;
+   * the player can choose another, which it runs from the next game-minute.
    */
-  readonly plant?: PlantRecipe;
+  readonly recipes?: readonly PlantRecipe[];
 }
 
 /**
@@ -621,6 +623,10 @@ export interface StructureType {
  * bank can store, so it never takes power from anything else.
  */
 export interface PlantRecipe {
+  /** Unique among its Plant's recipes. */
+  readonly id: string;
+  /** How the player sees it, for example "Metals and silicon". */
+  readonly label: string;
   readonly inputs: readonly ResourceFlow[];
   readonly outputs: readonly ResourceFlow[];
   readonly drawKilowatts: number;
@@ -644,7 +650,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 33,
+  version: 34,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1002,7 +1008,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Regolith is fed through it, so it wears faster than most.
       dustWearPercentPerHour: 0.05,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1013,32 +1019,71 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: false,
       landingPad: false,
-      // A few percent of the Regolith comes out as oxygen, about four
-      // times what the Mission Director breathes while it runs, and much of
-      // the rest as metals and silicon; what is left is slag.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "regolith" },
-            kilogramsPerHour: 4,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "life-support", stockId: "oxygen" },
-            kilogramsPerHour: 0.15,
-          },
-          {
-            resource: { kind: "bulk-resource", resourceId: "metals" },
-            kilogramsPerHour: 0.6,
-          },
-          {
-            resource: { kind: "bulk-resource", resourceId: "silicon" },
-            kilogramsPerHour: 0.4,
-          },
-        ],
-        drawKilowatts: 4,
-      },
+      // Run for oxygen, a few percent of the Regolith comes out as oxygen,
+      // about four times what the Mission Director breathes while it runs,
+      // with a little metal and silicon; run for metals and silicon, it
+      // reduces much more of it to them, and keeps little of the oxygen.
+      // What is left is slag. It runs only in Daylight, 20 of a Lunation's
+      // 29.5 Earth Days, so to make the 24.8 kg of oxygen the Mission
+      // Director uses in a Lunation it has to run for oxygen for about 30%
+      // of the Daylight (0.15 kg an hour for oxygen, 0.01 for metals and
+      // silicon). In the rest it makes under 0.3 kg of silicon an hour,
+      // averaged over the Daylight: less than the 0.35 kg a vacuum
+      // fabrication plant takes. So one extraction plant can't keep the base
+      // self-sufficient in oxygen and feed a vacuum fabrication plant too;
+      // the player switches between the recipes, or imports a second one.
+      recipes: [
+        {
+          id: "oxygen",
+          label: "Oxygen",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 4,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.15,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.1,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.05,
+            },
+          ],
+          drawKilowatts: 4,
+        },
+        {
+          id: "metals-and-silicon",
+          label: "Metals and silicon",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "regolith" },
+              kilogramsPerHour: 4,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "oxygen" },
+              kilogramsPerHour: 0.01,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.6,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 4,
+        },
+      ],
     },
     {
       id: "water-processing-plant",
@@ -1058,7 +1103,7 @@ export const catalogue: Catalogue = {
       stageMachines: { sitePreparation: "excavator" },
       commissioningFailureChance: 0.15,
       dustWearPercentPerHour: 0.03,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1072,21 +1117,25 @@ export const catalogue: Catalogue = {
       // Most of the ice comes out as water; the rest is the dust and grit
       // frozen in with it. Running, it makes six times what the Mission
       // Director drinks, so an Expedition's ice lasts over a week.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "water-ice" },
-            kilogramsPerHour: 1,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "life-support", stockId: "water" },
-            kilogramsPerHour: 0.9,
-          },
-        ],
-        drawKilowatts: 2,
-      },
+      recipes: [
+        {
+          id: "water",
+          label: "Water",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "water-ice" },
+              kilogramsPerHour: 1,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "life-support", stockId: "water" },
+              kilogramsPerHour: 0.9,
+            },
+          ],
+          drawKilowatts: 2,
+        },
+      ],
     },
     {
       id: "vacuum-fabrication-plant",
@@ -1108,7 +1157,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its saw and seals.
       dustWearPercentPerHour: 0.04,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1119,28 +1168,32 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: false,
       landingPad: false,
-      // It takes in a little less silicon than an extraction plant makes,
-      // so that, running together, the silicon never quite runs out and it
-      // keeps up without stopping and starting; the saw turns some of it to
-      // dust. Its furnace draws 6 kW: on its own, the starting solar array
+      // It takes in a little less silicon than an extraction plant makes
+      // running for metals and silicon, so that, running together, the
+      // silicon never quite runs out and it keeps up without stopping and
+      // starting; the saw turns some of it to dust. Its furnace draws 6 kW: on its own, the starting solar array
       // can spare that beside the Habitat and a battery bank, but the two
       // Plants together draw 10 kW, all that array makes, so earning money
       // from wafers takes a second solar array.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "silicon" },
-            kilogramsPerHour: 0.35,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "wafers" },
-            kilogramsPerHour: 0.3,
-          },
-        ],
-        drawKilowatts: 6,
-      },
+      recipes: [
+        {
+          id: "wafers",
+          label: "Wafers",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "silicon" },
+              kilogramsPerHour: 0.35,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.3,
+            },
+          ],
+          drawKilowatts: 6,
+        },
+      ],
     },
     {
       id: "circuit-board-plant",
@@ -1162,7 +1215,7 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       // Dust in its etcher and on the conveyor through its oven.
       dustWearPercentPerHour: 0.04,
-      // It draws power only while it runs (see its recipe).
+      // It draws power only while it runs (see its recipes).
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
@@ -1176,29 +1229,34 @@ export const catalogue: Catalogue = {
       // It takes in a little less in wafers than a vacuum fabrication plant
       // makes, so that, running together, it keeps up without the wafers
       // running out, and as much metals again, well within what an
-      // extraction plant makes, for the boards' cores and circuits; offcuts
+      // extraction plant makes running for metals and silicon, for the
+      // boards' cores and circuits; offcuts
       // and what is etched away make up the rest. Its oven draws 3 kW, so
       // the three Plants together, at 13 kW, still run on what two solar
       // arrays can spare beside the Habitat and a battery bank.
-      plant: {
-        inputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "wafers" },
-            kilogramsPerHour: 0.25,
-          },
-          {
-            resource: { kind: "bulk-resource", resourceId: "metals" },
-            kilogramsPerHour: 0.25,
-          },
-        ],
-        outputs: [
-          {
-            resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
-            kilogramsPerHour: 0.4,
-          },
-        ],
-        drawKilowatts: 3,
-      },
+      recipes: [
+        {
+          id: "circuit-boards",
+          label: "Circuit boards",
+          inputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "wafers" },
+              kilogramsPerHour: 0.25,
+            },
+            {
+              resource: { kind: "bulk-resource", resourceId: "metals" },
+              kilogramsPerHour: 0.25,
+            },
+          ],
+          outputs: [
+            {
+              resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
+              kilogramsPerHour: 0.4,
+            },
+          ],
+          drawKilowatts: 3,
+        },
+      ],
     },
   ],
   dismantlingLossShare: 0.2,

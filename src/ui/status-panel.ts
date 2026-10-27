@@ -6,6 +6,7 @@ import type {
   Forecasts,
   MoveInResult,
   SendLanderResult,
+  SetRecipeResult,
   Snapshot,
   StructureSnapshot,
 } from "../simulation";
@@ -45,27 +46,31 @@ const REFUSAL_SHOWN_MS = 8000;
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets the Robots, Machines and Rovers listed, for a Campaign loaded in place
-
-   * of the last, which may have others.
+   * Forgets the Structures, Robots, Machines and Rovers listed, for a
+   * Campaign loaded in place of the last, which may have others, or give
+   * the same ids to Structures of other types.
    */
   startAfresh(): void;
 }
 
 /**
  * The HTML status panel. It reads simulation snapshots, sends the player's
- * speed choices to the game loop, and sends a choice to dismantle a Structure
- * or to move the Mission Director into a Habitat, or to send the Lander, to
- * the Campaign, which decides whether it is allowed and says why not. It
- * also saves the Campaign to a file and loads one from a file, and shows the
- * Funding balance beside a button that opens the Launch manifest screen.
+ * speed choices to the game loop, and sends a choice to dismantle a Structure,
+ * to choose a Plant's recipe, to move the Mission Director into a Habitat, or
+ * to send the Lander, to the Campaign, which decides whether it is allowed
+ * and says why not. It also saves the Campaign to a file and loads one from
+ * a file, and shows the Funding balance beside a button that opens the
+ * Launch manifest screen.
  */
 export function createStatusPanel(
   container: HTMLElement,
   loop: GameLoop,
   campaign: Pick<
     Campaign,
-    "dismantleStructure" | "moveMissionDirectorIn" | "sendLander"
+    | "dismantleStructure"
+    | "moveMissionDirectorIn"
+    | "sendLander"
+    | "setPlantRecipe"
   >,
   saveFiles: SaveFiles,
   openLaunchManifest: () => void,
@@ -263,7 +268,12 @@ export function createStatusPanel(
   refusal.hidden = true;
   let refusalTimer: ReturnType<typeof setTimeout> | undefined;
   const showResult = (
-    result: DismantleResult | MoveInResult | SendLanderResult | LoadFileResult,
+    result:
+      | DismantleResult
+      | MoveInResult
+      | SendLanderResult
+      | SetRecipeResult
+      | LoadFileResult,
   ) => {
     clearTimeout(refusalTimer);
     refusal.hidden = result.ok;
@@ -285,11 +295,39 @@ export function createStatusPanel(
       readonly text: HTMLElement;
       readonly dismantle: HTMLButtonElement;
       readonly moveIn: HTMLButtonElement;
+      readonly recipe: HTMLSelectElement | undefined;
     }
   >();
-  const createStructureItem = (structureId: string) => {
+  const createStructureItem = (structure: StructureSnapshot) => {
+    const structureId = structure.id;
     const item = document.createElement("li");
     const text = document.createElement("span");
+    // The recipes of a Plant that has more than one, to choose from.
+    const recipes =
+      catalogue.structureTypes.find(
+        (type) => type.id === structure.structureTypeId,
+      )?.recipes ?? [];
+    let recipe: HTMLSelectElement | undefined;
+    if (recipes.length > 1) {
+      const select = document.createElement("select");
+      select.className = "status-panel__recipe";
+      select.setAttribute(
+        "aria-label",
+        `${structureLabel(structure.structureTypeId)} recipe`,
+      );
+      select.title =
+        "Choose what it makes. It switches in the next game-minute, with no work for the Robot.";
+      for (const { id, label } of recipes) {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = label;
+        select.append(option);
+      }
+      select.addEventListener("change", () => {
+        showResult(campaign.setPlantRecipe(structureId, select.value));
+      });
+      recipe = select;
+    }
     const dismantle = document.createElement("button");
     dismantle.type = "button";
     dismantle.className = "status-panel__dismantle";
@@ -309,9 +347,14 @@ export function createStatusPanel(
     moveIn.addEventListener("click", () => {
       showResult(campaign.moveMissionDirectorIn(structureId));
     });
-    item.append(text, moveIn, dismantle);
+    item.append(
+      text,
+      ...(recipe === undefined ? [] : [recipe]),
+      moveIn,
+      dismantle,
+    );
     structures.append(item);
-    return { item, text, dismantle, moveIn };
+    return { item, text, dismantle, moveIn, recipe };
   };
 
   // What each Robot is doing, its Condition, and whether it is repairing
@@ -487,7 +530,7 @@ export function createStatusPanel(
         seen.add(structure.id);
         let entry = structureItems.get(structure.id);
         if (entry === undefined) {
-          entry = createStructureItem(structure.id);
+          entry = createStructureItem(structure);
           structureItems.set(structure.id, entry);
         }
         const toBeDismantled = snapshot.dismantlings.some(
@@ -514,6 +557,14 @@ export function createStatusPanel(
           entry.text,
           `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.plant === undefined ? (structure.powered || broken ? "" : ", no power") : formatPlant(structure.plant)}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
         );
+        // The recipe it runs, which a refused choice leaves as it was.
+        if (
+          entry.recipe !== undefined &&
+          structure.recipeId !== undefined &&
+          entry.recipe.value !== structure.recipeId
+        ) {
+          entry.recipe.value = structure.recipeId;
+        }
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =
           toBeDismantled ||
@@ -556,6 +607,8 @@ export function createStatusPanel(
       }
     },
     startAfresh() {
+      for (const entry of structureItems.values()) entry.item.remove();
+      structureItems.clear();
       for (const items of [robotItems, machineItems, roverItems]) {
         for (const item of items.values()) item.remove();
         items.clear();

@@ -36,7 +36,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 function recipeOf(structureTypeId: string): PlantRecipe {
   const recipe = catalogue.structureTypes.find(
     (type) => type.id === structureTypeId,
-  )?.plant;
+  )?.recipes?.[0];
   if (recipe === undefined) throw new Error(`expected ${structureTypeId}`);
   return recipe;
 }

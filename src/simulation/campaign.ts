@@ -142,7 +142,14 @@ import {
   type ParkingSnapshot,
   type ParkingState,
 } from "./parking";
-import { isPlant, readPlant, runPlants, type PlantSnapshot } from "./plants";
+import {
+  isPlant,
+  readPlant,
+  runPlants,
+  setPlantRecipe,
+  type PlantSnapshot,
+  type SetRecipeResult,
+} from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
@@ -345,6 +352,11 @@ export interface StructureSnapshot {
    * runs.
    */
   readonly plant: PlantSnapshot | undefined;
+  /**
+   * The id of the recipe it runs, if it is a Plant: one of its type's
+   * recipes in the data catalogue. Undefined for any other Structure.
+   */
+  readonly recipeId: string | undefined;
 }
 
 /**
@@ -598,6 +610,13 @@ export interface Campaign {
    * away, and while the Robot is carrying the last ones set to the Lander.
    */
   loadExports(exports: readonly ExportLine[]): LoadExportsResult;
+  /**
+   * Has a commissioned Plant run another of its recipes, from the next
+   * game-minute on. It is a setting, not a Construction, so no Robot works
+   * on it. It is refused for a Structure that isn't a commissioned Plant,
+   * or a recipe the Plant doesn't have.
+   */
+  setPlantRecipe(structureId: string, recipeId: string): SetRecipeResult;
   /**
    * Starts an Expedition: the Robot finishes the Work Order it holds, then
    * drives the Rover off the map, and comes back some time later with
@@ -856,6 +875,16 @@ function campaignFrom(state: CampaignState): Campaign {
       const result = loadExports(state, exports);
       planExportLoading(state);
       return deepFreeze(result);
+    },
+    setPlantRecipe(structureId, recipeId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(setPlantRecipe(state, structureId, recipeId));
     },
     startExpedition() {
       if (state.ended !== undefined) {

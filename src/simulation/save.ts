@@ -1,6 +1,10 @@
 import { catalogue } from "../catalogue";
 import type { CampaignEnd, CampaignState } from "./campaign";
-import type { ConstructionStage, MachineStage } from "./construction";
+import type {
+  ConstructionStage,
+  MachineStage,
+  StructureState,
+} from "./construction";
 import type { DismantlingStage } from "./dismantling";
 import type { DeathCause } from "./events";
 import type { ExpeditionStage } from "./expeditions";
@@ -579,6 +583,38 @@ export const migrations: readonly Migration[] = [
     if (!isRecord(state)) return { ...document };
     return { ...document, state: { ...state, exportLoading: null } };
   },
+  // 24 to 25: a Plant can have several recipes, and runs the one chosen for
+  // it. Until now each ran its only one, which is now its default, so each
+  // runs that; any other Structure runs none. The defaults are those when
+  // format version 25 came in, so that changing them later doesn't change
+  // what this migration gives.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    const defaults: Record<string, string> = {
+      "extraction-plant": "oxygen",
+      "water-processing-plant": "water",
+      "vacuum-fabrication-plant": "wafers",
+      "circuit-board-plant": "circuit-boards",
+    };
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) => {
+          if (!isRecord(structure)) return structure;
+          const type = structure["structureTypeId"];
+          return {
+            ...structure,
+            recipeId:
+              typeof type === "string" ? (defaults[type] ?? null) : null,
+          };
+        }),
+      },
+    };
+  },
 ];
 
 /**
@@ -933,6 +969,44 @@ const componentCount = object({
 });
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
+
+/**
+ * A commissioned Structure, whose recipe must be one of its type's if it
+ * is a Plant, and none if it isn't.
+ */
+const structure: Decoder<StructureState> = (() => {
+  const fields = object({
+    id: text,
+    structureTypeId,
+    position: groundPosition,
+    powered: boolean,
+    lit: boolean,
+    storedKilowattHours: finiteNumber,
+    conditionPercent: finiteNumber,
+    dustCoatingPercent: finiteNumber,
+    recipeId: optional(text),
+  });
+  return (value, path) => {
+    const decoded = fields(value, path);
+    const recipes =
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.recipes ?? [];
+    const known =
+      recipes.length === 0
+        ? decoded.recipeId === undefined
+        : recipes.some((recipe) => recipe.id === decoded.recipeId);
+    if (!known) {
+      throw refuse(
+        at(path, "recipeId"),
+        recipes.length === 0
+          ? "isn't null, though the Structure isn't a Plant"
+          : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+      );
+    }
+    return decoded;
+  };
+})();
 
 const exportLine = object({
   resourceId: catalogueId(
@@ -1315,18 +1389,7 @@ const simulationState = object({
       failedCommissionings: wholeNumber,
     }),
   ),
-  structures: list(
-    object({
-      id: text,
-      structureTypeId,
-      position: groundPosition,
-      powered: boolean,
-      lit: boolean,
-      storedKilowattHours: finiteNumber,
-      conditionPercent: finiteNumber,
-      dustCoatingPercent: finiteNumber,
-    }),
-  ),
+  structures: list(structure),
   dismantlings: list(
     object({
       id: text,

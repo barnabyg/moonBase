@@ -24,13 +24,92 @@ export interface PlantSnapshot {
   readonly stoppedFor: PlantStop | undefined;
 }
 
-/** The recipe a type of Structure runs, if it is a Plant. */
-export function recipeOf(structureTypeId: string): PlantRecipe | undefined {
-  return findStructureType(structureTypeId)?.plant;
+export type SetRecipeRefusal =
+  "unknown-structure" | "not-a-plant" | "unknown-recipe" | "campaign-ended";
+
+export type SetRecipeResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: SetRecipeRefusal;
+      /** The reason in words the player can read. */
+      readonly message: string;
+    };
+
+/** The recipes a type of Structure can run, the default first: none unless it is a Plant. */
+export function recipesOf(structureTypeId: string): readonly PlantRecipe[] {
+  return findStructureType(structureTypeId)?.recipes ?? [];
+}
+
+/** The recipe a Structure runs, if it is a Plant: the one chosen for it, or else its default. */
+export function recipeOf(
+  structure: Pick<StructureState, "structureTypeId" | "recipeId">,
+): PlantRecipe | undefined {
+  const recipes = recipesOf(structure.structureTypeId);
+  return (
+    recipes.find((recipe) => recipe.id === structure.recipeId) ?? recipes[0]
+  );
+}
+
+/** The recipe a newly commissioned Structure runs: its type's default, if it is a Plant. */
+export function defaultRecipeId(structureTypeId: string): string | undefined {
+  return recipesOf(structureTypeId)[0]?.id;
 }
 
 export function isPlant(structure: Pick<StructureState, "structureTypeId">) {
-  return recipeOf(structure.structureTypeId) !== undefined;
+  return recipesOf(structure.structureTypeId).length > 0;
+}
+
+/**
+ * Has a commissioned Plant run one of its type's recipes from the next
+ * game-minute on, in place of the one it runs now. It is a setting, so no
+ * Robot works on it. A Structure that isn't a commissioned Plant, or a
+ * recipe its type doesn't have, is refused with the reason.
+ */
+export function setPlantRecipe(
+  state: CampaignState,
+  structureId: string,
+  recipeId: string,
+): SetRecipeResult {
+  const structure = state.structures.find(
+    (candidate) => candidate.id === structureId,
+  );
+  if (structure === undefined) {
+    return refuse(
+      "unknown-structure",
+      `There is no commissioned Structure "${structureId}".`,
+    );
+  }
+  const label = labelOf(structure.structureTypeId);
+  const recipes = recipesOf(structure.structureTypeId);
+  if (recipes.length === 0) {
+    return refuse(
+      "not-a-plant",
+      `The ${label} isn't a Plant, so it runs no recipe.`,
+    );
+  }
+  if (!recipes.some((recipe) => recipe.id === recipeId)) {
+    const choices = recipes.map((recipe) => recipe.label);
+    const last = choices.pop() ?? "";
+    const can =
+      choices.length === 0 ? last : `${choices.join(", ")} or ${last}`;
+    return refuse(
+      "unknown-recipe",
+      `The ${label} has no recipe "${recipeId}". It can run ${can}.`,
+    );
+  }
+  structure.recipeId = recipeId;
+  return { ok: true };
+}
+
+function labelOf(structureTypeId: string): string {
+  return (
+    findStructureType(structureTypeId)?.label.toLowerCase() ?? structureTypeId
+  );
+}
+
+function refuse(reason: SetRecipeRefusal, message: string): SetRecipeResult {
+  return { ok: false, reason, message };
 }
 
 /** How many kilograms of a bulk resource or life support stock the base has. */
@@ -79,7 +158,7 @@ export function wantsToRun(
   state: CampaignState,
   structure: StructureState,
 ): boolean {
-  const recipe = recipeOf(structure.structureTypeId);
+  const recipe = recipeOf(structure);
   return (
     recipe !== undefined &&
     !isBroken(structure) &&
@@ -89,20 +168,20 @@ export function wantsToRun(
 
 /** The power a Plant draws in a game-minute it runs, in kilowatts. */
 export function plantDrawKilowatts(
-  structure: Pick<StructureState, "structureTypeId">,
+  structure: Pick<StructureState, "structureTypeId" | "recipeId">,
 ): number {
-  return recipeOf(structure.structureTypeId)?.drawKilowatts ?? 0;
+  return recipeOf(structure)?.drawKilowatts ?? 0;
 }
 
 /**
- * Lets every Plant that had power this game-minute run its recipe for it,
- * as fast as its Condition allows: it takes its inputs from the base's
- * stocks and adds its outputs to them. With too little of an input left
- * for the whole game-minute, it runs for as much of it as that allows.
+ * Lets every Plant that had power this game-minute run the recipe chosen
+ * for it, as fast as its Condition allows: it takes its inputs from the
+ * base's stocks and adds its outputs to them. With too little of an input
+ * left for the whole game-minute, it runs for as much of it as that allows.
  */
 export function runPlants(state: CampaignState): void {
   for (const structure of state.structures) {
-    const recipe = recipeOf(structure.structureTypeId);
+    const recipe = recipeOf(structure);
     if (recipe === undefined || !structure.powered) continue;
     const rate = structurePerformance(structure) / 60;
     const share = Math.min(
@@ -153,7 +232,7 @@ function flowPerHour(
   flows: (recipe: PlantRecipe) => PlantRecipe["inputs"],
 ): number {
   return state.structures.reduce((sum, structure) => {
-    const recipe = recipeOf(structure.structureTypeId);
+    const recipe = recipeOf(structure);
     if (recipe === undefined || !structure.powered) return sum;
     const moved = flows(recipe)
       .filter((flow) => isSameResource(flow.resource, resource))
@@ -173,7 +252,7 @@ export function readPlant(
   state: CampaignState,
   structure: StructureState,
 ): PlantSnapshot | undefined {
-  const recipe = recipeOf(structure.structureTypeId);
+  const recipe = recipeOf(structure);
   if (recipe === undefined) return undefined;
   if (structure.powered) return { running: true, stoppedFor: undefined };
   if (isBroken(structure)) {

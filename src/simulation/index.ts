@@ -58,7 +58,12 @@ export type {
   StartExpeditionRefusal,
   StartExpeditionResult,
 } from "./expeditions";
-export type { PlantSnapshot, PlantStop } from "./plants";
+export type {
+  PlantSnapshot,
+  PlantStop,
+  SetRecipeRefusal,
+  SetRecipeResult,
+} from "./plants";
 export type { SelfRepairSnapshot } from "./self-repair";
 export type { StrikeTarget } from "./micrometeorites";
 export type { SpareComponentsForecast } from "./spare-forecast";

@@ -31,10 +31,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 const plantType = catalogue.structureTypes.find(
   (type) => type.id === "extraction-plant",
 );
-if (plantType?.plant === undefined) {
+// The default recipe, which a newly commissioned Plant runs.
+const recipe: PlantRecipe | undefined = plantType?.recipes?.[0];
+if (plantType === undefined || recipe === undefined) {
   throw new Error("expected an extraction plant");
 }
-const recipe: PlantRecipe = plantType.plant;
 const arraySite: GroundPosition = { x: 20, y: 12 };
 const plantSite: GroundPosition = { x: 30, y: 22 };
 const bankSite: GroundPosition = { x: -30, y: 4 };

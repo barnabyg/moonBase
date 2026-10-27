@@ -27,10 +27,15 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   };
 });
 
-function recipeOf(structureTypeId: string): PlantRecipe {
-  const recipe = catalogue.structureTypes.find(
+/** A Plant's recipe: the one given, or its default. */
+function recipeOf(structureTypeId: string, recipeId?: string): PlantRecipe {
+  const recipes = catalogue.structureTypes.find(
     (type) => type.id === structureTypeId,
-  )?.plant;
+  )?.recipes;
+  const recipe =
+    recipeId === undefined
+      ? recipes?.[0]
+      : recipes?.find((candidate) => candidate.id === recipeId);
   if (recipe === undefined) throw new Error(`expected ${structureTypeId}`);
   return recipe;
 }
@@ -167,8 +172,8 @@ describe("the vacuum fabrication plant", () => {
   });
 });
 
-describe("an extraction plant and a vacuum fabrication plant", () => {
-  const extraction = recipeOf("extraction-plant");
+describe("an extraction plant running for metals and silicon, and a vacuum fabrication plant", () => {
+  const extraction = recipeOf("extraction-plant", "metals-and-silicon");
   const siliconMadePerHour =
     extraction.outputs.find(
       (flow) =>
@@ -186,6 +191,11 @@ describe("an extraction plant and a vacuum fabrication plant", () => {
       ]),
       { regolith: 500, silicon: 0, wafers: 0 },
     );
+    const result = campaign.setPlantRecipe(
+      plantOf(campaign.snapshot(), "extraction-plant").id,
+      "metals-and-silicon",
+    );
+    expect(result).toEqual({ ok: true });
     const before = campaign.snapshot();
     expect(before.lunation.part).toBe("daylight");
 

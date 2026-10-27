@@ -618,25 +618,91 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("has an extraction plant that turns Regolith into oxygen, metals and silicon", () => {
-    const plant = catalogue.structureTypes.find(
-      (type) => type.id === "extraction-plant",
-    )?.plant;
+  describe("the extraction plant", () => {
+    const recipes =
+      catalogue.structureTypes.find((type) => type.id === "extraction-plant")
+        ?.recipes ?? [];
+    const recipeOf = (id: string) => recipes.find((recipe) => recipe.id === id);
+    const rateOf = (id: string, resource: string) =>
+      recipeOf(id)?.outputs.find((flow) =>
+        flow.resource.kind === "bulk-resource"
+          ? flow.resource.resourceId === resource
+          : flow.resource.stockId === resource,
+      )?.kilogramsPerHour ?? Number.NaN;
+    const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
+    const daylightHours = daylightEarthDays * 24;
+    // What the Mission Director breathes in a Lunation, which the plant has
+    // to make in its Daylight, the only time it runs.
+    const oxygenUsed =
+      (catalogue.lifeSupportStocks.find((stock) => stock.id === "oxygen")
+        ?.usePerEarthDayKilograms ?? Number.NaN) *
+      (daylightEarthDays + nightEarthDays);
+    const siliconTaken =
+      catalogue.structureTypes.find(
+        (type) => type.id === "vacuum-fabrication-plant",
+      )?.recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? Number.NaN;
 
-    expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
-      { kind: "bulk-resource", resourceId: "regolith" },
-    ]);
-    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
-      { kind: "life-support", stockId: "oxygen" },
-      { kind: "bulk-resource", resourceId: "metals" },
-      { kind: "bulk-resource", resourceId: "silicon" },
-    ]);
+    it("turns Regolith into oxygen, metals and silicon, by default mostly oxygen, or mostly metals and silicon", () => {
+      expect(recipes.map((recipe) => [recipe.id, recipe.label])).toEqual([
+        ["oxygen", "Oxygen"],
+        ["metals-and-silicon", "Metals and silicon"],
+      ]);
+      for (const recipe of recipes) {
+        expect(recipe.inputs.map((flow) => flow.resource)).toEqual([
+          { kind: "bulk-resource", resourceId: "regolith" },
+        ]);
+        expect(recipe.outputs.map((flow) => flow.resource)).toEqual([
+          { kind: "life-support", stockId: "oxygen" },
+          { kind: "bulk-resource", resourceId: "metals" },
+          { kind: "bulk-resource", resourceId: "silicon" },
+        ]);
+      }
+      for (const resource of ["metals", "silicon"]) {
+        expect(rateOf("oxygen", "oxygen")).toBeGreaterThan(
+          rateOf("oxygen", resource),
+        );
+        expect(rateOf("metals-and-silicon", resource)).toBeGreaterThan(
+          rateOf("metals-and-silicon", "oxygen"),
+        );
+      }
+    });
+
+    it("keeps the Mission Director self-sufficient in oxygen running for oxygen, but not for metals and silicon", () => {
+      expect(rateOf("oxygen", "oxygen") * daylightHours).toBeGreaterThan(
+        oxygenUsed,
+      );
+      expect(
+        rateOf("metals-and-silicon", "oxygen") * daylightHours,
+      ).toBeLessThan(oxygenUsed);
+    });
+
+    it("feeds a vacuum fabrication plant running for metals and silicon, but not for oxygen", () => {
+      expect(rateOf("metals-and-silicon", "silicon")).toBeGreaterThanOrEqual(
+        siliconTaken,
+      );
+      expect(rateOf("oxygen", "silicon")).toBeLessThan(siliconTaken);
+    });
+
+    it("can't do both: running for oxygen just long enough for self-sufficiency leaves too little Daylight for a vacuum fabrication plant's silicon", () => {
+      const oxygenRate = rateOf("oxygen", "oxygen");
+      const otherRate = rateOf("metals-and-silicon", "oxygen");
+      // The share of the Daylight it must run for oxygen.
+      const share =
+        (oxygenUsed / daylightHours - otherRate) / (oxygenRate - otherRate);
+      const silicon =
+        share * rateOf("oxygen", "silicon") +
+        (1 - share) * rateOf("metals-and-silicon", "silicon");
+
+      expect(share).toBeGreaterThan(0);
+      expect(share).toBeLessThan(1);
+      expect(silicon).toBeLessThan(siliconTaken * 0.9);
+    });
   });
 
   it("has a water-processing plant that turns water ice into water", () => {
     const plant = catalogue.structureTypes.find(
       (type) => type.id === "water-processing-plant",
-    )?.plant;
+    )?.recipes?.[0];
 
     expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
       { kind: "bulk-resource", resourceId: "water-ice" },
@@ -649,8 +715,10 @@ describe("the data catalogue", () => {
   describe("the vacuum fabrication plant", () => {
     const typeOf = (id: string) =>
       catalogue.structureTypes.find((type) => type.id === id);
-    const plant = typeOf("vacuum-fabrication-plant")?.plant;
-    const extraction = typeOf("extraction-plant")?.plant;
+    const plant = typeOf("vacuum-fabrication-plant")?.recipes?.[0];
+    const extraction = typeOf("extraction-plant")?.recipes?.find(
+      (recipe) => recipe.id === "metals-and-silicon",
+    );
 
     it("turns silicon into wafers, a bulk resource straight after silicon", () => {
       expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
@@ -663,7 +731,7 @@ describe("the data catalogue", () => {
       expect(ids.indexOf("wafers")).toBe(ids.indexOf("silicon") + 1);
     });
 
-    it("keeps up with roughly one extraction plant's silicon", () => {
+    it("keeps up with roughly one extraction plant's silicon, running for metals and silicon", () => {
       const made =
         extraction?.outputs.find(
           (flow) =>
@@ -685,16 +753,18 @@ describe("the data catalogue", () => {
         draw("habitat");
 
       expect(plant?.drawKilowatts).toBeLessThanOrEqual(spare);
-      expect(
-        (plant?.drawKilowatts ?? 0) + (extraction?.drawKilowatts ?? 0),
-      ).toBeGreaterThan(spare);
+      for (const recipe of typeOf("extraction-plant")?.recipes ?? []) {
+        expect(
+          (plant?.drawKilowatts ?? 0) + recipe.drawKilowatts,
+        ).toBeGreaterThan(spare);
+      }
     });
   });
 
   describe("the circuit board plant", () => {
     const typeOf = (id: string) =>
       catalogue.structureTypes.find((type) => type.id === id);
-    const plant = typeOf("circuit-board-plant")?.plant;
+    const plant = typeOf("circuit-board-plant")?.recipes?.[0];
     const rateOf = (
       flows: readonly ResourceFlow[] | undefined,
       resourceId: string,
@@ -720,9 +790,9 @@ describe("the data catalogue", () => {
       expect(ids.indexOf("circuit-boards")).toBe(ids.indexOf("wafers") + 1);
     });
 
-    it("keeps up with roughly one vacuum fabrication plant's wafers, and takes less metals than an extraction plant makes", () => {
+    it("keeps up with roughly one vacuum fabrication plant's wafers, and takes less metals than an extraction plant makes running for metals and silicon", () => {
       const wafersMade = rateOf(
-        typeOf("vacuum-fabrication-plant")?.plant?.outputs,
+        typeOf("vacuum-fabrication-plant")?.recipes?.[0]?.outputs,
         "wafers",
       );
       const wafersTaken = rateOf(plant?.inputs, "wafers");
@@ -730,7 +800,12 @@ describe("the data catalogue", () => {
       expect(wafersTaken).toBeLessThanOrEqual(wafersMade);
       expect(wafersTaken).toBeGreaterThanOrEqual(wafersMade * 0.75);
       expect(rateOf(plant?.inputs, "metals")).toBeLessThanOrEqual(
-        rateOf(typeOf("extraction-plant")?.plant?.outputs, "metals"),
+        rateOf(
+          typeOf("extraction-plant")?.recipes?.find(
+            (recipe) => recipe.id === "metals-and-silicon",
+          )?.outputs,
+          "metals",
+        ),
       );
     });
 
@@ -746,7 +821,13 @@ describe("the data catalogue", () => {
         "vacuum-fabrication-plant",
         "circuit-board-plant",
       ].reduce(
-        (sum, id) => sum + (typeOf(id)?.plant?.drawKilowatts ?? Infinity),
+        (sum, id) =>
+          sum +
+          Math.max(
+            ...(typeOf(id)?.recipes ?? []).map(
+              (recipe) => recipe.drawKilowatts,
+            ),
+          ),
         0,
       );
 
@@ -770,38 +851,54 @@ describe("the data catalogue", () => {
 
   describe.each(
     catalogue.structureTypes.flatMap((type) =>
-      type.plant === undefined ? [] : [[type.label, type] as const],
+      type.recipes === undefined ? [] : [[type.label, type] as const],
     ),
   )("the Plant %s", (_, type) => {
-    const plant = type.plant;
+    const recipes = type.recipes ?? [];
 
-    it("has a recipe of known resources, at positive rates, putting out less than it takes in", () => {
-      if (plant === undefined) throw new Error("expected a Plant");
-      const known = (flow: (typeof plant.inputs)[number]) =>
-        flow.resource.kind === "bulk-resource"
-          ? catalogue.bulkResources.some(
-              (resource) =>
-                flow.resource.kind === "bulk-resource" &&
-                resource.id === flow.resource.resourceId,
-            )
-          : catalogue.lifeSupportStocks.some(
-              (stock) =>
-                flow.resource.kind === "life-support" &&
-                stock.id === flow.resource.stockId,
-            );
-      expect(plant.inputs.length).toBeGreaterThan(0);
-      expect(plant.outputs.length).toBeGreaterThan(0);
-      for (const flow of [...plant.inputs, ...plant.outputs]) {
-        expect(known(flow)).toBe(true);
-        expect(flow.kilogramsPerHour).toBeGreaterThan(0);
+    it("has at least one recipe, each with an id of its own and a label", () => {
+      expect(recipes.length).toBeGreaterThan(0);
+      expect(new Set(recipes.map((recipe) => recipe.id)).size).toBe(
+        recipes.length,
+      );
+      expect(new Set(recipes.map((recipe) => recipe.label)).size).toBe(
+        recipes.length,
+      );
+      for (const recipe of recipes) {
+        expect(recipe.id).not.toBe("");
+        expect(recipe.label).not.toBe("");
       }
-      const total = (flows: typeof plant.inputs) =>
-        flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
-      expect(total(plant.outputs)).toBeLessThanOrEqual(total(plant.inputs));
     });
 
+    it.each(recipes.map((recipe) => [recipe.label, recipe] as const))(
+      "has a recipe %s of known resources, at positive rates, putting out less than it takes in, and drawing power",
+      (_label, plant) => {
+        const known = (flow: (typeof plant.inputs)[number]) =>
+          flow.resource.kind === "bulk-resource"
+            ? catalogue.bulkResources.some(
+                (resource) =>
+                  flow.resource.kind === "bulk-resource" &&
+                  resource.id === flow.resource.resourceId,
+              )
+            : catalogue.lifeSupportStocks.some(
+                (stock) =>
+                  flow.resource.kind === "life-support" &&
+                  stock.id === flow.resource.stockId,
+              );
+        expect(plant.inputs.length).toBeGreaterThan(0);
+        expect(plant.outputs.length).toBeGreaterThan(0);
+        for (const flow of [...plant.inputs, ...plant.outputs]) {
+          expect(known(flow)).toBe(true);
+          expect(flow.kilogramsPerHour).toBeGreaterThan(0);
+        }
+        const total = (flows: typeof plant.inputs) =>
+          flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
+        expect(total(plant.outputs)).toBeLessThanOrEqual(total(plant.inputs));
+        expect(plant.drawKilowatts).toBeGreaterThan(0);
+      },
+    );
+
     it("draws power only while it runs, and wears down by Dust while it operates", () => {
-      expect(plant?.drawKilowatts).toBeGreaterThan(0);
       expect(type.power).toEqual({
         generationKilowatts: 0,
         storageKilowattHours: 0,
