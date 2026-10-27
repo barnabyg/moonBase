@@ -20,7 +20,7 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
 }) => {
   await page.goto("/?seed=1");
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const science = page.getByRole("status", { name: "Science" });
+  const science = page.getByRole("status", { name: "Science", exact: true });
   await page
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
@@ -55,7 +55,10 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
   // A starting Design is unlocked, and has no Unlock button.
   const solar = power.getByRole("row", { name: /^Solar arrays/ });
   await expect(solar.getByRole("cell").nth(0)).toHaveText("Starting");
-  await expect(solar.getByRole("cell").nth(2)).toHaveText("Unlocked");
+  // As the player reads it, leaving out the hidden Unlock button.
+  await expect(solar.getByRole("cell").nth(2)).toHaveText("Unlocked", {
+    useInnerText: true,
+  });
   // One beyond them, with its cost, what it needs first and why it is out of reach.
   const large = power.getByRole("row", { name: /Large battery banks/ });
   await expect(large.getByRole("cell").nth(0)).toHaveText("25 Science");

@@ -70,7 +70,10 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await expect(running).toHaveText("Task none running");
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
-  await expect(firstTask.nth(2)).toHaveText("Completed");
+  // As the player reads it, leaving out the hidden Start button.
+  await expect(firstTask.nth(2)).toHaveText("Completed", {
+    useInnerText: true,
+  });
   await expect(
     screen.getByRole("button", { name: "Start Regolith sample analysis" }),
   ).toBeHidden();
