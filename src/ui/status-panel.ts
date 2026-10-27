@@ -397,7 +397,11 @@ export function createStatusPanel(
       );
       setText(
         lander,
-        formatLander(snapshot.lander, snapshot.clock.elapsedMinutes),
+        formatLander(
+          snapshot.lander,
+          snapshot.clock.elapsedMinutes,
+          snapshot.exports.aboard,
+        ),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
       setText(

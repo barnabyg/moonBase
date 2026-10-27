@@ -12,6 +12,7 @@ import {
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
+import { sellExports, takeExportsAboard } from "./exports";
 import { deliverLaunch, payForLaunch } from "./launch-manifest";
 import { blastPlumeEjecta } from "./plume-ejecta";
 
@@ -37,6 +38,11 @@ export interface LanderState {
    * stockpile: only ever after it has landed on a landing pad.
    */
   cargo: ComponentCount[];
+  /**
+   * The Exports aboard it, in catalogue order: from its take-off until they
+   * are sold as it reaches Earth.
+   */
+  exports: { resourceId: string; kilograms: number }[];
 }
 
 export interface LanderSnapshot {
@@ -104,10 +110,11 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * Flies the Lander through the game-minute that has just passed: it takes
  * off in the first game-minute after it was sent, and each leg of its round
  * trip gives way to the next as it ends, until it lands: on the landing pad,
- * if one is working, or else at the landing site. It pays for the Launch
- * manifest as it leaves Earth, and delivers it as it lands. Taking off or
- * landing anywhere but on a working landing pad blasts Plume Ejecta over the
- * Structures round it.
+ * if one is working, or else at the landing site. It takes the Exports to
+ * load aboard as it takes off, and sells them as it reaches Earth. It pays
+ * for the Launch manifest as it leaves Earth, after the sale, and delivers
+ * it as it lands. Taking off or landing anywhere but on a working landing
+ * pad blasts Plume Ejecta over the Structures round it.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -119,7 +126,7 @@ export function flyLander(state: CampaignState): GameEvent[] {
   ) {
     const fromPad = padAt(state, state.lander.position) !== undefined;
     return [
-      { kind: "lander-took-off", atMinute },
+      { kind: "lander-took-off", atMinute, exports: takeExportsAboard(state) },
       ...(fromPad ? [] : blastPlumeEjecta(state, state.lander.position)),
     ];
   }
@@ -127,7 +134,9 @@ export function flyLander(state: CampaignState): GameEvent[] {
   switch (trip.leg) {
     case "travelling-to-earth":
       state.lander.trip = startLeg("turnaround", atMinute);
-      return [{ kind: "lander-reached-earth", atMinute }];
+      return [
+        { kind: "lander-reached-earth", atMinute, ...sellExports(state) },
+      ];
     case "turnaround":
       state.lander.trip = startLeg("travelling-to-moon", atMinute);
       return [

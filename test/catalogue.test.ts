@@ -212,6 +212,38 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("gives the Lander a Return Mass well short of a Launch's Payload Mass", () => {
+    expect(catalogue.lander.returnMassKilograms).toBeGreaterThan(0);
+    expect(catalogue.lander.returnMassKilograms).toBeLessThan(
+      catalogue.launch.payloadMassLimitKilograms,
+    );
+  });
+
+  it("lists the Exports, wafers among them, each a different bulk resource with a price per kilogram", () => {
+    const { exports } = catalogue;
+    const ids = exports.map((sold) => sold.resourceId);
+
+    expect(ids).toContain("wafers");
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const sold of exports) {
+      expect(catalogue.bulkResources.map((resource) => resource.id)).toContain(
+        sold.resourceId,
+      );
+      expect(sold.priceMillionDollarsPerKilogram).toBeGreaterThan(0);
+    }
+  });
+
+  it("sells a full Return Mass of wafers for no more than a Launch's fee, so wafers alone never pay for what a Launch brings", () => {
+    const wafers = catalogue.exports.find(
+      (sold) => sold.resourceId === "wafers",
+    );
+
+    expect(
+      (wafers?.priceMillionDollarsPerKilogram ?? Infinity) *
+        catalogue.lander.returnMassKilograms,
+    ).toBeLessThanOrEqual(catalogue.launch.feeMillionDollars);
+  });
+
   it("gives the Robot a positive walking speed, working gap and cable laying speed", () => {
     expect(catalogue.robot.walkingSpeedMetresPerHour).toBeGreaterThan(0);
     expect(catalogue.robot.workingGapMetres).toBeGreaterThan(0);

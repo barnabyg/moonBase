@@ -20,6 +20,13 @@ import {
   type BulkResourceForecast,
 } from "./bulk-forecast";
 import { readClock, type ClockSnapshot } from "./clock";
+import {
+  loadExports,
+  readExports,
+  type ExportLine,
+  type ExportsSnapshot,
+  type LoadExportsResult,
+} from "./exports";
 import { structurePerformance, wearStructures } from "./condition";
 import { coatSolarArrays } from "./dust-coating";
 import {
@@ -458,6 +465,8 @@ export interface Snapshot {
   readonly fundingMillionDollars: number;
   /** What the next Launch is to bring from Earth, and what that comes to. */
   readonly launchManifest: LaunchManifestSnapshot;
+  /** The Exports to load onto the Lander, those aboard it, and what they come to. */
+  readonly exports: ExportsSnapshot;
   /**
    * Where the Lander's next take-off or landing will blast Plume Ejecta,
    * and how far it reaches, for placing Structures clear of it.
@@ -567,6 +576,14 @@ export interface Campaign {
    */
   setLaunchManifest(manifest: readonly ManifestLine[]): ManifestResult;
   /**
+   * Sets the kilograms of each Export the Lander is to carry when it next
+   * takes off, in place of those set before, to be sold when it reaches
+   * Earth. They stay in the base's stock until then. It is refused over the
+   * Lander's Return Mass or what the base has in stock, and while the Lander
+   * is away.
+   */
+  loadExports(exports: readonly ExportLine[]): LoadExportsResult;
+  /**
    * Starts an Expedition: the Robot finishes the Work Order it holds, then
    * drives the Rover off the map, and comes back some time later with
    * water ice. It is refused while one is under way or the Rover is Broken.
@@ -614,6 +631,11 @@ export interface CampaignState {
   fundingMillionDollars: number;
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
+  /**
+   * What the Lander is to carry when it next takes off, in catalogue order,
+   * each Export once with an amount above none.
+   */
+  exportsToLoad: { resourceId: string; kilograms: number }[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -649,6 +671,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
       position: { ...landingSite.landerPosition },
       trip: undefined,
       cargo: [],
+      exports: [],
     },
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
@@ -659,6 +682,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     spareComponentsWarnedMinutes: undefined,
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
+    exportsToLoad: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -800,6 +824,16 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(setLaunchManifest(state, manifest));
     },
+    loadExports(exports) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(loadExports(state, exports));
+    },
     startExpedition() {
       if (state.ended !== undefined) {
         return deepFreeze({
@@ -852,6 +886,7 @@ function campaignFrom(state: CampaignState): Campaign {
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
         launchManifest: readLaunchManifest(state),
+        exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
         robots: state.robots.map((robot) => ({

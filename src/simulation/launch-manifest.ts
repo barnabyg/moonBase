@@ -1,5 +1,6 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { valueAboard } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
 
 /** How many of a Launch item the manifest asks for. */
@@ -45,9 +46,11 @@ export type ManifestResult =
 
 /**
  * Makes the manifest the Launch manifest, if a Launch can carry all of it
- * and the Funding balance can pay for it; otherwise leaves the manifest as
- * it was and says which limit it would go over. Once the Lander has left
- * Earth with the manifest, it is locked until the Lander lands.
+ * and the Funding balance can pay for it, counting what any Exports aboard
+ * the Lander will sell for, as they are sold before it is paid for;
+ * otherwise leaves the manifest as it was and says which limit it would go
+ * over. Once the Lander has left Earth with the manifest, it is locked until
+ * the Lander lands.
  */
 export function setLaunchManifest(
   state: CampaignState,
@@ -89,10 +92,15 @@ export function setLaunchManifest(
       `That would bring the manifest's Payload Mass to ${payloadMassKilograms} kg, over the Launch's limit of ${limit} kg.`,
     );
   }
-  if (costMillionDollars > state.fundingMillionDollars) {
+  const exportsValue = valueAboard(state);
+  if (costMillionDollars > state.fundingMillionDollars + exportsValue) {
+    const exports =
+      exportsValue === 0
+        ? ""
+        : ` and the ${millionDollars(exportsValue)} the Exports aboard will sell for`;
     return refuse(
       "over-funding",
-      `That would bring the manifest's cost to $${costMillionDollars}M, more than the Funding balance of $${state.fundingMillionDollars}M.`,
+      `That would bring the manifest's cost to ${millionDollars(costMillionDollars)}, more than the Funding balance of ${millionDollars(state.fundingMillionDollars)}${exports}.`,
     );
   }
   state.launchManifest = items;
@@ -170,6 +178,11 @@ function totals(items: readonly ManifestLine[]): {
     costMillionDollars:
       items.length === 0 ? 0 : catalogue.launch.feeMillionDollars + price,
   };
+}
+
+/** An amount of money as a refusal gives it, for example "$12.5M", to the nearest $0.1M. */
+function millionDollars(value: number): string {
+  return `$${Math.round(value * 10) / 10}M`;
 }
 
 function findLaunchItem(id: string): LaunchItem | undefined {

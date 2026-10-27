@@ -8,6 +8,7 @@ export type {
   DiggingRules,
   DustCoatingRules,
   ExpeditionRules,
+  Export,
   GameSpeed,
   GroundPosition,
   LaunchItem,

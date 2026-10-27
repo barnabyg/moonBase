@@ -27,6 +27,11 @@ export interface Catalogue {
      * at the Lander and unloading at the stockpile. Walking comes on top.
      */
     readonly cargoHandlingHours: number;
+    /**
+     * The most mass of Exports the Lander can carry off the Moon each time
+     * it leaves. It is fixed: making propellant at the base doesn't raise it.
+     */
+    readonly returnMassKilograms: number;
   };
   /**
    * The base's stock of Components, kept on the ground beside the landing
@@ -95,6 +100,11 @@ export interface Catalogue {
    * in kilograms, in the order the status panel shows them.
    */
   readonly bulkResources: readonly BulkResource[];
+  /**
+   * The bulk resources the base can sell off the Moon for Funding, in the
+   * order the Launch manifest screen shows them.
+   */
+  readonly exports: readonly Export[];
   readonly digging: DiggingRules;
   readonly componentTypes: readonly ComponentType[];
   /** The Structures that can be planned, in the order the build menu offers them. */
@@ -461,6 +471,15 @@ export interface BulkResource {
 }
 
 /**
+ * A bulk resource the base can sell as an Export: loaded onto the Lander
+ * within its Return Mass, and sold at a fixed price when it reaches Earth.
+ */
+export interface Export {
+  readonly resourceId: string;
+  readonly priceMillionDollarsPerKilogram: number;
+}
+
+/**
  * Digging: whenever no Construction needs it, a Machine digs a bulk
  * resource from the ground beside the stockpile, until the base's stock of
  * it reaches a level.
@@ -618,12 +637,17 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 30,
+  version: 31,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
     roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
     cargoHandlingHours: 1,
+    // About what the last crewed landing brought home in rock samples, and
+    // a little less than a vacuum fabrication plant makes running through a
+    // Lunation's Daylight, so that a base making more than one plant's
+    // wafers, or keeping them back, runs up against it.
+    returnMassKilograms: 100,
   },
   stockpile: { footprintRadiusMetres: 1.5 },
   landingSite: {
@@ -717,6 +741,13 @@ export const catalogue: Catalogue = {
     { id: "wafers", label: "Wafers" },
     { id: "water-ice", label: "Water ice" },
   ],
+  // A full Return Mass of wafers sells for $150M, the Launch fee. A vacuum
+  // fabrication plant, running through the Daylight, makes about that much
+  // in a Lunation, so it earns back its $65M of Components, the $11M second
+  // solar array it needs and the Launch that brought them in a Lunation or
+  // two. But wafers alone pay for a Launch's flight and nothing it brings:
+  // circuit boards are worth more for their mass.
+  exports: [{ resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 }],
   // About a day's digging fills it, wearing the excavator down by some 8
   // percentage points.
   digging: {

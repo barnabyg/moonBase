@@ -1242,3 +1242,77 @@ describe("the sample save of format version 21", () => {
     expect(bulkOf(campaign, "silicon")).toBeGreaterThan(0);
   });
 });
+
+describe("the sample saves from before Exports", () => {
+  it.each(["version-1.moonbase", "version-17.moonbase", "version-21.moonbase"])(
+    "%s loads with no Exports to load and none aboard the Lander",
+    (name) => {
+      expect(loadSample(name).snapshot().exports).toEqual({
+        toLoad: [],
+        massKilograms: 0,
+        valueMillionDollars: 0,
+        aboard: [],
+        valueAboardMillionDollars: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 22", () => {
+  const waferPrice =
+    catalogue.exports.find((sold) => sold.resourceId === "wafers")
+      ?.priceMillionDollarsPerKilogram ?? Number.NaN;
+
+  it("loads with the Mission Director in the Habitat, wafers in stock and 30 kg of them to load onto the Lander", () => {
+    const state = loadSample("version-22.moonbase").snapshot();
+
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.lander.state).toBe("landed-free");
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "wafers")
+        ?.kilograms,
+    ).toBe(46.5);
+    expect(state.exports).toEqual({
+      toLoad: [{ resourceId: "wafers", kilograms: 30 }],
+      massKilograms: 30,
+      valueMillionDollars: 30 * waferPrice,
+      aboard: [],
+      valueAboardMillionDollars: 0,
+    });
+  });
+
+  it("plays on: the Lander takes the wafers aboard as it takes off, and sells them as it reaches Earth", () => {
+    const campaign = loadSample("version-22.moonbase");
+    const funding = campaign.snapshot().fundingMillionDollars;
+    expect(campaign.sendLander()).toEqual({ ok: true });
+
+    const events: GameEvent[] = [];
+    for (
+      let skips = 0;
+      !events.some((event) => event.kind === "lander-reached-earth");
+      skips++
+    ) {
+      if (skips > 100) throw new Error("The Lander never reached Earth.");
+      events.push(...campaign.advanceToNextEvent());
+    }
+
+    const wafers = [{ resourceId: "wafers", kilograms: 30 }];
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "lander-took-off", exports: wafers }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "lander-reached-earth",
+        sold: wafers,
+        earnedMillionDollars: 30 * waferPrice,
+      }),
+    );
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.fundingMillionDollars).toBe(funding + 30 * waferPrice);
+    expect(
+      state.bulkResources.find((stock) => stock.resourceId === "wafers")
+        ?.kilograms,
+    ).toBe(16.5);
+  });
+});

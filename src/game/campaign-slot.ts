@@ -25,6 +25,7 @@ export function createCampaignSlot(first: Campaign): CampaignSlot {
       current.moveMissionDirectorIn(habitatId),
     sendLander: () => current.sendLander(),
     setLaunchManifest: (manifest) => current.setLaunchManifest(manifest),
+    loadExports: (exports) => current.loadExports(exports),
     startExpedition: () => current.startExpedition(),
     forecasts: () => current.forecasts(),
     snapshot: () => current.snapshot(),

@@ -522,6 +522,21 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 21 to 22: Exports, which the player sets to load onto the Lander and it
+  // carries to Earth to sell. There were none before, to load or aboard.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { lander } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        lander: isRecord(lander) ? { ...lander, exports: [] } : lander,
+        exportsToLoad: [],
+      },
+    };
+  },
 ];
 
 /**
@@ -877,6 +892,14 @@ const componentCount = object({
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
+const exportLine = object({
+  resourceId: catalogueId(
+    catalogue.exports.map((sold) => ({ id: sold.resourceId })),
+    "Export",
+  ),
+  kilograms: amount,
+});
+
 const missionDirector: Decoder<MissionDirectorResidence> = tagged("residence", {
   lander: object({ residence: exactly("lander") }),
   habitat: object({
@@ -1121,6 +1144,7 @@ const simulationState = object({
       }),
     ),
     cargo: list(componentCount),
+    exports: list(exportLine),
   }),
   missionDirector,
   lifeSupport: list(
@@ -1151,6 +1175,7 @@ const simulationState = object({
       count: wholeNumber,
     }),
   ),
+  exportsToLoad: list(exportLine),
   ended: optional(campaignEnd),
   robots: list(
     object({

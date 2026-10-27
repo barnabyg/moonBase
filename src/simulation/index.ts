@@ -39,6 +39,12 @@ export type {
   ManifestRefusal,
   ManifestResult,
 } from "./launch-manifest";
+export type {
+  ExportLine,
+  ExportsSnapshot,
+  LoadExportsRefusal,
+  LoadExportsResult,
+} from "./exports";
 export type { LoadRefusal } from "./save";
 export type { PlumeEjectaDamage, PlumeEjectaSnapshot } from "./plume-ejecta";
 export type { UnloadingSnapshot } from "./unloading";

@@ -1,4 +1,5 @@
 import type { ComponentCount } from "../catalogue";
+import type { ExportLine } from "./exports";
 import type { ManifestLine } from "./launch-manifest";
 import type { MaintenanceSubject } from "./maintenance";
 import type { StrikeTarget } from "./micrometeorites";
@@ -74,12 +75,23 @@ export type GameEvent =
       readonly atMinute: number;
     }
   | {
-      /**
-       * The Lander has taken off for Earth ("lander-took-off"), or arrived
-       * there for turnaround ("lander-reached-earth").
-       */
-      readonly kind: "lander-took-off" | "lander-reached-earth";
+      /** The Lander has taken off for Earth, with the Exports to load aboard. */
+      readonly kind: "lander-took-off";
       readonly atMinute: number;
+      /** The Exports that went aboard from the base's stock: none if there were none to load. */
+      readonly exports: readonly ExportLine[];
+    }
+  | {
+      /**
+       * The Lander has arrived on Earth for turnaround, and the Exports
+       * aboard have been sold, raising the Funding.
+       */
+      readonly kind: "lander-reached-earth";
+      readonly atMinute: number;
+      /** The Exports sold, in catalogue order: none if nothing was aboard. */
+      readonly sold: readonly ExportLine[];
+      /** The Funding they earned. */
+      readonly earnedMillionDollars: number;
     }
   | {
       /** The Lander has left Earth for the Moon, with the Launch manifest paid for and locked. */

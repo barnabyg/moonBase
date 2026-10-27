@@ -1,0 +1,200 @@
+import { catalogue, type Export } from "../catalogue";
+import { addBulk, bulkInStock } from "./bulk-resources";
+import type { CampaignState } from "./campaign";
+
+/** How many kilograms of an Export the Lander is to carry, or carries. */
+export interface ExportLine {
+  readonly resourceId: string;
+  readonly kilograms: number;
+}
+
+/** The Exports to load onto the Lander, those aboard it, and what they come to. */
+export interface ExportsSnapshot {
+  /**
+   * What the Lander is to carry when it next takes off, in catalogue order,
+   * each Export once with an amount above none. They stay in the base's
+   * stock until then.
+   */
+  readonly toLoad: readonly ExportLine[];
+  /** The mass of the Exports to load, against the Lander's Return Mass. */
+  readonly massKilograms: number;
+  /** What the Exports to load would sell for. */
+  readonly valueMillionDollars: number;
+  /** The Exports aboard the Lander, from its take-off until they are sold as it reaches Earth. */
+  readonly aboard: readonly ExportLine[];
+  /** What the Exports aboard will sell for: nothing once they are sold. */
+  readonly valueAboardMillionDollars: number;
+}
+
+export type LoadExportsRefusal =
+  | "unknown-export"
+  | "invalid-amount"
+  | "over-return-mass"
+  | "over-stock"
+  | "lander-away"
+  | "campaign-ended";
+
+export type LoadExportsResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: LoadExportsRefusal;
+      /** The reason in words the player can read. */
+      readonly message: string;
+    };
+
+/**
+ * Makes these the Exports the Lander is to carry when it next takes off, if
+ * they fit within its Return Mass and the base has them in stock; otherwise
+ * leaves the Exports to load as they were and says why not. They can only
+ * be set while the Lander is landed, and stay in the base's stock until it
+ * takes off.
+ */
+export function loadExports(
+  state: CampaignState,
+  exports: readonly ExportLine[],
+): LoadExportsResult {
+  if (state.lander.trip !== undefined) {
+    return refuse(
+      "lander-away",
+      "The Lander is away. Exports can be loaded once it has landed.",
+    );
+  }
+  const lines: { resourceId: string; kilograms: number }[] = [];
+  for (const { resourceId, kilograms } of exports) {
+    if (findExport(resourceId) === undefined) {
+      return refuse(
+        "unknown-export",
+        `The base can't sell anything called "${resourceId}" as an Export.`,
+      );
+    }
+    if (!Number.isFinite(kilograms) || kilograms < 0) {
+      return refuse(
+        "invalid-amount",
+        "How many kilograms of an Export the Lander carries must be a number from 0 up.",
+      );
+    }
+    const line = lines.find((other) => other.resourceId === resourceId);
+    if (line === undefined) lines.push({ resourceId, kilograms });
+    else line.kilograms += kilograms;
+  }
+  const toLoad = inCatalogueOrder(lines);
+  const mass = massOf(toLoad);
+  const limit = catalogue.lander.returnMassKilograms;
+  if (mass > limit) {
+    return refuse(
+      "over-return-mass",
+      `That would bring the Exports to ${kilogramsInWords(mass)} kg, over the Lander's Return Mass of ${limit} kg.`,
+    );
+  }
+  for (const { resourceId, kilograms } of toLoad) {
+    const inStock = bulkInStock(state, resourceId);
+    if (kilograms > inStock) {
+      return refuse(
+        "over-stock",
+        `That would load ${kilogramsInWords(kilograms)} kg of ${labelOf(resourceId).toLowerCase()}, more than the ${kilogramsInWords(inStock)} kg in stock.`,
+      );
+    }
+  }
+  state.exportsToLoad = toLoad;
+  return { ok: true };
+}
+
+/**
+ * Takes the Exports to load out of the base's stock and aboard the Lander
+ * as it takes off, or as much of each as there is in stock if it has fallen
+ * since they were set, and returns what went aboard. The Exports to load
+ * are then none, until the player sets more.
+ */
+export function takeExportsAboard(state: CampaignState): ExportLine[] {
+  const aboard = state.exportsToLoad.flatMap(({ resourceId, kilograms }) => {
+    const taken = Math.min(kilograms, bulkInStock(state, resourceId));
+    addBulk(state, resourceId, -taken);
+    return taken > 0 ? [{ resourceId, kilograms: taken }] : [];
+  });
+  state.exportsToLoad = [];
+  state.lander.exports = inCatalogueOrder([...state.lander.exports, ...aboard]);
+  return aboard;
+}
+
+/**
+ * Sells everything aboard the Lander at its catalogue price as it reaches
+ * Earth, raising the Funding by the total, and returns what was sold and
+ * for how much.
+ */
+export function sellExports(state: CampaignState): {
+  sold: ExportLine[];
+  earnedMillionDollars: number;
+} {
+  const sold = state.lander.exports;
+  const earnedMillionDollars = valueOf(sold);
+  state.fundingMillionDollars += earnedMillionDollars;
+  state.lander.exports = [];
+  return { sold, earnedMillionDollars };
+}
+
+/** What the Exports aboard the Lander will sell for as it reaches Earth. */
+export function valueAboard(state: CampaignState): number {
+  return valueOf(state.lander.exports);
+}
+
+export function readExports(state: CampaignState): ExportsSnapshot {
+  return {
+    toLoad: state.exportsToLoad.map((line) => ({ ...line })),
+    massKilograms: massOf(state.exportsToLoad),
+    valueMillionDollars: valueOf(state.exportsToLoad),
+    aboard: state.lander.exports.map((line) => ({ ...line })),
+    valueAboardMillionDollars: valueAboard(state),
+  };
+}
+
+/**
+ * The lines in the order the catalogue lists the Exports, each once with
+ * their amounts added together, leaving out any of none.
+ */
+function inCatalogueOrder(
+  lines: readonly ExportLine[],
+): { resourceId: string; kilograms: number }[] {
+  return catalogue.exports.flatMap(({ resourceId }) => {
+    const kilograms = lines
+      .filter((line) => line.resourceId === resourceId)
+      .reduce((total, line) => total + line.kilograms, 0);
+    return kilograms > 0 ? [{ resourceId, kilograms }] : [];
+  });
+}
+
+function massOf(lines: readonly ExportLine[]): number {
+  return lines.reduce((total, line) => total + line.kilograms, 0);
+}
+
+function valueOf(lines: readonly ExportLine[]): number {
+  return lines.reduce(
+    (total, { resourceId, kilograms }) =>
+      total +
+      (findExport(resourceId)?.priceMillionDollarsPerKilogram ?? 0) * kilograms,
+    0,
+  );
+}
+
+/** An amount in kilograms, to the nearest tenth, as a refusal gives it. */
+function kilogramsInWords(kilograms: number): string {
+  return String(Math.round(kilograms * 10) / 10);
+}
+
+function labelOf(resourceId: string): string {
+  return (
+    catalogue.bulkResources.find((resource) => resource.id === resourceId)
+      ?.label ?? resourceId
+  );
+}
+
+function findExport(resourceId: string): Export | undefined {
+  return catalogue.exports.find((sold) => sold.resourceId === resourceId);
+}
+
+function refuse(
+  reason: LoadExportsRefusal,
+  message: string,
+): LoadExportsResult {
+  return { ok: false, reason, message };
+}
