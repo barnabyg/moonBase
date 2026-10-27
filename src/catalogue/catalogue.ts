@@ -192,7 +192,7 @@ export interface Catalogue {
    */
   readonly spareComponentWarningEarthDaysLeft: readonly number[];
   /**
-   * The Milestones, in the order the status panel offers them as goals.
+   * The Milestones, in the order the status panel offers them.
    * They are guidance only: they carry no rewards and never end the
    * Campaign.
    */
@@ -800,7 +800,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 45,
+  version: 46,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1235,11 +1235,12 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.2,
       dustWearPercentPerHour: 0.02,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // The heaters that keep the cells warm enough to work.
+      // The heaters that keep the cells warm enough to work: three times a
+      // battery bank's, for four times the storage.
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 240,
-        drawKilowatts: 0.4,
+        drawKilowatts: 0.06,
         nightDrawKilowatts: 0,
       },
       lightRadiusMetres: 0,
@@ -2970,7 +2971,7 @@ export const catalogue: Catalogue = {
     {
       id: "oxygen-self-sufficient",
       label: "Oxygen self-sufficiency",
-      hint: "Keep an extraction plant making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
+      hint: "Keep the extraction plant the first Launch brought making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
       condition: { kind: "self-sufficient", stockId: "oxygen" },
     },
     {

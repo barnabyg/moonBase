@@ -1263,6 +1263,20 @@ describe("the data catalogue", () => {
       });
     });
 
+    it("draws more for its heaters than a battery bank does, but less for each kilowatt-hour it stores", () => {
+      const { power: largePower } = large;
+      const { power: smallPower } = small;
+
+      expect(largePower.drawKilowatts).toBeGreaterThan(
+        smallPower.drawKilowatts,
+      );
+      expect(
+        largePower.drawKilowatts / largePower.storageKilowattHours,
+      ).toBeLessThan(
+        smallPower.drawKilowatts / smallPower.storageKilowattHours,
+      );
+    });
+
     it("stores at least three times what a battery bank does, for less mass and less money for each kilowatt-hour", () => {
       const storage = (type: StructureType) => type.power.storageKilowattHours;
 

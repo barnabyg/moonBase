@@ -35,6 +35,7 @@ function findMilestone(id: string): Milestone | undefined {
   return catalogue.milestones.find((milestone) => milestone.id === id);
 }
 
+/** The Milestones reached, and the ones to aim for now and next. */
 export function readMilestones(state: CampaignState): MilestonesSnapshot {
   const [currentId, nextId] = catalogue.milestones
     .filter((milestone) => !state.reachedMilestoneIds.includes(milestone.id))

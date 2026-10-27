@@ -68,7 +68,7 @@ Science unlocks Designs in the Tech Tree. Everything that can be built or shippe
 
 Designs control what can be shipped and built. Every Launch item and Structure type belongs to one Design in the data catalogue, and one whose Design isn't unlocked is left off the Launch manifest screen and the build menu; it appears in both as soon as its Design is unlocked. Putting one on the Launch manifest, or planning one, is refused with the reason, which names the Design needed. Unlocking a Design still adds nothing to the base: its Components have to be shipped, and its Structure built, like any other. Components already in the base's stock or on their way, and Constructions already planned, are never affected; only shipping and planning are gated.
 
-The large battery bank is the first Structure behind a Design that isn't a starting one: Large battery banks. It stores 240 kWh, four times a battery bank's 60, and its heaters draw 0.4 kW (a battery bank's draw 0.02). Its 4 large battery modules (170 kg, $10M each) and large battery cabinet (160 kg, $5M) aren't in the starting stock, so a Launch has to bring them: 840 kg and $45M in all, about half the mass and price of a battery bank for each kWh it stores. It stands on a 3 m footprint, takes about twice as long to build as a battery bank, and wears down by Dust at the same rate.
+The large battery bank is the first Structure behind a Design that isn't a starting one: Large battery banks. It stores 240 kWh, four times a battery bank's 60, and its heaters draw 0.06 kW (a battery bank's draw 0.02), more in all but less for each kWh. Its 4 large battery modules (170 kg, $10M each) and large battery cabinet (160 kg, $5M) aren't in the starting stock, so a Launch has to bring them: 840 kg and $45M in all, about half the mass and price of a battery bank for each kWh it stores. It stands on a 3 m footprint, takes about twice as long to build as a battery bank, and wears down by Dust at the same rate.
 
 Protection Designs harden the base against its Hazards. Each unlocks a hardened Structure that does exactly the same job as the one it is based on (it generates, stores or houses the Mission Director in the same way, stands on the same footprint and takes as long to build) but wears down more slowly. Unlocking one changes nothing already on the base: existing Structures keep wearing at their old rate, and the hardened version still has to be shipped and built, perhaps in place of an old one you dismantle. Each needs a Component of its own that isn't in the starting stock, so a Launch has to bring it:
 
@@ -199,10 +199,10 @@ The reference Campaign's test checks each of these.
 
 ### The timeline
 
-At data catalogue version 45, `npm.cmd run reference-campaign` prints:
+At data catalogue version 46, `npm.cmd run reference-campaign` prints:
 
 ```text
-Reference Campaign: seed 20261025, data catalogue version 45
+Reference Campaign: seed 20261025, data catalogue version 46
 
 Milestones, by the Earth Day they were reached (game time since the landing):
     1.0  Power storage before the first Night
@@ -246,7 +246,7 @@ Over its last Lunation the Radiation Dose rose 0.12 mSv an Earth Day; at that ra
 
 **The battery banks.** A Night lasts 228 hours. Through it the Habitat draws 274 kWh (1.2 kW), each solar array 11 kWh, and the heaters of the excavator, the regolith printer and the Rover, which the Robot plugs in before every Night, 137 kWh between them: about 460 kWh in all. A battery bank's own heater used to draw 0.25 kW, 57 of its 60 kWh through a Night, so no number of battery banks could carry anything else through one. It now draws 0.02 kW. The starting stock holds nine battery banks, 540 kWh, which carry the Habitat, the Machines' heaters and two solar arrays through a Night with about 60 kWh to spare.
 
-This changes the spec's starting cargo of a single battery bank. The alternatives don't work:
+This changes the spec's starting stock of a single battery bank. The alternatives don't work:
 
 - **Staying aboard through the first Night**, as the Lander allows, only puts off the Habitat's first Night. The Lander can't leave until the Mission Director has moved in, and a round trip takes 10 Earth Days, so the first Launch lands 10 Earth Days before the next Night and the second as it falls. Large battery banks need Science, and in Milestone order the first Research Task comes after the landing pad, which the first Launch brings, so they can come at the earliest on the second Launch, uncharged as Night falls. The first Launch would have to bring about seven more battery banks (some 3 tonnes and $140M) on top of the landing pad and the export Plants, nearly doubling its mass and running past the Programme Grant. Played that way with a single starting battery bank, the Mission Director dies in the second Night.
 - **One bigger starting battery bank** would keep the spec's wording, but the large battery bank would then have to grow too, to stay the better buy, and many tests and the end-to-end game-over test depend on a single battery bank running flat in a Night.
