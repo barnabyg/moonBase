@@ -755,7 +755,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 40,
+  version: 41,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -916,6 +916,9 @@ export const catalogue: Catalogue = {
     { id: "screened-solar-panel", label: "Screened solar panel" },
     { id: "whipple-cabinet", label: "Whipple-shielded cabinet" },
     { id: "armoured-habitat-envelope", label: "Armoured habitat envelope" },
+    { id: "thin-film-solar-panel", label: "Thin-film solar panel" },
+    { id: "tall-mast-pole", label: "Tall mast pole" },
+    { id: "prefabricated-array-pack", label: "Prefabricated array pack" },
   ],
   structureTypes: [
     {
@@ -1010,6 +1013,72 @@ export const catalogue: Catalogue = {
         micrometeorites: 1,
         plumeEjecta: 1,
       },
+      power: {
+        generationKilowatts: 10,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array whose panels are thin-film cells on a light, flexible
+    // backing, stretched wider and taller on the same mast, so that it
+    // generates 15 kW rather than 10 from 150 kg shipped rather than 200:
+    // twice as much for each kilogram, though more for each kW in money.
+    {
+      id: "thin-film-solar-array",
+      label: "Thin-film solar array",
+      designId: "thin-film-solar-cells",
+      footprintRadiusMetres: 3,
+      components: [
+        { componentId: "thin-film-solar-panel", count: 2 },
+        { componentId: "array-mast", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 1,
+        assembly: 3,
+        commissioning: 1,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.25,
+      dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 15,
+        storageKilowattHours: 0,
+        drawKilowatts: 0.05,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A solar array put together and tested on Earth, its panel folded on
+    // its mast on a skid, so that it stands on less grading, comes off the
+    // stockpile as one Component and only has to be unfolded: 3 hours to
+    // build rather than 7, and it fails Commissioning one time in ten rather
+    // than one in four. It ships 230 kg for $14M, against 200 kg for $11M.
+    {
+      id: "prefabricated-solar-array",
+      label: "Prefabricated solar array",
+      designId: "prefabricated-solar-arrays",
+      footprintRadiusMetres: 3,
+      components: [{ componentId: "prefabricated-array-pack", count: 1 }],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 0.5,
+        assembly: 1,
+        commissioning: 0.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.05,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
       power: {
         generationKilowatts: 10,
         storageKilowattHours: 0,
@@ -1151,6 +1220,40 @@ export const catalogue: Catalogue = {
         nightDrawKilowatts: 0.4,
       },
       lightRadiusMetres: 18,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+    },
+    // A Light Mast on a pole twice as tall, with two light heads, lighting
+    // a circle twice as wide: four times the ground for two and a half
+    // times the power. Through a Night it draws 228 kWh, a little less than
+    // a large battery bank stores.
+    {
+      id: "tall-light-mast",
+      label: "Tall Light Mast",
+      designId: "tall-light-masts",
+      footprintRadiusMetres: 1.2,
+      components: [
+        { componentId: "tall-mast-pole", count: 1 },
+        { componentId: "light-head", count: 2 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 0.5,
+        assembly: 2,
+        commissioning: 0.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.02,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 1,
+      },
+      lightRadiusMetres: 36,
       habitat: false,
       shieldsHabitat: false,
       landingPad: false,
@@ -1744,6 +1847,22 @@ export const catalogue: Catalogue = {
         massKilograms: 70,
         priceMillionDollars: 8,
       },
+      // A thin-film solar array's worth, with an array mast, comes to 150 kg.
+      {
+        id: "thin-film-solar-panel",
+        designId: "thin-film-solar-cells",
+        brings: { kind: "component", componentId: "thin-film-solar-panel" },
+        massKilograms: 35,
+        priceMillionDollars: 7,
+      },
+      // A whole solar array, folded on its mast on a skid.
+      {
+        id: "prefabricated-array-pack",
+        designId: "prefabricated-solar-arrays",
+        brings: { kind: "component", componentId: "prefabricated-array-pack" },
+        massKilograms: 230,
+        priceMillionDollars: 14,
+      },
       {
         id: "battery-module",
         designId: "battery-banks",
@@ -1794,6 +1913,14 @@ export const catalogue: Catalogue = {
         brings: { kind: "component", componentId: "light-head" },
         massKilograms: 15,
         priceMillionDollars: 2,
+      },
+      // With its two light heads, a tall Light Mast's worth comes to 100 kg.
+      {
+        id: "tall-mast-pole",
+        designId: "tall-light-masts",
+        brings: { kind: "component", componentId: "tall-mast-pole" },
+        massKilograms: 70,
+        priceMillionDollars: 3,
       },
       {
         id: "habitat-core",
@@ -1999,11 +2126,25 @@ export const catalogue: Catalogue = {
       science: 30,
     },
     {
+      id: "thin-film-cell-ageing-study",
+      label: "Thin-film cell ageing study",
+      lengthHours: 84,
+      science: 35,
+      requiresDesignId: "thin-film-solar-cells",
+    },
+    {
       id: "electrolysis-yield-trial",
       label: "Electrolysis yield trial",
       lengthHours: 96,
       science: 45,
       requiresDesignId: "water-electrolysis",
+    },
+    {
+      id: "night-surface-photometry",
+      label: "Night surface photometry",
+      lengthHours: 108,
+      science: 48,
+      requiresDesignId: "tall-light-masts",
     },
     {
       id: "hypervelocity-impact-testing",
@@ -2078,11 +2219,21 @@ export const catalogue: Catalogue = {
       id: "thin-film-solar-cells",
       label: "Thin-film solar cells",
       description:
-        "Solar cells laid down on wafers made at the base, rather than shipped from Earth.",
+        "Thin, light solar cells on a flexible backing, for a solar array that generates more for the mass it ships.",
       category: "power",
       starting: false,
       scienceCost: 45,
       prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
+    },
+    {
+      id: "tall-light-masts",
+      label: "Tall Light Masts",
+      description:
+        "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing about what a large battery bank stores.",
+      category: "power",
+      starting: false,
+      scienceCost: 30,
+      prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
     },
     {
       id: "light-masts",
@@ -2103,6 +2254,16 @@ export const catalogue: Catalogue = {
       starting: true,
       scienceCost: 0,
       prerequisiteDesignIds: [],
+    },
+    {
+      id: "prefabricated-solar-arrays",
+      label: "Prefabricated solar arrays",
+      description:
+        "Solar arrays put together and tested on Earth, shipped folded on their mast, so that they go up in under half the hours.",
+      category: "construction",
+      starting: false,
+      scienceCost: 20,
+      prerequisiteDesignIds: ["solar-arrays"],
     },
     {
       id: "regolith-sintering",

@@ -28,7 +28,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
     ...actual,
     catalogue: withDesigns(
       withoutDigging(withoutCold(safeHabitat(actual.catalogue, ["power"]))),
-      ["regolith-sintering", "microwave-sintering"],
+      [
+        "regolith-sintering",
+        "microwave-sintering",
+        "prefabricated-solar-arrays",
+      ],
     ),
   };
 });
@@ -42,6 +46,7 @@ function structureType(id: string): StructureType {
 }
 const sinteredPad = structureType("sintered-landing-pad");
 const sinteredShielding = structureType("sintered-regolith-shielding");
+const prefabricated = structureType("prefabricated-solar-array");
 const padSite: GroundPosition = { x: 40, y: 25 };
 const habitatSite: GroundPosition = { x: 60, y: -10 };
 
@@ -180,5 +185,42 @@ describe("sintered Regolith shielding", () => {
       stageMinutes(structureType("regolith-shielding")) -
         stageMinutes(sinteredShielding),
     );
+  });
+});
+
+describe("a prefabricated solar array", () => {
+  it("goes up in the hours the data catalogue gives for each stage, from its one Component, and generates as a solar array does", () => {
+    const game = scenario();
+    const states = runUntilBuilt(game.plan(prefabricated.id, padSite));
+    const robotMinutes = (...kinds: string[]) =>
+      states.filter((state) =>
+        state.robots.some((robot) => kinds.includes(robot.activity.kind)),
+      ).length;
+    const { stageHours } = prefabricated;
+
+    expect(
+      states.some((state) =>
+        state.constructions.some((c) => c.failedCommissionings > 0),
+      ),
+    ).toBe(false);
+    expect(
+      states.filter(
+        (state) => machineOf(state, "excavator").activity.kind === "working",
+      ),
+    ).toHaveLength(stageHours.sitePreparation * 60);
+    expect(robotMinutes("loading-components", "unloading-components")).toBe(
+      stageHours.componentDelivery * 60,
+    );
+    expect(robotMinutes("assembling")).toBe(stageHours.assembly * 60);
+    expect(robotMinutes("commissioning")).toBe(stageHours.commissioning * 60);
+
+    game.advance({ minutes: 1 });
+    const array = structureOf(game.state, prefabricated.id);
+    expect(game.state.lunation.part).toBe("daylight");
+    expect(
+      game.state.power.networks.find((network) =>
+        network.structureIds.includes(array.id),
+      )?.generationKilowatts,
+    ).toBeCloseTo(structureType("solar-array").power.generationKilowatts);
   });
 });

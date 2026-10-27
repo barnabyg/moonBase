@@ -731,6 +731,33 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 30 to 31: the Power and Construction Designs, whose thin-film solar
+  // array, tall Light Mast and prefabricated solar array bring three new
+  // Components, which the base's stock keeps a count of after the others.
+  // None of them was there before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "thin-film-solar-panel", count: 0 },
+                  { componentId: "tall-mast-pole", count: 0 },
+                  { componentId: "prefabricated-array-pack", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**

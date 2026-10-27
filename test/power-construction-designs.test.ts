@@ -62,3 +62,16 @@ describe.each(unlockable)("the $label", (type) => {
     ).toMatchObject({ ok: true });
   });
 });
+
+describe("the Power and Construction Designs", () => {
+  it("each unlock at least one Structure", () => {
+    const designs = catalogue.designs.filter(
+      (design) =>
+        ["power", "construction"].includes(design.category) && !design.starting,
+    );
+
+    for (const design of designs) {
+      expect(unlockable.map((type) => type.designId)).toContain(design.id);
+    }
+  });
+});

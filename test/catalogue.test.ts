@@ -31,6 +31,30 @@ function designsUnlockedWith(designId: string): Set<string> {
   return unlocked;
 }
 
+/** The mass and price of a full set of a Structure's Components by Launch. */
+function shipped(type: StructureType): {
+  kilograms: number;
+  millionDollars: number;
+} {
+  return type.components.reduce(
+    (total, need) => {
+      const item = catalogue.launch.items.find(
+        (candidate) =>
+          candidate.brings.kind === "component" &&
+          candidate.brings.componentId === need.componentId,
+      );
+      return {
+        kilograms:
+          total.kilograms + (item?.massKilograms ?? Infinity) * need.count,
+        millionDollars:
+          total.millionDollars +
+          (item?.priceMillionDollars ?? Infinity) * need.count,
+      };
+    },
+    { kilograms: 0, millionDollars: 0 },
+  );
+}
+
 function isOnMap(position: GroundPosition, margin = 0): boolean {
   return (
     Math.abs(position.x) + margin <= halfWidth &&
@@ -1223,25 +1247,6 @@ describe("the data catalogue", () => {
     };
     const large = structureType("large-battery-bank");
     const small = structureType("battery-bank");
-    /** The mass and price of a full set of a Structure's Components by Launch. */
-    const shipped = (type: StructureType) =>
-      type.components.reduce(
-        (total, need) => {
-          const item = catalogue.launch.items.find(
-            (candidate) =>
-              candidate.brings.kind === "component" &&
-              candidate.brings.componentId === need.componentId,
-          );
-          return {
-            kilograms:
-              total.kilograms + (item?.massKilograms ?? Infinity) * need.count,
-            millionDollars:
-              total.millionDollars +
-              (item?.priceMillionDollars ?? Infinity) * need.count,
-          };
-        },
-        { kilograms: 0, millionDollars: 0 },
-      );
 
     it("belongs to Large battery banks, a Power Design that needs Battery banks first", () => {
       expect(
@@ -1289,6 +1294,127 @@ describe("the data catalogue", () => {
         small.power.drawKilowatts,
       );
     });
+  });
+
+  describe("the Power Designs", () => {
+    const structureType = (id: string) => {
+      const found = catalogue.structureTypes.find((type) => type.id === id);
+      if (found === undefined) throw new Error(`expected a ${id}`);
+      return found;
+    };
+    const designOf = (type: StructureType) => {
+      const found = catalogue.designs.find(
+        (design) => design.id === type.designId,
+      );
+      if (found === undefined) throw new Error(`expected a ${type.designId}`);
+      return found;
+    };
+    const power = catalogue.designs.filter(
+      (design) => design.category === "power" && !design.starting,
+    );
+
+    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(power.length).toBeGreaterThanOrEqual(3);
+      expect(power.length).toBeLessThanOrEqual(4);
+      expect(
+        power.some((design) =>
+          design.prerequisiteDesignIds.some(
+            (id) =>
+              catalogue.designs.find((other) => other.id === id)?.starting ===
+              false,
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("has a thin-film solar array, behind Thin-film solar cells, which needs Solar arrays and Vacuum fabrication first", () => {
+      expect(designOf(structureType("thin-film-solar-array"))).toMatchObject({
+        id: "thin-film-solar-cells",
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
+      });
+    });
+
+    it("has the thin-film solar array generate more than a solar array, and more for each kilogram shipped, on the same ground", () => {
+      const thinFilm = structureType("thin-film-solar-array");
+      const solar = structureType("solar-array");
+      const perKilogram = (type: StructureType) =>
+        type.power.generationKilowatts / shipped(type).kilograms;
+
+      expect(thinFilm.power.generationKilowatts).toBeGreaterThan(
+        solar.power.generationKilowatts,
+      );
+      expect(perKilogram(thinFilm)).toBeGreaterThanOrEqual(
+        1.5 * perKilogram(solar),
+      );
+      // Dearer, though, for each kilowatt.
+      expect(
+        shipped(thinFilm).millionDollars / thinFilm.power.generationKilowatts,
+      ).toBeGreaterThan(
+        shipped(solar).millionDollars / solar.power.generationKilowatts,
+      );
+      expect(thinFilm).toMatchObject({
+        footprintRadiusMetres: solar.footprintRadiusMetres,
+        stageHours: solar.stageHours,
+        stageMachines: solar.stageMachines,
+        hazardMultipliers: solar.hazardMultipliers,
+      });
+      expect(thinFilm.power.drawKilowatts).toBe(solar.power.drawKilowatts);
+    });
+
+    it("has a tall Light Mast, behind Tall Light Masts, which needs Light Masts and Large battery banks first", () => {
+      expect(designOf(structureType("tall-light-mast"))).toMatchObject({
+        id: "tall-light-masts",
+        category: "power",
+        starting: false,
+        prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
+      });
+    });
+
+    it("has the tall Light Mast light at least three times the ground a Light Mast does, drawing more at Night but less for each square metre, and no more through a Night than a large battery bank stores", () => {
+      const tall = structureType("tall-light-mast");
+      const mast = structureType("light-mast");
+      const area = (type: StructureType) => type.lightRadiusMetres ** 2;
+      const nightHours = catalogue.lunation.nightEarthDays * 24;
+
+      expect(area(tall)).toBeGreaterThanOrEqual(3 * area(mast));
+      expect(tall.power.nightDrawKilowatts).toBeGreaterThan(
+        mast.power.nightDrawKilowatts,
+      );
+      expect(tall.power.nightDrawKilowatts / area(tall)).toBeLessThan(
+        mast.power.nightDrawKilowatts / area(mast),
+      );
+      expect(tall.power.nightDrawKilowatts * nightHours).toBeLessThanOrEqual(
+        structureType("large-battery-bank").power.storageKilowattHours,
+      );
+      expect(tall.power.drawKilowatts).toBe(mast.power.drawKilowatts);
+      expect(tall.power.generationKilowatts).toBe(0);
+    });
+
+    it.each([
+      ["thin-film-solar-array", "solar-array"],
+      ["tall-light-mast", "light-mast"],
+    ])(
+      "has the %s built from at least one Component of its own, which neither a %s nor the starting stock has",
+      (id, originalId) => {
+        const own = structureType(id).components.filter(
+          (need) =>
+            !structureType(originalId).components.some(
+              (other) => other.componentId === need.componentId,
+            ),
+        );
+
+        expect(own.length).toBeGreaterThan(0);
+        for (const need of own) {
+          expect(
+            catalogue.startingStock.some(
+              (stock) => stock.componentId === need.componentId,
+            ),
+          ).toBe(false);
+        }
+      },
+    );
   });
 
   describe("the Construction Designs", () => {
@@ -1373,6 +1499,81 @@ describe("the data catalogue", () => {
       );
       expect(hours(sintered)).toBeLessThan(hours(printed) / 2);
     });
+
+    it("has a prefabricated solar array, behind Prefabricated solar arrays, a Construction Design that needs Solar arrays first", () => {
+      expect(
+        designOf(structureType("prefabricated-solar-array")),
+      ).toMatchObject({
+        id: "prefabricated-solar-arrays",
+        category: "construction",
+        starting: false,
+        prerequisiteDesignIds: ["solar-arrays"],
+      });
+    });
+
+    it("has the prefabricated solar array generate as a solar array does, but go up in under half the hours and fail Commissioning less often, from one Component of its own, shipped heavier and dearer", () => {
+      const prefabricated = structureType("prefabricated-solar-array");
+      const solar = structureType("solar-array");
+
+      expect(prefabricated).toMatchObject({
+        footprintRadiusMetres: solar.footprintRadiusMetres,
+        stageMachines: solar.stageMachines,
+        power: solar.power,
+        hazardMultipliers: solar.hazardMultipliers,
+        dustWearPercentPerHour: solar.dustWearPercentPerHour,
+      });
+      for (const stage of [
+        "sitePreparation",
+        "componentDelivery",
+        "assembly",
+        "commissioning",
+      ] as const) {
+        expect(prefabricated.stageHours[stage]).toBeLessThan(
+          solar.stageHours[stage],
+        );
+      }
+      expect(hours(prefabricated)).toBeLessThan(hours(solar) / 2);
+      expect(prefabricated.commissioningFailureChance).toBeLessThan(
+        solar.commissioningFailureChance,
+      );
+      const [kit, ...rest] = prefabricated.components;
+      expect(rest).toEqual([]);
+      expect(kit?.count).toBe(1);
+      expect(
+        catalogue.startingStock.some(
+          (stock) => stock.componentId === kit?.componentId,
+        ),
+      ).toBe(false);
+      expect(shipped(prefabricated).kilograms).toBeGreaterThan(
+        shipped(solar).kilograms,
+      );
+      expect(shipped(prefabricated).millionDollars).toBeGreaterThan(
+        shipped(solar).millionDollars,
+      );
+    });
+
+    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      const construction = catalogue.designs.filter(
+        (design) => design.category === "construction" && !design.starting,
+      );
+
+      expect(construction.length).toBeGreaterThanOrEqual(3);
+      expect(construction.length).toBeLessThanOrEqual(4);
+      expect(
+        construction.some((design) =>
+          design.prerequisiteDesignIds.some(
+            (id) =>
+              catalogue.designs.find((other) => other.id === id)?.starting ===
+              false,
+          ),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("has about 25 Designs in the Tech Tree, and no more than 28", () => {
+    expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(28);
   });
 
   describe("the Protection Designs", () => {

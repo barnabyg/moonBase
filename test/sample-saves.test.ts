@@ -1899,7 +1899,16 @@ describe("the sample saves from before the Protection Designs", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.slice(-4)).toEqual([
+      expect(
+        state.stockpile.components.filter((stock) =>
+          [
+            "sealed-array-mast",
+            "screened-solar-panel",
+            "whipple-cabinet",
+            "armoured-habitat-envelope",
+          ].includes(stock.componentId),
+        ),
+      ).toEqual([
         { componentId: "sealed-array-mast", count: 0 },
         { componentId: "screened-solar-panel", count: 0 },
         { componentId: "whipple-cabinet", count: 0 },
@@ -1962,5 +1971,93 @@ describe("the sample save of format version 30", () => {
     ];
     expect(lost[0]).toBeCloseTo(24 * 0.05);
     expect(lost[1]).toBeCloseTo(24 * 0.02);
+  });
+});
+
+describe("the sample saves from before the Power and Construction Designs", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-30.moonbase"])(
+    "%s loads with none of the new Power and Construction Structures' own Components, counted last in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.slice(-3)).toEqual([
+        { componentId: "thin-film-solar-panel", count: 0 },
+        { componentId: "tall-mast-pole", count: 0 },
+        { componentId: "prefabricated-array-pack", count: 0 },
+      ]);
+    },
+  );
+});
+
+describe("the sample save of format version 31", () => {
+  // Saved 41420 game-minutes in, half an hour into the Assembly of a
+  // prefabricated solar array from one of two prefabricated array packs a
+  // Launch brought once Prefabricated solar arrays was unlocked. The
+  // Lander brought them down onto a sintered landing pad the regolith
+  // printer laid once Regolith sintering was unlocked, after printing
+  // Regolith shielding over the Habitat.
+  it("loads with Prefabricated solar arrays and Regolith sintering unlocked, the Lander on a sintered landing pad, and a prefabricated solar array being assembled", () => {
+    const state = loadSample("version-31.moonbase").snapshot();
+
+    expect(state.clock).toMatchObject({ earthDay: 29, hour: 18, minute: 20 });
+    expect(state.science).toBe(25);
+    expect(state.unlockedDesignIds).toEqual(
+      expect.arrayContaining([
+        "prefabricated-solar-arrays",
+        "regolith-sintering",
+      ]),
+    );
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+      "habitat",
+      "regolith-shielding",
+      "sintered-landing-pad",
+    ]);
+    expect(state.lander).toMatchObject({
+      state: "landed-free",
+      position: { x: -40, y: 30 },
+      landingPadId: "structure-5",
+    });
+    expect(state.constructions).toEqual([
+      expect.objectContaining({
+        id: "structure-6",
+        structureTypeId: "prefabricated-solar-array",
+        stage: "assembly",
+        componentsTaken: true,
+      }),
+    ]);
+    expect(
+      state.stockpile.components.find(
+        (stock) => stock.componentId === "prefabricated-array-pack",
+      ),
+    ).toEqual({ componentId: "prefabricated-array-pack", count: 1 });
+  });
+
+  it("plays on from where it was saved, the prefabricated solar array commissioned within the hour, powered and cabled to the first solar array", () => {
+    const campaign = loadSample("version-31.moonbase");
+    for (let minutes = 0; campaign.snapshot().constructions.length > 0;) {
+      if (minutes > 60) throw new Error("It was never commissioned.");
+      campaign.advance(1);
+      minutes += 1;
+    }
+
+    campaign.advance(24 * 60);
+
+    const state = campaign.snapshot();
+    expect(state.ended).toBeUndefined();
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.structures.find((s) => s.id === "structure-6")).toMatchObject({
+      structureTypeId: "prefabricated-solar-array",
+      powered: true,
+    });
+    expect(
+      state.power.networks.find((network) =>
+        network.structureIds.includes("structure-6"),
+      )?.structureIds,
+    ).toContain("structure-1");
   });
 });
