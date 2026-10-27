@@ -1483,7 +1483,7 @@ export const catalogue: Catalogue = {
     {
       id: "lit-landing-pad",
       label: "Lit landing pad",
-      designId: "pressurised-rover",
+      designId: "landing-pad-lights",
       footprintRadiusMetres: 7,
       components: [
         { componentId: "pad-panel", count: 8 },
@@ -2251,7 +2251,7 @@ export const catalogue: Catalogue = {
       // pad's worth.
       {
         id: "landing-floodlight",
-        designId: "pressurised-rover",
+        designId: "landing-pad-lights",
         brings: { kind: "component", componentId: "landing-floodlight" },
         massKilograms: 15,
         priceMillionDollars: 2,
@@ -2805,10 +2805,10 @@ export const catalogue: Catalogue = {
       prerequisiteDesignIds: [],
     },
     // Planned as a Rover with a cabin, but the base has the one Rover and
-    // no rule for another, so the Design whose id a save may hold lights a
-    // landing pad instead.
+    // no rule for another, so this Mobility Design lights a landing pad
+    // instead.
     {
-      id: "pressurised-rover",
+      id: "landing-pad-lights",
       label: "Landing pad lights",
       description:
         "Floodlights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",

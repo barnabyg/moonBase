@@ -1814,12 +1814,12 @@ describe("the data catalogue", () => {
     });
 
     // The Rover is the only one of its kind, so a Design for another Rover
-    // would need a new rule. The Design that held its place, whose id a
-    // save may hold, unlocks lights round a landing pad instead.
+    // would need a new rule. The Design that held its place unlocks lights
+    // round a landing pad instead.
     it("has a lit landing pad, behind Landing pad lights, which needs Landing pads and Tall Light Masts first", () => {
       expect(designOf(structureType("lit-landing-pad").designId)).toMatchObject(
         {
-          id: "pressurised-rover",
+          id: "landing-pad-lights",
           label: "Landing pad lights",
           category: "mobility",
           starting: false,

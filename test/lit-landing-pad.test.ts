@@ -28,7 +28,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
         "life-support",
         "solar-particle-events",
       ]),
-      ["pressurised-rover"],
+      ["landing-pad-lights"],
     ),
   };
 });
