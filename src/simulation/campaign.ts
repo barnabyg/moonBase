@@ -88,6 +88,11 @@ import {
   type ManifestResult,
 } from "./launch-manifest";
 import {
+  readMilestones,
+  watchMilestones,
+  type MilestonesSnapshot,
+} from "./milestones";
+import {
   moveMissionDirectorIn,
   type MissionDirectorResidence,
   type MoveInResult,
@@ -512,6 +517,8 @@ export interface Snapshot {
    * then the others in the order they were unlocked.
    */
   readonly unlockedDesignIds: readonly string[];
+  /** The Milestones reached, and the ones to aim for now and next. */
+  readonly milestones: MilestonesSnapshot;
   /** The Exports to load onto the Lander, those aboard it, and what they come to. */
   readonly exports: ExportsSnapshot;
   /**
@@ -733,6 +740,8 @@ export interface CampaignState {
    * then the others in the order they were unlocked.
    */
   unlockedDesignIds: string[];
+  /** The ids of the Milestones reached, in the order they were. */
+  reachedMilestoneIds: string[];
   ended: CampaignEnd | undefined;
   robots: RobotState[];
   machines: MachineState[];
@@ -786,6 +795,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     researchTask: undefined,
     completedResearchTaskIds: [],
     unlockedDesignIds: startingDesignIds(),
+    reachedMilestoneIds: [],
     ended: undefined,
     robots: landingSite.robotPositions.map((position, index) => ({
       id: `robot-${index + 1}`,
@@ -1027,6 +1037,7 @@ function campaignFrom(state: CampaignState): Campaign {
         researchTask: readResearchTask(state),
         completedResearchTaskIds: [...state.completedResearchTaskIds],
         unlockedDesignIds: [...state.unlockedDesignIds],
+        milestones: readMilestones(state),
         exports: readExports(state),
         plumeEjecta: readPlumeEjecta(state),
         ended: copy(state.ended),
@@ -1189,6 +1200,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   events.push(...(death === undefined ? dangers : [death]));
   if (death === undefined) {
     events.push(...watchSelfSufficiency(state, selfSufficiencyBefore));
+    events.push(...watchMilestones(state, events));
   }
   return events;
 }

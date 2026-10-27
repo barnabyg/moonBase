@@ -21,6 +21,8 @@ export type {
   MachineType,
   MapSize,
   MicrometeoriteRules,
+  Milestone,
+  MilestoneCondition,
   PerformanceCurve,
   PlantRecipe,
   RadiationRules,

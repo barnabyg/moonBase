@@ -1,9 +1,11 @@
 import { catalogue } from "../catalogue";
-import type {
-  Campaign,
-  Forecasts,
-  Snapshot,
-  StructureSnapshot,
+import {
+  milestoneHint,
+  milestoneLabel,
+  type Campaign,
+  type Forecasts,
+  type Snapshot,
+  type StructureSnapshot,
 } from "../simulation";
 import { setText } from "./dom";
 import {
@@ -32,8 +34,9 @@ export interface StatusPanel {
 }
 
 /**
- * The HTML status panel, in sections the player can fold away: how the
- * Mission Director is keeping, the base's power, its stock, the Lander and
+ * The HTML status panel, in sections the player can fold away: the
+ * Milestone to aim for now and the one after it, how the Mission Director
+ * is keeping, the base's power, its stock, the Lander and
  * Expeditions, and the Research Task running. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
  * which decides whether it is allowed and says why not.
@@ -47,6 +50,21 @@ export function createStatusPanel(
   const panel = document.createElement("aside");
   panel.className = "status-panel";
   panel.setAttribute("aria-label", "Status panel");
+
+  // The Milestone to aim for now, what to do to reach it, and the one after.
+  const milestonesSection = createPanelSection("milestones", "Milestones");
+  const currentMilestone = createStatLine("Now", "Current Milestone");
+  const milestoneHintLine = document.createElement("p");
+  milestoneHintLine.className = "milestone-hint";
+  milestoneHintLine.setAttribute("role", "status");
+  milestoneHintLine.setAttribute("aria-label", "Milestone hint");
+  milestoneHintLine.setAttribute("aria-live", "off");
+  const nextMilestone = createStatLine("Next", "Next Milestone");
+  milestonesSection.body.append(
+    currentMilestone.element,
+    milestoneHintLine,
+    nextMilestone.element,
+  );
 
   // How the Mission Director is keeping.
   const missionDirectorSection = createPanelSection(
@@ -156,6 +174,7 @@ export function createStatusPanel(
   researchSection.body.append(researchTask.element);
 
   const sections = [
+    milestonesSection,
     missionDirectorSection,
     powerSection,
     stockSection,
@@ -167,6 +186,24 @@ export function createStatusPanel(
 
   return {
     update(snapshot, forecasts) {
+      const { currentId, nextId } = snapshot.milestones;
+      currentMilestone.show({
+        value:
+          currentId === undefined
+            ? "Every Milestone reached"
+            : milestoneLabel(currentId),
+      });
+      setText(
+        milestoneHintLine,
+        currentId === undefined
+          ? "The Campaign carries on: keep the base running and growing."
+          : milestoneHint(currentId),
+      );
+      nextMilestone.element.hidden = nextId === undefined;
+      if (nextId !== undefined) {
+        nextMilestone.show({ value: milestoneLabel(nextId) });
+      }
+
       const { missionDirector } = snapshot;
       residence.show({
         value: formatMissionDirector(missionDirector, snapshot.structures),

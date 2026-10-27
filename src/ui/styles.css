@@ -386,6 +386,15 @@ body {
   background: var(--warning);
 }
 
+.milestone-hint {
+  margin: 0 0 4px;
+  /* Under the figure, past the label column of the stat lines (6.2em of their 0.85rem). */
+  padding-left: calc(6.2 * 0.85rem + 8px);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .stat__chips {
   display: flex;
   flex-wrap: wrap;

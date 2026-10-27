@@ -2269,3 +2269,55 @@ describe("the data catalogue", () => {
     },
   );
 });
+
+describe("the Milestones", () => {
+  it("are listed in order, each with a unique id and label and a one-line hint", () => {
+    const { milestones } = catalogue;
+
+    expect(milestones.slice(0, 3).map((milestone) => milestone.id)).toEqual([
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+    ]);
+    expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
+      milestones.length,
+    );
+    expect(new Set(milestones.map((milestone) => milestone.label)).size).toBe(
+      milestones.length,
+    );
+    for (const { label, hint } of milestones) {
+      expect(label.trim()).not.toBe("");
+      expect(hint.trim()).not.toBe("");
+      expect(hint).not.toContain("\n");
+    }
+  });
+
+  it("carry no reward, only a condition", () => {
+    for (const milestone of catalogue.milestones) {
+      expect(Object.keys(milestone).sort()).toEqual([
+        "condition",
+        "hint",
+        "id",
+        "label",
+      ]);
+    }
+  });
+
+  it("name the deadline of power storage, and point at the battery bank in the starting stock", () => {
+    const [powerStorage] = catalogue.milestones;
+    const bank = catalogue.structureTypes.find(
+      (type) => type.id === "battery-bank",
+    );
+
+    expect(powerStorage?.label).toMatch(/before the first Night/);
+    expect(powerStorage?.hint).toMatch(/battery bank/);
+    expect(powerStorage?.hint).toMatch(/starting stock/);
+    for (const need of bank?.components ?? []) {
+      expect(
+        catalogue.startingStock.find(
+          (stock) => stock.componentId === need.componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(need.count);
+    }
+  });
+});

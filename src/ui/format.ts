@@ -8,6 +8,7 @@ import {
 import {
   designLabel,
   launchItemLabel,
+  milestoneLabel,
   readClock,
   robotNumber,
   type BulkResourceForecast,
@@ -427,6 +428,8 @@ export function formatEvent(
       return `Solar Particle Event under way, for ${formatDuration(event.endsAtMinute - event.atMinute)}`;
     case "solar-particle-event-ended":
       return "Solar Particle Event over";
+    case "milestone-reached":
+      return `Milestone reached: ${milestoneLabel(event.milestoneId)}`;
     case "lander-took-off":
       return event.exports.length === 0
         ? "Lander took off for Earth"

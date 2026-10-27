@@ -191,7 +191,39 @@ export interface Catalogue {
    * largest first. Each must come to a whole number of game-minutes.
    */
   readonly spareComponentWarningEarthDaysLeft: readonly number[];
+  /**
+   * The Milestones, in the order the status panel offers them as goals.
+   * They are guidance only: they carry no rewards and never end the
+   * Campaign.
+   */
+  readonly milestones: readonly Milestone[];
 }
+
+/**
+ * A named achievement that marks progress through the Campaign. It is
+ * reached the first time its condition holds, whatever the order, and stays
+ * reached even if the condition later stops holding.
+ */
+export interface Milestone {
+  readonly id: string;
+  readonly label: string;
+  /** One line telling a new player what to do next to reach it. */
+  readonly hint: string;
+  readonly condition: MilestoneCondition;
+}
+
+/**
+ * What reaches a Milestone. Some conditions are read from the state as it
+ * stands; others are moments the state doesn't keep afterwards, noticed as
+ * they happen.
+ */
+export type MilestoneCondition =
+  /** A Structure that stores power, such as a battery bank, is commissioned. */
+  | { readonly kind: "power-storage-commissioned" }
+  /** The Mission Director has moved into a Habitat. */
+  | { readonly kind: "mission-director-moved-in" }
+  /** The Lander takes off for Earth. */
+  | { readonly kind: "lander-took-off" };
 
 /**
  * Micrometeorite strikes, which the Campaign's seeded generator schedules
@@ -755,7 +787,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 42,
+  version: 43,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -2857,4 +2889,24 @@ export const catalogue: Catalogue = {
   // As for oxygen and water. The starting stock lasts longer than the first
   // at the wear of ordinary work, but not with Machines in the cold.
   spareComponentWarningEarthDaysLeft: [7, 3, 1],
+  milestones: [
+    {
+      id: "power-storage",
+      label: "Power storage before the first Night",
+      hint: "Build the battery bank from the starting stock beside a solar array, so the base has stored power when the first Night falls.",
+      condition: { kind: "power-storage-commissioned" },
+    },
+    {
+      id: "moved-in",
+      label: "Habitat commissioned, Mission Director moved in",
+      hint: "Build the inflatable Habitat from the starting stock on the power network, then press Move in beside it in the Structures list.",
+      condition: { kind: "mission-director-moved-in" },
+    },
+    {
+      id: "lander-departs",
+      label: "Lander departs",
+      hint: "Set the Launch manifest with what the base needs next, then Send the Lander from the status panel: it flies to Earth and comes back with the Launch.",
+      condition: { kind: "lander-took-off" },
+    },
+  ],
 };

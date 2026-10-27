@@ -230,7 +230,9 @@ describe("letting the battery run flat at Night with the Mission Director in the
       .flatMap((skip) => skip.events)
       .filter(
         (event) =>
-          event.kind !== "night-started" && event.kind !== "daylight-started",
+          event.kind !== "night-started" &&
+          event.kind !== "daylight-started" &&
+          event.kind !== "milestone-reached",
       )
       .map((event) =>
         event.kind === "habitat-power-warning"

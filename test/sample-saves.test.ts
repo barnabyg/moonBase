@@ -2159,3 +2159,68 @@ describe("the sample save of format version 32", () => {
     expect(oxygen(after)).toBeGreaterThan(oxygen(before));
   });
 });
+
+describe("the sample saves from before the Milestones", () => {
+  it.each(["version-4.moonbase", "version-6.moonbase"])(
+    "%s, saved with the Lander away, loads with the Lander departing reached",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.lander.legEndsAtMinute).toBeDefined();
+      expect(state.milestones.reachedIds).toEqual(["lander-departs"]);
+    },
+  );
+
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-32.moonbase"])(
+    "%s, saved with the Lander landed, loads with none reached, then reaches those its state meets as play goes on",
+    (name) => {
+      const campaign = loadSample(name);
+      expect(campaign.snapshot().milestones.reachedIds).toEqual([]);
+
+      const events = campaign.advance(1);
+
+      expect(
+        events.flatMap((event) =>
+          event.kind === "milestone-reached" ? [event.milestoneId] : [],
+        ),
+      ).toEqual(["power-storage", "moved-in"]);
+      expect(campaign.snapshot().milestones).toMatchObject({
+        reachedIds: ["power-storage", "moved-in"],
+        currentId: "lander-departs",
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 33", () => {
+  // Saved 3302 game-minutes in, an hour and a half after the Mission
+  // Director moved into a Habitat beside a solar array and a battery bank,
+  // with the Lander landed and free to fly.
+  it("loads with power storage and moving in reached, and the Lander departing current", () => {
+    const state = loadSample("version-33.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(3302);
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.lander.state).toBe("landed-free");
+    expect(state.milestones).toMatchObject({
+      reachedIds: ["power-storage", "moved-in"],
+      currentId: "lander-departs",
+    });
+  });
+
+  it("plays on from where it was saved, reaching the Lander departing as it takes off", () => {
+    const campaign = loadSample("version-33.moonbase");
+    expect(campaign.sendLander()).toEqual({ ok: true });
+
+    const events = campaign.advance(1);
+
+    expect(events.map((event) => event.kind)).toEqual(
+      expect.arrayContaining(["lander-took-off", "milestone-reached"]),
+    );
+    expect(campaign.snapshot().milestones.reachedIds).toEqual([
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+    ]);
+  });
+});
