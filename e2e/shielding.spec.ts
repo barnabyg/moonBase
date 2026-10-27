@@ -22,9 +22,9 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const structures = panel.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("list", { name: "Structures" });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
 
   /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */
@@ -59,9 +59,9 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   await structures.getByRole("button", { name: "Move in" }).click();
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array/,
-    /^Inflatable Habitat: commissioned, unshielded, the Mission Director's home/,
+    /^Inflatable Habitat Condition \d+% commissioned · unshielded, the Mission Director's home/,
   ]);
-  await expect(radiationDose).toHaveText(/rising 30\.0 mSv an Earth Day/);
+  await expect(radiationDose).toHaveText(/\+30\.0 a day/);
 
   // The only clear ground it can go on is the Habitat.
   await shielding.click();
@@ -72,8 +72,8 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
 
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array/,
-    /^Inflatable Habitat: commissioned, shielded, the Mission Director's home/,
-    /^Regolith shielding: commissioned, Condition 100%(?!,)/,
+    /^Inflatable Habitat Condition \d+% commissioned · shielded, the Mission Director's home/,
+    /^Regolith shielding Condition 100% commissioned(?! ·)/,
   ]);
-  await expect(radiationDose).toHaveText(/rising 3\.0 mSv an Earth Day/);
+  await expect(radiationDose).toHaveText(/\+3\.0 a day/);
 });

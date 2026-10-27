@@ -59,6 +59,15 @@ import type {
 const twoDigits = (value: number): string => String(value).padStart(2, "0");
 
 /**
+ * A figure in the status panel: its value, and an optional note on where
+ * it is heading, shown after it, for example "24.2 kg" and "lasts 28d 19h".
+ */
+export interface Stat {
+  readonly value: string;
+  readonly note?: string;
+}
+
+/**
  * Formats the game clock to the hour, for example "Earth Day 3, 07:00". The
  * minutes are left out because at 1x they change six times a real second,
  * which is distracting.
@@ -78,12 +87,26 @@ const plural = (count: number, unit: string): string =>
 
 /**
  * Formats the current part of the Lunation and the time left in it, for
- * example "Daylight: 7 Earth Days 23 hours left". The time left is rounded up
- * to the hour, so that it adds up with the clock, which is rounded down.
+ * example "Daylight · 7d 23h left". The time left is rounded up to the hour,
+ * so that it adds up with the clock, which is rounded down.
  */
 export function formatLunation(lunation: LunationSnapshot): string {
   const part = lunation.part === "daylight" ? "Daylight" : "Night";
-  return `${part}: ${formatDuration(lunation.minutesRemaining)} left`;
+  return `${part} · ${formatShortDuration(lunation.minutesRemaining)} left`;
+}
+
+/**
+ * Formats a span of game time in Earth Days and hours for the status panel,
+ * where space is short, for example "7d 23h", rounded up to the hour.
+ */
+export function formatShortDuration(minutes: number): string {
+  const totalHours = Math.ceil(minutes / 60);
+  const earthDays = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return [
+    ...(earthDays > 0 ? [`${earthDays}d`] : []),
+    ...(hours > 0 || earthDays === 0 ? [`${hours}h`] : []),
+  ].join(" ");
 }
 
 /**
@@ -111,82 +134,94 @@ function sumNetworks(
   return power.networks.reduce((sum, network) => sum + pick(network), 0);
 }
 
-/** Sums the base's power networks, for example "Power: 10.00 kW generated, 0.30 kW used". */
-export function formatPower(power: Snapshot["power"]): string {
+/** Sums the base's power networks, for example "10.00 kW made" and "0.30 kW used". */
+export function formatPower(power: Snapshot["power"]): Stat {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
-  return `Power: ${kilowatts(total((network) => network.generationKilowatts))} generated, ${kilowatts(total((network) => network.consumptionKilowatts))} used`;
+  return {
+    value: `${kilowatts(total((network) => network.generationKilowatts))} made`,
+    note: `${kilowatts(total((network) => network.consumptionKilowatts))} used`,
+  };
 }
 
 /**
  * Says how much energy the base has stored and when it will run out, for
- * example "Stored: 42.0 of 60.0 kWh, runs out in 8 Earth Days 8 hours".
+ * example "42.0 / 60.0 kWh" and "lasts 8d 8h", with how full its battery
+ * banks are, from 0 to 1, or undefined if it has none.
  */
 export function formatStoredPower(
   power: Snapshot["power"],
   forecast: PowerForecast,
-): string {
+): Stat & { readonly fraction: number | undefined } {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
   const capacity = total((network) => network.storageCapacityKilowattHours);
-  if (capacity === 0) return "Stored: no battery banks";
+  if (capacity === 0) return { value: "no battery banks", fraction: undefined };
   const storedKilowattHours = total((network) => network.storedKilowattHours);
-  const stored = `Stored: ${storedKilowattHours.toFixed(1)} of ${kilowattHours(capacity)}`;
+  const value = `${storedKilowattHours.toFixed(1)} / ${kilowattHours(capacity)}`;
+  const fraction = storedKilowattHours / capacity;
   const { minutesUntilEmpty } = forecast;
   if (minutesUntilEmpty !== undefined) {
-    return `${stored}, runs out in ${formatDuration(minutesUntilEmpty)}`;
+    return {
+      value,
+      note: `lasts ${formatShortDuration(minutesUntilEmpty)}`,
+      fraction,
+    };
   }
-  return storedKilowattHours > 0
-    ? `${stored}, doesn't run out`
-    : `${stored}, empty`;
+  return {
+    value,
+    note: storedKilowattHours > 0 ? "doesn't run out" : "empty",
+    fraction,
+  };
 }
 
-/** Says where the Mission Director lives, for example "Mission Director: aboard the Lander". */
+/** Says where the Mission Director lives, for example "aboard the Lander". */
 export function formatMissionDirector(
   missionDirector: MissionDirectorResidence,
   structures: Snapshot["structures"],
 ): string {
-  if (missionDirector.residence === "lander") {
-    return "Mission Director: aboard the Lander";
-  }
+  if (missionDirector.residence === "lander") return "aboard the Lander";
   const { habitatId } = missionDirector;
   const habitat = structures.find((structure) => structure.id === habitatId);
-  return `Mission Director: living in the ${structureLabel(habitat?.structureTypeId ?? "habitat").toLowerCase()}`;
+  return `in the ${structureLabel(habitat?.structureTypeId ?? "habitat")}`;
 }
 
 /**
  * Says whether the Habitat the Mission Director lives in has power and when
- * it will lose it, for example "Habitat power: on, fails in 1 Earth Day 16
- * hours", or undefined while they live aboard the Lander.
+ * it will lose it, for example "on" and "fails in 1d 16h", or undefined
+ * while they live aboard the Lander.
  */
 export function formatHabitatPower(
   missionDirector: MissionDirectorResidence,
   structures: Snapshot["structures"],
   forecast: HabitatPowerForecast | undefined,
-): string | undefined {
+): Stat | undefined {
   if (missionDirector.residence !== "habitat") return undefined;
   const { habitatId } = missionDirector;
   const habitat = structures.find((structure) => structure.id === habitatId);
-  if (habitat?.powered !== true) return "Habitat power: failed";
-  return forecast?.minutesUntilPowerLost === undefined
-    ? "Habitat power: on, doesn't fail"
-    : `Habitat power: on, fails in ${formatDuration(forecast.minutesUntilPowerLost)}`;
+  if (habitat?.powered !== true) return { value: "failed" };
+  return {
+    value: "on",
+    note:
+      forecast?.minutesUntilPowerLost === undefined
+        ? "doesn't fail"
+        : `fails in ${formatShortDuration(forecast.minutesUntilPowerLost)}`,
+  };
 }
 
 /**
  * Says what state the Lander is in, any Exports aboard and, while it is
- * away, when it next arrives or leaves, for example "Lander: landed on the
- * landing pad with 40 kg of wafers aboard, free to fly" or "Lander:
- * travelling to Earth with 40 kg of wafers, arrives in 2 Earth Days 23
- * hours".
+ * away, when it next arrives or leaves, for example "landed on the landing
+ * pad with 40 kg of wafers aboard" and "free to fly", or "travelling to
+ * Earth with 40 kg of wafers" and "arrives in 2d 23h".
  */
 export function formatLander(
   lander: LanderSnapshot,
   elapsedMinutes: number,
   exportsAboard: readonly ExportLine[],
   exportLoading?: ExportLoadingSnapshot,
-): string {
-  const left = formatDuration(
+): Stat {
+  const left = formatShortDuration(
     Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
   );
   const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
@@ -196,22 +231,36 @@ export function formatLander(
       : ` with ${formatExportLines(exportsAboard)} aboard`;
   switch (lander.state) {
     case "landed-occupied":
-      return "Lander: landed, with the Mission Director aboard";
+      return { value: "landed", note: "Mission Director aboard" };
     case "landed-free":
       if (lander.cargo.length > 0) {
-        return `Lander: landed${onPad}${aboard}, its cargo waiting for the Robot to unload it`;
+        return {
+          value: `landed${onPad}${aboard}`,
+          note: "cargo waiting for the Robot to unload it",
+        };
       }
-      return exportLoading === undefined
-        ? `Lander: landed${onPad}${aboard}, free to fly`
-        : `Lander: landed${onPad}${aboard}, waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`;
+      return {
+        value: `landed${onPad}${aboard}`,
+        note:
+          exportLoading === undefined
+            ? "free to fly"
+            : `waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`,
+      };
     case "travelling-to-earth":
-      return exportsAboard.length === 0
-        ? `Lander: travelling to Earth, arrives in ${left}`
-        : `Lander: travelling to Earth with ${formatExportLines(exportsAboard)}, arrives in ${left}`;
+      return {
+        value:
+          exportsAboard.length === 0
+            ? "travelling to Earth"
+            : `travelling to Earth with ${formatExportLines(exportsAboard)}`,
+        note: `arrives in ${left}`,
+      };
     case "turnaround":
-      return `Lander: in turnaround on Earth, leaves in ${left}`;
+      return { value: "in turnaround on Earth", note: `leaves in ${left}` };
     case "travelling-to-moon":
-      return `Lander: travelling to the Moon, lands${onPad} in ${left}`;
+      return {
+        value: "travelling to the Moon",
+        note: `lands${onPad} in ${left}`,
+      };
   }
 }
 
@@ -224,41 +273,54 @@ export function stockLabel(stockId: string): string {
 
 /**
  * Says how much of a life support stock is left and when it will run out,
- * for example "Oxygen: 24.2 kg, runs out in 28 Earth Days 19 hours", or how
- * fast it is rising while the base's Plants make more than is used, for
- * example "Oxygen: 24.2 kg, rising 2.8 kg an Earth Day".
+ * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
+ * the base's Plants make more than is used, for example "rising 2.8 kg a
+ * day".
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
   forecast: LifeSupportForecast | undefined,
   missionDirector: MissionDirectorResidence,
-): string {
-  const amount = `${stockLabel(stock.stockId)}: ${stock.kilograms.toFixed(1)} kg`;
+): Stat {
+  const value = `${stock.kilograms.toFixed(1)} kg`;
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
-    return `${amount}, rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg an Earth Day`;
+    return {
+      value,
+      note: `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`,
+    };
   }
-  if (stock.kilograms === 0) return `${amount}, ran out`;
+  if (stock.kilograms === 0) return { value, note: "ran out" };
   if (forecast?.minutesUntilEmpty !== undefined) {
-    return `${amount}, runs out in ${formatDuration(forecast.minutesUntilEmpty)}`;
+    return {
+      value,
+      note: `lasts ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+    };
   }
   return missionDirector.residence === "lander"
-    ? `${amount}, kept safe aboard the Lander`
-    : amount;
+    ? { value, note: "safe aboard the Lander" }
+    : { value };
 }
 
 /**
- * Says whether the base is self-sufficient in a life support stock, and
- * what share of the Mission Director's use the base made over the window,
- * for example "Oxygen self-sufficiency: yes, 140% of use made at the base
- * over the last Lunation".
+ * Says whether the base is self-sufficient in a life support stock, for
+ * example "yes", with the share of the Mission Director's use the base
+ * made over the window, for example "140%", and the whole story to show on
+ * demand.
  */
 export function formatSelfSufficiency(
   selfSufficiency: SelfSufficiencySnapshot,
   missionDirector: MissionDirectorResidence,
-): string {
-  const label = `${stockLabel(selfSufficiency.stockId)} self-sufficiency`;
+): {
+  readonly value: string;
+  readonly share: string | undefined;
+  readonly explanation: string;
+} {
   if (missionDirector.residence === "lander") {
-    return `${label}: no, nothing is used aboard the Lander`;
+    return {
+      value: "no",
+      share: undefined,
+      explanation: "Nothing is used aboard the Lander.",
+    };
   }
   const { windowLunations } = catalogue.selfSufficiency;
   const window =
@@ -267,12 +329,22 @@ export function formatSelfSufficiency(
       : `the last ${windowLunations} Lunations`;
   const share =
     selfSufficiency.coveredShare === undefined
-      ? "nothing used yet"
-      : `${Math.round(selfSufficiency.coveredShare * 100)}% of use made at the base`;
+      ? undefined
+      : `${Math.round(selfSufficiency.coveredShare * 100)}%`;
+  const made =
+    share === undefined ? "Nothing used" : `${share} of use made at the base`;
   if (!selfSufficiency.windowComplete) {
-    return `${label}: not yet, ${share} so far, until a whole Lunation has been recorded`;
+    return {
+      value: "not yet",
+      share,
+      explanation: `${made} so far. It is judged once a whole Lunation has been recorded.`,
+    };
   }
-  return `${label}: ${selfSufficiency.selfSufficient ? "yes" : "no"}, ${share} over ${window}`;
+  return {
+    value: selfSufficiency.selfSufficient ? "yes" : "no",
+    share,
+    explanation: `${made} over ${window}.`,
+  };
 }
 
 /**
@@ -286,34 +358,35 @@ export function formatCondition(conditionPercent: number): string {
 }
 
 /**
- * Says how well a Structure works, if its Condition has cut its output, for
- * example ", working at 80%"; nothing at full performance or once Broken.
+ * Says how well something works, if its Condition has cut its output, for
+ * example "working at 80%"; undefined at full performance or once Broken.
  */
-export function formatPerformance(performance: number): string {
+export function formatPerformance(performance: number): string | undefined {
   return performance > 0 && performance < 1
-    ? `, working at ${Math.max(Math.round(performance * 100), 1)}%`
-    : "";
+    ? `working at ${Math.max(Math.round(performance * 100), 1)}%`
+    : undefined;
 }
 
 /**
  * Says how many spare Components the base has and how long they will last
- * at the current rate of wear, for example "Spare Components: 6 in stock,
- * last 9 Earth Days 4 hours".
+ * at the current rate of wear, for example "6 in stock" and "last 9d 4h".
  */
-export function formatSpareComponents(
-  forecast: SpareComponentsForecast,
-): string {
+export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const pending =
     forecast.forPendingRepairs === 0
       ? ""
       : `, ${forecast.forPendingRepairs} needed for repairs waiting`;
-  const amount = `Spare Components: ${forecast.inStock} in stock${pending}`;
+  const value = `${forecast.inStock} in stock${pending}`;
   if (forecast.minutesUntilEmpty === undefined) {
-    return `${amount}, nothing wearing down`;
+    return { value, note: "nothing wearing down" };
   }
-  return forecast.minutesUntilEmpty === 0
-    ? `${amount}, too few for the wear`
-    : `${amount}, last ${formatDuration(forecast.minutesUntilEmpty)}`;
+  return {
+    value,
+    note:
+      forecast.minutesUntilEmpty === 0
+        ? "too few for the wear"
+        : `last ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+  };
 }
 
 /** Says what happened in an event, for the notification list, for example "Night has fallen". */
@@ -446,38 +519,47 @@ const millisieverts = (value: number, digits: number): string =>
 
 /**
  * Says how much radiation the Mission Director has absorbed against the
- * limit, and how fast it is rising, for example "Radiation Dose: 64.0 of
- * 600 mSv, rising 30.0 mSv an Earth Day, limit in 17 Earth Days 21 hours".
+ * limit, and how fast it is rising, for example "64.0 / 600 mSv" and "+30.0
+ * a day, limit in 17d 21h".
  */
 export function formatRadiationDose(
   doseMillisieverts: number,
   forecast: RadiationDoseForecast,
   missionDirector: MissionDirectorResidence,
-): string {
+): Stat {
   const limit = catalogue.radiation.doseLimitMillisieverts;
-  const dose = `Radiation Dose: ${doseMillisieverts.toFixed(1)} of ${millisieverts(limit, 0)}`;
-  if (doseMillisieverts >= limit) return `${dose}, limit reached`;
+  const value = `${doseMillisieverts.toFixed(1)} / ${millisieverts(limit, 0)}`;
+  if (doseMillisieverts >= limit) return { value, note: "limit reached" };
   if (forecast.minutesUntilLimit !== undefined) {
-    return `${dose}, rising ${millisieverts(forecast.millisievertsPerEarthDay, 1)} an Earth Day, limit in ${formatDuration(forecast.minutesUntilLimit)}`;
+    return {
+      value,
+      note: `+${forecast.millisievertsPerEarthDay.toFixed(1)} a day, limit in ${formatShortDuration(forecast.minutesUntilLimit)}`,
+    };
   }
   return missionDirector.residence === "lander"
-    ? `${dose}, none aboard the Lander`
-    : dose;
+    ? { value, note: "none aboard the Lander" }
+    : { value };
 }
 
 /**
  * Says when a Solar Particle Event the Mission Director knows of starts or
- * ends, and how much it multiplies their dose rate, for example "Solar
- * Particle Event: starts in 4 hours, lasts 18 hours, 10× the dose rate".
+ * ends, and how much it multiplies their dose rate, for example "starts in
+ * 4h, lasts 18h" and "10× the dose rate".
  */
 export function formatSolarParticleEvent(
   event: SolarParticleEventSnapshot,
   elapsedMinutes: number,
-): string {
-  const multiplied = `${event.doseRateMultiplier}× the dose rate`;
+): Stat {
+  const note = `${event.doseRateMultiplier}× the dose rate`;
   return event.state === "coming"
-    ? `Solar Particle Event: starts in ${formatDuration(event.startsAtMinute - elapsedMinutes)}, lasts ${formatDuration(event.endsAtMinute - event.startsAtMinute)}, ${multiplied}`
-    : `Solar Particle Event: under way, ends in ${formatDuration(event.endsAtMinute - elapsedMinutes)}, ${multiplied}`;
+    ? {
+        value: `starts in ${formatShortDuration(event.startsAtMinute - elapsedMinutes)}, lasts ${formatShortDuration(event.endsAtMinute - event.startsAtMinute)}`,
+        note,
+      }
+    : {
+        value: `under way, ends in ${formatShortDuration(event.endsAtMinute - elapsedMinutes)}`,
+        note,
+      };
 }
 
 const stageLabels: Record<ConstructionStage, string> = {
@@ -515,12 +597,12 @@ export function formatMillionDollars(value: number): string {
 }
 
 /**
- * Lists the Components in the base's stock, for example "Stock: 2 solar
- * panels and 4 mast poles".
+ * Lists the Components in the base's stock, for example "2 solar panels and
+ * 4 mast poles".
  */
 export function formatStock(stockpile: Snapshot["stockpile"]): string {
   const held = stockpile.components.filter((stock) => stock.count > 0);
-  return `Stock: ${held.length === 0 ? "no Components" : formatComponents(held)}`;
+  return held.length === 0 ? "no Components" : formatComponents(held);
 }
 
 /** Names a bulk resource or life support stock, for example "Regolith" or "Oxygen". */
@@ -532,19 +614,19 @@ export function resourceRefLabel(resource: ResourceRef): string {
 
 /**
  * Says whether a Plant is running, and why not, for its line in the status
- * panel, for example ", running" or ", stopped: out of Regolith"; nothing
+ * panel, for example "running" or "stopped: out of Regolith"; undefined
  * once it is Broken, which the line says already.
  */
-export function formatPlant(plant: PlantSnapshot): string {
+export function formatPlant(plant: PlantSnapshot): string | undefined {
   switch (plant.stoppedFor?.reason) {
     case undefined:
-      return ", running";
+      return "running";
     case "broken":
-      return "";
+      return undefined;
     case "no-input":
-      return `, stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
+      return `stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
     case "no-power":
-      return ", stopped: no power to spare";
+      return "stopped: no power to spare";
   }
 }
 
@@ -561,30 +643,30 @@ export function formatKilograms(kilograms: number): string {
 }
 
 /**
- * Lists the base's stock of bulk resources, and roughly how long any that
- * is falling will last at the current rate, for example "Regolith: 340 kg;
- * Water ice: 190 kg, lasts about 7 Earth Days 22 hours".
+ * Lists the base's stock of bulk resources, each with its amount and,
+ * if it is falling, roughly how long it will last at the current rate, for
+ * example "Water ice", "190 kg" and "~7d 22h".
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
   forecasts: readonly BulkResourceForecast[],
-): string {
-  return bulkResources
-    .map((stock) => {
-      const amount = `${resourceLabel(stock.resourceId)}: ${formatKilograms(stock.kilograms)}`;
-      const minutes = forecasts.find(
-        (forecast) => forecast.resourceId === stock.resourceId,
-      )?.minutesUntilEmpty;
-      return minutes === undefined || stock.kilograms === 0
-        ? amount
-        : `${amount}, lasts about ${formatDuration(minutes)}`;
-    })
-    .join("; ");
+): (Stat & { readonly label: string; readonly empty: boolean })[] {
+  return bulkResources.map((stock) => {
+    const label = resourceLabel(stock.resourceId);
+    const value = formatKilograms(stock.kilograms);
+    const empty = stock.kilograms < 1;
+    const minutes = forecasts.find(
+      (forecast) => forecast.resourceId === stock.resourceId,
+    )?.minutesUntilEmpty;
+    return minutes === undefined || stock.kilograms === 0
+      ? { label, value, empty }
+      : { label, value, note: `~${formatShortDuration(minutes)}`, empty };
+  });
 }
 
-/** Says how much Funding the base programme has, for example "Funding: $400M". */
+/** Says how much Funding the base programme has, for example "$400M". */
 export function formatFunding(fundingMillionDollars: number): string {
-  return `Funding: ${formatMillionDollars(fundingMillionDollars)}`;
+  return formatMillionDollars(fundingMillionDollars);
 }
 
 /** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */
@@ -740,15 +822,15 @@ export function machineLabel(machineTypeId: string): string {
 }
 
 /**
- * Says what a Machine is doing, whether it is plugged in and powered, and
- * how intact it is, for the status panel, for example "Excavator: idle,
- * plugged in and powered, Condition 87%" or "Regolith printer: Broken,
- * Condition 0%, awaiting Maintenance".
+ * Says what a Machine is doing, and whether it is plugged in and powered,
+ * working below par or due Maintenance, for the status panel, for example
+ * "idle" and "plugged in and powered", or "Broken" and "awaiting
+ * Maintenance". Its Condition is shown beside it.
  */
 export function formatMachine(
   machine: MachineSnapshot,
   maintenance: readonly MaintenanceSnapshot[],
-): string {
+): Stat {
   const broken = machine.conditionPercent <= 0;
   const doing = broken
     ? "Broken"
@@ -763,38 +845,59 @@ export function formatMachine(
             : machine.activity.kind === "digging"
               ? `digging ${resourceLabel(catalogue.digging.resourceId)}`
               : "idle";
-  const plug = broken
-    ? ""
-    : !machine.pluggedIn
-      ? ", not plugged in"
-      : machine.powered
-        ? ", plugged in and powered"
-        : ", plugged in, no power";
   const order = maintenance.find(
     ({ target }) =>
       target.kind === "machine" && target.machineId === machine.id,
   );
-  const maintained =
-    order === undefined
-      ? ""
-      : order.underWay
-        ? ", undergoing Maintenance"
-        : ", awaiting Maintenance";
-  return `${machineLabel(machine.machineTypeId)}: ${doing}${plug}, Condition ${formatCondition(machine.conditionPercent)}${formatPerformance(machine.performance)}${maintained}`;
+  return {
+    value: doing,
+    ...notes([
+      broken ? undefined : plugState(machine),
+      formatPerformance(machine.performance),
+      maintenanceState(order),
+    ]),
+  };
+}
+
+/** Whether a Machine or Rover is plugged in to charge, and whether it has power. */
+function plugState(driven: {
+  readonly pluggedIn: boolean;
+  readonly powered: boolean;
+}): string {
+  return !driven.pluggedIn
+    ? "not plugged in"
+    : driven.powered
+      ? "plugged in and powered"
+      : "plugged in, no power";
+}
+
+/** Whether a Maintenance Work Order is waiting or under way, if there is one. */
+export function maintenanceState(
+  order: MaintenanceSnapshot | undefined,
+): string | undefined {
+  if (order === undefined) return undefined;
+  return order.underWay ? "undergoing Maintenance" : "awaiting Maintenance";
+}
+
+/** Joins the notes that apply into one, or leaves the note out if none do. */
+function notes(parts: readonly (string | undefined)[]): { note?: string } {
+  const present = parts.filter((part) => part !== undefined);
+  return present.length === 0 ? {} : { note: present.join(", ") };
 }
 
 /**
- * Says what a Robot is doing and how intact it is, for the status panel,
- * for example "Robot: working, Condition 87%" or "Robot: repairing itself
- * at the Habitat, Condition 9%, working at 18%".
+ * Says what a Robot is doing, and whether it works below par, for the
+ * status panel, for example "working", or "repairing itself at the Habitat"
+ * and "working at 18%". Its Condition is shown beside it.
  */
 export function formatRobot(
   robot: RobotSnapshot,
   expedition?: ExpeditionSnapshot,
-): string {
+): Stat {
   const { activity, selfRepair } = robot;
+  const performance = notes([formatPerformance(robot.performance)]);
   if (isOnExpedition(robot.id, expedition)) {
-    return `Robot: on an Expedition, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+    return { value: "on an Expedition", ...performance };
   }
   const where =
     selfRepair === undefined
@@ -808,7 +911,7 @@ export function formatRobot(
       : activity.kind === "repairing-itself"
         ? `${selfRepair.makeshift ? "making a makeshift repair" : "repairing itself"}${where}`
         : `going to repair itself${where}`;
-  return `Robot: ${doing}, Condition ${formatCondition(robot.conditionPercent)}${formatPerformance(robot.performance)}`;
+  return { value: doing, ...performance };
 }
 
 /**
@@ -836,19 +939,30 @@ export function formatExpedition(
   expedition: ExpeditionSnapshot | undefined,
   elapsedMinutes: number,
 ): string {
-  if (expedition === undefined) return "Expedition: none under way";
+  return `Expedition: ${describeExpedition(expedition, elapsedMinutes)}`;
+}
+
+/**
+ * Says how the Expedition under way is going, and when it will be back,
+ * for example "away, back in 2 Earth Days 5 hours", or that there is none.
+ */
+export function describeExpedition(
+  expedition: ExpeditionSnapshot | undefined,
+  elapsedMinutes: number,
+): string {
+  if (expedition === undefined) return "none under way";
   const cargo = `${formatKilograms(expedition.kilograms)} of ${resourceLabel(expedition.resourceId).toLowerCase()}`;
   switch (expedition.stage) {
     case "boarding":
-      return "Expedition: leaving once the Robot has finished its Work Order and boarded the Rover";
+      return "leaving once the Robot has finished its Work Order and boarded the Rover";
     case "driving-out":
-      return "Expedition: the Robot is driving the Rover to the map edge";
+      return "the Robot is driving the Rover to the map edge";
     case "away":
-      return `Expedition: away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
+      return `away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
     case "driving-back":
-      return `Expedition: back on the map with ${cargo}, driving to the stockpile`;
+      return `back on the map with ${cargo}, driving to the stockpile`;
     case "unloading":
-      return `Expedition: unloading ${cargo} at the stockpile`;
+      return `unloading ${cargo} at the stockpile`;
   }
 }
 
@@ -896,15 +1010,15 @@ function isForDriven(activity: RobotActivity, subject: DrivenSubject): boolean {
 }
 
 /**
- * Says what the Rover is doing, whether it is plugged in and powered, and
- * how intact it is, for the status panel, for example "Rover: idle, not
- * plugged in, Condition 100%" or "Rover: Broken, Condition 0%, awaiting
- * Maintenance".
+ * Says what the Rover is doing, and whether it is plugged in and powered,
+ * working below par or due Maintenance, for the status panel, for example
+ * "parked" and "not plugged in", or "Broken" and "awaiting Maintenance".
+ * Its Condition is shown beside it.
  */
 export function formatRover(
   rover: RoverSnapshot,
   maintenance: readonly MaintenanceSnapshot[],
-): string {
+): Stat {
   const broken = rover.conditionPercent <= 0;
   const doing = broken
     ? "Broken"
@@ -913,23 +1027,17 @@ export function formatRover(
       : rover.activity.kind === "on-expedition"
         ? "on an Expedition"
         : "parked";
-  const plug = broken
-    ? ""
-    : !rover.pluggedIn
-      ? ", not plugged in"
-      : rover.powered
-        ? ", plugged in and powered"
-        : ", plugged in, no power";
   const order = maintenance.find(
     ({ target }) => target.kind === "rover" && target.roverId === rover.id,
   );
-  const maintained =
-    order === undefined
-      ? ""
-      : order.underWay
-        ? ", undergoing Maintenance"
-        : ", awaiting Maintenance";
-  return `${catalogue.rover.label}: ${doing}${plug}, Condition ${formatCondition(rover.conditionPercent)}${formatPerformance(rover.performance)}${maintained}`;
+  return {
+    value: doing,
+    ...notes([
+      broken ? undefined : plugState(rover),
+      formatPerformance(rover.performance),
+      maintenanceState(order),
+    ]),
+  };
 }
 
 /** Whether a Robot's activity is for a Structure, by its id. */
@@ -1273,17 +1381,17 @@ export function formatMaintenanceStep(step: MaintenanceStep): string {
   return maintenanceStepLabels[step];
 }
 
-/** Says how thickly Dust coats a solar array, for example ", Dust coating 12%"; nothing for anything else. */
+/** Says how thickly Dust coats a solar array, for example "Dust coating 12%"; undefined for anything else. */
 export function formatDustCoating(
   structure: Pick<StructureSnapshot, "structureTypeId" | "dustCoatingPercent">,
-): string {
+): string | undefined {
   const generates =
     (catalogue.structureTypes.find(
       (type) => type.id === structure.structureTypeId,
     )?.power.generationKilowatts ?? 0) > 0;
   return generates
-    ? `, Dust coating ${Math.round(structure.dustCoatingPercent)}%`
-    : "";
+    ? `Dust coating ${Math.round(structure.dustCoatingPercent)}%`
+    : undefined;
 }
 
 /** The length of a line of points on the ground, in metres. */

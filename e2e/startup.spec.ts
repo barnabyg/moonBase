@@ -89,18 +89,15 @@ test("the status panel shows Daylight running out, and skipping jumps to Night",
   page,
 }) => {
   await page.goto("/");
-  const panel = page.getByRole("complementary", { name: "Status panel" });
-  await panel
+  await page
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
   const lunation = page.getByRole("status", { name: "Lunation" });
-  await expect(lunation).toHaveText(
-    /^Daylight: (8 Earth Days|7 Earth Days \d+ hours?) left$/,
-  );
+  await expect(lunation).toHaveText(/^Daylight · (8d|7d \d+h) left$/);
 
   // A Micrometeorite may strike first, and stop a skip on the way.
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   for (
     let skips = 0;
     skips < 10 && !(await lunation.textContent())?.startsWith("Night");
@@ -113,7 +110,7 @@ test("the status panel shows Daylight running out, and skipping jumps to Night",
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
     "Earth Day 9, 00:00",
   );
-  await expect(lunation).toHaveText("Night: 9 Earth Days 12 hours left");
+  await expect(lunation).toHaveText("Night · 9d 12h left");
 });
 
 test("panning, rotating and zooming the camera leaves the game unchanged", async ({

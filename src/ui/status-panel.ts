@@ -1,445 +1,298 @@
-import type { GameLoop } from "../game/loop";
-import type { LoadFileResult, SaveFiles } from "../game/save-files";
+import { catalogue } from "../catalogue";
 import type {
   Campaign,
-  DismantleResult,
   Forecasts,
-  MoveInResult,
-  SendLanderResult,
-  SetRecipeResult,
   Snapshot,
   StructureSnapshot,
 } from "../simulation";
 import { setText } from "./dom";
-import { createSaveButtons } from "./save-buttons";
-import { catalogue } from "../catalogue";
 import {
+  describeExpedition,
   formatBulkResources,
-  formatClock,
-  formatCondition,
-  formatDustCoating,
-  formatExpedition,
-  formatFunding,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
-  formatLunation,
-  formatMachine,
-  formatRobot,
-  formatRover,
-  formatSpareComponents,
   formatMissionDirector,
-  formatPerformance,
-  formatPlant,
   formatPower,
   formatRadiationDose,
   formatSelfSufficiency,
   formatSolarParticleEvent,
+  formatSpareComponents,
   formatStock,
   formatStoredPower,
-  structureLabel,
+  stockLabel,
 } from "./format";
-
-/** How long a refusal stays on screen, in real milliseconds. */
-const REFUSAL_SHOWN_MS = 8000;
+import { createPanelSection } from "./panel-section";
+import type { ChoiceResult } from "./refusal";
+import { createStatLine } from "./stat";
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
-  /**
-   * Forgets the Structures, Robots, Machines and Rovers listed, for a
-   * Campaign loaded in place of the last, which may have others, or give
-   * the same ids to Structures of other types.
-   */
-  startAfresh(): void;
 }
 
 /**
- * The HTML status panel. It reads simulation snapshots, sends the player's
- * speed choices to the game loop, and sends a choice to dismantle a Structure,
- * to choose a Plant's recipe, to move the Mission Director into a Habitat, or
- * to send the Lander, to the Campaign, which decides whether it is allowed
- * and says why not. It also saves the Campaign to a file and loads one from
- * a file, and shows the Funding balance beside a button that opens the
- * Launch manifest screen.
+ * The HTML status panel, in sections the player can fold away: how the
+ * Mission Director is keeping, the base's power, its stock, and the Lander
+ * and Expeditions. It reads simulation snapshots and forecasts, and sends a
+ * choice to send the Lander to the Campaign, which decides whether it is
+ * allowed and says why not.
  */
 export function createStatusPanel(
   container: HTMLElement,
-  loop: GameLoop,
-  campaign: Pick<
-    Campaign,
-    | "dismantleStructure"
-    | "moveMissionDirectorIn"
-    | "sendLander"
-    | "setPlantRecipe"
-  >,
-  saveFiles: SaveFiles,
-  openLaunchManifest: () => void,
+  campaign: Pick<Campaign, "sendLander">,
+  showResult: (result: ChoiceResult) => void,
   openExpeditions: () => void,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
   panel.setAttribute("aria-label", "Status panel");
 
-  const clock = document.createElement("p");
-  clock.className = "status-panel__clock";
-  clock.setAttribute("role", "status");
-  clock.setAttribute("aria-label", "Game clock");
-  // The clock changes several times a second; announcing each change would
-  // drown out everything else for screen-reader users.
-  clock.setAttribute("aria-live", "off");
-
-  const lunation = document.createElement("p");
-  lunation.className = "status-panel__lunation";
-  lunation.setAttribute("role", "status");
-  lunation.setAttribute("aria-label", "Lunation");
-  lunation.setAttribute("aria-live", "off");
-
-  const speedGroup = document.createElement("div");
-  speedGroup.className = "status-panel__speeds";
-  speedGroup.setAttribute("role", "group");
-  speedGroup.setAttribute("aria-label", "Game speed");
-
-  const speedButtons = loop.speeds.map((speed) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = speed.label;
-    button.dataset["speedId"] = speed.id;
-    button.addEventListener("click", () => {
-      loop.setSpeed(speed.id);
-      showSelectedSpeed();
-    });
-    speedGroup.append(button);
-    return button;
+  // How the Mission Director is keeping.
+  const missionDirectorSection = createPanelSection(
+    "mission-director",
+    "Mission Director",
+  );
+  const residence = createStatLine("Living", "Mission Director");
+  const habitatPower = createStatLine("Habitat power");
+  // How much oxygen and water is left, and when it will run out.
+  const stocks = catalogue.lifeSupportStocks.map((type) => ({
+    type,
+    line: createStatLine(type.label),
+  }));
+  // Whether the base is self-sufficient in oxygen and water, side by side.
+  const selfSufficiencyLine = document.createElement("p");
+  selfSufficiencyLine.className = "stat";
+  const selfSufficiencyLabel = document.createElement("span");
+  selfSufficiencyLabel.className = "stat__label";
+  selfSufficiencyLabel.textContent = "Self-sufficient";
+  const selfSufficiencyBody = document.createElement("span");
+  selfSufficiencyBody.className = "stat__body stat__chips";
+  selfSufficiencyLine.append(selfSufficiencyLabel, " ", selfSufficiencyBody);
+  const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
+    const chip = document.createElement("span");
+    chip.className = "stat-chip";
+    chip.setAttribute("role", "status");
+    // Not starting with the stock's name, which labels its own line.
+    chip.setAttribute(
+      "aria-label",
+      `Self-sufficiency in ${type.label.toLowerCase()}`,
+    );
+    chip.setAttribute("aria-live", "off");
+    selfSufficiencyBody.append(chip, " ");
+    return { type, chip };
   });
+  // How much radiation the Mission Director has absorbed, and how fast.
+  const radiationDose = createStatLine("Radiation", "Radiation Dose");
+  // A Solar Particle Event that is coming or under way.
+  const solarParticleEvent = createStatLine("Solar Particle Event");
+  // An event coming or under way is always a warning, and its name too long
+  // to sit beside it.
+  solarParticleEvent.warn(true);
+  solarParticleEvent.element.classList.add("stat--wide");
+  missionDirectorSection.body.append(
+    solarParticleEvent.element,
+    residence.element,
+    habitatPower.element,
+    ...stocks.map(({ line }) => line.element),
+    selfSufficiencyLine,
+    radiationDose.element,
+  );
 
-  const skip = document.createElement("button");
-  skip.type = "button";
-  skip.className = "status-panel__skip";
-  skip.textContent = "Skip to next event";
-  skip.addEventListener("click", () => {
-    loop.skipToNextEvent();
-  });
+  const powerSection = createPanelSection("power", "Power");
+  const power = createStatLine("Power");
+  const storedPower = createStatLine("Stored", "Stored power");
+  powerSection.body.append(power.element, storedPower.element);
 
-  function showSelectedSpeed(): void {
-    for (const button of speedButtons) {
-      button.setAttribute(
-        "aria-pressed",
-        String(button.dataset["speedId"] === loop.speed.id),
-      );
-    }
-  }
-
-  const funding = document.createElement("p");
-  funding.className = "status-panel__funding";
-  const fundingText = document.createElement("span");
-  fundingText.setAttribute("role", "status");
-  fundingText.setAttribute("aria-label", "Funding");
-  const manifest = document.createElement("button");
-  manifest.type = "button";
-  manifest.className = "status-panel__manifest";
-  manifest.textContent = "Launch manifest";
-  manifest.title = "Choose what the next Launch brings from Earth.";
-  manifest.addEventListener("click", openLaunchManifest);
-  funding.append(fundingText, manifest);
-
-  // The Components in the base's stock at the stockpile.
-  const stock = document.createElement("p");
-  stock.className = "status-panel__components";
-  stock.setAttribute("role", "status");
-  stock.setAttribute("aria-label", "Base's stock");
-  stock.setAttribute("aria-live", "off");
-
-  // The base's stock of bulk resources, such as Regolith.
-  const bulkResources = document.createElement("p");
-  bulkResources.className = "status-panel__components";
+  // The base's stock: Components at the stockpile, bulk resources such as
+  // Regolith, and spare Components and how long they will last.
+  const stockSection = createPanelSection("stock", "Stock");
+  const components = createStatLine("Components", "Base's stock");
+  const bulkResources = document.createElement("div");
+  bulkResources.className = "resources";
   bulkResources.setAttribute("role", "status");
   bulkResources.setAttribute("aria-label", "Bulk resources");
   bulkResources.setAttribute("aria-live", "off");
+  const resourceCells = new Map<
+    string,
+    { cell: HTMLElement; amount: HTMLElement }
+  >();
+  const spareComponents = createStatLine("Spares", "Spare Components");
+  stockSection.body.append(
+    components.element,
+    bulkResources,
+    spareComponents.element,
+  );
 
-  // How many spare Components there are, and how long they will last.
-  const spareComponents = document.createElement("p");
-  spareComponents.className = "status-panel__stock";
-  spareComponents.setAttribute("role", "status");
-  spareComponents.setAttribute("aria-label", "Spare Components");
-  spareComponents.setAttribute("aria-live", "off");
-
-  const power = document.createElement("p");
-  power.className = "status-panel__power";
-  power.setAttribute("role", "status");
-  power.setAttribute("aria-label", "Power");
-  power.setAttribute("aria-live", "off");
-
-  const storedPower = document.createElement("p");
-  storedPower.className = "status-panel__power";
-  storedPower.setAttribute("role", "status");
-  storedPower.setAttribute("aria-label", "Stored power");
-  storedPower.setAttribute("aria-live", "off");
-
-  const missionDirector = document.createElement("p");
-  missionDirector.className = "status-panel__residence";
-  missionDirector.setAttribute("role", "status");
-  missionDirector.setAttribute("aria-label", "Mission Director");
-
-  const landerLine = document.createElement("p");
-  landerLine.className = "status-panel__residence status-panel__lander";
-  const lander = document.createElement("span");
-  lander.setAttribute("role", "status");
-  lander.setAttribute("aria-label", "Lander");
-  lander.setAttribute("aria-live", "off");
+  // The Lander and any Expedition under way, each beside the button that
+  // acts on it.
+  const travelSection = createPanelSection("travel", "Lander & Expeditions");
+  const lander = createStatLine("Lander");
   const sendLander = document.createElement("button");
   sendLander.type = "button";
-  sendLander.className = "status-panel__send-lander";
+  sendLander.className = "panel-button";
   sendLander.textContent = "Send the Lander";
   sendLander.title =
     "Send the Lander to Earth and back, which it can only do once the Mission Director has moved into a Habitat.";
   sendLander.addEventListener("click", () => {
     showResult(campaign.sendLander());
   });
-  landerLine.append(lander, sendLander);
-
-  // The Expedition under way, if any, beside the button that opens the
-  // Expeditions screen.
-  const expeditionLine = document.createElement("p");
-  expeditionLine.className = "status-panel__residence status-panel__lander";
-  const expedition = document.createElement("span");
-  expedition.setAttribute("role", "status");
-  expedition.setAttribute("aria-label", "Expedition");
-  expedition.setAttribute("aria-live", "off");
+  const expedition = createStatLine("Expedition");
   const expeditions = document.createElement("button");
   expeditions.type = "button";
-  expeditions.className = "status-panel__send-lander";
+  expeditions.className = "panel-button";
   expeditions.textContent = "Expeditions";
   expeditions.title =
     "Send the Robot off the map in the Rover, to come back with water ice.";
   expeditions.addEventListener("click", openExpeditions);
-  expeditionLine.append(expedition, expeditions);
+  const actions = document.createElement("div");
+  actions.className = "panel-actions";
+  actions.append(sendLander, expeditions);
+  travelSection.body.append(lander.element, expedition.element, actions);
 
-  // Whether the Mission Director's Habitat has power, and when it will lose it.
-  const habitatPower = document.createElement("p");
-  habitatPower.className = "status-panel__habitat-power";
-  habitatPower.setAttribute("role", "status");
-  habitatPower.setAttribute("aria-label", "Habitat power");
-  habitatPower.setAttribute("aria-live", "off");
-
-  // How much oxygen and water is left, and when it will run out.
-  const stocks = catalogue.lifeSupportStocks.map((type) => {
-    const line = document.createElement("p");
-    line.className = "status-panel__stock";
-    line.setAttribute("role", "status");
-    line.setAttribute("aria-label", type.label);
-    line.setAttribute("aria-live", "off");
-    return { type, line };
-  });
-
-  // Whether the base is self-sufficient in oxygen and water.
-  const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
-    const line = document.createElement("p");
-    line.className = "status-panel__stock";
-    line.setAttribute("role", "status");
-    // Not starting with the stock's name, which labels its own line.
-    line.setAttribute(
-      "aria-label",
-      `Self-sufficiency in ${type.label.toLowerCase()}`,
-    );
-    line.setAttribute("aria-live", "off");
-    return { type, line };
-  });
-
-  // How much radiation the Mission Director has absorbed, and how fast.
-  const radiationDose = document.createElement("p");
-  radiationDose.className = "status-panel__radiation";
-  radiationDose.setAttribute("role", "status");
-  radiationDose.setAttribute("aria-label", "Radiation Dose");
-  radiationDose.setAttribute("aria-live", "off");
-
-  // A Solar Particle Event that is coming or under way.
-  const solarParticleEvent = document.createElement("p");
-  solarParticleEvent.className = "status-panel__solar-particle-event";
-  solarParticleEvent.setAttribute("role", "status");
-  solarParticleEvent.setAttribute("aria-label", "Solar Particle Event");
-  solarParticleEvent.setAttribute("aria-live", "off");
-  solarParticleEvent.hidden = true;
-
-  // Why the player's latest choice was refused, for a few seconds, so that
-  // it doesn't linger once things have changed.
-  const refusal = document.createElement("p");
-  refusal.className = "status-panel__refusal";
-  refusal.setAttribute("role", "alert");
-  refusal.hidden = true;
-  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
-  const showResult = (
-    result:
-      | DismantleResult
-      | MoveInResult
-      | SendLanderResult
-      | SetRecipeResult
-      | LoadFileResult,
-  ) => {
-    clearTimeout(refusalTimer);
-    refusal.hidden = result.ok;
-    setText(refusal, result.ok ? "" : result.message);
-    if (!result.ok) {
-      refusalTimer = setTimeout(() => {
-        refusal.hidden = true;
-      }, REFUSAL_SHOWN_MS);
-    }
-  };
-
-  const structures = document.createElement("ul");
-  structures.className = "status-panel__structures";
-  structures.setAttribute("aria-label", "Structures");
-  const structureItems = new Map<
-    string,
-    {
-      readonly item: HTMLLIElement;
-      readonly text: HTMLElement;
-      readonly dismantle: HTMLButtonElement;
-      readonly moveIn: HTMLButtonElement;
-      readonly recipe: HTMLSelectElement | undefined;
-    }
-  >();
-  const createStructureItem = (structure: StructureSnapshot) => {
-    const structureId = structure.id;
-    const item = document.createElement("li");
-    const text = document.createElement("span");
-    // The recipes of a Plant that has more than one, to choose from.
-    const recipes =
-      catalogue.structureTypes.find(
-        (type) => type.id === structure.structureTypeId,
-      )?.recipes ?? [];
-    let recipe: HTMLSelectElement | undefined;
-    if (recipes.length > 1) {
-      const select = document.createElement("select");
-      select.className = "status-panel__recipe";
-      select.setAttribute(
-        "aria-label",
-        `${structureLabel(structure.structureTypeId)} recipe`,
-      );
-      select.title =
-        "Choose what it makes. It switches in the next game-minute, with no work for the Robot.";
-      for (const { id, label } of recipes) {
-        const option = document.createElement("option");
-        option.value = id;
-        option.textContent = label;
-        select.append(option);
-      }
-      select.addEventListener("change", () => {
-        showResult(campaign.setPlantRecipe(structureId, select.value));
-      });
-      recipe = select;
-    }
-    const dismantle = document.createElement("button");
-    dismantle.type = "button";
-    dismantle.className = "status-panel__dismantle";
-    dismantle.textContent = "Dismantle";
-    dismantle.title =
-      "Have the Robot take it apart and carry most of its Components back into the base's stock.";
-    dismantle.addEventListener("click", () => {
-      showResult(campaign.dismantleStructure(structureId));
-    });
-    const moveIn = document.createElement("button");
-    moveIn.type = "button";
-    moveIn.className = "status-panel__move-in";
-    moveIn.textContent = "Move in";
-    moveIn.title =
-      "Move the Mission Director from the Lander into this Habitat, which needs power. It happens at once and can't be undone.";
-    moveIn.hidden = true;
-    moveIn.addEventListener("click", () => {
-      showResult(campaign.moveMissionDirectorIn(structureId));
-    });
-    item.append(
-      text,
-      ...(recipe === undefined ? [] : [recipe]),
-      moveIn,
-      dismantle,
-    );
-    structures.append(item);
-    return { item, text, dismantle, moveIn, recipe };
-  };
-
-  // What each Robot is doing, its Condition, and whether it is repairing
-  // itself.
-  const robots = document.createElement("ul");
-  robots.className = "status-panel__structures";
-  robots.setAttribute("aria-label", "Robots");
-  const robotItems = new Map<string, HTMLLIElement>();
-
-  // Each Machine's Condition, and whether it is Broken or awaiting
-  // Maintenance.
-  const machines = document.createElement("ul");
-  machines.className = "status-panel__structures";
-  machines.setAttribute("aria-label", "Machines");
-  const machineItems = new Map<string, HTMLLIElement>();
-
-  // Each Rover's Condition, and whether it is plugged in, Broken or
-  // awaiting Maintenance.
-  const rovers = document.createElement("ul");
-  rovers.className = "status-panel__structures";
-  rovers.setAttribute("aria-label", "Rovers");
-  const roverItems = new Map<string, HTMLLIElement>();
-
-  panel.append(
-    clock,
-    lunation,
-    speedGroup,
-    skip,
-    createSaveButtons(saveFiles, showResult),
-    funding,
-    stock,
-    bulkResources,
-    spareComponents,
-    power,
-    storedPower,
-    missionDirector,
-    landerLine,
-    expeditionLine,
-    habitatPower,
-    ...stocks.map((stock) => stock.line),
-    ...selfSufficiency.map((stock) => stock.line),
-    radiationDose,
-    solarParticleEvent,
-    structures,
-    robots,
-    machines,
-    rovers,
-    refusal,
-  );
+  const sections = [
+    missionDirectorSection,
+    powerSection,
+    stockSection,
+    travelSection,
+  ];
+  panel.append(...sections.map((section) => section.element));
   container.append(panel);
-  showSelectedSpeed();
 
   return {
     update(snapshot, forecasts) {
-      setText(clock, formatClock(snapshot.clock));
-      setText(lunation, formatLunation(snapshot.lunation));
-      setText(fundingText, formatFunding(snapshot.fundingMillionDollars));
-      setText(stock, formatStock(snapshot.stockpile));
-      setText(
-        bulkResources,
-        formatBulkResources(snapshot.bulkResources, forecasts.bulkResources),
+      const { missionDirector } = snapshot;
+      residence.show({
+        value: formatMissionDirector(missionDirector, snapshot.structures),
+      });
+
+      const habitatPowerStat = formatHabitatPower(
+        missionDirector,
+        snapshot.structures,
+        forecasts.habitatPower,
       );
-      setText(
-        spareComponents,
-        formatSpareComponents(forecasts.spareComponents),
+      habitatPower.element.hidden = habitatPowerStat === undefined;
+      if (habitatPowerStat !== undefined) habitatPower.show(habitatPowerStat);
+      // Shown as a warning from the first warning on, and once it has failed.
+      const powerWarnFrom =
+        Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
+      habitatPower.warn(
+        homeHabitat(snapshot)?.powered === false ||
+          (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
+            powerWarnFrom,
       );
+
+      for (const { type, line } of stocks) {
+        const stock = snapshot.lifeSupport.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        const forecast = forecasts.lifeSupport.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        line.element.hidden = stock === undefined;
+        if (stock === undefined) continue;
+        line.show(formatLifeSupport(stock, forecast, missionDirector));
+        // Shown as a warning from the first warning on, and once it has run out.
+        const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
+        line.warn(
+          stock.kilograms === 0 ||
+            (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
+        );
+      }
+
+      for (const { type, chip } of selfSufficiency) {
+        const judged = snapshot.selfSufficiency.find(
+          (candidate) => candidate.stockId === type.id,
+        );
+        chip.hidden = judged === undefined;
+        if (judged === undefined) continue;
+        const { value, share, explanation } = formatSelfSufficiency(
+          judged,
+          missionDirector,
+        );
+        setText(
+          chip,
+          `${stockLabel(type.id)} ${value}${share === undefined ? "" : ` ${share}`}`,
+        );
+        if (chip.title !== explanation) chip.title = explanation;
+        chip.classList.toggle("stat-chip--good", value === "yes");
+      }
+      selfSufficiencyLine.hidden = selfSufficiency.every(
+        ({ chip }) => chip.hidden,
+      );
+
+      radiationDose.show(
+        formatRadiationDose(
+          snapshot.radiationDoseMillisieverts,
+          forecasts.radiationDose,
+          missionDirector,
+        ),
+      );
+      const limit = catalogue.radiation.doseLimitMillisieverts;
+      radiationDose.fill(snapshot.radiationDoseMillisieverts / limit);
+      // Shown as a warning from the first warning on, and once it is reached.
+      const doseWarnFrom =
+        Math.max(...catalogue.radiation.warningEarthDaysLeft) * 24 * 60;
+      radiationDose.warn(
+        snapshot.radiationDoseMillisieverts >= limit ||
+          (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=
+            doseWarnFrom,
+      );
+
+      solarParticleEvent.element.hidden =
+        snapshot.solarParticleEvent === undefined;
+      if (snapshot.solarParticleEvent !== undefined) {
+        solarParticleEvent.show(
+          formatSolarParticleEvent(
+            snapshot.solarParticleEvent,
+            snapshot.clock.elapsedMinutes,
+          ),
+        );
+      }
+
+      // Nothing generates or stores power until the first Structure stands.
+      powerSection.element.hidden = snapshot.structures.length === 0;
+      power.show(formatPower(snapshot.power));
+      const stored = formatStoredPower(snapshot.power, forecasts.power);
+      storedPower.show(stored);
+      storedPower.fill(stored.fraction);
+
+      components.show({ value: formatStock(snapshot.stockpile) });
+      for (const resource of formatBulkResources(
+        snapshot.bulkResources,
+        forecasts.bulkResources,
+      )) {
+        let entry = resourceCells.get(resource.label);
+        if (entry === undefined) {
+          const cell = document.createElement("span");
+          cell.className = "resources__cell";
+          const name = document.createElement("span");
+          name.className = "resources__name";
+          name.textContent = resource.label;
+          const amount = document.createElement("span");
+          amount.className = "resources__amount";
+          cell.append(name, " ", amount, " ");
+          bulkResources.append(cell);
+          entry = { cell, amount };
+          resourceCells.set(resource.label, entry);
+        }
+        setText(
+          entry.amount,
+          resource.note === undefined
+            ? resource.value
+            : `${resource.value} ${resource.note}`,
+        );
+        entry.cell.classList.toggle("resources__cell--empty", resource.empty);
+      }
+      spareComponents.show(formatSpareComponents(forecasts.spareComponents));
       // Shown as a warning from the first warning on.
       const sparesWarnFrom =
         Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;
-      spareComponents.classList.toggle(
-        "status-panel__stock--low",
+      spareComponents.warn(
         (forecasts.spareComponents.minutesUntilEmpty ?? Infinity) <=
           sparesWarnFrom,
       );
-      const hasStructures = snapshot.structures.length > 0;
-      power.hidden = !hasStructures;
-      storedPower.hidden = !hasStructures;
-      setText(power, formatPower(snapshot.power));
-      setText(storedPower, formatStoredPower(snapshot.power, forecasts.power));
-      setText(
-        missionDirector,
-        formatMissionDirector(snapshot.missionDirector, snapshot.structures),
-      );
-      setText(
-        lander,
+
+      lander.show(
         formatLander(
           snapshot.lander,
           snapshot.clock.elapsedMinutes,
@@ -448,171 +301,14 @@ export function createStatusPanel(
         ),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
-      setText(
-        expedition,
-        formatExpedition(snapshot.expedition, snapshot.clock.elapsedMinutes),
-      );
-      const habitatPowerText = formatHabitatPower(
-        snapshot.missionDirector,
-        snapshot.structures,
-        forecasts.habitatPower,
-      );
-      habitatPower.hidden = habitatPowerText === undefined;
-      setText(habitatPower, habitatPowerText ?? "");
-      // Shown as a warning from the first warning on, and once it has failed.
-      const powerWarnFrom =
-        Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
-      habitatPower.classList.toggle(
-        "status-panel__habitat-power--low",
-        homeHabitat(snapshot)?.powered === false ||
-          (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
-            powerWarnFrom,
-      );
-      for (const { type, line } of stocks) {
-        const stock = snapshot.lifeSupport.find(
-          (candidate) => candidate.stockId === type.id,
-        );
-        const forecast = forecasts.lifeSupport.find(
-          (candidate) => candidate.stockId === type.id,
-        );
-        line.hidden = stock === undefined;
-        if (stock === undefined) continue;
-        setText(
-          line,
-          formatLifeSupport(stock, forecast, snapshot.missionDirector),
-        );
-        // Shown as a warning from the first warning on, and once it has run out.
-        const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
-        line.classList.toggle(
-          "status-panel__stock--low",
-          stock.kilograms === 0 ||
-            (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
-        );
-      }
-      for (const { type, line } of selfSufficiency) {
-        const judged = snapshot.selfSufficiency.find(
-          (candidate) => candidate.stockId === type.id,
-        );
-        line.hidden = judged === undefined;
-        if (judged === undefined) continue;
-        setText(line, formatSelfSufficiency(judged, snapshot.missionDirector));
-      }
-      setText(
-        radiationDose,
-        formatRadiationDose(
-          snapshot.radiationDoseMillisieverts,
-          forecasts.radiationDose,
-          snapshot.missionDirector,
+      expedition.show({
+        value: describeExpedition(
+          snapshot.expedition,
+          snapshot.clock.elapsedMinutes,
         ),
-      );
-      // Shown as a warning from the first warning on, and once it is reached.
-      const doseWarnFrom =
-        Math.max(...catalogue.radiation.warningEarthDaysLeft) * 24 * 60;
-      radiationDose.classList.toggle(
-        "status-panel__radiation--low",
-        snapshot.radiationDoseMillisieverts >=
-          catalogue.radiation.doseLimitMillisieverts ||
-          (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=
-            doseWarnFrom,
-      );
-      solarParticleEvent.hidden = snapshot.solarParticleEvent === undefined;
-      setText(
-        solarParticleEvent,
-        snapshot.solarParticleEvent === undefined
-          ? ""
-          : formatSolarParticleEvent(
-              snapshot.solarParticleEvent,
-              snapshot.clock.elapsedMinutes,
-            ),
-      );
-      const seen = new Set<string>();
-      for (const structure of snapshot.structures) {
-        seen.add(structure.id);
-        let entry = structureItems.get(structure.id);
-        if (entry === undefined) {
-          entry = createStructureItem(structure);
-          structureItems.set(structure.id, entry);
-        }
-        const toBeDismantled = snapshot.dismantlings.some(
-          (dismantling) => dismantling.id === structure.id,
-        );
-        const home =
-          snapshot.missionDirector.residence === "habitat" &&
-          snapshot.missionDirector.habitatId === structure.id;
-        const broken = structure.conditionPercent <= 0;
-        const maintenance = snapshot.maintenance.find(
-          ({ target }) =>
-            target.kind === "structure" && target.structureId === structure.id,
-        );
-        const maintained =
-          maintenance === undefined
-            ? ""
-            : maintenance.underWay
-              ? ", undergoing Maintenance"
-              : ", awaiting Maintenance";
-        const shielding = isHabitat(structure.structureTypeId)
-          ? `, ${structure.shielded ? "shielded" : "unshielded"}`
-          : "";
-        setText(
-          entry.text,
-          `${structureLabel(structure.structureTypeId)}: ${toBeDismantled ? "to be dismantled" : broken ? "Broken" : "commissioned"}${structure.plant === undefined ? (structure.powered || broken ? "" : ", no power") : formatPlant(structure.plant)}${structure.lit ? ", lit" : ""}${shielding}${home ? ", the Mission Director's home" : ""}, Condition ${formatCondition(structure.conditionPercent)}${formatPerformance(structure.performance)}${formatDustCoating(structure)}${maintained}`,
-        );
-        // The recipe it runs, which a refused choice leaves as it was.
-        if (
-          entry.recipe !== undefined &&
-          structure.recipeId !== undefined &&
-          entry.recipe.value !== structure.recipeId
-        ) {
-          entry.recipe.value = structure.recipeId;
-        }
-        entry.dismantle.hidden = toBeDismantled;
-        entry.moveIn.hidden =
-          toBeDismantled ||
-          snapshot.missionDirector.residence !== "lander" ||
-          !isHabitat(structure.structureTypeId);
-      }
-      for (const [id, entry] of structureItems) {
-        if (!seen.has(id)) {
-          entry.item.remove();
-          structureItems.delete(id);
-        }
-      }
-      structures.hidden = structureItems.size === 0;
-      for (const robot of snapshot.robots) {
-        let item = robotItems.get(robot.id);
-        if (item === undefined) {
-          item = document.createElement("li");
-          robots.append(item);
-          robotItems.set(robot.id, item);
-        }
-        setText(item, formatRobot(robot, snapshot.expedition));
-      }
-      for (const machine of snapshot.machines) {
-        let item = machineItems.get(machine.id);
-        if (item === undefined) {
-          item = document.createElement("li");
-          machines.append(item);
-          machineItems.set(machine.id, item);
-        }
-        setText(item, formatMachine(machine, snapshot.maintenance));
-      }
-      for (const rover of snapshot.rovers) {
-        let item = roverItems.get(rover.id);
-        if (item === undefined) {
-          item = document.createElement("li");
-          rovers.append(item);
-          roverItems.set(rover.id, item);
-        }
-        setText(item, formatRover(rover, snapshot.maintenance));
-      }
-    },
-    startAfresh() {
-      for (const entry of structureItems.values()) entry.item.remove();
-      structureItems.clear();
-      for (const items of [robotItems, machineItems, roverItems]) {
-        for (const item of items.values()) item.remove();
-        items.clear();
-      }
+      });
+
+      for (const section of sections) section.refreshWarning();
     },
   };
 }
@@ -625,11 +321,4 @@ function homeHabitat(snapshot: Snapshot): StructureSnapshot | undefined {
         (structure) => structure.id === missionDirector.habitatId,
       )
     : undefined;
-}
-
-function isHabitat(structureTypeId: string): boolean {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.habitat === true
-  );
 }

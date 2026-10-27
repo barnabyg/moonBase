@@ -9,12 +9,8 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
     name: "Mission Director",
   });
   const lander = page.getByRole("status", { name: "Lander" });
-  await expect(missionDirector).toHaveText(
-    "Mission Director: aboard the Lander",
-  );
-  await expect(lander).toHaveText(
-    "Lander: landed, with the Mission Director aboard",
-  );
+  await expect(missionDirector).toHaveText("Living aboard the Lander");
+  await expect(lander).toHaveText("Lander landed · Mission Director aboard");
 
   // The Habitat needs power, so a solar array comes first and the Robot
   // cables the Habitat to it.
@@ -33,15 +29,13 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   const structures = page.getByRole("list", { name: "Structures" });
   // Dust has worn the solar array down a little since it was commissioned.
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array: commissioned, Condition 9\d%, Dust coating \d+%(?!,)/,
-    /^Inflatable Habitat: commissioned, unshielded, Condition 100%(?!,)/,
+    /^Solar array Condition 9\d% commissioned · Dust coating \d+%(?!,)/,
+    /^Inflatable Habitat Condition 100% commissioned · unshielded(?!,)/,
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 
-  await expect(missionDirector).toHaveText(
-    "Mission Director: living in the inflatable habitat",
-  );
-  await expect(lander).toHaveText("Lander: landed, free to fly");
+  await expect(missionDirector).toHaveText("Living in the Inflatable Habitat");
+  await expect(lander).toHaveText("Lander landed · free to fly");
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array/,
     /, the Mission Director's home/,

@@ -44,15 +44,21 @@ export function createBuildMenu(
     button.type = "button";
     const name = document.createElement("span");
     name.textContent = type.label;
+    // How many the stock can supply, as a badge; the words are for screen
+    // readers.
     const stock = document.createElement("span");
     stock.className = "build-menu__stock";
-    button.append(name, stock);
+    const count = document.createElement("span");
+    const meaning = document.createElement("span");
+    meaning.className = "visually-hidden";
+    stock.append(count, meaning);
+    button.append(name, " ", stock);
     button.addEventListener("click", () => {
       if (placing === type) stopPlacing("");
       else startPlacing(type);
     });
     options.append(button);
-    return { type, button, stock };
+    return { type, button, stock, count, meaning };
   });
 
   function showPlacing(): void {
@@ -178,16 +184,18 @@ export function createBuildMenu(
   return {
     update(snapshot) {
       ({ plumeEjecta } = snapshot);
-      for (const { type, stock } of buttons) {
+      for (const { type, stock, count, meaning } of buttons) {
         const sets = setsAvailable(type, snapshot);
         available.set(type.id, sets);
         // One made from Regolith alone never runs short.
-        setText(
-          stock,
-          type.components.length === 0
-            ? "no Components needed"
-            : `${sets} available`,
+        const unlimited = type.components.length === 0;
+        setText(count, unlimited ? "–" : String(sets));
+        setText(meaning, unlimited ? " no Components needed" : " available");
+        stock.classList.toggle(
+          "build-menu__stock--none",
+          !unlimited && sets === 0,
         );
+        stock.title = unlimited ? "No Components needed" : `${sets} available`;
       }
     },
   };

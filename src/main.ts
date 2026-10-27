@@ -4,13 +4,16 @@ import { createGameLoop } from "./game/loop";
 import { createSaveFiles } from "./game/save-files";
 import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
+import { createBasePanel } from "./ui/base-panel";
 import { createBuildMenu } from "./ui/build-menu";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
+import { createRefusal } from "./ui/refusal";
 import { createStatusPanel } from "./ui/status-panel";
+import { createTopBar } from "./ui/top-bar";
 
 /**
  * A valid `?seed=` in the address replays a Campaign exactly; otherwise, or if
@@ -61,35 +64,37 @@ const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
   notifications.startAfresh();
   constructionPanel.startAfresh();
-  statusPanel.startAfresh();
+  basePanel.startAfresh();
   renderer?.startAfresh();
 });
-const notifications = createNotificationList(container);
+// The top bar across the screen; below it, the status panel above the build
+// menu on the left, and the Work and Base panels above the notifications on
+// the right. Each column scrolls its longest panel rather than running
+// under the next when it grows.
+const topBarSlot = document.createElement("div");
+topBarSlot.className = "top-bar-slot";
+const leftColumn = document.createElement("div");
+leftColumn.className = "left-column";
+const rightColumn = document.createElement("div");
+rightColumn.className = "right-column";
+container.append(topBarSlot, leftColumn, rightColumn);
+const showResult = createRefusal(container);
+const launchManifest = createLaunchManifestScreen(container, campaign);
+const expeditions = createExpeditionsScreen(container, campaign);
+const constructionPanel = createConstructionPanel(rightColumn, campaign);
+const basePanel = createBasePanel(rightColumn, campaign, showResult);
+const notifications = createNotificationList(rightColumn);
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
   },
 });
-// The status panel above the build menu, scrolling rather than running
-// under it when it grows.
-const leftColumn = document.createElement("div");
-leftColumn.className = "left-column";
-container.append(leftColumn);
-const launchManifest = createLaunchManifestScreen(container, campaign);
-const expeditions = createExpeditionsScreen(container, campaign);
-const statusPanel = createStatusPanel(
-  leftColumn,
-  loop,
-  campaign,
-  saveFiles,
-  () => {
-    launchManifest.open();
-  },
-  () => {
-    expeditions.open();
-  },
-);
-const constructionPanel = createConstructionPanel(container, campaign);
+const topBar = createTopBar(topBarSlot, loop, saveFiles, showResult, () => {
+  launchManifest.open();
+});
+const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
+  expeditions.open();
+});
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(
   container,
@@ -110,7 +115,9 @@ function frame(time: number): void {
   if (lastFrameTime !== undefined) loop.update(time - lastFrameTime);
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
+  topBar.update(snapshot);
   statusPanel.update(snapshot, campaign.forecasts());
+  basePanel.update(snapshot);
   constructionPanel.update(snapshot);
   launchManifest.update(snapshot);
   expeditions.update(snapshot);

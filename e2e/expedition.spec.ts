@@ -21,12 +21,12 @@ test("an Expedition started from the Expeditions screen comes back with water ic
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  await panel
+  await page
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
   await expect(panel.getByRole("status", { name: "Expedition" })).toHaveText(
-    "Expedition: none under way",
+    "Expedition none under way",
   );
 
   await panel.getByRole("button", { name: "Expeditions" }).click();
@@ -44,7 +44,7 @@ test("an Expedition started from the Expeditions screen comes back with water ic
 
   // Skip from event to event: it leaves the map, then some Earth Days
   // later it is back, with other events on the way.
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   const left = notifications.getByText(/Expedition left the map/);
   const back = notifications.getByText(
     /Expedition back with 200 kg of water ice/,
@@ -58,7 +58,7 @@ test("an Expedition started from the Expeditions screen comes back with water ic
       sawLeave = true;
       await expect(
         panel.getByRole("status", { name: "Expedition" }),
-      ).toHaveText(/^Expedition: away, back in 3 Earth Days$/);
+      ).toHaveText(/^Expedition away, back in 3 Earth Days$/);
     }
   }
   expect(sawLeave).toBe(true);
@@ -66,8 +66,8 @@ test("an Expedition started from the Expeditions screen comes back with water ic
 
   await expect(
     panel.getByRole("status", { name: "Bulk resources" }),
-  ).toContainText("Water ice: 200 kg");
+  ).toContainText("Water ice 200 kg");
   await expect(panel.getByRole("status", { name: "Expedition" })).toHaveText(
-    "Expedition: none under way",
+    "Expedition none under way",
   );
 });

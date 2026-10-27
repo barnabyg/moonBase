@@ -35,13 +35,13 @@ test("the Robot carries out the Construction of a solar array placed on the map,
   await expect(
     page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
   ).toHaveText([
-    /^Solar array: commissioned, Condition 100%, Dust coating \d+%(?!,)/,
+    /^Solar array Condition 100% commissioned · Dust coating \d+%(?!,)/,
   ]);
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
-  ).toHaveText(/^Power: [1-9]\d*\.\d\d kW generated, \d+\.\d\d kW used$/);
+  ).toHaveText(/^Power [1-9]\d*\.\d\d kW made · \d+\.\d\d kW used$/);
   await expect(page.getByRole("status", { name: "Stored power" })).toHaveText(
-    "Stored: no battery banks",
+    "Stored no battery banks",
   );
   await expect(work).toContainText(
     "Waiting: 2 solar panels and 1 array mast aren't in the base's stock",
@@ -105,7 +105,7 @@ test("dismantling a Structure has the Robot take it apart and return most of its
   const structures = page.getByRole("list", { name: "Structures" });
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array: commissioned/,
+    /^Solar array Condition \d+% commissioned/,
   ]);
 
   await structures.getByRole("button", { name: "Dismantle" }).click();
@@ -113,7 +113,7 @@ test("dismantling a Structure has the Robot take it apart and return most of its
   const work = page.getByRole("complementary", { name: "Work" });
   await expect(work).toContainText("Dismantling the solar array");
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array: to be dismantled/,
+    /^Solar array Condition \d+% to be dismantled/,
   ]);
   await skip.click();
   await expect(work).toBeHidden();

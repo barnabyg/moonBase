@@ -20,10 +20,9 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   page,
 }) => {
   await page.goto("/?seed=1");
-  const panel = page.getByRole("complementary", { name: "Status panel" });
-  const speeds = panel.getByRole("group", { name: "Game speed" });
+  const speeds = page.getByRole("group", { name: "Game speed" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const array = panel
+  const array = page
     .getByRole("list", { name: "Structures" })
     .getByRole("listitem")
     .filter({ hasText: /^Solar array/ });
@@ -46,7 +45,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   // the cold has worn down, takes the Condition in with it, and it is
   // raised again only once the cleaning is done.
   await speeds.getByRole("button", { name: "Pause" }).click();
-  const skip = panel.getByRole("button", { name: "Skip to next event" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   const needed = notifications.getByText(
     /Solar array needs Maintenance: Condition down to \d+%/,
   );
@@ -61,7 +60,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   await skipUntil(needed);
 
   await expect(array).toHaveText(
-    /Condition \d+%, (working at \d+%, )?Dust coating \d+%, (awaiting|undergoing) Maintenance/,
+    /Condition \d+% \w+ · (working at \d+%, )?Dust coating \d+%, (awaiting|undergoing) Maintenance/,
   );
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
     "Maintaining the solar array",
