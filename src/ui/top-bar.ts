@@ -18,8 +18,10 @@ export interface TopBar {
 /**
  * The bar across the top of the screen: the game clock and the part of the
  * Lunation, the game speed and skipping to the next event, the Funding
- * balance beside the button that opens the Launch manifest screen, and
- * saving and loading. It sends the player's speed choices to the game loop.
+ * balance beside the button that opens the Launch manifest screen, the
+ * Science balance beside the button that opens the Research Tasks screen,
+ * and saving and loading. It sends the player's speed choices to the game
+ * loop.
  */
 export function createTopBar(
   container: HTMLElement,
@@ -27,6 +29,7 @@ export function createTopBar(
   saveFiles: SaveFiles,
   showResult: (result: ChoiceResult) => void,
   openLaunchManifest: () => void,
+  openResearchTasks: () => void,
 ): TopBar {
   const bar = document.createElement("section");
   bar.className = "top-bar";
@@ -98,10 +101,27 @@ export function createTopBar(
   manifest.addEventListener("click", openLaunchManifest);
   funding.append(fundingLabel, fundingValue, manifest);
 
+  const science = document.createElement("div");
+  science.className = "top-bar__science";
+  const scienceLabel = document.createElement("span");
+  scienceLabel.className = "top-bar__label";
+  scienceLabel.textContent = "Science";
+  const scienceValue = document.createElement("span");
+  scienceValue.className = "top-bar__funds";
+  scienceValue.setAttribute("role", "status");
+  scienceValue.setAttribute("aria-label", "Science");
+  const research = document.createElement("button");
+  research.type = "button";
+  research.textContent = "Research Tasks";
+  research.title = "Start a Research Task, which earns Science.";
+  research.addEventListener("click", openResearchTasks);
+  science.append(scienceLabel, scienceValue, research);
+
   bar.append(
     time,
     speedGroup,
     funding,
+    science,
     createSaveButtons(saveFiles, showResult),
   );
   container.append(bar);
@@ -119,6 +139,7 @@ export function createTopBar(
         snapshot.lunation.part !== "daylight",
       );
       setText(fundingValue, formatFunding(snapshot.fundingMillionDollars));
+      setText(scienceValue, String(snapshot.science));
     },
   };
 }

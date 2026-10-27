@@ -2,6 +2,7 @@ import {
   catalogue,
   type Export,
   type LaunchItem,
+  type ResearchTask,
   type ResourceRef,
 } from "../catalogue";
 import {
@@ -51,6 +52,7 @@ import type {
   ManifestLine,
   ParkingSnapshot,
   PlantSnapshot,
+  ResearchTaskSnapshot,
   MissionDirectorResidence,
   UnloadingSnapshot,
   WalkingDestination,
@@ -682,6 +684,40 @@ export function researchTaskLabel(researchTaskId: string): string {
     catalogue.researchTasks.find((task) => task.id === researchTaskId)?.label ??
     researchTaskId
   );
+}
+
+/** How long a Research Task runs, in game-minutes. */
+export function researchTaskMinutes(task: ResearchTask): number {
+  return Math.round(task.lengthHours * 60);
+}
+
+/**
+ * Says which Research Task is running and how long it has left, for the
+ * status panel, for example "Seismic monitoring" and "2d 5h left", or that
+ * none is.
+ */
+export function formatResearchTask(
+  running: ResearchTaskSnapshot | undefined,
+): Stat {
+  return running === undefined
+    ? { value: "none running" }
+    : {
+        value: researchTaskLabel(running.researchTaskId),
+        note: `${formatShortDuration(running.minutesLeft)} left`,
+      };
+}
+
+/**
+ * Says what the Research Tasks screen can do as things stand, for example
+ * "Running: Seismic monitoring, 2 Earth Days 5 hours left. Another can
+ * start once it is complete."
+ */
+export function describeResearch(
+  running: ResearchTaskSnapshot | undefined,
+): string {
+  return running === undefined
+    ? "None running. Start one, and it runs by itself for its length, then pays its Science. Only one runs at a time, and each can be completed only once."
+    : `Running: ${researchTaskLabel(running.researchTaskId)}, ${formatDuration(running.minutesLeft)} left. Another can start once it is complete.`;
 }
 
 /** Names something a Launch can bring, for example "Solar panel" or "Oxygen, 25 kg". */

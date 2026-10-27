@@ -138,13 +138,15 @@ body {
 
 .top-bar__speeds,
 .top-bar__funding,
+.top-bar__science,
 .top-bar .save-buttons {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.top-bar__funding {
+.top-bar__funding,
+.top-bar__science {
   gap: 8px;
 }
 
@@ -661,7 +663,8 @@ body {
 
 .game-over,
 .launch-manifest,
-.expeditions {
+.expeditions,
+.research-tasks {
   max-width: 440px;
   padding: 20px 22px;
   color: var(--text);
@@ -673,7 +676,8 @@ body {
 
 .game-over::backdrop,
 .launch-manifest::backdrop,
-.expeditions::backdrop {
+.expeditions::backdrop,
+.research-tasks::backdrop {
   background: rgb(0 0 0 / 60%);
 }
 
@@ -736,13 +740,15 @@ body {
   border-radius: 6px;
 }
 
-.launch-manifest {
+.launch-manifest,
+.research-tasks {
   max-width: 520px;
   max-height: calc(100% - 32px);
 }
 
 .launch-manifest h2,
-.expeditions h2 {
+.expeditions h2,
+.research-tasks h2 {
   margin: 0 0 8px;
   font-size: 1.2rem;
 }
@@ -772,11 +778,13 @@ body {
 }
 
 .launch-manifest p,
-.expeditions p {
+.expeditions p,
+.research-tasks p {
   margin: 0 0 10px;
 }
 
-.launch-manifest table {
+.launch-manifest table,
+.research-tasks table {
   width: 100%;
   margin-bottom: 10px;
   border-collapse: collapse;
@@ -785,18 +793,22 @@ body {
 }
 
 .launch-manifest th,
-.launch-manifest td {
+.launch-manifest td,
+.research-tasks th,
+.research-tasks td {
   padding: 3px 6px;
   text-align: left;
 }
 
-.launch-manifest thead th {
+.launch-manifest thead th,
+.research-tasks thead th {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.launch-manifest tbody th {
+.launch-manifest tbody th,
+.research-tasks tbody th {
   font-weight: normal;
 }
 
@@ -804,8 +816,17 @@ body {
   text-align: right;
 }
 
-.launch-manifest__actions {
+.launch-manifest__actions,
+.research-tasks__action {
   white-space: nowrap;
+}
+
+.research-tasks__action span {
+  color: var(--text-muted);
+}
+
+.research-tasks__action span:empty {
+  display: none;
 }
 
 .launch-manifest__total {
@@ -813,12 +834,14 @@ body {
 }
 
 .launch-manifest__refusal,
-.expeditions__refusal {
+.expeditions__refusal,
+.research-tasks__refusal {
   color: var(--warning);
 }
 
 .launch-manifest__refusal[hidden],
-.expeditions__refusal[hidden] {
+.expeditions__refusal[hidden],
+.research-tasks__refusal[hidden] {
   display: none;
 }
 
@@ -827,7 +850,8 @@ body {
 }
 
 .launch-manifest button,
-.expeditions button {
+.expeditions button,
+.research-tasks button {
   padding: 2px 8px;
   font: inherit;
   font-size: 0.85rem;
@@ -846,7 +870,8 @@ body {
   margin-left: 4px;
 }
 
-.launch-manifest button:hover:not(:disabled) {
+.launch-manifest button:hover:not(:disabled),
+.research-tasks button:hover {
   border-color: var(--text-muted);
 }
 
@@ -855,7 +880,8 @@ body {
   opacity: 0.4;
 }
 
-.launch-manifest button:focus-visible {
+.launch-manifest button:focus-visible,
+.research-tasks button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
