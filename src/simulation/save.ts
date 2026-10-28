@@ -832,9 +832,9 @@ export const migrations: readonly Migration[] = [
   },
   // 34 to 35: Plants work in batches, and keep why they didn't run. Until
   // now each ran from game-minute to game-minute, so none has a batch
-  // started: each starts one when it next can. One that didn't run in the
-  // latest game-minute is taken to have stood for want of power, or for
-  // being Broken; the next game-minute played says why it truly doesn't.
+  // started: each starts one when it next can. None kept why it didn't run,
+  // so until the first game-minute played each says why from the base as
+  // it was saved.
   (document) => {
     const state = document["state"];
     if (!isRecord(state) || !Array.isArray(state["structures"])) {
@@ -844,20 +844,11 @@ export const migrations: readonly Migration[] = [
       ...document,
       state: {
         ...state,
-        structures: (state["structures"] as unknown[]).map((structure) => {
-          if (!isRecord(structure)) return structure;
-          const idle =
-            typeof structure["recipeId"] === "string" &&
-            structure["powered"] === false;
-          const broken =
-            typeof structure["conditionPercent"] === "number" &&
-            structure["conditionPercent"] <= 0;
-          return {
-            ...structure,
-            batch: null,
-            plantStop: idle ? { reason: broken ? "broken" : "no-power" } : null,
-          };
-        }),
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure)
+            ? { ...structure, batch: null, plantStop: null }
+            : structure,
+        ),
       },
     };
   },

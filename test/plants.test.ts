@@ -281,6 +281,47 @@ describe("the extraction plant", () => {
 
     expect(loaded.campaign.snapshot()).toEqual(campaign.snapshot());
   });
+
+  it.each([
+    ["at Night", 5000, true, { reason: "night" }],
+    [
+      "short of Regolith",
+      1,
+      false,
+      {
+        reason: "no-input",
+        resource: { kind: "bulk-resource", resourceId: "regolith" },
+      },
+    ],
+  ] as const)(
+    "says why it stands idle %s straight after loading a save from before batches",
+    (_, regolith, night, stoppedFor) => {
+      const campaign = withStocks(plantBase(), { regolith });
+      if (night) {
+        campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
+      }
+      campaign.advance(1);
+      // As format version 34 saved it, with no batch or reason kept.
+      const document = JSON.parse(campaign.save()) as {
+        version: number;
+        state: { structures: Record<string, unknown>[] };
+      };
+      document.version = 34;
+      for (const structure of document.state.structures) {
+        delete structure["batch"];
+        delete structure["plantStop"];
+      }
+
+      const loaded = loadCampaign(JSON.stringify(document));
+
+      if (!loaded.ok) throw new Error(loaded.message);
+      expect(plantOf(loaded.campaign.snapshot()).plant).toMatchObject({
+        running: false,
+        stoppedFor,
+        batch: undefined,
+      });
+    },
+  );
 });
 
 describe("a Plant on a network short of power", () => {

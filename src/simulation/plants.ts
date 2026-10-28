@@ -1,4 +1,9 @@
-import type { PlantRecipe, ResourceFlow, ResourceRef } from "../catalogue";
+import {
+  catalogue,
+  type PlantRecipe,
+  type ResourceFlow,
+  type ResourceRef,
+} from "../catalogue";
 import { addBulk, bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
@@ -7,6 +12,7 @@ import {
   isBroken,
   type StructureState,
 } from "./construction";
+import { readLunation } from "./lunation";
 import { recordLifeSupport } from "./self-sufficiency";
 
 /**
@@ -152,6 +158,8 @@ export function setPlantRecipe(
     );
   }
   structure.recipeId = recipeId;
+  // Why it waited may not hold for the new recipe.
+  structure.plantStop = undefined;
   return { ok: true };
 }
 
@@ -431,7 +439,7 @@ export function readPlant(
     stoppedFor: readStop(
       state,
       recipe,
-      structure.plantStop ?? stopOf(structure),
+      structure.plantStop ?? stopOf(state, structure),
     ),
     batch,
   };
@@ -450,9 +458,16 @@ function readBatch(structure: StructureState): PlantSnapshot["batch"] {
   };
 }
 
-/** Why a Plant isn't running when nothing has said why, as just after loading a save. */
-function stopOf(structure: StructureState): PlantStop {
-  return isBroken(structure) ? { reason: "broken" } : { reason: "no-power" };
+/**
+ * Why a Plant isn't running when nothing has said why since its recipe was
+ * switched, or since an older save was loaded: from the base as it is now.
+ */
+function stopOf(state: CampaignState, structure: StructureState): PlantStop {
+  const now = readLunation(state.elapsedMinutes, catalogue.lunation);
+  return (
+    plantCantRun(state, structure, new Map()) ??
+    (now.part === "night" ? { reason: "night" } : { reason: "no-power" })
+  );
 }
 
 function readStop(
