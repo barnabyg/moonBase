@@ -275,7 +275,9 @@ describe("a Plant's recipe", () => {
     setRecipe(campaign, "extraction-plant", "metals-and-silicon");
 
     const set = structureOf(campaign.snapshot(), "extraction-plant");
-    expect(formatPlantRates(set)).toMatch(/^making 0\.15 kg of oxygen/);
+    expect(formatPlantRates(set)).toMatch(
+      /^making 0\.15 kg of oxygen.* from 4 kg of regolith; Metals and silicon from the next batch$/,
+    );
     campaign.advance(30);
     const after = campaign.snapshot();
     expect(bulk(after, "silicon") - bulk(before, "silicon")).toBeCloseTo(

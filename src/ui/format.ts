@@ -648,7 +648,8 @@ export function resourceRefLabel(resource: ResourceRef): string {
 /**
  * Says what a running Plant makes and uses an hour, as fast as its
  * Condition allows, for example "making 0.3 kg of wafers an hour from
- * 0.35 kg of silicon"; undefined for one that isn't running.
+ * 0.35 kg of silicon", and the recipe it switches to from its next batch if
+ * it was switched during this one; undefined for one that isn't running.
  */
 export function formatPlantRates(
   structure: Pick<
@@ -661,18 +662,29 @@ export function formatPlantRates(
     catalogue.structureTypes.find(
       (type) => type.id === structure.structureTypeId,
     )?.recipes ?? [];
+  const chosen =
+    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
   // A batch it has started goes on with the recipe it was started with.
-  const recipeId = structure.plant.batch?.recipeId ?? structure.recipeId;
-  const recipe = recipes.find(({ id }) => id === recipeId) ?? recipes[0];
+  const recipe =
+    recipes.find(({ id }) => id === structure.plant?.batch?.recipeId) ?? chosen;
   if (recipe === undefined) return undefined;
   const flows = (resources: PlantRecipe["outputs"]) =>
     listInWords(
       resources.map(
         (flow) =>
-          `${Number((flow.kilogramsPerHour * structure.performance).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+          `${plantKilograms(flow.kilogramsPerHour * structure.performance)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
       ),
     );
-  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}`;
+  const next =
+    chosen === undefined || chosen === recipe
+      ? ""
+      : `; ${chosen.label} from the next batch`;
+  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}${next}`;
+}
+
+/** Kilograms a Plant takes in or puts out, to the hundredth of one, for example "0.35". */
+function plantKilograms(kilograms: number): string {
+  return String(Number(kilograms.toFixed(2)));
 }
 
 /**
@@ -693,7 +705,7 @@ export function formatPlant(plant: PlantSnapshot): string | undefined {
     case "broken":
       return undefined;
     case "no-input":
-      return `waiting for ${resourceRefLabel(stop.resource)}: ${Number(stop.kilograms.toFixed(2))} of ${Number(stop.kilogramsNeeded.toFixed(2))} kg`;
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
     case "night":
       return `idle at Night${left}`;
     case "no-power":
