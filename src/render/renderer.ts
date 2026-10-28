@@ -39,6 +39,19 @@ export interface Renderer {
   startAfresh(): void;
 }
 
+/**
+ * Whether WebGL is drawn by the CPU, as on a machine without a usable GPU,
+ * such as the CI runner. Firefox names the renderer, tidied, in RENDERER.
+ */
+function drawsInSoftware(webgl: THREE.WebGLRenderer): boolean {
+  const context = webgl.getContext();
+  const name: unknown = context.getParameter(context.RENDERER);
+  return (
+    typeof name === "string" &&
+    /llvmpipe|softpipe|swiftshader|basic render driver/i.test(name)
+  );
+}
+
 export function createRenderer(
   container: HTMLElement,
   initial: Snapshot,
@@ -66,7 +79,13 @@ export function createRenderer(
   earthDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12);
   const lighting = createLighting(catalogue.lunation, earthDirection);
   scene.add(
-    createGround(initial.map),
+    createGround(
+      initial.map,
+      // Anisotropic filtering keeps the ground sharp towards the horizon at
+      // almost no cost on a GPU, but drawn in software it slows every frame
+      // several times over.
+      drawsInSoftware(webgl) ? 1 : webgl.capabilities.getMaxAnisotropy(),
+    ),
     createEarth(earthDirection),
     ...lighting.objects,
   );
