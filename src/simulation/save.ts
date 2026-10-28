@@ -1254,7 +1254,12 @@ const structure: Decoder<StructureState> = (() => {
       catalogue.structureTypes.find(
         (type) => type.id === decoded.structureTypeId,
       )?.recipes ?? [];
-    const check = (recipeId: string | undefined, field: string) => {
+    const notAPlant = "isn't null, though the Structure isn't a Plant";
+    /** Refuses a recipe the Structure's type doesn't have, or any recipe if it isn't a Plant. */
+    const refuseUnknownRecipe = (
+      recipeId: string | undefined,
+      field: string,
+    ) => {
       const known =
         recipes.length === 0
           ? recipeId === undefined
@@ -1263,20 +1268,20 @@ const structure: Decoder<StructureState> = (() => {
         throw refuse(
           field,
           recipes.length === 0
-            ? "isn't null, though the Structure isn't a Plant"
+            ? notAPlant
             : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
         );
       }
     };
-    check(decoded.recipeId, at(path, "recipeId"));
+    refuseUnknownRecipe(decoded.recipeId, at(path, "recipeId"));
     if (decoded.batch !== undefined) {
-      check(decoded.batch.recipeId, at(at(path, "batch"), "recipeId"));
+      refuseUnknownRecipe(
+        decoded.batch.recipeId,
+        at(at(path, "batch"), "recipeId"),
+      );
     }
     if (recipes.length === 0 && decoded.plantStop !== undefined) {
-      throw refuse(
-        at(path, "plantStop"),
-        "isn't null, though the Structure isn't a Plant",
-      );
+      throw refuse(at(path, "plantStop"), notAPlant);
     }
     return decoded;
   };
