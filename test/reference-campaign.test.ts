@@ -65,7 +65,7 @@ describe("the reference Campaign", () => {
     expect(chargedAfter - grantLeft).toBeLessThanOrEqual(earned);
   });
 
-  // The balancing pass's pacing targets (see README, "Balancing").
+  // The balancing pass's pacing targets (see docs/reference-campaign.md, "Balancing").
   it("meets the pacing targets for the Milestones", () => {
     const firstNight = earthDays(
       catalogue.lunation.initialDaylightRemainingEarthDays,
