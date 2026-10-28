@@ -25,8 +25,9 @@ export interface GuideScreen {
  * what each thing on it does, without leaving the game. A tab says how
  * the base works; the others describe every Structure, the Robot, the
  * Machines and the Rover, and every technology in the Tech Tree, with what
- * unlocking it brings. Everything it says comes from the data catalogue,
- * so it never drifts from the game. The game runs on while it is open.
+ * unlocking it brings. Every figure and every list in it comes from the
+ * data catalogue, so that they never drift from the game. The game runs on
+ * while it is open.
  */
 export function createGuideScreen(container: HTMLElement): GuideScreen {
   const screen = createScreen(container, {
@@ -99,9 +100,9 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
             ]),
         ...unlocks(design),
       ]);
-      card.addChip(
-        design.starting ? "Starting" : formatScience(design.scienceCost),
-      );
+      if (design.starting) card.addChip("Starting", "chip");
+      else
+        card.addChip(formatScience(design.scienceCost), "chip chip--science");
       const state = card.addState();
       grid.append(card.element);
       return { design, state };
@@ -148,7 +149,7 @@ function createCard(
   paragraphs: readonly string[],
 ): {
   readonly element: HTMLElement;
-  addChip(text: string): void;
+  addChip(text: string, className: string): void;
   addState(): HTMLElement;
 } {
   const element = document.createElement("article");
@@ -169,9 +170,9 @@ function createCard(
   }
   return {
     element,
-    addChip(text) {
+    addChip(text, className) {
       const chip = document.createElement("span");
-      chip.className = text === "Starting" ? "chip" : "chip chip--science";
+      chip.className = className;
       chip.textContent = text;
       top.append(chip);
     },
@@ -257,7 +258,7 @@ function describeStructure(type: StructureType): string {
       : []),
     ...(type.lightRadiusMetres > 0
       ? [
-          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power when the battery banks run low`,
+          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.lightReserveHours)} more`,
         ]
       : []),
     ...(type.habitat ? ["the Mission Director can move into it"] : []),
