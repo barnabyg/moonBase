@@ -1,6 +1,7 @@
 import { catalogue, type StructureType } from "../catalogue";
 import type { Renderer } from "../render/renderer";
 import type { Campaign, GroundPosition, Snapshot } from "../simulation";
+import { describeBuild, describeStructure, designOf } from "./describe";
 import { setText } from "./dom";
 
 /** A pointer that moves less than this between press and release has clicked rather than dragged. */
@@ -11,10 +12,11 @@ export interface BuildMenu {
 }
 
 /**
- * The build menu. The player picks a Structure, moves its translucent preview
- * over the map, and clicks to plan a Construction there. A Structure whose
- * Design isn't unlocked isn't offered until it is. The menu only sends the
- * plan to the Campaign; the simulation decides whether it is allowed.
+ * The build menu. Hovering over a Structure says what it does. The player
+ * picks one, moves its translucent preview over the map, and clicks to plan
+ * a Construction there. A Structure whose Design isn't unlocked isn't
+ * offered until it is. The menu only sends the plan to the Campaign; the
+ * simulation decides whether it is allowed.
  */
 export function createBuildMenu(
   container: HTMLElement,
@@ -43,6 +45,14 @@ export function createBuildMenu(
   const buttons = catalogue.structureTypes.map((type) => {
     const button = document.createElement("button");
     button.type = "button";
+    // What it does, on hover, so that the choice needs no other screen.
+    button.title = [
+      designOf(type.designId)?.description,
+      describeStructure(type),
+      describeBuild(type),
+    ]
+      .filter((text) => text !== undefined)
+      .join(" ");
     const name = document.createElement("span");
     name.textContent = type.label;
     // How many the stock can supply, as a badge; the words are for screen

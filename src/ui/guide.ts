@@ -1,16 +1,20 @@
-import { catalogue, type Design, type StructureType } from "../catalogue";
+import { catalogue } from "../catalogue";
 import { designLabel, type Snapshot } from "../simulation";
+import {
+  describeBuild,
+  describeComponentUse,
+  describeStructure,
+  describeUnlocks,
+  designOf,
+  formatHours,
+} from "./describe";
 import { setText } from "./dom";
 import {
-  componentLabel,
   describeDesignState,
-  formatComponents,
+  formatLaunchItem,
   formatMillionDollars,
   formatScience,
   listInWords,
-  machineLabel,
-  researchTaskLabel,
-  resourceRefLabel,
   stockLabel,
 } from "./format";
 import { createScreen } from "./screen";
@@ -35,16 +39,21 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
     title: "Guide",
   });
   screen.lead.textContent =
-    "How the base works, and what every Structure, Machine and technology does.";
-  const [basics, structures, fleet, technologies] = screen.addTabs("Topics", [
-    { id: "basics", label: "How it works" },
-    { id: "structures", label: "Structures" },
-    { id: "fleet", label: "Robots & Machines" },
-    { id: "technologies", label: "Technologies" },
-  ]);
+    "How the base works, and what every Structure, Component, Machine and technology does.";
+  const [basics, structures, components, fleet, technologies] = screen.addTabs(
+    "Topics",
+    [
+      { id: "basics", label: "How it works" },
+      { id: "structures", label: "Structures" },
+      { id: "components", label: "Components" },
+      { id: "fleet", label: "Robots & Machines" },
+      { id: "technologies", label: "Technologies" },
+    ],
+  );
   if (
     basics === undefined ||
     structures === undefined ||
+    components === undefined ||
     fleet === undefined ||
     technologies === undefined
   ) {
@@ -67,12 +76,30 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
       const card = createCard(type.label, [
         designOf(type.designId)?.description ?? "",
         describeStructure(type),
-        `Built from ${type.components.length === 0 ? "Regolith alone" : formatComponents(type.components)}, in about ${formatHours(constructionHours(type))} of work.`,
+        describeBuild(type),
       ]);
       const state = card.addState();
       grid.append(card.element);
       return { type, state };
     });
+  });
+
+  // Each Component, with what it is for and what a Launch of one costs.
+  const componentGrid = createGrid(components.panel);
+  const componentCards = catalogue.componentTypes.map((component) => {
+    const item = catalogue.launch.items.find(
+      ({ brings }) =>
+        brings.kind === "component" && brings.componentId === component.id,
+    );
+    const card = createCard(component.label, [
+      describeComponentUse(component.id),
+      item === undefined
+        ? "Not shipped from Earth."
+        : `On the Launch manifest: ${formatLaunchItem(item)}.`,
+    ]);
+    const state = card.addState();
+    componentGrid.append(card.element);
+    return { component, item, state };
   });
 
   const fleetGrid = createGrid(fleet.panel);
@@ -98,7 +125,7 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
           : [
               `Needs ${listInWords(design.prerequisiteDesignIds.map(designLabel))} first.`,
             ]),
-        ...unlocks(design),
+        ...describeUnlocks(design),
       ]);
       if (design.starting) card.addChip("Starting", "chip");
       else
@@ -120,6 +147,19 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
           snapshot.unlockedDesignIds.includes(type.designId)
             ? "Unlocked"
             : `Needs the ${designLabel(type.designId)} Design`,
+        );
+      }
+      for (const { component, item, state } of componentCards) {
+        const inStock =
+          snapshot.stockpile.components.find(
+            ({ componentId }) => componentId === component.id,
+          )?.count ?? 0;
+        setText(
+          state,
+          item === undefined ||
+            snapshot.unlockedDesignIds.includes(item.designId)
+            ? `${inStock} in the base's stock`
+            : `Needs the ${designLabel(item.designId)} Design to ship`,
         );
       }
       for (const { design, state } of designCards) {
@@ -244,113 +284,4 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       ],
     },
   ];
-}
-
-/** Says what a Structure does once it is commissioned, in figures. */
-function describeStructure(type: StructureType): string {
-  const { power } = type;
-  const facts = [
-    ...(power.generationKilowatts > 0
-      ? [`generates ${power.generationKilowatts} kW in Daylight`]
-      : []),
-    ...(power.storageKilowattHours > 0
-      ? [`stores ${power.storageKilowattHours} kWh`]
-      : []),
-    ...(type.lightRadiusMetres > 0
-      ? [
-          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.lightReserveHours)} more`,
-        ]
-      : []),
-    ...(type.habitat ? ["the Mission Director can move into it"] : []),
-    ...(type.shieldsHabitat
-      ? ["goes over a commissioned Habitat, cutting the Radiation Dose inside"]
-      : []),
-    ...(type.waterWall === undefined
-      ? []
-      : [
-          `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
-        ]),
-    ...(type.landingPad
-      ? ["the Lander lands on it without blasting Plume Ejecta"]
-      : []),
-    ...(type.recipes ?? []).map(
-      (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, for ${recipe.drawKilowatts} kW while it runs`,
-    ),
-    ...(power.drawKilowatts > 0
-      ? [`draws ${power.drawKilowatts} kW all the time`]
-      : []),
-  ];
-  const stage = type.stageMachines.assembly;
-  const sentence =
-    facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`;
-  return stage === undefined
-    ? sentence
-    : `${sentence} The ${machineLabel(stage).toLowerCase()} builds it.`;
-}
-
-function flows(
-  resources: readonly {
-    resource: Parameters<typeof resourceRefLabel>[0];
-    kilogramsPerHour: number;
-  }[],
-): string {
-  return listInWords(
-    resources.map(
-      (flow) =>
-        `${flow.kilogramsPerHour} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
-    ),
-  );
-}
-
-/** What unlocking a Design brings: its Structures, Launch items and Research Tasks. */
-function unlocks(design: Design): string[] {
-  const structures = catalogue.structureTypes
-    .filter((type) => type.designId === design.id)
-    .map((type) => type.label);
-  const items = [
-    ...new Set(
-      catalogue.launch.items
-        .filter((item) => item.designId === design.id)
-        .map(({ brings }) => {
-          switch (brings.kind) {
-            case "component":
-              return componentLabel(brings.componentId).toLowerCase();
-            case "life-support":
-              return stockLabel(brings.stockId).toLowerCase();
-            case "robot":
-              return "Robots";
-          }
-        }),
-    ),
-  ];
-  const tasks = catalogue.researchTasks
-    .filter((task) => task.requiresDesignId === design.id)
-    .map((task) => researchTaskLabel(task.id));
-  return [
-    ...(structures.length === 0 ? [] : [`Unlocks ${listInWords(structures)}.`]),
-    ...(items.length === 0
-      ? []
-      : [`On the Launch manifest: ${listInWords(items)}.`]),
-    ...(tasks.length === 0
-      ? []
-      : [
-          `Offers the ${listInWords(tasks)} Research Task${tasks.length === 1 ? "" : "s"}.`,
-        ]),
-  ];
-}
-
-/** The working time of all four stages of a Structure's Construction. */
-function constructionHours(type: StructureType): number {
-  const { sitePreparation, componentDelivery, assembly, commissioning } =
-    type.stageHours;
-  return sitePreparation + componentDelivery + assembly + commissioning;
-}
-
-function formatHours(hours: number): string {
-  return hours === 1 ? "1 hour" : `${hours} hours`;
-}
-
-function designOf(designId: string): Design | undefined {
-  return catalogue.designs.find((design) => design.id === designId);
 }

@@ -6,6 +6,7 @@ import {
   type ManifestLine,
   type Snapshot,
 } from "../simulation";
+import { describeLaunchItemUse } from "./describe";
 import { setText } from "./dom";
 import {
   formatExportLines,
@@ -32,8 +33,8 @@ export interface LaunchManifestScreen {
  * brings from Earth and what the Lander carries off the Moon, on a tab
  * each. On the Launch tab, the totals against the Payload Mass limit and
  * the Funding balance stay in sight over the items, grouped as Components,
- * oxygen and water, and Robots, each with its mass and price and how many
- * the manifest has. An item whose Design isn't unlocked isn't listed until
+ * oxygen and water, and Robots, each with what it is for, its mass and
+ * price and how many the manifest has. An item whose Design isn't unlocked isn't listed until
  * it is. On the Exports tab, the Return Mass and what the Exports will sell
  * for stay in sight over each Export, with what is in stock, its price and
  * the kilograms to load. It only sends what the player asks for to the
@@ -108,7 +109,11 @@ export function createLaunchManifestScreen(
     const row = document.createElement("tr");
     const name = document.createElement("th");
     name.scope = "row";
-    name.textContent = label;
+    // What it is for, under its name.
+    const use = document.createElement("span");
+    use.className = "launch-manifest__use";
+    use.textContent = describeLaunchItemUse(item);
+    name.append(label, use);
     const details = document.createElement("td");
     details.className = "launch-manifest__details";
     details.textContent = formatLaunchItem(item);

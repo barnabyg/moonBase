@@ -71,7 +71,7 @@ test("the Guide says how the base works and what every Structure, Machine and te
     name: "Tall Light Masts",
   });
   await expect(tallDesign).toContainText("30 Science");
-  await expect(tallDesign).toContainText(`Unlocks ${tall.label}`);
+  await expect(tallDesign).toContainText(`Unlocks the ${tall.label}`);
   await expect(tallDesign).toContainText("Night surface photometry");
 
   await guide.getByRole("button", { name: "Close" }).click();

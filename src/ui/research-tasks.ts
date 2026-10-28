@@ -4,8 +4,14 @@ import {
   type Campaign,
   type Snapshot,
 } from "../simulation";
+import { designsBroughtWithinReach, nextDesigns } from "./describe";
 import { setText } from "./dom";
-import { formatDuration, formatScience, researchTaskLabel } from "./format";
+import {
+  formatDuration,
+  formatScience,
+  listInWords,
+  researchTaskLabel,
+} from "./format";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";
 
@@ -18,7 +24,9 @@ export interface ResearchTasksScreen {
  * The Research Tasks screen, where the player starts a Research Task to earn
  * Science: the one running, with how far it has got and how long it has
  * left, above a card for each of the others with its length and the
- * Science it pays, and the completed ones below. One that needs a Design
+ * Science it pays and the Designs that Science would bring within reach,
+ * and the completed ones below. Above them, what Science buys next: the
+ * Designs that can be unlocked once there is enough. One that needs a Design
  * isn't shown until that Design is unlocked. It only sends the choice to
  * start one to the Campaign, which decides whether it is allowed and says
  * why not. The game runs on while it is open.
@@ -48,9 +56,23 @@ export function createResearchTasksScreen(
   nowDetail.className = "research-tasks__now-detail";
   now.append(nowHeading, nowName, nowMeter.element, nowDetail);
 
+  // The Designs that Science can unlock next, so that the choice of task
+  // needs no other screen.
+  const buys = document.createElement("section");
+  buys.className = "research-tasks__buys";
+  buys.setAttribute("aria-label", "What Science buys next");
+  const buysHeading = document.createElement("h3");
+  buysHeading.className = "screen__section-title";
+  buysHeading.textContent = "What Science buys next";
+  const buysList = document.createElement("ul");
+  buysList.className = "research-tasks__buys-list";
+  buys.append(buysHeading, buysList);
+  /** The Designs listed, to rebuild the list only when they change. */
+  let buysShown: string | undefined;
+
   const available = createGroup("Available");
   const completed = createGroup("Completed");
-  screen.body.append(now, available.section, completed.section);
+  screen.body.append(now, buys, available.section, completed.section);
 
   const cards = catalogue.researchTasks.map((task) => {
     const card = document.createElement("article");
@@ -68,6 +90,8 @@ export function createResearchTasksScreen(
     pays.className = "chip chip--science";
     pays.textContent = formatScience(task.science);
     chips.append(length, pays);
+    const reach = document.createElement("p");
+    reach.className = "task-card__reach";
     // Running or completed, in place of the button.
     const state = document.createElement("span");
     state.className = "task-card__state";
@@ -83,8 +107,8 @@ export function createResearchTasksScreen(
     const foot = document.createElement("div");
     foot.className = "task-card__foot";
     foot.append(state, start);
-    card.append(name, chips, foot);
-    return { task, card, state, start, done: false };
+    card.append(name, chips, reach, foot);
+    return { task, card, reach, state, start, done: false };
   });
 
   return {
@@ -115,9 +139,29 @@ export function createResearchTasksScreen(
       now.classList.toggle("screen__card--idle", running === undefined);
       nowMeter.fill(running?.progress);
 
+      const next = nextDesigns(snapshot);
+      const nextIds = next.map((design) => design.id).join(" ");
+      if (nextIds !== buysShown) {
+        buysShown = nextIds;
+        buysList.replaceChildren(
+          ...next.map((design) => {
+            // Its name and cost, with what it is on hover.
+            const item = document.createElement("li");
+            item.className = "chip";
+            item.title = design.description;
+            const cost = document.createElement("span");
+            cost.className = "research-tasks__buys-cost";
+            cost.textContent = formatScience(design.scienceCost);
+            item.append(design.label, " ", cost);
+            return item;
+          }),
+        );
+        buys.hidden = next.length === 0;
+      }
+
       let regrouped = false;
       for (const entry of cards) {
-        const { task, card, state, start } = entry;
+        const { task, card, reach, state, start } = entry;
         // One that needs a Design isn't offered until it is unlocked.
         const needed = task.requiresDesignId;
         card.hidden =
@@ -125,6 +169,16 @@ export function createResearchTasksScreen(
         const isRunning = running?.researchTaskId === task.id;
         const done = snapshot.completedResearchTaskIds.includes(task.id);
         setText(state, isRunning ? "Running" : done ? "✓ Completed" : "");
+        const within = done
+          ? []
+          : designsBroughtWithinReach(snapshot, task.science);
+        setText(
+          reach,
+          within.length === 0
+            ? ""
+            : `Brings within reach: ${listInWords(within.map((design) => design.label))}`,
+        );
+        reach.hidden = within.length === 0;
         card.classList.toggle("task-card--running", isRunning);
         card.classList.toggle("task-card--completed", done);
         // Another's button stays while one runs, so that starting it says

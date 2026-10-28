@@ -1,0 +1,197 @@
+import {
+  catalogue,
+  type Design,
+  type LaunchItem,
+  type ResourceFlow,
+  type StructureType,
+} from "../catalogue";
+import type { Snapshot } from "../simulation";
+import {
+  componentLabel,
+  formatComponents,
+  listInWords,
+  machineLabel,
+  researchTaskLabel,
+  resourceRefLabel,
+  stockLabel,
+} from "./format";
+
+// What things in the game are for, in words built from the data catalogue,
+// for the screens where the player chooses them and for the Guide.
+
+/** Says what a Structure does once it is commissioned, in figures. */
+export function describeStructure(type: StructureType): string {
+  const { power } = type;
+  const facts = [
+    ...(power.generationKilowatts > 0
+      ? [`generates ${power.generationKilowatts} kW in Daylight`]
+      : []),
+    ...(power.storageKilowattHours > 0
+      ? [`stores ${power.storageKilowattHours} kWh`]
+      : []),
+    ...(type.lightRadiusMetres > 0
+      ? [
+          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.lightReserveHours)} more`,
+        ]
+      : []),
+    ...(type.habitat ? ["the Mission Director can move into it"] : []),
+    ...(type.shieldsHabitat
+      ? ["goes over a commissioned Habitat, cutting the Radiation Dose inside"]
+      : []),
+    ...(type.waterWall === undefined
+      ? []
+      : [
+          `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
+        ]),
+    ...(type.landingPad
+      ? ["the Lander lands on it without blasting Plume Ejecta"]
+      : []),
+    ...(type.recipes ?? []).map(
+      (recipe) =>
+        `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, for ${recipe.drawKilowatts} kW while it runs`,
+    ),
+    ...(power.drawKilowatts > 0
+      ? [`draws ${power.drawKilowatts} kW all the time`]
+      : []),
+  ];
+  const stage = type.stageMachines.assembly;
+  const sentence =
+    facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`;
+  return stage === undefined
+    ? sentence
+    : `${sentence} The ${machineLabel(stage).toLowerCase()} builds it.`;
+}
+
+/** Says what a Structure is built from and how long the work takes. */
+export function describeBuild(type: StructureType): string {
+  const { sitePreparation, componentDelivery, assembly, commissioning } =
+    type.stageHours;
+  const hours = sitePreparation + componentDelivery + assembly + commissioning;
+  return `Built from ${type.components.length === 0 ? "Regolith alone" : formatComponents(type.components)}, in about ${formatHours(hours)} of work.`;
+}
+
+/**
+ * Says what unlocking a Design brings, a sentence for each kind of thing:
+ * its Structures, with what each does, its Launch items and its Research
+ * Tasks.
+ */
+export function describeUnlocks(design: Design): string[] {
+  const structures = catalogue.structureTypes.filter(
+    (type) => type.designId === design.id,
+  );
+  const items = [
+    ...new Set(
+      catalogue.launch.items
+        .filter((item) => item.designId === design.id)
+        .map(({ brings }) => {
+          switch (brings.kind) {
+            case "component":
+              return componentLabel(brings.componentId).toLowerCase();
+            case "life-support":
+              return stockLabel(brings.stockId).toLowerCase();
+            case "robot":
+              return "Robots";
+          }
+        }),
+    ),
+  ];
+  const tasks = catalogue.researchTasks
+    .filter((task) => task.requiresDesignId === design.id)
+    .map((task) => researchTaskLabel(task.id));
+  return [
+    ...structures.map(
+      (type) => `Unlocks the ${type.label}. ${describeStructure(type)}`,
+    ),
+    ...(items.length === 0
+      ? []
+      : [`On the Launch manifest: ${listInWords(items)}.`]),
+    ...(tasks.length === 0
+      ? []
+      : [
+          `Offers the ${listInWords(tasks)} Research Task${tasks.length === 1 ? "" : "s"}.`,
+        ]),
+  ];
+}
+
+/** Says what a Component is for: the Structures built from it, or Maintenance. */
+export function describeComponentUse(componentId: string): string {
+  if (componentId === catalogue.maintenance.spareComponentId) {
+    return `Used up by Maintenance: each restores ${catalogue.maintenance.conditionPercentPerSpareComponent} percentage points of Condition.`;
+  }
+  const uses = catalogue.structureTypes.flatMap((type) =>
+    type.components
+      .filter((need) => need.componentId === componentId)
+      .map((need) => `${need.count} for each ${type.label}`),
+  );
+  return uses.length === 0 ? "" : `Used to build: ${listInWords(uses)}.`;
+}
+
+/** Says what a Launch item is for, beside it on the Launch manifest. */
+export function describeLaunchItemUse(item: LaunchItem): string {
+  const { brings } = item;
+  switch (brings.kind) {
+    case "component":
+      return describeComponentUse(brings.componentId);
+    case "life-support": {
+      const stock = catalogue.lifeSupportStocks.find(
+        ({ id }) => id === brings.stockId,
+      );
+      return stock === undefined
+        ? ""
+        : `In a Habitat, the Mission Director uses ${stock.usePerEarthDayKilograms} kg of ${stock.label.toLowerCase()} an Earth Day, so this lasts them about ${Math.floor(brings.kilograms / stock.usePerEarthDayKilograms)} Earth Days.`;
+    }
+    case "robot":
+      return "Another Robot, which shares the Work Orders with the rest.";
+  }
+}
+
+/**
+ * The Designs the player could unlock next, cheapest first: those not
+ * unlocked yet whose prerequisites all are.
+ */
+export function nextDesigns(
+  snapshot: Pick<Snapshot, "unlockedDesignIds">,
+): Design[] {
+  return catalogue.designs
+    .filter(
+      (design) =>
+        !snapshot.unlockedDesignIds.includes(design.id) &&
+        design.prerequisiteDesignIds.every((id) =>
+          snapshot.unlockedDesignIds.includes(id),
+        ),
+    )
+    .sort((a, b) => a.scienceCost - b.scienceCost);
+}
+
+/**
+ * The Designs that earning more Science would put within reach: those the
+ * player could unlock next that cost more than the Science they have, but
+ * no more than that and the Science earned.
+ */
+export function designsBroughtWithinReach(
+  snapshot: Pick<Snapshot, "unlockedDesignIds" | "science">,
+  earned: number,
+): Design[] {
+  return nextDesigns(snapshot).filter(
+    (design) =>
+      design.scienceCost > snapshot.science &&
+      design.scienceCost <= snapshot.science + earned,
+  );
+}
+
+export function designOf(designId: string): Design | undefined {
+  return catalogue.designs.find((design) => design.id === designId);
+}
+
+export function formatHours(hours: number): string {
+  return hours === 1 ? "1 hour" : `${hours} hours`;
+}
+
+function flows(resources: readonly ResourceFlow[]): string {
+  return listInWords(
+    resources.map(
+      (flow) =>
+        `${flow.kilogramsPerHour} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+    ),
+  );
+}
