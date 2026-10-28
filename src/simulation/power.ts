@@ -447,10 +447,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       if (body.powered) left = Math.max(left - drawn, 0);
     }
     if (!daylight) {
-      const reserve =
-        (restOfNetworkAtNight(network) *
-          (nightMinutesAfter + catalogue.lightReserveHours * 60)) /
-        60;
+      const reserve = keptFromLights(network, nightMinutesAfter);
       for (const light of network.structures.filter(hasLight)) {
         const drawn = workingPower(light).nightDrawKilowatts / 60;
         light.powered = light.powered && left > ENERGY_TOLERANCE_KWH;
@@ -623,16 +620,29 @@ function partConsumptionKilowatts(
   storedKilowattHours: number,
 ): number {
   if (part.daylight) return network.daylightConsumptionKilowatts;
-  const rest = restOfNetworkAtNight(network);
-  const spare =
-    storedKilowattHours -
-    (rest * (part.minutes + catalogue.lightReserveHours * 60)) / 60;
+  const spare = storedKilowattHours - keptFromLights(network, part.minutes);
   return (
-    rest +
+    restOfNetworkAtNight(network) +
     Math.min(
       network.nightLightKilowatts,
       (Math.max(spare, 0) * 60) / part.minutes,
     )
+  );
+}
+
+/**
+ * The energy a network's lights leave stored at Night: what everything else
+ * on it draws through the given game-minutes of Night left and the data
+ * catalogue's reserve after them.
+ */
+function keptFromLights(
+  network: PowerNetwork,
+  nightMinutesLeft: number,
+): number {
+  return (
+    (restOfNetworkAtNight(network) *
+      (nightMinutesLeft + catalogue.lightReserveHours * 60)) /
+    60
   );
 }
 
