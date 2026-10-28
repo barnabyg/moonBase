@@ -463,6 +463,13 @@ body {
 
 /* The base's Structures, Robots, Machines and Rovers. */
 
+.entries-hint {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .entries {
   margin: 0;
   padding: 0;

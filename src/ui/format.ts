@@ -460,11 +460,11 @@ export function formatEvent(
         ),
       )}`;
     case "structure-broken":
-      return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working`;
+      return `${structureLabel(event.structureTypeId)} is Broken, and has stopped working until the Robot repairs it`;
     case "machine-broken":
-      return `${machineLabel(event.machineTypeId)} is Broken, and has stopped where it stood`;
+      return `${machineLabel(event.machineTypeId)} is Broken, and has stopped where it stood until the Robot repairs it`;
     case "rover-broken":
-      return `${catalogue.rover.label} is Broken, and has stopped where it stood`;
+      return `${catalogue.rover.label} is Broken, and has stopped where it stood until the Robot repairs it`;
     case "maintenance-needed":
       return `${subjectLabel(event.target)} needs Maintenance: ${listInWords([
         ...(event.restoresCondition
@@ -473,7 +473,10 @@ export function formatEvent(
         ...(event.cleans
           ? [`Dust coating up to ${Math.round(event.dustCoatingPercent)}%`]
           : []),
-      ])}`;
+      ])}; the Robot will ${listInWords([
+        ...(event.restoresCondition ? ["repair"] : []),
+        ...(event.cleans ? ["clean"] : []),
+      ])} it by itself${event.restoresCondition ? ", using spare Components" : ""}`;
     case "maintenance-completed":
       return `${subjectLabel(event.target)} maintained: ${listInWords([
         ...(event.spareComponents > 0
@@ -947,6 +950,17 @@ function plugState(driven: {
     : driven.powered
       ? "plugged in and powered"
       : "plugged in, no power";
+}
+
+/**
+ * Says how something is repaired, which the Robot always does by itself:
+ * Maintenance for a Structure, Machine or Rover, or a Robot's repair of
+ * itself.
+ */
+export function describeRepair(kind: "maintained" | "robot"): string {
+  return kind === "maintained"
+    ? `Repairs are automatic: the Robot repairs anything below ${catalogue.maintenance.thresholdPercent}% Condition, or Broken, using spare Components from the base's stock. Ship more on the Launch manifest.`
+    : `A Robot below ${catalogue.robot.selfRepairThresholdPercent}% repairs itself, using spare Components too.`;
 }
 
 /** Whether a Maintenance Work Order is waiting or under way, if there is one. */
@@ -1443,7 +1457,7 @@ export function describeParking(
 export function formatMaintenanceWait(waiting: MaintenanceWait): string {
   return waiting.reason === "machine-at-work"
     ? "Waiting for the Machine to finish its work on a site"
-    : `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock`;
+    : `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock. Put spare Components on the Launch manifest`;
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   formatPlant,
   formatRobot,
   formatRover,
+  describeRepair,
   machineLabel,
   maintenanceState,
   robotLabel,
@@ -37,10 +38,14 @@ interface Entry {
 }
 
 /**
- * An entry with a name, a bar and figure for its Condition, and a line
- * below saying what it is doing, with room for buttons after it.
+ * An entry with a name, a bar and figure for its Condition, with a tooltip
+ * saying how it is repaired, and a line below saying what it is doing,
+ * with room for buttons after it.
  */
-function createEntry(name: string): Entry & { readonly actions: HTMLElement } {
+function createEntry(
+  name: string,
+  repair: string,
+): Entry & { readonly actions: HTMLElement } {
   const item = document.createElement("li");
   item.className = "entry";
   const head = document.createElement("span");
@@ -50,7 +55,7 @@ function createEntry(name: string): Entry & { readonly actions: HTMLElement } {
   title.textContent = name;
   const condition = document.createElement("span");
   condition.className = "entry__condition";
-  condition.title = "Condition";
+  condition.title = `Condition. ${repair}`;
   const meter = createMeter();
   // The bar shows it is a Condition; screen readers need the word.
   const conditionWord = document.createElement("span");
@@ -106,7 +111,10 @@ export function createBasePanel(
   const structures = document.createElement("ul");
   structures.className = "entries";
   structures.setAttribute("aria-label", "Structures");
-  structuresSection.body.append(structures);
+  structuresSection.body.append(
+    createRepairHint(describeRepair("maintained")),
+    structures,
+  );
   const structureEntries = new Map<
     string,
     Entry & {
@@ -117,7 +125,10 @@ export function createBasePanel(
   >();
   const createStructureEntry = (structure: StructureSnapshot) => {
     const structureId = structure.id;
-    const entry = createEntry(structureLabel(structure.structureTypeId));
+    const entry = createEntry(
+      structureLabel(structure.structureTypeId),
+      describeRepair("maintained"),
+    );
     // The recipes of a Plant that has more than one, to choose from.
     const recipes =
       catalogue.structureTypes.find(
@@ -183,7 +194,14 @@ export function createBasePanel(
   const rovers = document.createElement("ul");
   rovers.className = "entries";
   rovers.setAttribute("aria-label", "Rovers");
-  fleetSection.body.append(robots, machines, rovers);
+  fleetSection.body.append(
+    createRepairHint(
+      `${describeRepair("maintained")} ${describeRepair("robot")}`,
+    ),
+    robots,
+    machines,
+    rovers,
+  );
   const robotEntries = new Map<string, Entry>();
   const machineEntries = new Map<string, Entry>();
   const roverEntries = new Map<string, Entry>();
@@ -192,10 +210,11 @@ export function createBasePanel(
     list: HTMLElement,
     id: string,
     name: string,
+    repair: string,
   ): Entry => {
     let entry = entries.get(id);
     if (entry === undefined) {
-      entry = createEntry(name);
+      entry = createEntry(name, repair);
       list.append(entry.item);
       entries.set(id, entry);
     }
@@ -251,6 +270,7 @@ export function createBasePanel(
           robots,
           robot.id,
           robotLabel(robot.id, snapshot.robots),
+          describeRepair("robot"),
         ).show(formatRobot(robot, snapshot.expedition), robot.conditionPercent);
       }
       for (const machine of snapshot.machines) {
@@ -259,13 +279,20 @@ export function createBasePanel(
           machines,
           machine.id,
           machineLabel(machine.machineTypeId),
+          describeRepair("maintained"),
         ).show(
           formatMachine(machine, snapshot.maintenance),
           machine.conditionPercent,
         );
       }
       for (const rover of snapshot.rovers) {
-        entryFor(roverEntries, rovers, rover.id, catalogue.rover.label).show(
+        entryFor(
+          roverEntries,
+          rovers,
+          rover.id,
+          catalogue.rover.label,
+          describeRepair("maintained"),
+        ).show(
           formatRover(rover, snapshot.maintenance),
           rover.conditionPercent,
         );
@@ -285,6 +312,14 @@ export function createBasePanel(
       }
     },
   };
+}
+
+/** A line at the top of a section saying how what it lists is repaired. */
+function createRepairHint(text: string): HTMLElement {
+  const hint = document.createElement("p");
+  hint.className = "entries-hint";
+  hint.textContent = text;
+  return hint;
 }
 
 /**
