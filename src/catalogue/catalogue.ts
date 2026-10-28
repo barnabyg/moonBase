@@ -845,7 +845,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 50,
+  version: 51,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -3087,13 +3087,13 @@ export const catalogue: Catalogue = {
     {
       id: "first-export",
       label: "First Export",
-      hint: "Ship an extraction plant, a vacuum fabrication plant and a second solar array to power them, to make wafers from Regolith; load the wafers on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
+      hint: "Ship an extraction plant, a vacuum fabrication plant and a second solar array to power them, to make wafers from Regolith. Switch the extraction plant to metals and silicon in the Base panel, as its oxygen recipe makes too little silicon, and ship oxygen until you switch it back. Load the wafers on the Launch manifest's Exports tab and send the Lander: they sell as it reaches Earth.",
       condition: { kind: "export-sold" },
     },
     {
       id: "oxygen-self-sufficient",
       label: "Oxygen self-sufficiency",
-      hint: "Keep the extraction plant the first Launch brought making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
+      hint: "Switch the extraction plant back to oxygen in the Base panel, and keep it making oxygen from Regolith until the base's Plants have made at least as much as the Mission Director breathes over a whole Lunation.",
       condition: { kind: "self-sufficient", stockId: "oxygen" },
     },
     {

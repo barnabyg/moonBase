@@ -142,7 +142,7 @@ A Machine or Rover standing close to a powered, unbroken Structure is **plugged 
 
 ## Bulk resources, digging and Expeditions
 
-The base keeps bulk resources at the stockpile, measured in kilograms: Regolith, water ice, metals, silicon, wafers and circuit boards. The status panel shows them, with roughly how long any that is falling will last.
+The base keeps bulk resources at the stockpile, measured in kilograms: Regolith, water ice, metals, silicon, wafers and circuit boards. The status panel shows them, with how fast any that is changing rises or falls a day, as the Plants and digging are running now, and roughly how long any that is falling will last.
 
 **Digging.** Whenever Regolith is below a set level and the excavator is free, a Robot with nothing else to do drives it to clear ground beside the stockpile and sets it digging. Digging always gives way to Site Preparation, Maintenance and parking, and carries on afterwards while the stock is still short.
 
@@ -150,7 +150,7 @@ The base keeps bulk resources at the stockpile, measured in kilograms: Regolith,
 
 ## Plants
 
-A Plant is a Structure that runs a recipe by itself once commissioned: it turns bulk resources (or Regolith) into others, or into oxygen or water. Its Components come by Launch, and a Robot lays it a cable like any other. A Plant runs only while it has its inputs in stock, power to spare and isn't Broken; the Base panel says which has stopped it. It draws power only while running, last of everything on its network, so it can never take power from the Habitat.
+A Plant is a Structure that runs a recipe by itself once commissioned: it turns bulk resources (or Regolith) into others, or into oxygen or water. Its Components come by Launch, and a Robot lays it a cable like any other. A Plant runs only while it has its inputs in stock, power to spare and isn't Broken; the Base panel says which has stopped it, and, while it runs, what it makes and uses an hour. It draws power only while running, last of everything on its network, so it can never take power from the Habitat.
 
 | Plant                        | Design                       | Makes                                                                                              |
 | ---------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |

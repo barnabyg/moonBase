@@ -3,6 +3,7 @@ import {
   type Design,
   type Export,
   type LaunchItem,
+  type PlantRecipe,
   type ResourceRef,
 } from "../catalogue";
 import {
@@ -645,6 +646,35 @@ export function resourceRefLabel(resource: ResourceRef): string {
 }
 
 /**
+ * Says what a running Plant makes and uses an hour, as fast as its
+ * Condition allows, for example "making 0.3 kg of wafers an hour from
+ * 0.35 kg of silicon"; undefined for one that isn't running.
+ */
+export function formatPlantRates(
+  structure: Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "performance" | "plant"
+  >,
+): string | undefined {
+  if (structure.plant?.running !== true) return undefined;
+  const recipes =
+    catalogue.structureTypes.find(
+      (type) => type.id === structure.structureTypeId,
+    )?.recipes ?? [];
+  const recipe =
+    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  if (recipe === undefined) return undefined;
+  const flows = (resources: PlantRecipe["outputs"]) =>
+    listInWords(
+      resources.map(
+        (flow) =>
+          `${Number((flow.kilogramsPerHour * structure.performance).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+      ),
+    );
+  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}`;
+}
+
+/**
  * Says whether a Plant is running, and why not, for its line in the status
  * panel, for example "running" or "stopped: out of Regolith"; undefined
  * once it is Broken, which the line says already.
@@ -687,12 +717,24 @@ export function formatBulkResources(
     const label = resourceLabel(stock.resourceId);
     const value = formatKilograms(stock.kilograms);
     const empty = stock.kilograms < 1;
-    const minutes = forecasts.find(
-      (forecast) => forecast.resourceId === stock.resourceId,
-    )?.minutesUntilEmpty;
-    return minutes === undefined || stock.kilograms === 0
+    const forecast = forecasts.find(
+      (candidate) => candidate.resourceId === stock.resourceId,
+    );
+    const perDay = (forecast?.kilogramsPerHour ?? 0) * 24;
+    const minutes = forecast?.minutesUntilEmpty;
+    // How fast it is changing, if at all, and how long it lasts if falling.
+    const rate =
+      Math.abs(perDay) < 0.05
+        ? undefined
+        : `${perDay > 0 ? "+" : "−"}${Math.abs(perDay).toFixed(1)} kg/day`;
+    const lasts =
+      minutes === undefined || stock.kilograms === 0
+        ? undefined
+        : `~${formatShortDuration(minutes)}`;
+    const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
+    return note === ""
       ? { label, value, empty }
-      : { label, value, note: `~${formatShortDuration(minutes)}`, empty };
+      : { label, value, note, empty };
   });
 }
 
