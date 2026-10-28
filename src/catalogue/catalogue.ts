@@ -812,10 +812,13 @@ export interface WaterWallRules {
 
 /**
  * What a Plant takes in and puts out for each game-hour it runs at full
- * performance, and the power it draws while it runs. It runs only while it
- * has some of every input, isn't Broken and has power; on its network it
- * is supplied last, only from power that nothing else uses and no battery
- * bank can store, so it never takes power from anything else.
+ * performance, and the power it draws while it runs. It works in batches of
+ * a game-hour of the recipe: it starts one only with an hour's worth of
+ * every input in stock, which it takes as it starts, and the outputs come
+ * as it finishes. It runs only while it isn't Broken and has power; on its
+ * network it is supplied last, only from power that nothing else uses and
+ * no battery bank can store, so it never takes power from anything else,
+ * and a batch it has started waits through the Night for the next Daylight.
  */
 export interface PlantRecipe {
   /** Unique among its Plant's recipes. */
@@ -845,7 +848,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 51,
+  version: 52,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,

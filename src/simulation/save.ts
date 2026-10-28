@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type ResourceRef } from "../catalogue";
 import type { CampaignEnd, CampaignState } from "./campaign";
 import type {
   ConstructionStage,
@@ -11,6 +11,7 @@ import type { ExpeditionStage } from "./expeditions";
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
+import type { PlantStop } from "./plants";
 import { MAX_SEED, nextFraction } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
 import type { RoverActivity } from "./rovers";
@@ -829,6 +830,37 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 34 to 35: Plants work in batches, and keep why they didn't run. Until
+  // now each ran from game-minute to game-minute, so none has a batch
+  // started: each starts one when it next can. One that didn't run in the
+  // latest game-minute is taken to have stood for want of power, or for
+  // being Broken; the next game-minute played says why it truly doesn't.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) => {
+          if (!isRecord(structure)) return structure;
+          const idle =
+            typeof structure["recipeId"] === "string" &&
+            structure["powered"] === false;
+          const broken =
+            typeof structure["conditionPercent"] === "number" &&
+            structure["conditionPercent"] <= 0;
+          return {
+            ...structure,
+            batch: null,
+            plantStop: idle ? { reason: broken ? "broken" : "no-power" } : null,
+          };
+        }),
+      },
+    };
+  },
 ];
 
 /**
@@ -1188,9 +1220,28 @@ const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
 
 const designId = catalogueId(catalogue.designs, "Design");
 
+const resourceRef: Decoder<ResourceRef> = tagged("kind", {
+  "bulk-resource": object({
+    kind: exactly("bulk-resource"),
+    resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
+  }),
+  "life-support": object({
+    kind: exactly("life-support"),
+    stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
+  }),
+} satisfies Record<ResourceRef["kind"], unknown>);
+
+const plantStop: Decoder<PlantStop> = tagged("reason", {
+  broken: object({ reason: exactly("broken") }),
+  "no-input": object({ reason: exactly("no-input"), resource: resourceRef }),
+  night: object({ reason: exactly("night") }),
+  "no-power": object({ reason: exactly("no-power") }),
+} satisfies Record<PlantStop["reason"], unknown>);
+
 /**
- * A commissioned Structure, whose recipe must be one of its type's if it
- * is a Plant, and none if it isn't.
+ * A commissioned Structure. If it is a Plant, its recipe, and that of any
+ * batch it has started, must be one of its type's; if it isn't, it has no
+ * recipe, batch or reason it didn't run.
  */
 const structure: Decoder<StructureState> = (() => {
   const fields = object({
@@ -1203,6 +1254,8 @@ const structure: Decoder<StructureState> = (() => {
     conditionPercent: finiteNumber,
     dustCoatingPercent: finiteNumber,
     recipeId: optional(text),
+    batch: optional(object({ recipeId: text, minutesWorked: amount })),
+    plantStop: optional(plantStop),
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -1210,16 +1263,28 @@ const structure: Decoder<StructureState> = (() => {
       catalogue.structureTypes.find(
         (type) => type.id === decoded.structureTypeId,
       )?.recipes ?? [];
-    const known =
-      recipes.length === 0
-        ? decoded.recipeId === undefined
-        : recipes.some((recipe) => recipe.id === decoded.recipeId);
-    if (!known) {
-      throw refuse(
-        at(path, "recipeId"),
+    const check = (recipeId: string | undefined, field: string) => {
+      const known =
         recipes.length === 0
-          ? "isn't null, though the Structure isn't a Plant"
-          : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+          ? recipeId === undefined
+          : recipes.some((recipe) => recipe.id === recipeId);
+      if (!known) {
+        throw refuse(
+          field,
+          recipes.length === 0
+            ? "isn't null, though the Structure isn't a Plant"
+            : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+        );
+      }
+    };
+    check(decoded.recipeId, at(path, "recipeId"));
+    if (decoded.batch !== undefined) {
+      check(decoded.batch.recipeId, at(at(path, "batch"), "recipeId"));
+    }
+    if (recipes.length === 0 && decoded.plantStop !== undefined) {
+      throw refuse(
+        at(path, "plantStop"),
+        "isn't null, though the Structure isn't a Plant",
       );
     }
     return decoded;

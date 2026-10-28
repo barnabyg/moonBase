@@ -1,7 +1,11 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { machinePerformance } from "./machines";
-import { consumptionPerHour, productionPerHour } from "./plants";
+import {
+  consumptionPerHour,
+  kilogramsInBatches,
+  productionPerHour,
+} from "./plants";
 
 /** How fast the base's stock of a bulk resource is changing, and how long it will last. */
 export interface BulkResourceForecast {
@@ -14,7 +18,9 @@ export interface BulkResourceForecast {
   readonly kilogramsPerHour: number;
   /**
    * Game-minutes until it runs out at that rate, or undefined while it
-   * isn't falling.
+   * isn't falling. What is left of the inputs the Plants took for the
+   * batches they have started counts with the stock (see
+   * `kilogramsInBatches`).
    */
   readonly minutesUntilEmpty: number | undefined;
 }
@@ -44,11 +50,12 @@ export function forecastBulkResources(
       productionPerHour(state, resource) +
       dug -
       consumptionPerHour(state, resource);
+    const kilograms = stock.kilograms + kilogramsInBatches(state, resource);
     return {
       resourceId: stock.resourceId,
       kilogramsPerHour: perHour,
       minutesUntilEmpty:
-        perHour < 0 ? Math.floor((stock.kilograms / -perHour) * 60) : undefined,
+        perHour < 0 ? Math.floor((kilograms / -perHour) * 60) : undefined,
     };
   });
 }

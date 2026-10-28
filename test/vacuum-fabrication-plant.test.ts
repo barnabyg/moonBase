@@ -52,6 +52,10 @@ const plantSite: GroundPosition = { x: 30, y: 22 };
 const secondArraySite: GroundPosition = { x: 18, y: 26 };
 const extractionSite: GroundPosition = { x: 32, y: 36 };
 
+function fail(): never {
+  throw new Error("expected a Plant");
+}
+
 function bulk(state: Snapshot, resourceId: string): number {
   return (
     state.bulkResources.find((stock) => stock.resourceId === resourceId)
@@ -120,27 +124,130 @@ function withBulk(
 }
 
 describe("the vacuum fabrication plant", () => {
-  it("turns silicon into wafers at the recipe's rates while it has power", () => {
-    const campaign = withBulk(plantBase(), { silicon: 50 });
+  it("takes an hour's silicon as it starts a batch, and adds the batch's wafers as it ends an hour later", () => {
+    const campaign = withBulk(plantBase(), { silicon: 50, wafers: 0 });
+
     campaign.advance(1);
-    const before = campaign.snapshot();
-    expect(before.lunation.part).toBe("daylight");
+
+    let state = campaign.snapshot();
+    expect(state.lunation.part).toBe("daylight");
+    expect(plantOf(state).plant).toEqual({
+      running: true,
+      stoppedFor: undefined,
+      batch: { recipeId: recipe.id, minutesLeft: 59 },
+    });
+    expect(bulk(state, "silicon")).toBeCloseTo(50 - siliconPerHour, 6);
+    expect(bulk(state, "wafers")).toBe(0);
+
+    campaign.advance(58);
+    state = campaign.snapshot();
+    expect(bulk(state, "wafers")).toBe(0);
+    expect(formatPlant(plantOf(state).plant ?? fail())).toBe(
+      "running, 1 min left of this batch",
+    );
+
+    campaign.advance(1);
+    state = campaign.snapshot();
+    expect(plantOf(state).plant).toEqual({
+      running: true,
+      stoppedFor: undefined,
+      batch: undefined,
+    });
+    expect(bulk(state, "silicon")).toBeCloseTo(50 - siliconPerHour, 6);
+    expect(bulk(state, "wafers")).toBeCloseTo(wafersPerHour, 6);
+
+    // The next batch starts straight after.
+    campaign.advance(1);
+    expect(bulk(campaign.snapshot(), "silicon")).toBeCloseTo(
+      50 - 2 * siliconPerHour,
+      6,
+    );
+  });
+
+  it("waits with less than an hour's silicon, taking none, and says how much it has of what it needs", () => {
+    const campaign = withBulk(plantBase(), { silicon: siliconPerHour / 4 });
 
     campaign.advance(60);
 
-    const after = campaign.snapshot();
-    expect(plantOf(after)).toMatchObject({
-      powered: true,
-      plant: { running: true, stoppedFor: undefined },
+    const state = campaign.snapshot();
+    expect(bulk(state, "silicon")).toBeCloseTo(siliconPerHour / 4, 6);
+    expect(bulk(state, "wafers")).toBe(0);
+    const { plant } = plantOf(state);
+    expect(plant).toEqual({
+      running: false,
+      stoppedFor: {
+        reason: "no-input",
+        resource: { kind: "bulk-resource", resourceId: "silicon" },
+        kilograms: siliconPerHour / 4,
+        kilogramsNeeded: siliconPerHour,
+      },
+      batch: undefined,
     });
-    expect(bulk(after, "silicon") - bulk(before, "silicon")).toBeCloseTo(
-      -siliconPerHour,
-      6,
+    expect(formatPlant(plant ?? fail())).toBe(
+      `waiting for Silicon: ${Number((siliconPerHour / 4).toFixed(2))} of ${siliconPerHour} kg`,
     );
-    expect(bulk(after, "wafers") - bulk(before, "wafers")).toBeCloseTo(
-      wafersPerHour,
-      6,
+  });
+
+  it("stands idle at Night with its batch half done, and finishes it in the next Daylight", () => {
+    const built = withBulk(plantBase(), { silicon: 0 });
+    built.advance(built.snapshot().lunation.minutesRemaining - 30);
+    // An hour's silicon, half an hour before nightfall.
+    const campaign = withBulk(built, { silicon: siliconPerHour });
+    campaign.advance(30);
+
+    let state = campaign.snapshot();
+    expect(state.lunation.part).toBe("night");
+    campaign.advance(1);
+    state = campaign.snapshot();
+    expect(plantOf(state).plant).toEqual({
+      running: false,
+      stoppedFor: { reason: "night" },
+      batch: { recipeId: recipe.id, minutesLeft: 30 },
+    });
+    expect(formatPlant(plantOf(state).plant ?? fail())).toBe(
+      "idle at Night, 30 min left of this batch",
     );
+
+    campaign.advance(state.lunation.minutesRemaining + 29);
+    expect(bulk(campaign.snapshot(), "wafers")).toBe(0);
+    campaign.advance(1);
+
+    state = campaign.snapshot();
+    expect(state.lunation.part).toBe("daylight");
+    expect(bulk(state, "wafers")).toBeCloseTo(wafersPerHour, 6);
+    expect(plantOf(state).plant?.batch).toBeUndefined();
+  });
+
+  it("leaves a second plant waiting when the first commissioned takes the silicon for its batch", () => {
+    const campaign = withBulk(
+      base([
+        ["solar-array", arraySite],
+        ["vacuum-fabrication-plant", plantSite],
+        ["vacuum-fabrication-plant", extractionSite],
+        ["solar-array", secondArraySite],
+      ]),
+      { silicon: 0.5 },
+    );
+
+    campaign.advance(1);
+
+    const [first, second] = campaign
+      .snapshot()
+      .structures.filter(
+        (structure) => structure.structureTypeId === "vacuum-fabrication-plant",
+      )
+      .map((structure) => structure.plant);
+    expect(first).toMatchObject({ running: true, batch: { minutesLeft: 59 } });
+    expect(second).toEqual({
+      running: false,
+      stoppedFor: {
+        reason: "no-input",
+        resource: { kind: "bulk-resource", resourceId: "silicon" },
+        kilograms: expect.closeTo(0.5 - siliconPerHour, 6) as number,
+        kilogramsNeeded: siliconPerHour,
+      },
+      batch: undefined,
+    });
   });
 
   it("shows the wafers in the status panel after the silicon, in kilograms", () => {
@@ -177,26 +284,46 @@ describe("the vacuum fabrication plant", () => {
       `making ${wafersPerHour} kg of wafers an hour from ${siliconPerHour} kg of silicon`,
     );
   });
+});
 
-  it("stops once the silicon runs out, and the status panel says so", () => {
-    const campaign = withBulk(plantBase(), { silicon: siliconPerHour / 4 });
-
-    campaign.advance(60);
-
-    const state = campaign.snapshot();
-    expect(bulk(state, "silicon")).toBe(0);
-    expect(bulk(state, "wafers")).toBeCloseTo(wafersPerHour / 4, 6);
-    const { plant } = plantOf(state);
-    expect(plant).toEqual({
-      running: false,
-      stoppedFor: {
-        reason: "no-input",
-        resource: { kind: "bulk-resource", resourceId: "silicon" },
-      },
-    });
-    expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-      "stopped: out of Silicon",
+describe("an extraction plant running for oxygen, and a vacuum fabrication plant", () => {
+  it("make wafers a batch at a time, once the trickle of silicon fills one, with the vacuum fabrication plant waiting steadily in between", () => {
+    const campaign = withBulk(
+      base([
+        ["solar-array", arraySite],
+        ["extraction-plant", extractionSite],
+        ["vacuum-fabrication-plant", plantSite],
+        ["solar-array", secondArraySite],
+      ]),
+      { regolith: 500, silicon: 0, wafers: 0 },
     );
+    expect(campaign.snapshot().lunation.part).toBe("daylight");
+
+    const shown: string[] = [];
+    for (let minute = 0; minute < 20 * 60; minute++) {
+      campaign.advance(1);
+      const state = campaign.snapshot();
+      const plant = plantOf(state).plant ?? fail();
+      const line = `${plant.running ? "running" : plant.stoppedFor?.reason} ${formatPlantRates(plantOf(state)) ?? ""} ${
+        formatBulkResources(
+          state.bulkResources,
+          campaign.forecasts().bulkResources,
+        ).find((resource) => resource.label === "Wafers")?.note ?? ""
+      }`;
+      if (shown.at(-1) !== line) shown.push(line);
+    }
+
+    // Waiting for silicon, one batch running once 18 of the extraction
+    // plant's batches have made enough, then waiting again.
+    expect(shown).toHaveLength(3);
+    expect(shown[0]).toMatch(/^no-input +$/);
+    expect(shown[1]).toBe(
+      `running making ${wafersPerHour} kg of wafers an hour from ${siliconPerHour} kg of silicon +${(wafersPerHour * 24).toFixed(1)} kg/day`,
+    );
+    expect(shown[2]).toBe(shown[0]);
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("daylight");
+    expect(bulk(state, "wafers")).toBeCloseTo(wafersPerHour, 6);
   });
 });
 
@@ -240,9 +367,10 @@ describe("an extraction plant running for metals and silicon, and a vacuum fabri
       });
     }
     expect(bulk(after, "regolith")).toBeLessThan(bulk(before, "regolith"));
-    // The vacuum fabrication plant keeps up with the silicon the extraction
-    // plant makes, from soon after it starts.
-    expect(bulk(after, "wafers")).toBeGreaterThan(5 * wafersPerHour);
-    expect(bulk(after, "silicon")).toBeLessThan(siliconMadePerHour);
+    // The vacuum fabrication plant starts a batch as each of the extraction
+    // plant's brings it enough silicon, from the second hour on, and keeps
+    // up with it.
+    expect(bulk(after, "wafers")).toBeCloseTo(5 * wafersPerHour, 6);
+    expect(bulk(after, "silicon")).toBeLessThan(2 * siliconMadePerHour);
   });
 });

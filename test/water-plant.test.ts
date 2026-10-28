@@ -112,9 +112,9 @@ describe("the water-processing plant", () => {
       events.push(...campaign.advance(60));
     }
     expect(events.map((event) => event.kind)).toContain("expedition-returned");
-    // The plant has started on the ice the moment it was unloaded.
-    expect(ice(campaign.snapshot())).toBeGreaterThan(
-      catalogue.expeditions.kilograms - icePerHour,
+    // The plant has taken a batch's ice at most since it was unloaded.
+    expect(ice(campaign.snapshot())).toBeGreaterThanOrEqual(
+      catalogue.expeditions.kilograms - icePerHour - 1e-9,
     );
     // Into the next Daylight, if it came back at Night.
     if (campaign.snapshot().lunation.part === "night") {
@@ -126,7 +126,7 @@ describe("the water-processing plant", () => {
     campaign.advance(60);
 
     const after = campaign.snapshot();
-    expect(plantOf(after).plant).toEqual({
+    expect(plantOf(after).plant).toMatchObject({
       running: true,
       stoppedFor: undefined,
     });
@@ -134,18 +134,21 @@ describe("the water-processing plant", () => {
     expect(water(after) - water(before)).toBeCloseTo(waterPerHour, 6);
   });
 
-  it("stops once the ice runs out, saying so", () => {
+  it("waits with less than a batch's ice, taking none, saying so", () => {
     const campaign = withIce(plantBase(), 0.5);
 
     campaign.advance(60);
 
-    expect(ice(campaign.snapshot())).toBe(0);
+    expect(ice(campaign.snapshot())).toBe(0.5);
     expect(plantOf(campaign.snapshot()).plant).toEqual({
       running: false,
       stoppedFor: {
         reason: "no-input",
         resource: { kind: "bulk-resource", resourceId: "water-ice" },
+        kilograms: 0.5,
+        kilogramsNeeded: icePerHour,
       },
+      batch: undefined,
     });
   });
 
@@ -160,8 +163,9 @@ describe("the water-processing plant", () => {
     ).toEqual({
       resourceId: "water-ice",
       kilogramsPerHour: expect.closeTo(-icePerHour, 6) as number,
+      // As if the batch started 2 game-minutes ago used its ice evenly.
       minutesUntilEmpty: expect.closeTo(
-        (ice(campaign.snapshot()) / icePerHour) * 60,
+        (50 / icePerHour) * 60 - 2,
         -1,
       ) as number,
     });
@@ -236,8 +240,11 @@ describe("the water forecast", () => {
     const campaign = dayBeforeNight(5);
     const state = campaign.snapshot();
     const toNight = state.lunation.minutesRemaining;
+    // With what the batch started a game-minute ago has made so far.
     const atNightfall =
-      water(state) + ((waterPerHour - use / 24) * toNight) / 60;
+      water(state) +
+      waterPerHour / 60 +
+      ((waterPerHour - use / 24) * toNight) / 60;
     expect(atNightfall).toBeLessThan(nightUse);
 
     const forecast = campaign

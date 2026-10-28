@@ -22,7 +22,7 @@ import {
 
 /** How every Plant gets its power, which the player has to plan around. */
 const PLANTS_AT_NIGHT =
-  "Like every Plant, it runs only on power the battery banks can't store, in Daylight once they are full, and stands idle at Night: keep enough of what it makes to last the Night.";
+  "Like every Plant, it works in batches of an hour: it starts one once it has an hour's worth of each input, and the outputs come as it finishes. It runs only on power the battery banks can't store, in Daylight once they are full, and stands idle at Night: keep enough of what it makes to last the Night.";
 
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {

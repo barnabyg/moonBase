@@ -7,6 +7,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { formatPlant } from "../src/ui/format";
 import { scenario } from "./scenario";
 import { changed, worn } from "./worn";
 
@@ -169,13 +170,13 @@ describe("the extraction plant", () => {
     ).toBeCloseTo((stopped ?? 0) + recipe.drawKilowatts, 6);
   });
 
-  it("stops once it runs out of Regolith, saying so, and wears no further", () => {
+  it("waits with less than a batch's Regolith, taking none, saying so, and wears no further", () => {
     const campaign = withStocks(plantBase(), { regolith: 1 });
 
     campaign.advance(60);
 
     const state = campaign.snapshot();
-    expect(bulk(state, "regolith")).toBe(0);
+    expect(bulk(state, "regolith")).toBe(1);
     expect(plantOf(state)).toMatchObject({
       powered: false,
       plant: {
@@ -183,7 +184,10 @@ describe("the extraction plant", () => {
         stoppedFor: {
           reason: "no-input",
           resource: { kind: "bulk-resource", resourceId: "regolith" },
+          kilograms: 1,
+          kilogramsNeeded: perHour(recipe.inputs, "bulk-resource", "regolith"),
         },
+        batch: undefined,
       },
     });
     const { conditionPercent } = plantOf(state);
@@ -195,7 +199,7 @@ describe("the extraction plant", () => {
     expect(lifeSupport(campaign.snapshot(), "oxygen")).toBe(oxygen);
   });
 
-  it("stops without power at Night, saying so, with no battery bank to draw on", () => {
+  it("stands idle at Night, saying so, with no battery bank to draw on", () => {
     const campaign = withStocks(plantBase(), { regolith: 5000 });
     const { lunation } = campaign.snapshot();
     campaign.advance(lunation.minutesRemaining + 2);
@@ -204,9 +208,9 @@ describe("the extraction plant", () => {
     campaign.advance(60);
 
     expect(bulk(campaign.snapshot(), "regolith")).toBe(before);
-    expect(plantOf(campaign.snapshot()).plant).toEqual({
+    expect(plantOf(campaign.snapshot()).plant).toMatchObject({
       running: false,
-      stoppedFor: { reason: "no-power" },
+      stoppedFor: { reason: "night" },
     });
   });
 
@@ -224,28 +228,33 @@ describe("the extraction plant", () => {
     });
   });
 
-  it("runs more slowly at low Condition, along the Structure performance curve", () => {
+  it("takes longer over a batch at low Condition, along the Structure performance curve", () => {
     const base = plantBase();
     const plantId = plantOf(base.snapshot()).id;
     const campaign = withStocks(worn(base, plantId, 25, 0), { regolith: 500 });
-    campaign.advance(1);
     const before = campaign.snapshot();
+    expect(before.lunation.part).toBe("daylight");
 
-    campaign.advance(60);
+    let minutes = 0;
+    while (
+      lifeSupport(campaign.snapshot(), "oxygen") ===
+      lifeSupport(before, "oxygen")
+    ) {
+      if (minutes > 10 * 60) throw new Error("The batch never finished.");
+      campaign.advance(1);
+      minutes += 1;
+    }
 
-    // Its performance falls a little more as it wears through the hour.
+    // Its performance falls a little more as it wears through the batch.
     const performance =
       (plantOf(before).performance + plantOf(campaign.snapshot()).performance) /
       2;
     expect(performance).toBeLessThan(1);
-    expect(before.lunation.part).toBe("daylight");
+    expect(Math.abs(minutes - 60 / performance)).toBeLessThan(1.5);
     expect(
       lifeSupport(campaign.snapshot(), "oxygen") -
         lifeSupport(before, "oxygen"),
-    ).toBeCloseTo(
-      perHour(recipe.outputs, "life-support", "oxygen") * performance,
-      4,
-    );
+    ).toBeCloseTo(perHour(recipe.outputs, "life-support", "oxygen"), 6);
   });
 
   it("wears down by Dust for each hour it runs", () => {
@@ -314,9 +323,9 @@ describe("a Plant on a network short of power", () => {
       campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
     }
 
-    expect(plantOf(withPlant.snapshot()).plant).toEqual({
+    expect(plantOf(withPlant.snapshot()).plant).toMatchObject({
       running: false,
-      stoppedFor: { reason: "no-power" },
+      stoppedFor: { reason: "night" },
     });
     const habitatOf = (campaign: Campaign) =>
       campaign
@@ -348,6 +357,27 @@ describe("a Plant on a network short of power", () => {
       }
     }
     expect(plantOf(campaign.snapshot()).plant?.running).toBe(true);
+  });
+
+  it("waits in Daylight while its battery banks charge, saying it waits for power to spare", () => {
+    const campaign = changed(habitatBase(true), (state) => {
+      for (const structure of state.structures) {
+        structure.storedKilowattHours = 0;
+      }
+    });
+
+    campaign.advance(1);
+
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("daylight");
+    const { plant } = plantOf(state);
+    expect(plant).toMatchObject({
+      running: false,
+      stoppedFor: { reason: "no-power" },
+    });
+    expect(plant === undefined ? "" : formatPlant(plant)).toMatch(
+      /^waiting for power to spare/,
+    );
   });
 });
 

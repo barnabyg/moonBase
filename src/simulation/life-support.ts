@@ -4,7 +4,11 @@ import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import { lunationMinutes, partsAhead, readLunation } from "./lunation";
-import { isMadeByPlants, productionPerHour } from "./plants";
+import {
+  isMadeByPlants,
+  kilogramsInBatches,
+  productionPerHour,
+} from "./plants";
 import { recordLifeSupport } from "./self-sufficiency";
 
 /**
@@ -157,14 +161,20 @@ const FORECAST_LUNATION_PARTS = 6;
  * Lunation ahead: the rest of a Daylight at the current rate, then each
  * Night at what the Mission Director uses, and each Daylight after again at
  * the current rate. At Night, when what the Plants make in Daylight isn't
- * known, it looks only as far as the next Daylight.
+ * known, it looks only as far as the next Daylight. What the batches the
+ * Plants have started have made of it so far counts with the stock (see
+ * `kilogramsInBatches`), though it comes only as each batch finishes.
  */
 function minutesUntilEmpty(
   state: CampaignState,
-  stock: LifeSupportState,
+  inStock: LifeSupportState,
 ): number {
-  const perMinute = netPerMinute(state, stock);
-  const resource = { kind: "life-support" as const, stockId: stock.stockId };
+  const perMinute = netPerMinute(state, inStock);
+  const resource = { kind: "life-support" as const, stockId: inStock.stockId };
+  const stock = {
+    ...inStock,
+    kilograms: inStock.kilograms + kilogramsInBatches(state, resource),
+  };
   if (!isInUse(state) || !isMadeByPlants(state, resource)) {
     return minutesLeft(stock, perMinute);
   }

@@ -123,7 +123,7 @@ describe.each(cases)("the %s running for %s", (_, __, typeId, recipe) => {
     campaign.advance(60);
 
     const after = campaign.snapshot();
-    expect(plantOf(after, typeId).plant).toEqual({
+    expect(plantOf(after, typeId).plant).toMatchObject({
       running: true,
       stoppedFor: undefined,
     });

@@ -661,8 +661,9 @@ export function formatPlantRates(
     catalogue.structureTypes.find(
       (type) => type.id === structure.structureTypeId,
     )?.recipes ?? [];
-  const recipe =
-    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  // A batch it has started goes on with the recipe it was started with.
+  const recipeId = structure.plant.batch?.recipeId ?? structure.recipeId;
+  const recipe = recipes.find(({ id }) => id === recipeId) ?? recipes[0];
   if (recipe === undefined) return undefined;
   const flows = (resources: PlantRecipe["outputs"]) =>
     listInWords(
@@ -675,20 +676,28 @@ export function formatPlantRates(
 }
 
 /**
- * Says whether a Plant is running, and why not, for its line in the status
- * panel, for example "running" or "stopped: out of Regolith"; undefined
+ * Says whether a Plant is running, why not, and how much of its batch is
+ * left, for its line in the status panel, for example "running, 40 min
+ * left of this batch" or "waiting for Silicon: 0.12 of 0.35 kg"; undefined
  * once it is Broken, which the line says already.
  */
 export function formatPlant(plant: PlantSnapshot): string | undefined {
-  switch (plant.stoppedFor?.reason) {
+  const left =
+    plant.batch === undefined
+      ? ""
+      : `, ${plant.batch.minutesLeft} min left of this batch`;
+  const stop = plant.stoppedFor;
+  switch (stop?.reason) {
     case undefined:
-      return "running";
+      return `running${left}`;
     case "broken":
       return undefined;
     case "no-input":
-      return `stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${Number(stop.kilograms.toFixed(2))} of ${Number(stop.kilogramsNeeded.toFixed(2))} kg`;
+    case "night":
+      return `idle at Night${left}`;
     case "no-power":
-      return "stopped: no power to spare (never any at Night)";
+      return `waiting for power to spare${left}`;
   }
 }
 

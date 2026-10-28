@@ -11,6 +11,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { formatPlantRates } from "../src/ui/format";
 import { DEFAULT_SEED } from "./scenario";
 import { changed } from "./worn";
 
@@ -215,7 +216,7 @@ describe("a Plant's recipe", () => {
     expect(structureOf(state, "solar-array").recipeId).toBeUndefined();
   });
 
-  it("changes what the extraction plant makes from the next game-minute, with no Robot work", () => {
+  it("changes what the extraction plant makes from its next batch, with no Robot work", () => {
     const campaign = running();
     const robotBefore = campaign.snapshot().robots[0];
     expect(forecastOf(campaign, "oxygen").kilogramsPerEarthDay).toBeCloseTo(
@@ -260,6 +261,32 @@ describe("a Plant's recipe", () => {
       6,
     );
     expect(forecast.minutesUntilEmpty).toBeDefined();
+  });
+
+  it("lets a batch the extraction plant has started finish with the recipe it started it with", () => {
+    const campaign = running();
+    campaign.advance(30);
+    const before = campaign.snapshot();
+    expect(structureOf(before, "extraction-plant").plant?.batch).toEqual({
+      recipeId: "oxygen",
+      minutesLeft: 30,
+    });
+
+    setRecipe(campaign, "extraction-plant", "metals-and-silicon");
+
+    const set = structureOf(campaign.snapshot(), "extraction-plant");
+    expect(formatPlantRates(set)).toMatch(/^making 0\.15 kg of oxygen/);
+    campaign.advance(30);
+    const after = campaign.snapshot();
+    expect(bulk(after, "silicon") - bulk(before, "silicon")).toBeCloseTo(
+      made(oxygenRecipe, "silicon"),
+      6,
+    );
+    campaign.advance(1);
+    expect(
+      structureOf(campaign.snapshot(), "extraction-plant").plant?.batch
+        ?.recipeId,
+    ).toBe("metals-and-silicon");
   });
 
   it("switched to metals and silicon, loses the base its self-sufficiency in oxygen", () => {
@@ -350,6 +377,26 @@ describe("a Plant's recipe", () => {
       ok: false,
       reason: "damaged",
       message: `The save file is damaged: state.structures.${index}.recipeId isn't one of "oxygen", "metals-and-silicon".`,
+    });
+  });
+
+  it("in a save, of a batch the Plant has started, must be one the Plant has, or the save is refused as damaged", () => {
+    const document = JSON.parse(running().save()) as {
+      state: {
+        structures: { structureTypeId: string; batch: unknown }[];
+      };
+    };
+    const index = document.state.structures.findIndex(
+      (structure) => structure.structureTypeId === "extraction-plant",
+    );
+    const plant = document.state.structures[index];
+    if (plant === undefined) throw new Error("expected an extraction plant");
+    plant.batch = { recipeId: "water", minutesWorked: 10 };
+
+    expect(loadCampaign(JSON.stringify(document))).toEqual({
+      ok: false,
+      reason: "damaged",
+      message: `The save file is damaged: state.structures.${index}.batch.recipeId isn't one of "oxygen", "metals-and-silicon".`,
     });
   });
 

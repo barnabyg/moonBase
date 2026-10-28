@@ -54,7 +54,7 @@ The spec's tunable defaults all hold:
 - The Robot repairs itself below 10% Condition.
 - The starting oxygen and water last about 30 Earth Days.
 
-The pacing targets, and where the reference Campaign came at data catalogue version 51:
+The pacing targets, and where the reference Campaign came at data catalogue version 52:
 
 | Target                                                                          | Reference Campaign                                                                         |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -63,8 +63,8 @@ The pacing targets, and where the reference Campaign came at data catalogue vers
 | The Habitat shielded before a Solar Particle Event could take a dangerous share | Earth Day 6.7, before the earliest a Solar Particle Event can start (Earth Day 10)         |
 | A landing pad by about Earth Day 60                                             | Earth Day 15.0                                                                             |
 | Both self-sufficiency Milestones within about four Lunations (118 Earth Days)   | Earth Days 62.3 and 82.5                                                                   |
-| By the end, Export income covers the cost of a typical Launch                   | Each Launch of circuit boards sells for $300M; Launches after the third cost $154M–179M    |
-| The Radiation Dose, played as the hints and Designs allow, survivable for years | Over 4 years from the end with a water wall; about 5 months under Regolith shielding alone |
+| By the end, Export income covers the cost of a typical Launch                   | Each Launch of circuit boards sells for $300M; Launches after the third cost $152M–180M    |
+| The Radiation Dose, played as the hints and Designs allow, survivable for years | Over 4 years from the end with a water wall; about 6 months under Regolith shielding alone |
 
 The reference Campaign's test checks each of these.
 
@@ -76,7 +76,7 @@ The Habitat's first Night has to be carried by the starting stock. The Lander ca
 
 **Two Launches, and a $650M Programme Grant.** Launches carry two tonnes. Before the first Export can be sold, the Milestones need a landing pad (1240 kg, $30M) and an extraction plant, a vacuum fabrication plant and a second solar array to power them (1950 kg, $151M): two Launches. The first brings the landing pad with oxygen, water and spare Components ($200M with the Launch fee), and the second the export Plants ($301M). A full Return Mass of wafers sells for $150M, no more than the Launch fee, so wafers alone never pay for what a Launch brings: circuit boards, at twice the price, do. So the Launch after the first sale has to bring a circuit board plant, with the water-processing plant the water Milestone needs and supplies (about $265M), and the grant has to pay for what the sale doesn't. That comes to about $615M, so the Programme Grant is $650M. It couldn't go back to $400M without cutting the Launch fee to about $45M (and the wafer price with it), or the export Plants' prices by about two thirds. The cost is that no two-tonne Launch can cost more than the Programme Grant (the dearest comes to about $540M), so the Funding first runs short only after the second Launch; the Milestone hint for the first Launch says to keep enough for the export Plants on the next.
 
-**The Radiation Dose.** Regolith shielding cuts the dose rate to a twentieth, 1.5 mSv an Earth Day. With Solar Particle Events on top it rises about 2 mSv an Earth Day, so the 600 mSv limit comes in about nine Lunations: the Hazard still bites over the long run. Water-wall shielding cuts it to a tenth of that again, 0.15 mSv an Earth Day. In the reference Campaign the Research Tasks pay for it by Earth Day 20, the third Launch brings its bladders, and it is filled once there is 300 kg of water to spare beyond a fortnight's drinking water, on Earth Day 95.9. From then on the limit is over four years away; without it, under Regolith shielding alone, it would come about five months after the end.
+**The Radiation Dose.** Regolith shielding cuts the dose rate to a twentieth, 1.5 mSv an Earth Day. With Solar Particle Events on top it rises about 2 mSv an Earth Day, so the 600 mSv limit comes in about nine Lunations: the Hazard still bites over the long run. Water-wall shielding cuts it to a tenth of that again, 0.15 mSv an Earth Day. In the reference Campaign the Research Tasks pay for it by Earth Day 20, the third Launch brings its bladders, and it is filled once there is 300 kg of water to spare beyond a fortnight's drinking water, on Earth Day 96.9. From then on the limit is over four years away; without it, under Regolith shielding alone, it would come about six months after the end.
 
 ### Still to watch
 

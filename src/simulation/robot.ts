@@ -634,6 +634,8 @@ function finishCommissioning(
     conditionPercent: 100,
     dustCoatingPercent: 0,
     recipeId: defaultRecipeId(construction.structureTypeId),
+    batch: undefined,
+    plantStop: undefined,
   });
   return [
     {

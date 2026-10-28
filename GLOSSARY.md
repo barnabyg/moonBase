@@ -86,6 +86,10 @@ _Avoid_: building, facility
 A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design.
 _Avoid_: factory, facility, Machine
 
+**Batch**:
+A game-hour of a Plant's recipe, the unit a Plant works in: it takes the inputs as it starts and puts out the outputs as it finishes.
+_Avoid_: job, run, cycle
+
 **Construction**:
 The process that turns a planned Structure into a working one through four stages: Site Preparation, Component delivery, Assembly and Commissioning.
 _Avoid_: building (as a verb), placement
