@@ -463,6 +463,13 @@ body {
 
 /* The base's Structures, Robots, Machines and Rovers. */
 
+.entries-hint {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .entries {
   margin: 0;
   padding: 0;
@@ -1088,6 +1095,30 @@ body {
   margin-top: 20px;
 }
 
+.research-tasks__buys {
+  margin-bottom: 16px;
+}
+
+.research-tasks__buys-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.research-tasks__buys-cost {
+  color: var(--science);
+}
+
+.task-card__reach {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .task-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1162,6 +1193,28 @@ body {
   color: var(--good);
 }
 
+/* The Guide. */
+
+/* The same size whichever tab is shown, so that it doesn't jump. */
+.guide {
+  width: min(1080px, 100vw - 32px);
+  height: min(680px, 100vh - 48px);
+}
+
+.guide__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.guide__heading:not(:first-child) {
+  margin-top: 18px;
+}
+
+.guide-card__state {
+  margin: auto 0 0;
+}
+
 /* The Tech Tree. */
 
 /* The same size whichever category is shown, so that it doesn't jump. */
@@ -1223,6 +1276,13 @@ body {
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text-muted);
+}
+
+.design-card__unlocks {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text);
 }
 
 .design-card__needs {
@@ -1296,6 +1356,15 @@ body {
 
 .launch-manifest__group + .launch-manifest__group {
   margin-top: 18px;
+}
+
+.launch-manifest__use {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--text-muted);
 }
 
 .launch-manifest__details {

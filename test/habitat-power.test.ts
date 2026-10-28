@@ -6,7 +6,7 @@ import type {
   Snapshot,
   StructureSnapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed } from "./worn";
 
 // No Machine feels the cold or draws power for a heater at Night, and the
@@ -122,10 +122,23 @@ describe("power by priority", () => {
   });
 
   it("leaves the Habitat without power when the energy left can't cover all it draws, exactly when forecast", () => {
-    // With two Light Masts, the battery's last game-minute of energy falls
-    // short of what the Habitat draws in a game-minute.
-    const game = poweredBase(2);
-    runUntil(game, (state) => state.lunation.part === "night");
+    // Stored energy for ten hours of the Night, and half a game-minute of
+    // the Habitat's draw over, so that the battery's last game-minute of
+    // energy falls short of what the Habitat draws in a game-minute.
+    const base = poweredBase(0);
+    runUntil(base, (state) => state.lunation.part === "night");
+    const bankId = structureOf(base.state, "battery-bank").id;
+    const drawn = base.state.power.networks[0]?.consumptionKilowatts ?? 0;
+    const game = scenarioOf(
+      changed(base.campaign, (state) => {
+        for (const saved of state.structures) {
+          saved.storedKilowattHours =
+            saved.id === bankId
+              ? (drawn * 600 + habitatDrawKilowatts / 2) / 60
+              : 0;
+        }
+      }),
+    );
     moveIn(game);
     const minutes = forecastPowerLost(game);
     game.campaign.advance(minutes - 1);
@@ -236,7 +249,7 @@ describe("letting the battery run flat at Night with the Mission Director in the
   });
 
   it("warns as the Habitat's power falls to each warning level, stopping each skip to the next event, then kills the Mission Director", () => {
-    const game = poweredBase();
+    const game = poweredBase(0);
     const habitatId = moveIn(game);
     const skips: { events: readonly GameEvent[]; stoppedAt: number }[] = [];
     while (game.state.ended === undefined && skips.length < 100) {
@@ -250,7 +263,9 @@ describe("letting the battery run flat at Night with the Mission Director in the
         (event) =>
           event.kind !== "night-started" &&
           event.kind !== "daylight-started" &&
-          event.kind !== "milestone-reached",
+          event.kind !== "milestone-reached" &&
+          // Struck at random, now and then, and harmless here.
+          event.kind !== "micrometeorite-strike",
       )
       .map((event) =>
         event.kind === "habitat-power-warning"

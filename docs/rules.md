@@ -14,10 +14,12 @@ These hold throughout, so the sections below don't repeat them:
 
 ## Screen and controls
 
-- **Top bar:** the game clock, game speed, "Skip to next event", the Funding and Science balances, the Launch manifest, Research Tasks and Tech Tree buttons, and Save and Load.
+- **Top bar:** the game clock, game speed, "Skip to next event", the Funding and Science balances, the Launch manifest, Research Tasks and Tech Tree buttons, the Guide, and Save and Load.
 - **Status panel (left):** Milestones, the Mission Director, the base's power and stock, the Lander and Expeditions, and the running Research Task, above the build menu.
 - **Base panel (right):** the Structures, Robots, Machines and Rovers with their Condition, between the Work panel and the notification list.
 - Each section of the status and Base panels folds away when you click its title and stays folded on your next visit; a dot by a folded title means something in it needs attention. Hover over a self-sufficiency figure or the time left in the Lunation for detail.
+- **Guide:** explains, without leaving the game, how the base works (power and Night, repairs, keeping the Mission Director alive, Launches and Funding, Science), what every Structure does, with its figures, Components and the Design it needs, what every Component is for, what the Robot, Machines and Rover do, and what each technology unlocks. Every figure and list in it comes from the data catalogue.
+- **What things are for, where you choose them:** hovering over a Structure in the build menu says what it does and what it is built from; each item on the Launch manifest says what it is for (the Structures built from a Component and how many each takes, what spare Components do, how long oxygen or water lasts the Mission Director); each Tech Tree card says what unlocking it brings, with what each of its Structures does; and the Research Tasks screen lists what Science buys next, and on each task the Designs its Science would bring within reach or, if it pays too little for any, the cheapest it builds towards and how far short it leaves you. These say the same as the Guide.
 - **Camera:** drag with the left mouse button to pan, drag with the right button to rotate, and use the wheel to zoom from the whole map down to a single Robot.
 
 ## Milestones
@@ -56,9 +58,10 @@ When a network can't cover everything, power goes in this order:
 1. The Habitat. It works only with all the power it draws; part of it is the same as none.
 2. Other Structures, which lose power in the order they were commissioned.
 3. Heaters of Machines and Rovers plugged in to the network, at Night.
-4. Plants, which run only on power that nothing else uses and no battery bank can store: in practice, in Daylight once the battery banks are full.
+4. Lights, at Night, in the order they were commissioned (see below).
+5. Plants, which run only on power that nothing else uses and no battery bank can store: in practice, in Daylight once the battery banks are full.
 
-Light Masts switch on by themselves at Night, light the ground round them, and draw power only while on. They only help you see: work carries on in the dark without them.
+Light Masts switch on by themselves at Night, light the ground round them, and draw power only while on. They only help you see: work carries on in the dark without them. At Night a light stays on only while its network's battery banks hold more than everything else on the network needs through the rest of the Night and a reserve after it; otherwise it switches itself off to save power, the last-commissioned first, so lights never leave the Habitat, or anything else, without power. The Base panel shows a light off to save power, the power figures and forecasts leave it out, and a notification says when the lights on a network start switching off.
 
 One battery bank can't carry the Habitat through a Night; the starting stock holds enough for one Night once they are charged. The Lander can't bring more in time if it leaves in the first Daylight, so build them all before moving in, or wait aboard until the next Daylight.
 
@@ -113,7 +116,7 @@ Below a threshold, things work less well in step with their Condition: solar arr
 
 At 0% a Structure or Machine is **Broken**: it stays where it is but stops working. A Broken battery bank loses its stored energy, and a Broken Habitat loses its power and shielding, which kills the Mission Director if they live in it. A Broken Machine gives up the Construction stage it was on until another is free or it is repaired. A Broken Rover can't be driven. Robots are never Broken.
 
-**Maintenance.** Once something's Condition falls below the Maintenance threshold, or it is Broken, a Maintenance Work Order is raised for it. The Robot loads spare Components at the stockpile, carries them over and restores it to 100%, using spare Components in proportion to the Condition restored. If the base's stock has too few, the Work Order waits, the Work panel says how many more it needs, and the Robot does other work meanwhile. A solar array whose Dust coating passes a threshold is cleaned the same way, without spares, on the same visit as any Maintenance it is due. Nothing that is to be dismantled is maintained, and a Machine busy with a Construction stage is maintained once it is idle again, unless it is Broken.
+**Maintenance.** Once something's Condition falls below the Maintenance threshold, or it is Broken, a Maintenance Work Order is raised for it. The Robot loads spare Components at the stockpile, carries them over and restores it to 100%, using spare Components in proportion to the Condition restored. If the base's stock has too few, the Work Order waits, the Work panel says how many more it needs and to put spare Components on the Launch manifest, and the Robot does other work meanwhile. The player never repairs anything: a line at the top of the Base panel's Structures and Robots & Machines sections says repairs are automatic, hovering over a Condition says the same, and the notifications that something needs Maintenance or is Broken say the Robot will repair it. A solar array whose Dust coating passes a threshold is cleaned the same way, without spares, on the same visit as any Maintenance it is due. Nothing that is to be dismantled is maintained, and a Machine busy with a Construction stage is maintained once it is idle again, unless it is Broken.
 
 **Spare Components forecast.** The status panel shows how long the spares will last at the current rate of wear (including the average Micrometeorite damage), after the spares already claimed. Each warning is given once, until more spares arrive or the forecast recovers well clear of the warning levels.
 
@@ -169,9 +172,9 @@ The status panel shows whether the base is self-sufficient in oxygen and in wate
 
 ## Research and the Tech Tree
 
-**Research Tasks** earn Science. The Research Tasks screen shows the one running, with its progress, and every other with its length and the Science it pays; short ones pay more for each hour, long ones run unattended. Only one runs at a time, and each can be completed only once. A Research Task costs only game time: it needs no Robot, power or Components, and carries on through Night and everything else. A few need a Design unlocked first and are hidden until then.
+**Research Tasks** earn Science. The Research Tasks screen shows the one running, with its progress, and every other with its length, the Science it pays and the Designs that Science would bring within reach (or, if too few, how far short of the cheapest it leaves you), below what Science buys next; short ones pay more for each hour, long ones run unattended. Only one runs at a time, and each can be completed only once. A Research Task costs only game time: it needs no Robot, power or Components, and carries on through Night and everything else. A few need a Design unlocked first and are hidden until then.
 
-**The Tech Tree** spends Science on Designs. Its screen has a tab for each category (Power, Construction, Protection, Life Support, Industry and Mobility), with each Design's cost, the Designs it needs first and whether it can be unlocked now. Everything available at the start belongs to a starting Design.
+**The Tech Tree** spends Science on Designs. Its screen has a tab for each category (Power, Construction, Protection, Life Support, Industry and Mobility), with each Design's cost, what unlocking it brings, the Designs it needs first and whether it can be unlocked now. Everything available at the start belongs to a starting Design.
 
 Unlocking a Design is permission, not the thing itself: its items appear on the Launch manifest and in the build menu, but still have to be shipped and built. Nothing already in stock, on its way or planned is affected, and Structures already built keep their old behaviour.
 

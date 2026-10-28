@@ -91,7 +91,7 @@ The process that turns a planned Structure into a working one through four stage
 _Avoid_: building (as a verb), placement
 
 **Light Mast**:
-A cheap Structure that lights up the area around it at Night, so the player can see what's happening. Darkness never stops work.
+A cheap Structure that lights up the area around it at Night, so the player can see what's happening. Darkness never stops work. It switches itself off to save power once its network's battery banks hold only enough for everything else through the rest of the Night and a reserve, so it never leaves the Habitat without power.
 _Avoid_: lamp, floodlight
 
 **Site Preparation**:

@@ -8,6 +8,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { formatEvent, formatMaintenanceWait } from "../src/ui/format";
 import { scenario, type Scenario } from "./scenario";
 import { worn } from "./worn";
 
@@ -329,6 +330,54 @@ describe("Maintenance with too few spare Components", () => {
       100,
     );
     expect(spareComponents(supplied.snapshot())).toBe(0);
+  });
+});
+
+describe("what the player is told about repairs", () => {
+  it("says the Robot will see to a Structure that needs Maintenance by itself", () => {
+    const campaign = wornArray(thresholdPercent - 10);
+
+    const needed = advanceUntil(campaign, "maintenance-needed").find(
+      (event) => event.kind === "maintenance-needed",
+    );
+
+    expect(needed === undefined ? "" : formatEvent(needed)).toBe(
+      `Solar array needs Maintenance: Condition down to ${thresholdPercent - 10}%; the Robot will repair it by itself, using spare Components`,
+    );
+  });
+
+  it("says a Broken Structure stays stopped only until the Robot repairs it", () => {
+    const campaign = wornArray(0);
+    const arrayId = structure(campaign.snapshot(), "solar-array").id;
+
+    const event = advanceUntil(campaign, "maintenance-needed").find(
+      (candidate) => candidate.kind === "maintenance-needed",
+    );
+
+    expect(event === undefined ? "" : formatEvent(event)).toContain(
+      "the Robot will repair it by itself",
+    );
+    expect(
+      formatEvent({
+        kind: "structure-broken",
+        atMinute: 0,
+        structureId: arrayId,
+        structureTypeId: "solar-array",
+      }),
+    ).toBe(
+      "Solar array is Broken, and has stopped working until the Robot repairs it",
+    );
+  });
+
+  it("says where to get the spare Components a Maintenance Work Order waits for", () => {
+    expect(
+      formatMaintenanceWait({
+        reason: "missing-spare-components",
+        missing: 3,
+      }),
+    ).toBe(
+      "Waiting: 3 more spare Components needed in the base's stock. Put spare Components on the Launch manifest",
+    );
   });
 });
 

@@ -119,11 +119,13 @@ import {
 } from "./machines";
 import {
   consumptionKilowatts,
+  lightsSavingPower,
   plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
   powerNetworks,
   supplyPower,
+  watchLights,
   type CableState,
 } from "./power";
 import {
@@ -341,6 +343,12 @@ export interface StructureSnapshot {
   readonly powered: boolean;
   /** Whether its light was on during the latest game-minute: only at Night, with power. */
   readonly lit: boolean;
+  /**
+   * Whether it is a light that switched itself off during the latest
+   * game-minute of Night to save power, so that the energy stored on its
+   * network carries everything else through to Daylight.
+   */
+  readonly savingPower: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
   /**
@@ -1027,6 +1035,12 @@ function campaignFrom(state: CampaignState): Campaign {
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
       const plugs = pluggedIn(state);
+      const savingPower = lightsSavingPower(
+        state,
+        state.elapsedMinutes > 0 &&
+          readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
+            "night",
+      );
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
         lunation,
@@ -1093,6 +1107,7 @@ function campaignFrom(state: CampaignState): Campaign {
           const performance = structurePerformance(structure);
           return {
             ...copy(structure),
+            savingPower: savingPower.includes(structure),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
             performance,
@@ -1163,6 +1178,9 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       ? partBefore
       : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
+  const lightsSavingBefore = new Set(
+    lightsSavingPower(state, partSupplied === "night").map((light) => light.id),
+  );
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
   const sparesBefore = forecastSpareComponents(state);
@@ -1184,6 +1202,9 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   for (const robot of state.robots) events.push(...workRobot(state, robot));
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
+  events.push(
+    ...watchLights(state, partBefore === "night", lightsSavingBefore),
+  );
   runPlants(state);
   events.push(...runResearch(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;

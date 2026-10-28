@@ -5,6 +5,7 @@ import {
   type DesignUnlockedEvent,
   type Snapshot,
 } from "../simulation";
+import { describeUnlocks } from "./describe";
 import { setText } from "./dom";
 import { describeDesignState, formatScience } from "./format";
 import { createScreen } from "./screen";
@@ -18,8 +19,8 @@ export interface TechTreeScreen {
  * The Tech Tree screen, where the player spends Science to unlock a Design.
  * A tab for each category shows its Designs as cards, in columns by how far
  * along the tree each is: the starting ones first, then each one after all
- * the Designs it needs first. A card has its cost, the Designs it needs
- * first and whether it is unlocked, can be unlocked now or is out of reach,
+ * the Designs it needs first. A card has its cost, what unlocking it
+ * brings, the Designs it needs first and whether it is unlocked, can be unlocked now or is out of reach,
  * and why. The screen only sends the choice to unlock one to the Campaign,
  * which decides whether it is allowed and says why not, and passes on the
  * notification of one unlocked. The game runs on while it is open.
@@ -107,6 +108,13 @@ export function createTechTreeScreen(
     description.className = "design-card__description";
     description.textContent = design.description;
     element.append(top, description);
+    // What unlocking it brings, so that the choice needs no other screen.
+    for (const text of describeUnlocks(design)) {
+      const unlocks = document.createElement("p");
+      unlocks.className = "design-card__unlocks";
+      unlocks.textContent = text;
+      element.append(unlocks);
+    }
 
     // Each Design it needs first, marked once it is unlocked.
     const needs = design.prerequisiteDesignIds.map((id) => {

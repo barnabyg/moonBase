@@ -9,6 +9,7 @@ import { createBuildMenu } from "./ui/build-menu";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
+import { createGuideScreen } from "./ui/guide";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
@@ -84,6 +85,7 @@ const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
+const guide = createGuideScreen(container);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult);
 const notifications = createNotificationList(rightColumn, campaign);
@@ -111,6 +113,9 @@ const topBar = createTopBar(
   },
   () => {
     techTree.open();
+  },
+  () => {
+    guide.open();
   },
 );
 const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
@@ -144,6 +149,7 @@ function frame(time: number): void {
   expeditions.update(snapshot);
   researchTasks.update(snapshot);
   techTree.update(snapshot);
+  guide.update(snapshot);
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
