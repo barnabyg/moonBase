@@ -648,7 +648,8 @@ export function resourceRefLabel(resource: ResourceRef): string {
 /**
  * Says what a running Plant makes and uses an hour, as fast as its
  * Condition allows, for example "making 0.3 kg of wafers an hour from
- * 0.35 kg of silicon"; undefined for one that isn't running.
+ * 0.35 kg of silicon", and the recipe it switches to from its next batch if
+ * it was switched during this one; undefined for one that isn't running.
  */
 export function formatPlantRates(
   structure: Pick<
@@ -661,34 +662,54 @@ export function formatPlantRates(
     catalogue.structureTypes.find(
       (type) => type.id === structure.structureTypeId,
     )?.recipes ?? [];
-  const recipe =
+  const chosen =
     recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  // A batch it has started goes on with the recipe it was started with.
+  const recipe =
+    recipes.find(({ id }) => id === structure.plant?.batch?.recipeId) ?? chosen;
   if (recipe === undefined) return undefined;
   const flows = (resources: PlantRecipe["outputs"]) =>
     listInWords(
       resources.map(
         (flow) =>
-          `${Number((flow.kilogramsPerHour * structure.performance).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+          `${plantKilograms(flow.kilogramsPerHour * structure.performance)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
       ),
     );
-  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}`;
+  const next =
+    chosen === undefined || chosen === recipe
+      ? ""
+      : `; ${chosen.label} from the next batch`;
+  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}${next}`;
+}
+
+/** Kilograms a Plant takes in or puts out, to the hundredth of one, for example "0.35". */
+function plantKilograms(kilograms: number): string {
+  return String(Number(kilograms.toFixed(2)));
 }
 
 /**
- * Says whether a Plant is running, and why not, for its line in the status
- * panel, for example "running" or "stopped: out of Regolith"; undefined
+ * Says whether a Plant is running, why not, and how much of its batch is
+ * left, for its line in the status panel, for example "running, 40 min
+ * left of this batch" or "waiting for Silicon: 0.12 of 0.35 kg"; undefined
  * once it is Broken, which the line says already.
  */
 export function formatPlant(plant: PlantSnapshot): string | undefined {
-  switch (plant.stoppedFor?.reason) {
+  const left =
+    plant.batch === undefined
+      ? ""
+      : `, ${plant.batch.minutesLeft} min left of this batch`;
+  const stop = plant.stoppedFor;
+  switch (stop?.reason) {
     case undefined:
-      return "running";
+      return `running${left}`;
     case "broken":
       return undefined;
     case "no-input":
-      return `stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
+    case "night":
+      return `idle at Night${left}`;
     case "no-power":
-      return "stopped: no power to spare (never any at Night)";
+      return `waiting for power to spare${left}`;
   }
 }
 

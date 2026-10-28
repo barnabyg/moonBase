@@ -1046,9 +1046,9 @@ describe("the sample save of format version 17", () => {
     campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
 
     expect(oxygen()).toBeGreaterThan(before);
-    expect(plantOf(campaign)?.plant).toEqual({
+    expect(plantOf(campaign)?.plant).toMatchObject({
       running: false,
-      stoppedFor: { reason: "no-power" },
+      stoppedFor: { reason: "night" },
     });
   });
 });
@@ -2317,5 +2317,67 @@ describe("the sample save of format version 34", () => {
     expect(campaign.forecasts().radiationDose.millisievertsPerEarthDay).toBe(
       catalogue.radiation.doseRateMillisievertsPerEarthDay.waterWalledHabitat,
     );
+  });
+});
+
+describe("the sample saves from before Plants worked in batches", () => {
+  it.each(["version-17.moonbase", "version-25.moonbase"])(
+    "%s loads with no batch started, and the extraction plant starts one as it next runs",
+    (name) => {
+      const campaign = loadSample(name);
+      const plantOf = () =>
+        campaign
+          .snapshot()
+          .structures.find(
+            (structure) => structure.structureTypeId === "extraction-plant",
+          )?.plant;
+      expect(plantOf()).toMatchObject({ running: true, batch: undefined });
+
+      untilBatteriesFull(campaign);
+      campaign.advance(1);
+
+      expect(plantOf()).toMatchObject({
+        running: true,
+        batch: { minutesLeft: expect.any(Number) as number },
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 35", () => {
+  it("loads with the extraction plant half way through its batch, and the vacuum fabrication plant waiting for silicon", () => {
+    const campaign = loadSample("version-35.moonbase");
+    const plantOf = (structureTypeId: string) =>
+      campaign
+        .snapshot()
+        .structures.find(
+          (structure) => structure.structureTypeId === structureTypeId,
+        )?.plant;
+
+    expect(plantOf("extraction-plant")).toEqual({
+      running: true,
+      stoppedFor: undefined,
+      batch: { recipeId: "oxygen", minutesLeft: 30 },
+    });
+    expect(plantOf("vacuum-fabrication-plant")).toEqual({
+      running: false,
+      stoppedFor: {
+        reason: "no-input",
+        resource: { kind: "bulk-resource", resourceId: "silicon" },
+        kilograms: 0.2,
+        kilogramsNeeded: 0.35,
+      },
+      batch: undefined,
+    });
+
+    campaign.advance(30);
+
+    expect(
+      campaign
+        .snapshot()
+        .bulkResources.find((stock) => stock.resourceId === "silicon")
+        ?.kilograms,
+    ).toBeCloseTo(0.22, 6);
+    expect(plantOf("extraction-plant")?.batch).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, type ResourceRef } from "../catalogue";
 import type { CampaignEnd, CampaignState } from "./campaign";
 import type {
   ConstructionStage,
@@ -11,6 +11,7 @@ import type { ExpeditionStage } from "./expeditions";
 import type { LanderLeg } from "./lander";
 import type { MachineActivity } from "./machines";
 import type { MissionDirectorResidence } from "./mission-director";
+import type { PlantStop } from "./plants";
 import { MAX_SEED, nextFraction } from "./random";
 import type { RobotActivity, WalkingDestination } from "./robot";
 import type { RoverActivity } from "./rovers";
@@ -829,6 +830,28 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 34 to 35: Plants work in batches, and keep why they didn't run. Until
+  // now each ran from game-minute to game-minute, so none has a batch
+  // started: each starts one when it next can. None kept why it didn't run,
+  // so until the first game-minute played each says why from the base as
+  // it was saved.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure)
+            ? { ...structure, batch: null, plantStop: null }
+            : structure,
+        ),
+      },
+    };
+  },
 ];
 
 /**
@@ -1188,9 +1211,28 @@ const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
 
 const designId = catalogueId(catalogue.designs, "Design");
 
+const resourceRef: Decoder<ResourceRef> = tagged("kind", {
+  "bulk-resource": object({
+    kind: exactly("bulk-resource"),
+    resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
+  }),
+  "life-support": object({
+    kind: exactly("life-support"),
+    stockId: catalogueId(catalogue.lifeSupportStocks, "life support stock"),
+  }),
+} satisfies Record<ResourceRef["kind"], unknown>);
+
+const plantStop: Decoder<PlantStop> = tagged("reason", {
+  broken: object({ reason: exactly("broken") }),
+  "no-input": object({ reason: exactly("no-input"), resource: resourceRef }),
+  night: object({ reason: exactly("night") }),
+  "no-power": object({ reason: exactly("no-power") }),
+} satisfies Record<PlantStop["reason"], unknown>);
+
 /**
- * A commissioned Structure, whose recipe must be one of its type's if it
- * is a Plant, and none if it isn't.
+ * A commissioned Structure. If it is a Plant, its recipe, and that of any
+ * batch it has started, must be one of its type's; if it isn't, it has no
+ * recipe, batch or reason it didn't run.
  */
 const structure: Decoder<StructureState> = (() => {
   const fields = object({
@@ -1203,6 +1245,8 @@ const structure: Decoder<StructureState> = (() => {
     conditionPercent: finiteNumber,
     dustCoatingPercent: finiteNumber,
     recipeId: optional(text),
+    batch: optional(object({ recipeId: text, minutesWorked: amount })),
+    plantStop: optional(plantStop),
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -1210,17 +1254,34 @@ const structure: Decoder<StructureState> = (() => {
       catalogue.structureTypes.find(
         (type) => type.id === decoded.structureTypeId,
       )?.recipes ?? [];
-    const known =
-      recipes.length === 0
-        ? decoded.recipeId === undefined
-        : recipes.some((recipe) => recipe.id === decoded.recipeId);
-    if (!known) {
-      throw refuse(
-        at(path, "recipeId"),
+    const notAPlant = "isn't null, though the Structure isn't a Plant";
+    /** Refuses a recipe the Structure's type doesn't have, or any recipe if it isn't a Plant. */
+    const refuseUnknownRecipe = (
+      recipeId: string | undefined,
+      field: string,
+    ) => {
+      const known =
         recipes.length === 0
-          ? "isn't null, though the Structure isn't a Plant"
-          : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+          ? recipeId === undefined
+          : recipes.some((recipe) => recipe.id === recipeId);
+      if (!known) {
+        throw refuse(
+          field,
+          recipes.length === 0
+            ? notAPlant
+            : `isn't one of ${quoted(recipes.map((recipe) => recipe.id))}`,
+        );
+      }
+    };
+    refuseUnknownRecipe(decoded.recipeId, at(path, "recipeId"));
+    if (decoded.batch !== undefined) {
+      refuseUnknownRecipe(
+        decoded.batch.recipeId,
+        at(at(path, "batch"), "recipeId"),
       );
+    }
+    if (recipes.length === 0 && decoded.plantStop !== undefined) {
+      throw refuse(at(path, "plantStop"), notAPlant);
     }
     return decoded;
   };

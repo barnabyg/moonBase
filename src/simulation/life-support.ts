@@ -4,7 +4,11 @@ import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import { lunationMinutes, partsAhead, readLunation } from "./lunation";
-import { isMadeByPlants, productionPerHour } from "./plants";
+import {
+  isMadeByPlants,
+  kilogramsToCountOn,
+  productionPerHour,
+} from "./plants";
 import { recordLifeSupport } from "./self-sufficiency";
 
 /**
@@ -157,7 +161,9 @@ const FORECAST_LUNATION_PARTS = 6;
  * Lunation ahead: the rest of a Daylight at the current rate, then each
  * Night at what the Mission Director uses, and each Daylight after again at
  * the current rate. At Night, when what the Plants make in Daylight isn't
- * known, it looks only as far as the next Daylight.
+ * known, it looks only as far as the next Daylight. It starts from what
+ * the base can count on of the stock as the Plants' batches go, which is
+ * never more than it will have (see `kilogramsToCountOn`).
  */
 function minutesUntilEmpty(
   state: CampaignState,
@@ -165,10 +171,14 @@ function minutesUntilEmpty(
 ): number {
   const perMinute = netPerMinute(state, stock);
   const resource = { kind: "life-support" as const, stockId: stock.stockId };
+  const counted = { ...stock, kilograms: kilogramsToCountOn(state, resource) };
   if (!isInUse(state) || !isMadeByPlants(state, resource)) {
-    return minutesLeft(stock, perMinute);
+    return minutesLeft(counted, perMinute);
   }
   const used = usePerMinute(findStock(stock.stockId));
+  // Too little to last until the batches running now make more, it falls
+  // at what the Mission Director uses until it runs out, or they finish.
+  if (counted.kilograms <= 0) return minutesLeft(stock, -used);
   const daylightRate =
     readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight"
       ? perMinute
@@ -177,7 +187,7 @@ function minutesUntilEmpty(
   const { daylight, lunation } = lunationMinutes(catalogue.lunation);
   const perLunation =
     (daylightRate ?? 0) * daylight - used * (lunation - daylight);
-  let kilograms = stock.kilograms;
+  let kilograms = counted.kilograms;
   let skipped = 0;
   let parts = 0;
   for (const part of partsAhead(state.elapsedMinutes, Infinity)) {

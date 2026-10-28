@@ -123,7 +123,7 @@ describe.each(cases)("the %s running for %s", (_, __, typeId, recipe) => {
     campaign.advance(60);
 
     const after = campaign.snapshot();
-    expect(plantOf(after, typeId).plant).toEqual({
+    expect(plantOf(after, typeId).plant).toMatchObject({
       running: true,
       stoppedFor: undefined,
     });
@@ -167,5 +167,48 @@ describe("the electrolysis plant", () => {
     expect(amountOf(before, ice) - amountOf(after, ice)).toBeLessThan(
       catalogue.expeditions.kilograms / 5,
     );
+  });
+});
+
+describe("the Integrated fabrication plant waiting for metals", () => {
+  it("says it waits for silicon instead, once switched to wafers, before a game-minute is played", () => {
+    const [circuitBoards, wafers] =
+      catalogue.structureTypes.find(
+        (type) => type.id === "integrated-fabrication-plant",
+      )?.recipes ?? [];
+    if (circuitBoards === undefined || wafers === undefined) {
+      throw new Error("expected two recipes");
+    }
+    // Enough silicon for a batch of circuit boards, but not of wafers.
+    const campaign = changed(
+      plantBase("integrated-fabrication-plant", circuitBoards),
+      (state) => {
+        for (const stock of state.bulkResources) {
+          if (stock.resourceId === "metals") stock.kilograms = 0;
+          if (stock.resourceId === "silicon") stock.kilograms = 0.5;
+        }
+      },
+    );
+    campaign.advance(1);
+    const waiting = () =>
+      plantOf(campaign.snapshot(), "integrated-fabrication-plant").plant
+        ?.stoppedFor;
+    expect(waiting()).toMatchObject({
+      reason: "no-input",
+      resource: { kind: "bulk-resource", resourceId: "metals" },
+    });
+
+    const result = campaign.setPlantRecipe(
+      plantOf(campaign.snapshot(), "integrated-fabrication-plant").id,
+      wafers.id,
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(waiting()).toEqual({
+      reason: "no-input",
+      resource: { kind: "bulk-resource", resourceId: "silicon" },
+      kilograms: 0.5,
+      kilogramsNeeded: wafers.inputs[0]?.kilogramsPerHour,
+    });
   });
 });

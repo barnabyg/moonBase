@@ -9,6 +9,7 @@ import {
   machineFootprintRadius,
   type MachineState,
 } from "./machines";
+import type { PlantBatch, PlantStop } from "./plants";
 import type { RoverState } from "./rovers";
 
 export type ConstructionStage =
@@ -95,6 +96,13 @@ export interface StructureState {
    * recipes in the data catalogue. Undefined for any other Structure.
    */
   recipeId: string | undefined;
+  /** The batch it has started and not finished, if it is a Plant. */
+  batch: PlantBatch | undefined;
+  /**
+   * Why it didn't run during the latest game-minute, if it is a Plant that
+   * didn't; undefined while it runs, and for any other Structure.
+   */
+  plantStop: PlantStop | undefined;
 }
 
 /**

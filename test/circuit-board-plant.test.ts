@@ -182,33 +182,47 @@ describe("the circuit board plant", () => {
   });
 
   it.each([
-    ["wafers", "Wafers", { wafers: wafersPerHour / 4, metals: 20 }],
-    ["metals", "Metals", { wafers: 20, metals: metalsPerHour / 4 }],
+    [
+      "wafers",
+      "Wafers",
+      { wafers: wafersPerHour / 4, metals: 20 },
+      wafersPerHour,
+    ],
+    [
+      "metals",
+      "Metals",
+      { wafers: 20, metals: metalsPerHour / 4 },
+      metalsPerHour,
+    ],
   ] as const)(
-    "stops once the %s run out, and the status panel names them",
-    (resourceId, label, stock) => {
+    "waits with less than a batch's %s, taking none, and the status panel says how much it has",
+    (resourceId, label, stock, needed) => {
       const campaign = withBulk(plantBase(), stock);
 
       campaign.advance(60);
 
       const state = campaign.snapshot();
-      expect(bulk(state, resourceId)).toBe(0);
-      expect(bulk(state, "circuit-boards")).toBeCloseTo(boardsPerHour / 4, 6);
+      expect(bulk(state, "wafers")).toBe(stock.wafers);
+      expect(bulk(state, "metals")).toBe(stock.metals);
+      expect(bulk(state, "circuit-boards")).toBe(0);
       const { plant } = plantOf(state);
       expect(plant).toEqual({
         running: false,
         stoppedFor: {
           reason: "no-input",
           resource: { kind: "bulk-resource", resourceId },
+          kilograms: needed / 4,
+          kilogramsNeeded: needed,
         },
+        batch: undefined,
       });
       expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-        `stopped: out of ${label}`,
+        `waiting for ${label}: ${Number((needed / 4).toFixed(2))} of ${needed} kg`,
       );
     },
   );
 
-  it("doesn't start without one of its inputs, naming the one it is out of", () => {
+  it("doesn't start without one of its inputs, naming the one it has none of", () => {
     const campaign = withBulk(plantBase(), { wafers: 20, metals: 0 });
 
     campaign.advance(60);
@@ -218,7 +232,7 @@ describe("the circuit board plant", () => {
     expect(bulk(state, "circuit-boards")).toBe(0);
     const { plant } = plantOf(state);
     expect(plant === undefined ? "" : formatPlant(plant)).toBe(
-      "stopped: out of Metals",
+      `waiting for Metals: 0 of ${metalsPerHour} kg`,
     );
   });
 });

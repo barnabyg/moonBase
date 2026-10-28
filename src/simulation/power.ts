@@ -26,7 +26,14 @@ import {
 import type { GameEvent } from "./events";
 import { partsAhead, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
-import { isPlant, plantDrawKilowatts, recipesOf, wantsToRun } from "./plants";
+import {
+  claimBatchInputs,
+  isPlant,
+  plantCantRun,
+  plantDrawKilowatts,
+  recipesOf,
+  type BatchClaims,
+} from "./plants";
 
 /**
  * A power cable from a powered Structure to a Construction, which joins the
@@ -411,16 +418,20 @@ export function consumptionKilowatts(
  * data catalogue's reserve after it (see `lightReserveHours`): otherwise it
  * stays off to save power, so that no light ever leaves the Habitat, or
  * anything else, without power. Plants come last of all, in the order they
- * were commissioned: each that wants to run has power only if what is left
- * over, beyond what the network's battery banks can store, covers all it
- * draws in the game-minute, so that no Plant ever takes power from anything
- * else.
+ * were commissioned: each that can run (see `plantCantRun`) has power only
+ * if what is left over, beyond what the network's battery banks can store,
+ * covers all it draws in the game-minute, so that no Plant ever takes power
+ * from anything else, and none has any at Night. One given power claims
+ * the inputs for any batch it starts, which no Plant after it, on any
+ * network, can count on. Each that has none says why.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const driven of everyDriven(state)) bodyOf(driven).powered = false;
   // The game-minute being supplied has already been counted.
   const now = readLunation(state.elapsedMinutes, catalogue.lunation);
   const nightMinutesAfter = now.part === "night" ? now.minutesRemaining : 0;
+  // The base's stocks are shared by every network's Plants.
+  const claims: BatchClaims = new Map();
   for (const network of powerNetworks(state)) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
     let left = network.storedKilowattHours + generated / 60;
@@ -460,9 +471,16 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     let spare = left - stored;
     for (const plant of plants) {
       const drawn = plantDrawKilowatts(plant) / 60;
+      const cantRun = plantCantRun(state, plant, claims);
       plant.powered =
-        wantsToRun(state, plant) && spare >= drawn - ENERGY_TOLERANCE_KWH;
-      if (plant.powered) spare = Math.max(spare - drawn, 0);
+        cantRun === undefined && spare >= drawn - ENERGY_TOLERANCE_KWH;
+      if (plant.powered) {
+        spare = Math.max(spare - drawn, 0);
+        claimBatchInputs(plant, claims);
+      }
+      plant.plantStop = plant.powered
+        ? undefined
+        : (cantRun ?? { reason: daylight ? "no-power" : "night" });
     }
 
     for (const structure of network.structures) {
