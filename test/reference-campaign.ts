@@ -19,8 +19,8 @@ import { toGameMinutes, type Duration } from "./scenario";
 // plays the real data catalogue from a fixed seed, so it plays out the same
 // way every time, and its timeline is what the balancing pass measures the
 // numbers by. `reference-campaign.test.ts` checks it; `npm run
-// reference-campaign` prints its timeline (see README, "The reference
-// Campaign").
+// reference-campaign` prints its timeline (see
+// docs/reference-campaign.md).
 
 /** The seed the reference Campaign always plays. */
 export const REFERENCE_SEED = 20261025;

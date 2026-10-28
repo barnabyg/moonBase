@@ -9,9 +9,10 @@ import { toGameMinutes } from "./scenario";
 
 // The reference Campaign plays some 170 Earth Days a game-minute at a time,
 // which takes about 20 s on a developer machine, and CI runs Vitest about
-// 2.5 times slower, so about 50 s there (see README, "Timeouts"). This
-// limit is six times that, so that it stops only a Campaign that hangs; it
-// is set here rather than raised for the whole suite.
+// 2.5 times slower, so about 50 s there (see docs/verification.md,
+// "Timeouts"). This limit is six times that, so that it stops only a
+// Campaign that hangs; it is set here rather than raised for the whole
+// suite.
 const timeoutMs = 300_000;
 
 const earthDays = (earthDays: number) => toGameMinutes({ earthDays });
@@ -64,7 +65,7 @@ describe("the reference Campaign", () => {
     expect(chargedAfter - grantLeft).toBeLessThanOrEqual(earned);
   });
 
-  // The balancing pass's pacing targets (see README, "Balancing").
+  // The balancing pass's pacing targets (see docs/reference-campaign.md, "Balancing").
   it("meets the pacing targets for the Milestones", () => {
     const firstNight = earthDays(
       catalogue.lunation.initialDaylightRemainingEarthDays,

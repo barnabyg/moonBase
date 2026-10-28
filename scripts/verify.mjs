@@ -1,7 +1,7 @@
 // The single verification command (`npm run verify`). It runs every quality
 // check in a fixed order, stops at the first failure, and changes nothing on
 // disk apart from the ignored build and test output folders. Each tool is
-// configured to treat warnings as errors; see README, "Verification".
+// configured to treat warnings as errors; see docs/verification.md.
 //
 // CI runs the end-to-end tests in a job of their own, beside the other
 // checks, so it passes --skip-e2e to one job and --e2e-only to the other.

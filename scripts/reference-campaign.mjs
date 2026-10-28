@@ -2,8 +2,8 @@
 // timeline: the Earth Day each Milestone was reached, the Launches and
 // Export sales, and how close the Mission Director came to running out of
 // oxygen, water, Habitat power and Funding, and to the Radiation Dose
-// limit. It exits with an error if the play guide gives up. See README, "The
-// reference Campaign".
+// limit. It exits with an error if the play guide gives up. See
+// docs/reference-campaign.md.
 //
 // The play guide is the TypeScript module the Vitest test uses, whose
 // imports leave out file extensions, so plain Node can't load it; Vite's
