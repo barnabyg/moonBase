@@ -273,6 +273,29 @@ describe("the vacuum fabrication plant", () => {
     });
   });
 
+  it("loses the silicon of a batch it hasn't finished once it is dismantled", () => {
+    const built = withBulk(plantBase(), { silicon: 0, wafers: 0 });
+    built.advance(built.snapshot().lunation.minutesRemaining - 30);
+    const campaign = withBulk(built, { silicon: siliconPerHour });
+    // Into the Night, when the batch waits half done.
+    campaign.advance(31);
+    const plant = plantOf(campaign.snapshot());
+    expect(plant.plant?.batch).toBeDefined();
+
+    expect(campaign.dismantleStructure(plant.id)).toEqual({ ok: true });
+    for (let hours = 0; ; hours++) {
+      if (hours > 2 * 24) throw new Error("It was never dismantled.");
+      const state = campaign.snapshot();
+      if (!state.structures.some(({ id }) => id === plant.id)) break;
+      campaign.advance(60);
+    }
+
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("night");
+    expect(bulk(state, "silicon")).toBe(0);
+    expect(bulk(state, "wafers")).toBe(0);
+  });
+
   it("shows the wafers in the status panel after the silicon, in kilograms", () => {
     const campaign = withBulk(plantBase(), { silicon: 50, wafers: 12.5 });
 
