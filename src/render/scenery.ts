@@ -168,6 +168,9 @@ function createSurroundings(
   layOnGround(geometry, (x, z) => shade(x, z) * SURROUNDINGS_SHADE);
   const surroundings = new THREE.Mesh(geometry, material);
   surroundings.name = "Surroundings";
+  // Drawn after the base map that covers its middle, so the hidden part is
+  // rejected by the depth test rather than shaded and then painted over.
+  surroundings.renderOrder = 1;
   return surroundings;
 }
 
@@ -233,8 +236,11 @@ function createCraterRims(
  * A rock's shape: a lumpy ball broken along several flat fracture faces,
  * with every face shaded flat.
  */
-function createRockShape(random: () => number): THREE.BufferGeometry {
-  const geometry = new THREE.IcosahedronGeometry(1, 2);
+function createRockShape(
+  random: () => number,
+  detail: number,
+): THREE.BufferGeometry {
+  const geometry = new THREE.IcosahedronGeometry(1, detail);
   const fractures = Array.from(
     { length: 6 + Math.floor(random() * 5) },
     () => ({
@@ -372,7 +378,11 @@ function createRocks(
   textures: RegolithTextures,
 ): THREE.Group {
   const random = fixedRandom(1969);
-  const shapes = Array.from({ length: 6 }, () => createRockShape(random));
+  // Rubble is a few centimetres across, so it is cut from far fewer faces.
+  const shapes = Array.from({ length: 6 }, () => createRockShape(random, 2));
+  const rubbleShapes = Array.from({ length: 6 }, () =>
+    createRockShape(random, 0),
+  );
   const colourMap = textures.colour.clone();
   const normalMap = textures.normal.clone();
   for (const texture of [colourMap, normalMap]) texture.repeat.set(1.5, 0.75);
@@ -394,16 +404,16 @@ function createRocks(
   const tilt = new THREE.Euler();
   const scale = new THREE.Vector3();
   const colour = new THREE.Color();
-  for (const [placements, castShadow] of [
-    [boulders, true],
-    [rubble, false],
+  for (const [placements, castShadow, forms] of [
+    [boulders, true, shapes],
+    [rubble, false, rubbleShapes],
   ] as const) {
     const byShape = shapes.map((): RockPlacement[] => []);
     for (const placement of placements) {
       byShape[Math.floor(random() * shapes.length)]?.push(placement);
     }
     for (const [shape, placed] of byShape.entries()) {
-      const geometry = shapes[shape];
+      const geometry = forms[shape];
       if (geometry === undefined || placed.length === 0) continue;
       const mesh = new THREE.InstancedMesh(geometry, material, placed.length);
       for (const [index, { x, z, size }] of placed.entries()) {
