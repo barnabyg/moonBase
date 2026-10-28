@@ -250,6 +250,29 @@ describe("the vacuum fabrication plant", () => {
     });
   });
 
+  it("says the second plant waits for silicon, not power, when one solar array can spare power for only one", () => {
+    const campaign = withBulk(
+      base([
+        ["solar-array", arraySite],
+        ["vacuum-fabrication-plant", plantSite],
+        ["vacuum-fabrication-plant", extractionSite],
+      ]),
+      { silicon: 0.5 },
+    );
+
+    campaign.advance(1);
+
+    const second = campaign
+      .snapshot()
+      .structures.filter(
+        (structure) => structure.structureTypeId === "vacuum-fabrication-plant",
+      )[1]?.plant;
+    expect(second?.stoppedFor).toMatchObject({
+      reason: "no-input",
+      resource: { kind: "bulk-resource", resourceId: "silicon" },
+    });
+  });
+
   it("shows the wafers in the status panel after the silicon, in kilograms", () => {
     const campaign = withBulk(plantBase(), { silicon: 50, wafers: 12.5 });
 

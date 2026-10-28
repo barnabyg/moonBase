@@ -206,36 +206,69 @@ const AMOUNT_TOLERANCE = 1e-9;
 const MINUTE_TOLERANCE = 1e-9;
 
 /**
+ * The kilograms of each bulk resource and life support stock that the
+ * Plants given power so far in a game-minute will take as they start their
+ * batches, so that no two count on the same kilograms.
+ */
+export type BatchClaims = Map<string, number>;
+
+function claimKey(resource: ResourceRef): string {
+  return resource.kind === "bulk-resource"
+    ? `bulk-resource:${resource.resourceId}`
+    : `life-support:${resource.stockId}`;
+}
+
+/**
  * The first of a recipe's inputs that the base has too little of to start
- * a batch, if any.
+ * a batch, once what other Plants have claimed is set aside, if any.
  */
 function shortInput(
   state: CampaignState,
   recipe: PlantRecipe,
+  claims: BatchClaims,
 ): ResourceRef | undefined {
   return recipe.inputs.find(
     (flow) =>
-      amountOf(state, flow.resource) < batchKilograms(flow) - AMOUNT_TOLERANCE,
+      amountOf(state, flow.resource) -
+        (claims.get(claimKey(flow.resource)) ?? 0) <
+      batchKilograms(flow) - AMOUNT_TOLERANCE,
   )?.resource;
 }
 
 /**
  * Why a commissioned Plant couldn't run whatever power it had, if it
  * couldn't: it is Broken, or it has no batch started and too little of an
- * input to start one. Undefined for any other Structure.
+ * input to start one, beyond what other Plants have claimed this
+ * game-minute. Undefined for any other Structure.
  */
 export function plantCantRun(
   state: CampaignState,
   structure: StructureState,
+  claims: BatchClaims,
 ): PlantStop | undefined {
   const recipe = recipeOf(structure);
   if (recipe === undefined) return undefined;
   if (isBroken(structure)) return { reason: "broken" };
   if (structure.batch !== undefined) return undefined;
-  const resource = shortInput(state, recipe);
+  const resource = shortInput(state, recipe, claims);
   return resource === undefined
     ? undefined
     : { reason: "no-input", resource: { ...resource } };
+}
+
+/**
+ * Claims the inputs a Plant given power will take as it starts a batch
+ * this game-minute, if it has none started.
+ */
+export function claimBatchInputs(
+  structure: StructureState,
+  claims: BatchClaims,
+): void {
+  if (structure.batch !== undefined) return;
+  for (const flow of recipeOf(structure)?.inputs ?? []) {
+    const key = claimKey(flow.resource);
+    claims.set(key, (claims.get(key) ?? 0) + batchKilograms(flow));
+  }
 }
 
 /** The power a Plant draws in a game-minute it runs, in kilowatts. */
@@ -247,10 +280,10 @@ export function plantDrawKilowatts(
 
 /**
  * Lets every Plant that had power this game-minute work on a batch, as
- * fast as its Condition allows, in the order they were commissioned. One
- * with no batch started starts one with the recipe it is set to, taking a
- * batch's inputs from the base's stocks; if an earlier Plant took them
- * first this game-minute, it doesn't run after all. A batch is done after
+ * fast as its Condition allows. One with no batch started starts one with
+ * the recipe it is set to, taking a batch's inputs from the base's stocks,
+ * which it claimed as it was given power (see `supplyPower`). A batch is
+ * done after
  * `BATCH_MINUTES` of work at full performance, when its outputs are added
  * to the base's stocks. A batch keeps the work done on it while its Plant
  * has no power, as at Night, or is Broken.
@@ -260,12 +293,7 @@ export function runPlants(state: CampaignState): void {
     if (!isPlant(structure) || !structure.powered) continue;
     if (structure.batch === undefined) {
       const recipe = recipeOf(structure);
-      const stop = plantCantRun(state, structure);
-      if (recipe === undefined || stop !== undefined) {
-        structure.powered = false;
-        structure.plantStop = stop;
-        continue;
-      }
+      if (recipe === undefined) continue;
       for (const flow of recipe.inputs) {
         addTo(state, flow.resource, -batchKilograms(flow));
       }
