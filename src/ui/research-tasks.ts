@@ -4,14 +4,9 @@ import {
   type Campaign,
   type Snapshot,
 } from "../simulation";
-import { designsBroughtWithinReach, nextDesigns } from "./describe";
+import { describeScienceReach, nextDesigns } from "./describe";
 import { setText } from "./dom";
-import {
-  formatDuration,
-  formatScience,
-  listInWords,
-  researchTaskLabel,
-} from "./format";
+import { formatDuration, formatScience, researchTaskLabel } from "./format";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";
 
@@ -23,11 +18,11 @@ export interface ResearchTasksScreen {
 /**
  * The Research Tasks screen, where the player starts a Research Task to earn
  * Science: the one running, with how far it has got and how long it has
- * left, above a card for each of the others with its length and the
- * Science it pays and the Designs that Science would bring within reach,
- * and the completed ones below. Above them, what Science buys next: the
- * Designs that can be unlocked once there is enough. One that needs a Design
- * isn't shown until that Design is unlocked. It only sends the choice to
+ * left, above a card for each of the others with its length, the Science
+ * it pays and what that Science would do for the Designs that can be
+ * unlocked next, and the completed ones below. Above them, what Science
+ * buys next: the Designs that can be unlocked once there is enough. One
+ * that needs a Design isn't shown until that Design is unlocked. It only sends the choice to
  * start one to the Campaign, which decides whether it is allowed and says
  * why not. The game runs on while it is open.
  */
@@ -169,16 +164,11 @@ export function createResearchTasksScreen(
         const isRunning = running?.researchTaskId === task.id;
         const done = snapshot.completedResearchTaskIds.includes(task.id);
         setText(state, isRunning ? "Running" : done ? "✓ Completed" : "");
-        const within = done
-          ? []
-          : designsBroughtWithinReach(snapshot, task.science);
-        setText(
-          reach,
-          within.length === 0
-            ? ""
-            : `Brings within reach: ${listInWords(within.map((design) => design.label))}`,
-        );
-        reach.hidden = within.length === 0;
+        const reaches = done
+          ? undefined
+          : describeScienceReach(snapshot, task.science);
+        setText(reach, reaches ?? "");
+        reach.hidden = reaches === undefined;
         card.classList.toggle("task-card--running", isRunning);
         card.classList.toggle("task-card--completed", done);
         // Another's button stays while one runs, so that starting it says

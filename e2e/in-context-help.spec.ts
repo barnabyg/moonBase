@@ -49,7 +49,7 @@ test("the Tech Tree says what each Design unlocks, with what it does", async ({
   await expect(card).toContainText(`${tall.lightRadiusMetres} m`);
 });
 
-test("the Research Tasks screen says what Science buys next, and what each task's Science brings within reach", async ({
+test("the Research Tasks screen says what Science buys next, and what each task's Science brings within reach or builds towards", async ({
   page,
 }) => {
   await pause(page);
@@ -62,9 +62,15 @@ test("the Research Tasks screen says what Science buys next, and what each task'
   await expect(
     research.getByRole("article", { name: "Dust levitation study" }),
   ).toContainText(/Brings within reach: .*Robots/);
-  await expect(
-    research.getByRole("article", { name: "Regolith sample analysis" }),
-  ).not.toContainText("Brings within reach");
+  // One that pays too little on its own says what it builds towards, and
+  // how far short it leaves the player: 20 Science for the cheapest
+  // Designs, less the 5 it pays.
+  const small = research.getByRole("article", {
+    name: "Regolith sample analysis",
+  });
+  await expect(small).not.toContainText("Brings within reach");
+  await expect(small).toContainText(/Towards .*Robots.* \(20 Science\)/);
+  await expect(small).toContainText("15 Science short after this task");
 });
 
 test("the build menu says what each Structure does", async ({ page }) => {

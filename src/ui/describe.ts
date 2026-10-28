@@ -9,6 +9,7 @@ import type { Snapshot } from "../simulation";
 import {
   componentLabel,
   formatComponents,
+  formatScience,
   listInWords,
   machineLabel,
   researchTaskLabel,
@@ -177,6 +178,32 @@ export function designsBroughtWithinReach(
       design.scienceCost > snapshot.science &&
       design.scienceCost <= snapshot.science + earned,
   );
+}
+
+/**
+ * Says what earning more Science, as a Research Task pays, would do for the
+ * Designs the player could unlock next: bring some within reach, or else
+ * leave them short of the cheapest still out of reach, and by how much.
+ * Undefined once every Design the player could unlock next is affordable,
+ * or there is none.
+ */
+export function describeScienceReach(
+  snapshot: Pick<Snapshot, "unlockedDesignIds" | "science">,
+  earned: number,
+): string | undefined {
+  const within = designsBroughtWithinReach(snapshot, earned);
+  if (within.length > 0) {
+    return `Brings within reach: ${listInWords(within.map((design) => design.label))}`;
+  }
+  const afterwards = snapshot.science + earned;
+  const beyond = nextDesigns(snapshot).filter(
+    (design) => design.scienceCost > afterwards,
+  );
+  const [cheapest] = beyond;
+  if (cheapest === undefined) return undefined;
+  const cost = cheapest.scienceCost;
+  const towards = beyond.filter((design) => design.scienceCost === cost);
+  return `Towards ${listInWords(towards.map((design) => design.label))} (${formatScience(cost)}): ${formatScience(cost - afterwards)} short after this task`;
 }
 
 export function designOf(designId: string): Design | undefined {
