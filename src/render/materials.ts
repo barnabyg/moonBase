@@ -266,10 +266,16 @@ export const materials = {
     metalness: 0,
     roughness: 0.6,
   }),
+  // Packing crates: composite panels in a darker frame.
   crate: new THREE.MeshStandardMaterial({
-    color: 0xb9b2a2,
+    color: 0xb3a68a,
+    metalness: 0.05,
+    roughness: 0.85,
+  }),
+  crateFrame: new THREE.MeshStandardMaterial({
+    color: 0x6e6250,
     metalness: 0.1,
-    roughness: 0.8,
+    roughness: 0.75,
   }),
   statusOff: new THREE.MeshStandardMaterial({ color: 0x222222 }),
   statusTesting: new THREE.MeshStandardMaterial({
