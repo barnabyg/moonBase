@@ -3,7 +3,7 @@ import type { CampaignState } from "./campaign";
 import { machinePerformance } from "./machines";
 import {
   consumptionPerHour,
-  kilogramsInBatches,
+  kilogramsToCountOn,
   productionPerHour,
 } from "./plants";
 
@@ -18,9 +18,8 @@ export interface BulkResourceForecast {
   readonly kilogramsPerHour: number;
   /**
    * Game-minutes until it runs out at that rate, or undefined while it
-   * isn't falling. What is left of the inputs the Plants took for the
-   * batches they have started counts with the stock (see
-   * `kilogramsInBatches`).
+   * isn't falling, from what the base can count on of it as the Plants'
+   * batches go (see `kilogramsToCountOn`).
    */
   readonly minutesUntilEmpty: number | undefined;
 }
@@ -50,7 +49,7 @@ export function forecastBulkResources(
       productionPerHour(state, resource) +
       dug -
       consumptionPerHour(state, resource);
-    const kilograms = stock.kilograms + kilogramsInBatches(state, resource);
+    const kilograms = kilogramsToCountOn(state, resource);
     return {
       resourceId: stock.resourceId,
       kilogramsPerHour: perHour,

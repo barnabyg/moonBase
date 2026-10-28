@@ -339,30 +339,40 @@ export function consumptionPerHour(
 }
 
 /**
- * How many kilograms of a resource the batches the base's Plants have
- * started hold, as if each took in and put out its recipe evenly as it
- * works: what is left of the inputs it took as it started, and what it has
- * made so far of the outputs that come only as it finishes. A Broken
- * Plant's batch holds none until it is repaired. Forecasts count it with
- * the stock, so that they run on smoothly through each batch.
+ * How many kilograms of a resource a forecast counts on, for a stock that
+ * changes in a batch at a time, so that the forecast runs on smoothly
+ * through each batch and never ahead of the stock. Only the Plants that
+ * ran during the latest game-minute count, as their rates do. What is left
+ * of the inputs one took for its batch counts with the stock, as if it used
+ * them evenly; its outputs count a batch late, as they come only as the
+ * batch finishes: what its batch has made so far, less a whole batch.
  */
-export function kilogramsInBatches(
+export function kilogramsToCountOn(
   state: CampaignState,
   resource: ResourceRef,
 ): number {
-  return state.structures.reduce((sum, structure) => {
-    const { batch } = structure;
-    const recipe = workingRecipeOf(structure);
-    if (batch === undefined || recipe === undefined || isBroken(structure)) {
-      return sum;
-    }
-    const done = Math.min(batch.minutesWorked / BATCH_MINUTES, 1);
-    const held = (flows: PlantRecipe["inputs"], share: number) =>
-      flows
-        .filter((flow) => isSameResource(flow.resource, resource))
-        .reduce((total, flow) => total + batchKilograms(flow) * share, 0);
-    return sum + held(recipe.inputs, 1 - done) + held(recipe.outputs, done);
-  }, 0);
+  return state.structures.reduce(
+    (sum, structure) => {
+      const recipe = workingRecipeOf(structure);
+      if (recipe === undefined || !structure.powered) return sum;
+      // Just finished, it has no batch: the next one's is still to come.
+      const done =
+        structure.batch === undefined
+          ? 0
+          : Math.min(structure.batch.minutesWorked / BATCH_MINUTES, 1);
+      const kilograms = (flows: PlantRecipe["inputs"]) =>
+        flows
+          .filter((flow) => isSameResource(flow.resource, resource))
+          .reduce((total, flow) => total + batchKilograms(flow), 0);
+      const held = structure.batch === undefined ? 0 : 1 - done;
+      return (
+        sum +
+        kilograms(recipe.inputs) * held -
+        kilograms(recipe.outputs) * (1 - done)
+      );
+    },
+    amountOf(state, resource),
+  );
 }
 
 function flowPerHour(

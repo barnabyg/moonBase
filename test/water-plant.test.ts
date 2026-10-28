@@ -208,17 +208,20 @@ describe("the water forecast", () => {
 
   /**
    * A water-processing plant running with plenty of ice, the Mission
-   * Director moved in, and a day of Daylight left, with the water given in
-   * stock.
+   * Director moved in, and the Daylight given left (a day, unless said),
+   * with the water given in stock.
    */
-  function dayBeforeNight(waterKilograms: number): Campaign {
+  function dayBeforeNight(
+    waterKilograms: number,
+    minutesToNight = 24 * 60,
+  ): Campaign {
     const base = plantBase([["habitat", habitatSite]]);
     const habitat = base
       .snapshot()
       .structures.find((structure) => structure.structureTypeId === "habitat");
     const movedIn = base.moveMissionDirectorIn(habitat?.id ?? "");
     if (!movedIn.ok) throw new Error(movedIn.message);
-    base.advance(base.snapshot().lunation.minutesRemaining - 24 * 60);
+    base.advance(base.snapshot().lunation.minutesRemaining - minutesToNight);
     const campaign = changed(withIce(base, 500), (state) => {
       for (const stock of state.lifeSupport) {
         if (stock.stockId === "water") stock.kilograms = waterKilograms;
@@ -240,10 +243,13 @@ describe("the water forecast", () => {
     const campaign = dayBeforeNight(5);
     const state = campaign.snapshot();
     const toNight = state.lunation.minutesRemaining;
-    // With what the batch started a game-minute ago has made so far.
+    // Counting the plant's water a batch late, as it comes only as each
+    // batch finishes: what the batch started a game-minute ago has made so
+    // far, less a whole batch.
     const atNightfall =
       water(state) +
-      waterPerHour / 60 +
+      waterPerHour / 60 -
+      waterPerHour +
       ((waterPerHour - use / 24) * toNight) / 60;
     expect(atNightfall).toBeLessThan(nightUse);
 
@@ -274,6 +280,44 @@ describe("the water forecast", () => {
           event.kind === "life-support-warning" && event.stockId === "water",
       ),
     ).not.toEqual([]);
+  });
+
+  it("never says the water lasts longer than it does, as a batch's water comes only as the batch finishes", () => {
+    // Too little to last until the batch started a game-minute ago finishes.
+    const campaign = dayBeforeNight(0.05);
+    const forecast = campaign
+      .forecasts()
+      .lifeSupport.find((stock) => stock.stockId === "water");
+
+    let minutes = 0;
+    while (campaign.snapshot().ended === undefined) {
+      if (minutes > 60) throw new Error("The water never ran out.");
+      campaign.advance(1);
+      minutes += 1;
+    }
+
+    expect(forecast?.minutesUntilEmpty).toBeDefined();
+    expect(forecast?.minutesUntilEmpty).toBeLessThanOrEqual(minutes);
+  });
+
+  it("at Night, counts none of the water a batch waiting for Daylight has made so far", () => {
+    // Half an hour off the hour, so that Night falls half way through a batch.
+    const campaign = dayBeforeNight(5, 24 * 60 - 30);
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 1);
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("night");
+    expect(plantOf(state).plant?.batch).toBeDefined();
+
+    const forecast = campaign
+      .forecasts()
+      .lifeSupport.find((stock) => stock.stockId === "water");
+
+    expect(
+      Math.abs(
+        (forecast?.minutesUntilEmpty ?? Infinity) -
+          (water(state) / use) * 24 * 60,
+      ),
+    ).toBeLessThanOrEqual(1);
   });
 
   it("gives no warning while the water at nightfall will last the Night", () => {
