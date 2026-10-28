@@ -66,7 +66,7 @@ export function createRenderer(
   earthDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12);
   const lighting = createLighting(catalogue.lunation, earthDirection);
   scene.add(
-    createGround(initial.map),
+    createGround(initial.map, webgl.capabilities.getMaxAnisotropy()),
     createEarth(earthDirection),
     ...lighting.objects,
   );
