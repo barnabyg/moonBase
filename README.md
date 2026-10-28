@@ -203,10 +203,10 @@ The reference Campaign's test checks each of these.
 
 ### The timeline
 
-At data catalogue version 49, `npm.cmd run reference-campaign` prints:
+At data catalogue version 50, `npm.cmd run reference-campaign` prints:
 
 ```text
-Reference Campaign: seed 20261025, data catalogue version 49
+Reference Campaign: seed 20261025, data catalogue version 50
 
 Milestones, by the Earth Day they were reached (game time since the landing):
     1.1  Power storage before the first Night
