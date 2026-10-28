@@ -70,7 +70,10 @@ test("the Guide says how the base works and what every Structure, Machine and te
   const tallDesign = technologies.getByRole("article", {
     name: "Tall Light Masts",
   });
-  await expect(tallDesign).toContainText("30 Science");
+  const tallMasts = catalogue.designs.find(
+    (design) => design.id === tall.designId,
+  );
+  await expect(tallDesign).toContainText(`${tallMasts?.scienceCost} Science`);
   await expect(tallDesign).toContainText(`Unlocks the ${tall.label}`);
   await expect(tallDesign).toContainText("Night surface photometry");
 

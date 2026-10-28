@@ -854,7 +854,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 53,
+  version: 54,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -2583,10 +2583,12 @@ export const catalogue: Catalogue = {
       },
     ],
   },
-  // From a few hours to a week. The short ones pay more Science an hour,
-  // but the player has to come back to start the next; the long ones run
-  // unattended, through a Night or a whole round trip of the Lander. Some
-  // are offered only once the Design they study is unlocked.
+  // From a few hours to two Lunations. The short ones pay more Science an
+  // hour, but the player has to come back to start the next; the long ones
+  // run unattended, through a Night, a round trip of the Lander or longer.
+  // Some are offered only once the Design they study is unlocked. Run back to
+  // back, they take about ten Lunations, so research carries on long after
+  // the base is self-sufficient.
   researchTasks: [
     {
       id: "regolith-sample-analysis",
@@ -2719,6 +2721,87 @@ export const catalogue: Catalogue = {
       lengthHours: 168,
       science: 60,
     },
+    {
+      id: "battery-cold-soak-cycling",
+      label: "Battery cold-soak cycling",
+      lengthHours: 192,
+      science: 66,
+      requiresDesignId: "large-battery-banks",
+    },
+    {
+      id: "deployment-hinge-fatigue-study",
+      label: "Deployment hinge fatigue study",
+      lengthHours: 192,
+      science: 66,
+      requiresDesignId: "prefabricated-solar-arrays",
+    },
+    {
+      id: "heat-flow-measurement",
+      label: "Heat flow measurement",
+      lengthHours: 240,
+      science: 80,
+    },
+    {
+      id: "night-landing-trials",
+      label: "Night landing trials",
+      lengthHours: 240,
+      science: 80,
+      requiresDesignId: "landing-pad-lights",
+    },
+    {
+      id: "microwave-penetration-trial",
+      label: "Microwave penetration trial",
+      lengthHours: 288,
+      science: 94,
+      requiresDesignId: "microwave-sintering",
+    },
+    {
+      id: "dust-screen-efficiency-trial",
+      label: "Dust screen efficiency trial",
+      lengthHours: 336,
+      science: 108,
+      requiresDesignId: "electrodynamic-dust-screens",
+    },
+    {
+      id: "envelope-wear-audit",
+      label: "Envelope wear audit",
+      lengthHours: 432,
+      science: 135,
+      requiresDesignId: "hardened-habitat",
+    },
+    {
+      id: "lunar-wafer-yield-survey",
+      label: "Lunar wafer yield survey",
+      lengthHours: 480,
+      science: 148,
+      requiresDesignId: "integrated-fabrication",
+    },
+    {
+      id: "solar-wind-volatiles-survey",
+      label: "Solar wind volatiles survey",
+      lengthHours: 576,
+      science: 172,
+    },
+    // A whole Lunation.
+    {
+      id: "lunar-laser-ranging",
+      label: "Lunar laser ranging",
+      lengthHours: 708,
+      science: 205,
+    },
+    {
+      id: "deep-regolith-core-study",
+      label: "Deep regolith core study",
+      lengthHours: 960,
+      science: 270,
+    },
+    // Two Lunations.
+    {
+      id: "long-stay-health-study",
+      label: "Long-stay health study",
+      lengthHours: 1416,
+      science: 380,
+    },
   ],
   designCategories: [
     { id: "power", label: "Power" },
@@ -2729,9 +2812,11 @@ export const catalogue: Catalogue = {
     { id: "mobility", label: "Mobility" },
   ],
   // Everything the base could have before the Tech Tree belongs to a
-  // starting Design. The rest cost about as much Science as the Research
-  // Tasks pay, a couple of which are offered only once a Design is unlocked,
-  // so the research list grows with the tree.
+  // starting Design. The rest cost, between them, a little less Science than
+  // the Research Tasks pay, many of which are offered only once a Design is
+  // unlocked, so the research list grows with the tree. The cost rises with
+  // depth: the first Designs past a starting one mostly take a few Earth
+  // Days of research, those past them a Lunation or so each.
   designs: [
     {
       id: "solar-arrays",
@@ -2770,7 +2855,7 @@ export const catalogue: Catalogue = {
         "Thin, light solar cells on a flexible backing, for a solar array that generates more for the mass it ships.",
       category: "power",
       starting: false,
-      scienceCost: 45,
+      scienceCost: 150,
       prerequisiteDesignIds: ["solar-arrays", "vacuum-fabrication"],
     },
     {
@@ -2780,7 +2865,7 @@ export const catalogue: Catalogue = {
         "A taller Light Mast with two light heads, which lights a far wider circle at Night, drawing a little more than a battery bank stores.",
       category: "power",
       starting: false,
-      scienceCost: 30,
+      scienceCost: 150,
       prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
     },
     {
@@ -2820,7 +2905,7 @@ export const catalogue: Catalogue = {
         "Fusing Regolith into a hard slab with heat as it is printed, so that the regolith printer can lay a landing pad with no Components from Earth.",
       category: "construction",
       starting: false,
-      scienceCost: 30,
+      scienceCost: 40,
       prerequisiteDesignIds: ["regolith-shielding"],
     },
     {
@@ -2830,7 +2915,7 @@ export const catalogue: Catalogue = {
         "Microwaves that fuse each layer of Regolith as the regolith printer lays it, so that it prints shielding over a Habitat in under half the hours.",
       category: "construction",
       starting: false,
-      scienceCost: 40,
+      scienceCost: 200,
       prerequisiteDesignIds: ["regolith-sintering"],
     },
     {
@@ -2860,7 +2945,7 @@ export const catalogue: Catalogue = {
         "Electrodes woven through a dust-sealed solar array's panels, which push Dust off the cells, so that it coats them far more slowly.",
       category: "protection",
       starting: false,
-      scienceCost: 35,
+      scienceCost: 200,
       prerequisiteDesignIds: ["dust-sealed-solar-arrays"],
     },
     {
@@ -2870,7 +2955,7 @@ export const catalogue: Catalogue = {
         "A thin bumper plate standing clear of a battery bank's cabinet, which shatters a Micrometeorite before it strikes.",
       category: "protection",
       starting: false,
-      scienceCost: 30,
+      scienceCost: 60,
       prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
     },
     {
@@ -2890,7 +2975,7 @@ export const catalogue: Catalogue = {
         "An inflatable Habitat with an envelope layered like a Whipple shield, which Micrometeorites and Plume Ejecta wear down far less.",
       category: "protection",
       starting: false,
-      scienceCost: 50,
+      scienceCost: 320,
       prerequisiteDesignIds: ["whipple-shielding", "inflatable-habitat"],
     },
     {
@@ -2929,7 +3014,7 @@ export const catalogue: Catalogue = {
         "A Plant that melts water ice and splits the water into oxygen with power from the base, far faster than Regolith gives it up.",
       category: "life-support",
       starting: false,
-      scienceCost: 40,
+      scienceCost: 60,
       prerequisiteDesignIds: ["water-processing"],
     },
     {
@@ -2939,7 +3024,7 @@ export const catalogue: Catalogue = {
         "Oxygen shipped as a cold liquid, and water, in large light tanks that bring far more for the mass they take up on a Launch, built on what Water electrolysis taught about storing oxygen.",
       category: "life-support",
       starting: false,
-      scienceCost: 30,
+      scienceCost: 180,
       prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
     },
     {
@@ -2978,7 +3063,7 @@ export const catalogue: Catalogue = {
         "A larger extraction plant that melts Regolith through and splits it by electrolysis, making more oxygen, metals and silicon for each kW.",
       category: "industry",
       starting: false,
-      scienceCost: 45,
+      scienceCost: 120,
       prerequisiteDesignIds: ["regolith-extraction"],
     },
     {
@@ -2988,7 +3073,7 @@ export const catalogue: Catalogue = {
         "A single Plant that grows wafers and turns them straight into circuit boards, fed with the silicon a large extraction plant makes.",
       category: "industry",
       starting: false,
-      scienceCost: 50,
+      scienceCost: 340,
       prerequisiteDesignIds: [
         "molten-regolith-electrolysis",
         "circuit-board-fabrication",
@@ -3026,7 +3111,7 @@ export const catalogue: Catalogue = {
         "Lights round a landing pad's edge, which switch on by themselves at Night, so that the Lander can be seen landing and unloading.",
       category: "mobility",
       starting: false,
-      scienceCost: 35,
+      scienceCost: 220,
       prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
     },
     // A rule rather than a Structure: it cuts the Launch fee, which the
@@ -3038,7 +3123,7 @@ export const catalogue: Catalogue = {
         "Boosters that fly back to Earth to be used again, so that every Launch costs a smaller fee.",
       category: "mobility",
       starting: false,
-      scienceCost: 40,
+      scienceCost: 100,
       prerequisiteDesignIds: ["landing-pads"],
     },
   ],
