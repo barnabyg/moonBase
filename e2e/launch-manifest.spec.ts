@@ -142,3 +142,64 @@ test("the Launch manifest screen refuses an item that would go over the Payload 
     `Payload Mass: ${fit * water.massKilograms} of ${limit} kg`,
   );
 });
+
+/**
+ * A sample save of a Campaign an hour after the Lander left Earth with a
+ * manifest paid for at the full Launch fee, just after Reusable boosters
+ * was unlocked.
+ */
+const boostersSave = fileURLToPath(
+  new URL("../test/saves/version-36.moonbase", import.meta.url),
+);
+
+test("Reusable boosters cuts the Launch fee from the next Launch, leaving the one already paid for as it was", async ({
+  page,
+}) => {
+  const { reducedFee } = catalogue.launch;
+  await page.goto("/?seed=1");
+  await page.getByRole("button", { name: "Pause" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(boostersSave);
+
+  // The Tech Tree card says what unlocking it brought.
+  await page.getByRole("button", { name: "Tech Tree" }).click();
+  const tree = page.getByRole("dialog", { name: "Tech Tree" });
+  await tree.getByRole("tab", { name: /^Mobility/ }).click();
+  const card = tree
+    .getByRole("tabpanel", { name: /^Mobility/ })
+    .getByRole("article", { name: "Reusable boosters" });
+  await expect(card).toContainText(
+    `Cuts the Launch fee from $${fee}M to $${reducedFee.feeMillionDollars}M.`,
+  );
+  await expect(card).toContainText("✓ Unlocked");
+  await tree.getByRole("button", { name: "Close" }).click();
+
+  // The manifest on its way was paid for at the full fee.
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  const screen = page.getByRole("dialog", { name: "Launch manifest" });
+  const cost = screen.getByRole("status", { name: "Launch cost" });
+  await expect(cost).toHaveText(
+    `Cost: $${fee + 9}M, paid as the Lander left Earth`,
+  );
+  await screen.getByRole("button", { name: "Close" }).click();
+
+  const landed = page
+    .getByRole("log", { name: "Notifications" })
+    .getByText("Lander landed with");
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  for (let skips = 0; skips < 20 && !(await landed.isVisible()); skips++) {
+    await skip.click();
+  }
+  await expect(landed).toBeVisible();
+
+  // The next one costs the reduced fee.
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  await screen.getByRole("button", { name: "Add one Water, 50 kg" }).click();
+  await expect(cost).toContainText(
+    `Cost: $${reducedFee.feeMillionDollars + water.priceMillionDollars}M of `,
+  );
+  await expect(cost).toContainText(
+    `including the $${reducedFee.feeMillionDollars}M Launch fee`,
+  );
+});

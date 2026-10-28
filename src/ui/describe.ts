@@ -9,6 +9,7 @@ import type { Snapshot } from "../simulation";
 import {
   componentLabel,
   formatComponents,
+  formatMillionDollars,
   formatScience,
   listInWords,
   machineLabel,
@@ -79,8 +80,8 @@ export function describeBuild(type: StructureType): string {
 
 /**
  * Says what unlocking a Design brings, a sentence for each kind of thing:
- * its Structures, with what each does, its Launch items and its Research
- * Tasks.
+ * its Structures, with what each does, its Launch items, the Launch fee it
+ * cuts and its Research Tasks.
  */
 export function describeUnlocks(design: Design): string[] {
   const structures = catalogue.structureTypes.filter(
@@ -102,6 +103,7 @@ export function describeUnlocks(design: Design): string[] {
         }),
     ),
   ];
+  const { feeMillionDollars, reducedFee } = catalogue.launch;
   const tasks = catalogue.researchTasks
     .filter((task) => task.requiresDesignId === design.id)
     .map((task) => researchTaskLabel(task.id));
@@ -112,6 +114,11 @@ export function describeUnlocks(design: Design): string[] {
     ...(items.length === 0
       ? []
       : [`On the Launch manifest: ${listInWords(items)}.`]),
+    ...(reducedFee.designId === design.id
+      ? [
+          `Cuts the Launch fee from ${formatMillionDollars(feeMillionDollars)} to ${formatMillionDollars(reducedFee.feeMillionDollars)}.`,
+        ]
+      : []),
     ...(tasks.length === 0
       ? []
       : [

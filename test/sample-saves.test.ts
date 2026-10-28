@@ -65,6 +65,7 @@ describe("the sample saves from before Funding", () => {
         items: [],
         payloadMassKilograms: 0,
         costMillionDollars: 0,
+        feeMillionDollars: catalogue.launch.feeMillionDollars,
         locked: false,
       });
     },
@@ -2379,5 +2380,66 @@ describe("the sample save of format version 35", () => {
         ?.kilograms,
     ).toBeCloseTo(0.22, 6);
     expect(plantOf("extraction-plant")?.batch).toBeUndefined();
+  });
+});
+
+describe("the sample saves from before a Design could cut the Launch fee", () => {
+  it("version-5.moonbase loads with its locked manifest paid for at the one Launch fee of the time", () => {
+    const state = loadSample("version-5.moonbase").snapshot();
+
+    // The fee as it was when format version 36 came in, which the
+    // migration names, so that tuning it later doesn't change what an old
+    // save loads with.
+    expect(state.launchManifest).toMatchObject({
+      locked: true,
+      costMillionDollars: 150 + 2 * 4 + 3 + 2 * 2,
+      feeMillionDollars: 150,
+    });
+  });
+
+  it("version-35.moonbase loads with the Lander landed, its manifest at the Launch fee in force", () => {
+    const state = loadSample("version-35.moonbase").snapshot();
+
+    expect(state.lander.state).toBe("landed-occupied");
+    expect(state.launchManifest.feeMillionDollars).toBe(
+      catalogue.launch.feeMillionDollars,
+    );
+  });
+});
+
+describe("the sample save of format version 36", () => {
+  // Saved 45900 game-minutes in, an hour after the Lander left Earth with
+  // oxygen, water and five spare Components paid for at the full Launch
+  // fee, and just after Reusable boosters was unlocked.
+  it("loads with the Lander on its way back, its locked manifest at the fee it was paid with, though Reusable boosters is unlocked", () => {
+    const state = loadSample("version-36.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(45900);
+    expect(state.unlockedDesignIds).toContain("reusable-boosters");
+    expect(state.lander).toMatchObject({
+      state: "travelling-to-moon",
+      legEndsAtMinute: 50160,
+    });
+    expect(state.launchManifest).toMatchObject({
+      locked: true,
+      costMillionDollars: 159,
+      feeMillionDollars: 150,
+    });
+  });
+
+  it("plays on from where it was saved, the next manifest costing the reduced Launch fee once the Lander has landed", () => {
+    const campaign = loadSample("version-36.moonbase");
+    const funding = campaign.snapshot().fundingMillionDollars;
+
+    campaign.advance(50160 - 45900);
+
+    const state = campaign.snapshot();
+    expect(state.lander.state).toBe("landed-free");
+    expect(state.fundingMillionDollars).toBe(funding);
+    expect(state.launchManifest).toMatchObject({
+      items: [],
+      locked: false,
+      feeMillionDollars: catalogue.launch.reducedFee.feeMillionDollars,
+    });
   });
 });

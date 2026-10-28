@@ -887,7 +887,7 @@ export function formatLaunchCost(
   }`;
   return manifest.items.length === 0
     ? `Cost: nothing of ${funding}, while the manifest is empty`
-    : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(catalogue.launch.feeMillionDollars)} Launch fee`;
+    : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(manifest.feeMillionDollars)} Launch fee`;
 }
 
 /**
