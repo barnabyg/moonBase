@@ -4,7 +4,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 // Static bug analysis is covered by these type-aware typescript-eslint strict
-// rules; no separate analyzer is added (see README, "Verification").
+// rules; no separate analyzer is added (see docs/verification.md).
 export default tseslint.config(
   {
     ignores: [
