@@ -68,6 +68,8 @@ export interface Catalogue {
   readonly gameSpeeds: readonly GameSpeed[];
   readonly lunation: LunationSchedule;
   readonly robot: {
+    /** A sentence on what a Robot does, for the Guide screen. */
+    readonly description: string;
     /** How far a Robot walks in a game-hour. */
     readonly walkingSpeedMetresPerHour: number;
     /** How far outside a footprint, or beside the stockpile, a Robot stands to work. */
@@ -545,6 +547,8 @@ export interface LunationSchedule {
 export interface MachineType {
   readonly id: string;
   readonly label: string;
+  /** A sentence on what it does, for the Guide screen. */
+  readonly description: string;
   /** Radius of the ground the Machine stands on; Structures may not be placed over it. */
   readonly footprintRadiusMetres: number;
   /** How far the Machine goes in a game-hour while a Robot drives it. */
@@ -578,6 +582,8 @@ export interface MachineType {
  */
 export interface RoverType {
   readonly label: string;
+  /** A sentence on what it does, for the Guide screen. */
+  readonly description: string;
   /** Radius of the ground it stands on; Structures may not be placed over it. */
   readonly footprintRadiusMetres: number;
   /** How far it goes in a game-hour while a Robot drives it, at full performance. */
@@ -880,6 +886,8 @@ export const catalogue: Catalogue = {
     initialDaylightRemainingEarthDays: 8,
   },
   robot: {
+    description:
+      "A humanoid Robot that carries out every Work Order by itself: it fetches Components from the stockpile, drives the Machines into place, assembles and commissions Structures, lays power cable, carries out Maintenance and parks the Machines before Night.",
     walkingSpeedMetresPerHour: 12,
     workingGapMetres: 1,
     cableLayingSpeedMetresPerHour: 6,
@@ -900,6 +908,8 @@ export const catalogue: Catalogue = {
     {
       id: "excavator",
       label: "Excavator",
+      description:
+        "Grades the ground for every Construction's Site Preparation, and digs Regolith into the base's stock when it has nothing else to do.",
       footprintRadiusMetres: 1.6,
       drivingSpeedMetresPerHour: 30,
       activationHours: 0.25,
@@ -913,6 +923,8 @@ export const catalogue: Catalogue = {
     {
       id: "regolith-printer",
       label: "Regolith printer",
+      description:
+        "Prints Structures made of Regolith layer by layer, such as shielding over a Habitat, taking the Regolith straight from the ground.",
       footprintRadiusMetres: 1.8,
       drivingSpeedMetresPerHour: 20,
       activationHours: 0.5,
@@ -926,6 +938,8 @@ export const catalogue: Catalogue = {
   // wears down less for it.
   rover: {
     label: "Rover",
+    description:
+      "Carries a Robot off the map on Expeditions, which come back with water ice.",
     footprintRadiusMetres: 1.5,
     drivingSpeedMetresPerHour: 240,
     dustWearPercentPerDrivingHour: 0.1,

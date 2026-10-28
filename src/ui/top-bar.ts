@@ -20,8 +20,8 @@ export interface TopBar {
  * Lunation, the game speed and skipping to the next event, the Funding
  * balance beside the button that opens the Launch manifest screen, the
  * Science balance beside the buttons that open the Research Tasks and Tech
- * Tree screens, and saving and loading. It sends the player's speed choices to the game
- * loop.
+ * Tree screens, the button that opens the Guide, and saving and loading.
+ * It sends the player's speed choices to the game loop.
  */
 export function createTopBar(
   container: HTMLElement,
@@ -31,6 +31,7 @@ export function createTopBar(
   openLaunchManifest: () => void,
   openResearchTasks: () => void,
   openTechTree: () => void,
+  openGuide: () => void,
 ): TopBar {
   const bar = document.createElement("section");
   bar.className = "top-bar";
@@ -123,11 +124,20 @@ export function createTopBar(
   techTree.addEventListener("click", openTechTree);
   science.append(scienceLabel, scienceValue, research, techTree);
 
+  const guide = document.createElement("button");
+  guide.type = "button";
+  guide.className = "top-bar__guide";
+  guide.textContent = "Guide";
+  guide.title =
+    "How the base works, and what every Structure, Machine and technology does.";
+  guide.addEventListener("click", openGuide);
+
   bar.append(
     time,
     speedGroup,
     funding,
     science,
+    guide,
     createSaveButtons(saveFiles, showResult),
   );
   container.append(bar);

@@ -774,7 +774,7 @@ export function formatManifestLines(lines: readonly ManifestLine[]): string {
 }
 
 /** Joins phrases the way a sentence would, for example "a, b and c". */
-function listInWords(phrases: readonly string[]): string {
+export function listInWords(phrases: readonly string[]): string {
   const items = [...phrases];
   const last = items.pop();
   return items.length === 0
@@ -878,7 +878,7 @@ export function formatExportsValue(exports: ExportsSnapshot): string {
     : `Value: ${formatMillionDollars(exports.valueMillionDollars)}, sold when the Lander reaches Earth`;
 }
 
-function componentLabel(componentId: string): string {
+export function componentLabel(componentId: string): string {
   return (
     catalogue.componentTypes.find((type) => type.id === componentId)?.label ??
     componentId

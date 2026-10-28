@@ -1169,6 +1169,28 @@ body {
   color: var(--good);
 }
 
+/* The Guide. */
+
+/* The same size whichever tab is shown, so that it doesn't jump. */
+.guide {
+  width: min(1080px, 100vw - 32px);
+  height: min(680px, 100vh - 48px);
+}
+
+.guide__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.guide__heading:not(:first-child) {
+  margin-top: 18px;
+}
+
+.guide-card__state {
+  margin: auto 0 0;
+}
+
 /* The Tech Tree. */
 
 /* The same size whichever category is shown, so that it doesn't jump. */
