@@ -82,15 +82,16 @@ function skipUntil(campaign: Campaign, kind: GameEvent["kind"]): void {
  * a Condition, and no spare Components to maintain it with.
  */
 /**
- * A solar array, a battery bank worn to a Condition and a Light Mast, whose
- * light draws enough at Night to empty the battery bank before Daylight.
+ * A solar array, a battery bank worn to a Condition and a Habitat, which
+ * draws enough at Night to empty the battery bank before Daylight. (A
+ * Light Mast would switch itself off to save power instead.)
  */
 function wornBank(conditionPercent: number): Campaign {
   const game = buildAll(
     scenario()
       .plan("solar-array", arraySite)
       .plan("battery-bank", bankSite)
-      .plan("light-mast", mastSite),
+      .plan("habitat", mastSite),
   );
   return worn(
     game.campaign,

@@ -13,6 +13,16 @@ export type GameEvent =
   | { readonly kind: "night-started"; readonly atMinute: number }
   | { readonly kind: "daylight-started"; readonly atMinute: number }
   | {
+      /**
+       * Lights on a power network have started switching themselves off at
+       * Night, to keep the energy stored for everything else on it.
+       */
+      readonly kind: "lights-switched-off";
+      readonly atMinute: number;
+      /** The lights that switched off in the game-minute. */
+      readonly structureIds: readonly string[];
+    }
+  | {
       readonly kind: "construction-completed";
       readonly atMinute: number;
       /** The id of the newly commissioned Structure. */

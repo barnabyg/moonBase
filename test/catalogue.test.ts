@@ -2288,6 +2288,15 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has lights keep back a reserve of power at Night for at least as long as the first Habitat power warning", () => {
+    const reserve = catalogue.lightReserveHours;
+    expect(reserve).toBeGreaterThan(0);
+    expect(Number.isInteger(reserve * 60)).toBe(true);
+    expect(reserve).toBeGreaterThanOrEqual(
+      Math.max(...catalogue.habitatPowerWarningHoursLeft),
+    );
+  });
+
   it("has no Radiation Dose aboard the Lander, less in a shielded Habitat than an unshielded one, and warnings before an unshielded Habitat's dose reaches the limit", () => {
     const { radiation } = catalogue;
 

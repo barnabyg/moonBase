@@ -316,7 +316,11 @@ function describeStructure(
           : "no power"
         : (formatPlant(structure.plant) ?? "commissioned");
   const notes = [
-    structure.lit ? "lit" : undefined,
+    structure.lit
+      ? "lit"
+      : structure.savingPower
+        ? "light off to save power"
+        : undefined,
     isHabitat(structure.structureTypeId)
       ? structure.shielded
         ? "shielded"

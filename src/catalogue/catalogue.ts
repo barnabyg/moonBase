@@ -145,6 +145,14 @@ export interface Catalogue {
    * the Mission Director at once.
    */
   readonly habitatPowerWarningHoursLeft: readonly number[];
+  /**
+   * A light switches itself off at Night once its power network's stored
+   * energy, less what the light draws, would no longer carry everything
+   * else on the network through the rest of the Night and this many
+   * game-hours more, so that lights never leave anything else without
+   * power. Must come to a whole number of game-minutes, and be more than 0.
+   */
+  readonly lightReserveHours: number;
   readonly radiation: RadiationRules;
   readonly solarParticleEvents: SolarParticleEventRules;
   /**
@@ -831,7 +839,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 48,
+  version: 49,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -2192,6 +2200,10 @@ export const catalogue: Catalogue = {
   // time between Expeditions, doesn't take self-sufficiency away.
   selfSufficiency: { windowLunations: 1, recordHours: 6 },
   habitatPowerWarningHoursLeft: [24, 6, 1],
+  // As long as the first Habitat power warning, so that lights never bring
+  // one: a Light Mast is only there to see by, and the Mission Director's
+  // life shouldn't hang on leaving one unbuilt.
+  lightReserveHours: 24,
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
   // surface, so that the limit comes in 20 Earth Days and shielding the

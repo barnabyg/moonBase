@@ -410,6 +410,8 @@ export function formatEvent(
       return "Night has fallen";
     case "daylight-started":
       return "Daylight has come";
+    case "lights-switched-off":
+      return "Lights switching off to save power, so the battery banks carry the rest of the base through the Night";
     case "construction-completed":
       return `${structureLabel(event.structureTypeId)} commissioned`;
     case "structure-dismantled":

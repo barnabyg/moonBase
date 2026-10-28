@@ -151,9 +151,9 @@ describe("a Light Mast", () => {
     );
   });
 
-  it("is counted in the power forecast for the Night ahead", () => {
-    // Every Light Mast in the starting stock, which together draw enough at
-    // Night to empty the battery bank before Daylight comes back.
+  it("switches itself off to save power rather than empty the battery bank, which the forecast then never sees run out", () => {
+    // Every Light Mast in the starting stock, which together would draw
+    // enough at Night to empty the battery bank before Daylight comes back.
     const game = litBase();
     for (const site of [
       { x: 15, y: -30 },
@@ -164,19 +164,27 @@ describe("a Light Mast", () => {
     }
     runUntilBuilt(game);
     const mastId = mastOf(game.state).id;
+    runUntil(game, "night");
+    game.advance({ minutes: 1 });
+    const masts = () =>
+      game.state.structures.filter(
+        (structure) => structure.structureTypeId === "light-mast",
+      );
+    expect(masts().every((mast) => mast.lit)).toBe(true);
 
-    const forecast = game.campaign.forecasts().power.minutesUntilEmpty;
+    expect(game.campaign.forecasts().power.minutesUntilEmpty).toBeUndefined();
+    game.advance({ minutes: game.state.lunation.minutesRemaining - 1 });
 
-    if (forecast === undefined) throw new Error("expected a forecast");
-    game.advance({ minutes: forecast - 1 });
-    expect(networkOf(game.state, mastId).storedKilowattHours).toBeGreaterThan(
-      0,
+    expect(masts().every((mast) => mast.savingPower && mast.powered)).toBe(
+      true,
     );
-    expect(mastOf(game.state).lit).toBe(true);
-    game.advance({ minutes: 1 });
-    expect(networkOf(game.state, mastId).storedKilowattHours).toBe(0);
-    game.advance({ minutes: 1 });
-    expect(mastOf(game.state)).toMatchObject({ lit: false, powered: false });
+    // What the solar array and the battery bank draw, for the reserve.
+    const alwaysDrawn =
+      solarArray.power.drawKilowatts + batteryBank.power.drawKilowatts;
+    expect(networkOf(game.state, mastId).storedKilowattHours).toBeCloseTo(
+      alwaysDrawn * catalogue.lightReserveHours,
+      1,
+    );
   });
 
   it("stays dark at Night without power", () => {
