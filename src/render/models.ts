@@ -1,5 +1,12 @@
 import * as THREE from "three";
-import { lightWindow, materials, part, windowGlass } from "./materials";
+import {
+  lightWindow,
+  materials,
+  part,
+  rod,
+  roundedBox,
+  windowGlass,
+} from "./materials";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
@@ -642,122 +649,296 @@ const CORE_SHARE = 0.25;
 /** The share of Assembly by which the envelope is fully inflated; the airlock goes on after. */
 const INFLATED_SHARE = 0.85;
 
+/** The height of the Habitat's deck, which the envelope and airlock stand on. */
+const HABITAT_DECK_HEIGHT = 0.3;
+/** The radius of the Habitat's envelope where it meets the deck. */
+const HABITAT_DOME_RADIUS = 3.4;
+/** How tall the envelope stands, as a share of its radius. */
+const HABITAT_DOME_SQUASH = 0.75;
+/** How far the airlock's hatch stands out from the Habitat's centre, along +x. */
+export const HABITAT_HATCH_OUT = 4.44;
+/** How far round from the airlock, either way, no meridian strap runs, in degrees. */
+const AIRLOCK_STRAP_CLEARANCE = 25;
+
 /** What sets one kind of Habitat's model apart from another. */
 interface HabitatShape {
   readonly name: string;
   readonly envelopeMaterial: THREE.Material;
-  /** How high up the dome each restraint strap runs, as a share of its radius. */
+  /** How high up the dome each hoop strap runs, as a share of its radius. */
   readonly strapsAt: readonly number[];
+  /**
+   * How many meridian straps would run evenly round the dome from its crown
+   * to the deck; those that would cross the airlock are left out.
+   */
+  readonly meridians: number;
 }
 
 const HABITAT: HabitatShape = {
   name: "Inflatable Habitat",
   envelopeMaterial: materials.envelope,
   strapsAt: [0.35, 0.75],
+  meridians: 8,
 };
 
 /**
  * A hardened Habitat: the same dome, so that Regolith shielding fits over
  * it, in a duller, darker armoured envelope, held down by twice as many
- * straps.
+ * straps each way.
  */
 const HARDENED_HABITAT: HabitatShape = {
   name: "Hardened Habitat",
   envelopeMaterial: materials.armouredEnvelope,
   strapsAt: [0.18, 0.62, 0.8, 0.94],
+  meridians: 16,
 };
 
 /**
- * The inflatable Habitat: a squat fabric dome, held down by straps, round a
- * rigid core on a plinth, with an airlock on one side. During Assembly the
- * core goes up, the envelope inflates round it, and then the airlock is
- * fitted.
+ * The inflatable Habitat: a squat fabric dome, held down by a web of hoop
+ * and meridian straps anchored to a deck on levelling feet, round a rigid
+ * core, with a rigid airlock standing out on one side through which the
+ * Mission Director walks upright. During Assembly the core goes up, the
+ * envelope inflates round it, and then the airlock is fitted.
  */
 function createHabitatModel(shape: HabitatShape): StructureModel {
   const habitat = new THREE.Group();
   habitat.name = shape.name;
 
-  const statusLightMaterial = materials.statusOff.clone();
+  // The deck, raised on levelling feet, with a rim round its edge.
+  const deckRadius = HABITAT_DOME_RADIUS + 0.2;
+  const rim = part(
+    new THREE.TorusGeometry(deckRadius - 0.02, 0.05, 6, 40),
+    materials.aluminium,
+    [0, HABITAT_DECK_HEIGHT - 0.03, 0],
+  );
+  rim.rotation.x = Math.PI / 2;
   habitat.add(
     part(
-      new THREE.CylinderGeometry(3.7, 3.8, 0.3, 8),
+      new THREE.CylinderGeometry(deckRadius - 0.05, deckRadius, 0.2, 40),
       materials.darkMetal,
-      [0, 0.15, 0],
+      [0, HABITAT_DECK_HEIGHT - 0.1, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.09, 8, 6),
-      statusLightMaterial,
-      [2.2, 0.36, 2.2],
-    ),
+    rim,
+    ...Array.from({ length: 10 }, (_, index) => {
+      const angle = (index / 10) * Math.PI * 2;
+      const foot = new THREE.Group();
+      foot.position.set(Math.cos(angle) * 3.2, 0, Math.sin(angle) * 3.2);
+      foot.add(
+        part(
+          new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8),
+          materials.aluminium,
+          [0, 0.07, 0],
+        ),
+        part(
+          new THREE.CylinderGeometry(0.18, 0.21, 0.04, 12),
+          materials.darkMetal,
+          [0, 0.02, 0],
+        ),
+      );
+      return foot;
+    }),
   );
 
   const core = part(
-    new THREE.CylinderGeometry(0.9, 0.9, 1, 8),
+    new THREE.CylinderGeometry(0.9, 0.9, 1, 24),
     materials.hull,
     [0, 0, 0],
   );
-  habitat.add(core);
   const coreHeight = 2.6;
+  // The hub where the envelope's crown fastens to the top of the core.
+  const hub = part(
+    new THREE.CylinderGeometry(1.0, 1.05, 0.14, 24),
+    materials.darkMetal,
+    [0, HABITAT_DECK_HEIGHT + coreHeight, 0],
+  );
+  habitat.add(core, hub);
 
-  // The envelope, with its restraint straps, inflates from the plinth up.
+  // The meridian straps go round the dome, leaving the airlock clear, and
+  // fasten to anchors on the deck.
+  const meridianAngles = Array.from(
+    { length: shape.meridians },
+    (_, index) => (index / shape.meridians) * 360,
+  )
+    .filter(
+      (degrees) => Math.min(degrees, 360 - degrees) >= AIRLOCK_STRAP_CLEARANCE,
+    )
+    .map((degrees) => THREE.MathUtils.degToRad(degrees));
+  habitat.add(
+    ...meridianAngles.map((angle) => {
+      const anchor = part(
+        roundedBox(0.14, 0.12, 0.22, 0.03),
+        materials.darkMetal,
+        [
+          Math.cos(angle) * (HABITAT_DOME_RADIUS + 0.06),
+          HABITAT_DECK_HEIGHT + 0.06,
+          -Math.sin(angle) * (HABITAT_DOME_RADIUS + 0.06),
+        ],
+      );
+      anchor.rotation.y = angle;
+      return anchor;
+    }),
+  );
+
+  // The envelope, with its restraint straps, inflates from the deck up.
   const envelope = new THREE.Group();
-  envelope.position.y = 0.3;
-  const domeHeight = 0.75;
+  envelope.position.y = HABITAT_DECK_HEIGHT;
   const dome = part(
-    new THREE.SphereGeometry(3.4, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.SphereGeometry(
+      HABITAT_DOME_RADIUS,
+      40,
+      16,
+      0,
+      Math.PI * 2,
+      0,
+      Math.PI / 2,
+    ),
     shape.envelopeMaterial,
     [0, 0, 0],
   );
-  dome.scale.y = domeHeight;
+  dome.scale.y = HABITAT_DOME_SQUASH;
   envelope.add(dome);
   for (const [index, height] of shape.strapsAt.entries()) {
     const angle = Math.asin(height);
     const strap = part(
-      new THREE.TorusGeometry(3.4 * Math.cos(angle) + 0.02, 0.05, 4, 14),
+      new THREE.TorusGeometry(
+        HABITAT_DOME_RADIUS * Math.cos(angle) + 0.02,
+        0.05,
+        4,
+        40,
+      ),
       materials.foil,
-      [0, 3.4 * height * domeHeight, 0],
+      [0, HABITAT_DOME_RADIUS * height * HABITAT_DOME_SQUASH, 0],
     );
     strap.rotation.x = Math.PI / 2;
     strap.name = `Strap ${index + 1}`;
     envelope.add(strap);
   }
+  for (const [index, angle] of meridianAngles.entries()) {
+    // A quarter circle up from the deck to the crown, squashed with the dome.
+    const meridian = new THREE.Group();
+    meridian.rotation.y = angle;
+    meridian.scale.y = HABITAT_DOME_SQUASH;
+    meridian.add(
+      part(
+        new THREE.TorusGeometry(
+          HABITAT_DOME_RADIUS + 0.02,
+          0.04,
+          4,
+          24,
+          Math.PI / 2,
+        ),
+        materials.foil,
+        [0, 0, 0],
+      ),
+    );
+    meridian.name = `Meridian strap ${index + 1}`;
+    envelope.add(meridian);
+  }
   habitat.add(envelope);
 
-  // The airlock: a short rigid tube lying against the envelope, with a hatch.
+  // The airlock: a rigid vestibule standing on the deck and running into
+  // the envelope, with an upright hatch in a collar at its outer end, a
+  // step up to it and a handrail either side. Regolith shielding heaped
+  // over the Habitat leaves the collar and everything on it showing.
   const airlock = new THREE.Group();
-  airlock.position.set(3.3, 1.05, 0);
-  const tube = part(
-    new THREE.CylinderGeometry(0.75, 0.75, 1.6, 8),
-    materials.hull,
-    [0, 0, 0],
+  const inner = 1.4;
+  const collarX = HABITAT_HATCH_OUT - 0.11;
+  const sill = HABITAT_DECK_HEIGHT + 0.12;
+  const hatchHeight = 2.0;
+  airlock.add(
+    part(roundedBox(collarX - inner, 2.3, 1.6, 0.3), materials.hull, [
+      (inner + collarX) / 2,
+      HABITAT_DECK_HEIGHT + 1.15,
+      0,
+    ]),
+    part(roundedBox(0.14, 2.45, 1.8, 0.1), materials.darkMetal, [
+      collarX,
+      HABITAT_DECK_HEIGHT + 1.225,
+      0,
+    ]),
+    // Stiffening ribs round the vestibule.
+    ...[0.9, 1.8].map((back) =>
+      part(roundedBox(0.1, 2.38, 1.68, 0.32), materials.aluminium, [
+        collarX - back,
+        HABITAT_DECK_HEIGHT + 1.19,
+        0,
+      ]),
+    ),
+    // The hatch, hinged on one side, with a handle on the other.
+    part(roundedBox(0.08, hatchHeight, 0.92, 0.12), materials.hull, [
+      HABITAT_HATCH_OUT - 0.04,
+      sill + hatchHeight / 2,
+      0,
+    ]),
+    ...[0.35, hatchHeight - 0.35].map((height) =>
+      part(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.24, 8),
+        materials.darkMetal,
+        [HABITAT_HATCH_OUT - 0.02, sill + height, 0.48],
+      ),
+    ),
+    part(roundedBox(0.05, 0.34, 0.06, 0.02), materials.darkMetal, [
+      HABITAT_HATCH_OUT + 0.04,
+      sill + 0.85,
+      -0.32,
+    ]),
+    // A step halfway up from the ground to the sill.
+    part(roundedBox(0.42, sill / 2, 1.1, 0.03), materials.darkMetal, [
+      HABITAT_HATCH_OUT + 0.2,
+      sill / 4,
+      0,
+    ]),
+    ...[-1, 1].flatMap((side) => {
+      const z = side * 0.8;
+      const out = HABITAT_HATCH_OUT + 0.08;
+      return [
+        rod(
+          new THREE.Vector3(out, sill + 0.3, z),
+          new THREE.Vector3(out, sill + 1.6, z),
+          0.025,
+          materials.aluminium,
+        ),
+        ...[0.4, 1.5].map((height) =>
+          rod(
+            new THREE.Vector3(collarX, sill + height, z),
+            new THREE.Vector3(out, sill + height, z),
+            0.02,
+            materials.aluminium,
+          ),
+        ),
+      ];
+    }),
   );
-  tube.rotation.z = Math.PI / 2;
-  const hatch = part(
-    new THREE.CylinderGeometry(0.5, 0.5, 0.08, 8),
-    materials.darkMetal,
-    [0.82, 0, 0],
-  );
-  hatch.rotation.z = Math.PI / 2;
-  airlock.add(tube, hatch);
   habitat.add(airlock);
 
+  // The status light, on the collar beside the hatch, where it still
+  // shows once Regolith shielding covers the deck.
+  const statusLightMaterial = materials.statusOff.clone();
+  airlock.add(
+    part(new THREE.SphereGeometry(0.07, 8, 6), statusLightMaterial, [
+      collarX + 0.08,
+      sill + 0.7,
+      -0.66,
+    ]),
+  );
+
   // Windows that glow while the Mission Director lives inside: portholes
-  // round the envelope, and one in the hatch that still shows once
-  // Regolith shielding covers the rest, with a lamp over it.
+  // round the envelope between the meridian straps, and one in the hatch
+  // that still shows once Regolith shielding covers the rest, with a lamp
+  // over it.
   const glass = windowGlass.clone();
   const portholeHeight = Math.sin(THREE.MathUtils.degToRad(25));
-  for (const degrees of [30, 150, 210, 330]) {
+  for (const degrees of [56.25, 123.75, 236.25, 303.75]) {
     const angle = THREE.MathUtils.degToRad(degrees);
-    const out = 3.4 * Math.sqrt(1 - portholeHeight ** 2) - 0.03;
+    const out = HABITAT_DOME_RADIUS * Math.sqrt(1 - portholeHeight ** 2) - 0.03;
     const at = new THREE.Vector3(
-      Math.sin(angle) * out,
-      3.4 * portholeHeight * domeHeight,
       Math.cos(angle) * out,
+      HABITAT_DOME_RADIUS * portholeHeight * HABITAT_DOME_SQUASH,
+      -Math.sin(angle) * out,
     );
     // Facing straight out from the squashed dome.
     const normal = new THREE.Vector3(
       at.x,
-      at.y / domeHeight ** 2,
+      at.y / HABITAT_DOME_SQUASH ** 2,
       at.z,
     ).normalize();
     const porthole = new THREE.Group();
@@ -773,28 +954,33 @@ function createHabitatModel(shape: HabitatShape): StructureModel {
     );
     envelope.add(porthole);
   }
-  const hatchWindow = part(
-    new THREE.CircleGeometry(0.15, 16),
-    glass,
-    [0.87, 0.12, 0],
-  );
+  const hatchWindow = part(new THREE.CircleGeometry(0.14, 20), glass, [
+    HABITAT_HATCH_OUT + 0.005,
+    sill + 1.45,
+    0,
+  ]);
   hatchWindow.rotation.y = Math.PI / 2;
   const hatchLamp = materials.statusOff.clone();
   airlock.add(
     hatchWindow,
-    part(new THREE.BoxGeometry(0.12, 0.08, 0.3), hatchLamp, [0.84, 0.64, 0]),
+    part(new THREE.BoxGeometry(0.08, 0.08, 0.36), hatchLamp, [
+      collarX + 0.1,
+      sill + hatchHeight + 0.15,
+      0,
+    ]),
   );
 
   // The mission flag, raised on top of the core when the Mission Director
   // moves in, high enough to fly above Regolith shielding. With no air to
   // fly in, it hangs from a rod along its top.
   const flag = new THREE.Group();
+  const poleBottom = HABITAT_DECK_HEIGHT + coreHeight;
   const poleTop = 4.9;
   flag.add(
     part(
-      new THREE.CylinderGeometry(0.03, 0.03, poleTop - 2.9, 6),
+      new THREE.CylinderGeometry(0.03, 0.03, poleTop - poleBottom, 6),
       materials.aluminium,
-      [0, (poleTop + 2.9) / 2, 0],
+      [0, (poleTop + poleBottom) / 2, 0],
     ),
     part(
       new THREE.CylinderGeometry(0.02, 0.02, 1.05, 6).rotateZ(Math.PI / 2),
@@ -825,7 +1011,8 @@ function createHabitatModel(shape: HabitatShape): StructureModel {
       const f = THREE.MathUtils.clamp(fraction, 0, 1);
       const raised = Math.max(Math.min(f / CORE_SHARE, 1), 0.01);
       core.scale.y = coreHeight * raised;
-      core.position.y = 0.3 + (coreHeight * raised) / 2;
+      core.position.y = HABITAT_DECK_HEIGHT + (coreHeight * raised) / 2;
+      hub.visible = raised >= 1;
       const inflated = THREE.MathUtils.clamp(
         (f - CORE_SHARE) / (INFLATED_SHARE - CORE_SHARE),
         0,
@@ -978,29 +1165,40 @@ const WATER_WALL_BLADDERS = 4;
 const WATER_WALL_HEIGHT = 1.1;
 /** The bladders' thickness, from the shielding out, once full. */
 const WATER_WALL_TUBE_RADIUS = 0.55;
+/** The gap between two bladders, in radians. */
+const WATER_WALL_GAP = 0.12;
+/** The wider gap left for the Habitat's airlock, which comes out along +x, in radians. */
+const WATER_WALL_AIRLOCK_GAP = 0.6;
 
 /**
  * A water wall: a ring of fat bladders lying round the lower flank of the
- * Regolith shielding over a Habitat, each a quarter of the way round, held
- * down by webbing straps that run up over the dome. During Assembly the
- * bladders go down one after another and swell as they fill with water.
+ * Regolith shielding over a Habitat, each nearly a quarter of the way
+ * round, leaving room for the airlock, held down by webbing straps that run
+ * up over the dome. During Assembly the bladders go down one after another
+ * and swell as they fill with water.
  */
 function createWaterWallModel(): StructureModel {
   const wall = new THREE.Group();
   wall.name = "Water wall";
   const ring =
     shieldingRadiusAt(WATER_WALL_HEIGHT) + WATER_WALL_TUBE_RADIUS * 0.55;
-  const gap = 0.12;
+  /** The gap a quarter of the way round from the airlock, a number of times. */
+  const gapAt = (quarter: number) =>
+    quarter % WATER_WALL_BLADDERS === 0
+      ? WATER_WALL_AIRLOCK_GAP
+      : WATER_WALL_GAP;
   const bladders = Array.from({ length: WATER_WALL_BLADDERS }, (_, index) => {
-    const arc = (Math.PI * 2) / WATER_WALL_BLADDERS - gap;
+    const quarter = (Math.PI * 2) / WATER_WALL_BLADDERS;
+    const start = index * quarter + gapAt(index) / 2;
+    const end = (index + 1) * quarter - gapAt(index + 1) / 2;
     const bladder = part(
-      new THREE.TorusGeometry(ring, WATER_WALL_TUBE_RADIUS, 6, 10, arc),
+      new THREE.TorusGeometry(ring, WATER_WALL_TUBE_RADIUS, 6, 10, end - start),
       materials.waterBladder,
       [0, WATER_WALL_HEIGHT, 0],
     );
     bladder.name = `Bladder ${index + 1}`;
     bladder.rotation.x = Math.PI / 2;
-    bladder.rotation.z = (index * Math.PI * 2) / WATER_WALL_BLADDERS + gap / 2;
+    bladder.rotation.z = start;
     wall.add(bladder);
     return bladder;
   });
