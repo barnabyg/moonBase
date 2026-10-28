@@ -20,6 +20,10 @@ import {
 // What things in the game are for, in words built from the data catalogue,
 // for the screens where the player chooses them and for the Guide.
 
+/** How every Plant gets its power, which the player has to plan around. */
+const PLANTS_AT_NIGHT =
+  "Like every Plant, it runs only on power the battery banks can't store, in Daylight once they are full, and stands idle at Night: keep enough of what it makes to last the Night.";
+
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {
   const { power } = type;
@@ -56,11 +60,13 @@ export function describeStructure(type: StructureType): string {
       : []),
   ];
   const stage = type.stageMachines.assembly;
-  const sentence =
-    facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`;
-  return stage === undefined
-    ? sentence
-    : `${sentence} The ${machineLabel(stage).toLowerCase()} builds it.`;
+  return [
+    facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`,
+    ...(type.recipes === undefined ? [] : [PLANTS_AT_NIGHT]),
+    ...(stage === undefined
+      ? []
+      : [`The ${machineLabel(stage).toLowerCase()} builds it.`]),
+  ].join(" ");
 }
 
 /** Says what a Structure is built from and how long the work takes. */

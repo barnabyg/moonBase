@@ -3,6 +3,7 @@ import {
   type Design,
   type Export,
   type LaunchItem,
+  type PlantRecipe,
   type ResourceRef,
 } from "../catalogue";
 import {
@@ -281,7 +282,8 @@ export function stockLabel(stockId: string): string {
  * Says how much of a life support stock is left and when it will run out,
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
- * day".
+ * day", and when it will run out even so, if the Plants standing idle at
+ * Night leave it too little to last the Night.
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
@@ -290,10 +292,14 @@ export function formatLifeSupport(
 ): Stat {
   const value = `${stock.kilograms.toFixed(1)} kg`;
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
-    return {
-      value,
-      note: `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`,
-    };
+    const rising = `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`;
+    // Rising now, but not enough to last the Night ahead.
+    return forecast?.minutesUntilEmpty === undefined
+      ? { value, note: rising }
+      : {
+          value,
+          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants stand idle at Night`,
+        };
   }
   if (stock.kilograms === 0) return { value, note: "ran out" };
   if (forecast?.minutesUntilEmpty !== undefined) {
@@ -640,6 +646,35 @@ export function resourceRefLabel(resource: ResourceRef): string {
 }
 
 /**
+ * Says what a running Plant makes and uses an hour, as fast as its
+ * Condition allows, for example "making 0.3 kg of wafers an hour from
+ * 0.35 kg of silicon"; undefined for one that isn't running.
+ */
+export function formatPlantRates(
+  structure: Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "performance" | "plant"
+  >,
+): string | undefined {
+  if (structure.plant?.running !== true) return undefined;
+  const recipes =
+    catalogue.structureTypes.find(
+      (type) => type.id === structure.structureTypeId,
+    )?.recipes ?? [];
+  const recipe =
+    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  if (recipe === undefined) return undefined;
+  const flows = (resources: PlantRecipe["outputs"]) =>
+    listInWords(
+      resources.map(
+        (flow) =>
+          `${Number((flow.kilogramsPerHour * structure.performance).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+      ),
+    );
+  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}`;
+}
+
+/**
  * Says whether a Plant is running, and why not, for its line in the status
  * panel, for example "running" or "stopped: out of Regolith"; undefined
  * once it is Broken, which the line says already.
@@ -653,7 +688,7 @@ export function formatPlant(plant: PlantSnapshot): string | undefined {
     case "no-input":
       return `stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
     case "no-power":
-      return "stopped: no power to spare";
+      return "stopped: no power to spare (never any at Night)";
   }
 }
 
@@ -682,12 +717,24 @@ export function formatBulkResources(
     const label = resourceLabel(stock.resourceId);
     const value = formatKilograms(stock.kilograms);
     const empty = stock.kilograms < 1;
-    const minutes = forecasts.find(
-      (forecast) => forecast.resourceId === stock.resourceId,
-    )?.minutesUntilEmpty;
-    return minutes === undefined || stock.kilograms === 0
+    const forecast = forecasts.find(
+      (candidate) => candidate.resourceId === stock.resourceId,
+    );
+    const perDay = (forecast?.kilogramsPerHour ?? 0) * 24;
+    const minutes = forecast?.minutesUntilEmpty;
+    // How fast it is changing, if at all, and how long it lasts if falling.
+    const rate =
+      Math.abs(perDay) < 0.05
+        ? undefined
+        : `${perDay > 0 ? "+" : "−"}${Math.abs(perDay).toFixed(1)} kg/day`;
+    const lasts =
+      minutes === undefined || stock.kilograms === 0
+        ? undefined
+        : `~${formatShortDuration(minutes)}`;
+    const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
+    return note === ""
       ? { label, value, empty }
-      : { label, value, note: `~${formatShortDuration(minutes)}`, empty };
+      : { label, value, note, empty };
   });
 }
 

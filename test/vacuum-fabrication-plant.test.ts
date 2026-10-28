@@ -6,7 +6,11 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatBulkResources, formatPlant } from "../src/ui/format";
+import {
+  formatBulkResources,
+  formatPlant,
+  formatPlantRates,
+} from "../src/ui/format";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
 
@@ -150,6 +154,28 @@ describe("the vacuum fabrication plant", () => {
         .map(({ label, value }) => `${label}: ${value}`)
         .join("; "),
     ).toContain("Silicon: 50 kg; Wafers: 12 kg");
+  });
+
+  it("shows how fast the wafers rise and the silicon falls, and what the plant makes and uses", () => {
+    const campaign = withBulk(plantBase(), { silicon: 50, wafers: 12.5 });
+    campaign.advance(1);
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("daylight");
+
+    const shown = formatBulkResources(
+      state.bulkResources,
+      campaign.forecasts().bulkResources,
+    );
+
+    const note = (label: string) =>
+      shown.find((resource) => resource.label === label)?.note;
+    expect(note("Wafers")).toBe(`+${(wafersPerHour * 24).toFixed(1)} kg/day`);
+    expect(note("Silicon")).toMatch(
+      new RegExp(`^−${(siliconPerHour * 24).toFixed(1)} kg/day, ~`),
+    );
+    expect(formatPlantRates(plantOf(state))).toBe(
+      `making ${wafersPerHour} kg of wafers an hour from ${siliconPerHour} kg of silicon`,
+    );
   });
 
   it("stops once the silicon runs out, and the status panel says so", () => {

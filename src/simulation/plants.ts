@@ -241,6 +241,24 @@ function flowPerHour(
   }, 0);
 }
 
+/**
+ * Whether any of the base's Plants makes a resource with the recipe it is
+ * set to, and isn't Broken, whether or not it ran during the latest
+ * game-minute.
+ */
+export function isMadeByPlants(
+  state: CampaignState,
+  resource: ResourceRef,
+): boolean {
+  return state.structures.some(
+    (structure) =>
+      !isBroken(structure) &&
+      (recipeOf(structure)?.outputs ?? []).some((flow) =>
+        isSameResource(flow.resource, resource),
+      ),
+  );
+}
+
 export function isSameResource(a: ResourceRef, b: ResourceRef): boolean {
   return a.kind === "bulk-resource"
     ? b.kind === "bulk-resource" && a.resourceId === b.resourceId

@@ -133,7 +133,7 @@ export function createStatusPanel(
   bulkResources.setAttribute("aria-live", "off");
   const resourceCells = new Map<
     string,
-    { cell: HTMLElement; amount: HTMLElement }
+    { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
   const spareComponents = createStatLine("Spares", "Spare Components");
   stockSection.body.append(
@@ -314,17 +314,17 @@ export function createStatusPanel(
           name.textContent = resource.label;
           const amount = document.createElement("span");
           amount.className = "resources__amount";
-          cell.append(name, " ", amount, " ");
+          // How fast it is changing, on a line of its own.
+          const note = document.createElement("span");
+          note.className = "resources__note";
+          cell.append(name, " ", amount, " ", note);
           bulkResources.append(cell);
-          entry = { cell, amount };
+          entry = { cell, amount, note };
           resourceCells.set(resource.label, entry);
         }
-        setText(
-          entry.amount,
-          resource.note === undefined
-            ? resource.value
-            : `${resource.value} ${resource.note}`,
-        );
+        setText(entry.amount, resource.value);
+        setText(entry.note, resource.note ?? "");
+        entry.note.hidden = resource.note === undefined;
         entry.cell.classList.toggle("resources__cell--empty", resource.empty);
       }
       spareComponents.show(formatSpareComponents(forecasts.spareComponents));

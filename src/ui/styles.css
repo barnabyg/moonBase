@@ -443,8 +443,16 @@ body {
 
 .resources__cell {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 6px;
+  gap: 0 6px;
+}
+
+.resources__note {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  text-align: right;
+  color: var(--text-muted);
 }
 
 .resources__name {

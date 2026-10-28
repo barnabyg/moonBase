@@ -7,11 +7,13 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { formatLifeSupport } from "../src/ui/format";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
 
 // Nothing wears down at random or in the cold, the Robot digs no Regolith,
-// and the Mission Director comes to no harm in the Habitat from radiation.
+// and the Mission Director comes to no harm in the Habitat from radiation,
+// or from its power failing at Night with no battery bank.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDigging } = await import("./without-digging");
@@ -22,7 +24,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
     ...actual,
     catalogue: safeHabitat(
       withoutCold(withoutMicrometeorites(withoutDigging(actual.catalogue))),
-      ["radiation", "solar-particle-events"],
+      ["radiation", "solar-particle-events", "power"],
     ),
   };
 });
@@ -198,5 +200,91 @@ describe("the water forecast", () => {
       events.filter((event) => event.kind === "life-support-warning"),
     ).toEqual([]);
     expect(water(campaign.snapshot())).toBeGreaterThan(10);
+  });
+
+  /**
+   * A water-processing plant running with plenty of ice, the Mission
+   * Director moved in, and a day of Daylight left, with the water given in
+   * stock.
+   */
+  function dayBeforeNight(waterKilograms: number): Campaign {
+    const base = plantBase([["habitat", habitatSite]]);
+    const habitat = base
+      .snapshot()
+      .structures.find((structure) => structure.structureTypeId === "habitat");
+    const movedIn = base.moveMissionDirectorIn(habitat?.id ?? "");
+    if (!movedIn.ok) throw new Error(movedIn.message);
+    base.advance(base.snapshot().lunation.minutesRemaining - 24 * 60);
+    const campaign = changed(withIce(base, 500), (state) => {
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") stock.kilograms = waterKilograms;
+      }
+    });
+    campaign.advance(1);
+    expect(campaign.snapshot().lunation.part).toBe("daylight");
+    return campaign;
+  }
+
+  const use =
+    catalogue.lifeSupportStocks.find((stock) => stock.id === "water")
+      ?.usePerEarthDayKilograms ?? Number.NaN;
+  const nightMinutes = catalogue.lunation.nightEarthDays * 24 * 60;
+  const nightUse = (use * nightMinutes) / (24 * 60);
+
+  it("looks ahead to the Night, when the plant stands idle, and warns before nightfall if the water won't last it", () => {
+    // Rising now, but well short of the Night's use at nightfall.
+    const campaign = dayBeforeNight(5);
+    const state = campaign.snapshot();
+    const toNight = state.lunation.minutesRemaining;
+    const atNightfall =
+      water(state) + ((waterPerHour - use / 24) * toNight) / 60;
+    expect(atNightfall).toBeLessThan(nightUse);
+
+    const forecast = campaign
+      .forecasts()
+      .lifeSupport.find((stock) => stock.stockId === "water");
+
+    expect(forecast?.kilogramsPerEarthDay).toBeGreaterThan(0);
+    // The status panel says so, though the water is rising now.
+    const stock = state.lifeSupport.find(({ stockId }) => stockId === "water");
+    if (stock === undefined || forecast === undefined) {
+      throw new Error("expected water");
+    }
+    expect(
+      formatLifeSupport(stock, forecast, state.missionDirector).note,
+    ).toMatch(
+      /^rising .* kg a day, but lasts only .*: Plants stand idle at Night$/,
+    );
+    expect(forecast.minutesUntilEmpty).toBeCloseTo(
+      toNight + (atNightfall / use) * 24 * 60,
+      -1,
+    );
+    const events = campaign.advance(toNight - 1);
+    expect(campaign.snapshot().lunation.part).toBe("daylight");
+    expect(
+      events.filter(
+        (event) =>
+          event.kind === "life-support-warning" && event.stockId === "water",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("gives no warning while the water at nightfall will last the Night", () => {
+    const campaign = dayBeforeNight(nightUse + 5);
+
+    const forecast = campaign
+      .forecasts()
+      .lifeSupport.find((stock) => stock.stockId === "water");
+
+    expect(forecast?.minutesUntilEmpty).toBeUndefined();
+    // Through the Night ahead and into the next Daylight.
+    const events = [
+      ...campaign.advance(campaign.snapshot().lunation.minutesRemaining),
+      ...campaign.advance(nightMinutes + 60),
+    ];
+    expect(
+      events.filter((event) => event.kind === "life-support-warning"),
+    ).toEqual([]);
+    expect(campaign.snapshot().ended).toBeUndefined();
   });
 });
