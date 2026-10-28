@@ -852,6 +852,21 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 35 to 36: the Launch manifest keeps the Launch fee it was paid with
+  // while it is locked, as a Design can now cut the fee. Until now every
+  // Launch paid the one fee, $150M when format version 36 came in, so a
+  // Lander on its way to the Moon paid that.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const lander = state["lander"];
+    const trip = isRecord(lander) ? lander["trip"] : undefined;
+    const paid = isRecord(trip) && trip["leg"] === "travelling-to-moon";
+    return {
+      ...document,
+      state: { ...state, launchFeePaidMillionDollars: paid ? 150 : null },
+    };
+  },
 ];
 
 /**
@@ -1588,6 +1603,7 @@ const simulationState = object({
       count: wholeNumber,
     }),
   ),
+  launchFeePaidMillionDollars: optional(amount),
   exportsToLoad: list(exportLine),
   science: wholeNumber,
   researchTask: optional(

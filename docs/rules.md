@@ -85,7 +85,7 @@ Shielding and the water wall are the only Structures that may overlap another, a
 
 ## Launches and the Lander
 
-The Mission Director starts with the Programme Grant as Funding. "Launch manifest" opens the screen where you choose what the next Launch brings: Components whose Design is unlocked, oxygen and water, and, once the Robots Design is unlocked, extra Robots. Bars show the manifest's Payload Mass against the Launch's limit and its cost (the Launch fee plus each item's price, or nothing while empty) against the Funding.
+The Mission Director starts with the Programme Grant as Funding. "Launch manifest" opens the screen where you choose what the next Launch brings: Components whose Design is unlocked, oxygen and water, and, once the Robots Design is unlocked, extra Robots. Bars show the manifest's Payload Mass against the Launch's limit and its cost (the Launch fee plus each item's price, or nothing while empty) against the Funding. Unlocking Reusable boosters on the Tech Tree lowers the Launch fee for every Launch paid for afterwards; one already paid for, on its way back, keeps the fee it was paid with.
 
 Once the Mission Director has moved into a Habitat, "Send the Lander" sends it on its round trip: it flies to Earth, turns around there and flies back to land on the same spot. You can change the manifest until the Lander leaves Earth; then it locks and its cost comes off the Funding. When the Lander lands, its Components join the base's stock and its oxygen and water the life support stocks, and a new, empty manifest starts. The base carries on while it is away. Running out of Funding never ends the Campaign by itself.
 

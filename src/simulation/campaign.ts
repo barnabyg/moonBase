@@ -737,6 +737,11 @@ export interface CampaignState {
   /** What the next Launch is to bring, in catalogue order, each item once with a count from 1 up. */
   launchManifest: { itemId: string; count: number }[];
   /**
+   * The Launch fee the Launch manifest was paid with, from the Lander
+   * leaving Earth with it until it lands; undefined otherwise.
+   */
+  launchFeePaidMillionDollars: number | undefined;
+  /**
    * What the Lander is to carry when it next takes off, in catalogue order,
    * each Export once with an amount above none, until they are aboard: on a
    * landing pad, once the Robot has loaded them, what it took from the
@@ -804,6 +809,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     spareComponentsWarnedMinutes: undefined,
     fundingMillionDollars: catalogue.programmeGrantMillionDollars,
     launchManifest: [],
+    launchFeePaidMillionDollars: undefined,
     exportsToLoad: [],
     science: 0,
     researchTask: undefined,
