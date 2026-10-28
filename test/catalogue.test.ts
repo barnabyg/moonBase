@@ -416,6 +416,20 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has Research Tasks that, run back to back, take at least eight Lunations, so research carries on long after the base is self-sufficient", () => {
+    const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
+    const lunationHours = (daylightEarthDays + nightEarthDays) * 24;
+    const hours = catalogue.researchTasks.reduce(
+      (sum, task) => sum + task.lengthHours,
+      0,
+    );
+
+    expect(hours).toBeGreaterThanOrEqual(8 * lunationHours);
+    expect(
+      catalogue.researchTasks.some((task) => task.lengthHours >= lunationHours),
+    ).toBe(true);
+  });
+
   it("has Designs with unique ids and labels, each with a description, one of the six categories, a whole Science cost and prerequisites the Tech Tree has", () => {
     const { designs } = catalogue;
     const ids = new Set(designs.map((design) => design.id));
