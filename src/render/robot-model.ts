@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { materials, part, roundedBox } from "./materials";
+import { createCrateModel } from "./models";
 
 /** How the Robot holds itself, in radians: positive leans and lifts forward. */
 export interface RobotPose {
@@ -182,11 +183,8 @@ export function createRobotModel(): RobotModel {
   upperBody.position.y = HIP_HEIGHT;
   const leftArm = createArm(-1);
   const rightArm = createArm(1);
-  const crate = part(
-    new THREE.BoxGeometry(0.5, 0.35, 0.4),
-    materials.crate,
-    [0, 0.45, 0.45],
-  );
+  const crate = createCrateModel(0.5, 0.35, 0.4);
+  crate.position.set(0, 0.275, 0.45);
   upperBody.add(
     // The pelvis, and the flexible waist above it.
     part(

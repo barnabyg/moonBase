@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   lightWindow,
   materials,
@@ -1768,13 +1769,143 @@ export function printingAt(
   return { height, radius: shieldingRadiusAt(height) };
 }
 
-/** A packing crate holding one Component, standing on the ground. */
-export function createCrateModel(): THREE.Mesh {
-  const crate = part(
-    new THREE.BoxGeometry(0.6, 0.4, 0.5),
-    materials.crate,
-    [0, 0.2, 0],
+/** How thick a crate's edge frame and braces are. */
+const CRATE_FRAME = 0.035;
+/** How far a crate's frame stands proud of its panels. */
+const CRATE_PROUD = 0.006;
+
+/** A box of the given size, with its centre at the given point. */
+function boxAt(
+  width: number,
+  height: number,
+  depth: number,
+  [x, y, z]: readonly [number, number, number],
+): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(width, height, depth).translate(x, y, z);
+}
+
+/**
+ * A diagonal brace across one face of a crate, corner to corner inside the
+ * frame, on the face whose outward normal is +z before it is turned.
+ */
+function crateBrace(
+  across: number,
+  height: number,
+  depth: number,
+  turn: number,
+): THREE.BufferGeometry {
+  const run = across - 2 * CRATE_FRAME;
+  const rise = height - 2 * CRATE_FRAME;
+  const brace = new THREE.BoxGeometry(
+    Math.hypot(run, rise) - CRATE_FRAME,
+    CRATE_FRAME * 0.8,
+    2 * CRATE_PROUD,
   );
+  brace.rotateZ(Math.atan2(rise, run));
+  brace.translate(0, height / 2, depth / 2 - CRATE_PROUD);
+  return brace.rotateY(turn);
+}
+
+/**
+ * A crate's panels, its frame and braces, and its stencilled label, merged
+ * into one geometry with a group for each of `crateMaterials`.
+ */
+function createCrateGeometry(
+  width: number,
+  height: number,
+  depth: number,
+): THREE.BufferGeometry {
+  const t = CRATE_FRAME;
+  const panels = [
+    boxAt(
+      width - 2 * CRATE_PROUD,
+      height - 2 * CRATE_PROUD,
+      depth - 2 * CRATE_PROUD,
+      [0, height / 2, 0],
+    ),
+  ];
+  const frame: THREE.BufferGeometry[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      // The corner posts.
+      frame.push(
+        boxAt(t, height, t, [
+          sx * (width / 2 - t / 2),
+          height / 2,
+          sz * (depth / 2 - t / 2),
+        ]),
+      );
+    }
+  }
+  for (const y of [t / 2, height - t / 2]) {
+    for (const s of [-1, 1]) {
+      // The rails round the base and the lid.
+      frame.push(boxAt(width, t, t, [0, y, s * (depth / 2 - t / 2)]));
+      frame.push(boxAt(t, t, depth, [s * (width / 2 - t / 2), y, 0]));
+    }
+  }
+  // Battens across the lid, and a brace on every side.
+  for (const s of [-1, 1]) {
+    frame.push(
+      boxAt(t, 2 * CRATE_PROUD, depth, [
+        (s * width) / 6,
+        height - CRATE_PROUD,
+        0,
+      ]),
+    );
+  }
+  frame.push(
+    crateBrace(width, height, depth, 0),
+    crateBrace(width, height, depth, Math.PI),
+    crateBrace(depth, height, width, Math.PI / 2),
+    crateBrace(depth, height, width, -Math.PI / 2),
+  );
+  // A label on each long side, in the corner the brace leaves clear.
+  const labels = [0, Math.PI].map((turn) =>
+    boxAt(width * 0.3, height * 0.18, 2 * CRATE_PROUD, [
+      -width / 4 + t / 2,
+      height * 0.72,
+      depth / 2 - CRATE_PROUD,
+    ]).rotateY(turn),
+  );
+  const layers = [panels, frame, labels].map((pieces) => {
+    const merged = mergeGeometries(pieces);
+    for (const piece of pieces) piece.dispose();
+    return merged;
+  });
+  const crate = mergeGeometries(layers, true);
+  for (const layer of layers) layer.dispose();
+  return crate;
+}
+
+/** A crate's materials, in the order of its geometry's groups. */
+const crateMaterials = [
+  materials.crate,
+  materials.crateFrame,
+  materials.accent,
+];
+
+/** Crate geometries by size, shared by every crate of that size. */
+const crateGeometries = new Map<string, THREE.BufferGeometry>();
+
+/**
+ * A packing crate holding one Component, or the given size of crate: framed
+ * and braced, with a label on its long sides. It stands on the ground at its
+ * origin.
+ */
+export function createCrateModel(
+  width = 0.6,
+  height = 0.4,
+  depth = 0.5,
+): THREE.Mesh {
+  const size = `${width}x${height}x${depth}`;
+  let geometry = crateGeometries.get(size);
+  if (geometry === undefined) {
+    geometry = createCrateGeometry(width, height, depth);
+    crateGeometries.set(size, geometry);
+  }
+  const crate = part(geometry, materials.crate, [0, 0, 0]);
+  crate.material = crateMaterials;
   crate.name = "Component crate";
   return crate;
 }
