@@ -3,6 +3,7 @@ import { catalogue } from "../catalogue";
 import { landerLadderFoot } from "./lander-model";
 import { facingAngle, toScene, type Frame } from "./interpolation";
 import { materials, part, roundedBox } from "./materials";
+import { HABITAT_HATCH_OUT } from "./models";
 import { joint, limb } from "./robot-model";
 
 /** How fast the Mission Director walks across to their new Habitat, in metres per real second. */
@@ -13,7 +14,7 @@ const LONGEST_WALK_SECONDS = 10;
 /** How far one stride carries the Mission Director, in metres. */
 const STRIDE_METRES = 1.3;
 /** Where they stand at the end of the walk, out from the Habitat's centre by its airlock's hatch. */
-const HATCH_OFFSET = new THREE.Vector3(4.5, 0, 0);
+const HATCH_OFFSET = new THREE.Vector3(HABITAT_HATCH_OUT + 0.8, 0, 0);
 
 interface Walk {
   readonly habitatId: string;
