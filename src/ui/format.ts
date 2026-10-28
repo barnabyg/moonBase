@@ -281,7 +281,8 @@ export function stockLabel(stockId: string): string {
  * Says how much of a life support stock is left and when it will run out,
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
- * day".
+ * day", and when it will run out even so, if the Plants standing idle at
+ * Night leave it too little to last the Night.
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
@@ -290,10 +291,14 @@ export function formatLifeSupport(
 ): Stat {
   const value = `${stock.kilograms.toFixed(1)} kg`;
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
-    return {
-      value,
-      note: `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`,
-    };
+    const rising = `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`;
+    // Rising now, but not enough to last the Night ahead.
+    return forecast?.minutesUntilEmpty === undefined
+      ? { value, note: rising }
+      : {
+          value,
+          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants stand idle at Night`,
+        };
   }
   if (stock.kilograms === 0) return { value, note: "ran out" };
   if (forecast?.minutesUntilEmpty !== undefined) {
@@ -653,7 +658,7 @@ export function formatPlant(plant: PlantSnapshot): string | undefined {
     case "no-input":
       return `stopped: out of ${resourceRefLabel(plant.stoppedFor.resource)}`;
     case "no-power":
-      return "stopped: no power to spare";
+      return "stopped: no power to spare (never any at Night)";
   }
 }
 

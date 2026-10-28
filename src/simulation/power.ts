@@ -24,7 +24,7 @@ import {
   type Driven,
 } from "./driven";
 import type { GameEvent } from "./events";
-import { lunationMinutes, readLunation } from "./lunation";
+import { partsAhead, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
 import { isPlant, plantDrawKilowatts, recipesOf, wantsToRun } from "./plants";
 
@@ -548,7 +548,7 @@ export function minutesUntilEmpty(
   const capacity = network.storageCapacityKilowattHours;
   if (capacity === 0) return undefined;
   let stored = network.storedKilowattHours;
-  for (const part of partsAhead(elapsedMinutes)) {
+  for (const part of partsAhead(elapsedMinutes, FORECAST_LUNATION_PARTS)) {
     const generated = part.daylight ? network.daylightGenerationKilowatts : 0;
     const perMinute =
       (generated - partConsumptionKilowatts(network, part, stored)) / 60;
@@ -576,7 +576,7 @@ export function minutesUntilPowerLost(
   elapsedMinutes: number,
 ): number | undefined {
   let stored = network.storedKilowattHours;
-  for (const part of partsAhead(elapsedMinutes)) {
+  for (const part of partsAhead(elapsedMinutes, FORECAST_LUNATION_PARTS)) {
     const generated = part.daylight ? network.daylightGenerationKilowatts : 0;
     const consumption = partConsumptionKilowatts(network, part, stored);
     // What has to be left in storage at the start of a game-minute for the
@@ -654,28 +654,6 @@ function restOfNetworkAtNight(network: PowerNetwork): number {
 /** Whether a Structure has a light that switches on by itself at Night, and isn't Broken. */
 function hasLight(structure: StructureState): boolean {
   return workingPower(structure).nightDrawKilowatts > 0;
-}
-
-/**
- * The parts of the Lunation ahead, starting with what is left of the current
- * one: whether each is Daylight, how many game-minutes from now it starts,
- * and how many game-minutes it lasts.
- */
-function* partsAhead(
-  elapsedMinutes: number,
-): Generator<{ daylight: boolean; start: number; minutes: number }> {
-  const schedule = catalogue.lunation;
-  const { daylight, lunation } = lunationMinutes(schedule);
-  const now = readLunation(elapsedMinutes, schedule);
-  let isDaylight = now.part === "daylight";
-  let minutes = now.minutesRemaining;
-  let start = 0;
-  for (let parts = 0; parts < FORECAST_LUNATION_PARTS; parts++) {
-    yield { daylight: isDaylight, start, minutes };
-    start += minutes;
-    isDaylight = !isDaylight;
-    minutes = isDaylight ? daylight : lunation - daylight;
-  }
 }
 
 function isHabitat(structure: StructureState): boolean {

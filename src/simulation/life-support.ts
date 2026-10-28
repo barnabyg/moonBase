@@ -3,7 +3,8 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
-import { productionPerHour } from "./plants";
+import { lunationMinutes, partsAhead, readLunation } from "./lunation";
+import { isMadeByPlants, productionPerHour } from "./plants";
 import { recordLifeSupport } from "./self-sufficiency";
 
 /**
@@ -36,8 +37,8 @@ export interface LifeSupportForecast {
    */
   readonly kilogramsPerEarthDay: number;
   /**
-   * Game-minutes until it runs out at that rate, or undefined while it
-   * isn't falling.
+   * Game-minutes until it runs out, or undefined if it doesn't within the
+   * forecast's look-ahead (see `minutesUntilEmpty`).
    */
   readonly minutesUntilEmpty: number | undefined;
 }
@@ -62,12 +63,11 @@ export function forecastLifeSupport(
   state: CampaignState,
 ): LifeSupportForecast[] {
   return state.lifeSupport.map((stock) => {
-    const perMinute = netPerMinute(state, stock);
+    const minutes = minutesUntilEmpty(state, stock);
     return {
       stockId: stock.stockId,
-      kilogramsPerEarthDay: perMinute * MINUTES_PER_EARTH_DAY,
-      minutesUntilEmpty:
-        perMinute < 0 ? minutesLeft(stock, perMinute) : undefined,
+      kilogramsPerEarthDay: netPerMinute(state, stock) * MINUTES_PER_EARTH_DAY,
+      minutesUntilEmpty: Number.isFinite(minutes) ? minutes : undefined,
     };
   });
 }
@@ -76,8 +76,8 @@ export function forecastLifeSupport(
  * Uses up a game-minute of every life support stock while the Mission
  * Director lives in a Habitat, after the base's Plants have made their
  * game-minute's worth. A warning comes as the time until a stock runs out,
- * at the rate it is falling, reaches a warning level; while the Plants make
- * as much as is used, it isn't falling and none comes. If one runs out, the
+ * as forecast (see `minutesUntilEmpty`), reaches a warning level: while the
+ * Plants make as much as is used, Night included, none comes. If one runs out, the
  * Mission Director dies at once, which ends the Campaign; the death is then
  * the only event, as any warning that minute would come too late to matter.
  */
@@ -88,12 +88,12 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
   for (const stock of state.lifeSupport) {
     const type = findStock(stock.stockId);
     const perMinute = netPerMinute(state, stock);
-    const before = minutesLeft(stock, perMinute);
+    const before = minutesUntilEmpty(state, stock);
     const used = Math.min(usePerMinute(type), stock.kilograms);
     stock.kilograms -= used;
     recordLifeSupport(state, stock.stockId, { used });
-    const after = minutesLeft(stock, perMinute);
-    if (stock.kilograms === 0 || after === 0) {
+    const after = minutesUntilEmpty(state, stock);
+    if (stock.kilograms === 0 || minutesLeft(stock, perMinute) === 0) {
       stock.kilograms = 0;
       ranOut ??= stock;
     } else if (
@@ -141,6 +141,64 @@ function netPerMinute(state: CampaignState, stock: LifeSupportState): number {
       stockId: stock.stockId,
     }) / 60;
   return made - (isInUse(state) ? usePerMinute(findStock(stock.stockId)) : 0);
+}
+
+/**
+ * How many parts of a Lunation the life support forecast looks ahead: far
+ * enough to see a stock that rises in Daylight run out in the Night after.
+ */
+const FORECAST_LUNATION_PARTS = 6;
+
+/**
+ * The whole game-minutes until a stock runs out, or Infinity if it doesn't
+ * within the forecast's look-ahead. With no Plant making it, it falls at
+ * its current rate. A Plant that makes it stands idle at Night, as Plants
+ * run only on power no battery bank can store, so the forecast follows the
+ * Lunation ahead: the rest of a Daylight at the current rate, then each
+ * Night at what the Mission Director uses, and each Daylight after again at
+ * the current rate. At Night, when what the Plants make in Daylight isn't
+ * known, it looks only as far as the next Daylight.
+ */
+function minutesUntilEmpty(
+  state: CampaignState,
+  stock: LifeSupportState,
+): number {
+  const perMinute = netPerMinute(state, stock);
+  const resource = { kind: "life-support" as const, stockId: stock.stockId };
+  if (!isInUse(state) || !isMadeByPlants(state, resource)) {
+    return minutesLeft(stock, perMinute);
+  }
+  const used = usePerMinute(findStock(stock.stockId));
+  const daylightRate =
+    readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight"
+      ? perMinute
+      : undefined;
+  // Each whole Lunation from the next one on changes the stock the same way.
+  const { daylight, lunation } = lunationMinutes(catalogue.lunation);
+  const perLunation =
+    (daylightRate ?? 0) * daylight - used * (lunation - daylight);
+  let kilograms = stock.kilograms;
+  let skipped = 0;
+  let parts = 0;
+  for (const part of partsAhead(state.elapsedMinutes, Infinity)) {
+    if (part.daylight && daylightRate === undefined) return Infinity;
+    parts += 1;
+    // Skipping leaves a Lunation or two to run out in, at most.
+    if (parts > 2 * FORECAST_LUNATION_PARTS) return Infinity;
+    if (parts === FORECAST_LUNATION_PARTS + 1) {
+      // Past the look-ahead, it only ever runs out if each Lunation leaves
+      // less: skip all but the last of the whole Lunations it lasts.
+      if (perLunation >= 0) return Infinity;
+      const lunations = Math.max(Math.floor(kilograms / -perLunation) - 1, 0);
+      skipped = lunations * lunation;
+      kilograms += lunations * perLunation;
+    }
+    const rate = part.daylight ? (daylightRate ?? 0) : -used;
+    const left = minutesLeft({ ...stock, kilograms }, rate);
+    if (left <= part.minutes) return skipped + part.start + left;
+    kilograms += rate * part.minutes;
+  }
+  return Infinity;
 }
 
 /**
