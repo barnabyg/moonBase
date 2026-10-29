@@ -6,13 +6,16 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
-import { designOf } from "./describe";
+import { designOf, powerRatings } from "./describe";
 import {
+  formatCharge,
   formatCondition,
   formatDismantlingStage,
   formatPerformance,
   formatPlantRates,
+  formatPower,
   formatStage,
+  formatStageProgress,
   formatWaiting,
   listInWords,
   maintenanceState,
@@ -96,7 +99,10 @@ export function structureDetails(
         warning: structure !== undefined && structure.conditionPercent <= 0,
       },
       conditionLine(snapshot, structure),
-      { label: "Power", stat: { value: describePower(type, structure) } },
+      {
+        label: "Rated",
+        stat: { value: describePowerRatings(type, structure) },
+      },
       networkLine(snapshot, structure),
       ...(type.power.storageKilowattHours > 0
         ? [batteryLine(type, structure)]
@@ -119,7 +125,10 @@ function stageLine(
 ): DetailLine {
   const label = "Stage";
   if (construction !== undefined) {
-    const value = `${formatStage(construction.stage)} ${percent(construction.stageProgress)}`;
+    const value = formatStageProgress(
+      formatStage(construction.stage),
+      construction.stageProgress,
+    );
     return {
       label,
       stat:
@@ -141,7 +150,12 @@ function stageLine(
   return {
     label,
     stat: {
-      value: `${dismantling === undefined ? "" : formatDismantlingStage(dismantling.stage)} ${percent(dismantling?.stageProgress ?? 0)}`,
+      value: formatStageProgress(
+        dismantling === undefined
+          ? ""
+          : formatDismantlingStage(dismantling.stage),
+        dismantling?.stageProgress ?? 0,
+      ),
     },
     fraction: dismantling?.stageProgress,
   };
@@ -172,29 +186,21 @@ function conditionLine(
   };
 }
 
-/** What it generates and draws, once commissioned, from the data catalogue. */
-function describePower(
+/**
+ * What it is rated to generate, store and draw once commissioned, from the
+ * data catalogue, as the build menu and the Guide say it, rather than
+ * what it is doing now.
+ */
+function describePowerRatings(
   type: StructureType,
   structure: StructureSnapshot | undefined,
 ): string {
-  const { power } = type;
   // A Plant draws what the recipe it runs needs, while it runs.
   const recipe =
     type.recipes?.find(({ id }) => id === structure?.recipeId) ??
     type.recipes?.[0];
-  const facts = [
-    ...(power.generationKilowatts > 0
-      ? [`generates up to ${power.generationKilowatts} kW in Daylight`]
-      : []),
-    ...(power.drawKilowatts > 0 ? [`draws ${power.drawKilowatts} kW`] : []),
-    ...(power.nightDrawKilowatts > 0
-      ? [`draws ${power.nightDrawKilowatts} kW while lit at Night`]
-      : []),
-    ...(recipe === undefined
-      ? []
-      : [`draws ${recipe.drawKilowatts} kW while it runs`]),
-  ];
-  return facts.length === 0 ? "needs no power" : facts.join(", ");
+  const ratings = powerRatings(type, recipe);
+  return ratings.length === 0 ? "needs no power" : listInWords(ratings);
 }
 
 /** What the power network it is on makes and uses. */
@@ -210,13 +216,7 @@ function networkLine(
   if (network === undefined) {
     return { label, stat: { value: "not on a network" } };
   }
-  return {
-    label,
-    stat: {
-      value: `${network.generationKilowatts.toFixed(2)} kW made`,
-      note: `${network.consumptionKilowatts.toFixed(2)} kW used`,
-    },
-  };
+  return { label, stat: formatPower({ networks: [network] }) };
 }
 
 /** How much a battery bank holds, out of what its Condition lets it store. */
@@ -229,9 +229,7 @@ function batteryLine(
   const capacity = type.power.storageKilowattHours * structure.performance;
   return {
     label,
-    stat: {
-      value: `${structure.storedKilowattHours.toFixed(1)} / ${capacity.toFixed(1)} kWh`,
-    },
+    stat: { value: formatCharge(structure.storedKilowattHours, capacity) },
     fraction: capacity > 0 ? structure.storedKilowattHours / capacity : 0,
   };
 }
@@ -338,8 +336,4 @@ function dustLine(structure: StructureSnapshot | undefined): DetailLine {
     stat: { value: `${Math.round(structure.dustCoatingPercent)}%` },
     fraction: structure.dustCoatingPercent / 100,
   };
-}
-
-function percent(fraction: number): string {
-  return `${Math.floor(fraction * 100)}%`;
 }

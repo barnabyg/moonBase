@@ -134,7 +134,7 @@ describe("the pop-up for a Structure clicked on the map", () => {
       "s1",
     );
     expect(line(details, "Stage")).toBe(
-      "Stage: Component delivery 42% · Waiting: 2 solar panels aren't in the base's stock",
+      "Stage: Component delivery: 42% · Waiting: 2 solar panels aren't in the base's stock",
     );
     expect(details?.lines[0]?.fraction).toBeCloseTo(0.42);
     expect(line(details, "Condition")).toBe("Condition: –");
@@ -151,7 +151,7 @@ describe("the pop-up for a Structure clicked on the map", () => {
       "Stage",
       "State",
       "Condition",
-      "Power",
+      "Rated",
       "Network",
       "Battery",
     ]);
@@ -207,7 +207,7 @@ describe("the pop-up for a Structure clicked on the map", () => {
       "Stage: commissioned",
       "State: commissioned",
       "Condition: 37% · undergoing Maintenance, working at 80%",
-      "Power: generates up to 10 kW in Daylight, draws 0.05 kW",
+      "Rated: generates 10 kW in Daylight and draws 0.05 kW all the time",
       "Network: 8.00 kW made · 1.25 kW used",
       "Dust coating: 12%",
     ]);
@@ -268,7 +268,7 @@ describe("the pop-up for a Structure clicked on the map", () => {
     expect(line(details, "Output")).toBe(
       "Output: nothing while it stands idle",
     );
-    expect(line(details, "Power")).toBe("Power: draws 4 kW while it runs");
+    expect(line(details, "Rated")).toBe("Rated: draws 4 kW while it runs");
     expect(details?.commissioned?.id).toBe("s1");
   });
 
@@ -325,7 +325,7 @@ describe("the pop-up for a Structure clicked on the map", () => {
       }),
       "s1",
     );
-    expect(line(under, "Stage")).toBe("Stage: Taking apart 25%");
+    expect(line(under, "Stage")).toBe("Stage: Taking apart: 25%");
     expect(line(under, "State")).toBe("State: being dismantled");
     expect(under?.commissioned).toBeUndefined();
   });

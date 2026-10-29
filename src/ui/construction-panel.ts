@@ -19,6 +19,7 @@ import {
   formatMaintenanceStep,
   formatParkingPlace,
   formatStage,
+  formatStageProgress,
   hasComponents,
   structureLabel,
   subjectLabel,
@@ -106,8 +107,7 @@ export function createConstructionPanel(
     return { item, stage, progress, work, cancel };
   };
   const showStage = (row: Row, stage: string, stageProgress: number) => {
-    const percent = Math.floor(stageProgress * 100);
-    setText(row.stage, `${stage}: ${percent}%`);
+    setText(row.stage, formatStageProgress(stage, stageProgress));
     row.progress.value = stageProgress;
     row.progress.setAttribute("aria-label", `${stage} progress`);
   };

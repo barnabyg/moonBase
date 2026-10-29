@@ -51,7 +51,7 @@ test("clicking a Structure on the map shows what it is doing beside it, until Es
   await expect(popUp).toBeVisible();
   await expect(popUp).toContainText("Solar panels on a mast");
   await expect(popUp.getByRole("status", { name: "Stage" })).toHaveText(
-    /^Stage Site Preparation \d+%/,
+    /^Stage Site Preparation: \d+%/,
   );
   await expect(popUp.getByRole("status", { name: "State" })).toHaveText(
     "State under Construction",
