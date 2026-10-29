@@ -11,7 +11,9 @@ import {
   launchItemLabel,
   milestoneLabel,
   readClock,
+  recipeOf,
   robotNumber,
+  workingRecipeOf,
   type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
@@ -658,16 +660,11 @@ export function formatPlantRates(
     "structureTypeId" | "recipeId" | "performance" | "plant" | "switchedOff"
   >,
 ): string | undefined {
-  if (structure.plant?.running !== true) return undefined;
-  const recipes =
-    catalogue.structureTypes.find(
-      (type) => type.id === structure.structureTypeId,
-    )?.recipes ?? [];
-  const chosen =
-    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  const { plant } = structure;
+  if (plant?.running !== true) return undefined;
+  const chosen = recipeOf(structure);
   // A batch it has started goes on with the recipe it was started with.
-  const recipe =
-    recipes.find(({ id }) => id === structure.plant?.batch?.recipeId) ?? chosen;
+  const recipe = workingRecipeOf({ ...structure, batch: plant.batch });
   if (recipe === undefined) return undefined;
   const flows = (resources: PlantRecipe["outputs"]) =>
     listInWords(
@@ -741,13 +738,7 @@ export function withSwitchedOffPlants(
 ): Stat {
   const off = structures.filter((structure) => {
     if (!structure.switchedOff) return false;
-    const recipes =
-      catalogue.structureTypes.find(
-        (type) => type.id === structure.structureTypeId,
-      )?.recipes ?? [];
-    const recipe =
-      recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
-    return (recipe?.outputs ?? []).some(
+    return (recipeOf(structure)?.outputs ?? []).some(
       (flow) =>
         flow.resource.kind === "life-support" &&
         flow.resource.stockId === stockId,

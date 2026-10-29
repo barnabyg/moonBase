@@ -126,7 +126,9 @@ export function recipeOf(
 
 /** The recipe a Plant is working with: its batch's, while it has one, or else the one it is set to. */
 export function workingRecipeOf(
-  structure: Pick<StructureState, "structureTypeId" | "recipeId" | "batch">,
+  structure: Pick<StructureState, "structureTypeId" | "recipeId"> & {
+    readonly batch: Pick<PlantBatch, "recipeId"> | undefined;
+  },
 ): PlantRecipe | undefined {
   const { batch } = structure;
   return batch === undefined

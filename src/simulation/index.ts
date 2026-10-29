@@ -7,6 +7,7 @@ export { researchTaskMinutes } from "./research";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
+export { recipeOf, workingRecipeOf } from "./plants";
 export type {
   BulkResourceSnapshot,
   CableSnapshot,
