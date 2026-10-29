@@ -26,10 +26,19 @@ export interface MachineDigging {
   working: boolean;
 }
 
-/** Whether the base has less of the resource the data catalogue has dug than its level. */
+/**
+ * Whether the base has fallen low enough on the resource the data catalogue
+ * has dug for digging to start.
+ */
 export function needsDigging(state: CampaignState): boolean {
-  const { resourceId, stockLevelKilograms } = catalogue.digging;
-  return bulkInStock(state, resourceId) < stockLevelKilograms;
+  const { resourceId, refillBelowKilograms } = catalogue.digging;
+  return bulkInStock(state, resourceId) < refillBelowKilograms;
+}
+
+/** Whether digging under way should carry on: the stock isn't full yet. */
+function isShort(state: CampaignState): boolean {
+  const { resourceId, fullKilograms } = catalogue.digging;
+  return bulkInStock(state, resourceId) < fullKilograms;
 }
 
 /**
@@ -78,17 +87,19 @@ function isClaimed(state: CampaignState, machine: MachineState): boolean {
  * Lets a Machine with no stage of Construction dig for a game-minute, if it
  * has been set digging: it adds the resource to the base's stock as fast as
  * its Condition allows, wearing down by Dust as it works, until the stock
- * reaches the data catalogue's level. It stops as soon as it is no longer
- * free to dig. Returns the event if it broke.
+ * is full. It stops as soon as it is no longer free to dig; cut short that
+ * way, it starts again only once the stock falls below the level that
+ * starts digging. Returns the event if it broke.
  */
 export function dig(state: CampaignState, machine: MachineState): GameEvent[] {
   const { digging } = machine;
   if (
     digging !== undefined &&
     !(
-      needsDigging(state) &&
       canDig(state, machine) &&
-      (digging.working || isClaimed(state, machine))
+      (digging.working
+        ? isShort(state)
+        : needsDigging(state) && isClaimed(state, machine))
     )
   ) {
     machine.digging = undefined;
@@ -102,13 +113,13 @@ export function dig(state: CampaignState, machine: MachineState): GameEvent[] {
     return [];
   }
   machine.activity = { kind: "digging" };
-  const { resourceId, stockLevelKilograms, kilogramsPerWorkingHour } =
+  const { resourceId, fullKilograms, kilogramsPerWorkingHour } =
     catalogue.digging;
   const dug = (kilogramsPerWorkingHour * machinePerformance(machine)) / 60;
-  if (bulkInStock(state, resourceId) + dug < stockLevelKilograms) {
+  if (bulkInStock(state, resourceId) + dug < fullKilograms) {
     addBulk(state, resourceId, dug);
   } else {
-    setBulk(state, resourceId, stockLevelKilograms);
+    setBulk(state, resourceId, fullKilograms);
     machine.digging = undefined;
   }
   return wearMachine(

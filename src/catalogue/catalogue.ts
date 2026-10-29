@@ -647,16 +647,20 @@ export interface Export {
 
 /**
  * Digging: whenever no Construction needs it, a Machine digs a bulk
- * resource from the ground beside the stockpile, until the base's stock of
- * it reaches a level.
+ * resource from the ground beside the stockpile. It starts once the base's
+ * stock of it falls below one level and digs on until the stock is full,
+ * at a higher one, so that a Plant drawing the stock down doesn't have a
+ * Robot set it digging again for every few kilograms.
  */
 export interface DiggingRules {
   /** The type of Machine that digs. */
   readonly machineTypeId: string;
   /** The bulk resource it digs. */
   readonly resourceId: string;
-  /** It digs while the base has less than this, and stops once it has this much. */
-  readonly stockLevelKilograms: number;
+  /** Digging starts once the base has less than this. */
+  readonly refillBelowKilograms: number;
+  /** Once started, digging carries on until the base has this much. */
+  readonly fullKilograms: number;
   /** How much it digs in a game-hour at full performance; less as its Condition falls. */
   readonly kilogramsPerWorkingHour: number;
 }
@@ -988,12 +992,15 @@ export const catalogue: Catalogue = {
     { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
     { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
   ],
-  // About a day's digging fills it, wearing the excavator down by some 8
-  // percentage points.
+  // Digging from one level to the other is about a day's work, wearing the
+  // excavator down by some 8 percentage points, and an extraction plant
+  // takes some ten days of Daylight to use that much. Filling the stock
+  // from empty takes about two.
   digging: {
     machineTypeId: "excavator",
     resourceId: "regolith",
-    stockLevelKilograms: 1000,
+    refillBelowKilograms: 1000,
+    fullKilograms: 2000,
     kilogramsPerWorkingHour: 50,
   },
   componentTypes: [

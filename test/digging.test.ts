@@ -8,8 +8,8 @@ import {
   type RobotSnapshot,
   type Snapshot,
 } from "../src/simulation";
-import { scenario } from "./scenario";
-import { worn } from "./worn";
+import { scenario, scenarioOf } from "./scenario";
+import { changed, worn } from "./worn";
 
 const { digging } = catalogue;
 const excavatorType = catalogue.machineTypes.find(
@@ -55,17 +55,47 @@ function untilDigging(campaign: Campaign): Snapshot[] {
   throw new Error("The excavator never started digging.");
 }
 
-/** Runs the Campaign until the base's Regolith reaches the data catalogue's level. */
+/** Runs the Campaign until the base's Regolith is full. */
 function untilFull(campaign: Campaign): void {
   for (
     let hours = 0;
-    regolith(campaign.snapshot()) < digging.stockLevelKilograms;
+    regolith(campaign.snapshot()) < digging.fullKilograms;
     hours++
   ) {
-    if (hours > 5 * 24)
-      throw new Error("The Regolith never reached its level.");
+    if (hours > 5 * 24) throw new Error("The Regolith never filled.");
     campaign.advance(60);
   }
+}
+
+/** The Campaign as saved, with the base's Regolith set as given. */
+function withRegolith(campaign: Campaign, kilograms: number): Campaign {
+  return changed(campaign, (state) => {
+    for (const stock of state.bulkResources) {
+      if (stock.resourceId === "regolith") stock.kilograms = kilograms;
+    }
+  });
+}
+
+/** How many times the Robot set to activating a Machine to dig, minute by minute. */
+function diggingActivations(states: Snapshot[]): number {
+  return withoutRepeats(
+    states.map((state) => {
+      const { activity } = robotOf(state);
+      return activity.kind === "activating-machine" && "purpose" in activity
+        ? "activating"
+        : "other";
+    }),
+  ).filter((step) => step === "activating").length;
+}
+
+/** Runs the Campaign one game-minute at a time for as long as given, returning the state after every minute. */
+function everyMinute(campaign: Campaign, minutes: number): Snapshot[] {
+  const states: Snapshot[] = [];
+  for (let minute = 0; minute < minutes; minute++) {
+    campaign.advance(1);
+    states.push(campaign.snapshot());
+  }
+  return states;
 }
 
 function withoutRepeats<T>(values: T[]): T[] {
@@ -125,7 +155,7 @@ describe("digging", () => {
     expect(gap).toBeLessThan(5);
   });
 
-  it("fills the base's stock of Regolith at the data catalogue's rate, up to its level, then stops", () => {
+  it("fills the base's stock of Regolith at the data catalogue's rate until it is full, then stops", () => {
     const { campaign } = scenario();
     untilDigging(campaign);
     const before = regolith(campaign.snapshot());
@@ -138,13 +168,83 @@ describe("digging", () => {
     );
 
     untilFull(campaign);
-    expect(regolith(campaign.snapshot())).toBe(digging.stockLevelKilograms);
+    expect(regolith(campaign.snapshot())).toBe(digging.fullKilograms);
     campaign.advance(1);
     expect(excavatorOf(campaign.snapshot()).activity.kind).toBe("idle");
 
     campaign.advance(24 * 60);
-    expect(regolith(campaign.snapshot())).toBe(digging.stockLevelKilograms);
+    expect(regolith(campaign.snapshot())).toBe(digging.fullKilograms);
     expect(excavatorOf(campaign.snapshot()).activity.kind).toBe("idle");
+  });
+
+  it("doesn't start while the base has as much Regolith as the level that starts it", () => {
+    const campaign = withRegolith(
+      scenario().campaign,
+      digging.refillBelowKilograms,
+    );
+
+    const states = everyMinute(campaign, 24 * 60);
+
+    expect(diggingActivations(states)).toBe(0);
+    expect(regolith(campaign.snapshot())).toBe(digging.refillBelowKilograms);
+    expect(excavatorOf(campaign.snapshot()).activity.kind).toBe("idle");
+  });
+
+  it("digs from below the level that starts it until the Regolith is full, set digging only once", () => {
+    const campaign = withRegolith(
+      scenario().campaign,
+      digging.refillBelowKilograms - 1,
+    );
+
+    const states = everyMinute(campaign, 2 * 24 * 60);
+
+    expect(diggingActivations(states)).toBe(1);
+    expect(regolith(campaign.snapshot())).toBe(digging.fullKilograms);
+  });
+
+  it("is set digging once for each fill while an extraction plant draws the Regolith down, not for every few kilograms", () => {
+    const plantType = catalogue.structureTypes.find(
+      (type) => type.id === "extraction-plant",
+    );
+    if (plantType === undefined) throw new Error("expected a plant");
+    // The plant's Components brought to the base's stock, as a Launch would.
+    const game = scenarioOf(
+      changed(scenario().campaign, (state) => {
+        for (const need of plantType.components) {
+          const stock = state.stockpile.components.find(
+            (candidate) => candidate.componentId === need.componentId,
+          );
+          if (stock !== undefined) stock.count += need.count;
+        }
+      }),
+    );
+    game.plan("solar-array", site).plan("extraction-plant", { x: 30, y: 22 });
+    for (let hours = 0; game.state.constructions.length > 0; hours++) {
+      if (hours > 10 * 24) throw new Error("The Constructions never finished.");
+      game.advance({ hours: 1 });
+    }
+    // Just above the level that starts digging, so the plant takes it
+    // below within the day.
+    const campaign = withRegolith(
+      game.campaign,
+      digging.refillBelowKilograms + 10,
+    );
+    campaign.advance(1);
+    expect(
+      campaign
+        .snapshot()
+        .structures.find(
+          (structure) => structure.structureTypeId === "extraction-plant",
+        )?.plant?.running,
+    ).toBe(true);
+
+    const states = everyMinute(campaign, 2 * 24 * 60);
+
+    expect(diggingActivations(states)).toBe(1);
+    expect(Math.max(...states.map((state) => regolith(state)))).toBe(
+      digging.fullKilograms,
+    );
+    expect(regolith(campaign.snapshot())).toBeLessThan(digging.fullKilograms);
   });
 
   it("wears the excavator down by Dust for each hour it digs", () => {
@@ -209,6 +309,32 @@ describe("digging", () => {
 
     expect(excavatorOf(game.state).activity.kind).toBe("digging");
     expect(regolith(game.state)).toBeGreaterThan(stopped);
+  });
+
+  it("waits after giving way, once the Regolith is back above the level that starts it, until it falls below it again", () => {
+    const game = scenarioOf(
+      withRegolith(scenario().campaign, digging.refillBelowKilograms - 1),
+    );
+    untilDigging(game.campaign);
+    // Dug past the level that starts digging.
+    game.advance({ hours: 2 });
+    expect(regolith(game.state)).toBeGreaterThan(digging.refillBelowKilograms);
+
+    game.plan("solar-array", site);
+    // The Robot takes the excavator off digging in its first game-minute
+    // on the Site Preparation.
+    game.advance({ minutes: 2 });
+    expect(excavatorOf(game.state).activity.kind).toBe("being-positioned");
+    const stopped = regolith(game.state);
+    for (let hours = 0; game.state.constructions.length > 0; hours++) {
+      if (hours > 24) throw new Error("The solar array was never built.");
+      game.advance({ hours: 1 });
+    }
+    game.advance({ hours: 6 });
+
+    expect(excavatorOf(game.state).activity.kind).toBe("idle");
+    expect(robotOf(game.state).activity.kind).toBe("idle");
+    expect(regolith(game.state)).toBe(stopped);
   });
 
   it("is claimed only when no other Work Order can be carried out, once the Robot has finished the one it holds", () => {
