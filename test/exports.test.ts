@@ -480,6 +480,31 @@ describe("a solar array paid for by the Exports to load", () => {
     );
   });
 
+  it("shows on the manifest what it can be paid with, and whether it costs more, until it is paid for", () => {
+    const campaign = landerFreeWithFee();
+    load(campaign, wafers(loaded));
+    setManifest(campaign, solarArray);
+
+    expect(campaign.snapshot().launchManifest.funds).toEqual({
+      fundingMillionDollars: funding,
+      exportsMillionDollars: loaded * waferPrice,
+      exportsCounted: "to-load",
+      totalMillionDollars: funding + loaded * waferPrice,
+      overFunding: false,
+    });
+    load(campaign, wafers(5));
+    expect(campaign.snapshot().launchManifest.funds).toMatchObject({
+      exportsMillionDollars: 5 * waferPrice,
+      totalMillionDollars: funding + 5 * waferPrice,
+      overFunding: true,
+    });
+
+    load(campaign, wafers(loaded));
+    send(campaign);
+    skipUntil(campaign, "lander-left-earth");
+    expect(campaign.snapshot().launchManifest.funds).toBeUndefined();
+  });
+
   it("counts only as much of the Exports to load as the base still has in stock, as the Lander takes no more", () => {
     const set = landerFreeWithFee();
     load(set, wafers(loaded));

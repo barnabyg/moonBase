@@ -2,7 +2,7 @@ export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { designLabel } from "./tech-tree";
 export { milestoneHint, milestoneLabel } from "./milestones";
-export { launchItemLabel } from "./launch-manifest";
+export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
@@ -39,7 +39,9 @@ export type {
 } from "./construction";
 export type { CancelResult } from "./cancel";
 export type {
+  ExportsCounted,
   LaunchManifestSnapshot,
+  ManifestFunds,
   ManifestLine,
   ManifestRefusal,
   ManifestResult,

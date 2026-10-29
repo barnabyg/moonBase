@@ -67,6 +67,13 @@ describe("the sample saves from before Funding", () => {
         costMillionDollars: 0,
         feeMillionDollars: catalogue.launch.feeMillionDollars,
         locked: false,
+        funds: {
+          fundingMillionDollars: 400,
+          exportsMillionDollars: 0,
+          exportsCounted: "none",
+          totalMillionDollars: 400,
+          overFunding: false,
+        },
       });
     },
   );

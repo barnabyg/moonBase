@@ -19,6 +19,13 @@ const emptyManifest = {
   costMillionDollars: 0,
   feeMillionDollars: launch.feeMillionDollars,
   locked: false,
+  funds: {
+    fundingMillionDollars: programmeGrant,
+    exportsMillionDollars: 0,
+    exportsCounted: "none",
+    totalMillionDollars: programmeGrant,
+    overFunding: false,
+  },
 };
 
 describe("Funding", () => {
@@ -64,6 +71,7 @@ describe("the Launch manifest", () => {
         water.priceMillionDollars,
       feeMillionDollars: launch.feeMillionDollars,
       locked: false,
+      funds: emptyManifest.funds,
     });
   });
 

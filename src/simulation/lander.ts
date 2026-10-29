@@ -16,8 +16,10 @@ import type { GameEvent } from "./events";
 import { sellExports, takeExportsAboard } from "./exports";
 import {
   deliverLaunch,
+  fundsInWords,
+  millionDollars,
   payForLaunch,
-  unpayableManifest,
+  readLaunchManifest,
 } from "./launch-manifest";
 import { blastPlumeEjecta } from "./plume-ejecta";
 
@@ -136,11 +138,11 @@ export function sendLander(state: CampaignState): SendLanderResult {
       "The Exports to load aren't aboard yet. The Robot has to finish loading them onto the Lander first.",
     );
   }
-  const unpayable = unpayableManifest(state);
-  if (unpayable !== undefined) {
+  const { costMillionDollars, funds } = readLaunchManifest(state);
+  if (funds?.overFunding === true) {
     return refuse(
       "over-funding",
-      `The Lander can't leave with a Launch manifest that ${unpayable}. Take something off the manifest or load more Exports first.`,
+      `The Lander can't leave with a Launch manifest that costs ${millionDollars(costMillionDollars)}, more than ${fundsInWords(funds)}. Take something off the manifest or load more Exports first.`,
     );
   }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);
