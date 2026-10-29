@@ -806,9 +806,10 @@ export interface StructureType {
 /**
  * The bays of a parking area, each with a power socket. While the parking
  * area is commissioned, isn't Broken and is on a network with a power
- * source, a Machine or Rover in a bay is plugged in, and park Work Orders
- * send Machines and Rovers to a free bay rather than beside the nearest
- * powered Structure. A parking area counts as having something to do with
+ * source, a Machine or Rover in a bay is plugged in; once the network can
+ * also keep heaters on through the Night ahead, park Work Orders send
+ * Machines and Rovers to a free bay rather than beside the nearest powered
+ * Structure. A parking area counts as having something to do with
  * power, so that the Robot lays it a cable, though its sockets draw
  * nothing but the heaters plugged in to them.
  */

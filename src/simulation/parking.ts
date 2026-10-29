@@ -20,13 +20,16 @@ import {
   type DrivenTarget,
 } from "./driven";
 import { isRoverSpokenFor } from "./expeditions";
-import { readLunation } from "./lunation";
+import { lunationMinutes, readLunation } from "./lunation";
 import { isUnderMaintenance } from "./maintenance";
 import {
+  minutesUntilEmpty,
   nearestPoweredStructure,
   pluggedIn,
+  powerNetworks,
   powerSockets,
   structureNetworks,
+  type PowerNetwork,
 } from "./power";
 
 /**
@@ -75,10 +78,12 @@ export interface ParkingSnapshot {
  * isn't plugged in, isn't Broken, isn't being maintained and isn't to go
  * on an Expedition or out on one, as long as there is a powered Structure
  * to park it beside. It goes to the nearest free bay of a parking area that
- * can take a plug, if there is one, however much nearer another powered
- * Structure is; otherwise beside the nearest powered Structure, as it would
- * without a parking area. A Work Order that nobody has claimed goes once
- * what it parks no longer needs parking, or is given other work; one a
+ * can take a plug and whose network can keep heaters on through the Night
+ * (see `heatsThroughNight`), if there is one, however much nearer another
+ * powered Structure is; otherwise beside the nearest powered Structure, as
+ * it would without a parking area. A Work Order that nobody has claimed
+ * goes once what it parks no longer needs parking, is given other work or,
+ * if it is for a bay, once that network can't keep heaters on; one a
  * Robot has claimed goes only if what it parks breaks or its Structure can
  * no longer take a plug.
  */
@@ -97,11 +102,25 @@ export function planParking(state: CampaignState): void {
   const sockets = powerSockets(state, networks);
   const stillPowered = (parking: ParkingState) =>
     sockets.some((structure) => structure.id === parking.structureId);
+  // The parking areas whose bays are used, worked out only when parking.
+  const keepsWarm = heatsThroughNight(state);
+  const bayAreas = parkingTime
+    ? sockets.filter(
+        (structure) => baysOf(structure).length > 0 && keepsWarm(structure),
+      )
+    : [];
   state.parking = state.parking.filter((parking) => {
     const driven = findDriven(state, parking.target);
     if (driven === undefined || isDrivenBroken(driven)) return false;
     if (!stillPowered(parking)) return false;
-    return isBeingParked(state, parking.target) ? true : needsParking(driven);
+    if (isBeingParked(state, parking.target)) return true;
+    // One for a bay goes once its parking area can't keep heaters on, so
+    // that it is raised again beside the nearest powered Structure.
+    return (
+      needsParking(driven) &&
+      (parking.bayIndex === undefined ||
+        bayAreas.some((area) => area.id === parking.structureId))
+    );
   });
   for (const driven of everyDriven(state)) {
     const target = drivenTarget(driven);
@@ -112,7 +131,7 @@ export function planParking(state: CampaignState): void {
       continue;
     }
     const body = bodyOf(driven);
-    const bay = nearestFreeBay(state, sockets, body.position);
+    const bay = nearestFreeBay(state, bayAreas, body.position);
     if (bay !== undefined) {
       state.parking.push({
         target,
@@ -178,19 +197,68 @@ function baysOf(structure: StructureState): Bay[] {
 }
 
 /**
- * The free bay nearest a position, on a parking area that can take a plug
- * (see `powerSockets`): one no park Work Order is taking anything to and
- * nothing stands in. The earlier parking area, and the earlier bay on it,
- * wins a tie, so the choice is always the same.
+ * Says whether a powered Structure's network can keep heaters on through
+ * the Night ahead: whether its battery banks, with what they hold and what
+ * its solar arrays still make before Night falls, would carry everything
+ * on it, and the heater of every Machine and Rover that isn't Broken, as
+ * they may all be parked on it, through to the end of the Night (see
+ * `minutesUntilEmpty`). A network with no battery bank never can. Each
+ * network is worked out once, when it is first asked about.
+ */
+function heatsThroughNight(
+  state: CampaignState,
+): (structure: StructureState) => boolean {
+  const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
+  const { daylight, lunation: whole } = lunationMinutes(catalogue.lunation);
+  const untilNightEnds =
+    lunation.minutesRemaining +
+    (lunation.part === "daylight" ? whole - daylight : 0);
+  let networks: PowerNetwork[] | undefined;
+  const answers = new Map<PowerNetwork, boolean>();
+  return (structure) => {
+    networks ??= powerNetworks(state);
+    const network = networks.find((candidate) =>
+      candidate.structures.includes(structure),
+    );
+    if (network === undefined) return false;
+    const known = answers.get(network);
+    if (known !== undefined) return known;
+    const heaters = everyDriven(state)
+      .filter(
+        (driven) =>
+          !isDrivenBroken(driven) &&
+          !network.heated.some((heated) => bodyOf(heated) === bodyOf(driven)),
+      )
+      .reduce((sum, driven) => sum + drivenSpec(driven).heaterKilowatts, 0);
+    const empty = minutesUntilEmpty(
+      {
+        ...network,
+        nightConsumptionKilowatts: network.nightConsumptionKilowatts + heaters,
+      },
+      state.elapsedMinutes,
+    );
+    const answer =
+      network.storageCapacityKilowattHours > 0 &&
+      (empty === undefined || empty >= untilNightEnds);
+    answers.set(network, answer);
+    return answer;
+  };
+}
+
+/**
+ * The free bay nearest a position, on the given parking areas: one no park
+ * Work Order is taking anything to and nothing stands in. The earlier
+ * parking area, and the earlier bay on it, wins a tie, so the choice is
+ * always the same.
  */
 function nearestFreeBay(
   state: CampaignState,
-  sockets: readonly StructureState[],
+  areas: readonly StructureState[],
   from: GroundPosition,
 ): Bay | undefined {
   const standing = everyDriven(state).map((driven) => bodyOf(driven).position);
   let nearest: Bay | undefined;
-  for (const bay of sockets.flatMap(baysOf)) {
+  for (const bay of areas.flatMap(baysOf)) {
     const free =
       !state.parking.some(
         (parking) =>

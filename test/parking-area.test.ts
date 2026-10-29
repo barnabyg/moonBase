@@ -8,7 +8,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { describeParking, formatParkingPlace } from "../src/ui/format";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
 
 // Dust wears nothing down, so that only parking moves the Machines and the
 // Rover about, and the starting stock holds a parking area's bay sockets.
@@ -23,7 +23,10 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 const arraySite: GroundPosition = { x: 20, y: 12 };
-const bankSite: GroundPosition = { x: -30, y: 4 };
+const bankSites: readonly GroundPosition[] = [
+  { x: -30, y: 4 },
+  { x: -36, y: 4 },
+];
 /**
  * Further from the regolith printer and the Rover than the battery bank
  * and the solar array, which they would otherwise be parked beside.
@@ -77,14 +80,37 @@ function bayAt(area: StructureSnapshot, position: GroundPosition) {
   return index === -1 ? undefined : index;
 }
 
-/** A solar array and a battery bank cabled to it, and a parking area. */
+/**
+ * A solar array with the two battery banks it takes to carry everything
+ * on it, and the heaters of both Machines and the Rover, through a Night.
+ */
+function poweredBase(): Scenario {
+  const game = scenario().plan("solar-array", arraySite);
+  for (const site of bankSites) game.plan("battery-bank", site);
+  return game;
+}
+
+/** A powered base and a parking area, all cabled together. */
 function baseWithParkingArea(): Scenario {
-  return buildAll(
-    scenario()
-      .plan("solar-array", arraySite)
-      .plan("battery-bank", bankSite)
-      .plan("parking-area", parkingSite),
-  );
+  return buildAll(poweredBase().plan("parking-area", parkingSite));
+}
+
+/** The parts of a save document's simulation state these tests change. */
+interface SavedState {
+  structures: { id: string; storedKilowattHours: number }[];
+  cables: { fromStructureId: string; toStructureId: string }[];
+}
+
+/** The Campaign as saved, changed as given, then loaded. */
+function changedSave(
+  campaign: Campaign,
+  change: (state: SavedState) => void,
+): Scenario {
+  const document = JSON.parse(campaign.save()) as { state: SavedState };
+  change(document.state);
+  const loaded = loadCampaign(JSON.stringify(document));
+  if (!loaded.ok) throw new Error(loaded.message);
+  return scenarioOf(loaded.campaign);
 }
 
 /**
@@ -159,9 +185,7 @@ describe("a parking area", () => {
   });
 
   it("isn't parked in before it is commissioned: parking is beside the nearest powered Structure, as without one", () => {
-    const game = buildAll(
-      scenario().plan("solar-array", arraySite).plan("battery-bank", bankSite),
-    );
+    const game = buildAll(poweredBase());
     untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
     game.plan("parking-area", parkingSite);
     game.advance({ minutes: 1 });
@@ -251,5 +275,59 @@ describe("a parking area", () => {
     );
     const held = after.state.parking.map((order) => order.bayIndex);
     expect(new Set(held).size).toBe(held.length);
+  });
+});
+
+describe("a parking area that can't keep heaters on through the Night", () => {
+  /** The park Work Orders raised in the first game-minute of parking. */
+  function ordersRaised(game: Scenario): Snapshot["parking"] {
+    game.advance({ minutes: 1 });
+    expect(game.state.parking.length).toBeGreaterThan(0);
+    return game.state.parking;
+  }
+
+  it("on a network with a solar array but no battery bank, takes nothing: parking is beside the nearest powered Structure, as without one", () => {
+    const built = baseWithParkingArea();
+    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    const banks = built.state.structures
+      .filter((s) => s.structureTypeId === "battery-bank")
+      .map((s) => s.id);
+    const arrayId = structure(built.state, "solar-array").id;
+    const areaId = structure(built.state, "parking-area").id;
+    // The battery banks cut off from the solar array, and the parking area
+    // cabled to the solar array alone.
+    const game = changedSave(built.campaign, (state) => {
+      state.cables = state.cables.filter(
+        (cable) => !banks.includes(cable.toStructureId),
+      );
+      for (const cable of state.cables) {
+        if (cable.toStructureId === areaId) cable.fromStructureId = arrayId;
+      }
+    });
+    const area = structure(game.state, "parking-area");
+    const network = game.state.power.networks.find((candidate) =>
+      candidate.structureIds.includes(area.id),
+    );
+    expect(network?.storageCapacityKilowattHours).toBe(0);
+
+    const orders = ordersRaised(game);
+    expect(orders.map((order) => order.inBay)).not.toContain(true);
+    expect(orders.map((order) => order.structureTypeId)).not.toContain(
+      "parking-area",
+    );
+  });
+
+  it("on a network whose battery banks are flat, takes nothing: parking is beside the nearest powered Structure, as without one", () => {
+    const built = baseWithParkingArea();
+    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    const game = changedSave(built.campaign, (state) => {
+      for (const s of state.structures) s.storedKilowattHours = 0;
+    });
+
+    const orders = ordersRaised(game);
+    expect(orders.map((order) => order.inBay)).not.toContain(true);
+    expect(orders.map((order) => order.structureTypeId)).not.toContain(
+      "parking-area",
+    );
   });
 });
