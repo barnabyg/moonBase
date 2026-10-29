@@ -171,8 +171,6 @@ function frame(time: number): void {
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
-  // Once every panel has updated, so that they are measured together.
-  holds.refresh();
   renderer?.render({
     current: snapshot,
     previous: loop.previous,
@@ -180,6 +178,9 @@ function frame(time: number): void {
   });
   // Beside where the Structure has just been drawn.
   structurePopUp?.update(snapshot);
+  // Once every panel and the pop-up have updated, so that they are
+  // measured together.
+  holds.refresh();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

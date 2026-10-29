@@ -27,9 +27,14 @@ export function nextHeldHeight(
     : heldPx;
 }
 
-/** Marks a panel line, or a whole panel, to be held in place by {@link createHolds}. */
-export function holdHeight(element: HTMLElement): void {
-  element.dataset["hold"] = "";
+/**
+ * Marks a panel line, or a whole panel, to be held in place by
+ * {@link createHolds}, for what it shows: given something else to show,
+ * such as a pop-up switched to another Structure, it lets go and is held
+ * afresh.
+ */
+export function holdHeight(element: HTMLElement, showing = ""): void {
+  element.dataset["hold"] = showing;
 }
 
 /** What {@link createHolds} needs of the page: the elements under it. */
@@ -62,25 +67,38 @@ export interface Holds {
  * it.
  */
 export function createHolds(root: HeldRoot): Holds {
-  let holds = new WeakMap<HTMLElement, number>();
+  /** The height each line is held at, and what it was showing then. */
+  let holds = new WeakMap<HTMLElement, { showing: string; px: number }>();
   let elements: HTMLElement[] = [];
   return {
     refresh() {
       elements = [...root.querySelectorAll<HTMLElement>("[data-hold]")];
+      // One given something else to show lets go first, to be measured as
+      // it needs.
+      for (const element of elements) {
+        const held = holds.get(element);
+        if (held !== undefined && held.showing !== element.dataset["hold"]) {
+          holds.delete(element);
+          element.style.minHeight = "";
+        }
+      }
       const shown = elements.map((element) =>
         element.getClientRects().length === 0
           ? undefined
           : element.getBoundingClientRect().height,
       );
       elements.forEach((element, index) => {
-        const held = holds.get(element);
+        const held = holds.get(element)?.px;
         const next = nextHeldHeight(held, shown[index]);
         if (next === held) return;
         if (next === undefined) {
           holds.delete(element);
           element.style.minHeight = "";
         } else {
-          holds.set(element, next);
+          holds.set(element, {
+            showing: element.dataset["hold"] ?? "",
+            px: next,
+          });
           element.style.minHeight = `${next}px`;
         }
       });

@@ -116,6 +116,22 @@ describe("the holds on the page", () => {
     expect(line.getBoundingClientRect().height).toBe(20);
   });
 
+  it("lets a line go once it is given something else to show, such as a pop-up switched to another Structure", () => {
+    const line = new FakeLine();
+    line.dataset["hold"] = "structure-1";
+    const holds = createHolds(fakeRoot([line]));
+    line.needed = 40;
+    holds.refresh();
+    line.needed = 20;
+    holds.refresh();
+    expect(line.getBoundingClientRect().height).toBe(40);
+
+    line.dataset["hold"] = "structure-2";
+    holds.refresh();
+
+    expect(line.getBoundingClientRect().height).toBe(20);
+  });
+
   it("lets every line go when it starts afresh, for a Campaign loaded in place of the last", () => {
     const line = new FakeLine();
     const holds = createHolds(fakeRoot([line]));

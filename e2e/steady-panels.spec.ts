@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { placeOnClearGround } from "./placement";
 
 // The smallest screen the panels are laid out for.
 test.use({ viewport: { width: 1920, height: 1080 } });
@@ -23,6 +24,7 @@ const REGIONS = {
   Work: 'aside[aria-label="Work"]',
   Base: 'aside[aria-label="Base"]',
   Screen: "dialog[open]",
+  "Pop-up": 'section[role="dialog"]:not([hidden])',
 };
 
 /**
@@ -82,15 +84,16 @@ const samePlace = (a: Place | undefined, b: Place): boolean =>
     Math.abs(a - b) <= TOLERANCE_PX);
 
 /**
- * Loads a sample save and runs it at the fastest game speed with the player
- * doing nothing, checking once a frame that no row goes back to a place it
- * has left, or comes back after going, over some game-hours. It is all
- * counted in game time, so that a slow machine plays the same game. Returns
- * every text the row to watch showed meanwhile.
+ * Loads a sample save, or starts a new Campaign, and runs it at the fastest
+ * game speed with the player doing nothing, checking once a frame that no
+ * row goes back to a place it has left, or comes back after going, over
+ * some game-hours. It is all counted in game time, so that a slow machine
+ * plays the same game. Returns every text the row to watch showed
+ * meanwhile.
  */
 async function watchRows(
   page: Page,
-  save: string,
+  save: string | undefined,
   watched: (page: Page) => Locator,
   /**
    * What the player does once the game runs, before leaving the base to
@@ -101,11 +104,15 @@ async function watchRows(
 ): Promise<Set<string>> {
   await page.goto("/?seed=1");
   await page.getByRole("button", { name: "Pause" }).click();
-  const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await (
-    await chooser
-  ).setFiles(fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url)));
+  if (save !== undefined) {
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Load", exact: true }).click();
+    await (
+      await chooser
+    ).setFiles(
+      fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url)),
+    );
+  }
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
     /^Earth Day \d+, \d+:00$/,
   );
@@ -204,5 +211,22 @@ test("at the fastest game speed, the Research Tasks screen's lines keep their pl
   );
 
   // The time it has left changed while it was watched.
+  expect(texts.size).toBeGreaterThan(2);
+});
+
+test("at the fastest game speed, a Structure's pop-up keeps its lines in place while it is built", async ({
+  page,
+}) => {
+  const popUp = (on: Page) => on.getByRole("dialog", { name: "Solar array" });
+  const texts = await watchRows(page, undefined, popUp, async (on) => {
+    await on
+      .getByRole("complementary", { name: "Build menu" })
+      .getByRole("button", { name: /Solar array/ })
+      .click();
+    const site = await placeOnClearGround(on);
+    await on.mouse.click(site.x, site.y);
+  });
+
+  // Its Construction went on while the pop-up was watched.
   expect(texts.size).toBeGreaterThan(2);
 });
