@@ -71,6 +71,86 @@ function createCrinkleNormalMap(): THREE.CanvasTexture | undefined {
 
 const crinkle = createCrinkleNormalMap();
 
+/** The width and height of one fold of a solar array's panel, as drawn on its texture. */
+const CELL_TEXTURE_SIZE = [512, 128] as const;
+
+/**
+ * Draws a texture for the face of one fold of a solar array's panel, or
+ * returns undefined if the browser can't draw on a canvas.
+ */
+function createCellTexture(
+  draw: (
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ) => void,
+): THREE.CanvasTexture | undefined {
+  const [width, height] = CELL_TEXTURE_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (context === null) return undefined;
+  draw(context, width, height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/**
+ * Crystalline cells in an aluminium frame: rows of deep blue cells, each a
+ * slightly different shade, on a pale backsheet that shows between them,
+ * with two silver busbars down each.
+ */
+const crystallineCells = createCellTexture((context, width, height) => {
+  const random = fixedRandom(7);
+  const frame = 6;
+  const columns = 14;
+  const rows = 4;
+  const gap = 2;
+  context.fillStyle = "#b9bcc0";
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "#d6d8d4";
+  context.fillRect(frame, frame, width - 2 * frame, height - 2 * frame);
+  const cellWidth = (width - 2 * frame - gap) / columns;
+  const cellHeight = (height - 2 * frame - gap) / rows;
+  for (let column = 0; column < columns; column++) {
+    for (let row = 0; row < rows; row++) {
+      const x = frame + gap + column * cellWidth;
+      const y = frame + gap + row * cellHeight;
+      const shade = random() * 10;
+      context.fillStyle = `rgb(${24 + shade} ${38 + shade} ${84 + shade})`;
+      context.fillRect(x, y, cellWidth - gap, cellHeight - gap);
+      context.fillStyle = "rgb(200 205 215 / 55%)";
+      for (const share of [1 / 3, 2 / 3]) {
+        context.fillRect(x + (cellWidth - gap) * share, y, 1, cellHeight - gap);
+      }
+    }
+  }
+});
+
+/**
+ * Thin-film cells: long narrow strips of film scribed across the fold, with
+ * a copper ribbon along the top and bottom that collects their current, and
+ * no frame.
+ */
+const thinFilmCells = createCellTexture((context, width, height) => {
+  const random = fixedRandom(11);
+  const ribbon = 4;
+  context.fillStyle = "#2b2228";
+  context.fillRect(0, 0, width, height);
+  const strip = 6;
+  for (let x = 2; x < width - 2; x += strip) {
+    const shade = random() * 8;
+    context.fillStyle = `rgb(${76 + shade} ${52 + shade} ${66 + shade})`;
+    context.fillRect(x, ribbon + 2, strip - 1, height - 2 * (ribbon + 2));
+  }
+  context.fillStyle = "#a8683c";
+  context.fillRect(0, 1, width, ribbon);
+  context.fillRect(0, height - ribbon - 1, width, ribbon);
+});
+
 export const materials = {
   foil: new THREE.MeshStandardMaterial({
     color: 0xc8a13a,
@@ -162,11 +242,19 @@ export const materials = {
     emissive: 0xfff0d0,
     emissiveIntensity: 1.2,
   }),
+  // The face of one fold of a solar array: framed crystalline cells under glass.
   solarCell: new THREE.MeshStandardMaterial({
-    color: 0x1d2b4f,
-    metalness: 0.6,
+    ...(crystallineCells === undefined
+      ? { color: 0x1d2b4f }
+      : { color: 0xffffff, map: crystallineCells }),
+    metalness: 0.45,
     roughness: 0.25,
-    side: THREE.DoubleSide,
+  }),
+  // The pale polymer backsheet on the back of a solar array's panel.
+  backsheet: new THREE.MeshStandardMaterial({
+    color: 0xc9cbc6,
+    metalness: 0.05,
+    roughness: 0.7,
   }),
   machinePaint: new THREE.MeshStandardMaterial({
     color: 0xd9a520,
@@ -221,10 +309,17 @@ export const materials = {
   // Thin-film solar cells on a flexible backing: a dull bronze-violet,
   // less glassy than the crystalline cells of a solar array.
   thinFilmCell: new THREE.MeshStandardMaterial({
-    color: 0x4a3340,
+    ...(thinFilmCells === undefined
+      ? { color: 0x4a3340 }
+      : { color: 0xffffff, map: thinFilmCells }),
     metalness: 0.35,
     roughness: 0.45,
-    side: THREE.DoubleSide,
+  }),
+  // The flexible backing behind thin-film cells: a dark grey polymer.
+  filmBacking: new THREE.MeshStandardMaterial({
+    color: 0x45474b,
+    metalness: 0.1,
+    roughness: 0.8,
   }),
   // Regolith fused by heat as the regolith printer lays it: darker than
   // printed Regolith, with a faint glassy sheen.
@@ -308,7 +403,7 @@ export function lightWindow(
 
 export function part(
   geometry: THREE.BufferGeometry,
-  material: THREE.Material,
+  material: THREE.Material | THREE.Material[],
   position: [number, number, number],
 ): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, material);
