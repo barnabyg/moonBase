@@ -1,9 +1,10 @@
 import { catalogue, type StructureType } from "../catalogue";
-import type {
-  ConstructionSnapshot,
-  DismantlingSnapshot,
-  Snapshot,
-  StructureSnapshot,
+import {
+  habitatDoseRate,
+  type ConstructionSnapshot,
+  type DismantlingSnapshot,
+  type Snapshot,
+  type StructureSnapshot,
 } from "../simulation";
 import { designOf } from "./describe";
 import {
@@ -264,21 +265,21 @@ function habitatLines(
   structureId: string,
   structure: StructureSnapshot | undefined,
 ): DetailLine[] {
-  const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
   const shielding = [
     ...(structure?.shielded === true ? ["Regolith shielding"] : []),
     ...(structure?.waterWalled === true ? ["a water wall"] : []),
   ];
-  const usual =
-    structure?.waterWalled === true
-      ? rates.waterWalledHabitat
-      : structure?.shielded === true
-        ? rates.shieldedHabitat
-        : rates.habitat;
   const event = snapshot.solarParticleEvent;
   const multiplier =
     event?.state === "under-way" ? event.doseRateMultiplier : 1;
-  const value = `${(usual * multiplier).toFixed(2)} mSv a day`;
+  const rate = habitatDoseRate(
+    {
+      shielded: structure?.shielded === true,
+      waterWalled: structure?.waterWalled === true,
+    },
+    multiplier,
+  );
+  const value = `${rate.toFixed(2)} mSv a day`;
   return [
     {
       label: "Residents",

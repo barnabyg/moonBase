@@ -93,30 +93,46 @@ export function absorbRadiationDose(
 /**
  * The dose rate where the Mission Director lives in the game-minute
  * starting at the given minute, in millisieverts an Earth Day, while they
- * are alive: less in a Habitat once it is shielded, less again once it is
- * water-walled, and multiplied during a Solar Particle Event.
+ * are alive: none aboard the Lander, and in a Habitat as `habitatDoseRate`
+ * says.
  */
 function doseRate(state: CampaignState, minute: number): number {
   if (state.ended !== undefined) return 0;
-  const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
   const { missionDirector } = state;
-  const habitat =
-    missionDirector.residence === "habitat"
-      ? state.structures.find(
-          (structure) => structure.id === missionDirector.habitatId,
-        )
-      : undefined;
-  const usual =
-    missionDirector.residence === "lander"
-      ? rates.lander
-      : habitat === undefined
-        ? rates.habitat
-        : isWaterWalled(state, habitat)
-          ? rates.waterWalledHabitat
-          : isShielded(state, habitat)
-            ? rates.shieldedHabitat
-            : rates.habitat;
-  return usual * doseRateMultiplier(state, minute);
+  const multiplier = doseRateMultiplier(state, minute);
+  if (missionDirector.residence === "lander") {
+    return (
+      catalogue.radiation.doseRateMillisievertsPerEarthDay.lander * multiplier
+    );
+  }
+  const habitat = state.structures.find(
+    (structure) => structure.id === missionDirector.habitatId,
+  );
+  return habitatDoseRate(
+    {
+      shielded: habitat !== undefined && isShielded(state, habitat),
+      waterWalled: habitat !== undefined && isWaterWalled(state, habitat),
+    },
+    multiplier,
+  );
+}
+
+/**
+ * The dose rate inside a Habitat, in millisieverts an Earth Day: less once
+ * it is shielded, less again once it is water-walled, and multiplied
+ * during a Solar Particle Event by the given multiplier.
+ */
+export function habitatDoseRate(
+  habitat: { readonly shielded: boolean; readonly waterWalled: boolean },
+  solarParticleEventMultiplier: number,
+): number {
+  const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
+  const usual = habitat.waterWalled
+    ? rates.waterWalledHabitat
+    : habitat.shielded
+      ? rates.shieldedHabitat
+      : rates.habitat;
+  return usual * solarParticleEventMultiplier;
 }
 
 /**
