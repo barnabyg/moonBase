@@ -8,6 +8,7 @@ import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import { MACHINE_SEAT_HEIGHT } from "./models";
 import {
   createRobotModel,
+  HIP_HEIGHT,
   type RobotModel,
   type RobotPose,
 } from "./robot-model";
@@ -16,8 +17,6 @@ import {
 const STRIDE_METRES = 1.4;
 /** How fast working movements repeat, in cycles per real second. */
 const WORK_CYCLES_PER_SECOND = 1.2;
-/** The height of the Robot's hips above its feet, where it bends to sit. */
-const HIP_HEIGHT = 0.86;
 
 interface RobotView {
   readonly model: RobotModel;

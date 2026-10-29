@@ -2253,8 +2253,8 @@ export function createRoverModel(): RoverModel {
       [0, MACHINE_SEAT_HEIGHT + 0.3, -0.17],
     ),
     createRoverRails(),
-    ...createRoverConsole(),
-    ...createRoverBattery(),
+    createRoverConsole(),
+    createRoverBattery(),
     createRoverDish(),
   );
   return { group: rover };
@@ -2383,16 +2383,35 @@ function createRoverFenders(): THREE.BufferGeometry {
 }
 
 /**
+ * The posts that hold up a Rover's console, one either side of the seated
+ * Robot's legs: how far out from the middle, how far forward, and how high.
+ */
+const ROVER_CONSOLE_POSTS = { across: 0.26, forward: 0.82, top: 1.33 } as const;
+
+/**
  * A Rover's dark metal fittings, merged into one geometry: the radio mast
- * with a clamp at its top, the whip antenna on its spring, and the
- * headlights' housings.
+ * with a clamp at its top, the whip antenna on its spring, the console's
+ * posts and the headlights' housings.
  */
 function createRoverFittings(): THREE.BufferGeometry {
   const [mastX, mastZ] = ROVER_MAST_AT;
   const mastTop = 1.74;
   const whipBase = ROVER_DECK + 0.12;
   const whipLength = 1.4;
+  const posts = ROVER_CONSOLE_POSTS;
   return merged([
+    ...[-1, 1].map((side) =>
+      new THREE.CylinderGeometry(
+        0.025,
+        0.025,
+        posts.top - ROVER_DECK,
+        8,
+      ).translate(
+        side * posts.across,
+        (posts.top + ROVER_DECK) / 2,
+        posts.forward,
+      ),
+    ),
     new THREE.CylinderGeometry(0.03, 0.03, mastTop - ROVER_DECK, 8).translate(
       mastX,
       (mastTop + ROVER_DECK) / 2,
@@ -2455,47 +2474,50 @@ function createRoverRails(): THREE.Mesh {
 }
 
 /**
- * The console in front of a Rover's seat: a dark panel on a post, tilted
- * towards the Robot, with a lit display on it.
+ * The console in front of a Rover's seat: a dark panel tilted towards the
+ * Robot, with a lit display on it, held up on `ROVER_CONSOLE_POSTS`. It
+ * stands over the Robot's feet and below its hands as it drives, so that
+ * neither goes through it.
  */
-function createRoverConsole(): THREE.Mesh[] {
+function createRoverConsole(): THREE.Group {
   const tilt = -0.6;
-  const panel = point(0, 1.15, 0.7);
+  const panel = point(0, 1.38, 0.78);
   const display = panel
     .clone()
     .addScaledVector(point(0, Math.cos(tilt), Math.sin(tilt)), 0.022);
-  return [
+  const controls = new THREE.Group();
+  controls.name = "Console";
+  controls.add(
     part(
-      merged([
-        boxAt(0.1, 0.42, 0.08, [0, ROVER_DECK + 0.21, 0.74]),
-        new THREE.BoxGeometry(0.46, 0.04, 0.26)
-          .rotateX(tilt)
-          .translate(panel.x, panel.y, panel.z),
-      ]),
+      new THREE.BoxGeometry(0.46, 0.04, 0.26).rotateX(tilt),
       materials.darkMetal,
-      [0, 0, 0],
+      [panel.x, panel.y, panel.z],
     ),
     part(
       new THREE.BoxGeometry(0.24, 0.01, 0.13).rotateX(tilt),
       materials.sensorGlow,
       [display.x, display.y, display.z],
     ),
-  ];
+  );
+  return controls;
 }
 
 /**
  * The battery a Rover runs on, at its front: a foil-wrapped box marked in
  * orange as high voltage, with a white finned radiator on top to shed its
- * heat, and the headlights' lamps in front.
+ * heat, and the headlights' lamps in front. It starts just in front of
+ * where the seated Robot's feet reach.
  */
-function createRoverBattery(): THREE.Mesh[] {
+function createRoverBattery(): THREE.Group {
   const width = 0.9;
   const height = 0.3;
-  const depth = 0.38;
-  const z = 1.02;
+  const depth = 0.28;
+  const z = 1.07;
   const top = ROVER_DECK + height;
   const fins = 9;
-  return [
+  const battery = new THREE.Group();
+  battery.name = "Battery";
+  battery.add(
     part(new THREE.BoxGeometry(width, height, depth), materials.foil, [
       0,
       ROVER_DECK + height / 2,
@@ -2529,7 +2551,8 @@ function createRoverBattery(): THREE.Mesh[] {
       materials.lamp,
       [0, 0, 0],
     ),
-  ];
+  );
+  return battery;
 }
 
 /**

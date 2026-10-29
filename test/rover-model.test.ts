@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { catalogue } from "../src/catalogue";
 
 // The materials draw their textures on a canvas when they load; under Node
@@ -10,15 +10,52 @@ vi.stubGlobal("document", {
 });
 
 let models: typeof import("../src/render/models");
+let robots: typeof import("../src/render/robot-model");
 
 beforeAll(async () => {
   models = await import("../src/render/models");
+  robots = await import("../src/render/robot-model");
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 
 /** The box round everything in a model, in the model's own frame. */
 function boundsOf(object: THREE.Object3D): THREE.Box3 {
   object.updateMatrixWorld(true);
   return new THREE.Box3().setFromObject(object, true);
+}
+
+/** The box round each part of a model that shows, each in the model's frame. */
+function partBounds(object: THREE.Object3D): THREE.Box3[] {
+  object.updateMatrixWorld(true);
+  const boxes: THREE.Box3[] = [];
+  object.traverseVisible((child) => {
+    if (child instanceof THREE.Mesh) {
+      boxes.push(new THREE.Box3().setFromObject(child, true));
+    }
+  });
+  return boxes;
+}
+
+/**
+ * The Robot as it drives a Rover: sitting at the seat's height over the
+ * Rover's middle, facing the same way, with its arms forward at the top of
+ * their swing.
+ */
+function driver(): THREE.Group {
+  const robot = robots.createRobotModel();
+  robot.pose({
+    legSwing: 0,
+    seated: true,
+    leftArm: 1,
+    rightArm: 1,
+    lean: 0.1,
+    carrying: false,
+  });
+  robot.group.position.y = models.MACHINE_SEAT_HEIGHT - robots.HIP_HEIGHT;
+  return robot.group;
 }
 
 describe("the Rover's model", () => {
@@ -41,4 +78,20 @@ describe("the Rover's model", () => {
     if (seat === undefined) return;
     expect(boundsOf(seat).max.y).toBeCloseTo(models.MACHINE_SEAT_HEIGHT, 3);
   });
+
+  it.each(["Console", "Battery"])(
+    "keeps its %s clear of the seated Robot's legs and arms",
+    (name) => {
+      const fitting = models.createRoverModel().group.getObjectByName(name);
+      expect(fitting).toBeDefined();
+      if (fitting === undefined) return;
+      const robotParts = partBounds(driver());
+
+      const clashes = partBounds(fitting).flatMap((box) =>
+        robotParts.filter((part) => part.intersectsBox(box)),
+      );
+
+      expect(clashes).toEqual([]);
+    },
+  );
 });
