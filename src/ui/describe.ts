@@ -2,6 +2,7 @@ import {
   catalogue,
   type Design,
   type LaunchItem,
+  type PlantRecipe,
   type ResourceFlow,
   type StructureType,
 } from "../catalogue";
@@ -23,19 +24,56 @@ import {
 /** How every Plant gets its power, which the player has to plan around. */
 const PLANTS_AT_NIGHT = `Like every Plant, it works in batches of an hour: it starts one once it has an hour's worth of each input, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle: keep enough of what it makes to last the Night.`;
 
+const generates = (kilowatts: number) =>
+  `generates ${kilowatts} kW in Daylight`;
+const stores = (kilowattHours: number) => `stores ${kilowattHours} kWh`;
+/** What a Night load draws: a light while it is on, or a telescope while it observes. */
+const drawsAtNight = ({ power, telescope }: StructureType) =>
+  telescope === true
+    ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
+    : `draws ${power.nightDrawKilowatts} kW while its light is on`;
+const drawsWhileRunning = (kilowatts: number) =>
+  `draws ${kilowatts} kW while it runs`;
+const drawsAllTheTime = (kilowatts: number) =>
+  `draws ${kilowatts} kW all the time`;
+
+/**
+ * What a Structure is rated to generate, store and draw, in the data
+ * catalogue's figures, in the words the build menu and the Guide use: for
+ * a Plant, what the recipe given draws while it runs. Empty if it needs no
+ * power.
+ */
+export function powerRatings(
+  type: StructureType,
+  recipe: PlantRecipe | undefined,
+): string[] {
+  const { power } = type;
+  return [
+    ...(power.generationKilowatts > 0
+      ? [generates(power.generationKilowatts)]
+      : []),
+    ...(power.storageKilowattHours > 0
+      ? [stores(power.storageKilowattHours)]
+      : []),
+    ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
+    ...(recipe === undefined ? [] : [drawsWhileRunning(recipe.drawKilowatts)]),
+    ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
+  ];
+}
+
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {
   const { power } = type;
   const facts = [
     ...(power.generationKilowatts > 0
-      ? [`generates ${power.generationKilowatts} kW in Daylight`]
+      ? [generates(power.generationKilowatts)]
       : []),
     ...(power.storageKilowattHours > 0
-      ? [`stores ${power.storageKilowattHours} kWh`]
+      ? [stores(power.storageKilowattHours)]
       : []),
     ...(type.lightRadiusMetres > 0
       ? [
-          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
+          `lights the ground ${type.lightRadiusMetres} m round it at Night, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
     ...(type.habitat ? ["the Mission Director can move into it"] : []),
@@ -57,16 +95,15 @@ export function describeStructure(type: StructureType): string {
         ]),
     ...(type.recipes ?? []).map(
       (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, for ${recipe.drawKilowatts} kW while it runs`,
+        `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
     ),
     ...(type.telescope === true
       ? [
-          `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, for ${power.nightDrawKilowatts} kW while it observes and nothing in Daylight, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
+          `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
-    ...(power.drawKilowatts > 0
-      ? [`draws ${power.drawKilowatts} kW all the time`]
-      : []),
+    ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
+    ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
   return [

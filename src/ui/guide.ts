@@ -243,6 +243,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       paragraphs: [
         "You are the Mission Director. You decide what to build and what each Launch brings from Earth; the Robot does all the work by itself.",
         "Pick a Structure in the build menu and click the map to plan it. The Robot fetches its Components from the stockpile, a Machine prepares the site, and the Robot assembles it, lays it a power cable and commissions it. The Work panel shows what it is doing.",
+        "Click a Structure on the map, built or not, to see what it is doing in a pop-up beside it, with the same choices as the Base panel. Click empty ground or press Esc to close it; dragging moves the camera instead.",
         "The Milestones at the top of the status panel say what to do next. Click a section's title to fold it away: its headline figures stay beside the title.",
       ],
     },

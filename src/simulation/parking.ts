@@ -4,6 +4,7 @@ import {
   chooseParkingSpot,
   distance,
   findStructureType,
+  type Footing,
   type StructureState,
 } from "./construction";
 import {
@@ -113,7 +114,7 @@ export function planParking(state: CampaignState): void {
       daylight &&
       idle(driven) &&
       plugs.has(id) &&
-      everyBay.every((bay) => distance(position, bay.position) >= bay.radius)
+      !everyBay.some((bay) => standsIn(bay, position))
     );
   };
   const sockets = powerSockets(state, networks);
@@ -210,17 +211,52 @@ interface Bay {
 
 /** The bays of a Structure, in the data catalogue's order, or none if it isn't a parking area. */
 function baysOf(structure: StructureState): Bay[] {
-  const bays = findStructureType(structure.structureTypeId)?.parking;
-  if (bays === undefined) return [];
-  return bays.bayOffsets.map((offset, index) => ({
+  return bayPlaces(structure).map((place, index) => ({
     structure,
     index,
+    ...place,
+  }));
+}
+
+/** Where each of a parking area's bays is, in the data catalogue's order; none for anything else. */
+function bayPlaces(
+  area: Pick<Footing, "structureTypeId" | "position">,
+): Pick<Bay, "position" | "radius">[] {
+  const bays = findStructureType(area.structureTypeId)?.parking;
+  if (bays === undefined) return [];
+  return bays.bayOffsets.map((offset) => ({
     position: {
-      x: structure.position.x + offset.x,
-      y: structure.position.y + offset.y,
+      x: area.position.x + offset.x,
+      y: area.position.y + offset.y,
     },
     radius: bays.bayRadiusMetres,
   }));
+}
+
+/** Whether something standing at a point is in a bay: within its radius of its centre. */
+function standsIn(
+  bay: Pick<Bay, "position" | "radius">,
+  position: GroundPosition,
+): boolean {
+  return distance(position, bay.position) < bay.radius;
+}
+
+/**
+ * How many bays a parking area has, and how many of them have a Machine
+ * or Rover standing in them, given where every one stands. None for
+ * anything else.
+ */
+export function baysTaken(
+  area: Pick<Footing, "structureTypeId" | "position">,
+  standing: readonly GroundPosition[],
+): { readonly taken: number; readonly bays: number } {
+  const places = bayPlaces(area);
+  return {
+    taken: places.filter((bay) =>
+      standing.some((position) => standsIn(bay, position)),
+    ).length,
+    bays: places.length,
+  };
 }
 
 /**
@@ -294,7 +330,7 @@ function nearestFreeBay(
           parking.structureId === bay.structure.id &&
           parking.bayIndex === bay.index,
       ) &&
-      standing.every((other) => distance(other, bay.position) >= bay.radius);
+      !standing.some((other) => standsIn(bay, other));
     if (
       free &&
       (nearest === undefined ||

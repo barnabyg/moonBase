@@ -1,13 +1,15 @@
 import type { Page } from "@playwright/test";
+import type { ScreenPoint } from "../src/render/renderer";
 
 /**
  * Moves the pointer over the 3D view until the build menu says the
  * Structure may be placed there, then clicks to place it, and checks that it
  * was planned. The game is paused meanwhile, at whatever speed it was, as a
  * Machine driving onto the spot between the pointer reaching it and the
- * click would have the click refused.
+ * click would have the click refused. Returns where on the screen it clicked,
+ * in page pixels.
  */
-export async function placeOnClearGround(page: Page): Promise<void> {
+export async function placeOnClearGround(page: Page): Promise<ScreenPoint> {
   const box = await page.locator("canvas").boundingBox();
   if (box === null) throw new Error("The 3D view has no size.");
   const speeds = page.getByRole("group", { name: "Game speed" });
@@ -35,7 +37,7 @@ export async function placeOnClearGround(page: Page): Promise<void> {
       const result = (await placement.textContent()) ?? "";
       if (/ planned\. /.test(result)) {
         await speeds.getByRole("button", { name: speed, exact: true }).click();
-        return;
+        return { x, y };
       }
       refusals.push(result);
     } else {

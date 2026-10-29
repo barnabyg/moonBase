@@ -147,10 +147,18 @@ export interface Footing {
   readonly position: GroundPosition;
 }
 
+/**
+ * Lists of everything with a Structure's footprint, such as a Campaign's
+ * state or its snapshot.
+ */
+export interface Footings {
+  readonly structures: readonly Footing[];
+  readonly constructions: readonly Footing[];
+  readonly dismantlings: readonly Footing[];
+}
+
 /** Everything with a Structure's footprint: Structures, Constructions and Structures being dismantled. */
-export function footings(
-  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
-): Footing[] {
+export function footings(site: Footings): Footing[] {
   return [...site.structures, ...site.constructions, ...site.dismantlings];
 }
 
@@ -280,7 +288,7 @@ function checkWaterWallPlacement(
  * or being dismantled, if there is any.
  */
 export function waterWallOver(
-  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
+  site: Footings,
   habitat: Footing,
 ): Footing | undefined {
   return footings(site).find((footing) => isWaterWallOver(footing, habitat));
@@ -316,10 +324,26 @@ function isWaterWallOver(footing: Footing, habitat: Footing): boolean {
  * Construction or being dismantled, if there is any.
  */
 export function shieldingOver(
-  site: Pick<Site, "structures" | "constructions" | "dismantlings">,
+  site: Footings,
   habitat: Footing,
 ): Footing | undefined {
   return footings(site).find((footing) => isShieldingOver(footing, habitat));
+}
+
+/**
+ * The Habitat that Regolith shielding or a water wall stands over, whether
+ * commissioned, under Construction or being dismantled; undefined for
+ * anything else.
+ */
+export function habitatUnder(
+  site: Footings,
+  cover: Footing,
+): Footing | undefined {
+  return footings(site).find(
+    (footing) =>
+      findStructureType(footing.structureTypeId)?.habitat === true &&
+      (isShieldingOver(cover, footing) || isWaterWallOver(cover, footing)),
+  );
 }
 
 /**

@@ -173,6 +173,14 @@ export function formatPower(power: Snapshot["power"]): Stat {
   };
 }
 
+/** Says how much energy is stored out of how much there is room for, for example "42.0 / 60.0 kWh". */
+export function formatCharge(
+  storedKilowattHours: number,
+  capacityKilowattHours: number,
+): string {
+  return `${storedKilowattHours.toFixed(1)} / ${kilowattHours(capacityKilowattHours)}`;
+}
+
 /**
  * Says how much energy the base has stored and when it will run out, for
  * example "42.0 / 60.0 kWh" and "lasts 8d 8h", with how full its battery
@@ -187,7 +195,7 @@ export function formatStoredPower(
   const capacity = total((network) => network.storageCapacityKilowattHours);
   if (capacity === 0) return { value: "no battery banks", fraction: undefined };
   const storedKilowattHours = total((network) => network.storedKilowattHours);
-  const value = `${storedKilowattHours.toFixed(1)} / ${kilowattHours(capacity)}`;
+  const value = formatCharge(storedKilowattHours, capacity);
   const fraction = storedKilowattHours / capacity;
   const { minutesUntilEmpty } = forecast;
   if (minutesUntilEmpty !== undefined) {
@@ -776,6 +784,17 @@ const stageLabels: Record<ConstructionStage, string> = {
 
 export function formatStage(stage: ConstructionStage): string {
   return stageLabels[stage];
+}
+
+/**
+ * Says how far a stage of work has got, to the whole percent rounded down,
+ * so that it shows 100% only once done, for example "Assembly: 42%".
+ */
+export function formatStageProgress(
+  stage: string,
+  stageProgress: number,
+): string {
+  return `${stage}: ${Math.floor(stageProgress * 100)}%`;
 }
 
 /** Whether a Structure is assembled from Components, rather than from Regolith alone. */
