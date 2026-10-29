@@ -19,6 +19,13 @@ const emptyManifest = {
   costMillionDollars: 0,
   feeMillionDollars: launch.feeMillionDollars,
   locked: false,
+  funds: {
+    fundingMillionDollars: programmeGrant,
+    exportsMillionDollars: 0,
+    exportsCounted: "none",
+    totalMillionDollars: programmeGrant,
+    overFunding: false,
+  },
 };
 
 describe("Funding", () => {
@@ -64,6 +71,7 @@ describe("the Launch manifest", () => {
         water.priceMillionDollars,
       feeMillionDollars: launch.feeMillionDollars,
       locked: false,
+      funds: emptyManifest.funds,
     });
   });
 
@@ -162,7 +170,7 @@ describe("the Launch manifest", () => {
     expect(oneMore).toEqual({
       ok: false,
       reason: "over-funding",
-      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M.`,
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M, with no Exports aboard or to load to sell first.`,
     });
     expect(campaign.snapshot().launchManifest.items).toEqual([
       { itemId: "habitat-core", count: 1 },

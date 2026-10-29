@@ -20,7 +20,11 @@ export interface ExportsSnapshot {
   readonly toLoad: readonly ExportLine[];
   /** The mass of the Exports to load, against the Lander's Return Mass. */
   readonly massKilograms: number;
-  /** What the Exports to load would sell for. */
+  /**
+   * What the Exports to load will sell for: as much of each as the base
+   * still has in stock, or, once the Robot has loaded them, what it
+   * carries.
+   */
   readonly valueMillionDollars: number;
   /**
    * The Exports aboard the Lander, from its take-off, or on a landing pad
@@ -135,13 +139,10 @@ export function takeExportsAboard(state: CampaignState): ExportLine[] {
  * taken the Exports to load.
  */
 export function takeExportsFromStock(state: CampaignState): void {
-  state.exportsToLoad = state.exportsToLoad.flatMap(
-    ({ resourceId, kilograms }) => {
-      const taken = Math.min(kilograms, bulkInStock(state, resourceId));
-      addBulk(state, resourceId, -taken);
-      return taken > 0 ? [{ resourceId, kilograms: taken }] : [];
-    },
-  );
+  state.exportsToLoad = toLoadInStock(state);
+  for (const { resourceId, kilograms } of state.exportsToLoad) {
+    addBulk(state, resourceId, -kilograms);
+  }
 }
 
 /**
@@ -177,11 +178,68 @@ export function valueAboard(state: CampaignState): number {
   return valueOf(state.lander.exports);
 }
 
+/**
+ * What the Exports to load will sell for as the Lander reaches Earth: as
+ * much of each as the base still has in stock, as no more goes aboard, or,
+ * once the Robot has loaded them at the stockpile, what it carries. They
+ * fit within the Return Mass, as they were refused otherwise.
+ */
+export function valueToLoad(state: CampaignState): number {
+  return valueOf(toLoadAsTaken(state));
+}
+
+/**
+ * What the Exports aboard and to load will sell for together as the Lander
+ * reaches Earth, worked out just as the sale will, on the lines they will
+ * make once all are aboard, so that it comes to exactly what the sale
+ * raises the Funding by.
+ */
+export function valueToSell(state: CampaignState): number {
+  return valueOf(
+    inCatalogueOrder([...state.lander.exports, ...toLoadAsTaken(state)]),
+  );
+}
+
+/**
+ * Whether the base has less of any of the Exports to load in stock than was
+ * set, as a Plant has used some since, so that less will go aboard. Once
+ * the Robot has loaded them, they are what it carries, and never short.
+ */
+export function isShortOfExportsToLoad(state: CampaignState): boolean {
+  return (
+    state.exportLoading?.collected !== true &&
+    state.exportsToLoad.some(
+      ({ resourceId, kilograms }) => kilograms > bulkInStock(state, resourceId),
+    )
+  );
+}
+
+/**
+ * The Exports to load as they will go aboard: as much of each as the base
+ * has in stock, or, once the Robot has loaded them, what it carries.
+ */
+function toLoadAsTaken(state: CampaignState): ExportLine[] {
+  return state.exportLoading?.collected === true
+    ? state.exportsToLoad
+    : toLoadInStock(state);
+}
+
+/**
+ * The Exports to load, cut to as much of each as the base has in stock,
+ * leaving out any it has none of.
+ */
+function toLoadInStock(state: CampaignState): ExportLine[] {
+  return state.exportsToLoad.flatMap(({ resourceId, kilograms }) => {
+    const inStock = Math.min(kilograms, bulkInStock(state, resourceId));
+    return inStock > 0 ? [{ resourceId, kilograms: inStock }] : [];
+  });
+}
+
 export function readExports(state: CampaignState): ExportsSnapshot {
   return {
     toLoad: state.exportsToLoad.map((line) => ({ ...line })),
     massKilograms: massOf(state.exportsToLoad),
-    valueMillionDollars: valueOf(state.exportsToLoad),
+    valueMillionDollars: valueToLoad(state),
     aboard: state.lander.exports.map((line) => ({ ...line })),
     valueAboardMillionDollars: valueAboard(state),
   };

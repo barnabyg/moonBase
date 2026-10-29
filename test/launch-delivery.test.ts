@@ -282,7 +282,7 @@ describe("the cargo", () => {
       kilograms(before, "oxygen") + 2 * tank.kilograms - breathed,
       6,
     );
-    expect(state.launchManifest).toEqual({
+    expect(state.launchManifest).toMatchObject({
       items: [],
       payloadMassKilograms: 0,
       costMillionDollars: 0,

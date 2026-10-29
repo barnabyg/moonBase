@@ -87,7 +87,7 @@ Shielding and the water wall are the only Structures that may overlap another, a
 
 The Mission Director starts with the Programme Grant as Funding. "Launch manifest" opens the screen where you choose what the next Launch brings: Components whose Design is unlocked, oxygen and water, and, once the Robots Design is unlocked, extra Robots. Bars show the manifest's Payload Mass against the Launch's limit and its cost (the Launch fee plus each item's price, or nothing while empty) against the Funding. Unlocking Reusable boosters on the Tech Tree lowers the Launch fee for every Launch paid for afterwards; one already paid for, on its way back, keeps the fee it was paid with.
 
-Once the Mission Director has moved into a Habitat, "Send the Lander" sends it on its round trip: it flies to Earth, turns around there and flies back to land on the same spot. You can change the manifest until the Lander leaves Earth; then it locks and its cost comes off the Funding. When the Lander lands, its Components join the base's stock and its oxygen and water the life support stocks, and a new, empty manifest starts. The base carries on while it is away. Running out of Funding never ends the Campaign by itself.
+Once the Mission Director has moved into a Habitat, "Send the Lander" sends it on its round trip: it flies to Earth, turns around there and flies back to land on the same spot. You can change the manifest until the Lander leaves Earth; then it locks and its cost comes off the Funding. It can never cost more than the Lander can pay as it leaves (see [Exports](#exports)). When the Lander lands, its Components join the base's stock and its oxygen and water the life support stocks, and a new, empty manifest starts. The base carries on while it is away. Running out of Funding never ends the Campaign by itself.
 
 **Plume Ejecta.** Every take-off and landing at the landing site blasts the ground round it, wearing down the Condition of every Structure within reach.
 
@@ -100,7 +100,7 @@ Wafers and circuit boards are Exports. The Launch manifest screen's Exports tab 
 - **At the landing site**, Exports stay in the base's stock until take-off, then go aboard (as much as is left).
 - **On a landing pad**, setting them raises a loading Work Order, and a Robot carries them aboard. Until it picks them up, changing the amounts changes what it carries and clearing them cancels the loading; once it has them, changes and sending the Lander are refused until they are aboard. You can then set more for another round of loading.
 
-The Exports are sold when the Lander reaches Earth, before the manifest is paid for as it leaves, so the Launch manifest screen counts their value alongside the Funding.
+The Exports are sold when the Lander reaches Earth, before the manifest is paid for as it leaves, so the manifest's cost may be up to the Funding balance plus what the Exports aboard and to load will sell for, and the Launch manifest screen counts their value alongside the Funding. The Exports to load count for as much of each as the base still has in stock, as the Lander takes no more. They can still be lowered, and the stock can run short of them as Plants use it, so the Lander can't be sent while the manifest costs more than they and the Funding come to; it says so, and the Launch tab warns of it. Once it is sent, they go aboard before anything else can use them.
 
 ## Condition and Maintenance
 

@@ -1,7 +1,7 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
-import { valueAboard } from "./exports";
+import { valueAboard, valueToLoad, valueToSell } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
 
@@ -32,7 +32,32 @@ export interface LaunchManifestSnapshot {
    * until it lands.
    */
   readonly locked: boolean;
+  /** What it can be paid with, until it is locked, paid for. */
+  readonly funds: ManifestFunds | undefined;
 }
+
+/**
+ * What the Launch manifest can be paid with as the Lander leaves Earth: the
+ * Funding balance, and what the Exports aboard and to load will sell for as
+ * it reaches Earth, before the manifest is paid for.
+ */
+export interface ManifestFunds {
+  readonly fundingMillionDollars: number;
+  /** What the Exports aboard and to load will sell for. */
+  readonly exportsMillionDollars: number;
+  /** Which Exports that counts: none, or those aboard, to load, or both. */
+  readonly exportsCounted: ExportsCounted;
+  /** The Funding balance and what the Exports will sell for together. */
+  readonly totalMillionDollars: number;
+  /**
+   * Whether the manifest costs more than that, as once the Exports to load
+   * have been lowered, so that the Lander can't leave with it.
+   */
+  readonly overFunding: boolean;
+}
+
+export type ExportsCounted =
+  "none" | "aboard" | "to-load" | "aboard-and-to-load";
 
 export type ManifestRefusal =
   | "unknown-item"
@@ -113,15 +138,11 @@ export function setLaunchManifest(
       `That would bring the manifest's Payload Mass to ${payloadMassKilograms} kg, over the Launch's limit of ${limit} kg.`,
     );
   }
-  const exportsValue = valueAboard(state);
-  if (costMillionDollars > state.fundingMillionDollars + exportsValue) {
-    const exports =
-      exportsValue === 0
-        ? ""
-        : ` and the ${millionDollars(exportsValue)} the Exports aboard will sell for`;
+  const funds = readManifestFunds(state, costMillionDollars);
+  if (funds.overFunding) {
     return refuse(
       "over-funding",
-      `That would bring the manifest's cost to ${millionDollars(costMillionDollars)}, more than the Funding balance of ${millionDollars(state.fundingMillionDollars)}${exports}.`,
+      `That would bring the manifest's cost to ${millionDollars(costMillionDollars)}, more than ${fundsInWords(funds)}.`,
     );
   }
   state.launchManifest = items;
@@ -133,11 +154,18 @@ export function readLaunchManifest(
 ): LaunchManifestSnapshot {
   const feeMillionDollars =
     state.launchFeePaidMillionDollars ?? launchFee(state);
+  const { payloadMassKilograms, costMillionDollars } = totals(
+    state.launchManifest,
+    feeMillionDollars,
+  );
+  const locked = isLocked(state);
   return {
     items: state.launchManifest.map((line) => ({ ...line })),
-    ...totals(state.launchManifest, feeMillionDollars),
+    payloadMassKilograms,
+    costMillionDollars,
     feeMillionDollars,
-    locked: isLocked(state),
+    locked,
+    funds: locked ? undefined : readManifestFunds(state, costMillionDollars),
   };
 }
 
@@ -199,6 +227,64 @@ export function deliverLaunch(
   return delivered;
 }
 
+/**
+ * What a manifest of the cost given can be paid with as the Lander leaves
+ * Earth, and whether it costs more. The Lander can't leave with one that
+ * does, so it is always paid for: once the Lander is sent, the Exports to
+ * load can't change and go aboard before anything can use them up, and
+ * until it leaves Earth the Funding only rises, the fee only falls and the
+ * manifest is checked again at every change.
+ */
+export function readManifestFunds(
+  state: CampaignState,
+  costMillionDollars: number,
+): ManifestFunds {
+  const aboard = valueAboard(state);
+  const toLoad = valueToLoad(state);
+  // Just as the sale will raise the Funding, so that a manifest within it
+  // never leaves the Funding below none once it is paid for.
+  const exportsMillionDollars = valueToSell(state);
+  const totalMillionDollars =
+    state.fundingMillionDollars + exportsMillionDollars;
+  return {
+    fundingMillionDollars: state.fundingMillionDollars,
+    exportsMillionDollars,
+    exportsCounted:
+      aboard === 0
+        ? toLoad === 0
+          ? "none"
+          : "to-load"
+        : toLoad === 0
+          ? "aboard"
+          : "aboard-and-to-load",
+    totalMillionDollars,
+    overFunding: costMillionDollars > totalMillionDollars,
+  };
+}
+
+/**
+ * What a manifest can be paid with, as a refusal gives it, for example
+ * "the Funding balance of $150M and the $45M the Exports to load will sell
+ * for".
+ */
+export function fundsInWords(funds: ManifestFunds): string {
+  const funding = `the Funding balance of ${millionDollars(funds.fundingMillionDollars)}`;
+  return funds.exportsCounted === "none"
+    ? `${funding}, with no Exports aboard or to load to sell first`
+    : `${funding} and the ${millionDollars(funds.exportsMillionDollars)} the Exports ${exportsCountedInWords(funds.exportsCounted)} will sell for`;
+}
+
+/** Which Exports a manifest's funds count, in words: "aboard", "to load" or "aboard and to load". */
+export function exportsCountedInWords(
+  counted: Exclude<ExportsCounted, "none">,
+): string {
+  return {
+    aboard: "aboard",
+    "to-load": "to load",
+    "aboard-and-to-load": "aboard and to load",
+  }[counted];
+}
+
 /** Whether the Lander has left Earth with the manifest and not yet landed. */
 function isLocked(state: CampaignState): boolean {
   return state.lander.trip?.leg === "travelling-to-moon";
@@ -225,7 +311,7 @@ function totals(
 }
 
 /** An amount of money as a refusal gives it, for example "$12.5M", to the nearest $0.1M. */
-function millionDollars(value: number): string {
+export function millionDollars(value: number): string {
   return `$${Math.round(value * 10) / 10}M`;
 }
 
