@@ -113,6 +113,7 @@ function packedBase(seed: number): Site {
       recipeId: undefined,
       batch: undefined,
       plantStop: undefined,
+      switchedOff: false,
     });
   }
   return {
