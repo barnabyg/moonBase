@@ -201,6 +201,20 @@ export function valueToSell(state: CampaignState): number {
 }
 
 /**
+ * Whether the base has less of any of the Exports to load in stock than was
+ * set, as a Plant has used some since, so that less will go aboard. Once
+ * the Robot has loaded them, they are what it carries, and never short.
+ */
+export function isShortOfExportsToLoad(state: CampaignState): boolean {
+  return (
+    state.exportLoading?.collected !== true &&
+    state.exportsToLoad.some(
+      ({ resourceId, kilograms }) => kilograms > bulkInStock(state, resourceId),
+    )
+  );
+}
+
+/**
  * The Exports to load as they will go aboard: as much of each as the base
  * has in stock, or, once the Robot has loaded them, what it carries.
  */

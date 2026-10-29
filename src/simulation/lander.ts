@@ -13,7 +13,11 @@ import {
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
-import { sellExports, takeExportsAboard } from "./exports";
+import {
+  isShortOfExportsToLoad,
+  sellExports,
+  takeExportsAboard,
+} from "./exports";
 import {
   deliverLaunch,
   fundsInWords,
@@ -140,9 +144,13 @@ export function sendLander(state: CampaignState): SendLanderResult {
   }
   const { costMillionDollars, funds } = readLaunchManifest(state);
   if (funds?.overFunding === true) {
+    // Loading more won't help if the stock is short of those set already.
+    const advice = isShortOfExportsToLoad(state)
+      ? ", as the base has less in stock than them. Take something off the manifest, or wait until the stock covers them."
+      : ". Take something off the manifest or load more Exports first.";
     return refuse(
       "over-funding",
-      `The Lander can't leave with a Launch manifest that costs ${millionDollars(costMillionDollars)}, more than ${fundsInWords(funds)}. Take something off the manifest or load more Exports first.`,
+      `The Lander can't leave with a Launch manifest that costs ${millionDollars(costMillionDollars)}, more than ${fundsInWords(funds)}${advice}`,
     );
   }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);

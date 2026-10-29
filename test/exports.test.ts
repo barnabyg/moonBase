@@ -538,15 +538,16 @@ describe("a solar array paid for by the Exports to load", () => {
     expect(campaign.sendLander()).toEqual({ ok: true });
   });
 
-  it("keeps the Lander from leaving once the stock falls short of the Exports to load the manifest needs", () => {
+  it("keeps the Lander from leaving once the stock falls short of the Exports to load the manifest needs, saying so", () => {
     const set = landerFreeWithFee();
     load(set, wafers(loaded));
     expect(set.setLaunchManifest(solarArray)).toEqual({ ok: true });
     const campaign = withWafers(set, 5);
 
-    expect(campaign.sendLander()).toMatchObject({
+    expect(campaign.sendLander()).toEqual({
       ok: false,
       reason: "over-funding",
+      message: `The Lander can't leave with a Launch manifest that costs $${cost}M, more than the Funding balance of $${funding}M and the $${5 * waferPrice}M the Exports to load will sell for, as the base has less in stock than them. Take something off the manifest, or wait until the stock covers them.`,
     });
   });
 
