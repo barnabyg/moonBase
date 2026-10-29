@@ -172,8 +172,18 @@ export function createStructurePopUp(
   }
 
   close.addEventListener("click", hide);
+  // Esc closes it only when nothing else wants it: placing a Structure
+  // cancels instead, and a screen open over the map closes first.
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && openFor !== undefined) hide();
+    if (
+      event.key === "Escape" &&
+      openFor !== undefined &&
+      !event.defaultPrevented &&
+      !isPlacing() &&
+      document.querySelector("dialog[open]") === null
+    ) {
+      hide();
+    }
   });
   onClick(
     view.canvas,

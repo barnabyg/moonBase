@@ -74,6 +74,35 @@ test("clicking a Structure on the map shows what it is doing beside it, until Es
   await expect(popUp).toBeHidden();
 });
 
+test("Esc that cancels placing or closes a screen leaves the pop-up open", async ({
+  page,
+}) => {
+  const site = await planSolarArray(page);
+  const popUp = page.getByRole("dialog", { name: "Solar array" });
+  await page.mouse.click(site.x, site.y);
+  await expect(popUp).toBeVisible();
+
+  const lightMast = page
+    .getByRole("complementary", { name: "Build menu" })
+    .getByRole("button", { name: /Light mast/ });
+  await lightMast.click();
+  await expect(lightMast).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(lightMast).toHaveAttribute("aria-pressed", "false");
+  await expect(popUp).toBeVisible();
+
+  await page.getByRole("button", { name: "Guide" }).click();
+  const guide = page.getByRole("dialog", { name: "Guide" });
+  await expect(guide).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(guide).toBeHidden();
+  await expect(popUp).toBeVisible();
+
+  // Once nothing else wants it, Esc closes the pop-up.
+  await page.keyboard.press("Escape");
+  await expect(popUp).toBeHidden();
+});
+
 test("dragging over a Structure moves the camera without opening its pop-up", async ({
   page,
 }) => {

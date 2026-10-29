@@ -173,7 +173,11 @@ export function createBuildMenu(
     }
   });
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && placing !== undefined) stopPlacing("");
+    if (event.key === "Escape" && placing !== undefined) {
+      // Claims the Esc, so that nothing else closes on it too.
+      event.preventDefault();
+      stopPlacing("");
+    }
   });
 
   showPlacing();
