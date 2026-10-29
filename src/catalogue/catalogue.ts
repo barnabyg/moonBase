@@ -3128,19 +3128,6 @@ export const catalogue: Catalogue = {
       scienceCost: 200,
       prerequisiteDesignIds: ["regolith-sintering"],
     },
-    // In the first rank, needing only battery banks to carry it through
-    // the Night, and leading to nothing else: it adds Science, and the
-    // base needs it for nothing.
-    {
-      id: "optical-telescopes",
-      label: "Optical telescopes",
-      description:
-        "A telescope that observes the sky at Night for the base's standing observing programme, earning a little Science with every round it completes.",
-      category: "construction",
-      starting: false,
-      scienceCost: 60,
-      prerequisiteDesignIds: ["battery-banks"],
-    },
     {
       id: "regolith-shielding",
       label: "Regolith shielding",
@@ -3301,6 +3288,21 @@ export const catalogue: Catalogue = {
         "molten-regolith-electrolysis",
         "circuit-board-fabrication",
       ],
+    },
+    // An Industry Design, as the Plants' are: a Structure that, once
+    // commissioned, makes something by itself, here Science from the
+    // Night sky. In the first rank, needing only battery banks to carry it
+    // through the Night, and leading to nothing else: it adds Science, and
+    // the base needs it for nothing.
+    {
+      id: "optical-telescopes",
+      label: "Optical telescopes",
+      description:
+        "A telescope that observes the sky at Night for the base's standing observing programme, earning a little Science with every round it completes.",
+      category: "industry",
+      starting: false,
+      scienceCost: 60,
+      prerequisiteDesignIds: ["battery-banks"],
     },
     {
       id: "landing-pads",

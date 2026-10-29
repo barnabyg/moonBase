@@ -1790,8 +1790,8 @@ describe("the data catalogue", () => {
       (design) => design.category === "industry" && !design.starting,
     );
 
-    it("has two beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(industry).toHaveLength(2);
+    it("has three beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(3);
       expect(
         industry.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),

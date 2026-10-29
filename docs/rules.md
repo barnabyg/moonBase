@@ -200,7 +200,6 @@ The Designs beyond the starting ones:
 | Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning   |
 | Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build           |
 | Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                |
-| Construction | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                    |
 | Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                         |
 | Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                        |
 | Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                          |
@@ -210,6 +209,7 @@ The Designs beyond the starting ones:
 | Life Support | Bulk supply tanks            | Larger, cheaper-for-each-kilogram oxygen and water tanks for the Launch manifest                |
 | Industry     | Molten regolith electrolysis | A large extraction plant                                                                        |
 | Industry     | Integrated fabrication       | An integrated fabrication plant                                                                 |
+| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                    |
 | Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                     |
 | Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded |
 
