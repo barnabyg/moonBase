@@ -108,6 +108,7 @@ const techTree = createTechTreeScreen(container, campaign, (event) => {
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
+    constructionPanel.hear(events);
   },
 });
 const topBar = createTopBar(

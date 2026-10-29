@@ -1,6 +1,7 @@
 import type {
   Campaign,
   ConstructionSnapshot,
+  GameEvent,
   MaintenanceSubject,
   Snapshot,
 } from "../simulation";
@@ -30,6 +31,12 @@ import { createLingering, holdHeight } from "./hold";
 export interface ConstructionPanel {
   /** Shows the snapshot, with the real time the frame counted, to time the rows that stay once their work is done. */
   update(snapshot: Snapshot, frameMs: number): void;
+  /**
+   * Hears the events of the game-minutes the game loop advances, to tell
+   * work that is done from work that stopped for another reason before
+   * the next update.
+   */
+  hear(events: readonly GameEvent[]): void;
   /**
    * Forgets every row, for a Campaign loaded in place of the last, which
    * may give the same ids to other Constructions.
@@ -96,9 +103,13 @@ export function createConstructionPanel(
   const rows = new Map<string, Row>();
   // A row whose work is done stays a while, so that a Work Order raised
   // again soon after takes the same row and the rows below don't jump.
+  // One whose work stopped for another reason, such as a Construction
+  // cancelled or a Work Order no longer needed, goes at once.
   const done = createLingering<string>();
-  /** The Constructions the player has cancelled, whose rows go at once. */
-  const cancelled = new Set<string>();
+  /** The rows whose work the events since the last update say is done. */
+  const finished = new Set<string>();
+  /** What each parking row parks, to tell whether it ended parked. */
+  const parked = new Map<string, MaintenanceSubject>();
   /** A row, with a Cancel button if given the id of a Construction it cancels. */
   const createRow = (
     title: string,
@@ -122,9 +133,7 @@ export function createConstructionPanel(
       cancel.className = "construction-panel__cancel";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => {
-        if (campaign.cancelConstruction(constructionId).ok) {
-          cancelled.add(constructionId);
-        }
+        campaign.cancelConstruction(constructionId);
       });
       item.append(cancel);
     }
@@ -190,6 +199,7 @@ export function createConstructionPanel(
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
         seen.add(key);
+        parked.set(key, parking.subject);
         let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
@@ -287,11 +297,16 @@ export function createConstructionPanel(
       const remove = (id: string) => {
         rows.get(id)?.item.remove();
         rows.delete(id);
+        parked.delete(id);
       };
       for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {
         if (seen.has(id) || done.has(id)) continue;
-        if (cancelled.has(id)) {
+        const subject = parked.get(id);
+        const isDone =
+          finished.has(id) ||
+          (subject !== undefined && isPluggedIn(snapshot, subject));
+        if (!isDone) {
           remove(id);
           continue;
         }
@@ -300,19 +315,63 @@ export function createConstructionPanel(
         setText(row.stage, "Done");
         row.progress.value = 1;
         row.progress.setAttribute("aria-label", "Done");
-        setText(row.work, "Finished");
+        setText(row.work, "");
         if (row.cancel !== undefined) row.cancel.hidden = true;
       }
-      cancelled.clear();
+      finished.clear();
       idle.hidden = rows.size > 0;
     },
     startAfresh() {
       for (const row of rows.values()) row.item.remove();
       rows.clear();
-      cancelled.clear();
+      finished.clear();
+      parked.clear();
       done.startAfresh();
     },
+    hear(events) {
+      for (const event of events) {
+        const key = finishedRow(event);
+        if (key !== undefined) finished.add(key);
+      }
+    },
   };
+}
+
+/** The key of the row whose work an event says is done, if any. */
+function finishedRow(event: GameEvent): string | undefined {
+  switch (event.kind) {
+    case "construction-completed":
+      return event.structureId;
+    case "structure-dismantled":
+      return `${DISMANTLING_ROW}${event.structureId}`;
+    case "maintenance-completed":
+      return `${MAINTENANCE_ROW}${subjectId(event.target)}`;
+    case "lander-unloaded":
+      return UNLOADING_ROW;
+    case "lander-loaded":
+      return LOADING_ROW;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Whether a Machine or Rover is plugged in, as one the Robot has finished
+ * parking is; one whose parking stopped for another reason isn't.
+ */
+function isPluggedIn(snapshot: Snapshot, subject: MaintenanceSubject): boolean {
+  switch (subject.kind) {
+    case "structure":
+      return false;
+    case "machine":
+      return snapshot.machines.some(
+        (machine) => machine.id === subject.machineId && machine.pluggedIn,
+      );
+    case "rover":
+      return snapshot.rovers.some(
+        (rover) => rover.id === subject.roverId && rover.pluggedIn,
+      );
+  }
 }
 
 /** The id of what a Maintenance or parking row is for. */
