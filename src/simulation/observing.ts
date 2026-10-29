@@ -49,27 +49,22 @@ export function isTelescope(structure: StructureState): boolean {
 }
 
 /**
- * Whether a telescope observes during a game-minute of power: only at
- * Night, and only while it has power and isn't Broken.
+ * Whether a Structure is a telescope that observed during the latest
+ * game-minute: one whose Night load was on (see `supplyPower`), which is
+ * only at Night, while it has power to spare and isn't Broken.
  */
-export function observes(structure: StructureState, night: boolean): boolean {
-  return (
-    night && isTelescope(structure) && structure.powered && !isBroken(structure)
-  );
+export function observes(structure: StructureState): boolean {
+  return isTelescope(structure) && structure.lit;
 }
 
 /**
  * Runs the observing programme for a game-minute, once power has been
- * supplied, given whether that game-minute was Night. Each telescope that
- * observes adds its performance's share of the game-minute to the round.
+ * supplied. Each telescope that observed adds its performance's share of the game-minute to the round.
  * Once the round has its length, it is complete: its Science is added to
  * the base's, and the next round starts with anything observed beyond it.
  */
-export function runObservingProgramme(
-  state: CampaignState,
-  night: boolean,
-): GameEvent[] {
-  const rate = observingRate(state, night);
+export function runObservingProgramme(state: CampaignState): GameEvent[] {
+  const rate = observingRate(state);
   if (rate === 0) return [];
   state.observingMinutes += rate;
   const length = roundMinutes();
@@ -91,10 +86,8 @@ export function readObservingProgramme(
 ): ObservingProgrammeSnapshot {
   const night = latestMinuteWasNight(state);
   const telescopes = state.structures.filter(isTelescope);
-  const observing = telescopes.filter((telescope) =>
-    observes(telescope, night),
-  );
-  const rate = observingRate(state, night);
+  const observing = telescopes.filter(observes);
+  const rate = observingRate(state);
   const left = Math.max(roundMinutes() - state.observingMinutes, 0);
   return {
     progress: Math.min(state.observingMinutes / roundMinutes(), 1),
@@ -126,9 +119,9 @@ export function roundMinutes(): number {
   return Math.round(catalogue.observingProgramme.lengthHours * 60);
 }
 
-/** The game-minutes of a round the telescopes observe in a game-minute of power. */
-function observingRate(state: CampaignState, night: boolean): number {
+/** The game-minutes of a round the telescopes observed in the latest game-minute. */
+function observingRate(state: CampaignState): number {
   return state.structures
-    .filter((structure) => observes(structure, night))
+    .filter(observes)
     .reduce((sum, telescope) => sum + structurePerformance(telescope), 0);
 }

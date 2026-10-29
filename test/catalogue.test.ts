@@ -420,8 +420,9 @@ describe("the data catalogue", () => {
     );
     expect(telescopes.length).toBeGreaterThan(0);
     for (const type of telescopes) {
-      // It observes only with power.
-      expect(type.power.drawKilowatts).toBeGreaterThan(0);
+      // It observes only with power, which it draws only at Night.
+      expect(type.power.nightDrawKilowatts).toBeGreaterThan(0);
+      expect(type.power.drawKilowatts).toBe(0);
       expect(
         catalogue.designs.find((design) => design.id === type.designId)
           ?.starting,
@@ -764,8 +765,9 @@ describe("the data catalogue", () => {
         expect(value).toBeGreaterThanOrEqual(0);
       }
       expect(type.lightRadiusMetres).toBeGreaterThanOrEqual(0);
-      // A light needs power to shine, and only a light draws power at Night only.
-      expect(type.lightRadiusMetres > 0).toBe(
+      // A light needs power to shine, a telescope power to observe, and
+      // only these Night loads draw power at Night only.
+      expect(type.lightRadiusMetres > 0 || type.telescope === true).toBe(
         type.power.nightDrawKilowatts > 0,
       );
     }

@@ -61,7 +61,7 @@ export function describeStructure(type: StructureType): string {
     ),
     ...(type.telescope === true
       ? [
-          `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, while it has power and isn't Broken`,
+          `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, for ${power.nightDrawKilowatts} kW while it observes and nothing in Daylight, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
     ...(power.drawKilowatts > 0

@@ -401,7 +401,9 @@ function describeStructure(
     structure.lit
       ? "lit"
       : structure.savingPower
-        ? "light off to save power"
+        ? isTelescope(structure.structureTypeId)
+          ? "not observing, to save power"
+          : "light off to save power"
         : undefined,
     isHabitat(structure.structureTypeId)
       ? structure.shielded
@@ -417,6 +419,13 @@ function describeStructure(
   return notes.length === 0
     ? { value: state }
     : { value: state, note: notes.join(", ") };
+}
+
+function isTelescope(structureTypeId: string): boolean {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.telescope === true
+  );
 }
 
 function isHabitat(structureTypeId: string): boolean {

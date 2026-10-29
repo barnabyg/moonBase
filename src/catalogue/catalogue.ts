@@ -791,7 +791,14 @@ export interface StructureType {
     readonly storageKilowattHours: number;
     /** The power it draws all the time, for its own controls and heaters. */
     readonly drawKilowatts: number;
-    /** The extra power it draws at Night only, while its light is on. */
+    /**
+     * The extra power it draws at Night only, while it is on, if it is a
+     * Night load: a light, while it shines, or a telescope, while it
+     * observes. A Night load is supplied after the Machines' and Rovers'
+     * heaters, and switches itself off to save power once its network's
+     * battery banks hold only enough for everything else through the rest
+     * of the Night and the reserve after it (see `nightReserveHours`).
+     */
     readonly nightDrawKilowatts: number;
     /**
      * Whether the Robot lays it a power cable though it generates, stores
@@ -1461,12 +1468,14 @@ export const catalogue: Catalogue = {
     },
     // An optical telescope: a half-metre mirror in an open tube on a
     // fork mount, which observes the sky only at Night, when the sun is
-    // down. Its controls, cooled camera and the heaters that keep its mirror
-    // and drives from freezing draw 0.25 kW all the time, 57 kWh through a
-    // Night: over a quarter of a battery bank, and about half of what the
-    // starting battery banks have to spare once the Habitat and the
-    // Machines' heaters have theirs. Aligning its optics makes
-    // Commissioning slow and chancy.
+    // down. Like a light, it is a Night load: its drives, cooled camera and
+    // the heaters that keep its mirror from frosting draw 0.25 kW while it
+    // observes, 57 kWh through a whole Night, over a quarter of a battery
+    // bank and about half of what the starting battery banks have to spare
+    // once the Habitat and the Machines' heaters have theirs; it switches
+    // itself off before it would eat into that, and stands parked and
+    // unpowered in Daylight. Aligning its optics makes Commissioning slow
+    // and chancy.
     {
       id: "telescope",
       label: "Telescope",
@@ -1490,8 +1499,8 @@ export const catalogue: Catalogue = {
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
-        drawKilowatts: 0.25,
-        nightDrawKilowatts: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0.25,
       },
       lightRadiusMetres: 0,
       habitat: false,

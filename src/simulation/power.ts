@@ -166,16 +166,17 @@ export interface PowerNetwork {
   readonly daylightGenerationKilowatts: number;
   readonly daylightConsumptionKilowatts: number;
   /**
-   * What its Structures draw at Night, including any lights, and the
+   * What its Structures draw at Night, including any Night loads, and the
    * heaters of the Machines and Rovers plugged in to it.
    */
   readonly nightConsumptionKilowatts: number;
   /**
-   * What its lights draw at Night while they are on, which is part of its
-   * Night consumption. They switch themselves off rather than leave
+   * What its Night loads draw at Night while they are on, which is part of
+   * its Night consumption: its lights while they shine and its telescopes
+   * while they observe. They switch themselves off rather than leave
    * anything else without power (see `supplyPower`).
    */
-  readonly nightLightKilowatts: number;
+  readonly nightLoadKilowatts: number;
   readonly storedKilowattHours: number;
   readonly storageCapacityKilowattHours: number;
 }
@@ -309,7 +310,7 @@ export function structureNetworks(
       nightConsumptionKilowatts: total(
         (power) => power.drawKilowatts + power.nightDrawKilowatts,
       ),
-      nightLightKilowatts: total((power) => power.nightDrawKilowatts),
+      nightLoadKilowatts: total((power) => power.nightDrawKilowatts),
       // A Broken battery bank's energy is lost with it.
       storedKilowattHours: structures.reduce(
         (sum, structure) =>
@@ -390,22 +391,20 @@ export function plantConsumptionKilowatts(network: PowerNetwork): number {
 /**
  * What a network's Structures drew during the latest game-minute, apart
  * from its Plants, in the given part of the Lunation: at Night, only the
- * lights that were on count.
+ * Night loads that were on count.
  */
 export function consumptionKilowatts(
   network: PowerNetwork,
   daylight: boolean,
 ): number {
   if (daylight) return network.daylightConsumptionKilowatts;
-  const lights = network.structures
+  const loads = network.structures
     .filter((structure) => structure.lit)
     .reduce(
       (sum, structure) => sum + workingPower(structure).nightDrawKilowatts,
       0,
     );
-  return (
-    network.nightConsumptionKilowatts - network.nightLightKilowatts + lights
-  );
+  return network.nightConsumptionKilowatts - network.nightLoadKilowatts + loads;
 }
 
 /**
@@ -422,18 +421,20 @@ export function consumptionKilowatts(
  * in to a network come after all its Structures, Machines first, each in
  * their order; each has power while it is plugged in and, at Night, while
  * any energy is left for its heater when its turn comes. Any other has none.
- * Lights come after the heaters, in the order they were commissioned. At
- * Night a light has power while any energy is left when its turn comes, and
- * switches itself on only if what is left after it draws would still carry
- * everything else on the network through the rest of the Night and the
- * data catalogue's reserve after it (see `nightReserveHours`): otherwise it
- * stays off to save power, so that no light ever leaves the Habitat, or
- * anything else, without power. Plants come last of all, in the order they
+ * Night loads, the lights and the telescopes, come after the heaters, in
+ * the order they were commissioned. At Night one has power while any
+ * energy is left when its turn comes, and switches itself on (a light
+ * shines, a telescope observes) only if what is left after it draws would
+ * still carry everything else on the network through the rest of the
+ * Night and the data catalogue's reserve after it (see
+ * `nightReserveHours`): otherwise it stays off to save power, so that no
+ * Night load ever leaves the Habitat, or anything else, without power.
+ * Plants come last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
  * if the energy to spare covers all it draws in the game-minute. In
  * Daylight that is what is left over beyond what the network's battery
  * banks can store; at Night, what they hold beyond what everything else on
- * the network, lights included, draws through the rest of the Night and the
+ * the network, Night loads included, draws through the rest of the Night and the
  * reserve after it, counting the heater of every Machine and Rover that
  * isn't Broken or plugged in to another network, as it may be parked on
  * this one before the Night ends. So no Plant ever takes power from
@@ -466,7 +467,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       state,
       network.structures.filter((structure) => !isPlant(structure)),
     )) {
-      // Its light, if it has one, comes later.
+      // Its Night load, if it has one, comes later.
       const drawn = workingPower(structure).drawKilowatts / 60;
       structure.powered =
         !isBroken(structure) &&
@@ -484,13 +485,13 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       if (body.powered) left = Math.max(left - drawn, 0);
     }
     if (!daylight) {
-      const reserve = keptFromLights(network, nightMinutesAfter);
-      for (const light of network.structures.filter(hasLight)) {
-        const drawn = workingPower(light).nightDrawKilowatts / 60;
-        light.powered = light.powered && left > ENERGY_TOLERANCE_KWH;
-        light.lit =
-          light.powered && left - drawn >= reserve - ENERGY_TOLERANCE_KWH;
-        if (light.lit) left = Math.max(left - drawn, 0);
+      const reserve = keptFromNightLoads(network, nightMinutesAfter);
+      for (const load of network.structures.filter(hasNightLoad)) {
+        const drawn = workingPower(load).nightDrawKilowatts / 60;
+        load.powered = load.powered && left > ENERGY_TOLERANCE_KWH;
+        load.lit =
+          load.powered && left - drawn >= reserve - ENERGY_TOLERANCE_KWH;
+        if (load.lit) left = Math.max(left - drawn, 0);
       }
     }
     let spare = Math.max(
@@ -528,17 +529,18 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
 }
 
 /**
- * The lights that switched themselves off to save power during the latest
- * game-minute (see `supplyPower`), given whether it was Night.
+ * The Night loads, lights and telescopes, that switched themselves off to
+ * save power during the latest game-minute (see `supplyPower`), given
+ * whether it was Night.
  */
-export function lightsSavingPower(
+export function nightLoadsSavingPower(
   state: CampaignState,
   night: boolean,
 ): StructureState[] {
   return night
     ? state.structures.filter(
         (structure) =>
-          hasLight(structure) && structure.powered && !structure.lit,
+          hasNightLoad(structure) && structure.powered && !structure.lit,
       )
     : [];
 }
@@ -554,7 +556,7 @@ export function watchLights(
   night: boolean,
   savingBefore: ReadonlySet<string>,
 ): GameEvent[] {
-  const saving = lightsSavingPower(state, night);
+  const saving = nightLoadsSavingPower(state, night).filter(isLight);
   return structureNetworks(state).flatMap((network) => {
     const off = saving.filter((light) => network.structures.includes(light));
     return off.length === 0 || off.some((light) => savingBefore.has(light.id))
@@ -657,8 +659,8 @@ export function minutesUntilPowerLost(
 /**
  * What a network draws on average through a part of the Lunation ahead,
  * apart from its Plants, given the energy stored as it starts. In Daylight
- * no light is on. At Night everything else draws all the time, and the
- * lights only the energy beyond what everything else needs through the
+ * no Night load is on. At Night everything else draws all the time, and
+ * the Night loads only the energy beyond what everything else needs through the
  * rest of the Night and the reserve after it (see `supplyPower`): with
  * none to spare they stay off all through it, and with some to spare they
  * take no more than that, so that the energy stored never runs out during
@@ -670,22 +672,22 @@ function partConsumptionKilowatts(
   storedKilowattHours: number,
 ): number {
   if (part.daylight) return network.daylightConsumptionKilowatts;
-  const spare = storedKilowattHours - keptFromLights(network, part.minutes);
+  const spare = storedKilowattHours - keptFromNightLoads(network, part.minutes);
   return (
     restOfNetworkAtNight(network) +
     Math.min(
-      network.nightLightKilowatts,
+      network.nightLoadKilowatts,
       (Math.max(spare, 0) * 60) / part.minutes,
     )
   );
 }
 
 /**
- * The energy a network's lights leave stored at Night: what everything else
+ * The energy a network's Night loads leave stored at Night: what everything else
  * on it draws through the given game-minutes of Night left and the data
  * catalogue's reserve after them.
  */
-function keptFromLights(
+function keptFromNightLoads(
   network: PowerNetwork,
   nightMinutesLeft: number,
 ): number {
@@ -698,7 +700,7 @@ function keptFromLights(
 
 /**
  * The energy a network's Plants leave stored at Night: what everything else
- * on it, lights included, and the given heaters of Machines and Rovers not
+ * on it, Night loads included, and the given heaters of Machines and Rovers not
  * yet plugged in, draw through the given game-minutes of Night left and
  * the data catalogue's reserve after them.
  */
@@ -714,14 +716,26 @@ function keptFromPlants(
   );
 }
 
-/** What everything on a network but its lights draws at Night, apart from its Plants. */
+/** What everything on a network but its Night loads draws at Night, apart from its Plants. */
 function restOfNetworkAtNight(network: PowerNetwork): number {
-  return network.nightConsumptionKilowatts - network.nightLightKilowatts;
+  return network.nightConsumptionKilowatts - network.nightLoadKilowatts;
 }
 
-/** Whether a Structure has a light that switches on by itself at Night, and isn't Broken. */
-function hasLight(structure: StructureState): boolean {
+/**
+ * Whether a Structure has a Night load, which draws power only at Night,
+ * while it is on, and switches itself off to save power: a light, or a
+ * telescope, that isn't Broken.
+ */
+function hasNightLoad(structure: StructureState): boolean {
   return workingPower(structure).nightDrawKilowatts > 0;
+}
+
+/** Whether a Structure is a light, a Night load that lights the ground round it. */
+function isLight(structure: StructureState): boolean {
+  return (
+    hasNightLoad(structure) &&
+    (findStructureType(structure.structureTypeId)?.lightRadiusMetres ?? 0) > 0
+  );
 }
 
 function isHabitat(structure: StructureState): boolean {

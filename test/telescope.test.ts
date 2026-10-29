@@ -14,7 +14,7 @@ import {
 } from "../src/simulation";
 import { formatEvent } from "../src/ui/format";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
-import { worn } from "./worn";
+import { changed, worn } from "./worn";
 
 // The telescope's Design is unlocked from the start, with a telescope's
 // Components in the starting stock. Nothing wears down by Dust or
@@ -194,6 +194,69 @@ describe("a Broken telescope", () => {
       observing: 0,
       stoppedFor: "broken",
     });
+  });
+});
+
+describe("a telescope's power", () => {
+  const solarArray = structureType("solar-array");
+  const batteryBank = structureType("battery-bank");
+  const networkDraw = (state: Snapshot) =>
+    state.power.networks.find((network) =>
+      network.structureIds.includes(telescopesOf(state)[0]?.id ?? ""),
+    )?.consumptionKilowatts;
+
+  it("is drawn only at Night, while it observes, and not in Daylight, when it can't", () => {
+    const game = observatory();
+    game.advance({ hours: 1 });
+    const alwaysDrawn =
+      solarArray.power.drawKilowatts + batteryBank.power.drawKilowatts;
+
+    expect(telescope.power.drawKilowatts).toBe(0);
+    expect(networkDraw(game.state)).toBeCloseTo(alwaysDrawn);
+
+    runUntil(game, "night");
+    game.advance({ hours: 1 });
+
+    expect(telescopesOf(game.state)[0]).toMatchObject({ observing: true });
+    expect(networkDraw(game.state)).toBeCloseTo(
+      alwaysDrawn + telescope.power.nightDrawKilowatts,
+    );
+  });
+
+  it("is given up at Night to keep the battery banks' reserve for everything else, so it stops observing before anything else goes without", () => {
+    const game = observatory();
+    runUntil(game, "night");
+    // Enough for the solar array and the battery bank through the rest of
+    // the Night and the reserve after it, and a tenth of a kWh over: under
+    // half an hour of the telescope's observing.
+    const everythingElse =
+      ((solarArray.power.drawKilowatts + batteryBank.power.drawKilowatts) *
+        (game.state.lunation.minutesRemaining +
+          catalogue.nightReserveHours * 60)) /
+      60;
+    const short = scenarioOf(
+      changed(game.campaign, (saved) => {
+        for (const structure of saved.structures) {
+          if (structure.storedKilowattHours > 0) {
+            structure.storedKilowattHours = everythingElse + 0.1;
+          }
+        }
+      }),
+    );
+
+    short.advance({ hours: 2 });
+
+    expect(telescopesOf(short.state)[0]).toMatchObject({
+      observing: false,
+      savingPower: true,
+    });
+    const { progress } = short.state.observingProgramme;
+    expect(progress).toBeGreaterThan(0);
+    expect(progress * roundMinutes).toBeLessThan(30);
+    expect(short.state.observingProgramme.stoppedFor).toBe("no-power");
+    expect(short.state.structures.every((structure) => structure.powered)).toBe(
+      true,
+    );
   });
 });
 

@@ -937,7 +937,7 @@
           "y": -2
         },
         "powered": true,
-        "lit": false,
+        "lit": true,
         "storedKilowattHours": 0,
         "conditionPercent": 99.70049999999857,
         "dustCoatingPercent": 0,

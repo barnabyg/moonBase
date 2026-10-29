@@ -119,7 +119,7 @@ import {
 } from "./machines";
 import {
   consumptionKilowatts,
-  lightsSavingPower,
+  nightLoadsSavingPower,
   plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
@@ -172,7 +172,6 @@ import {
   type StartResearchTaskResult,
 } from "./research";
 import {
-  latestMinuteWasNight,
   observes,
   readObservingProgramme,
   runObservingProgramme,
@@ -354,9 +353,10 @@ export interface StructureSnapshot {
   /** Whether its light was on during the latest game-minute: only at Night, with power. */
   readonly lit: boolean;
   /**
-   * Whether it is a light that switched itself off during the latest
-   * game-minute of Night to save power, so that the energy stored on its
-   * network carries everything else through to Daylight.
+   * Whether it is a Night load, a light or a telescope, that switched
+   * itself off during the latest game-minute of Night to save power, so
+   * that the energy stored on its network carries everything else through
+   * to Daylight.
    */
   readonly savingPower: boolean;
   /** The energy stored in it, if it is a battery bank. */
@@ -1092,7 +1092,7 @@ function campaignFrom(state: CampaignState): Campaign {
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
       const plugs = pluggedIn(state);
-      const savingPower = lightsSavingPower(
+      const savingPower = nightLoadsSavingPower(
         state,
         state.elapsedMinutes > 0 &&
           readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
@@ -1162,19 +1162,22 @@ function campaignFrom(state: CampaignState): Campaign {
           waiting: copy(findWaitingReason(state, construction)),
         })),
         structures: state.structures.map((structure) => {
-          const night = latestMinuteWasNight(state);
           const performance = structurePerformance(structure);
+          const lightRadiusMetres =
+            findStructureType(structure.structureTypeId)?.lightRadiusMetres ??
+            0;
           return {
             ...copy(structure),
+            // The state keeps whether any Night load was on; only a light's
+            // is a light.
+            lit: structure.lit && lightRadiusMetres > 0,
             savingPower: savingPower.includes(structure),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
             performance,
             plant: readPlant(state, structure),
-            observing: observes(structure, night),
-            lightRadiusMetres:
-              (findStructureType(structure.structureTypeId)
-                ?.lightRadiusMetres ?? 0) * performance,
+            observing: observes(structure),
+            lightRadiusMetres: lightRadiusMetres * performance,
           };
         }),
         dismantlings: state.dismantlings.map((dismantling) => ({
@@ -1238,8 +1241,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       ? partBefore
       : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
-  const lightsSavingBefore = new Set(
-    lightsSavingPower(state, partSupplied === "night").map((light) => light.id),
+  const nightLoadsSavingBefore = new Set(
+    nightLoadsSavingPower(state, partSupplied === "night").map(
+      (load) => load.id,
+    ),
   );
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
@@ -1263,11 +1268,11 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
   events.push(
-    ...watchLights(state, partBefore === "night", lightsSavingBefore),
+    ...watchLights(state, partBefore === "night", nightLoadsSavingBefore),
   );
   runPlants(state);
   events.push(...runResearch(state));
-  events.push(...runObservingProgramme(state, partBefore === "night"));
+  events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({
