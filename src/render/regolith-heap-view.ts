@@ -7,7 +7,7 @@ import { fixedRandom } from "./scenery";
 /** How many points go round the heap, and how many rings rise from its foot to its top. */
 const AROUND = 32;
 const RINGS = 7;
-/** How far the heap's outline wanders in and out, as a share of its radius. */
+/** How far the heap's outline wanders in and out about its average, as a share of its radius. */
 const OUTLINE_WANDER = 0.14;
 /** How far its surface rises and falls, as a share of its height. */
 const SURFACE_WANDER = 0.08;
@@ -19,8 +19,8 @@ const SUNK_METRES = 0.02;
 const TEXTURE_METRES = 2.5;
 
 /**
- * A low, slightly lopsided mound of radius about 1, as high as a cone of
- * radius 1 and height 1 with its top rounded off, standing on the
+ * A low, slightly lopsided mound reaching out to radius 1, as high as a
+ * cone of radius 1 and height 1 with its top rounded off, standing on the
  * ground at its origin, to be scaled to the heap: a cone of loose Regolith
  * with a rounded top and an uneven outline and surface, with texture
  * coordinates across it and a colour at each point, darker towards the
@@ -55,7 +55,9 @@ export function createRegolithHeapGeometry(): THREE.BufferGeometry {
     const out = ring / RINGS;
     for (let step = 0; step < AROUND; step++) {
       const angle = (step / AROUND) * Math.PI * 2;
-      const radius = out * (1 + wander(angle) * OUTLINE_WANDER);
+      // Wandering in from the radius, never out past it.
+      const radius =
+        (out * (1 + wander(angle) * OUTLINE_WANDER)) / (1 + OUTLINE_WANDER);
       const bumps =
         ring === RINGS ? 0 : (random() - 0.5) * 2 * SURFACE_WANDER * (1 - out);
       const height = ring === RINGS ? -SUNK_METRES : profile(out) * (1 + bumps);

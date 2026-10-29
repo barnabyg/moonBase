@@ -9,7 +9,7 @@ describe("the Regolith heap's model", () => {
     new THREE.Vector3().fromBufferAttribute(position, index),
   );
 
-  it("is a low mound about 1 across its radius and no higher than 1, sunk just into the ground at its foot", () => {
+  it("is a low mound of radius 1, no higher than 1, sunk just into the ground at its foot", () => {
     geometry.computeBoundingBox();
     const box = geometry.boundingBox ?? new THREE.Box3();
 
@@ -18,7 +18,8 @@ describe("the Regolith heap's model", () => {
     expect(box.min.y).toBeLessThan(0);
     expect(box.min.y).toBeGreaterThan(-0.05);
     for (const point of points) {
-      expect(Math.hypot(point.x, point.z)).toBeLessThan(1.2);
+      // Within its radius, so that it never reaches what stands clear of it.
+      expect(Math.hypot(point.x, point.z)).toBeLessThanOrEqual(1 + 1e-6);
     }
   });
 
