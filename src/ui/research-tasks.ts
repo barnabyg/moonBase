@@ -91,6 +91,10 @@ export function createResearchTasksScreen(
     standingMeter.element,
     standingDetail,
   );
+  // What the telescopes are doing changes with Night and their rounds; the
+  // lines below keep their places.
+  standingDetail.dataset["row"] = "Observing programme state";
+  holdHeight(standingDetail);
   const pays = `each round pays ${formatScience(programme.science)}`;
 
   // The Designs that Science can unlock next, so that the choice of task

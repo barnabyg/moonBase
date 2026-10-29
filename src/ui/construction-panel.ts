@@ -108,8 +108,16 @@ export function createConstructionPanel(
   const done = createLingering<string>();
   /** The rows whose work the events since the last update say is done. */
   const finished = new Set<string>();
-  /** What each parking row parks, to tell whether it ended parked. */
-  const parked = new Map<string, MaintenanceSubject>();
+  /**
+   * What each parking row parks, and whether a Robot was parking it when
+   * last seen, to tell whether it ended parked: one that is plugged in
+   * anyway, such as a Machine to move into a parking area's bay, may have
+   * its Work Order dropped before a Robot takes it there.
+   */
+  const parked = new Map<
+    string,
+    { readonly subject: MaintenanceSubject; readonly underWay: boolean }
+  >();
   /** A row, with a Cancel button if given the id of a Construction it cancels. */
   const createRow = (
     title: string,
@@ -203,7 +211,10 @@ export function createConstructionPanel(
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
         seen.add(key);
-        parked.set(key, parking.subject);
+        parked.set(key, {
+          subject: parking.subject,
+          underWay: parking.underWay,
+        });
         let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
@@ -305,10 +316,11 @@ export function createConstructionPanel(
       for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {
         if (seen.has(id) || done.has(id)) continue;
-        const subject = parked.get(id);
+        const parking = parked.get(id);
         const isDone =
           finished.has(id) ||
-          (subject !== undefined && isPluggedIn(snapshot, subject));
+          (parking?.underWay === true &&
+            isPluggedIn(snapshot, parking.subject));
         if (!isDone) {
           remove(id);
           continue;

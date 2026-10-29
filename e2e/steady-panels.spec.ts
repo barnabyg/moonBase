@@ -214,6 +214,33 @@ test("at the fastest game speed, the Research Tasks screen's lines keep their pl
   expect(texts.size).toBeGreaterThan(2);
 });
 
+test("at the fastest game speed, the panels' rows keep their place while the Robot parks Machines in a parking area's bays", async ({
+  page,
+}) => {
+  // The excavator being parked in a bay, and the regolith printer and the
+  // Rover to follow.
+  const texts = await watchRows(page, "version-38.moonbase", (on) =>
+    on.getByRole("complementary", { name: "Work" }),
+  );
+
+  expect(
+    [...texts].some((text) => text.includes("in a bay of the parking area")),
+  ).toBe(true);
+});
+
+test("at the fastest game speed, the panels' rows keep their place while a telescope observes through the Night", async ({
+  page,
+}) => {
+  const texts = await watchRows(page, "version-39.moonbase", (on) =>
+    on
+      .getByRole("complementary", { name: "Status panel" })
+      .getByRole("status", { name: "Observing programme" }),
+  );
+
+  // How long its round has left changed while it was watched.
+  expect(texts.size).toBeGreaterThan(2);
+});
+
 test("at the fastest game speed, a Structure's pop-up keeps its lines in place while it is built", async ({
   page,
 }) => {
