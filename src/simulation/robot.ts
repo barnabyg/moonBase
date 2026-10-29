@@ -61,7 +61,7 @@ import type { ParkingState } from "./parking";
 import { defaultRecipeId } from "./plants";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
-import { stepTowards } from "./walking";
+import { stepTowards, type Obstacle } from "./walking";
 import { findStructureToReconnect } from "./reconnection";
 import {
   finishSelfRepair,
@@ -263,6 +263,20 @@ export interface RobotState {
 
 /** How close to the Lander's centre a Robot may walk. */
 const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
+
+/**
+ * What a Robot, or a Machine or Rover it drives, goes round on its way
+ * across the base: the Lander. Something wider keeps that much further
+ * away.
+ */
+function obstaclesFor(state: CampaignState, radius = 0): Obstacle[] {
+  return [
+    {
+      centre: state.lander.position,
+      radius: LANDER_CLEARANCE_METRES + radius,
+    },
+  ];
+}
 
 /**
  * Lets the Robot do one game-minute of work, as fast as its Condition
@@ -531,12 +545,7 @@ function setGoing(
     machine.position = stepTowards(
       machine.position,
       positioning.destination,
-      {
-        centre: state.lander.position,
-        radius:
-          LANDER_CLEARANCE_METRES +
-          machineFootprintRadius(machine.machineTypeId),
-      },
+      obstaclesFor(state, machineFootprintRadius(machine.machineTypeId)),
       ((type?.drivingSpeedMetresPerHour ?? 0) * machinePerformance(machine)) /
         60,
     );
@@ -598,7 +607,7 @@ function layCable(
   robot.position = stepTowards(
     robot.position,
     cable.end,
-    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    obstaclesFor(state),
     (catalogue.robot.cableLayingSpeedMetresPerHour * robotPerformance(robot)) /
       60,
   );
@@ -956,10 +965,7 @@ function park(
   body.position = stepTowards(
     body.position,
     parking.destination,
-    {
-      centre: state.lander.position,
-      radius: LANDER_CLEARANCE_METRES + spec.footprintRadiusMetres,
-    },
+    obstaclesFor(state, spec.footprintRadiusMetres),
     (spec.drivingSpeedMetresPerHour * drivenPerformance(driven)) / 60,
   );
   robot.position = { ...body.position };
@@ -1062,7 +1068,7 @@ function stepRobot(
   robot.position = stepTowards(
     robot.position,
     spot,
-    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    obstaclesFor(state),
     (catalogue.robot.walkingSpeedMetresPerHour * robotPerformance(robot)) / 60,
   );
 }
@@ -1174,10 +1180,7 @@ function goOnExpedition(
     rover.position = stepTowards(
       rover.position,
       spot,
-      {
-        centre: state.lander.position,
-        radius: LANDER_CLEARANCE_METRES + catalogue.rover.footprintRadiusMetres,
-      },
+      obstaclesFor(state, catalogue.rover.footprintRadiusMetres),
       (catalogue.rover.drivingSpeedMetresPerHour * roverPerformance(rover)) /
         60,
     );
