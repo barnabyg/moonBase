@@ -95,7 +95,7 @@ Once the Mission Director has moved into a Habitat, "Send the Lander" sends it o
 
 ## Exports
 
-Wafers and circuit boards are Exports. The Launch manifest screen's Exports tab sets how many kilograms of each to load, against the Lander's Return Mass and the base's stock, with what they will sell for. They can't be changed while the Lander is away.
+Wafers and circuit boards are Exports. The Launch manifest screen's Exports tab sets how many kilograms of each to load, against the Lander's Return Mass and the base's stock, with what they will sell for. Its Aboard column shows the kilograms of each already on the Lander, until they are sold. They can't be changed while the Lander is away.
 
 - **At the landing site**, Exports stay in the base's stock until take-off, then go aboard (as much as is left).
 - **On a landing pad**, setting them raises a loading Work Order, and a Robot carries them aboard. Until it picks them up, changing the amounts changes what it carries and clearing them cancels the loading; once it has them, changes and sending the Lander are refused until they are aboard. You can then set more for another round of loading.

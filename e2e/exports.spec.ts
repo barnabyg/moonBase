@@ -27,7 +27,7 @@ async function skipUntil(page: Page, text: string): Promise<void> {
   await expect(notifications).toContainText(text);
 }
 
-test("wafers loaded onto the Lander are sold when it reaches Earth, and the Funding rises by their value", async ({
+test("wafers loaded onto the Lander are shown aboard it, sold when it reaches Earth, and the Funding rises by their value", async ({
   page,
 }) => {
   await page.goto("/?seed=1");
@@ -41,9 +41,9 @@ test("wafers loaded onto the Lander are sold when it reaches Earth, and the Fund
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
   await screen.getByRole("tab", { name: "Exports" }).click();
-  await expect(screen.getByRole("row", { name: /Wafers/ })).toContainText(
-    "46.5 kg$1.5M a kg",
-  );
+  const wafers = screen.getByRole("row", { name: /Wafers/ });
+  // In stock, aboard, price.
+  await expect(wafers).toContainText("46.5 kg0 kg$1.5M a kg");
   const kilograms = screen.getByRole("spinbutton", {
     name: "Kilograms of Wafers to load",
   });
@@ -75,6 +75,12 @@ test("wafers loaded onto the Lander are sold when it reaches Earth, and the Fund
   await expect(
     page.getByRole("status", { name: "Bulk resources" }),
   ).toContainText("Wafers 6 kg");
+  // The Exports tab shows them aboard, out of the base's stock.
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  await screen.getByRole("tab", { name: "Exports" }).click();
+  await expect(wafers).toContainText("40 kg$1.5M a kg");
+  await expect(kilograms).toHaveValue("0");
+  await screen.getByRole("button", { name: "Close" }).click();
   await skipUntil(page, "Lander reached Earth");
 
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(

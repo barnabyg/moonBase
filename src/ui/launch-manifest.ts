@@ -36,8 +36,8 @@ export interface LaunchManifestScreen {
  * oxygen and water, and Robots, each with what it is for, its mass and
  * price and how many the manifest has. An item whose Design isn't unlocked isn't listed until
  * it is. On the Exports tab, the Return Mass and what the Exports will sell
- * for stay in sight over each Export, with what is in stock, its price and
- * the kilograms to load. It only sends what the player asks for to the
+ * for stay in sight over each Export, with what is in stock, what is aboard
+ * the Lander already, its price and the kilograms to load. It only sends what the player asks for to the
  * Campaign, which decides whether it is allowed and says why not. The game
  * runs on while it is open.
  */
@@ -148,6 +148,7 @@ export function createLaunchManifestScreen(
   const exportsTable = createTable([
     "Export",
     "In stock",
+    "Aboard",
     "Price",
     "Kilograms to load",
   ]);
@@ -183,6 +184,8 @@ export function createLaunchManifestScreen(
     name.textContent = label;
     const inStock = document.createElement("td");
     inStock.className = "launch-manifest__count";
+    const aboard = document.createElement("td");
+    aboard.className = "launch-manifest__count";
     const price = document.createElement("td");
     price.className = "launch-manifest__details";
     price.textContent = formatExportPrice(sold);
@@ -197,9 +200,9 @@ export function createLaunchManifestScreen(
       load(sold.resourceId, input);
     });
     amount.append(input);
-    row.append(name, inStock, price, amount);
+    row.append(name, inStock, aboard, price, amount);
     exportsTable.body.append(row);
-    return { sold, row, inStock, input };
+    return { sold, row, inStock, aboard, input };
   });
 
   return {
@@ -258,7 +261,7 @@ export function createLaunchManifestScreen(
       // Once the Robot has loaded them, they can't change until they're aboard.
       const carried = snapshot.exportLoading?.collected === true;
       setText(exportsIntro, describeExports(snapshot));
-      for (const { sold, row, inStock, input } of exportRows) {
+      for (const { sold, row, inStock, aboard, input } of exportRows) {
         setText(
           inStock,
           formatExportStock(
@@ -267,10 +270,15 @@ export function createLaunchManifestScreen(
             )?.kilograms ?? 0,
           ),
         );
+        const kilogramsAboard =
+          snapshot.exports.aboard.find(
+            (line) => line.resourceId === sold.resourceId,
+          )?.kilograms ?? 0;
+        setText(aboard, `${formatKilogramAmount(kilogramsAboard)} kg`);
         input.disabled = away || carried;
         row.classList.toggle(
           "launch-manifest__row--chosen",
-          kilogramsOf(sold.resourceId) > 0,
+          kilogramsOf(sold.resourceId) > 0 || kilogramsAboard > 0,
         );
         // Not while the player is typing in it.
         if (document.activeElement !== input) {
@@ -278,13 +286,13 @@ export function createLaunchManifestScreen(
           if (input.value !== shown) input.value = shown;
         }
       }
-      const aboard = snapshot.exports.aboard.reduce(
+      const massAboard = snapshot.exports.aboard.reduce(
         (total, line) => total + line.kilograms,
         0,
       );
       returnMass.show(
         formatReturnMass(snapshot.exports),
-        (snapshot.exports.massKilograms + aboard) /
+        (snapshot.exports.massKilograms + massAboard) /
           catalogue.lander.returnMassKilograms,
       );
       exportsValue.show(formatExportsValue(snapshot.exports), undefined);
