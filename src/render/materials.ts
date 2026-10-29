@@ -151,6 +151,42 @@ const thinFilmCells = createCellTexture((context, width, height) => {
   context.fillRect(0, height - ribbon - 1, width, ribbon);
 });
 
+/**
+ * The woven steel-wire mesh of a Rover's tyre: a diamond lattice of bright
+ * wire over the dark inside of the wheel, tiled round the tread. Undefined
+ * if the browser can't draw on a canvas.
+ */
+function createWireMeshTexture(): THREE.CanvasTexture | undefined {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context === null) return undefined;
+  context.fillStyle = "#26282b";
+  context.fillRect(0, 0, size, size);
+  context.strokeStyle = "#a3a6a9";
+  context.lineWidth = 5;
+  // Corner to corner both ways, and again across each edge, so that it
+  // repeats without a seam.
+  for (const offset of [-size, 0, size]) {
+    context.beginPath();
+    context.moveTo(offset, 0);
+    context.lineTo(offset + size, size);
+    context.moveTo(offset + size, 0);
+    context.lineTo(offset, size);
+    context.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(24, 3);
+  return texture;
+}
+
+const wireMesh = createWireMeshTexture();
+
 export const materials = {
   foil: new THREE.MeshStandardMaterial({
     color: 0xc8a13a,
@@ -265,6 +301,15 @@ export const materials = {
     color: 0x2a2a2a,
     metalness: 0.4,
     roughness: 0.9,
+  }),
+  // A Rover's tyre of woven steel wire, which flexes over rocks where
+  // rubber would go brittle in the cold.
+  wireMesh: new THREE.MeshStandardMaterial({
+    ...(wireMesh === undefined
+      ? { color: 0x55585b }
+      : { color: 0xffffff, map: wireMesh }),
+    metalness: 0.8,
+    roughness: 0.5,
   }),
   // The steel grousers on a track's shoes, worn bright by the Regolith.
   grouser: new THREE.MeshStandardMaterial({
