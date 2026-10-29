@@ -148,13 +148,14 @@ export interface Catalogue {
    */
   readonly habitatPowerWarningHoursLeft: readonly number[];
   /**
-   * A light switches itself off at Night once its power network's stored
-   * energy, less what the light draws, would no longer carry everything
-   * else on the network through the rest of the Night and this many
-   * game-hours more, so that lights never leave anything else without
-   * power. Must come to a whole number of game-minutes, and be more than 0.
+   * A light switches itself off, and a Plant stands idle, at Night once its
+   * power network's stored energy, less what it draws, would no longer
+   * carry everything else on the network through the rest of the Night and
+   * this many game-hours more, so that neither ever leaves anything else
+   * without power. Must come to a whole number of game-minutes, and be more
+   * than 0.
    */
-  readonly lightReserveHours: number;
+  readonly nightReserveHours: number;
   readonly radiation: RadiationRules;
   readonly solarParticleEvents: SolarParticleEventRules;
   /**
@@ -2228,7 +2229,7 @@ export const catalogue: Catalogue = {
   // As long as the first Habitat power warning, so that lights never bring
   // one: a Light Mast is only there to see by, and the Mission Director's
   // life shouldn't hang on leaving one unbuilt.
-  lightReserveHours: 24,
+  nightReserveHours: 24,
   // The limit is a career limit for astronauts. Unshielded, the dose rate is
   // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
   // surface, so that the limit comes in 20 Earth Days and shielding the

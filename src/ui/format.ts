@@ -301,7 +301,7 @@ export function formatLifeSupport(
       ? { value, note: rising }
       : {
           value,
-          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants stand idle at Night`,
+          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
         };
   }
   if (stock.kilograms === 0) return { value, note: "ran out" };
@@ -713,7 +713,7 @@ export function formatPlant(
     case "no-input":
       return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
     case "night":
-      return `idle at Night${left}`;
+      return `idle at Night: no stored power to spare${left}`;
     case "no-power":
       return `waiting for power to spare${left}`;
     case "switched-off":

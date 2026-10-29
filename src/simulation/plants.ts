@@ -37,7 +37,10 @@ export type PlantStop =
    * one: the first in its recipe it is short of.
    */
   | { readonly reason: "no-input"; readonly resource: ResourceRef }
-  /** It was Night, when no network has power to spare for a Plant. */
+  /**
+   * It was Night, and its network's battery banks held no more than
+   * everything else on it needs through the Night and the reserve after it.
+   */
   | { readonly reason: "night" }
   /** Its network had no power to spare for it in Daylight. */
   | { readonly reason: "no-power" }

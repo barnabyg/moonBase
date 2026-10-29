@@ -361,3 +361,94 @@ describe("parking and power through saving and loading", () => {
     expect(loaded.campaign.snapshot()).toEqual(campaign.snapshot());
   });
 });
+
+describe("Plants at Night", () => {
+  const plantSite: GroundPosition = { x: 30, y: 22 };
+  const plantType = catalogue.structureTypes.find(
+    (type) => type.id === "extraction-plant",
+  );
+
+  /**
+   * A solar array, a battery bank and an extraction plant, a game-minute
+   * into the first Night with every Machine parked and the Rover Broken,
+   * then, if asked, the excavator moved out of reach of power. The battery
+   * bank holds what everything plugged in then draws through the rest of
+   * the Night and the reserve after it, and an hour of the Plant's draw to
+   * spare.
+   */
+  function atNight(excavatorAway: boolean): Campaign {
+    const withComponents = changed(scenario().campaign, (state) => {
+      for (const need of plantType?.components ?? []) {
+        const stock = state.stockpile.components.find(
+          (candidate) => candidate.componentId === need.componentId,
+        );
+        if (stock !== undefined) stock.count += need.count;
+      }
+    });
+    for (const [structureTypeId, position] of [
+      ["solar-array", arraySite],
+      ["battery-bank", bankSite],
+      ["extraction-plant", plantSite],
+    ] as const) {
+      const planned = withComponents.planConstruction({
+        structureTypeId,
+        position,
+      });
+      if (!planned.ok) throw new Error(planned.message);
+    }
+    for (let hours = 0; withComponents.snapshot().constructions.length > 0;) {
+      if (++hours > 10 * 24)
+        throw new Error("The Constructions never finished.");
+      withComponents.advance(60);
+    }
+    intoNight(withComponents);
+    expect(machines(withComponents).every((m) => m.pluggedIn)).toBe(true);
+    const away = changed(withComponents, (state) => {
+      const saved = state as unknown as {
+        machines: { machineTypeId: string; position: GroundPosition }[];
+      };
+      for (const machine of saved.machines) {
+        if (excavatorAway && machine.machineTypeId === "excavator") {
+          machine.position = { x: -120, y: -120 };
+        }
+      }
+      for (const rover of state.rovers) rover.conditionPercent = 0;
+    });
+    const { lunation, power } = away.snapshot();
+    const plantDraw = plantType?.recipes?.[0]?.drawKilowatts ?? Number.NaN;
+    // What everything plugged in draws, which leaves out the Plant's draw.
+    const plugged =
+      (power.networks[0]?.consumptionKilowatts ?? Number.NaN) -
+      (structure(away.snapshot(), "extraction-plant").powered ? plantDraw : 0);
+    return changed(away, (state) => {
+      for (const saved of state.structures) {
+        if (saved.storedKilowattHours > 0) {
+          saved.storedKilowattHours =
+            plugged *
+              (lunation.minutesRemaining / 60 + catalogue.nightReserveHours) +
+            plantDraw;
+        }
+      }
+      for (const stock of state.bulkResources) {
+        if (stock.resourceId === "regolith") stock.kilograms = 5000;
+      }
+    });
+  }
+
+  const plantOf = (campaign: Campaign) =>
+    structure(campaign.snapshot(), "extraction-plant").plant;
+
+  it("leave the battery banks enough for the heater of a Machine not yet parked, as it may be before the Night ends", () => {
+    const parked = atNight(false);
+    const away = atNight(true);
+    parked.advance(1);
+    away.advance(1);
+
+    expect(plantOf(parked)).toMatchObject({ running: true });
+    expect(machines(away)[0]?.pluggedIn).toBe(false);
+    expect(plantOf(away)).toMatchObject({
+      running: false,
+      stoppedFor: { reason: "night" },
+    });
+  });
+});

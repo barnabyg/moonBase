@@ -200,16 +200,24 @@ describe("a Plant switched off", () => {
 
 describe("a Plant switched off at Night", () => {
   it("says it is switched off rather than idle at Night, and finishes any batch it has started in the next Daylight", () => {
-    const campaign = running();
-    const plantId = waterPlantOf(campaign.snapshot()).id;
+    const daylight = running();
+    const plantId = waterPlantOf(daylight.snapshot()).id;
     // Its batches end as Night falls: switched off for half an hour, it
     // starts the next half an hour later, so that Night falls half way
     // through one.
-    switchPlant(campaign, plantId, "off");
-    untilBatchDone(campaign, plantId);
-    campaign.advance(30);
-    switchPlant(campaign, plantId, "on");
-    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 1);
+    switchPlant(daylight, plantId, "off");
+    untilBatchDone(daylight, plantId);
+    daylight.advance(30);
+    switchPlant(daylight, plantId, "on");
+    daylight.advance(daylight.snapshot().lunation.minutesRemaining);
+    // The battery bank empty as Night falls, so that it has no power to
+    // spare for the plant.
+    const campaign = changed(daylight, (state) => {
+      for (const structure of state.structures) {
+        structure.storedKilowattHours = 0;
+      }
+    });
+    campaign.advance(1);
     expect(campaign.snapshot().lunation.part).toBe("night");
     expect(waterPlantOf(campaign.snapshot()).plant?.batch).toBeDefined();
 

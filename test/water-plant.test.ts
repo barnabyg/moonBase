@@ -266,7 +266,7 @@ describe("the water forecast", () => {
     expect(
       formatLifeSupport(stock, forecast, state.missionDirector).note,
     ).toMatch(
-      /^rising .* kg a day, but lasts only .*: Plants stand idle at Night$/,
+      /^rising .* kg a day, but lasts only .*: Plants may stand idle at Night$/,
     );
     expect(forecast.minutesUntilEmpty).toBeCloseTo(
       toNight + (atNightfall / use) * 24 * 60,

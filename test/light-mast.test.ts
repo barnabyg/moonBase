@@ -182,7 +182,7 @@ describe("a Light Mast", () => {
     const alwaysDrawn =
       solarArray.power.drawKilowatts + batteryBank.power.drawKilowatts;
     expect(networkOf(game.state, mastId).storedKilowattHours).toBeCloseTo(
-      alwaysDrawn * catalogue.lightReserveHours,
+      alwaysDrawn * catalogue.nightReserveHours,
       1,
     );
   });

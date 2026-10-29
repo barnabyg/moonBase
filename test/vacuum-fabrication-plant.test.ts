@@ -205,7 +205,7 @@ describe("the vacuum fabrication plant", () => {
       batch: { recipeId: recipe.id, minutesLeft: 30 },
     });
     expect(formatPlant(plantOf(state).plant ?? fail())).toBe(
-      "idle at Night, 30 min left of this batch",
+      "idle at Night: no stored power to spare, 30 min left of this batch",
     );
 
     campaign.advance(state.lunation.minutesRemaining + 29);

@@ -21,8 +21,7 @@ import {
 // for the screens where the player chooses them and for the Guide.
 
 /** How every Plant gets its power, which the player has to plan around. */
-const PLANTS_AT_NIGHT =
-  "Like every Plant, it works in batches of an hour: it starts one once it has an hour's worth of each input, and the outputs come as it finishes. It runs only on power the battery banks can't store, in Daylight once they are full, and stands idle at Night: keep enough of what it makes to last the Night.";
+const PLANTS_AT_NIGHT = `Like every Plant, it works in batches of an hour: it starts one once it has an hour's worth of each input, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle: keep enough of what it makes to last the Night.`;
 
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {
@@ -36,7 +35,7 @@ export function describeStructure(type: StructureType): string {
       : []),
     ...(type.lightRadiusMetres > 0
       ? [
-          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.lightReserveHours)} more`,
+          `lights the ground ${type.lightRadiusMetres} m round it at Night, for ${power.nightDrawKilowatts} kW while it is on, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
     ...(type.habitat ? ["the Mission Director can move into it"] : []),
