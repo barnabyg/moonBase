@@ -140,7 +140,7 @@ export interface Footing {
 }
 
 /** Everything with a Structure's footprint: Structures, Constructions and Structures being dismantled. */
-function footings(
+export function footings(
   site: Pick<Site, "structures" | "constructions" | "dismantlings">,
 ): Footing[] {
   return [...site.structures, ...site.constructions, ...site.dismantlings];

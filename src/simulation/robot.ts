@@ -61,7 +61,7 @@ import type { ParkingState } from "./parking";
 import { defaultRecipeId } from "./plants";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
-import { stepTowards } from "./walking";
+import { obstaclesFor, stepTowards } from "./walking";
 import { findStructureToReconnect } from "./reconnection";
 import {
   finishSelfRepair,
@@ -260,9 +260,6 @@ export interface RobotState {
    */
   arrival: ArrivalState | undefined;
 }
-
-/** How close to the Lander's centre a Robot may walk. */
-const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
 
 /**
  * Lets the Robot do one game-minute of work, as fast as its Condition
@@ -531,12 +528,7 @@ function setGoing(
     machine.position = stepTowards(
       machine.position,
       positioning.destination,
-      {
-        centre: state.lander.position,
-        radius:
-          LANDER_CLEARANCE_METRES +
-          machineFootprintRadius(machine.machineTypeId),
-      },
+      obstaclesFor(state, machineFootprintRadius(machine.machineTypeId)),
       ((type?.drivingSpeedMetresPerHour ?? 0) * machinePerformance(machine)) /
         60,
     );
@@ -598,7 +590,7 @@ function layCable(
   robot.position = stepTowards(
     robot.position,
     cable.end,
-    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    obstaclesFor(state),
     (catalogue.robot.cableLayingSpeedMetresPerHour * robotPerformance(robot)) /
       60,
   );
@@ -956,10 +948,7 @@ function park(
   body.position = stepTowards(
     body.position,
     parking.destination,
-    {
-      centre: state.lander.position,
-      radius: LANDER_CLEARANCE_METRES + spec.footprintRadiusMetres,
-    },
+    obstaclesFor(state, spec.footprintRadiusMetres),
     (spec.drivingSpeedMetresPerHour * drivenPerformance(driven)) / 60,
   );
   robot.position = { ...body.position };
@@ -1005,9 +994,10 @@ function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
 }
 
 /**
- * Walks the Robot one game-minute towards a spot, round the Lander, for
- * Maintenance or parking of a Machine or Rover: to the stockpile, or to
- * the Machine or Rover itself. Says whether it was already there.
+ * Walks the Robot one game-minute towards a spot, round the Lander and the
+ * Structures, for Maintenance or parking of a Machine or Rover: to the
+ * stockpile, or to the Machine or Rover itself. Says whether it was
+ * already there.
  */
 function walkRobotToDriven(
   state: CampaignState,
@@ -1034,8 +1024,8 @@ function walkRobotToDriven(
 }
 
 /**
- * Walks the Robot one game-minute towards a spot, round the Lander, for work
- * on a Structure. Says whether it was already there.
+ * Walks the Robot one game-minute towards a spot, round the Lander and the
+ * Structures, for work on a Structure. Says whether it was already there.
  */
 function walkRobotTo(
   state: CampaignState,
@@ -1051,8 +1041,8 @@ function walkRobotTo(
 }
 
 /**
- * Walks the Robot one game-minute's step towards a spot, round the Lander,
- * as fast as its Condition allows.
+ * Walks the Robot one game-minute's step towards a spot, round the Lander
+ * and the Structures, as fast as its Condition allows.
  */
 function stepRobot(
   state: CampaignState,
@@ -1062,7 +1052,7 @@ function stepRobot(
   robot.position = stepTowards(
     robot.position,
     spot,
-    { centre: state.lander.position, radius: LANDER_CLEARANCE_METRES },
+    obstaclesFor(state),
     (catalogue.robot.walkingSpeedMetresPerHour * robotPerformance(robot)) / 60,
   );
 }
@@ -1174,10 +1164,7 @@ function goOnExpedition(
     rover.position = stepTowards(
       rover.position,
       spot,
-      {
-        centre: state.lander.position,
-        radius: LANDER_CLEARANCE_METRES + catalogue.rover.footprintRadiusMetres,
-      },
+      obstaclesFor(state, catalogue.rover.footprintRadiusMetres),
       (catalogue.rover.drivingSpeedMetresPerHour * roverPerformance(rover)) /
         60,
     );
