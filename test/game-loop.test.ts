@@ -80,6 +80,16 @@ describe("the game loop", () => {
     expect(game.state.clock.elapsedMinutes).toBeLessThan(120);
   });
 
+  it("says how much real time the last frame counted, a quarter of a second at most, for the interface to time what it holds in place", () => {
+    const loop = createGameLoop(scenario().campaign);
+    expect(loop.frameMs).toBe(0);
+
+    loop.update(16);
+    expect(loop.frameMs).toBe(16);
+    loop.update(60_000);
+    expect(loop.frameMs).toBe(250);
+  });
+
   it("refuses a speed that is not in the catalogue", () => {
     const loop = createGameLoop(scenario().campaign);
 

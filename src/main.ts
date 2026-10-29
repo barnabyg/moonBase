@@ -10,7 +10,7 @@ import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
-import { refreshHolds } from "./ui/hold";
+import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
@@ -67,6 +67,7 @@ function startRenderer(
 const campaign = createCampaignSlot(createCampaign({ seed: chooseSeed() }));
 const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
+  holds.startAfresh();
   notifications.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
@@ -84,6 +85,8 @@ leftColumn.className = "left-column";
 const rightColumn = document.createElement("div");
 rightColumn.className = "right-column";
 container.append(topBarSlot, leftColumn, rightColumn);
+// Keeps the panels' lines from jumping as what they show changes quickly.
+const holds = createHolds(container);
 const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
@@ -154,7 +157,7 @@ function frame(time: number): void {
   topBar.update(snapshot);
   statusPanel.update(snapshot, campaign.forecasts());
   basePanel.update(snapshot);
-  constructionPanel.update(snapshot);
+  constructionPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);
   expeditions.update(snapshot);
   researchTasks.update(snapshot);
@@ -164,7 +167,7 @@ function frame(time: number): void {
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
   // Once every panel has updated, so that they are measured together.
-  refreshHolds(time);
+  holds.refresh(loop.frameMs);
   renderer?.render({
     current: snapshot,
     previous: loop.previous,

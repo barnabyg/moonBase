@@ -25,10 +25,11 @@ import {
   subjectLabel,
 } from "./format";
 import { setText } from "./dom";
-import { holdHeight, holdTime, isHoldOver } from "./hold";
+import { createLingering, holdHeight } from "./hold";
 
 export interface ConstructionPanel {
-  update(snapshot: Snapshot): void;
+  /** Shows the snapshot, with the real time the frame counted, to time the rows that stay once their work is done. */
+  update(snapshot: Snapshot, frameMs: number): void;
   /**
    * Forgets every row, for a Campaign loaded in place of the last, which
    * may give the same ids to other Constructions.
@@ -60,12 +61,6 @@ interface Row {
   readonly progress: HTMLProgressElement;
   readonly work: HTMLElement;
   readonly cancel: HTMLButtonElement | undefined;
-  /**
-   * When its work was done, as a {@link holdTime}, while it stays in place
-   * showing that, so that a Work Order raised again soon after takes the
-   * same row and the rows below don't jump.
-   */
-  doneAt: number | undefined;
 }
 
 /**
@@ -94,6 +89,9 @@ export function createConstructionPanel(
   holdHeight(panel);
 
   const rows = new Map<string, Row>();
+  // A row whose work is done stays a while, so that a Work Order raised
+  // again soon after takes the same row and the rows below don't jump.
+  const done = createLingering<string>();
   /** The Constructions the player has cancelled, whose rows go at once. */
   const cancelled = new Set<string>();
   /** A row, with a Cancel button if given the id of a Construction it cancels. */
@@ -127,13 +125,13 @@ export function createConstructionPanel(
     }
     list.append(item);
     holdHeight(item);
-    return { item, stage, progress, work, cancel, doneAt: undefined };
+    return { item, stage, progress, work, cancel };
   };
   /** Finds a row by its key, taking it back if its work was done. */
   const rowFor = (key: string): Row | undefined => {
     const row = rows.get(key);
-    if (row?.doneAt !== undefined) {
-      row.doneAt = undefined;
+    if (row !== undefined && done.has(key)) {
+      done.revive(key);
       if (row.cancel !== undefined) row.cancel.hidden = false;
     }
     return row;
@@ -145,7 +143,7 @@ export function createConstructionPanel(
   };
 
   return {
-    update(snapshot) {
+    update(snapshot, frameMs) {
       // Every Work Order waits while the Robot is on an Expedition; with
       // more than one, the others carry on with them.
       const away = isEveryRobotOnExpedition(
@@ -281,20 +279,24 @@ export function createConstructionPanel(
         );
         showWork(row, () => describeExportLoading(exportLoading, snapshot));
       }
+      const remove = (id: string) => {
+        rows.get(id)?.item.remove();
+        rows.delete(id);
+      };
+      for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {
-        if (seen.has(id)) continue;
-        if (row.doneAt === undefined && !cancelled.has(id)) {
-          // Done: it stays a while, saying so, in case more comes.
-          row.doneAt = holdTime();
-          setText(row.stage, "Done");
-          row.progress.value = 1;
-          row.progress.setAttribute("aria-label", "Done");
-          setText(row.work, "Finished");
-          if (row.cancel !== undefined) row.cancel.hidden = true;
-        } else if (row.doneAt === undefined || isHoldOver(row.doneAt)) {
-          row.item.remove();
-          rows.delete(id);
+        if (seen.has(id) || done.has(id)) continue;
+        if (cancelled.has(id)) {
+          remove(id);
+          continue;
         }
+        // Done: it stays a while, saying so, in case more comes.
+        done.finish(id);
+        setText(row.stage, "Done");
+        row.progress.value = 1;
+        row.progress.setAttribute("aria-label", "Done");
+        setText(row.work, "Finished");
+        if (row.cancel !== undefined) row.cancel.hidden = true;
       }
       cancelled.clear();
       panel.hidden = rows.size === 0;
@@ -303,6 +305,7 @@ export function createConstructionPanel(
       for (const row of rows.values()) row.item.remove();
       rows.clear();
       cancelled.clear();
+      done.startAfresh();
     },
   };
 }
