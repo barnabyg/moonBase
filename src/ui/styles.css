@@ -319,7 +319,27 @@ body {
   border-radius: 8px;
 }
 
+/* A folded section's headline figures, on one line beside its title. */
+.panel-section__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.panel-section[open] > .panel-section__title > .panel-section__summary {
+  display: none;
+}
+
 .panel-section__warning {
+  flex: none;
   width: 7px;
   height: 7px;
   margin-left: auto;

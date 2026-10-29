@@ -32,6 +32,11 @@ export interface PanelSection {
   readonly body: HTMLElement;
   /** Shows how many things the section lists beside its title, or nothing. */
   count(count: number | undefined): void;
+  /**
+   * Sums up the section's headline figures beside its title, shown only
+   * while it is folded, or nothing.
+   */
+  summarise(summary: string | undefined): void;
   /** Marks the title while anything in the section is a warning, so it shows even when folded. */
   refreshWarning(): void;
 }
@@ -51,11 +56,18 @@ export function createPanelSection(id: string, title: string): PanelSection {
   const badge = document.createElement("span");
   badge.className = "panel-section__count";
   badge.hidden = true;
+  // Shown only while folded, in place of the lines it sums up.
+  const summaryLine = document.createElement("span");
+  summaryLine.className = "panel-section__summary";
+  summaryLine.setAttribute("role", "status");
+  summaryLine.setAttribute("aria-label", `${title} summary`);
+  summaryLine.setAttribute("aria-live", "off");
+  summaryLine.hidden = true;
   const warning = document.createElement("span");
   warning.className = "panel-section__warning";
   warning.title = "Something here needs attention";
   warning.hidden = true;
-  summary.append(name, badge, warning);
+  summary.append(name, badge, summaryLine, warning);
   const body = document.createElement("div");
   body.className = "panel-section__body";
   element.append(summary, body);
@@ -71,6 +83,12 @@ export function createPanelSection(id: string, title: string): PanelSection {
     count(count) {
       badge.hidden = count === undefined;
       setText(badge, count === undefined ? "" : String(count));
+    },
+    summarise(text) {
+      summaryLine.hidden = text === undefined;
+      setText(summaryLine, text ?? "");
+      // In full on hover, for when it is cut short beside a long title.
+      if (summaryLine.title !== (text ?? "")) summaryLine.title = text ?? "";
     },
     refreshWarning() {
       warning.hidden =

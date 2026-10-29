@@ -24,6 +24,12 @@ import {
   formatStock,
   formatStoredPower,
   stockLabel,
+  summariseMilestones,
+  summariseMissionDirector,
+  summarisePower,
+  summariseResearch,
+  summariseStock,
+  summariseTravel,
   withSwitchedOffPlants,
 } from "./format";
 import { createPanelSection } from "./panel-section";
@@ -38,7 +44,8 @@ export interface StatusPanel {
  * The HTML status panel, in sections the player can fold away: the
  * Milestone to aim for now and the one after it, how the Mission Director
  * is keeping, the base's power, its stock, the Lander and
- * Expeditions, and the Research Task running. It reads simulation snapshots
+ * Expeditions, and the Research Task running. A folded section keeps its
+ * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
  * which decides whether it is allowed and says why not.
  */
@@ -361,6 +368,28 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
+
+      // What each section shows beside its title while it is folded.
+      milestonesSection.summarise(summariseMilestones(snapshot.milestones));
+      missionDirectorSection.summarise(
+        summariseMissionDirector(
+          missionDirector,
+          snapshot.lifeSupport,
+          forecasts.lifeSupport,
+        ),
+      );
+      powerSection.summarise(summarisePower(snapshot.power));
+      stockSection.summarise(
+        summariseStock(snapshot.bulkResources, forecasts.spareComponents),
+      );
+      travelSection.summarise(
+        summariseTravel(
+          snapshot.lander,
+          snapshot.expedition,
+          snapshot.clock.elapsedMinutes,
+        ),
+      );
+      researchSection.summarise(summariseResearch(snapshot.researchTask));
 
       for (const section of sections) section.refreshWarning();
     },
