@@ -137,27 +137,21 @@ function waypointPast(
 ): GroundPosition | undefined {
   if (isClear(from, destination, inTheWay)) return destination;
   const { corners, distances } = routesTo(destination, obstacles);
-  // The corner the shortest way goes by is nearly always among the first
-  // few tried, cheapest first.
+  // Cheapest first: the corners further along the way round the obstacle
+  // being gone round cost less but are out of sight behind it.
   const costs = corners.map((corner, index) =>
     distance(from, corner) > TOLERANCE
       ? distance(from, corner) + (distances[index] ?? Infinity)
       : Infinity,
   );
-  for (;;) {
-    let cheapest = -1;
-    let cheapestCost = Infinity;
-    for (const [index, cost] of costs.entries()) {
-      if (cost < cheapestCost) {
-        cheapest = index;
-        cheapestCost = cost;
-      }
-    }
-    const corner = corners[cheapest];
-    if (corner === undefined) return undefined;
-    if (isClear(from, corner, inTheWay)) return corner;
-    costs[cheapest] = Infinity;
+  const order = costs
+    .flatMap((cost, index) => (cost < Infinity ? [index] : []))
+    .sort((a, b) => (costs[a] ?? 0) - (costs[b] ?? 0));
+  for (const index of order) {
+    const corner = corners[index];
+    if (corner !== undefined && isClear(from, corner, inTheWay)) return corner;
   }
+  return undefined;
 }
 
 /**
@@ -271,7 +265,18 @@ function isClear(
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lengthSquared = dx * dx + dy * dy;
-  return obstacles.every(({ centre, radius }) => {
+  for (const { centre, radius } of obstacles) {
+    const reach = radius - TOLERANCE;
+    // Quickly past one well clear of the whole walk.
+    if (
+      reach <= 0 ||
+      centre.x + reach <= Math.min(a.x, b.x) ||
+      centre.x - reach >= Math.max(a.x, b.x) ||
+      centre.y + reach <= Math.min(a.y, b.y) ||
+      centre.y - reach >= Math.max(a.y, b.y)
+    ) {
+      continue;
+    }
     const along =
       lengthSquared === 0
         ? 0
@@ -282,11 +287,11 @@ function isClear(
               ((centre.x - a.x) * dx + (centre.y - a.y) * dy) / lengthSquared,
             ),
           );
-    return (
-      distance({ x: a.x + along * dx, y: a.y + along * dy }, centre) >=
-      radius - TOLERANCE
-    );
-  });
+    const offX = a.x + along * dx - centre.x;
+    const offY = a.y + along * dy - centre.y;
+    if (offX * offX + offY * offY < reach * reach) return false;
+  }
+  return true;
 }
 
 function samePlace(a: GroundPosition, b: GroundPosition): boolean {
