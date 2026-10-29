@@ -11,7 +11,8 @@ import type {
   Snapshot,
   StructureSnapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 // The Construction Designs are unlocked from the start, with a kit for each
 // of their Structures in the starting stock. The Mission Director needs no
@@ -194,10 +195,16 @@ describe("a Structure the regolith printer prints", () => {
     ["sintered-regolith-shielding"],
     ["sintered-landing-pad"],
   ])(
-    "%s has the excavator dig its Regolith on site through Site Preparation, with none in the base's stock",
+    "%s has the excavator dig its Regolith on site through Site Preparation, taking none from the base's stock",
     (typeId) => {
       const type = structureType(typeId);
-      const game = scenario().plan("habitat", habitatSite);
+      // Regolith in stock that printing could draw on; nothing else uses it.
+      const stocked = changed(scenario().campaign, (state) => {
+        for (const stock of state.bulkResources) {
+          if (stock.resourceId === "regolith") stock.kilograms = 1500;
+        }
+      });
+      const game = scenarioOf(stocked).plan("habitat", habitatSite);
       runUntilBuilt(game);
       const site = type.shieldsHabitat ? habitatSite : padSite;
 
@@ -212,7 +219,7 @@ describe("a Structure the regolith printer prints", () => {
         expect(
           state.bulkResources.find((stock) => stock.resourceId === "regolith")
             ?.kilograms,
-        ).toBe(0);
+        ).toBe(1500);
       }
     },
   );
