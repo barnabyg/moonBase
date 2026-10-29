@@ -1,5 +1,6 @@
 import { catalogue, type StructureType } from "../catalogue";
 import {
+  baysTaken,
   habitatDoseRate,
   habitatUnder,
   shieldingOver,
@@ -13,6 +14,7 @@ import { designOf, powerRatings } from "./describe";
 import {
   formatCharge,
   formatCondition,
+  formatObservingProgramme,
   formatDismantlingStage,
   formatPower,
   formatStage,
@@ -202,6 +204,8 @@ export function structureDetails(
         : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
+      ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
+      ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
       ...(type.power.generationKilowatts > 0 ? [dustLine(structure)] : []),
     ],
     commissioned: structure,
@@ -424,6 +428,62 @@ function lightLine(
   return {
     label,
     stat: { value: structureNotes(snapshot, structure).light ?? "off" },
+  };
+}
+
+/**
+ * Whether a telescope is observing, or why not, as the Base panel says
+ * it, and how the observing programme the base's telescopes share is
+ * going, as the status panel says it.
+ */
+function telescopeLines(
+  snapshot: Snapshot,
+  structure: StructureSnapshot | undefined,
+): DetailLine[] {
+  const programme = formatObservingProgramme(snapshot.observingProgramme);
+  const programmeLine: DetailLine =
+    structure === undefined || programme === undefined
+      ? { label: "Programme", stat: NOT_YET }
+      : {
+          label: "Programme",
+          stat: programme,
+          fraction: snapshot.observingProgramme.progress,
+        };
+  if (structure === undefined) {
+    return [{ label: "Observing", stat: NOT_YET }, programmeLine];
+  }
+  const notes = structureNotes(snapshot, structure);
+  return [
+    {
+      label: "Observing",
+      stat: {
+        value:
+          notes.observing ??
+          notes.light ??
+          (snapshot.lunation.part === "daylight"
+            ? "waits for Night"
+            : "not observing"),
+      },
+    },
+    programmeLine,
+  ];
+}
+
+/** How many of a parking area's bays have a Machine or the Rover in them. */
+function baysLine(
+  snapshot: Snapshot,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Bays";
+  if (structure === undefined) return { label, stat: NOT_YET };
+  const { taken, bays } = baysTaken(structure, [
+    ...snapshot.machines.map(({ position }) => position),
+    ...snapshot.rovers.map(({ position }) => position),
+  ]);
+  return {
+    label,
+    stat: { value: `${taken} of ${bays} taken` },
+    fraction: bays === 0 ? 0 : taken / bays,
   };
 }
 

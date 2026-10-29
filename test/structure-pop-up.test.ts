@@ -374,3 +374,118 @@ describe("the pop-up for a Habitat under Regolith shielding and a water wall", (
     ).toEqual([]);
   });
 });
+
+describe("the pop-up for a telescope", () => {
+  const programme = {
+    progress: 0.42,
+    telescopes: 2,
+    observing: 2,
+    minutesLeft: 120,
+    stoppedFor: undefined,
+  };
+
+  it("shows it observing, and how the observing programme it shares is going", () => {
+    const details = structureDetails(
+      snapshotWith({
+        structures: [structure("telescope", { observing: true })],
+        observingProgramme: programme,
+      }),
+      "s1",
+    );
+    expect(line(details, "Rated")).toBe(
+      "Rated: draws 0.25 kW at Night while it observes, and nothing in Daylight",
+    );
+    expect(line(details, "Observing")).toBe("Observing: observing");
+    expect(line(details, "Programme")).toBe(
+      "Programme: Night-sky survey · 2 telescopes observing, 2h left",
+    );
+    expect(
+      details?.lines.find(({ label }) => label === "Programme")?.fraction,
+    ).toBeCloseTo(0.42);
+  });
+
+  it("says when it isn't observing, to save power", () => {
+    const details = structureDetails(
+      snapshotWith({
+        structures: [structure("telescope", { savingPower: true })],
+        observingProgramme: {
+          ...programme,
+          observing: 0,
+          minutesLeft: undefined,
+        },
+      }),
+      "s1",
+    );
+    expect(line(details, "Observing")).toBe(
+      "Observing: not observing, to save power",
+    );
+  });
+
+  it("keeps the same lines while it is built as once it observes", () => {
+    const labels = (snapshot: Snapshot) =>
+      structureDetails(snapshot, "s1")?.lines.map(({ label }) => label);
+    const planned = labels(
+      snapshotWith({ constructions: [construction("telescope")] }),
+    );
+    expect(planned).toEqual([
+      "Stage",
+      "State",
+      "Condition",
+      "Rated",
+      "Network",
+      "Observing",
+      "Programme",
+    ]);
+    expect(
+      labels(
+        snapshotWith({
+          structures: [structure("telescope", { observing: true })],
+          observingProgramme: programme,
+        }),
+      ),
+    ).toEqual(planned);
+  });
+});
+
+describe("the pop-up for a parking area", () => {
+  const area = { x: 40, y: 40 };
+
+  it("shows how many of its bays have a Machine or the Rover in them", () => {
+    const [first, second] = start.machines;
+    if (first === undefined || second === undefined) {
+      throw new Error("The Campaign starts with two Machines.");
+    }
+    const details = structureDetails(
+      snapshotWith({
+        structures: [structure("parking-area", { position: area })],
+        machines: [
+          { ...first, position: { x: area.x - 2.25, y: area.y + 2.25 } },
+          { ...second, position: { x: area.x + 2.4, y: area.y - 2.1 } },
+        ],
+        rovers: start.rovers.map((rover) => ({
+          ...rover,
+          position: { x: area.x + 30, y: area.y },
+        })),
+      }),
+      "s1",
+    );
+    expect(line(details, "Bays")).toBe("Bays: 2 of 4 taken");
+    expect(
+      details?.lines.find(({ label }) => label === "Bays")?.fraction,
+    ).toBeCloseTo(0.5);
+  });
+
+  it("shows no bays taken until it is commissioned", () => {
+    expect(
+      line(
+        structureDetails(
+          snapshotWith({
+            constructions: [construction("parking-area", { position: area })],
+          }),
+          "s1",
+        ),
+        "Bays",
+      ),
+    ).toBe("Bays: –");
+  });
+});
