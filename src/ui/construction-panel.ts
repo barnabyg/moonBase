@@ -152,8 +152,7 @@ export function createConstructionPanel(
   };
   const showStage = (row: Row, stage: string, stageProgress: number) => {
     setText(row.stage, formatStageProgress(stage, stageProgress));
-    row.progress.value = stageProgress;
-    row.progress.setAttribute("aria-label", `${stage} progress`);
+    showProgress(row.progress, stageProgress, `${stage} progress`);
   };
 
   return {
@@ -217,8 +216,7 @@ export function createConstructionPanel(
           rows.set(key, row);
         }
         // How far it has to go isn't known, so it shows no progress.
-        row.progress.removeAttribute("value");
-        row.progress.setAttribute("aria-label", "Parking progress");
+        showProgress(row.progress, undefined, "Parking progress");
         setText(row.stage, `Parking ${formatParkingPlace(parking)}`);
         showWork(row, () => describeParking(parking, snapshot));
       }
@@ -313,8 +311,7 @@ export function createConstructionPanel(
         // Done: it stays a while, saying so, in case more comes.
         done.finish(id);
         setText(row.stage, "Done");
-        row.progress.value = 1;
-        row.progress.setAttribute("aria-label", "Done");
+        showProgress(row.progress, 1, "Done");
         setText(row.work, "");
         if (row.cancel !== undefined) row.cancel.hidden = true;
       }
@@ -335,6 +332,27 @@ export function createConstructionPanel(
       }
     },
   };
+}
+
+/**
+ * Shows how far a row's work has got, from 0 to 1, or that it isn't known,
+ * named for screen readers, changing the page only where that changes.
+ * Every row's update sets both, so that a row taken back after its work
+ * was done shows its own again.
+ */
+function showProgress(
+  progress: HTMLProgressElement,
+  value: number | undefined,
+  label: string,
+): void {
+  if (value === undefined) {
+    if (progress.hasAttribute("value")) progress.removeAttribute("value");
+  } else if (!progress.hasAttribute("value") || progress.value !== value) {
+    progress.value = value;
+  }
+  if (progress.getAttribute("aria-label") !== label) {
+    progress.setAttribute("aria-label", label);
+  }
 }
 
 /** The key of the row whose work an event says is done, if any. */
