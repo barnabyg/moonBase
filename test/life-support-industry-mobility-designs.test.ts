@@ -77,7 +77,7 @@ describe.each(items)("the Launch item $id", (item) => {
 });
 
 describe("the Life Support, Industry and Mobility Designs", () => {
-  it("each unlock at least one Structure or Launch item, or cut the Launch fee", () => {
+  it("each unlock at least one Structure or Launch item", () => {
     const designs = catalogue.designs.filter(
       (design) => categories.includes(design.category) && !design.starting,
     );
@@ -85,9 +85,7 @@ describe("the Life Support, Industry and Mobility Designs", () => {
     expect(designs.length).toBeGreaterThanOrEqual(6);
     for (const design of designs) {
       expect(
-        [...structures, ...items, catalogue.launch.reducedFee].map(
-          (entry) => entry.designId,
-        ),
+        [...structures, ...items].map((entry) => entry.designId),
       ).toContain(design.id);
     }
   });

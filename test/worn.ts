@@ -16,6 +16,7 @@ export interface SavedState {
   bulkResources: { resourceId: string; kilograms: number }[];
   lifeSupport: { stockId: string; kilograms: number }[];
   fundingMillionDollars: number;
+  launchFeePaidMillionDollars: number | null;
 }
 
 /**

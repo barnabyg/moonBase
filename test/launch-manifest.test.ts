@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue, type LaunchItem } from "../src/catalogue";
 import type { ManifestLine } from "../src/simulation";
-import { unlock } from "./designs";
 import { scenario } from "./scenario";
 import { withFunding } from "./worn";
 
@@ -72,24 +71,6 @@ describe("the Launch manifest", () => {
       feeMillionDollars: launch.feeMillionDollars,
       locked: false,
       funds: emptyManifest.funds,
-    });
-  });
-
-  it("costs the reduced Launch fee once Reusable boosters is unlocked, even while it is empty", () => {
-    const game = scenario();
-    const panel = item("solar-panel");
-    unlock(game.campaign, launch.reducedFee.designId);
-    expect(game.state.launchManifest).toEqual({
-      ...emptyManifest,
-      feeMillionDollars: launch.reducedFee.feeMillionDollars,
-    });
-
-    game.campaign.setLaunchManifest([{ itemId: "solar-panel", count: 2 }]);
-
-    expect(game.state.launchManifest).toMatchObject({
-      costMillionDollars:
-        launch.reducedFee.feeMillionDollars + panel.priceMillionDollars * 2,
-      feeMillionDollars: launch.reducedFee.feeMillionDollars,
     });
   });
 
@@ -175,25 +156,6 @@ describe("the Launch manifest", () => {
     expect(campaign.snapshot().launchManifest.items).toEqual([
       { itemId: "habitat-core", count: 1 },
     ]);
-  });
-
-  it("takes an item the Funding balance pays for only at the reduced Launch fee, once Reusable boosters is unlocked", () => {
-    const core = item("habitat-core");
-    const funding =
-      launch.reducedFee.feeMillionDollars + core.priceMillionDollars;
-    const locked = withFunding(scenario().campaign, funding);
-    expect(
-      locked.setLaunchManifest([{ itemId: "habitat-core", count: 1 }]),
-    ).toMatchObject({ ok: false, reason: "over-funding" });
-
-    const { campaign } = scenario();
-    unlock(campaign, launch.reducedFee.designId);
-    const reduced = withFunding(campaign, funding);
-
-    expect(
-      reduced.setLaunchManifest([{ itemId: "habitat-core", count: 1 }]),
-    ).toEqual({ ok: true });
-    expect(reduced.snapshot().launchManifest.costMillionDollars).toBe(funding);
   });
 
   it.each<[string, ManifestLine, string, string]>([

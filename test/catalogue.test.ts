@@ -1613,13 +1613,11 @@ describe("the data catalogue", () => {
     expect(catalogue.designs.length).toBeLessThanOrEqual(30);
   });
 
-  it("has every Design beyond the starting ones permit at least one Structure type or Launch item, or cut the Launch fee, so that unlocking one always gives the player something", () => {
+  it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {
     const permitted = new Set(
-      [
-        ...catalogue.structureTypes,
-        ...catalogue.launch.items,
-        catalogue.launch.reducedFee,
-      ].map((entry) => entry.designId),
+      [...catalogue.structureTypes, ...catalogue.launch.items].map(
+        (entry) => entry.designId,
+      ),
     );
     const empty = catalogue.designs
       .filter((design) => !design.starting && !permitted.has(design.id))
@@ -1838,8 +1836,8 @@ describe("the data catalogue", () => {
       (design) => design.category === "mobility" && !design.starting,
     );
 
-    it("has three beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(mobility).toHaveLength(3);
+    it("has two beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(mobility).toHaveLength(2);
       expect(
         mobility.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
@@ -1860,18 +1858,6 @@ describe("the data catalogue", () => {
           prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
         },
       );
-    });
-
-    it("has Reusable boosters, needing Landing pads first, cut the Launch fee by a third to $100M", () => {
-      expect(designOf(catalogue.launch.reducedFee.designId)).toMatchObject({
-        id: "reusable-boosters",
-        label: "Reusable boosters",
-        category: "mobility",
-        starting: false,
-        prerequisiteDesignIds: ["landing-pads"],
-      });
-      expect(catalogue.launch.reducedFee.feeMillionDollars).toBe(100);
-      expect(catalogue.launch.feeMillionDollars).toBe(150);
     });
 
     it("has the lit landing pad stand on a landing pad's ground, built from a landing pad's Components and pad lights of its own, taking longer to assemble", () => {
