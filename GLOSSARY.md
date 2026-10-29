@@ -48,6 +48,10 @@ _Avoid_: starting money, seed funding, budget
 A product manufactured at the base and sold off the Moon for Funding. It is carried away within the Lander's Return Mass.
 _Avoid_: trade good, sale item
 
+**Import**:
+Anything a Launch brings from Earth: the Components, oxygen and water, and Robots on the Launch manifest, listed on its Imports tab. Imports are limited by the Payload Mass and paid for with Funding.
+_Avoid_: shipment, delivery, upmass
+
 **Return Mass**:
 The mass of Exports the Lander can carry off the Moon when it leaves. Producing propellant locally increases it.
 _Avoid_: downmass, return cargo

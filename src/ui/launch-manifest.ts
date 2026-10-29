@@ -31,7 +31,7 @@ export interface LaunchManifestScreen {
 /**
  * The Launch manifest screen, where the player chooses what the next Launch
  * brings from Earth and what the Lander carries off the Moon, on a tab
- * each. On the Launch tab, the totals against the Payload Mass limit and
+ * each. On the Imports tab, the totals against the Payload Mass limit and
  * the Funding balance stay in sight over the items, grouped as Components,
  * oxygen and water, and Robots, each with what it is for, its mass and
  * price and how many the manifest has. An item whose Design isn't unlocked isn't listed until
@@ -51,11 +51,11 @@ export function createLaunchManifestScreen(
   });
   screen.lead.textContent =
     "What the next Launch brings from Earth, and the Exports the Lander takes back to sell.";
-  const [launchTab, exportsTab] = screen.addTabs("Launch manifest", [
-    { id: "launch", label: "Launch" },
+  const [importsTab, exportsTab] = screen.addTabs("Launch manifest", [
+    { id: "launch", label: "Imports" },
     { id: "exports", label: "Exports" },
   ]);
-  if (launchTab === undefined || exportsTab === undefined) {
+  if (importsTab === undefined || exportsTab === undefined) {
     throw new Error("The Launch manifest screen has no tabs");
   }
 
@@ -63,7 +63,7 @@ export function createLaunchManifestScreen(
   const cost = createGauge("Launch cost");
   const intro = document.createElement("p");
   intro.className = "launch-manifest__intro";
-  launchTab.panel.append(
+  importsTab.panel.append(
     createSummary(payloadMass.element, cost.element),
     intro,
   );
@@ -98,7 +98,7 @@ export function createLaunchManifestScreen(
     heading.textContent = label;
     const table = createTable(["Item", "Mass and price", "Count", ""]);
     section.append(heading, table.table);
-    launchTab.panel.append(section);
+    importsTab.panel.append(section);
     const group = { section, body: table.body };
     groups.set(kind, group);
     return group;
@@ -301,7 +301,7 @@ interface ItemGroup {
   readonly body: HTMLTableSectionElement;
 }
 
-/** How the Launch tab heads each kind of item. */
+/** How the Imports tab heads each kind of item. */
 const GROUP_LABELS: Record<LaunchItemKind, string> = {
   component: "Components",
   "life-support": "Oxygen and water",
