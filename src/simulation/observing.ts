@@ -18,7 +18,8 @@ const MINUTE_TOLERANCE = 1e-9;
 
 /**
  * Why none of the base's telescopes observed during the latest game-minute:
- * it was Daylight, those not Broken had no power, or every one is Broken.
+ * it was Daylight, those not Broken had no power to spare, or every one is
+ * Broken.
  */
 export type ObservingStop = "daylight" | "no-power" | "broken";
 
@@ -50,8 +51,9 @@ export function isTelescope(structure: StructureState): boolean {
 
 /**
  * Whether a Structure is a telescope that observed during the latest
- * game-minute: one whose Night load was on (see `supplyPower`), which is
- * only at Night, while it has power to spare and isn't Broken.
+ * game-minute. A telescope observes while its Night load is on (see
+ * `supplyPower`): only at Night, and only while it isn't Broken and its
+ * network has power to spare for it beyond everything else's reserve.
  */
 export function observes(structure: StructureState): boolean {
   return isTelescope(structure) && structure.lit;
@@ -59,12 +61,13 @@ export function observes(structure: StructureState): boolean {
 
 /**
  * Runs the observing programme for a game-minute, once power has been
- * supplied. Each telescope that observed adds its performance's share of the game-minute to the round.
- * Once the round has its length, it is complete: its Science is added to
- * the base's, and the next round starts with anything observed beyond it.
+ * supplied. Each telescope that observed adds its performance's share of
+ * the game-minute to the round. Once the round has its length, it is
+ * complete: its Science is added to the base's, and the next round starts
+ * with anything observed beyond it.
  */
 export function runObservingProgramme(state: CampaignState): GameEvent[] {
-  const rate = observingRate(state);
+  const rate = observingRate(state.structures.filter(observes));
   if (rate === 0) return [];
   state.observingMinutes += rate;
   const length = roundMinutes();
@@ -84,10 +87,9 @@ export function runObservingProgramme(state: CampaignState): GameEvent[] {
 export function readObservingProgramme(
   state: CampaignState,
 ): ObservingProgrammeSnapshot {
-  const night = latestMinuteWasNight(state);
   const telescopes = state.structures.filter(isTelescope);
   const observing = telescopes.filter(observes);
-  const rate = observingRate(state);
+  const rate = observingRate(observing);
   const left = Math.max(roundMinutes() - state.observingMinutes, 0);
   return {
     progress: Math.min(state.observingMinutes / roundMinutes(), 1),
@@ -95,23 +97,8 @@ export function readObservingProgramme(
     observing: observing.length,
     minutesLeft:
       rate === 0 ? undefined : Math.ceil(left / rate - MINUTE_TOLERANCE),
-    stoppedFor:
-      telescopes.length === 0 || observing.length > 0
-        ? undefined
-        : telescopes.every(isBroken)
-          ? "broken"
-          : night
-            ? "no-power"
-            : "daylight",
+    stoppedFor: whyNotObserving(state, telescopes, observing),
   };
-}
-
-/** Whether the latest game-minute played was Night: at the very start, whether it is now. */
-export function latestMinuteWasNight(state: CampaignState): boolean {
-  return (
-    readLunation(Math.max(state.elapsedMinutes - 1, 0), catalogue.lunation)
-      .part === "night"
-  );
 }
 
 /** How long a round of the observing programme takes one telescope at full performance, in game-minutes. */
@@ -119,9 +106,32 @@ export function roundMinutes(): number {
   return Math.round(catalogue.observingProgramme.lengthHours * 60);
 }
 
-/** The game-minutes of a round the telescopes observed in the latest game-minute. */
-function observingRate(state: CampaignState): number {
-  return state.structures
-    .filter(observes)
-    .reduce((sum, telescope) => sum + structurePerformance(telescope), 0);
+/**
+ * Why none of the base's telescopes observed during the latest game-minute;
+ * undefined while one did, or the base has none.
+ */
+function whyNotObserving(
+  state: CampaignState,
+  telescopes: readonly StructureState[],
+  observing: readonly StructureState[],
+): ObservingStop | undefined {
+  if (telescopes.length === 0 || observing.length > 0) return undefined;
+  if (telescopes.every(isBroken)) return "broken";
+  return latestMinuteWasNight(state) ? "no-power" : "daylight";
+}
+
+/** Whether the latest game-minute played was Night: at the very start, whether it is now. */
+function latestMinuteWasNight(state: CampaignState): boolean {
+  return (
+    readLunation(Math.max(state.elapsedMinutes - 1, 0), catalogue.lunation)
+      .part === "night"
+  );
+}
+
+/** The game-minutes of a round that the given telescopes, which observed, observed in the latest game-minute. */
+function observingRate(observing: readonly StructureState[]): number {
+  return observing.reduce(
+    (sum, telescope) => sum + structurePerformance(telescope),
+    0,
+  );
 }

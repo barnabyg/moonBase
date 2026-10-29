@@ -2287,11 +2287,12 @@ describe("the sample saves from before Water-wall shielding", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(
-        state.stockpile.components.find(
-          (stock) => stock.componentId === "water-wall-bladder",
-        ),
-      ).toEqual({ componentId: "water-wall-bladder", count: 0 });
+      // Before the parking area's bay socket and the telescope's two
+      // Components, which came after it.
+      expect(state.stockpile.components.at(-4)).toEqual({
+        componentId: "water-wall-bladder",
+        count: 0,
+      });
     },
   );
 });

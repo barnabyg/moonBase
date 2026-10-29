@@ -369,8 +369,8 @@ function createRepairHint(text: string): HTMLElement {
 /**
  * What state a Structure is in, for its entry: anything out of the
  * ordinary, such as being Broken, a Plant's running and what it makes and
- * uses, a telescope observing, the Mission Director living in it or its Dust coating, or that it
- * is commissioned if nothing else.
+ * uses, a telescope observing, the Mission Director living in it or its
+ * Dust coating, or that it is commissioned if nothing else.
  */
 function describeStructure(
   snapshot: Snapshot,
