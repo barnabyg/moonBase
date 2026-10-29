@@ -49,6 +49,7 @@ import type {
   ExportLine,
   ExportLoadingSnapshot,
   ExportsSnapshot,
+  LanderLeg,
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
@@ -107,16 +108,33 @@ export function formatLunation(lunation: LunationSnapshot): string {
 
 /**
  * Formats a span of game time in Earth Days and hours for the status panel,
- * where space is short, for example "7d 23h", rounded up to the hour.
+ * where space is short, for example "7d 23h", rounded up to the hour. In
+ * whole Earth Days only, it leaves out the hours past them, for a folded
+ * section's title, where there is only room for one unit: "7d", or "5h"
+ * under an Earth Day.
  */
-export function formatShortDuration(minutes: number): string {
+export function formatShortDuration(
+  minutes: number,
+  wholeEarthDays = false,
+): string {
   const totalHours = Math.ceil(minutes / 60);
   const earthDays = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
   return [
     ...(earthDays > 0 ? [`${earthDays}d`] : []),
-    ...(hours > 0 || earthDays === 0 ? [`${hours}h`] : []),
+    ...(earthDays === 0 || (hours > 0 && !wholeEarthDays) ? [`${hours}h`] : []),
   ].join(" ");
+}
+
+/**
+ * The game-minutes left until a moment, none once it has passed, or none if
+ * there is no moment to wait for.
+ */
+function minutesUntil(
+  atMinute: number | undefined,
+  elapsedMinutes: number,
+): number {
+  return Math.max((atMinute ?? elapsedMinutes) - elapsedMinutes, 0);
 }
 
 /**
@@ -185,6 +203,36 @@ export function formatStoredPower(
   };
 }
 
+/**
+ * Formats a change in a figure with its sign, for example "+9.70 kW" or
+ * "−0.30 kW", leaving the sign off one that rounds to nothing.
+ */
+function signed(value: number, digits: number, unit: string): string {
+  const shown = Math.abs(value).toFixed(digits);
+  if (Number(shown) === 0) return `${shown} ${unit}`;
+  return `${value > 0 ? "+" : "−"}${shown} ${unit}`;
+}
+
+/**
+ * Sums up the base's power for its folded section: the power to spare
+ * across its networks, and how full its battery banks are if it has any,
+ * for example "+9.70 kW · 78%".
+ */
+export function summarisePower(power: Snapshot["power"]): string {
+  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
+    sumNetworks(power, pick);
+  const spare = signed(
+    total((network) => network.generationKilowatts) -
+      total((network) => network.consumptionKilowatts),
+    2,
+    "kW",
+  );
+  const capacity = total((network) => network.storageCapacityKilowattHours);
+  if (capacity === 0) return spare;
+  const stored = total((network) => network.storedKilowattHours);
+  return `${spare} · ${Math.round((stored / capacity) * 100)}%`;
+}
+
 /** Says where the Mission Director lives, for example "aboard the Lander". */
 export function formatMissionDirector(
   missionDirector: MissionDirectorResidence,
@@ -231,9 +279,6 @@ export function formatLander(
   exportsAboard: readonly ExportLine[],
   exportLoading?: ExportLoadingSnapshot,
 ): Stat {
-  const left = formatShortDuration(
-    Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
-  );
   const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
   const aboard =
     exportsAboard.length === 0
@@ -256,22 +301,76 @@ export function formatLander(
             ? "free to fly"
             : `waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`,
       };
-    case "travelling-to-earth":
+    default: {
+      const words = landerLegWords[lander.state];
+      // Exports go aboard only to be sold on Earth.
+      const carrying =
+        lander.state === "travelling-to-earth" && exportsAboard.length > 0
+          ? ` with ${formatExportLines(exportsAboard)}`
+          : "";
+      // Where it lands matters only on the way back to the Moon.
+      const where = lander.state === "travelling-to-moon" ? onPad : "";
       return {
-        value:
-          exportsAboard.length === 0
-            ? "travelling to Earth"
-            : `travelling to Earth with ${formatExportLines(exportsAboard)}`,
-        note: `arrives in ${left}`,
+        value: `${words.doing}${carrying}`,
+        note: `${words.next}${where} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
       };
-    case "turnaround":
-      return { value: "in turnaround on Earth", note: `leaves in ${left}` };
-    case "travelling-to-moon":
-      return {
-        value: "travelling to the Moon",
-        note: `lands${onPad} in ${left}`,
-      };
+    }
   }
+}
+
+/**
+ * What the Lander does on each leg of its round trip and at the end of it,
+ * in full for its status line, for example "travelling to Earth" and
+ * "arrives", and for a folded section's title, which doesn't say what it
+ * is doing now, for example "at Earth".
+ */
+const landerLegWords: Readonly<
+  Record<
+    LanderLeg,
+    {
+      readonly doing: string;
+      readonly next: string;
+      readonly nextInShort: string;
+    }
+  >
+> = {
+  "travelling-to-earth": {
+    doing: "travelling to Earth",
+    next: "arrives",
+    nextInShort: "at Earth",
+  },
+  turnaround: {
+    doing: "in turnaround on Earth",
+    next: "leaves",
+    nextInShort: "leaves Earth",
+  },
+  "travelling-to-moon": {
+    doing: "travelling to the Moon",
+    next: "lands",
+    nextInShort: "lands",
+  },
+};
+
+/**
+ * Sums up the Lander and any Expedition under way for their folded
+ * section, with when each next arrives or leaves, for example "landed" or
+ * "lands in 2d · Rover back in 5h".
+ */
+export function summariseTravel(
+  lander: LanderSnapshot,
+  expedition: ExpeditionSnapshot | undefined,
+  elapsedMinutes: number,
+): string {
+  const left = (atMinute: number | undefined): string =>
+    formatShortDuration(minutesUntil(atMinute, elapsedMinutes), true);
+  const where =
+    lander.state === "landed-occupied" || lander.state === "landed-free"
+      ? "landed"
+      : `${landerLegWords[lander.state].nextInShort} in ${left(lander.legEndsAtMinute)}`;
+  if (expedition === undefined) return where;
+  return expedition.stage === "away"
+    ? `${where} · Rover back in ${left(expedition.returnsAtMinute)}`
+    : `${where} · Rover on Expedition`;
 }
 
 export function stockLabel(stockId: string): string {
@@ -362,6 +461,48 @@ export function formatSelfSufficiency(
   };
 }
 
+/** The chemical formulas of the life support stocks, short enough for a section's title. */
+const stockFormulas: Readonly<Record<string, string>> = {
+  oxygen: "O₂",
+  water: "H₂O",
+};
+
+/**
+ * Sums up how the Mission Director is keeping for their folded section:
+ * how long each life support stock lasts, for example "O₂ 29d · H₂O 5d",
+ * or that they are safe aboard the Lander, where none is used.
+ */
+export function summariseMissionDirector(
+  missionDirector: MissionDirectorResidence,
+  stocks: readonly LifeSupportSnapshot[],
+  forecasts: readonly LifeSupportForecast[],
+): string {
+  if (missionDirector.residence === "lander") return "aboard the Lander";
+  return stocks
+    .map((stock) => {
+      const forecast = forecasts.find(
+        (candidate) => candidate.stockId === stock.stockId,
+      );
+      const name = stockFormulas[stock.stockId] ?? stockLabel(stock.stockId);
+      return `${name} ${summariseLifeSupport(stock, forecast)}`;
+    })
+    .join(" · ");
+}
+
+/** How long a life support stock lasts, or that it is rising or has run out. */
+function summariseLifeSupport(
+  stock: LifeSupportSnapshot,
+  forecast: LifeSupportForecast | undefined,
+): string {
+  const rising = (forecast?.kilogramsPerEarthDay ?? 0) > 0;
+  if (stock.kilograms === 0 && !rising) return "ran out";
+  // Falling, or rising now but not enough to last the Night ahead.
+  if (forecast?.minutesUntilEmpty !== undefined) {
+    return formatShortDuration(forecast.minutesUntilEmpty, true);
+  }
+  return rising ? "rising" : `${stock.kilograms.toFixed(1)} kg`;
+}
+
 /**
  * Formats a Condition to the whole percent, for example "73%". Only a
  * Broken one shows as 0%, and one that has worn down at all shows below
@@ -402,6 +543,31 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
         ? "too few for the wear"
         : `last ${formatShortDuration(forecast.minutesUntilEmpty)}`,
   };
+}
+
+/**
+ * Sums up the base's stock for its folded section: how many spare
+ * Components it has and how long they last, which is what keeps it
+ * running, and how much Regolith it has to build with, for example
+ * "6 spares, last 9d · Regolith 1250 kg".
+ */
+export function summariseStock(
+  bulkResources: Snapshot["bulkResources"],
+  spares: SpareComponentsForecast,
+): string {
+  const count = plural(spares.inStock, "spare");
+  const lasting =
+    spares.minutesUntilEmpty === undefined
+      ? count
+      : spares.minutesUntilEmpty === 0
+        ? `${count}, too few`
+        : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
+  const regolith = bulkResources.find(
+    (stock) => stock.resourceId === "regolith",
+  );
+  return regolith === undefined
+    ? lasting
+    : `${lasting} · ${resourceLabel(regolith.resourceId)} ${formatKilograms(regolith.kilograms)}`;
 }
 
 /**
@@ -874,6 +1040,28 @@ export function formatResearchTask(
 }
 
 /**
+ * Sums up Research for its folded section: the Research Task running and
+ * how far it has got, for example "Seismic monitoring · 45%", or that none
+ * is.
+ */
+export function summariseResearch(
+  running: ResearchTaskSnapshot | undefined,
+): string {
+  return running === undefined
+    ? "none running"
+    : `${researchTaskLabel(running.researchTaskId)} · ${Math.floor(running.progress * 100)}%`;
+}
+
+/** Sums up the Milestones for their folded section: the one to aim for now. */
+export function summariseMilestones(
+  milestones: Snapshot["milestones"],
+): string {
+  return milestones.currentId === undefined
+    ? "every Milestone reached"
+    : milestoneLabel(milestones.currentId);
+}
+
+/**
  * Lists what a Launch brings the way a sentence would, for example "2 ×
  * Solar panel and 1 × Oxygen, 25 kg".
  */
@@ -1194,7 +1382,7 @@ export function describeExpedition(
     case "driving-out":
       return "the Robot is driving the Rover to the map edge";
     case "away":
-      return `away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
+      return `away, back in ${formatDuration(minutesUntil(expedition.returnsAtMinute, elapsedMinutes))}`;
     case "driving-back":
       return `back on the map with ${cargo}, driving to the stockpile`;
     case "unloading":
