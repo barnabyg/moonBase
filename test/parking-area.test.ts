@@ -97,7 +97,11 @@ function baseWithParkingArea(): Scenario {
 
 /** The parts of a save document's simulation state these tests change. */
 interface SavedState {
-  structures: { id: string; storedKilowattHours: number }[];
+  structures: {
+    id: string;
+    storedKilowattHours: number;
+    conditionPercent: number;
+  }[];
   cables: { fromStructureId: string; toStructureId: string }[];
 }
 
@@ -394,5 +398,56 @@ describe("a parking area that can't keep heaters on through the Night", () => {
     expect(orders.map((order) => order.structureTypeId)).not.toContain(
       "parking-area",
     );
+  });
+});
+
+describe("a parking area that can't take a plug", () => {
+  it("takes nothing while it is Broken: parking is beside the nearest powered Structure, as without one", () => {
+    const built = baseWithParkingArea();
+    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    const areaId = structure(built.state, "parking-area").id;
+    const game = changedSave(built.campaign, (state) => {
+      for (const s of state.structures) {
+        if (s.id === areaId) s.conditionPercent = 0;
+      }
+    });
+    expect(structure(game.state, "parking-area").conditionPercent).toBe(0);
+
+    game.advance({ minutes: 1 });
+
+    expect(game.state.parking.length).toBeGreaterThan(0);
+    expect(game.state.parking.map((order) => order.inBay)).not.toContain(true);
+    expect(
+      game.state.parking.map((order) => order.structureTypeId),
+    ).not.toContain("parking-area");
+  });
+
+  it("drops the park Work Orders for its bays once it is to be dismantled, even one under way, and parks them beside the nearest powered Structure instead", () => {
+    const game = baseWithParkingArea();
+    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    for (let minutes = 0; !game.state.parking.some((p) => p.underWay);) {
+      if (++minutes > 60) throw new Error("No parking got under way.");
+      game.advance({ minutes: 1 });
+    }
+    expect(game.state.parking.map((order) => order.inBay)).not.toContain(false);
+    const area = structure(game.state, "parking-area");
+
+    expect(game.campaign.dismantleStructure(area.id)).toEqual({ ok: true });
+    game.advance({ minutes: 1 });
+
+    expect(game.state.parking.length).toBeGreaterThan(0);
+    expect(game.state.parking.map((order) => order.inBay)).not.toContain(true);
+    expect(game.state.parking.map((order) => order.structureId)).not.toContain(
+      area.id,
+    );
+    for (let minutes = 0; game.state.parking.length > 0; minutes++) {
+      if (minutes > 24 * 60) throw new Error("The parking was never done.");
+      game.advance({ minutes: 1 });
+    }
+    const everything = [...game.state.machines, ...game.state.rovers];
+    expect(everything.map((driven) => driven.pluggedIn)).not.toContain(false);
+    for (const driven of everything) {
+      expect(bayAt(area, driven.position)).toBeUndefined();
+    }
   });
 });
