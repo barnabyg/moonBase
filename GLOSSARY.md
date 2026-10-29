@@ -102,6 +102,10 @@ _Avoid_: building (as a verb), placement
 A cheap Structure that lights up the area around it at Night, so the player can see what's happening. Darkness never stops work. It switches itself off to save power once its network's battery banks hold only enough for everything else through the rest of the Night and a reserve, so it never leaves the Habitat without power.
 _Avoid_: lamp, floodlight
 
+**Parking area**:
+A cheap Structure of graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and Rovers together before Night, so that they plug in and keep warm. A bay holds one Machine or Rover.
+_Avoid_: car park, garage, depot
+
 **Site Preparation**:
 The first stage of Construction, when the ground is cleared and graded for a Structure.
 _Avoid_: groundwork, levelling

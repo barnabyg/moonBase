@@ -1,0 +1,731 @@
+{
+  "format": "moonbase-save",
+  "version": 38,
+  "random": {
+    "a": -543999109,
+    "b": 1609062819,
+    "c": 3284878211,
+    "d": 2291658347
+  },
+  "state": {
+    "elapsedMinutes": 11200,
+    "nextStructureNumber": 4,
+    "nextPlanNumber": 4,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": [],
+      "exports": []
+    },
+    "missionDirector": {
+      "residence": "lander"
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 25
+      },
+      {
+        "stockId": "water",
+        "kilograms": 108
+      }
+    ],
+    "selfSufficiency": [
+      {
+        "stockId": "oxygen",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          }
+        ]
+      },
+      {
+        "stockId": "water",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          }
+        ]
+      }
+    ],
+    "radiationDoseMillisieverts": 0,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 20309
+    },
+    "spareComponentsWarnedMinutes": null,
+    "fundingMillionDollars": 650,
+    "launchManifest": [],
+    "launchFeePaidMillionDollars": null,
+    "exportsToLoad": [],
+    "science": 0,
+    "researchTask": null,
+    "completedResearchTaskIds": [],
+    "unlockedDesignIds": [
+      "solar-arrays",
+      "battery-banks",
+      "light-masts",
+      "maintenance-spares",
+      "regolith-shielding",
+      "inflatable-habitat",
+      "life-support-resupply",
+      "water-processing",
+      "regolith-extraction",
+      "vacuum-fabrication",
+      "circuit-board-fabrication",
+      "landing-pads",
+      "parking-areas"
+    ],
+    "reachedMilestoneIds": [
+      "power-storage"
+    ],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": -2.46069612258048,
+          "y": -15.743038546279525
+        },
+        "activity": {
+          "kind": "driving-machine",
+          "structureId": "structure-3",
+          "machineId": "excavator-1"
+        },
+        "carrying": [],
+        "workOrder": {
+          "machineId": "excavator-1",
+          "kind": "park-machine"
+        },
+        "conditionPercent": 94.08166666667205,
+        "selfRepair": null,
+        "arrival": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": -2.46069612258048,
+          "y": -15.743038546279525
+        },
+        "activity": {
+          "kind": "being-parked",
+          "structureId": "structure-3"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 80.26000000001795,
+        "powered": false
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": -11,
+          "y": 4.5
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "rovers": [
+      {
+        "id": "rover-1",
+        "position": {
+          "x": 0,
+          "y": 13
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "conditionPercent": 100,
+        "powered": false
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 6
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 2
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 1
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 1
+        },
+        {
+          "componentId": "airlock",
+          "count": 1
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        },
+        {
+          "componentId": "extraction-reactor",
+          "count": 0
+        },
+        {
+          "componentId": "oxygen-separator",
+          "count": 0
+        },
+        {
+          "componentId": "ice-melter",
+          "count": 0
+        },
+        {
+          "componentId": "water-purifier",
+          "count": 0
+        },
+        {
+          "componentId": "crystal-furnace",
+          "count": 0
+        },
+        {
+          "componentId": "wafer-saw",
+          "count": 0
+        },
+        {
+          "componentId": "circuit-etcher",
+          "count": 0
+        },
+        {
+          "componentId": "reflow-oven",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "sealed-array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "screened-solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "whipple-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "armoured-habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "thin-film-solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "tall-mast-pole",
+          "count": 0
+        },
+        {
+          "componentId": "prefabricated-array-pack",
+          "count": 0
+        },
+        {
+          "componentId": "electrolyser-stack",
+          "count": 0
+        },
+        {
+          "componentId": "molten-regolith-cell",
+          "count": 0
+        },
+        {
+          "componentId": "board-assembly-line",
+          "count": 0
+        },
+        {
+          "componentId": "landing-floodlight",
+          "count": 0
+        },
+        {
+          "componentId": "water-wall-bladder",
+          "count": 0
+        },
+        {
+          "componentId": "bay-socket",
+          "count": 0
+        }
+      ]
+    },
+    "bulkResources": [
+      {
+        "resourceId": "regolith",
+        "kilograms": 2000
+      },
+      {
+        "resourceId": "metals",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "silicon",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "wafers",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "circuit-boards",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "water-ice",
+        "kilograms": 0
+      }
+    ],
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 20,
+          "y": 12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 91.3841666666745,
+        "dustCoatingPercent": 17.231666666667234,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": -30,
+          "y": 4
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 200,
+        "conditionPercent": 97.06800000002767,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-3",
+        "structureTypeId": "parking-area",
+        "position": {
+          "x": -20,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 98.70283333329027,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "exportLoading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 17.037678104249885,
+          "y": 11.52602849667998
+        },
+        "end": {
+          "x": -28.02511873616659,
+          "y": 4.315981002213346
+        },
+        "route": [
+          {
+            "x": 17.037678104249885,
+            "y": 11.52602849667998
+          },
+          {
+            "x": -28.02511873616659,
+            "y": 4.315981002213346
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-2",
+        "toStructureId": "structure-3",
+        "start": {
+          "x": -29.23076923076923,
+          "y": 2.1538461538461537
+        },
+        "end": {
+          "x": -22.115384615384617,
+          "y": -14.923076923076923
+        },
+        "route": [
+          {
+            "x": -29.23076923076923,
+            "y": 2.1538461538461537
+          },
+          {
+            "x": -22.11538461538463,
+            "y": -14.923076923076891
+          },
+          {
+            "x": -22.115384615384617,
+            "y": -14.923076923076923
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": [
+      {
+        "target": {
+          "kind": "machine",
+          "machineId": "excavator-1"
+        },
+        "structureId": "structure-3",
+        "destination": {
+          "x": -17.75,
+          "y": -17.75
+        }
+      },
+      {
+        "target": {
+          "kind": "machine",
+          "machineId": "regolith-printer-2"
+        },
+        "structureId": "structure-3",
+        "destination": {
+          "x": -22.25,
+          "y": -17.75
+        }
+      },
+      {
+        "target": {
+          "kind": "rover",
+          "roverId": "rover-1"
+        },
+        "structureId": "structure-3",
+        "destination": {
+          "x": -17.75,
+          "y": -22.25
+        }
+      }
+    ],
+    "expedition": null
+  }
+}

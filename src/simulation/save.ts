@@ -886,6 +886,36 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 37 to 38: the parking area, behind the Parking areas Design, a new
+  // starting Design, so an older save has it unlocked, after the Designs
+  // it had. Its bay socket is a new Component, which the base's stock
+  // keeps a count of after the others; none was there before. Which bay
+  // a park Work Order is for is where it takes the Machine or Rover, so
+  // nothing new is kept for the bays.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile, unlockedDesignIds } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "bay-socket", count: 0 },
+                ],
+              }
+            : stockpile,
+        unlockedDesignIds: Array.isArray(unlockedDesignIds)
+          ? [...(unlockedDesignIds as unknown[]), "parking-areas"]
+          : unlockedDesignIds,
+      },
+    };
+  },
 ];
 
 /**

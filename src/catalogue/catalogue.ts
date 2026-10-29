@@ -796,6 +796,35 @@ export interface StructureType {
    * Broken, the Habitat is water-walled.
    */
   readonly waterWall?: WaterWallRules;
+  /**
+   * If it is a parking area: the bays on it where the Robot parks Machines
+   * and Rovers, each with a power socket.
+   */
+  readonly parking?: ParkingBays;
+}
+
+/**
+ * The bays of a parking area, each with a power socket. While the parking
+ * area is commissioned, isn't Broken and is on a network with a power
+ * source, a Machine or Rover in a bay is plugged in, and park Work Orders
+ * send Machines and Rovers to a free bay rather than beside the nearest
+ * powered Structure. A parking area counts as having something to do with
+ * power, so that the Robot lays it a cable, though its sockets draw
+ * nothing but the heaters plugged in to them.
+ */
+export interface ParkingBays {
+  /**
+   * How far from its centre a bay holds what is parked in it: at least the
+   * largest Machine or Rover footprint, and inside the parking area's
+   * footprint.
+   */
+  readonly bayRadiusMetres: number;
+  /**
+   * Where the centre of each bay is, from the parking area's centre, in
+   * the order the Robot fills them when they are equally near. No two
+   * bays overlap.
+   */
+  readonly bayOffsets: readonly GroundPosition[];
 }
 
 /**
@@ -854,7 +883,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 54,
+  version: 55,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1036,6 +1065,7 @@ export const catalogue: Catalogue = {
     // saves from version 32 on name it by this id, so the id stays.
     { id: "landing-floodlight", label: "Pad light" },
     { id: "water-wall-bladder", label: "Water-wall bladder" },
+    { id: "bay-socket", label: "Bay socket" },
   ],
   structureTypes: [
     {
@@ -1666,6 +1696,52 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: false,
       landingPad: true,
+    },
+    // Graded, marked ground with four bays, each with a power socket on a
+    // short post, so that idle Machines and the Rover stand together in one
+    // tidy place and keep warm through the Night. Each bay holds the
+    // largest Machine, the regolith printer, with a little room round it,
+    // and two by two they fit a footprint not much wider than a Habitat's.
+    // Four bays take both Machines and the Rover with one to spare. It is
+    // about as cheap as anything on the base: its sockets ship 60 kg for
+    // $4M, against a Light Mast's 40 kg for $3M, and it goes up in 4 hours
+    // of work, half of them grading the ground.
+    {
+      id: "parking-area",
+      label: "Parking area",
+      designId: "parking-areas",
+      footprintRadiusMetres: 5.5,
+      components: [{ componentId: "bay-socket", count: 4 }],
+      stageHours: {
+        sitePreparation: 2,
+        componentDelivery: 0.5,
+        assembly: 1,
+        commissioning: 0.5,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.1,
+      dustWearPercentPerHour: 0.01,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      // Its sockets draw nothing but the heaters plugged in to them.
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      parking: {
+        bayRadiusMetres: 2,
+        bayOffsets: [
+          { x: -2.25, y: 2.25 },
+          { x: 2.25, y: 2.25 },
+          { x: -2.25, y: -2.25 },
+          { x: 2.25, y: -2.25 },
+        ],
+      },
     },
     {
       id: "extraction-plant",
@@ -2435,6 +2511,14 @@ export const catalogue: Catalogue = {
         massKilograms: 15,
         priceMillionDollars: 2,
       },
+      // A parking area's worth of four comes to 60 kg.
+      {
+        id: "bay-socket",
+        designId: "parking-areas",
+        brings: { kind: "component", componentId: "bay-socket" },
+        massKilograms: 15,
+        priceMillionDollars: 1,
+      },
       {
         id: "spare-component",
         designId: "maintenance-spares",
@@ -3082,6 +3166,17 @@ export const catalogue: Catalogue = {
       label: "Landing pads",
       description:
         "A paved pad with a beacon, where the Lander lands without blasting Plume Ejecta over the base.",
+      category: "mobility",
+      starting: true,
+      scienceCost: 0,
+      prerequisiteDesignIds: [],
+    },
+    // Only for tidiness, so it is there from the start.
+    {
+      id: "parking-areas",
+      label: "Parking areas",
+      description:
+        "Graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and the Rover together to keep warm through the Night.",
       category: "mobility",
       starting: true,
       scienceCost: 0,

@@ -87,6 +87,25 @@ test("the build menu says what each Structure does", async ({ page }) => {
   );
 });
 
+test("the build menu offers a parking area from the start, and says what its bays are for", async ({
+  page,
+}) => {
+  await pause(page);
+  const area = structureType("parking-area");
+
+  const button = page
+    .getByRole("complementary", { name: "Build menu" })
+    .getByRole("button", { name: /^Parking area/ });
+  await expect(button).toBeVisible();
+  await expect(button).toContainText("0 available");
+  await expect(button).toHaveAttribute(
+    "title",
+    new RegExp(
+      `has ${area.parking?.bayOffsets.length} bays, each with a power socket`,
+    ),
+  );
+});
+
 test("the Guide says what every Component is for", async ({ page }) => {
   await pause(page);
   await page.getByRole("button", { name: "Guide" }).click();

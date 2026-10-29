@@ -23,6 +23,7 @@ export type {
   MicrometeoriteRules,
   Milestone,
   MilestoneCondition,
+  ParkingBays,
   PerformanceCurve,
   PlantRecipe,
   RadiationRules,

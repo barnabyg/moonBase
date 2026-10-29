@@ -17,6 +17,7 @@ import {
   formatComponents,
   formatDismantlingStage,
   formatMaintenanceStep,
+  formatParkingPlace,
   formatStage,
   hasComponents,
   structureLabel,
@@ -180,10 +181,7 @@ export function createConstructionPanel(
           row.progress.removeAttribute("value");
           row.progress.setAttribute("aria-label", "Parking progress");
         }
-        setText(
-          row.stage,
-          `Parking beside the ${structureLabel(parking.structureTypeId).toLowerCase()}`,
-        );
+        setText(row.stage, `Parking ${formatParkingPlace(parking)}`);
         showWork(row, () => describeParking(parking, snapshot));
       }
       for (const construction of snapshot.constructions) {

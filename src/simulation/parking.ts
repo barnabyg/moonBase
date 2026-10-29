@@ -1,6 +1,11 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { chooseParkingSpot } from "./construction";
+import {
+  chooseParkingSpot,
+  distance,
+  findStructureType,
+  type StructureState,
+} from "./construction";
 import {
   bodyOf,
   drivenSpec,
@@ -26,24 +31,34 @@ import {
 
 /**
  * A "park" Work Order: the Robot drives an idle Machine or Rover that isn't
- * plugged in to a free spot beside the nearest powered Structure, where it
- * plugs in and its heater keeps the cold of Night off it.
+ * plugged in to a free bay of a powered parking area, or failing that to a
+ * free spot beside the nearest powered Structure, where it plugs in and its
+ * heater keeps the cold of Night off it.
  */
 export interface ParkingState {
   /** The Machine or Rover to park. */
   target: DrivenTarget;
-  /** The Structure it is parked beside, on a network with a power source. */
+  /**
+   * The Structure it is parked beside, or in a bay of, on a network with a
+   * power source.
+   */
   structureId: string;
-  /** Where it is to stand, within plug-in reach of the Structure. */
+  /**
+   * Where it is to stand, within plug-in reach of the Structure: the centre
+   * of a bay, if it is parked in one, which is how a bay is known to be
+   * taken, so that no two Work Orders take what they park to the same bay.
+   */
   destination: GroundPosition;
 }
 
 /** A Machine or Rover being parked, or waiting for the Robot to park it. */
 export interface ParkingSnapshot {
   readonly subject: DrivenSubject;
-  /** The Structure it is to be parked beside. */
+  /** The Structure it is to be parked beside, or in a bay of. */
   readonly structureId: string;
   readonly structureTypeId: string;
+  /** Whether it is to be parked in a bay of a parking area. */
+  readonly inBay: boolean;
   /** Whether a Robot has claimed it and is carrying it out. */
   readonly underWay: boolean;
 }
@@ -52,12 +67,14 @@ export interface ParkingSnapshot {
  * Raises a "park" Work Order, once in the data catalogue's lead time before
  * Night falls and all through Night, for every idle Machine and Rover that
  * isn't plugged in, isn't Broken, isn't being maintained and isn't to go
- * on an Expedition or out on one, as long as
-
- * there is a powered Structure to park it beside. A Work Order that nobody
- * has claimed goes once what it parks no longer needs parking, or is given
- * other work; one a Robot has claimed goes only if what it parks breaks or
- * its Structure can no longer take a plug.
+ * on an Expedition or out on one, as long as there is a powered Structure
+ * to park it beside. It goes to the nearest free bay of a parking area that
+ * can take a plug, if there is one, however much nearer another powered
+ * Structure is; otherwise beside the nearest powered Structure, as it would
+ * without a parking area. A Work Order that nobody has claimed goes once
+ * what it parks no longer needs parking, or is given other work; one a
+ * Robot has claimed goes only if what it parks breaks or its Structure can
+ * no longer take a plug.
  */
 export function planParking(state: CampaignState): void {
   const networks = structureNetworks(state);
@@ -89,6 +106,15 @@ export function planParking(state: CampaignState): void {
       continue;
     }
     const body = bodyOf(driven);
+    const bay = nearestFreeBay(state, sockets, body.position);
+    if (bay !== undefined) {
+      state.parking.push({
+        target,
+        structureId: bay.structure.id,
+        destination: bay.position,
+      });
+      continue;
+    }
     const structure = nearestPoweredStructure(state, body.position);
     if (structure === undefined) continue;
     state.parking.push({
@@ -115,6 +141,55 @@ export function planParking(state: CampaignState): void {
       ),
     });
   }
+}
+
+/**
+ * Where the bays of a Structure are on the ground, in the data catalogue's
+ * order, or none if it isn't a parking area.
+ */
+export function bayPositions(
+  structure: Pick<StructureState, "structureTypeId" | "position">,
+): GroundPosition[] {
+  const bays = findStructureType(structure.structureTypeId)?.parking;
+  return (bays?.bayOffsets ?? []).map((offset) => ({
+    x: structure.position.x + offset.x,
+    y: structure.position.y + offset.y,
+  }));
+}
+
+/**
+ * The free bay nearest a position, on a parking area that can take a plug
+ * (see `powerSockets`): one no park Work Order is taking anything to and
+ * nothing stands in. The earlier parking area, and the earlier bay on it,
+ * wins a tie, so the choice is always the same.
+ */
+function nearestFreeBay(
+  state: CampaignState,
+  sockets: readonly StructureState[],
+  from: GroundPosition,
+): { structure: StructureState; position: GroundPosition } | undefined {
+  const standing = everyDriven(state).map((driven) => bodyOf(driven).position);
+  let nearest:
+    { structure: StructureState; position: GroundPosition } | undefined;
+  for (const structure of sockets) {
+    const bayRadius =
+      findStructureType(structure.structureTypeId)?.parking?.bayRadiusMetres ??
+      0;
+    for (const position of bayPositions(structure)) {
+      const free =
+        !state.parking.some((parking) =>
+          samePlace(parking.destination, position),
+        ) && standing.every((other) => distance(other, position) >= bayRadius);
+      if (
+        free &&
+        (nearest === undefined ||
+          distance(position, from) < distance(nearest.position, from))
+      ) {
+        nearest = { structure, position };
+      }
+    }
+  }
+  return nearest;
 }
 
 /**
@@ -156,8 +231,15 @@ export function readParking(state: CampaignState): ParkingSnapshot[] {
         subject: drivenSubject(driven),
         structureId: structure.id,
         structureTypeId: structure.structureTypeId,
+        inBay: bayPositions(structure).some((bay) =>
+          samePlace(bay, parking.destination),
+        ),
         underWay: isBeingParked(state, parking.target),
       },
     ];
   });
+}
+
+function samePlace(a: GroundPosition, b: GroundPosition): boolean {
+  return a.x === b.x && a.y === b.y;
 }

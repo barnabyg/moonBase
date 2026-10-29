@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { catalogue, type ParkingBays } from "../catalogue";
 import {
   lathe,
   lightWindow,
@@ -555,6 +556,15 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   }
   if (structureTypeId === "sintered-landing-pad") {
     return createSinteredLandingPadModel();
+  }
+  const parking = catalogue.structureTypes.find(
+    (type) => type.id === structureTypeId,
+  );
+  if (parking?.parking !== undefined) {
+    return createParkingAreaModel(
+      parking.footprintRadiusMetres,
+      parking.parking,
+    );
   }
   const plant = PLANT_SHAPES[structureTypeId];
   if (plant !== undefined) return createPlantModel(plant);
@@ -1863,6 +1873,126 @@ function createLandingPadModel(shape: LandingPadShape): StructureModel {
       lightMaterial.color.set(on ? 0xfff4dc : 0x222222);
       lightMaterial.emissive.set(on ? 0xfff0d0 : 0x000000);
     },
+  };
+}
+
+/** The share of Assembly spent setting up the bay sockets, before the bays are marked out. */
+const BAY_SOCKETS_SHARE = 0.8;
+/** How tall a bay socket's post stands. */
+const BAY_SOCKET_HEIGHT = 0.9;
+
+/**
+ * A parking area: a disc of graded ground, a shade smoother and darker
+ * than the ground round it, with each bay marked out as a painted circle
+ * and a power socket on a short post just beyond the bay, on the side away
+ * from the middle, a cable coiled at its foot. A post at the edge carries
+ * the status light. During Assembly the sockets go up one by one, then the
+ * bays are painted. The bays stand where the data catalogue has them, so
+ * that what is parked in one stands in its circle.
+ */
+function createParkingAreaModel(
+  footprintRadius: number,
+  bays: ParkingBays,
+): StructureModel {
+  const area = new THREE.Group();
+  area.name = "Parking area";
+  const thickness = 0.04;
+  const discRadius = footprintRadius - 0.1;
+  const ground = part(
+    new THREE.CylinderGeometry(discRadius, footprintRadius, thickness, 32),
+    materials.padPanel,
+    [0, thickness / 2, 0],
+  );
+  ground.castShadow = false;
+  area.add(ground);
+
+  const markings = new THREE.Group();
+  const bayRadius = bays.bayRadiusMetres;
+  const sockets = bays.bayOffsets.map((offset) => {
+    // Ground y runs north, the scene's z south.
+    const centre = new THREE.Vector3(offset.x, thickness + 0.005, -offset.y);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(bayRadius - 0.1, bayRadius, 32),
+      materials.padMarking,
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.copy(centre);
+    markings.add(ring);
+    // Just outside the bay, on the side away from the middle, so that
+    // nothing parked in it stands over the post, but inside the disc.
+    const out = Math.hypot(centre.x, centre.z);
+    const reach = Math.min(bayRadius + 0.15, discRadius - 0.15 - out);
+    const socketAt = new THREE.Vector3(
+      out === 0 ? reach : centre.x + (centre.x / out) * reach,
+      thickness,
+      out === 0 ? 0 : centre.z + (centre.z / out) * reach,
+    );
+    const coil = part(
+      new THREE.TorusGeometry(0.16, 0.03, 4, 12),
+      materials.darkMetal,
+      [0, 0.03, 0],
+    );
+    coil.rotation.x = Math.PI / 2;
+    const socket = new THREE.Group();
+    socket.position.copy(socketAt);
+    socket.add(
+      part(
+        new THREE.CylinderGeometry(0.06, 0.08, BAY_SOCKET_HEIGHT, 6),
+        materials.aluminium,
+        [0, BAY_SOCKET_HEIGHT / 2, 0],
+      ),
+      part(new THREE.BoxGeometry(0.22, 0.28, 0.16), materials.darkMetal, [
+        0,
+        BAY_SOCKET_HEIGHT - 0.1,
+        0,
+      ]),
+      coil,
+    );
+    area.add(socket);
+    return socket;
+  });
+  area.add(markings);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  const statusPost = new THREE.Group();
+  statusPost.position.set(footprintRadius - 0.4, thickness, 0);
+  statusPost.add(
+    part(
+      new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6),
+      materials.darkMetal,
+      [0, 0.55, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.12, 10, 8),
+      statusLightMaterial,
+      [0, 1.2, 0],
+    ),
+  );
+  area.add(statusPost);
+
+  return {
+    group: area,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      const raised = Math.min(f / BAY_SOCKETS_SHARE, 1) * sockets.length;
+      for (const [index, socket] of sockets.entries()) {
+        socket.visible = raised - index > 0;
+      }
+      markings.visible = f >= 1;
+      statusPost.visible = f > 0;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
   };
 }
 
