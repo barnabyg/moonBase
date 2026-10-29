@@ -1358,8 +1358,8 @@ interface BatteryBankShape {
   readonly modulePitch: number;
   readonly plinthSize: readonly [number, number, number];
   readonly cabinetSize: readonly [number, number, number];
-  /** Where along the cabinet's roof each radiator fin stands. */
-  readonly finsAt: readonly number[];
+  /** How many thin radiator fins stand in a row along the cabinet's roof. */
+  readonly fins: number;
   readonly finHeight: number;
   /** How many lights in the row that shows how full it is. */
   readonly chargeSegments: number;
@@ -1382,7 +1382,7 @@ const BATTERY_BANK: BatteryBankShape = {
   modulePitch: 0.68,
   plinthSize: [2.4, 0.2, 1.6],
   cabinetSize: [2.2, 1.3, 1.3],
-  finsAt: [-0.6, -0.2, 0.2, 0.6],
+  fins: 12,
   finHeight: 0.3,
   chargeSegments: 5,
   chargeHeight: 1.2,
@@ -1412,7 +1412,7 @@ const LARGE_BATTERY_BANK: BatteryBankShape = {
   modulePitch: 0.85,
   plinthSize: [3.8, 0.25, 2.6],
   cabinetSize: [3.6, 1.9, 2],
-  finsAt: [-1.4, -0.7, 0, 0.7, 1.4],
+  fins: 19,
   finHeight: 0.35,
   chargeSegments: 8,
   chargeHeight: 1.7,
@@ -1446,6 +1446,7 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
     ]),
   );
 
+  const handleGeometry = new THREE.BoxGeometry(moduleWidth * 0.5, 0.05, 0.06);
   const modules = Array.from({ length: shape.modules }, (_, index) => {
     const module = part(
       new THREE.BoxGeometry(moduleWidth, moduleHeight, moduleDepth),
@@ -1456,28 +1457,32 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
         0,
       ],
     );
+    // The handle it is slid in by.
+    module.add(
+      part(handleGeometry, materials.accent, [
+        0,
+        moduleHeight * 0.3,
+        moduleDepth / 2 + 0.03,
+      ]),
+    );
     bank.add(module);
     return module;
   });
   // How far out in front a module starts before it is slid in.
   const slideFrom = cabinetDepth + 0.1;
 
-  // The insulated cabinet, with radiator fins on top, grows up over the modules.
+  // The insulated cabinet, in an aluminium frame with a radiator on top,
+  // grows up over the modules.
   const cabinet = new THREE.Group();
-  const roof = plinthHeight + cabinetHeight;
   cabinet.add(
     part(
       new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth),
       materials.foil,
       [0, plinthHeight + cabinetHeight / 2, 0],
     ),
-    ...shape.finsAt.map((x) =>
-      part(
-        new THREE.BoxGeometry(0.06, shape.finHeight, cabinetDepth - 0.1),
-        materials.hull,
-        [x, roof + shape.finHeight / 2, 0],
-      ),
-    ),
+    createCabinetFrame(shape),
+    createRoofRadiator(shape),
+    ...createPowerConnector(shape),
   );
   if (shape.endRadiators) {
     const height = cabinetHeight + shape.finHeight;
@@ -1496,15 +1501,31 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
   }
   bank.add(cabinet);
 
+  // The charge lights sit in a dark display shaped like a battery, with a
+  // terminal at its right-hand end.
+  const front = cabinetDepth / 2;
+  const displayWidth = shape.chargeSegments * CHARGE_PITCH + 0.08;
+  cabinet.add(
+    part(
+      new THREE.BoxGeometry(displayWidth, 0.24, 0.03),
+      materials.robotJoint,
+      [0, shape.chargeHeight, front + 0.015],
+    ),
+    part(new THREE.BoxGeometry(0.06, 0.11, 0.03), materials.robotJoint, [
+      displayWidth / 2 + 0.03,
+      shape.chargeHeight,
+      front + 0.015,
+    ]),
+  );
   const chargeMaterials = Array.from({ length: shape.chargeSegments }, () =>
     materials.statusOff.clone(),
   );
   for (const [index, material] of chargeMaterials.entries()) {
     cabinet.add(
-      part(new THREE.BoxGeometry(0.22, 0.12, 0.04), material, [
-        (index - (shape.chargeSegments - 1) / 2) * 0.3,
+      part(new THREE.BoxGeometry(0.22, 0.14, 0.02), material, [
+        (index - (shape.chargeSegments - 1) / 2) * CHARGE_PITCH,
         shape.chargeHeight,
-        cabinetDepth / 2 + 0.02,
+        front + 0.035,
       ]),
     );
   }
@@ -1549,6 +1570,97 @@ function createBatteryBankModel(shape: BatteryBankShape): StructureModel {
     },
     setLit: () => undefined,
   };
+}
+
+/** From the middle of one of a battery bank's charge lights to the next. */
+const CHARGE_PITCH = 0.3;
+
+/**
+ * The aluminium frame a battery bank's foil-wrapped panels hang on: a post
+ * up each corner and a rail round the roof, merged into one mesh.
+ */
+function createCabinetFrame(shape: BatteryBankShape): THREE.Mesh {
+  const [, plinthHeight] = shape.plinthSize;
+  const [width, height, depth] = shape.cabinetSize;
+  const roof = plinthHeight + height;
+  const bar = 0.07;
+  const pieces = [
+    ...[-1, 1].flatMap((x) =>
+      [-1, 1].map((z) =>
+        boxAt(bar, height, bar, [
+          (x * width) / 2,
+          plinthHeight + height / 2,
+          (z * depth) / 2,
+        ]),
+      ),
+    ),
+    ...[-1, 1].map((z) =>
+      boxAt(width, bar, bar, [0, roof - bar / 2, (z * depth) / 2]),
+    ),
+    ...[-1, 1].map((x) =>
+      boxAt(bar, bar, depth, [(x * width) / 2, roof - bar / 2, 0]),
+    ),
+  ];
+  const frame = mergeGeometries(pieces);
+  for (const piece of pieces) piece.dispose();
+  return part(frame, materials.aluminium, [0, 0, 0]);
+}
+
+/**
+ * The white radiator on a battery bank's roof that sheds its heaters' heat:
+ * a row of thin fins on a base plate, merged into one mesh.
+ */
+function createRoofRadiator(shape: BatteryBankShape): THREE.Mesh {
+  const [, plinthHeight] = shape.plinthSize;
+  const [width, height, depth] = shape.cabinetSize;
+  const roof = plinthHeight + height;
+  const span = width - 0.4;
+  const plate = 0.03;
+  const pieces = [
+    boxAt(width - 0.2, plate, depth - 0.1, [0, roof + plate / 2, 0]),
+    ...Array.from({ length: shape.fins }, (_, index) =>
+      boxAt(0.025, shape.finHeight, depth - 0.1, [
+        (index / (shape.fins - 1) - 0.5) * span,
+        roof + shape.finHeight / 2,
+        0,
+      ]),
+    ),
+  ];
+  const radiator = mergeGeometries(pieces);
+  for (const piece of pieces) piece.dispose();
+  return part(radiator, materials.radiator, [0, 0, 0]);
+}
+
+/**
+ * Where power goes in and out of a battery bank: a connector box low on the
+ * front, marked in orange as high voltage, with two cables leaving its
+ * underside.
+ */
+function createPowerConnector(shape: BatteryBankShape): THREE.Object3D[] {
+  const [, plinthHeight] = shape.plinthSize;
+  const [width, , depth] = shape.cabinetSize;
+  const x = -(width / 2 - 0.35);
+  const y = plinthHeight + 0.35;
+  const z = depth / 2 + 0.05;
+  return [
+    part(new THREE.BoxGeometry(0.36, 0.26, 0.1), materials.darkMetal, [
+      x,
+      y,
+      z,
+    ]),
+    part(new THREE.BoxGeometry(0.26, 0.06, 0.01), materials.accent, [
+      x,
+      y + 0.06,
+      z + 0.055,
+    ]),
+    ...[-1, 1].map((side) =>
+      part(new THREE.CylinderGeometry(0.035, 0.035, 0.2, 8), materials.seal, [
+        x + side * 0.09,
+        y - 0.2,
+        z,
+      ]),
+    ),
+  ];
 }
 
 /**
