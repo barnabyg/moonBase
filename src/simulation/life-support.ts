@@ -156,9 +156,9 @@ const FORECAST_LUNATION_PARTS = 6;
 /**
  * The whole game-minutes until a stock runs out, or Infinity if it doesn't
  * within the forecast's look-ahead. With no Plant making it, it falls at
- * its current rate. A Plant that makes it stands idle at Night, as Plants
- * run only on power no battery bank can store, so the forecast follows the
- * Lunation ahead: the rest of a Daylight at the current rate, then each
+ * its current rate. A Plant that makes it may stand idle at Night, as
+ * Plants then run only on what the battery banks hold to spare, so the
+ * forecast counts on none and follows the Lunation ahead: the rest of a Daylight at the current rate, then each
  * Night at what the Mission Director uses, and each Daylight after again at
  * the current rate. At Night, when what the Plants make in Daylight isn't
  * known, it looks only as far as the next Daylight. It starts from what

@@ -367,8 +367,13 @@ export function usesPower(structureTypeId: string): boolean {
 
 /**
  * What a network's Plants drew during the latest game-minute: those that
- * ran. They only ever run on power nothing else uses and no battery bank
- * can store, so no forecast counts them.
+ * ran. They only ever run on power nothing else needs: in Daylight what no
+ * battery bank can store, and at Night what the battery banks hold beyond
+ * what everything else draws through the rest of the Night and the reserve
+ * after it (see `supplyPower`). So no forecast counts them: what they take
+ * at Night can only shorten how long the stored energy lasts into a
+ * Daylight that generates less than the network draws, and by then the
+ * forecast starts from what is really stored.
  */
 export function plantConsumptionKilowatts(network: PowerNetwork): number {
   return network.structures
@@ -415,15 +420,20 @@ export function consumptionKilowatts(
  * Night a light has power while any energy is left when its turn comes, and
  * switches itself on only if what is left after it draws would still carry
  * everything else on the network through the rest of the Night and the
- * data catalogue's reserve after it (see `lightReserveHours`): otherwise it
+ * data catalogue's reserve after it (see `nightReserveHours`): otherwise it
  * stays off to save power, so that no light ever leaves the Habitat, or
  * anything else, without power. Plants come last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
- * if what is left over, beyond what the network's battery banks can store,
- * covers all it draws in the game-minute, so that no Plant ever takes power
- * from anything else, and none has any at Night. One given power claims
- * the inputs for any batch it starts, which no Plant after it, on any
- * network, can count on. Each that has none says why.
+ * if the energy to spare covers all it draws in the game-minute. In
+ * Daylight that is what is left over beyond what the network's battery
+ * banks can store; at Night, what they hold beyond what everything else on
+ * the network, lights included, draws through the rest of the Night and the
+ * reserve after it, counting the heater of every Machine and Rover that
+ * isn't Broken or plugged in to another network, as it may be parked on
+ * this one before the Night ends. So no Plant ever takes power from
+ * anything else. One given power claims the inputs for any batch it
+ * starts, which no Plant after it, on any network, can count on. Each that
+ * has none says why.
  */
 export function supplyPower(state: CampaignState, daylight: boolean): void {
   for (const driven of everyDriven(state)) bodyOf(driven).powered = false;
@@ -432,7 +442,17 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
   const nightMinutesAfter = now.part === "night" ? now.minutesRemaining : 0;
   // The base's stocks are shared by every network's Plants.
   const claims: BatchClaims = new Map();
-  for (const network of powerNetworks(state)) {
+  const networks = powerNetworks(state);
+  const unpluggedHeaters = everyDriven(state)
+    .filter(
+      (driven) =>
+        !isDrivenBroken(driven) &&
+        !networks.some((network) =>
+          network.heated.some((heated) => bodyOf(heated) === bodyOf(driven)),
+        ),
+    )
+    .reduce((sum, driven) => sum + drivenSpec(driven).heaterKilowatts, 0);
+  for (const network of networks) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
     let left = network.storedKilowattHours + generated / 60;
     const plants = network.structures.filter(isPlant);
@@ -467,8 +487,12 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
         if (light.lit) left = Math.max(left - drawn, 0);
       }
     }
-    const stored = Math.min(left, network.storageCapacityKilowattHours);
-    let spare = left - stored;
+    let spare = Math.max(
+      daylight
+        ? left - network.storageCapacityKilowattHours
+        : left - keptFromPlants(network, unpluggedHeaters, nightMinutesAfter),
+      0,
+    );
     for (const plant of plants) {
       const drawn = plantDrawKilowatts(plant) / 60;
       const cantRun = plantCantRun(state, plant, claims);
@@ -476,12 +500,14 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
         cantRun === undefined && spare >= drawn - ENERGY_TOLERANCE_KWH;
       if (plant.powered) {
         spare = Math.max(spare - drawn, 0);
+        left = Math.max(left - drawn, 0);
         claimBatchInputs(plant, claims);
       }
       plant.plantStop = plant.powered
         ? undefined
         : (cantRun ?? { reason: daylight ? "no-power" : "night" });
     }
+    const stored = Math.min(left, network.storageCapacityKilowattHours);
 
     for (const structure of network.structures) {
       // Each battery bank holds its share, in proportion to its capacity.
@@ -659,7 +685,25 @@ function keptFromLights(
 ): number {
   return (
     (restOfNetworkAtNight(network) *
-      (nightMinutesLeft + catalogue.lightReserveHours * 60)) /
+      (nightMinutesLeft + catalogue.nightReserveHours * 60)) /
+    60
+  );
+}
+
+/**
+ * The energy a network's Plants leave stored at Night: what everything else
+ * on it, lights included, and the given heaters of Machines and Rovers not
+ * yet plugged in, draw through the given game-minutes of Night left and
+ * the data catalogue's reserve after them.
+ */
+function keptFromPlants(
+  network: PowerNetwork,
+  unpluggedHeaterKilowatts: number,
+  nightMinutesLeft: number,
+): number {
+  return (
+    ((network.nightConsumptionKilowatts + unpluggedHeaterKilowatts) *
+      (nightMinutesLeft + catalogue.nightReserveHours * 60)) /
     60
   );
 }

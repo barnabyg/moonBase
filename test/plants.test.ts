@@ -3,6 +3,7 @@ import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
 import {
   loadCampaign,
   type Campaign,
+  type GameEvent,
   type GroundPosition,
   type Snapshot,
   type StructureSnapshot,
@@ -347,38 +348,42 @@ describe("the extraction plant", () => {
   );
 });
 
-describe("a Plant on a network short of power", () => {
-  /**
-   * A solar array, a battery bank, a Habitat with the Mission Director in it
-   * and an extraction plant, all on one network, with Regolith to spare.
-   */
-  function habitatBase(withPlant: boolean): Campaign {
-    const game = scenario();
-    const campaign = withPlantComponents(game.campaign);
-    const plans: [string, GroundPosition][] = [
-      ["solar-array", arraySite],
-      ["battery-bank", bankSite],
-      ["habitat", habitatSite],
-      ...(withPlant
-        ? [["extraction-plant", plantSite] as [string, GroundPosition]]
-        : []),
-    ];
-    for (const [structureTypeId, position] of plans) {
-      const planned = campaign.planConstruction({ structureTypeId, position });
-      if (!planned.ok) throw new Error(planned.message);
-    }
-    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
-      if (hours > 10 * 24) throw new Error("The Constructions never finished.");
-      campaign.advance(60);
-    }
-    const habitat = campaign
-      .snapshot()
-      .structures.find((structure) => structure.structureTypeId === "habitat");
-    const movedIn = campaign.moveMissionDirectorIn(habitat?.id ?? "");
-    if (!movedIn.ok) throw new Error(movedIn.message);
-    return withStocks(campaign, { regolith: 5000 });
+/**
+ * A solar array, the given number of battery banks, a Habitat with the
+ * Mission Director in it and an extraction plant, all on one network, with
+ * Regolith to spare.
+ */
+function habitatBase(withPlant: boolean, banks = 1): Campaign {
+  const game = scenario();
+  const campaign = withPlantComponents(game.campaign);
+  const plans: [string, GroundPosition][] = [
+    ["solar-array", arraySite],
+    ...Array.from({ length: banks }, (_, index): [string, GroundPosition] => [
+      "battery-bank",
+      { x: bankSite.x + 6 * index, y: bankSite.y },
+    ]),
+    ["habitat", habitatSite],
+    ...(withPlant
+      ? [["extraction-plant", plantSite] as [string, GroundPosition]]
+      : []),
+  ];
+  for (const [structureTypeId, position] of plans) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
   }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 10 * 24) throw new Error("The Constructions never finished.");
+    campaign.advance(60);
+  }
+  const habitat = campaign
+    .snapshot()
+    .structures.find((structure) => structure.structureTypeId === "habitat");
+  const movedIn = campaign.moveMissionDirectorIn(habitat?.id ?? "");
+  if (!movedIn.ok) throw new Error(movedIn.message);
+  return withStocks(campaign, { regolith: 5000 });
+}
 
+describe("a Plant on a network short of power", () => {
   it("is the first to lose power, and never shortens the time until the Habitat loses its own", () => {
     const withPlant = habitatBase(true);
     const without = habitatBase(false);
@@ -406,7 +411,7 @@ describe("a Plant on a network short of power", () => {
     );
   });
 
-  it("only runs on power its battery banks can't store, once they are full", () => {
+  it("in Daylight only runs on power its battery banks can't store, once they are full", () => {
     const campaign = habitatBase(true);
     const network = () => campaign.snapshot().power.networks[0];
 
@@ -441,6 +446,70 @@ describe("a Plant on a network short of power", () => {
     });
     expect(plant === undefined ? "" : formatPlant(plant)).toMatch(
       /^waiting for power to spare/,
+    );
+  });
+});
+
+describe("a Plant at Night with stored power to spare", () => {
+  /** The Campaign an hour into the first Night, with three battery banks charged. */
+  function nightBase(): Campaign {
+    const campaign = habitatBase(true, 3);
+    campaign.advance(campaign.snapshot().lunation.minutesRemaining + 60);
+    return campaign;
+  }
+
+  it("runs on what the battery banks hold beyond what everything else needs through the Night and the reserve after it", () => {
+    const campaign = nightBase();
+    const regolith = bulk(campaign.snapshot(), "regolith");
+    expect(plantOf(campaign.snapshot()).plant).toMatchObject({
+      running: true,
+      stoppedFor: undefined,
+    });
+
+    for (let hours = 0; plantOf(campaign.snapshot()).plant?.running; hours++) {
+      if (hours > 10 * 24) throw new Error("It never stopped.");
+      campaign.advance(60);
+    }
+
+    const state = campaign.snapshot();
+    expect(state.lunation.part).toBe("night");
+    expect(bulk(state, "regolith")).toBeLessThan(regolith);
+    const { plant } = plantOf(state);
+    expect(plant).toMatchObject({ stoppedFor: { reason: "night" } });
+    expect(plant === undefined ? "" : formatPlant(plant)).toMatch(
+      /^idle at Night: no stored power to spare/,
+    );
+    const network = state.power.networks[0];
+    const needed =
+      (network?.consumptionKilowatts ?? Number.NaN) *
+      (state.lunation.minutesRemaining / 60 + catalogue.nightReserveHours);
+    const spare = (network?.storedKilowattHours ?? Number.NaN) - needed;
+    expect(spare).toBeGreaterThanOrEqual(-1e-6);
+    expect(spare).toBeLessThan(recipe.drawKilowatts / 60);
+  });
+
+  it("never leaves the Habitat without power through the Night, nor warns that it will", () => {
+    const campaign = nightBase();
+    const events: GameEvent[] = [];
+
+    for (
+      let hours = 0;
+      campaign.snapshot().lunation.part === "night";
+      hours++
+    ) {
+      if (hours > 10 * 24) throw new Error("The Night never ended.");
+      events.push(...campaign.advance(60));
+      const habitat = campaign
+        .snapshot()
+        .structures.find(
+          (structure) => structure.structureTypeId === "habitat",
+        );
+      expect(habitat?.powered).toBe(true);
+    }
+
+    expect(campaign.snapshot().ended).toBeUndefined();
+    expect(events.map((event) => event.kind)).not.toContain(
+      "habitat-power-warning",
     );
   });
 });

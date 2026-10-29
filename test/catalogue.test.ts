@@ -2320,8 +2320,8 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("has lights keep back a reserve of power at Night for at least as long as the first Habitat power warning", () => {
-    const reserve = catalogue.lightReserveHours;
+  it("has lights and Plants keep back a reserve of power at Night for at least as long as the first Habitat power warning", () => {
+    const reserve = catalogue.nightReserveHours;
     expect(reserve).toBeGreaterThan(0);
     expect(Number.isInteger(reserve * 60)).toBe(true);
     expect(reserve).toBeGreaterThanOrEqual(
