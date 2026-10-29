@@ -104,3 +104,33 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
     waterPlant.getByRole("button", { name: "Switch off" }),
   ).toBeVisible();
 });
+
+test("a Plant switched on between batches says so at once, then starts its next batch", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  const speeds = page.getByRole("group", { name: "Game speed" });
+  await speeds.getByRole("button", { name: "Pause" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(switchSave);
+  const extraction = page
+    .getByRole("list", { name: "Structures" })
+    .getByRole("listitem")
+    .filter({ hasText: "Extraction plant" });
+  await expect(extraction).toContainText(/Condition \d+% switched off/);
+
+  // Paused, so that it hasn't tried to run yet.
+  await extraction.getByRole("button", { name: "Switch on" }).click();
+
+  await expect(extraction).toContainText(
+    /Condition \d+% switched on: starts a batch as soon as it can/,
+  );
+  await expect(
+    extraction.getByRole("button", { name: "Switch off" }),
+  ).toBeVisible();
+  await speeds.getByRole("button", { name: "1x" }).click();
+  await expect(extraction).toContainText(
+    /Condition \d+% running, \d+ min left of this batch/,
+  );
+});

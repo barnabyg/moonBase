@@ -321,6 +321,46 @@ describe("the forecasts, with a Plant switched off", () => {
 });
 
 describe("a Plant switched back on", () => {
+  it("says at once that it is switched on, not what it waited for last, until it next runs", () => {
+    const campaign = running();
+    const plantId = waterPlantOf(campaign.snapshot()).id;
+    switchPlant(campaign, plantId, "off");
+    untilBatchDone(campaign, plantId);
+    campaign.advance(60);
+    expect(campaign.snapshot().lunation.part).toBe("daylight");
+
+    switchPlant(campaign, plantId, "on");
+
+    expect(waterPlantOf(campaign.snapshot()).plant).toEqual({
+      running: false,
+      stoppedFor: { reason: "switched-on" },
+      batch: undefined,
+    });
+    campaign.advance(1);
+    expect(waterPlantOf(campaign.snapshot()).plant).toMatchObject({
+      running: true,
+      stoppedFor: undefined,
+    });
+  });
+
+  it("switched off and on again as a batch finishes, reads as it did before", () => {
+    const campaign = running();
+    const plantId = waterPlantOf(campaign.snapshot()).id;
+    campaign.advance(1);
+    untilBatchDone(campaign, plantId);
+    const before = waterPlantOf(campaign.snapshot()).plant;
+    expect(before).toMatchObject({ running: true, batch: undefined });
+
+    switchPlant(campaign, plantId, "off");
+    expect(waterPlantOf(campaign.snapshot()).plant).toMatchObject({
+      running: false,
+      stoppedFor: { reason: "switched-off" },
+    });
+    switchPlant(campaign, plantId, "on");
+
+    expect(waterPlantOf(campaign.snapshot()).plant).toEqual(before);
+  });
+
   it("starts making water again from its next game-minute, with no rebuilding and no Robot work", () => {
     const campaign = running();
     const plantId = waterPlantOf(campaign.snapshot()).id;

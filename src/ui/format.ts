@@ -720,6 +720,8 @@ export function formatPlant(
       return `waiting for power to spare${left}`;
     case "switched-off":
       return "switched off";
+    case "switched-on":
+      return "switched on: starts a batch as soon as it can";
   }
 }
 

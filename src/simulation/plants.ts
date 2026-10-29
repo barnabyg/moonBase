@@ -45,7 +45,12 @@ export type PlantStop =
    * The player has switched it off, and it has no batch started: it
    * starts none until it is switched on again.
    */
-  | { readonly reason: "switched-off" };
+  | { readonly reason: "switched-off" }
+  /**
+   * It was switched off between batches, and the player has switched it
+   * on since: it starts its next batch as soon as it can.
+   */
+  | { readonly reason: "switched-on" };
 
 /** Why a Plant isn't running, as the player sees it. */
 export type PlantStopSnapshot =
@@ -211,8 +216,16 @@ export function switchPlant(
     };
   }
   structure.switchedOff = setting === "off";
-  // Why it waited may not hold now.
-  structure.plantStop = undefined;
+  // Switched off, it says so at once (see `readPlant`), and any other
+  // reason it had still holds once it is switched on again. Only being
+  // switched off no longer does: until it next tries to run, it is
+  // switched on, and what it will wait for, if anything, isn't known.
+  if (
+    !structure.switchedOff &&
+    structure.plantStop?.reason === "switched-off"
+  ) {
+    structure.plantStop = { reason: "switched-on" };
+  }
   return { ok: true };
 }
 

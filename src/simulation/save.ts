@@ -1262,6 +1262,7 @@ const plantStop: Decoder<PlantStop> = tagged("reason", {
   night: object({ reason: exactly("night") }),
   "no-power": object({ reason: exactly("no-power") }),
   "switched-off": object({ reason: exactly("switched-off") }),
+  "switched-on": object({ reason: exactly("switched-on") }),
 } satisfies Record<PlantStop["reason"], unknown>);
 
 /**
