@@ -67,6 +67,7 @@ export type {
 export type {
   PlantSnapshot,
   PlantStop,
+  PlantSwitchSetting,
   SetRecipeRefusal,
   SetRecipeResult,
   SwitchPlantRefusal,

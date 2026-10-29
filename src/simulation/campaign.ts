@@ -158,6 +158,7 @@ import {
   switchPlant,
   type PlantSnapshot,
   type SetRecipeResult,
+  type PlantSwitchSetting,
   type SwitchPlantResult,
 } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
@@ -685,9 +686,12 @@ export interface Campaign {
    * any it has started is finished, drawing no power and taking no inputs,
    * or back on, from the next game-minute. It is a setting, not a
    * Construction, so no Robot works on it. It is refused for a Structure
-   * that isn't a commissioned Plant.
+   * that isn't a commissioned Plant, and once the Campaign has ended.
    */
-  switchPlant(structureId: string, setting: "on" | "off"): SwitchPlantResult;
+  switchPlant(
+    structureId: string,
+    setting: PlantSwitchSetting,
+  ): SwitchPlantResult;
   /**
    * Starts an Expedition with a Robot that is free, if there is one: the
    * Robot finishes the Work Order it holds, then drives the Rover off the

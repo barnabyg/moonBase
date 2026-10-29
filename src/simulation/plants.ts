@@ -90,6 +90,9 @@ export type SetRecipeResult =
       readonly message: string;
     };
 
+/** Whether to switch a Plant off or on. */
+export type PlantSwitchSetting = "on" | "off";
+
 export type SwitchPlantRefusal =
   "unknown-structure" | "not-a-plant" | "campaign-ended";
 
@@ -196,24 +199,22 @@ export function setPlantRecipe(
 export function switchPlant(
   state: CampaignState,
   structureId: string,
-  setting: "on" | "off",
+  setting: PlantSwitchSetting,
 ): SwitchPlantResult {
   const structure = state.structures.find(
     (candidate) => candidate.id === structureId,
   );
   if (structure === undefined) {
-    return {
-      ok: false,
-      reason: "unknown-structure",
-      message: `There is no commissioned Structure "${structureId}".`,
-    };
+    return refuse(
+      "unknown-structure",
+      `There is no commissioned Structure "${structureId}".`,
+    );
   }
   if (!isPlant(structure)) {
-    return {
-      ok: false,
-      reason: "not-a-plant",
-      message: `The ${labelOf(structure.structureTypeId)} isn't a Plant, so it can't be switched off or on.`,
-    };
+    return refuse(
+      "not-a-plant",
+      `The ${labelOf(structure.structureTypeId)} isn't a Plant, so it can't be switched off or on.`,
+    );
   }
   structure.switchedOff = setting === "off";
   // Switched off, it says so at once (see `readPlant`), and any other
@@ -235,7 +236,11 @@ function labelOf(structureTypeId: string): string {
   );
 }
 
-function refuse(reason: SetRecipeRefusal, message: string): SetRecipeResult {
+/** A refusal of a command to a Plant, with the reason in words the player can read. */
+function refuse<Reason extends SetRecipeRefusal | SwitchPlantRefusal>(
+  reason: Reason,
+  message: string,
+): { readonly ok: false; readonly reason: Reason; readonly message: string } {
   return { ok: false, reason, message };
 }
 

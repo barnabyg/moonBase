@@ -6,6 +6,7 @@ import {
   loadCampaign,
   type Campaign,
   type GroundPosition,
+  type PlantSwitchSetting,
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
@@ -151,7 +152,7 @@ function water(state: Snapshot): number {
 function switchPlant(
   campaign: Campaign,
   structureId: string,
-  setting: "on" | "off",
+  setting: PlantSwitchSetting,
 ): void {
   const result = campaign.switchPlant(structureId, setting);
   if (!result.ok) throw new Error(result.message);
