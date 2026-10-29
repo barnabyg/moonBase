@@ -21,11 +21,11 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
 }) => {
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
-  // Frames come slowly with software rendering in CI, so run at 20x to see
-  // the clock move (as in startup.spec.ts).
   const speeds = page.getByRole("group", { name: "Game speed" });
   const twentyTimes = speeds.getByRole("button", { name: "20x" });
-  await twentyTimes.click();
+  // Paused until the Structures are placed, so that the Machines, driving
+  // about meanwhile, are where they always are when they are.
+  await speeds.getByRole("button", { name: "Pause" }).click();
   const oxygen = panel.getByRole("status", { name: "Oxygen", exact: true });
   const water = panel.getByRole("status", { name: "Water", exact: true });
   const habitatPower = panel.getByRole("status", { name: "Habitat power" });
@@ -46,6 +46,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     await buildMenu.getByRole("button", { name: structure }).click();
     await placeOnClearGround(page);
   }
+  // Frames come slowly with software rendering in CI, so run at 20x to see
+  // the clock move (as in startup.spec.ts).
+  await twentyTimes.click();
   const skip = page.getByRole("button", { name: "Skip to next event" });
   const notifications = page.getByRole("log", { name: "Notifications" });
 
