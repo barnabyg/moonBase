@@ -720,6 +720,7 @@ describe("the sample save of format version 11", () => {
         },
         structureId: "structure-2",
         structureTypeId: "battery-bank",
+        inBay: false,
         underWay: true,
       },
     ]);
@@ -1686,9 +1687,12 @@ describe("the sample saves from before the Tech Tree", () => {
     "version-25.moonbase",
     "version-26.moonbase",
   ])("%s loads with the starting Designs unlocked, and no others", (name) => {
-    expect(loadSample(name).snapshot().unlockedDesignIds).toEqual(
-      startingDesignIds,
-    );
+    // Parking areas, a starting Design since format version 38, comes after
+    // them.
+    expect(loadSample(name).snapshot().unlockedDesignIds).toEqual([
+      ...startingDesignIds,
+      "parking-areas",
+    ]);
   });
 
   it("plays on from where it was saved, until Seismic monitoring completes and its Science unlocks a Design", () => {
@@ -1704,7 +1708,11 @@ describe("the sample saves from before the Tech Tree", () => {
     expect(campaign.unlockDesign(design.id)).toMatchObject({ ok: true });
     const state = campaign.snapshot();
     expect(state.ended).toBeUndefined();
-    expect(state.unlockedDesignIds).toEqual([...startingDesignIds, design.id]);
+    expect(state.unlockedDesignIds).toEqual([
+      ...startingDesignIds,
+      "parking-areas",
+      design.id,
+    ]);
   });
 });
 
@@ -2279,10 +2287,11 @@ describe("the sample saves from before Water-wall shielding", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.at(-1)).toEqual({
-        componentId: "water-wall-bladder",
-        count: 0,
-      });
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === "water-wall-bladder",
+        ),
+      ).toEqual({ componentId: "water-wall-bladder", count: 0 });
     },
   );
 });
@@ -2527,5 +2536,99 @@ describe("the sample save of format version 37", () => {
     campaign.advance(1);
 
     expect(regolith()).toBeLessThan(before ?? 0);
+  });
+});
+
+describe("the sample saves from before Parking areas", () => {
+  it.each(["version-1.moonbase", "version-22.moonbase", "version-37.moonbase"])(
+    "%s loads with Parking areas unlocked, and no bay sockets, counted after the earlier Components in the base's stock",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.unlockedDesignIds).toContain("parking-areas");
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.at(-1)).toEqual({
+        componentId: "bay-socket",
+        count: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 38", () => {
+  // Saved 53670 game-minutes in, 5 hours 30 minutes before the second
+  // Night falls. The Mission Director lives in the shielded Habitat, on a
+  // network with a solar array and three battery banks, and the first
+  // Launch brought a parking area's four bay sockets, with oxygen and
+  // water; the parking area was built beside the battery banks during the
+  // first Night. Both Machines and the Rover stood plugged in beside other
+  // Structures, so the Robot is driving the excavator to a bay, with the
+  // regolith printer and the Rover waiting to be parked in bays after it.
+  it("loads with the Robot parking the excavator in a bay of the parking area, and the regolith printer and the Rover to follow", () => {
+    const state = loadSample("version-38.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(53670);
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(
+      state.stockpile.components.find((s) => s.componentId === "bay-socket"),
+    ).toEqual({ componentId: "bay-socket", count: 0 });
+    expect(state.parking).toEqual([
+      expect.objectContaining({
+        subject: {
+          kind: "machine",
+          machineId: "excavator-1",
+          machineTypeId: "excavator",
+        },
+        structureTypeId: "parking-area",
+        inBay: true,
+        underWay: true,
+      }),
+      expect.objectContaining({
+        subject: {
+          kind: "machine",
+          machineId: "regolith-printer-2",
+          machineTypeId: "regolith-printer",
+        },
+        structureTypeId: "parking-area",
+        inBay: true,
+        underWay: false,
+      }),
+      expect.objectContaining({
+        subject: { kind: "rover", roverId: "rover-1" },
+        structureTypeId: "parking-area",
+        inBay: true,
+        underWay: false,
+      }),
+    ]);
+  });
+
+  it("plays on from where it was saved, until both Machines and the Rover stand in bays of their own, plugged in", () => {
+    const campaign = loadSample("version-38.moonbase");
+    for (let hours = 0; campaign.snapshot().parking.length > 0; hours++) {
+      if (hours > 24) throw new Error("The parking was never done.");
+      campaign.advance(60);
+    }
+
+    const state = campaign.snapshot();
+    const area = state.structures.find(
+      (structure) => structure.structureTypeId === "parking-area",
+    );
+    const offsets =
+      catalogue.structureTypes.find((type) => type.id === "parking-area")
+        ?.parking?.bayOffsets ?? [];
+    const bays = [...state.machines, ...state.rovers].map((driven) =>
+      offsets.findIndex(
+        (offset) =>
+          driven.position.x === (area?.position.x ?? 0) + offset.x &&
+          driven.position.y === (area?.position.y ?? 0) + offset.y,
+      ),
+    );
+    expect(bays).not.toContain(-1);
+    expect(new Set(bays).size).toBe(3);
+    expect(
+      [...state.machines, ...state.rovers].map((driven) => driven.pluggedIn),
+    ).toEqual([true, true, true]);
   });
 });

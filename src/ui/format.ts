@@ -1733,6 +1733,19 @@ export function describeExportLoading(
 }
 
 /**
+ * Says where a Machine or Rover is being parked: "in a bay of the parking
+ * area", or "beside the battery bank".
+ */
+export function formatParkingPlace(
+  parking: Pick<ParkingSnapshot, "structureTypeId" | "inBay">,
+): string {
+  const structure = structureLabel(parking.structureTypeId).toLowerCase();
+  return parking.inBay
+    ? `in a bay of the ${structure}`
+    : `beside the ${structure}`;
+}
+
+/**
  * Says what is happening on parking a Machine right now, for the Work
  * panel: what the Robot is doing with it, or else that it is waiting for
  * the Robot.
@@ -1743,6 +1756,7 @@ export function describeParking(
 ): string {
   const machine = inSentence(drivenLabel(parking.subject));
   const beside = structureLabel(parking.structureTypeId).toLowerCase();
+  const place = formatParkingPlace(parking);
   const robot = parking.underWay
     ? snapshot.robots.find(({ activity }) =>
         isForDriven(activity, parking.subject),
@@ -1755,7 +1769,7 @@ export function describeParking(
     case "driving-rover":
       return `Robot driving the ${machine} to the ${beside}, to plug it in`;
     default:
-      return `Waiting for the Robot to park the ${machine} beside the ${beside}`;
+      return `Waiting for the Robot to park the ${machine} ${place}`;
   }
 }
 

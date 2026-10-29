@@ -728,7 +728,9 @@ describe("the data catalogue", () => {
       expect(Number.isInteger(componentDelivery * 60)).toBe(true);
       expect(type.commissioningFailureChance).toBeGreaterThanOrEqual(0);
       expect(type.commissioningFailureChance).toBeLessThan(1);
-      for (const value of Object.values(type.power)) {
+      const { cabled, ...figures } = type.power;
+      expect(cabled === undefined || typeof cabled === "boolean").toBe(true);
+      for (const value of Object.values(figures)) {
         expect(Number.isFinite(value)).toBe(true);
         expect(value).toBeGreaterThanOrEqual(0);
       }
@@ -1259,6 +1261,98 @@ describe("the data catalogue", () => {
         catalogue.launch.payloadMassLimitKilograms,
       );
       expect(type.stageMachines.sitePreparation).toBeDefined();
+    });
+  });
+
+  describe("the parking area", () => {
+    const area = catalogue.structureTypes.find(
+      (type) => type.id === "parking-area",
+    );
+    if (area?.parking === undefined) {
+      throw new Error("expected a parking area with bays");
+    }
+    const { bayRadiusMetres, bayOffsets } = area.parking;
+    const largest = Math.max(
+      catalogue.rover.footprintRadiusMetres,
+      ...catalogue.machineTypes.map((type) => type.footprintRadiusMetres),
+    );
+
+    it("is the only Structure cabled though it generates, stores and draws nothing", () => {
+      expect(
+        catalogue.structureTypes.filter((type) => type.power.cabled === true),
+      ).toEqual([area]);
+    });
+
+    it("is the only Structure with bays, behind a Mobility Design there from the start", () => {
+      expect(
+        catalogue.structureTypes.filter((type) => type.parking !== undefined),
+      ).toEqual([area]);
+      expect(
+        catalogue.designs.find((design) => design.id === area.designId),
+      ).toMatchObject({
+        id: "parking-areas",
+        category: "mobility",
+        starting: true,
+        scienceCost: 0,
+      });
+    });
+
+    it("has a bay for every Machine and the Rover, each holding the largest of them, inside its footprint and clear of the others", () => {
+      expect(bayOffsets.length).toBeGreaterThanOrEqual(
+        catalogue.landingSite.machines.length +
+          catalogue.landingSite.roverPositions.length,
+      );
+      expect(bayRadiusMetres).toBeGreaterThanOrEqual(largest);
+      for (const [index, bay] of bayOffsets.entries()) {
+        expect(Math.hypot(bay.x, bay.y) + bayRadiusMetres).toBeLessThanOrEqual(
+          area.footprintRadiusMetres,
+        );
+        for (const other of bayOffsets.slice(index + 1)) {
+          expect(
+            Math.hypot(bay.x - other.x, bay.y - other.y),
+          ).toBeGreaterThanOrEqual(2 * bayRadiusMetres);
+        }
+      }
+    });
+
+    it("is used only within a detour of the nearest powered Structure that the slowest Machine can drive, and the Robot walk back, in the lead time before Night", () => {
+      const { bayDetourMetres, parkingLeadHours } = catalogue.cold;
+      const slowest = Math.min(
+        catalogue.rover.drivingSpeedMetresPerHour,
+        ...catalogue.machineTypes.map((type) => type.drivingSpeedMetresPerHour),
+      );
+
+      expect(bayDetourMetres).toBeGreaterThan(0);
+      expect(
+        bayDetourMetres / slowest +
+          bayDetourMetres / catalogue.robot.walkingSpeedMetresPerHour,
+      ).toBeLessThanOrEqual(parkingLeadHours);
+    });
+
+    it("draws no power itself but is cabled for its sockets, and is cheap: built by the Robot from a socket for each bay, which a Launch brings for about what a Light Mast costs, in a few hours", () => {
+      expect(area.power).toEqual({
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+        cabled: true,
+      });
+      expect(area.components).toEqual([
+        { componentId: "bay-socket", count: bayOffsets.length },
+      ]);
+      expect(area.stageMachines.assembly).toBeUndefined();
+      const mast = catalogue.structureTypes.find(
+        (type) => type.id === "light-mast",
+      );
+      if (mast === undefined) throw new Error("expected a Light Mast");
+      const cost = shipped(area);
+      const mastCost = shipped(mast);
+      expect(cost.kilograms).toBeLessThanOrEqual(2 * mastCost.kilograms);
+      expect(cost.millionDollars).toBeLessThanOrEqual(
+        2 * mastCost.millionDollars,
+      );
+      const hours = Object.values(area.stageHours).reduce((a, b) => a + b, 0);
+      expect(hours).toBeLessThanOrEqual(6);
     });
   });
 
