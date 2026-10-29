@@ -206,7 +206,7 @@ test("the Launch manifest counts what the Exports to load will sell for, and the
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const screen = page.getByRole("dialog", { name: "Launch manifest" });
   const cost = screen.getByRole("status", { name: "Launch cost" });
-  const launchTab = screen.getByRole("tab", { name: "Launch" });
+  const importsTab = screen.getByRole("tab", { name: "Imports" });
   const exportsTab = screen.getByRole("tab", { name: "Exports" });
   const kilograms = screen.getByRole("spinbutton", {
     name: "Kilograms of Wafers to load",
@@ -216,7 +216,7 @@ test("the Launch manifest counts what the Exports to load will sell for, and the
     await kilograms.fill(String(amount));
     await kilograms.press("Enter");
     await expect(kilograms).toHaveValue(String(amount));
-    await launchTab.click();
+    await importsTab.click();
   };
   const addPanel = screen.getByRole("button", { name: "Add one Solar panel" });
   const addMast = screen.getByRole("button", { name: "Add one Array mast" });
