@@ -188,6 +188,59 @@ describe("sintered Regolith shielding", () => {
   });
 });
 
+describe("a Structure the regolith printer prints", () => {
+  it.each([
+    ["regolith-shielding"],
+    ["sintered-regolith-shielding"],
+    ["sintered-landing-pad"],
+  ])(
+    "%s has the excavator dig its Regolith on site through Site Preparation, with none in the base's stock",
+    (typeId) => {
+      const type = structureType(typeId);
+      const game = scenario().plan("habitat", habitatSite);
+      runUntilBuilt(game);
+      const site = type.shieldsHabitat ? habitatSite : padSite;
+
+      const states = runUntilBuilt(game.plan(typeId, site));
+
+      expect(
+        states.filter(
+          (state) => machineOf(state, "excavator").activity.kind === "working",
+        ),
+      ).toHaveLength(type.stageHours.sitePreparation * 60);
+      for (const state of states) {
+        expect(
+          state.bulkResources.find((stock) => stock.resourceId === "regolith")
+            ?.kilograms,
+        ).toBe(0);
+      }
+    },
+  );
+
+  it("keeps the excavator from another Construction's Site Preparation until it has dug its Regolith", () => {
+    const game = scenario()
+      .plan(sinteredPad.id, padSite)
+      .plan(prefabricated.id, { x: 40, y: -25 });
+    const [padId, arrayId] = game.state.constructions.map((c) => c.id);
+
+    const states = runUntilBuilt(game);
+
+    const sitesExcavated = states
+      .map((state) => machineOf(state, "excavator").activity)
+      .flatMap((activity) =>
+        activity.kind === "working" ? [activity.constructionId] : [],
+      );
+    expect(sitesExcavated).toEqual([
+      ...Array<string>(sinteredPad.stageHours.sitePreparation * 60).fill(
+        padId ?? "",
+      ),
+      ...Array<string>(prefabricated.stageHours.sitePreparation * 60).fill(
+        arrayId ?? "",
+      ),
+    ]);
+  });
+});
+
 describe("a prefabricated solar array", () => {
   it("goes up in the hours the data catalogue gives for each stage, from its one Component, and generates as a solar array does", () => {
     const game = scenario();

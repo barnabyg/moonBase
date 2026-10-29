@@ -1630,6 +1630,27 @@ describe("the data catalogue", () => {
       ).toEqual([]);
     });
 
+    it("has the excavator dig the Regolith for every Structure the regolith printer prints, spending 6 hours of its Site Preparation on it on top of grading the ground", () => {
+      const printed = catalogue.structureTypes.filter(
+        (type) => type.stageMachines.assembly === "regolith-printer",
+      );
+
+      expect(printed.map((type) => type.id)).toEqual([
+        "regolith-shielding",
+        "sintered-regolith-shielding",
+        "sintered-landing-pad",
+      ]);
+      // The same ground a landing pad shipped from Earth is laid on.
+      expect(structureType("sintered-landing-pad").stageHours).toMatchObject({
+        sitePreparation:
+          structureType("landing-pad").stageHours.sitePreparation + 6,
+      });
+      // 3 hours to grade the ground round the Habitat.
+      for (const id of ["regolith-shielding", "sintered-regolith-shielding"]) {
+        expect(structureType(id).stageHours.sitePreparation).toBe(3 + 6);
+      }
+    });
+
     it("has sintered Regolith shielding, behind Microwave sintering, a Construction Design that needs Regolith sintering first", () => {
       expect(designOf(structureType("sintered-regolith-shielding"))).toEqual(
         expect.objectContaining({
@@ -1641,7 +1662,7 @@ describe("the data catalogue", () => {
       );
     });
 
-    it("has sintered Regolith shielding printed like Regolith shielding, but in under half the hours", () => {
+    it("has sintered Regolith shielding dug and printed like Regolith shielding, but printed in under half the hours", () => {
       const sintered = structureType("sintered-regolith-shielding");
       const printed = structureType("regolith-shielding");
 
@@ -1659,7 +1680,6 @@ describe("the data catalogue", () => {
       expect(sintered.stageHours.assembly).toBeLessThan(
         printed.stageHours.assembly / 2,
       );
-      expect(hours(sintered)).toBeLessThan(hours(printed) / 2);
     });
 
     it("has a prefabricated solar array, behind Prefabricated solar arrays, a Construction Design that needs Solar arrays first", () => {
