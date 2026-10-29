@@ -9,8 +9,6 @@ import {
   chooseMachineSpot,
   componentsFor,
   findStructureType,
-  footings,
-  footprintRadius,
   stageMachine,
   stageMinutes,
   type ConstructionStage,
@@ -63,7 +61,7 @@ import type { ParkingState } from "./parking";
 import { defaultRecipeId } from "./plants";
 import { cableTo, extendRoute } from "./power";
 import { nextFraction } from "./random";
-import { stepTowards, type Obstacle } from "./walking";
+import { obstaclesFor, stepTowards } from "./walking";
 import { findStructureToReconnect } from "./reconnection";
 import {
   finishSelfRepair,
@@ -261,38 +259,6 @@ export interface RobotState {
    * ready for work: it goes ahead of everything.
    */
   arrival: ArrivalState | undefined;
-}
-
-/**
- * How far outside the Lander's footprint, and every Structure's, a Robot
- * keeps on its way across the base.
- */
-const CLEARANCE_METRES = 0.5;
-
-/**
- * What a Robot, or a Machine or Rover it drives, goes round on its way
- * across the base: the Lander and everything with a Structure's footprint,
- * built, still under Construction, or planned and not started, so that
- * nothing is walked or driven across ground kept for a Structure. Something
- * wider keeps that much further away.
- */
-function obstaclesFor(state: CampaignState, radius = 0): Obstacle[] {
-  const clearance = CLEARANCE_METRES + radius;
-  // A Structure being dismantled is among the Structures as well until it
-  // is taken apart, and is gone round once.
-  const ground = new Map(
-    footings(state).map((footing) => [footing.id, footing]),
-  );
-  return [
-    {
-      centre: state.lander.position,
-      radius: catalogue.lander.footprintRadiusMetres + clearance,
-    },
-    ...[...ground.values()].map(({ position, structureTypeId }) => ({
-      centre: position,
-      radius: footprintRadius(structureTypeId) + clearance,
-    })),
-  ];
 }
 
 /**

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { GroundPosition } from "../src/catalogue";
 import { nextFraction, seedRandom } from "../src/simulation/random";
-import { stepTowards, type Obstacle } from "../src/simulation/walking";
+import {
+  obstaclesFor,
+  stepTowards,
+  type Obstacle,
+} from "../src/simulation/walking";
 
 /** A Robot's walk in one game-minute, in metres. */
 const ROBOT_STEP = 12 / 60;
@@ -239,5 +243,55 @@ describe("Walking round obstacles", () => {
         walk(inside.from, inside.to, obstacles, maxStep);
       },
     );
+  });
+});
+
+describe("What walkers go round on the base", () => {
+  const habitat = {
+    id: "structure-1",
+    structureTypeId: "habitat",
+    position: { x: 20, y: 0 },
+  };
+  const ground = {
+    lander: { position: { x: 0, y: 0 } },
+    structures: [],
+    constructions: [],
+    dismantlings: [],
+  };
+
+  it("keeps half a metre clear of the Lander and every footprint, and further for something wider", () => {
+    const site = {
+      ...ground,
+      structures: [habitat],
+      constructions: [
+        { ...habitat, id: "structure-2", position: { x: -20, y: 0 } },
+      ],
+    };
+
+    expect(obstaclesFor(site, 1.5)).toEqual([
+      { centre: { x: 0, y: 0 }, radius: 4 + 0.5 + 1.5 },
+      { centre: { x: 20, y: 0 }, radius: 4 + 0.5 + 1.5 },
+      { centre: { x: -20, y: 0 }, radius: 4 + 0.5 + 1.5 },
+    ]);
+  });
+
+  it("goes round a Structure being taken apart, but not its empty site once it has been", () => {
+    const takingApart = {
+      ...ground,
+      structures: [habitat],
+      dismantlings: [{ ...habitat, stage: "taking-apart" as const }],
+    };
+    const takenApart = {
+      ...ground,
+      dismantlings: [{ ...habitat, stage: "returning-components" as const }],
+    };
+
+    expect(obstaclesFor(takingApart)).toEqual([
+      { centre: { x: 0, y: 0 }, radius: 4.5 },
+      { centre: { x: 20, y: 0 }, radius: 4.5 },
+    ]);
+    expect(obstaclesFor(takenApart)).toEqual([
+      { centre: { x: 0, y: 0 }, radius: 4.5 },
+    ]);
   });
 });

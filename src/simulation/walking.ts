@@ -1,10 +1,59 @@
-import type { GroundPosition } from "../catalogue";
+import { catalogue, type GroundPosition } from "../catalogue";
+import { footprintRadius, type Footing } from "./construction";
+import type { DismantlingStage } from "./dismantling";
 
 /** A round obstacle a walker must go round, such as the Lander or a Structure. */
 export interface Obstacle {
   readonly centre: GroundPosition;
   /** How close to the centre a walker may come. */
   readonly radius: number;
+}
+
+/** The parts of the Campaign state that walkers go round. */
+export interface Grounds {
+  readonly lander: { readonly position: GroundPosition };
+  readonly structures: readonly Footing[];
+  readonly constructions: readonly Footing[];
+  readonly dismantlings: readonly (Footing & {
+    readonly stage: DismantlingStage;
+  })[];
+}
+
+/**
+ * How far outside the Lander's footprint, and every Structure's, a walker
+ * keeps on its way across the base.
+ */
+const CLEARANCE_METRES = 0.5;
+
+/**
+ * What a Robot, or a Machine or Rover it drives, goes round on its way
+ * across the base: the Lander, every Structure, every Construction from the
+ * moment it is planned, so that nothing is walked or driven across ground
+ * being graded or built on, and every Structure being dismantled until it
+ * has been taken apart, leaving only Components to carry away. Something
+ * wider keeps that much further away.
+ */
+export function obstaclesFor(grounds: Grounds, radius = 0): Obstacle[] {
+  const clearance = CLEARANCE_METRES + radius;
+  // A Structure being taken apart is among the Structures as well until
+  // the Robot starts, and is gone round once.
+  const ground = new Map(
+    [
+      ...grounds.structures,
+      ...grounds.constructions,
+      ...grounds.dismantlings.filter(({ stage }) => stage === "taking-apart"),
+    ].map((footing) => [footing.id, footing]),
+  );
+  return [
+    {
+      centre: grounds.lander.position,
+      radius: catalogue.lander.footprintRadiusMetres + clearance,
+    },
+    ...[...ground.values()].map(({ position, structureTypeId }) => ({
+      centre: position,
+      radius: footprintRadius(structureTypeId) + clearance,
+    })),
+  ];
 }
 
 /** How far outside an obstacle's radius a walker goes round it. */
