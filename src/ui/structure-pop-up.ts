@@ -2,6 +2,7 @@ import type { Renderer } from "../render/renderer";
 import type { Snapshot } from "../simulation";
 import { onClick } from "./click";
 import { setText } from "./dom";
+import { holdHeight } from "./hold";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine, type StatLine } from "./stat";
 import {
@@ -140,6 +141,9 @@ export function createStructurePopUp(
   ): BuiltPopUp {
     lines.replaceChildren();
     actions.replaceChildren();
+    // As tall as it has been for this Structure, so that it stays put beside
+    // it as its lines change at high game speed; its lines are held too.
+    holdHeight(popUp, structureId);
     const statLines = new Map<string, StatLine>();
     for (const { label } of detailLines) {
       const line = createStatLine(label);

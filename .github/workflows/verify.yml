@@ -22,9 +22,11 @@ jobs:
   checks:
     name: Checks (all but end-to-end)
     runs-on: ubuntu-24.04
-    # A normal run takes about a minute. Fail a stalled download quickly, so
-    # the run can be retried, rather than waiting for GitHub's 6-hour default.
-    timeout-minutes: 10
+    # The runners' speed varies a lot: this job has taken from under a minute
+    # to 6 minutes. The limit is several times the slowest, rather than
+    # GitHub's 6-hour default; the download steps have their own short limits,
+    # so a stalled download still fails quickly and the run can be retried.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -38,7 +40,9 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Has taken from 1 minute to over 10 for the same tests, and grows with
+    # each new test; see docs/verification.md.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

@@ -1,5 +1,6 @@
 import { setText } from "./dom";
 import type { Stat } from "./format";
+import { holdHeight } from "./hold";
 
 export interface StatLine {
   readonly element: HTMLElement;
@@ -15,7 +16,9 @@ export interface StatLine {
  * One line of the status panel: a short label, then a figure and an
  * optional note after it, such as "Oxygen 24.9 kg · lasts 41d 12h", with an
  * optional bar showing how full something is. It is a status, named for
- * screen readers, that isn't announced each time it changes.
+ * screen readers, that isn't announced each time it changes. It keeps its
+ * height a while when its text gets shorter, so that the lines below don't
+ * jump as it changes at high game speed.
  */
 export function createStatLine(label: string, name = label): StatLine {
   const element = document.createElement("p");
@@ -39,6 +42,8 @@ export function createStatLine(label: string, name = label): StatLine {
   const meter = createMeter();
   meter.element.classList.add("stat__meter");
   element.append(labelText, " ", body, meter.element);
+  element.dataset["row"] = name;
+  holdHeight(element);
   return {
     element,
     show(stat) {

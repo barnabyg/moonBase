@@ -33,6 +33,13 @@ export interface GameLoop {
   /** How far real time has run towards the next game-minute, from 0 to 1. */
   readonly tickProgress: number;
   /**
+   * The real time the last update counted, in milliseconds: the frame's, up
+   * to the longest a frame may account for. The interface times what it
+   * holds in place by it, so that a page starved of frames, which runs the
+   * game no faster, holds for as much game time as at a full frame rate.
+   */
+  readonly frameMs: number;
+  /**
    * Forgets the earlier state and the part-minute building up, for a
    * Campaign loaded in place of the one it was running. The speed stays.
    */
@@ -64,6 +71,7 @@ export function createGameLoop(
   // whole-millisecond frames accumulate exactly.
   let owedScaledMinutes = 0;
   let previous: Snapshot | undefined;
+  let lastFrameMs = 0;
   const passOn = (events: readonly GameEvent[]): readonly GameEvent[] => {
     if (events.length > 0) options.onEvents?.(events);
     return events;
@@ -77,6 +85,9 @@ export function createGameLoop(
     get previous() {
       return previous;
     },
+    get frameMs() {
+      return lastFrameMs;
+    },
     get tickProgress() {
       return owedScaledMinutes / MS_PER_SECOND;
     },
@@ -85,6 +96,7 @@ export function createGameLoop(
     },
     update(realElapsedMs) {
       const frameMs = Math.min(Math.max(realElapsedMs, 0), MAX_FRAME_MS);
+      lastFrameMs = frameMs;
       owedScaledMinutes += frameMs * speed.gameMinutesPerRealSecond;
       const gameMinutes = Math.floor(owedScaledMinutes / MS_PER_SECOND);
       owedScaledMinutes -= gameMinutes * MS_PER_SECOND;

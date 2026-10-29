@@ -34,6 +34,7 @@ import {
   summariseTravel,
   withSwitchedOffPlants,
 } from "./format";
+import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine } from "./stat";
@@ -70,6 +71,8 @@ export function createStatusPanel(
   milestoneHintLine.setAttribute("role", "status");
   milestoneHintLine.setAttribute("aria-label", "Milestone hint");
   milestoneHintLine.setAttribute("aria-live", "off");
+  milestoneHintLine.dataset["row"] = "Milestone hint";
+  holdHeight(milestoneHintLine);
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
     currentMilestone.element,
@@ -98,6 +101,8 @@ export function createStatusPanel(
   const selfSufficiencyBody = document.createElement("span");
   selfSufficiencyBody.className = "stat__body stat__chips";
   selfSufficiencyLine.append(selfSufficiencyLabel, " ", selfSufficiencyBody);
+  selfSufficiencyLine.dataset["row"] = "Self-sufficient";
+  holdHeight(selfSufficiencyLine);
   const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
     const chip = document.createElement("span");
     chip.className = "stat-chip";
@@ -113,11 +118,10 @@ export function createStatusPanel(
   });
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = createStatLine("Radiation", "Radiation Dose");
-  // A Solar Particle Event that is coming or under way.
+  // A Solar Particle Event that is coming or under way, as a warning, or
+  // that none is, so that the lines below stay where they are as one comes
+  // and goes. Its name is too long to sit beside it.
   const solarParticleEvent = createStatLine("Solar Particle Event");
-  // An event coming or under way is always a warning, and its name too long
-  // to sit beside it.
-  solarParticleEvent.warn(true);
   solarParticleEvent.element.classList.add("stat--wide");
   missionDirectorSection.body.append(
     solarParticleEvent.element,
@@ -303,16 +307,15 @@ export function createStatusPanel(
             doseWarnFrom,
       );
 
-      solarParticleEvent.element.hidden =
-        snapshot.solarParticleEvent === undefined;
-      if (snapshot.solarParticleEvent !== undefined) {
-        solarParticleEvent.show(
-          formatSolarParticleEvent(
-            snapshot.solarParticleEvent,
-            snapshot.clock.elapsedMinutes,
-          ),
-        );
-      }
+      solarParticleEvent.show(
+        snapshot.solarParticleEvent === undefined
+          ? { value: "none announced" }
+          : formatSolarParticleEvent(
+              snapshot.solarParticleEvent,
+              snapshot.clock.elapsedMinutes,
+            ),
+      );
+      solarParticleEvent.warn(snapshot.solarParticleEvent !== undefined);
 
       // Nothing generates or stores power until the first Structure stands.
       powerSection.element.hidden = snapshot.structures.length === 0;
@@ -339,6 +342,8 @@ export function createStatusPanel(
           const note = document.createElement("span");
           note.className = "resources__note";
           cell.append(name, " ", amount, " ", note);
+          cell.dataset["row"] = resource.label;
+          holdHeight(cell);
           bulkResources.append(cell);
           entry = { cell, amount, note };
           resourceCells.set(resource.label, entry);

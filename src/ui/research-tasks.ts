@@ -13,6 +13,7 @@ import {
   formatScience,
   researchTaskLabel,
 } from "./format";
+import { holdHeight } from "./hold";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";
 
@@ -57,6 +58,15 @@ export function createResearchTasksScreen(
   const nowDetail = document.createElement("p");
   nowDetail.className = "research-tasks__now-detail";
   now.append(nowHeading, nowName, nowMeter.element, nowDetail);
+  // Its name and countdown change length as it runs; the lines below them,
+  // and the cards, keep their places.
+  for (const [line, row] of [
+    [nowName, "Research Task running"],
+    [nowDetail, "Research Task time left"],
+  ] as const) {
+    line.dataset["row"] = row;
+    holdHeight(line);
+  }
 
   // The observing programme, the standing Research Task the base's
   // telescopes work on at Night alongside the one running, so that the
@@ -81,6 +91,10 @@ export function createResearchTasksScreen(
     standingMeter.element,
     standingDetail,
   );
+  // What the telescopes are doing changes with Night and their rounds; the
+  // lines below keep their places.
+  standingDetail.dataset["row"] = "Observing programme state";
+  holdHeight(standingDetail);
   const pays = `each round pays ${formatScience(programme.science)}`;
 
   // The Designs that Science can unlock next, so that the choice of task
@@ -135,6 +149,8 @@ export function createResearchTasksScreen(
     foot.className = "task-card__foot";
     foot.append(state, start);
     card.append(name, chips, reach, foot);
+    card.dataset["row"] = task.id;
+    holdHeight(card);
     return { task, card, reach, state, start, done: false };
   });
 

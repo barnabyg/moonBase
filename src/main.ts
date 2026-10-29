@@ -10,6 +10,7 @@ import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
+import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
@@ -66,6 +67,7 @@ function startRenderer(
 const campaign = createCampaignSlot(createCampaign({ seed: chooseSeed() }));
 const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
+  holds.startAfresh();
   notifications.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
@@ -83,6 +85,12 @@ leftColumn.className = "left-column";
 const rightColumn = document.createElement("div");
 rightColumn.className = "right-column";
 container.append(topBarSlot, leftColumn, rightColumn);
+// Keeps the panels' lines from jumping as what they show changes. Lines
+// laid out at another width need other heights.
+const holds = createHolds(container);
+window.addEventListener("resize", () => {
+  holds.startAfresh();
+});
 const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
@@ -100,6 +108,7 @@ const techTree = createTechTreeScreen(container, campaign, (event) => {
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
+    constructionPanel.hear(events);
   },
 });
 const topBar = createTopBar(
@@ -153,7 +162,7 @@ function frame(time: number): void {
   topBar.update(snapshot);
   statusPanel.update(snapshot, campaign.forecasts());
   basePanel.update(snapshot);
-  constructionPanel.update(snapshot);
+  constructionPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);
   expeditions.update(snapshot);
   researchTasks.update(snapshot);
@@ -169,6 +178,9 @@ function frame(time: number): void {
   });
   // Beside where the Structure has just been drawn.
   structurePopUp?.update(snapshot);
+  // Once every panel and the pop-up have updated, so that they are
+  // measured together.
+  holds.refresh();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

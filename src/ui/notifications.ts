@@ -1,5 +1,6 @@
 import type { Campaign, GameEvent } from "../simulation";
 import { formatEvent, formatMoment } from "./format";
+import { holdHeight } from "./hold";
 
 /** How many of the latest notifications stay on screen. */
 const MAX_NOTIFICATIONS = 6;
@@ -27,6 +28,9 @@ export function createNotificationList(
   list.setAttribute("aria-label", "Notifications");
   list.hidden = true;
   container.append(list);
+  // As the oldest goes for the newest, the list may need fewer lines; it
+  // keeps its height a while, so that it doesn't jump at high game speed.
+  holdHeight(list);
 
   return {
     add(events) {

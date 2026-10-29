@@ -1,6 +1,7 @@
 import type {
   Campaign,
   ConstructionSnapshot,
+  GameEvent,
   MaintenanceSubject,
   Snapshot,
 } from "../simulation";
@@ -25,9 +26,17 @@ import {
   subjectLabel,
 } from "./format";
 import { setText } from "./dom";
+import { createLingering, holdHeight } from "./hold";
 
 export interface ConstructionPanel {
-  update(snapshot: Snapshot): void;
+  /** Shows the snapshot, with the real time the frame counted, to time the rows that stay once their work is done. */
+  update(snapshot: Snapshot, frameMs: number): void;
+  /**
+   * Hears the events of the game-minutes the game loop advances, to tell
+   * work that is done from work that stopped for another reason before
+   * the next update.
+   */
+  hear(events: readonly GameEvent[]): void;
   /**
    * Forgets every row, for a Campaign loaded in place of the last, which
    * may give the same ids to other Constructions.
@@ -47,6 +56,12 @@ const MAINTENANCE_ROW = "maintaining ";
 /** The start of the key of a row for parking a Machine, which no Structure's id has. */
 const PARKING_ROW = "parking ";
 
+/**
+ * The start of the key of a row for dismantling a Structure, which no
+ * Structure's id has, so that it never takes the row its Construction left.
+ */
+const DISMANTLING_ROW = "dismantling ";
+
 interface Row {
   readonly item: HTMLLIElement;
   readonly stage: HTMLElement;
@@ -59,8 +74,13 @@ interface Row {
  * The HTML Work panel: each Maintenance Work Order, each unfinished
  * Construction, each Structure being dismantled and any unloading of the
  * Lander or loading of Exports onto it, with its current stage, its
- * progress, and what is happening on it. The player can cancel a
- * Construction from here; the panel only sends that choice to the Campaign.
+ * progress, and what is happening on it, or that there is no work under
+ * way. Work that is done stays a few seconds, saying so, before its row
+ * goes, and the panel stays in place and keeps its height, so that work
+ * coming and going at high game speed doesn't move the rows below it, or
+ * the Base panel. The player can cancel a
+ * Construction from here, which removes it at once; the panel only sends
+ * that choice to the Campaign.
  */
 export function createConstructionPanel(
   container: HTMLElement,
@@ -72,10 +92,32 @@ export function createConstructionPanel(
   const heading = document.createElement("h2");
   heading.textContent = "Work";
   const list = document.createElement("ul");
-  panel.append(heading, list);
+  // In place of the rows while there are none, so that the panel stays.
+  const idle = document.createElement("p");
+  idle.className = "construction-panel__idle";
+  idle.textContent = "No work under way";
+  panel.append(heading, list, idle);
   container.append(panel);
+  holdHeight(panel);
 
   const rows = new Map<string, Row>();
+  // A row whose work is done stays a while, so that a Work Order raised
+  // again soon after takes the same row and the rows below don't jump.
+  // One whose work stopped for another reason, such as a Construction
+  // cancelled or a Work Order no longer needed, goes at once.
+  const done = createLingering<string>();
+  /** The rows whose work the events since the last update say is done. */
+  const finished = new Set<string>();
+  /**
+   * What each parking row parks, and whether a Robot was parking it when
+   * last seen, to tell whether it ended parked: one that is plugged in
+   * anyway, such as a Machine to move into a parking area's bay, may have
+   * its Work Order dropped before a Robot takes it there.
+   */
+  const parked = new Map<
+    string,
+    { readonly subject: MaintenanceSubject; readonly underWay: boolean }
+  >();
   /** A row, with a Cancel button if given the id of a Construction it cancels. */
   const createRow = (
     title: string,
@@ -104,16 +146,30 @@ export function createConstructionPanel(
       item.append(cancel);
     }
     list.append(item);
+    holdHeight(item);
     return { item, stage, progress, work, cancel };
+  };
+  /** Lists a new row by its key, which it carries as a stable name for the row. */
+  const keepRow = (key: string, row: Row) => {
+    row.item.dataset["row"] = key;
+    rows.set(key, row);
+  };
+  /** Finds a row by its key, taking it back if its work was done. */
+  const rowFor = (key: string): Row | undefined => {
+    const row = rows.get(key);
+    if (row !== undefined && done.has(key)) {
+      done.revive(key);
+      if (row.cancel !== undefined) row.cancel.hidden = false;
+    }
+    return row;
   };
   const showStage = (row: Row, stage: string, stageProgress: number) => {
     setText(row.stage, formatStageProgress(stage, stageProgress));
-    row.progress.value = stageProgress;
-    row.progress.setAttribute("aria-label", `${stage} progress`);
+    showProgress(row.progress, stageProgress, `${stage} progress`);
   };
 
   return {
-    update(snapshot) {
+    update(snapshot, frameMs) {
       // Every Work Order waits while the Robot is on an Expedition; with
       // more than one, the others carry on with them.
       const away = isEveryRobotOnExpedition(
@@ -126,19 +182,12 @@ export function createConstructionPanel(
           away ? "Waiting: the Robot is on an Expedition" : work(),
         );
       };
-      panel.hidden =
-        snapshot.constructions.length === 0 &&
-        snapshot.dismantlings.length === 0 &&
-        snapshot.unloading === undefined &&
-        snapshot.exportLoading === undefined &&
-        snapshot.maintenance.length === 0 &&
-        snapshot.parking.length === 0;
       const seen = new Set<string>();
       for (const maintenance of snapshot.maintenance) {
         const { target } = maintenance;
         const key = `${MAINTENANCE_ROW}${subjectId(target)}`;
         seen.add(key);
-        let row = rows.get(key);
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Maintaining the ${inSentence(subjectLabel(target))}`,
@@ -150,7 +199,7 @@ export function createConstructionPanel(
             ([other]) => !other.startsWith(MAINTENANCE_ROW),
           )?.[1];
           list.insertBefore(row.item, firstOther?.item ?? null);
-          rows.set(key, row);
+          keepRow(key, row);
         }
         showStage(
           row,
@@ -162,7 +211,11 @@ export function createConstructionPanel(
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
         seen.add(key);
-        let row = rows.get(key);
+        parked.set(key, {
+          subject: parking.subject,
+          underWay: parking.underWay,
+        });
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Parking the ${inSentence(drivenLabel(parking.subject))}`,
@@ -176,23 +229,22 @@ export function createConstructionPanel(
               !other.startsWith(PARKING_ROW),
           )?.[1];
           list.insertBefore(row.item, firstOther?.item ?? null);
-          rows.set(key, row);
-          // How far it has to go isn't known, so it shows no progress.
-          row.progress.removeAttribute("value");
-          row.progress.setAttribute("aria-label", "Parking progress");
+          keepRow(key, row);
         }
+        // How far it has to go isn't known, so it shows no progress.
+        showProgress(row.progress, undefined, "Parking progress");
         setText(row.stage, `Parking ${formatParkingPlace(parking)}`);
         showWork(row, () => describeParking(parking, snapshot));
       }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
-        let row = rows.get(construction.id);
+        let row = rowFor(construction.id);
         if (row === undefined) {
           row = createRow(
             structureLabel(construction.structureTypeId),
             construction.id,
           );
-          rows.set(construction.id, row);
+          keepRow(construction.id, row);
         }
         showStage(
           row,
@@ -205,14 +257,15 @@ export function createConstructionPanel(
         }
       }
       for (const dismantling of snapshot.dismantlings) {
-        seen.add(dismantling.id);
-        let row = rows.get(dismantling.id);
+        const key = `${DISMANTLING_ROW}${dismantling.id}`;
+        seen.add(key);
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Dismantling the ${structureLabel(dismantling.structureTypeId).toLowerCase()}`,
             undefined,
           );
-          rows.set(dismantling.id, row);
+          keepRow(key, row);
         }
         showStage(
           row,
@@ -224,10 +277,10 @@ export function createConstructionPanel(
       const { unloading } = snapshot;
       if (unloading !== undefined) {
         seen.add(UNLOADING_ROW);
-        let row = rows.get(UNLOADING_ROW);
+        let row = rowFor(UNLOADING_ROW);
         if (row === undefined) {
           row = createRow("Unloading the Lander", undefined);
-          rows.set(UNLOADING_ROW, row);
+          keepRow(UNLOADING_ROW, row);
         }
         showStage(
           row,
@@ -241,10 +294,10 @@ export function createConstructionPanel(
       const { exportLoading } = snapshot;
       if (exportLoading !== undefined) {
         seen.add(LOADING_ROW);
-        let row = rows.get(LOADING_ROW);
+        let row = rowFor(LOADING_ROW);
         if (row === undefined) {
           row = createRow("Loading the Lander", undefined);
-          rows.set(LOADING_ROW, row);
+          keepRow(LOADING_ROW, row);
         }
         showStage(
           row,
@@ -255,18 +308,105 @@ export function createConstructionPanel(
         );
         showWork(row, () => describeExportLoading(exportLoading, snapshot));
       }
+      const remove = (id: string) => {
+        rows.get(id)?.item.remove();
+        rows.delete(id);
+        parked.delete(id);
+      };
+      for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {
-        if (!seen.has(id)) {
-          row.item.remove();
-          rows.delete(id);
+        if (seen.has(id) || done.has(id)) continue;
+        const parking = parked.get(id);
+        const isDone =
+          finished.has(id) ||
+          (parking?.underWay === true &&
+            isPluggedIn(snapshot, parking.subject));
+        if (!isDone) {
+          remove(id);
+          continue;
         }
+        // Done: it stays a while, saying so, in case more comes.
+        done.finish(id);
+        setText(row.stage, "Done");
+        showProgress(row.progress, 1, "Done");
+        setText(row.work, "");
+        if (row.cancel !== undefined) row.cancel.hidden = true;
       }
+      finished.clear();
+      idle.hidden = rows.size > 0;
     },
     startAfresh() {
       for (const row of rows.values()) row.item.remove();
       rows.clear();
+      finished.clear();
+      parked.clear();
+      done.startAfresh();
+    },
+    hear(events) {
+      for (const event of events) {
+        const key = finishedRow(event);
+        if (key !== undefined) finished.add(key);
+      }
     },
   };
+}
+
+/**
+ * Shows how far a row's work has got, from 0 to 1, or that it isn't known,
+ * named for screen readers, changing the page only where that changes.
+ * Every row's update sets both, so that a row taken back after its work
+ * was done shows its own again.
+ */
+function showProgress(
+  progress: HTMLProgressElement,
+  value: number | undefined,
+  label: string,
+): void {
+  if (value === undefined) {
+    if (progress.hasAttribute("value")) progress.removeAttribute("value");
+  } else if (!progress.hasAttribute("value") || progress.value !== value) {
+    progress.value = value;
+  }
+  if (progress.getAttribute("aria-label") !== label) {
+    progress.setAttribute("aria-label", label);
+  }
+}
+
+/** The key of the row whose work an event says is done, if any. */
+function finishedRow(event: GameEvent): string | undefined {
+  switch (event.kind) {
+    case "construction-completed":
+      return event.structureId;
+    case "structure-dismantled":
+      return `${DISMANTLING_ROW}${event.structureId}`;
+    case "maintenance-completed":
+      return `${MAINTENANCE_ROW}${subjectId(event.target)}`;
+    case "lander-unloaded":
+      return UNLOADING_ROW;
+    case "lander-loaded":
+      return LOADING_ROW;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Whether a Machine or Rover is plugged in, as one the Robot has finished
+ * parking is; one whose parking stopped for another reason isn't.
+ */
+function isPluggedIn(snapshot: Snapshot, subject: MaintenanceSubject): boolean {
+  switch (subject.kind) {
+    case "structure":
+      return false;
+    case "machine":
+      return snapshot.machines.some(
+        (machine) => machine.id === subject.machineId && machine.pluggedIn,
+      );
+    case "rover":
+      return snapshot.rovers.some(
+        (rover) => rover.id === subject.roverId && rover.pluggedIn,
+      );
+  }
 }
 
 /** The id of what a Maintenance or parking row is for. */

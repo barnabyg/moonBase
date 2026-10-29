@@ -12,6 +12,7 @@ import {
   structureLabel,
   type Stat,
 } from "./format";
+import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createMeter } from "./stat";
@@ -71,6 +72,9 @@ function createEntry(
   const actions = document.createElement("span");
   actions.className = "entry__actions";
   item.append(head, " ", state, actions);
+  // What it is doing can take more lines or fewer as it changes, such as a
+  // Plant between Batches, so the entries below it hold still meanwhile.
+  holdHeight(item);
   return {
     item,
     actions,
@@ -163,6 +167,7 @@ export function createBasePanel(
     if (entry === undefined) {
       entry = createEntry(name, repair);
       list.append(entry.item);
+      entry.item.dataset["row"] = id;
       entries.set(id, entry);
     }
     return entry;
@@ -179,6 +184,7 @@ export function createBasePanel(
         let entry = structureEntries.get(structure.id);
         if (entry === undefined) {
           entry = createStructureEntry(structure);
+          entry.item.dataset["row"] = structure.id;
           structureEntries.set(structure.id, entry);
         }
         entry.show(
