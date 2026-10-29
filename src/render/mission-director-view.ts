@@ -1,9 +1,7 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
-import { landerLadderFoot } from "./lander-model";
-import { facingAngle, toScene, type Frame } from "./interpolation";
+import type { Frame } from "./interpolation";
 import { materials, part, roundedBox } from "./materials";
-import { HABITAT_HATCH_OUT } from "./models";
+import { alongRoute, routeLength, routeToHatch } from "./mission-director-walk";
 import { joint, limb } from "./robot-model";
 
 /** How fast the Mission Director walks across to their new Habitat, in metres per real second. */
@@ -13,13 +11,12 @@ const SHORTEST_WALK_SECONDS = 3;
 const LONGEST_WALK_SECONDS = 10;
 /** How far one stride carries the Mission Director, in metres. */
 const STRIDE_METRES = 1.3;
-/** Where they stand at the end of the walk, out from the Habitat's centre by its airlock's hatch. */
-const HATCH_OFFSET = new THREE.Vector3(HABITAT_HATCH_OUT + 0.8, 0, 0);
 
 interface Walk {
   readonly habitatId: string;
-  readonly from: THREE.Vector3;
-  readonly to: THREE.Vector3;
+  /** The points the walk turns at, from the foot of the Lander's ladder to the hatch. */
+  readonly route: readonly THREE.Vector3[];
+  readonly length: number;
   readonly startedAt: number;
   readonly seconds: number;
 }
@@ -27,8 +24,8 @@ interface Walk {
 /**
  * Shows the Mission Director moving into a Habitat: when the move is seen
  * to happen, a suited figure climbs down from the Lander and walks across
- * to the Habitat's airlock. The move itself happens at once; this is only
- * how it looks.
+ * to the Habitat's airlock, round everything a Robot would walk round. The
+ * move itself happens at once; this is only how it looks.
  */
 export function createMissionDirectorView(scene: THREE.Scene) {
   const figure = createAstronautModel();
@@ -49,7 +46,7 @@ export function createMissionDirectorView(scene: THREE.Scene) {
       figure.group.visible = false;
     },
     update(frame: Frame, realSeconds: number): void {
-      const { missionDirector, lander, structures } = frame.current;
+      const { missionDirector, structures } = frame.current;
       const residence =
         missionDirector.residence === "habitat"
           ? missionDirector.habitatId
@@ -63,17 +60,15 @@ export function createMissionDirectorView(scene: THREE.Scene) {
           (structure) => structure.id === missionDirector.habitatId,
         );
         if (habitat !== undefined) {
-          const from = toScene(lander.position).add(
-            landerLadderFoot(catalogue.lander.footprintRadiusMetres),
-          );
-          const to = toScene(habitat.position).add(HATCH_OFFSET);
+          const route = routeToHatch(frame.current, habitat.position);
+          const length = routeLength(route);
           walk = {
             habitatId: habitat.id,
-            from,
-            to,
+            route,
+            length,
             startedAt: realSeconds,
             seconds: THREE.MathUtils.clamp(
-              from.distanceTo(to) / WALK_METRES_PER_SECOND,
+              length / WALK_METRES_PER_SECOND,
               SHORTEST_WALK_SECONDS,
               LONGEST_WALK_SECONDS,
             ),
@@ -90,9 +85,10 @@ export function createMissionDirectorView(scene: THREE.Scene) {
         return;
       }
       figure.group.visible = true;
-      figure.group.position.lerpVectors(walk.from, walk.to, progress);
-      figure.group.rotation.y = facingAngle(walk.from, walk.to);
-      const walked = walk.from.distanceTo(walk.to) * progress;
+      const walked = walk.length * progress;
+      const { position, facing } = alongRoute(walk.route, walked);
+      figure.group.position.copy(position);
+      figure.group.rotation.y = facing;
       figure.walk(Math.sin((walked / STRIDE_METRES) * Math.PI * 2) * 0.4);
     },
   };

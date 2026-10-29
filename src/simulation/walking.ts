@@ -145,6 +145,36 @@ export function stepTowards(
 }
 
 /**
+ * The whole of the shortest way from one point to a destination round
+ * every obstacle in the way, as the points it turns at: the starting point,
+ * each corner it goes round, and the destination. It is the way stepTowards
+ * heads along as seen from the start, for something seen walking a way all
+ * at once rather than a step at a time, though a walker stepping along sees
+ * a little further round each corner as it nears it, and cuts it by a few
+ * centimetres.
+ */
+export function routeBetween(
+  from: GroundPosition,
+  destination: GroundPosition,
+  obstacles: readonly Obstacle[],
+): GroundPosition[] {
+  const forDestination = shrunkFrom(destination, obstacles);
+  const route = [{ x: from.x, y: from.y }];
+  let position = from;
+  // As in stepTowards, each corner is passed at most once.
+  for (let leg = 0; leg <= forDestination.length * CORNERS; leg++) {
+    if (samePlace(position, destination)) return route;
+    position = nextWaypoint(position, destination, forDestination);
+    route.push({ x: position.x, y: position.y });
+  }
+  // Never needed, but a route must end where it is going.
+  if (!samePlace(position, destination)) {
+    route.push({ x: destination.x, y: destination.y });
+  }
+  return route;
+}
+
+/**
  * The obstacles as seen from a point inside some of them: each obstacle with
  * the point inside shrinks to leave it on its edge, and one with the point
  * at its centre is left out.

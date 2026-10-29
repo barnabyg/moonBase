@@ -8,6 +8,8 @@ export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
 export { recipeOf, workingRecipeOf } from "./plants";
+export { obstaclesFor, routeBetween } from "./walking";
+export type { Grounds } from "./walking";
 export type {
   BulkResourceSnapshot,
   CableSnapshot,
