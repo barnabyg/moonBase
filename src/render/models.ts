@@ -146,7 +146,12 @@ interface SolarArrayShape {
   /** How wide the panel is, and how thick each fold of it. */
   readonly panelWidth: number;
   readonly panelThickness: number;
+  /** The face of each fold, towards the sun. */
   readonly cells: THREE.Material;
+  /** The back of each fold, away from the sun. */
+  readonly backing: THREE.Material;
+  /** The four thin edges of each fold: its frame, if it has one. */
+  readonly edges: THREE.Material;
   /** Whether a thin boom runs up each edge of the panel, holding it taut. */
   readonly edgeBooms: boolean;
   /**
@@ -163,6 +168,8 @@ const SOLAR_ARRAY: SolarArrayShape = {
   panelWidth: PANEL_WIDTH,
   panelThickness: 0.04,
   cells: materials.solarCell,
+  backing: materials.backsheet,
+  edges: materials.aluminium,
   edgeBooms: false,
   skid: false,
 };
@@ -187,6 +194,8 @@ const THIN_FILM_SOLAR_ARRAY: SolarArrayShape = {
   panelWidth: 3.4,
   panelThickness: 0.015,
   cells: materials.thinFilmCell,
+  backing: materials.filmBacking,
+  edges: materials.filmBacking,
   edgeBooms: true,
 };
 /**
@@ -232,7 +241,19 @@ export function createSolarArrayModel(
       ),
     );
   }
-  if (shape.skid) array.add(...createSkid());
+  // The box where the panel's cable comes down the mast and leaves for the base.
+  array.add(
+    part(
+      new THREE.BoxGeometry(0.3, 0.22, 0.18),
+      materials.hull,
+      [-0.62, 0.41, -0.5],
+    ),
+  );
+  if (shape.skid) {
+    array.add(...createSkid());
+  } else {
+    array.add(createArrayFeet());
+  }
 
   // The part that turns to face the sun.
   const head = new THREE.Group();
@@ -262,6 +283,16 @@ export function createSolarArrayModel(
   const panel = new THREE.Group();
   head.add(panel);
   const foldHeight = PANEL_HEIGHT / PANEL_FOLDS;
+  panel.add(...createPanelMount(shape, foldHeight));
+  // In the order of a box's faces: its four edges, then its front and back.
+  const foldMaterials = [
+    shape.edges,
+    shape.edges,
+    shape.edges,
+    shape.edges,
+    shape.cells,
+    shape.backing,
+  ];
   const folds: THREE.Group[] = [];
   let parent: THREE.Object3D = panel;
   for (let index = 0; index < PANEL_FOLDS; index++) {
@@ -274,7 +305,7 @@ export function createSolarArrayModel(
           foldHeight,
           shape.panelThickness,
         ),
-        shape.cells,
+        foldMaterials,
         [0, foldHeight / 2, 0],
       ),
     );
@@ -356,6 +387,72 @@ export function createSolarArrayModel(
       statusLightMaterial.emissive.copy(source.emissive);
     },
   };
+}
+
+/**
+ * What holds a solar array's panel on its mast, riding up with the panel:
+ * the drive head that turns it on top of the mast, and a cross beam behind
+ * the lowest fold, braced from the drive head to each end. The folds above
+ * fold down in front of the lowest, so the back stays clear.
+ */
+function createPanelMount(
+  shape: SolarArrayShape,
+  foldHeight: number,
+): THREE.Object3D[] {
+  const behind = -(shape.panelThickness / 2 + 0.06);
+  const beamY = foldHeight * 0.45;
+  const beamReach = shape.panelWidth * 0.42;
+  const driveHead = new THREE.Vector3(0, -0.05, behind);
+  return [
+    part(
+      new THREE.CylinderGeometry(0.17, 0.17, 0.24, 10),
+      materials.darkMetal,
+      [0, -0.1, 0],
+    ),
+    part(new THREE.BoxGeometry(0.22, 0.2, 0.2), materials.hull, [
+      0,
+      -0.06,
+      behind - 0.06,
+    ]),
+    part(
+      new THREE.BoxGeometry(beamReach * 2, 0.08, 0.08),
+      materials.aluminium,
+      [0, beamY, behind],
+    ),
+    part(
+      new THREE.BoxGeometry(0.08, foldHeight * 0.9, 0.08),
+      materials.aluminium,
+      [0, foldHeight * 0.45, behind],
+    ),
+    ...[-1, 1].map((side) =>
+      rod(
+        driveHead,
+        new THREE.Vector3(side * beamReach * 0.85, beamY, behind),
+        0.025,
+        materials.aluminium,
+        6,
+      ),
+    ),
+  ];
+}
+
+/**
+ * Four splayed feet round a solar array's base, each ending in a round pad
+ * that spreads its weight over the Regolith, merged into one mesh.
+ */
+function createArrayFeet(): THREE.Mesh {
+  const pieces = [0, 1, 2, 3].flatMap((index) => {
+    const turn = Math.PI / 4 + (index * Math.PI) / 2;
+    return [
+      boxAt(0.7, 0.12, 0.16, [1.05, 0.08, 0]).rotateY(turn),
+      new THREE.CylinderGeometry(0.2, 0.22, 0.06, 10)
+        .translate(1.4, 0.03, 0)
+        .rotateY(turn),
+    ];
+  });
+  const feet = mergeGeometries(pieces);
+  for (const piece of pieces) piece.dispose();
+  return part(feet, materials.darkMetal, [0, 0, 0]);
 }
 
 /**
