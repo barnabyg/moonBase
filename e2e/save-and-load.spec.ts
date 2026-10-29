@@ -93,6 +93,8 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   const panel = await pausedGameUnderWay(page);
   const statuses = shownStatuses(page, panel);
   const work = page.getByRole("complementary", { name: "Work" });
+  // Work just done stays a few seconds, which a save doesn't keep.
+  await expect(work).not.toContainText("Done");
   const saved = {
     statuses: await statuses.allTextContents(),
     structures: await page

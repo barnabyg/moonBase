@@ -10,6 +10,7 @@ import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
+import { refreshHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
@@ -162,6 +163,8 @@ function frame(time: number): void {
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
+  // Once every panel has updated, so that they are measured together.
+  refreshHolds(time);
   renderer?.render({
     current: snapshot,
     previous: loop.previous,

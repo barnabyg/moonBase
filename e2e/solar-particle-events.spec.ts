@@ -35,7 +35,7 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
     await expect(target).toBeVisible();
   };
 
-  await expect(event).toBeHidden();
+  await expect(event).toHaveText("Solar Particle Event none announced");
   await skipUntil(
     notifications.getByText(/Solar Particle Event coming in 4 hours/),
   );
@@ -58,5 +58,5 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
   await expect(
     notifications.getByText("Solar Particle Event over"),
   ).toBeVisible();
-  await expect(event).toBeHidden();
+  await expect(event).toHaveText("Solar Particle Event none announced");
 });

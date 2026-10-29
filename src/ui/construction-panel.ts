@@ -25,6 +25,7 @@ import {
   subjectLabel,
 } from "./format";
 import { setText } from "./dom";
+import { holdHeight, holdTime, isHoldOver } from "./hold";
 
 export interface ConstructionPanel {
   update(snapshot: Snapshot): void;
@@ -47,20 +48,36 @@ const MAINTENANCE_ROW = "maintaining ";
 /** The start of the key of a row for parking a Machine, which no Structure's id has. */
 const PARKING_ROW = "parking ";
 
+/**
+ * The start of the key of a row for dismantling a Structure, which no
+ * Structure's id has, so that it never takes the row its Construction left.
+ */
+const DISMANTLING_ROW = "dismantling ";
+
 interface Row {
   readonly item: HTMLLIElement;
   readonly stage: HTMLElement;
   readonly progress: HTMLProgressElement;
   readonly work: HTMLElement;
   readonly cancel: HTMLButtonElement | undefined;
+  /**
+   * When its work was done, as a {@link holdTime}, while it stays in place
+   * showing that, so that a Work Order raised again soon after takes the
+   * same row and the rows below don't jump.
+   */
+  doneAt: number | undefined;
 }
 
 /**
  * The HTML Work panel: each Maintenance Work Order, each unfinished
  * Construction, each Structure being dismantled and any unloading of the
  * Lander or loading of Exports onto it, with its current stage, its
- * progress, and what is happening on it. The player can cancel a
- * Construction from here; the panel only sends that choice to the Campaign.
+ * progress, and what is happening on it. Work that is done stays a few
+ * seconds, saying so, before its row goes, and the panel keeps its height
+ * as long, so that work coming and going at high game speed doesn't move
+ * the rows below it, or the Base panel. The player can cancel a
+ * Construction from here, which removes it at once; the panel only sends
+ * that choice to the Campaign.
  */
 export function createConstructionPanel(
   container: HTMLElement,
@@ -74,8 +91,11 @@ export function createConstructionPanel(
   const list = document.createElement("ul");
   panel.append(heading, list);
   container.append(panel);
+  holdHeight(panel);
 
   const rows = new Map<string, Row>();
+  /** The Constructions the player has cancelled, whose rows go at once. */
+  const cancelled = new Set<string>();
   /** A row, with a Cancel button if given the id of a Construction it cancels. */
   const createRow = (
     title: string,
@@ -99,12 +119,24 @@ export function createConstructionPanel(
       cancel.className = "construction-panel__cancel";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => {
-        campaign.cancelConstruction(constructionId);
+        if (campaign.cancelConstruction(constructionId).ok) {
+          cancelled.add(constructionId);
+        }
       });
       item.append(cancel);
     }
     list.append(item);
-    return { item, stage, progress, work, cancel };
+    holdHeight(item);
+    return { item, stage, progress, work, cancel, doneAt: undefined };
+  };
+  /** Finds a row by its key, taking it back if its work was done. */
+  const rowFor = (key: string): Row | undefined => {
+    const row = rows.get(key);
+    if (row?.doneAt !== undefined) {
+      row.doneAt = undefined;
+      if (row.cancel !== undefined) row.cancel.hidden = false;
+    }
+    return row;
   };
   const showStage = (row: Row, stage: string, stageProgress: number) => {
     setText(row.stage, formatStageProgress(stage, stageProgress));
@@ -126,19 +158,12 @@ export function createConstructionPanel(
           away ? "Waiting: the Robot is on an Expedition" : work(),
         );
       };
-      panel.hidden =
-        snapshot.constructions.length === 0 &&
-        snapshot.dismantlings.length === 0 &&
-        snapshot.unloading === undefined &&
-        snapshot.exportLoading === undefined &&
-        snapshot.maintenance.length === 0 &&
-        snapshot.parking.length === 0;
       const seen = new Set<string>();
       for (const maintenance of snapshot.maintenance) {
         const { target } = maintenance;
         const key = `${MAINTENANCE_ROW}${subjectId(target)}`;
         seen.add(key);
-        let row = rows.get(key);
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Maintaining the ${inSentence(subjectLabel(target))}`,
@@ -162,7 +187,7 @@ export function createConstructionPanel(
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
         seen.add(key);
-        let row = rows.get(key);
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Parking the ${inSentence(drivenLabel(parking.subject))}`,
@@ -177,16 +202,16 @@ export function createConstructionPanel(
           )?.[1];
           list.insertBefore(row.item, firstOther?.item ?? null);
           rows.set(key, row);
-          // How far it has to go isn't known, so it shows no progress.
-          row.progress.removeAttribute("value");
-          row.progress.setAttribute("aria-label", "Parking progress");
         }
+        // How far it has to go isn't known, so it shows no progress.
+        row.progress.removeAttribute("value");
+        row.progress.setAttribute("aria-label", "Parking progress");
         setText(row.stage, `Parking ${formatParkingPlace(parking)}`);
         showWork(row, () => describeParking(parking, snapshot));
       }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
-        let row = rows.get(construction.id);
+        let row = rowFor(construction.id);
         if (row === undefined) {
           row = createRow(
             structureLabel(construction.structureTypeId),
@@ -205,14 +230,15 @@ export function createConstructionPanel(
         }
       }
       for (const dismantling of snapshot.dismantlings) {
-        seen.add(dismantling.id);
-        let row = rows.get(dismantling.id);
+        const key = `${DISMANTLING_ROW}${dismantling.id}`;
+        seen.add(key);
+        let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
             `Dismantling the ${structureLabel(dismantling.structureTypeId).toLowerCase()}`,
             undefined,
           );
-          rows.set(dismantling.id, row);
+          rows.set(key, row);
         }
         showStage(
           row,
@@ -224,7 +250,7 @@ export function createConstructionPanel(
       const { unloading } = snapshot;
       if (unloading !== undefined) {
         seen.add(UNLOADING_ROW);
-        let row = rows.get(UNLOADING_ROW);
+        let row = rowFor(UNLOADING_ROW);
         if (row === undefined) {
           row = createRow("Unloading the Lander", undefined);
           rows.set(UNLOADING_ROW, row);
@@ -241,7 +267,7 @@ export function createConstructionPanel(
       const { exportLoading } = snapshot;
       if (exportLoading !== undefined) {
         seen.add(LOADING_ROW);
-        let row = rows.get(LOADING_ROW);
+        let row = rowFor(LOADING_ROW);
         if (row === undefined) {
           row = createRow("Loading the Lander", undefined);
           rows.set(LOADING_ROW, row);
@@ -256,15 +282,27 @@ export function createConstructionPanel(
         showWork(row, () => describeExportLoading(exportLoading, snapshot));
       }
       for (const [id, row] of rows) {
-        if (!seen.has(id)) {
+        if (seen.has(id)) continue;
+        if (row.doneAt === undefined && !cancelled.has(id)) {
+          // Done: it stays a while, saying so, in case more comes.
+          row.doneAt = holdTime();
+          setText(row.stage, "Done");
+          row.progress.value = 1;
+          row.progress.setAttribute("aria-label", "Done");
+          setText(row.work, "Finished");
+          if (row.cancel !== undefined) row.cancel.hidden = true;
+        } else if (row.doneAt === undefined || isHoldOver(row.doneAt)) {
           row.item.remove();
           rows.delete(id);
         }
       }
+      cancelled.clear();
+      panel.hidden = rows.size === 0;
     },
     startAfresh() {
       for (const row of rows.values()) row.item.remove();
       rows.clear();
+      cancelled.clear();
     },
   };
 }

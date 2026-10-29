@@ -6,7 +6,7 @@ import type { Campaign, GameEvent, Snapshot } from "../simulation";
  * gap, such as a hidden tab, pauses the game clock rather than making it leap
  * ahead.
  */
-const MAX_FRAME_MS = 250;
+export const MAX_FRAME_MS = 250;
 const MS_PER_SECOND = 1000;
 const INITIAL_SPEED_ID = "1x";
 
