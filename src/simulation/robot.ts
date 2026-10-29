@@ -9,6 +9,8 @@ import {
   chooseMachineSpot,
   componentsFor,
   findStructureType,
+  footings,
+  footprintRadius,
   stageMachine,
   stageMinutes,
   type ConstructionStage,
@@ -261,20 +263,35 @@ export interface RobotState {
   arrival: ArrivalState | undefined;
 }
 
-/** How close to the Lander's centre a Robot may walk. */
-const LANDER_CLEARANCE_METRES = catalogue.lander.footprintRadiusMetres + 0.5;
+/**
+ * How far outside the Lander's footprint, and every Structure's, a Robot
+ * keeps on its way across the base.
+ */
+const CLEARANCE_METRES = 0.5;
 
 /**
  * What a Robot, or a Machine or Rover it drives, goes round on its way
- * across the base: the Lander. Something wider keeps that much further
- * away.
+ * across the base: the Lander and everything with a Structure's footprint,
+ * built, still under Construction, or planned and not started, so that
+ * nothing is walked or driven across ground kept for a Structure. Something
+ * wider keeps that much further away.
  */
 function obstaclesFor(state: CampaignState, radius = 0): Obstacle[] {
+  const clearance = CLEARANCE_METRES + radius;
+  // A Structure being dismantled is among the Structures as well until it
+  // is taken apart, and is gone round once.
+  const ground = new Map(
+    footings(state).map((footing) => [footing.id, footing]),
+  );
   return [
     {
       centre: state.lander.position,
-      radius: LANDER_CLEARANCE_METRES + radius,
+      radius: catalogue.lander.footprintRadiusMetres + clearance,
     },
+    ...[...ground.values()].map(({ position, structureTypeId }) => ({
+      centre: position,
+      radius: footprintRadius(structureTypeId) + clearance,
+    })),
   ];
 }
 
@@ -1011,9 +1028,10 @@ function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
 }
 
 /**
- * Walks the Robot one game-minute towards a spot, round the Lander, for
- * Maintenance or parking of a Machine or Rover: to the stockpile, or to
- * the Machine or Rover itself. Says whether it was already there.
+ * Walks the Robot one game-minute towards a spot, round the Lander and the
+ * Structures, for Maintenance or parking of a Machine or Rover: to the
+ * stockpile, or to the Machine or Rover itself. Says whether it was
+ * already there.
  */
 function walkRobotToDriven(
   state: CampaignState,
@@ -1040,8 +1058,8 @@ function walkRobotToDriven(
 }
 
 /**
- * Walks the Robot one game-minute towards a spot, round the Lander, for work
- * on a Structure. Says whether it was already there.
+ * Walks the Robot one game-minute towards a spot, round the Lander and the
+ * Structures, for work on a Structure. Says whether it was already there.
  */
 function walkRobotTo(
   state: CampaignState,
@@ -1057,8 +1075,8 @@ function walkRobotTo(
 }
 
 /**
- * Walks the Robot one game-minute's step towards a spot, round the Lander,
- * as fast as its Condition allows.
+ * Walks the Robot one game-minute's step towards a spot, round the Lander
+ * and the Structures, as fast as its Condition allows.
  */
 function stepRobot(
   state: CampaignState,
