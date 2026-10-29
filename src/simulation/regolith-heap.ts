@@ -1,14 +1,5 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 
-/** How much loose, dug Regolith weighs, in kilograms a cubic metre. */
-const BULK_DENSITY_KILOGRAMS_PER_CUBIC_METRE = 1500;
-/** The slope loose Regolith settles at when it is tipped: its angle of repose. */
-const SLOPE_RADIANS = (35 * Math.PI) / 180;
-/** The smallest heap there is, however little Regolith is in stock, so that a few kilograms still show. */
-const SMALLEST_RADIUS_METRES = 0.3;
-/** How far outside the stockpile's mat the foot of a full heap comes. */
-const GAP_FROM_MAT_METRES = 0.1;
-
 /**
  * The base's Regolith stock, heaped on the ground beside the stockpile's
  * mat where the excavator tips it: a cone of loose Regolith that grows and
@@ -32,21 +23,18 @@ export function regolithHeap(
   kilograms: number,
 ): RegolithHeap | undefined {
   if (kilograms <= 0) return undefined;
-  const radiusMetres = Math.max(
-    radiusHolding(Math.min(kilograms, catalogue.digging.fullKilograms)),
-    SMALLEST_RADIUS_METRES,
-  );
+  const radiusMetres = radiusHolding(kilograms);
   return {
     position: heapPosition(stockpile),
     radiusMetres,
-    heightMetres: radiusMetres * Math.tan(SLOPE_RADIANS),
+    heightMetres: radiusMetres * Math.tan(slopeRadians()),
   };
 }
 
 /**
  * The ground the heap beside a stockpile standing here takes once the
  * stock is full: where it stands, and its largest radius. The excavator
- * digs just beyond it, and Robots load clear of it.
+ * digs just beyond it, and Robots stand clear of it.
  */
 export function regolithHeapGround(stockpile: GroundPosition): {
   readonly position: GroundPosition;
@@ -54,27 +42,34 @@ export function regolithHeapGround(stockpile: GroundPosition): {
 } {
   return {
     position: heapPosition(stockpile),
-    radiusMetres: largestRadius(),
+    radiusMetres: radiusHolding(catalogue.digging.fullKilograms),
   };
 }
 
-/** The radius of a cone of loose Regolith of this mass. */
+/**
+ * The radius of a cone of loose Regolith of this mass, up to the stock
+ * digging fills, and no smaller than the smallest heap.
+ */
 function radiusHolding(kilograms: number): number {
-  const cubicMetres = kilograms / BULK_DENSITY_KILOGRAMS_PER_CUBIC_METRE;
+  const { bulkDensityKilogramsPerCubicMetre, smallestRadiusMetres } =
+    catalogue.stockpile.regolithHeap;
+  const cubicMetres =
+    Math.min(kilograms, catalogue.digging.fullKilograms) /
+    bulkDensityKilogramsPerCubicMetre;
   // A cone's volume is a third of pi r² h, and its height r tan(slope).
-  return Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(SLOPE_RADIANS)));
-}
-
-function largestRadius(): number {
   return Math.max(
-    radiusHolding(catalogue.digging.fullKilograms),
-    SMALLEST_RADIUS_METRES,
+    Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(slopeRadians()))),
+    smallestRadiusMetres,
   );
 }
 
+function slopeRadians(): number {
+  return (catalogue.stockpile.regolithHeap.slopeDegrees * Math.PI) / 180;
+}
+
 /**
- * Where the heap stands: just outside the stockpile's mat, on the side
- * away from the landing site, so that it never moves, even while the
+ * Where the heap stands: just outside the stockpile's footprint, on the
+ * side away from the landing site, so that it never moves, even while the
  * Lander stands on a landing pad.
  */
 function heapPosition(stockpile: GroundPosition): GroundPosition {
@@ -84,8 +79,8 @@ function heapPosition(stockpile: GroundPosition): GroundPosition {
   const angle = dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
   const reach =
     catalogue.stockpile.footprintRadiusMetres +
-    GAP_FROM_MAT_METRES +
-    largestRadius();
+    catalogue.stockpile.regolithHeap.gapFromFootprintMetres +
+    radiusHolding(catalogue.digging.fullKilograms);
   return {
     x: stockpile.x + Math.cos(angle) * reach,
     y: stockpile.y + Math.sin(angle) * reach,

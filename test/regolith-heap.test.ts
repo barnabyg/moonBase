@@ -69,8 +69,11 @@ describe("the heap of the base's Regolith", () => {
     expect(full.radiusMetres).toBeCloseTo(1.22, 2);
     expect(full.heightMetres).toBeCloseTo(0.85, 2);
     expect(full.radiusMetres).toBeLessThan(stockpile.footprintRadiusMetres);
-    // Loose Regolith's bulk density, about 1500 kg a cubic metre.
-    expect(volume(full)).toBeCloseTo(digging.fullKilograms / 1500, 3);
+    expect(volume(full)).toBeCloseTo(
+      digging.fullKilograms /
+        stockpile.regolithHeap.bulkDensityKilogramsPerCubicMetre,
+      3,
+    );
   });
 
   it("grows with the stock, its radius going with the cube root of the mass", () => {
@@ -88,7 +91,7 @@ describe("the heap of the base's Regolith", () => {
   it("still shows a few kilograms as a small heap", () => {
     const few = sizeAt(3);
 
-    expect(few.radiusMetres).toBeGreaterThanOrEqual(0.3);
+    expect(few.radiusMetres).toBe(stockpile.regolithHeap.smallestRadiusMetres);
     expect(few.heightMetres).toBeGreaterThan(0.15);
     expect(few.radiusMetres).toBeLessThan(
       sizeAt(digging.fullKilograms).radiusMetres / 2,
