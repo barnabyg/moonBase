@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
-import { regolithHeap, type RegolithHeap, type Snapshot } from "../simulation";
+import { uncoveredRegolithHeap } from "../simulation";
 import { toScene, type Frame } from "./interpolation";
 import { REGOLITH_TILE_METRES } from "./regolith-texture";
 import { fixedRandom } from "./scenery";
@@ -18,28 +17,6 @@ const ROUNDED_TOP = 0.22;
 const SUNK_METRES = 0.02;
 /** The size the texture is laid at, as if over the largest heap, so the grains look as large as the ground's. */
 const TEXTURE_METRES = 2.5;
-
-/**
- * The heap of the base's Regolith that shows, sized to the stock, or
- * undefined if there is none, or if a Structure stands over it: the heap
- * lies outside the stockpile's footprint, where Structures may be built.
- */
-export function regolithHeapShown(state: Snapshot): RegolithHeap | undefined {
-  const kilograms =
-    state.bulkResources.find(
-      (stock) => stock.resourceId === catalogue.digging.resourceId,
-    )?.kilograms ?? 0;
-  const heap = regolithHeap(state.stockpile.position, kilograms);
-  if (heap === undefined) return undefined;
-  const built = [...state.structures, ...state.constructions].some(
-    ({ position, structureTypeId }) =>
-      Math.hypot(position.x - heap.position.x, position.y - heap.position.y) <
-      heap.radiusMetres +
-        (catalogue.structureTypes.find((type) => type.id === structureTypeId)
-          ?.footprintRadiusMetres ?? 0),
-  );
-  return built ? undefined : heap;
-}
 
 /**
  * A low, slightly lopsided mound of radius about 1, as high as a cone of
@@ -141,7 +118,7 @@ export function createRegolithHeapView(
   scene.add(mesh);
   return {
     update(frame: Frame): void {
-      const heap = regolithHeapShown(frame.current);
+      const heap = uncoveredRegolithHeap(frame.current);
       mesh.visible = heap !== undefined;
       if (heap === undefined) return;
       mesh.position.copy(toScene(heap.position));

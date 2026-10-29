@@ -4,7 +4,12 @@ import {
   type GroundPosition,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { regolithHeapGround } from "./regolith-heap";
+import { distance, footprintRadius } from "./construction";
+import {
+  regolithHeap,
+  regolithHeapGround,
+  type RegolithHeap,
+} from "./regolith-heap";
 
 /**
  * The base's stock of Components, kept on the ground beside the landing
@@ -70,6 +75,41 @@ export function addCounts(
     if (existing === undefined) counts.push({ componentId, count });
     else existing.count += count;
   }
+}
+
+/** The ground a Structure stands on, or is planned to, as a Campaign's state and its snapshot both give it. */
+interface Footing {
+  readonly position: GroundPosition;
+  readonly structureTypeId: string;
+}
+
+/**
+ * The heap of the base's Regolith beside the stockpile, sized to the
+ * stock, or undefined if there is none, or if a Structure stands, or is
+ * planned to stand, over it: the heap lies outside the stockpile's
+ * footprint, where Structures may be built.
+ */
+export function uncoveredRegolithHeap(base: {
+  readonly stockpile: { readonly position: GroundPosition };
+  readonly bulkResources: readonly {
+    readonly resourceId: string;
+    readonly kilograms: number;
+  }[];
+  readonly structures: readonly Footing[];
+  readonly constructions: readonly Footing[];
+}): RegolithHeap | undefined {
+  const kilograms =
+    base.bulkResources.find(
+      (stock) => stock.resourceId === catalogue.digging.resourceId,
+    )?.kilograms ?? 0;
+  const heap = regolithHeap(base.stockpile.position, kilograms);
+  if (heap === undefined) return undefined;
+  const covered = [...base.structures, ...base.constructions].some(
+    (footing) =>
+      distance(footing.position, heap.position) <
+      heap.radiusMetres + footprintRadius(footing.structureTypeId),
+  );
+  return covered ? undefined : heap;
 }
 
 /** How far clear of the Regolith heap a Robot stands to load or unload. */

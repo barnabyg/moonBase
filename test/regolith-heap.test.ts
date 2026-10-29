@@ -3,16 +3,28 @@ import { catalogue } from "../src/catalogue";
 import {
   regolithHeap,
   regolithHeapGround,
+  uncoveredRegolithHeap,
+  type Campaign,
   type GroundPosition,
   type MachineSnapshot,
   type RobotSnapshot,
   type Snapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 const { digging, stockpile, landingSite } = catalogue;
 const stockpilePosition = landingSite.stockpilePosition;
 const heapGround = regolithHeapGround(stockpilePosition);
+
+/** The Campaign as saved, with the base's Regolith set as given. */
+function withRegolith(campaign: Campaign, kilograms: number): Campaign {
+  return changed(campaign, (state) => {
+    for (const stock of state.bulkResources) {
+      if (stock.resourceId === "regolith") stock.kilograms = kilograms;
+    }
+  });
+}
 
 function distanceBetween(a: GroundPosition, b: GroundPosition): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -198,5 +210,46 @@ describe("the heap on the base", () => {
     );
     // Facing where it works on the site, beside the site's centre.
     expect(Math.abs(bearing(robot) - bearing(site))).toBeLessThan(0.1);
+  });
+});
+
+describe("the heap of Regolith left uncovered beside the stockpile", () => {
+  it("isn't there with no Regolith in stock", () => {
+    expect(uncoveredRegolithHeap(scenario().state)).toBeUndefined();
+  });
+
+  it("is there at the size the stock gives it", () => {
+    const game = scenarioOf(withRegolith(scenario().campaign, 1200));
+
+    expect(uncoveredRegolithHeap(game.state)).toEqual(
+      regolithHeap(stockpilePosition, 1200),
+    );
+  });
+
+  it("isn't there while a Structure is planned or built over it", () => {
+    // Just beyond the heap's middle, so that the light mast stands on the
+    // heap but clear of the stockpile.
+    const out =
+      0.9 /
+      Math.hypot(
+        heapGround.position.x - stockpilePosition.x,
+        heapGround.position.y - stockpilePosition.y,
+      );
+    const mast: GroundPosition = {
+      x:
+        heapGround.position.x +
+        (heapGround.position.x - stockpilePosition.x) * out,
+      y:
+        heapGround.position.y +
+        (heapGround.position.y - stockpilePosition.y) * out,
+    };
+    const game = scenarioOf(withRegolith(scenario().campaign, 2000));
+    const planned = game.campaign.planConstruction({
+      structureTypeId: "light-mast",
+      position: mast,
+    });
+    if (!planned.ok) throw new Error(planned.message);
+
+    expect(uncoveredRegolithHeap(game.state)).toBeUndefined();
   });
 });
