@@ -11,18 +11,15 @@ import {
   formatCharge,
   formatCondition,
   formatDismantlingStage,
-  formatPerformance,
-  formatPlantRates,
   formatPower,
   formatStage,
   formatStageProgress,
   formatWaiting,
   listInWords,
-  maintenanceState,
   structureLabel,
   type Stat,
 } from "./format";
-import { isHome, structureState } from "./structure-state";
+import { isHome, structureNotes, structureState } from "./structure-state";
 
 // What the pop-up shown for a Structure clicked on the map says about it,
 // from the latest snapshot. Its lines depend only on the Structure's type,
@@ -107,7 +104,9 @@ export function structureDetails(
       ...(type.power.storageKilowattHours > 0
         ? [batteryLine(type, structure)]
         : []),
-      ...(type.recipes === undefined ? [] : plantLines(type, structure)),
+      ...(type.recipes === undefined
+        ? []
+        : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.power.generationKilowatts > 0 ? [dustLine(structure)] : []),
@@ -168,14 +167,11 @@ function conditionLine(
   const label = "Condition";
   if (structure === undefined) return { label, stat: NOT_YET };
   const broken = structure.conditionPercent <= 0;
-  const maintenance = snapshot.maintenance.find(
-    ({ target }) =>
-      target.kind === "structure" && target.structureId === structure.id,
-  );
+  const { maintenance, performance } = structureNotes(snapshot, structure);
   const notes = [
     broken ? "Broken" : undefined,
-    maintenanceState(maintenance),
-    formatPerformance(structure.performance),
+    maintenance,
+    performance,
   ].filter((note) => note !== undefined);
   const value = formatCondition(structure.conditionPercent);
   return {
@@ -236,6 +232,7 @@ function batteryLine(
 
 /** A Plant's recipe and what it makes and uses an hour. */
 function plantLines(
+  snapshot: Snapshot,
   type: StructureType,
   structure: StructureSnapshot | undefined,
 ): DetailLine[] {
@@ -251,7 +248,9 @@ function plantLines(
     {
       label: "Output",
       stat: {
-        value: formatPlantRates(structure) ?? "nothing while it stands idle",
+        value:
+          structureNotes(snapshot, structure).plantRates ??
+          "nothing while it stands idle",
       },
     },
   ];
@@ -306,7 +305,7 @@ function habitatLines(
   ];
 }
 
-/** Whether its light is on, and how far it reaches. */
+/** Whether its light is on, or off to save power, as the Base panel says it. */
 function lightLine(
   snapshot: Snapshot,
   structure: StructureSnapshot | undefined,
@@ -315,15 +314,7 @@ function lightLine(
   if (structure === undefined) return { label, stat: NOT_YET };
   return {
     label,
-    stat: {
-      value: structure.lit
-        ? `on, ${Math.round(structure.lightRadiusMetres)} m round it`
-        : structure.savingPower
-          ? "off to save power"
-          : snapshot.lunation.part === "daylight"
-            ? "off in Daylight"
-            : "off",
-    },
+    stat: { value: structureNotes(snapshot, structure).light ?? "off" },
   };
 }
 

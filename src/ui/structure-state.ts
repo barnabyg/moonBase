@@ -1,5 +1,9 @@
 import { catalogue } from "../catalogue";
-import type { Snapshot, StructureSnapshot } from "../simulation";
+import type {
+  MaintenanceSnapshot,
+  Snapshot,
+  StructureSnapshot,
+} from "../simulation";
 import {
   formatDustCoating,
   formatPerformance,
@@ -30,6 +34,17 @@ export function isHome(
   return (
     snapshot.missionDirector.residence === "habitat" &&
     snapshot.missionDirector.habitatId === structureId
+  );
+}
+
+/** The Maintenance Work Order for a Structure, awaiting the Robot or under way, if there is one. */
+export function maintenanceOf(
+  snapshot: Pick<Snapshot, "maintenance">,
+  structureId: string,
+): MaintenanceSnapshot | undefined {
+  return snapshot.maintenance.find(
+    ({ target }) =>
+      target.kind === "structure" && target.structureId === structureId,
   );
 }
 
@@ -64,6 +79,58 @@ export function structureState(
 }
 
 /**
+ * Anything out of the ordinary about a commissioned Structure, each in a
+ * few words, or undefined where there is nothing to say.
+ */
+export interface StructureNotes {
+  /** What a running Plant makes and uses an hour. */
+  readonly plantRates: string | undefined;
+  /** Whether a telescope is observing. */
+  readonly observing: string | undefined;
+  /** Whether its light is on, or its Night load off to save power. */
+  readonly light: string | undefined;
+  /** Whether a Habitat is shielded. */
+  readonly shielding: string | undefined;
+  readonly waterWall: string | undefined;
+  /** Whether the Mission Director lives in it. */
+  readonly home: string | undefined;
+  /** How well it works, if its Condition has cut its output. */
+  readonly performance: string | undefined;
+  readonly dustCoating: string | undefined;
+  /** Whether it is awaiting or undergoing Maintenance. */
+  readonly maintenance: string | undefined;
+}
+
+export function structureNotes(
+  snapshot: Snapshot,
+  structure: StructureSnapshot,
+): StructureNotes {
+  return {
+    plantRates: formatPlantRates(structure),
+    observing: structure.observing ? "observing" : undefined,
+    light: structure.lit
+      ? "lit"
+      : structure.savingPower
+        ? isTelescope(structure.structureTypeId)
+          ? "not observing, to save power"
+          : "light off to save power"
+        : undefined,
+    shielding: isHabitat(structure.structureTypeId)
+      ? structure.shielded
+        ? "shielded"
+        : "unshielded"
+      : undefined,
+    waterWall: structure.waterWalled ? "water-walled" : undefined,
+    home: isHome(snapshot, structure.id)
+      ? "the Mission Director's home"
+      : undefined,
+    performance: formatPerformance(structure.performance),
+    dustCoating: formatDustCoating(structure),
+    maintenance: maintenanceState(maintenanceOf(snapshot, structure.id)),
+  };
+}
+
+/**
  * What state a Structure is in, for its entry: anything out of the
  * ordinary, such as being Broken, a Plant's running and what it makes and
  * uses, a telescope observing, the Mission Director living in it or its
@@ -74,31 +141,28 @@ export function describeStructureState(
   structure: StructureSnapshot,
   toBeDismantled: boolean,
 ): Stat {
-  const maintenance = snapshot.maintenance.find(
-    ({ target }) =>
-      target.kind === "structure" && target.structureId === structure.id,
-  );
   const state = structureState(structure, toBeDismantled);
+  const {
+    plantRates,
+    observing,
+    light,
+    shielding,
+    waterWall,
+    home,
+    performance,
+    dustCoating,
+    maintenance,
+  } = structureNotes(snapshot, structure);
   const notes = [
-    formatPlantRates(structure),
-    structure.observing ? "observing" : undefined,
-    structure.lit
-      ? "lit"
-      : structure.savingPower
-        ? isTelescope(structure.structureTypeId)
-          ? "not observing, to save power"
-          : "light off to save power"
-        : undefined,
-    isHabitat(structure.structureTypeId)
-      ? structure.shielded
-        ? "shielded"
-        : "unshielded"
-      : undefined,
-    structure.waterWalled ? "water-walled" : undefined,
-    isHome(snapshot, structure.id) ? "the Mission Director's home" : undefined,
-    formatPerformance(structure.performance),
-    formatDustCoating(structure),
-    maintenanceState(maintenance),
+    plantRates,
+    observing,
+    light,
+    shielding,
+    waterWall,
+    home,
+    performance,
+    dustCoating,
+    maintenance,
   ].filter((note) => note !== undefined);
   return notes.length === 0
     ? { value: state }
