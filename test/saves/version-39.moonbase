@@ -1,0 +1,1075 @@
+{
+  "format": "moonbase-save",
+  "version": 39,
+  "random": {
+    "a": -488365148,
+    "b": 2896764226,
+    "c": 3431191095,
+    "d": 2291658355
+  },
+  "state": {
+    "elapsedMinutes": 21526,
+    "nextStructureNumber": 8,
+    "nextPlanNumber": 8,
+    "lander": {
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "trip": null,
+      "cargo": [],
+      "exports": []
+    },
+    "missionDirector": {
+      "residence": "habitat",
+      "habitatId": "structure-5",
+      "movedInAtMinute": 5492
+    },
+    "lifeSupport": [
+      {
+        "stockId": "oxygen",
+        "kilograms": 15.646833333308738
+      },
+      {
+        "stockId": "water",
+        "kilograms": 69.02847222233362
+      }
+    ],
+    "selfSufficiency": [
+      {
+        "stockId": "oxygen",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0.1668333333333331
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.15633333333333327
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          }
+        ]
+      },
+      {
+        "stockId": "water",
+        "current": {
+          "producedKilograms": 0,
+          "usedKilograms": 0.6951388888888914
+        },
+        "records": [
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.6513888888888906
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          }
+        ]
+      }
+    ],
+    "radiationDoseMillisieverts": 96.30416666665369,
+    "solarParticleEvent": {
+      "warnsAtMinute": 27881,
+      "startsAtMinute": 28121,
+      "endsAtMinute": 29644
+    },
+    "micrometeorite": {
+      "strikesAtMinute": 26299
+    },
+    "spareComponentsWarnedMinutes": null,
+    "fundingMillionDollars": 475,
+    "launchManifest": [],
+    "launchFeePaidMillionDollars": null,
+    "exportsToLoad": [],
+    "science": 70,
+    "researchTask": {
+      "researchTaskId": "thermal-cycling-survey",
+      "workedMinutes": 3886
+    },
+    "completedResearchTaskIds": [
+      "regolith-sample-analysis",
+      "ice-volatiles-assay",
+      "radiation-environment-survey",
+      "dust-levitation-study",
+      "lander-turnaround-study",
+      "seismic-monitoring",
+      "plume-erosion-survey"
+    ],
+    "observingMinutes": 600,
+    "unlockedDesignIds": [
+      "solar-arrays",
+      "battery-banks",
+      "light-masts",
+      "maintenance-spares",
+      "regolith-shielding",
+      "inflatable-habitat",
+      "life-support-resupply",
+      "water-processing",
+      "regolith-extraction",
+      "vacuum-fabrication",
+      "circuit-board-fabrication",
+      "landing-pads",
+      "parking-areas",
+      "optical-telescopes"
+    ],
+    "reachedMilestoneIds": [
+      "first-research-task",
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+      "habitat-shielded"
+    ],
+    "ended": null,
+    "robots": [
+      {
+        "id": "robot-1",
+        "position": {
+          "x": 37.50311915280539,
+          "y": -1.8751559576402699
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "carrying": [],
+        "workOrder": null,
+        "conditionPercent": 88.47666666667715,
+        "selfRepair": null,
+        "arrival": null
+      }
+    ],
+    "machines": [
+      {
+        "id": "excavator-1",
+        "machineTypeId": "excavator",
+        "position": {
+          "x": 44.31143769471767,
+          "y": -5.103714235823778
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 76.22666666668829,
+        "powered": true
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": 51.43499721161525,
+          "y": -8.813967151811752
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 84.9400000000137,
+        "powered": true
+      }
+    ],
+    "rovers": [
+      {
+        "id": "rover-1",
+        "position": {
+          "x": 31.071780205960223,
+          "y": -8.577625143027934
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "conditionPercent": 99.83333333333348,
+        "powered": true
+      }
+    ],
+    "stockpile": {
+      "position": {
+        "x": 9,
+        "y": -10
+      },
+      "components": [
+        {
+          "componentId": "solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "mast-pole",
+          "count": 4
+        },
+        {
+          "componentId": "light-head",
+          "count": 4
+        },
+        {
+          "componentId": "habitat-core",
+          "count": 0
+        },
+        {
+          "componentId": "habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "airlock",
+          "count": 0
+        },
+        {
+          "componentId": "pad-panel",
+          "count": 0
+        },
+        {
+          "componentId": "pad-beacon",
+          "count": 0
+        },
+        {
+          "componentId": "spare-component",
+          "count": 6
+        },
+        {
+          "componentId": "extraction-reactor",
+          "count": 0
+        },
+        {
+          "componentId": "oxygen-separator",
+          "count": 0
+        },
+        {
+          "componentId": "ice-melter",
+          "count": 0
+        },
+        {
+          "componentId": "water-purifier",
+          "count": 0
+        },
+        {
+          "componentId": "crystal-furnace",
+          "count": 0
+        },
+        {
+          "componentId": "wafer-saw",
+          "count": 0
+        },
+        {
+          "componentId": "circuit-etcher",
+          "count": 0
+        },
+        {
+          "componentId": "reflow-oven",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-module",
+          "count": 0
+        },
+        {
+          "componentId": "large-battery-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "sealed-array-mast",
+          "count": 0
+        },
+        {
+          "componentId": "screened-solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "whipple-cabinet",
+          "count": 0
+        },
+        {
+          "componentId": "armoured-habitat-envelope",
+          "count": 0
+        },
+        {
+          "componentId": "thin-film-solar-panel",
+          "count": 0
+        },
+        {
+          "componentId": "tall-mast-pole",
+          "count": 0
+        },
+        {
+          "componentId": "prefabricated-array-pack",
+          "count": 0
+        },
+        {
+          "componentId": "electrolyser-stack",
+          "count": 0
+        },
+        {
+          "componentId": "molten-regolith-cell",
+          "count": 0
+        },
+        {
+          "componentId": "board-assembly-line",
+          "count": 0
+        },
+        {
+          "componentId": "landing-floodlight",
+          "count": 0
+        },
+        {
+          "componentId": "water-wall-bladder",
+          "count": 0
+        },
+        {
+          "componentId": "bay-socket",
+          "count": 0
+        },
+        {
+          "componentId": "telescope-optics",
+          "count": 0
+        },
+        {
+          "componentId": "telescope-mount",
+          "count": 0
+        }
+      ]
+    },
+    "bulkResources": [
+      {
+        "resourceId": "regolith",
+        "kilograms": 2000
+      },
+      {
+        "resourceId": "metals",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "silicon",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "wafers",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "circuit-boards",
+        "kilograms": 0
+      },
+      {
+        "resourceId": "water-ice",
+        "kilograms": 0
+      }
+    ],
+    "constructions": [],
+    "structures": [
+      {
+        "id": "structure-1",
+        "structureTypeId": "solar-array",
+        "position": {
+          "x": 36,
+          "y": -12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 82.79916666668231,
+        "dustCoatingPercent": 17.72500000000012,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-2",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": 33,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 84.90244444439982,
+        "conditionPercent": 93.3550000000627,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-3",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": 37.5,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 84.90244444439982,
+        "conditionPercent": 76.89318830557013,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-4",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": 42,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 84.90244444439982,
+        "conditionPercent": 93.8363333333915,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-5",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 46,
+          "y": -12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 97.16466666657254,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-6",
+        "structureTypeId": "regolith-shielding",
+        "position": {
+          "x": 46,
+          "y": -12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 100,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-7",
+        "structureTypeId": "telescope",
+        "position": {
+          "x": 40,
+          "y": -2
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 99.70049999999857,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      }
+    ],
+    "dismantlings": [],
+    "unloading": null,
+    "exportLoading": null,
+    "cables": [
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-2",
+        "start": {
+          "x": 34.946629675234824,
+          "y": -14.808987532707134
+        },
+        "end": {
+          "x": 33.702246883176784,
+          "y": -18.12734164486191
+        },
+        "route": [
+          {
+            "x": 34.946629675234824,
+            "y": -14.808987532707134
+          },
+          {
+            "x": 33.702246883176784,
+            "y": -18.12734164486191
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-2",
+        "toStructureId": "structure-3",
+        "start": {
+          "x": 35,
+          "y": -20
+        },
+        "end": {
+          "x": 35.5,
+          "y": -20
+        },
+        "route": [
+          {
+            "x": 35,
+            "y": -20
+          },
+          {
+            "x": 35.5,
+            "y": -20
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-2",
+        "toStructureId": "structure-4",
+        "start": {
+          "x": 35,
+          "y": -20
+        },
+        "end": {
+          "x": 40,
+          "y": -20
+        },
+        "route": [
+          {
+            "x": 35,
+            "y": -20
+          },
+          {
+            "x": 40,
+            "y": -20
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-5",
+        "start": {
+          "x": 39,
+          "y": -12
+        },
+        "end": {
+          "x": 42,
+          "y": -12
+        },
+        "route": [
+          {
+            "x": 39,
+            "y": -12
+          },
+          {
+            "x": 42,
+            "y": -12
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-7",
+        "start": {
+          "x": 37.11417202906231,
+          "y": -9.214569927344222
+        },
+        "end": {
+          "x": 39.44291398546884,
+          "y": -3.392715036327889
+        },
+        "route": [
+          {
+            "x": 37.11417202906231,
+            "y": -9.214569927344222
+          },
+          {
+            "x": 39.44291398546884,
+            "y": -3.392715036327889
+          }
+        ],
+        "complete": true
+      }
+    ],
+    "reconnections": [],
+    "maintenance": [],
+    "parking": [],
+    "expedition": null
+  }
+}

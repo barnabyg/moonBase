@@ -30,6 +30,7 @@ import {
 import type {
   ClockSnapshot,
   GroundPosition,
+  ObservingProgrammeSnapshot,
   PowerForecast,
   PowerNetworkSnapshot,
   RobotActivity,
@@ -679,6 +680,8 @@ export function formatEvent(
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "observing-round-completed":
+      return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":
       return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
@@ -1040,7 +1043,43 @@ export function formatResearchTask(
 }
 
 /**
- * Sums up Research for its folded section: the Research Task running and
+ * Says how the observing programme is going, for the status panel's
+ * Research section: the standing Research Task the base's telescopes work
+ * on at Night, with how long its round has left while they observe, for
+ * example "Night-sky survey" and "observing, 1d 4h left", or why none
+ * does. Undefined while the base has no telescope.
+ */
+export function formatObservingProgramme(
+  programme: ObservingProgrammeSnapshot,
+): Stat | undefined {
+  if (programme.telescopes === 0) return undefined;
+  const value = catalogue.observingProgramme.label;
+  if (programme.minutesLeft !== undefined) {
+    const who =
+      programme.observing === 1
+        ? "observing"
+        : `${programme.observing} telescopes observing`;
+    return {
+      value,
+      note: `${who}, ${formatShortDuration(programme.minutesLeft)} left`,
+    };
+  }
+  switch (programme.stoppedFor) {
+    case "broken":
+      return {
+        value,
+        note: `${programme.telescopes === 1 ? "telescope" : "telescopes"} Broken`,
+      };
+    case "no-power":
+      return { value, note: "no power to observe" };
+    case "daylight":
+    case undefined:
+      return { value, note: "waits for Night" };
+  }
+}
+
+/**
+ * Sums up Research for its folded section:the Research Task running and
  * how far it has got, for example "Seismic monitoring · 45%", or that none
  * is.
  */

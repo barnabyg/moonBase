@@ -33,6 +33,11 @@ test("the Guide says how the base works and what every Structure, Machine and te
   await expect(
     basics.getByRole("article", { name: "Power and Night" }),
   ).toContainText("Switch a Plant off in the Base panel");
+  await expect(
+    basics.getByRole("article", { name: "Science and technologies" }),
+  ).toContainText(
+    `A telescope works on the ${catalogue.observingProgramme.label}`,
+  );
 
   // Every Structure, with what it does in figures and what it is built from.
   await guide.getByRole("tab", { name: "Structures" }).click();
@@ -54,6 +59,17 @@ test("the Guide says how the base works and what every Structure, Machine and te
   await expect(
     structures.getByRole("article", { name: tall.label, exact: true }),
   ).toContainText("Needs the Tall Light Masts Design");
+  // The telescope says what it earns, and when.
+  const telescopeCard = structures.getByRole("article", {
+    name: structureType("telescope").label,
+    exact: true,
+  });
+  await expect(telescopeCard).toContainText(
+    `observes the sky at Night for the ${catalogue.observingProgramme.label}`,
+  );
+  await expect(telescopeCard).toContainText(
+    "Needs the Optical telescopes Design",
+  );
 
   // The Robot, the Machines and the Rover.
   await guide.getByRole("tab", { name: "Robots & Machines" }).click();

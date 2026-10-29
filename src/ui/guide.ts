@@ -235,6 +235,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
     launch,
     radiation,
     nightReserveHours,
+    observingProgramme,
   } = catalogue;
   return [
     {
@@ -284,6 +285,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       title: "Science and technologies",
       paragraphs: [
         "Research Tasks run by themselves and earn Science, which unlocks Designs on the Tech Tree. Unlocking a Design only permits what it covers: its Structures still have to be built, and their Components shipped.",
+        `A telescope works on the ${observingProgramme.label}, a standing Research Task that runs alongside the one you start and never ends. It observes only at Night, while it has power and isn't Broken, and every ${formatHours(observingProgramme.lengthHours)} of observing completes a round for ${formatScience(observingProgramme.science)}; more telescopes get through a round faster. It draws power all the time, so leave the battery banks enough for it through the Night. The Research section of the status panel shows how the survey is going.`,
         "The Technologies tab lists every Design and what unlocking it brings.",
       ],
     },

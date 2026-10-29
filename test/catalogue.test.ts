@@ -400,6 +400,35 @@ describe("the data catalogue", () => {
     }
   });
 
+  it("has an observing programme whose rounds last a whole number of game-minutes within a Night and pay a whole amount of Science, carried out by a telescope behind a Design", () => {
+    const { observingProgramme, lunation } = catalogue;
+
+    expect(observingProgramme.label).not.toBe("");
+    expect(catalogue.researchTasks.map((task) => task.label)).not.toContain(
+      observingProgramme.label,
+    );
+    expect(observingProgramme.lengthHours).toBeGreaterThan(0);
+    expect(Number.isInteger(observingProgramme.lengthHours * 60)).toBe(true);
+    // At least one round fits in a Night, so a telescope earns every Lunation.
+    expect(observingProgramme.lengthHours).toBeLessThanOrEqual(
+      lunation.nightEarthDays * 24,
+    );
+    expect(Number.isSafeInteger(observingProgramme.science)).toBe(true);
+    expect(observingProgramme.science).toBeGreaterThan(0);
+    const telescopes = catalogue.structureTypes.filter(
+      (type) => type.telescope === true,
+    );
+    expect(telescopes.length).toBeGreaterThan(0);
+    for (const type of telescopes) {
+      // It observes only with power.
+      expect(type.power.drawKilowatts).toBeGreaterThan(0);
+      expect(
+        catalogue.designs.find((design) => design.id === type.designId)
+          ?.starting,
+      ).toBe(false);
+    }
+  });
+
   it("has some Research Tasks that take hours and some that take Earth Days, the longer ones paying more", () => {
     const lengths = catalogue.researchTasks.map((task) => task.lengthHours);
 
@@ -1702,9 +1731,9 @@ describe("the data catalogue", () => {
     });
   });
 
-  it("has about 25 Designs in the Tech Tree, and no more than 30", () => {
+  it("has about 25 Designs in the Tech Tree, and no more than 32", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(30);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(32);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {

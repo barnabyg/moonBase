@@ -4,6 +4,7 @@ export { designLabel } from "./tech-tree";
 export { milestoneHint, milestoneLabel } from "./milestones";
 export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
+export { roundMinutes } from "./observing";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
@@ -84,6 +85,7 @@ export type {
   StartResearchTaskRefusal,
   StartResearchTaskResult,
 } from "./research";
+export type { ObservingProgrammeSnapshot, ObservingStop } from "./observing";
 export type {
   DesignUnlockedEvent,
   UnlockDesignRefusal,

@@ -171,6 +171,13 @@ import {
   type ResearchTaskState,
   type StartResearchTaskResult,
 } from "./research";
+import {
+  latestMinuteWasNight,
+  observes,
+  readObservingProgramme,
+  runObservingProgramme,
+  type ObservingProgrammeSnapshot,
+} from "./observing";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   designLabel,
@@ -390,6 +397,11 @@ export interface StructureSnapshot {
    */
   readonly plant: PlantSnapshot | undefined;
   /**
+   * Whether it is a telescope that observed during the latest game-minute,
+   * for the observing programme: only at Night, with power, and not Broken.
+   */
+  readonly observing: boolean;
+  /**
    * The id of the recipe it runs, if it is a Plant: one of its type's
    * recipes in the data catalogue. Undefined for any other Structure.
    */
@@ -534,6 +546,8 @@ export interface Snapshot {
   readonly researchTask: ResearchTaskSnapshot | undefined;
   /** The ids of the Research Tasks completed, in the order they were. */
   readonly completedResearchTaskIds: readonly string[];
+  /** The observing programme, the standing Research Task the base's telescopes work on at Night. */
+  readonly observingProgramme: ObservingProgrammeSnapshot;
   /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
@@ -774,6 +788,12 @@ export interface CampaignState {
   /** The ids of the Research Tasks completed, in the order they were. */
   completedResearchTaskIds: string[];
   /**
+   * The game-minutes of observing done on the observing programme's
+   * current round, at full performance: a telescope at a lower Condition
+   * adds less for each game-minute it observes.
+   */
+  observingMinutes: number;
+  /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
    */
@@ -833,6 +853,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     science: 0,
     researchTask: undefined,
     completedResearchTaskIds: [],
+    observingMinutes: 0,
     unlockedDesignIds: startingDesignIds(),
     reachedMilestoneIds: [],
     ended: undefined,
@@ -1091,6 +1112,7 @@ function campaignFrom(state: CampaignState): Campaign {
         science: state.science,
         researchTask: readResearchTask(state),
         completedResearchTaskIds: [...state.completedResearchTaskIds],
+        observingProgramme: readObservingProgramme(state),
         unlockedDesignIds: [...state.unlockedDesignIds],
         milestones: readMilestones(state),
         exports: readExports(state),
@@ -1139,6 +1161,7 @@ function campaignFrom(state: CampaignState): Campaign {
           waiting: copy(findWaitingReason(state, construction)),
         })),
         structures: state.structures.map((structure) => {
+          const night = latestMinuteWasNight(state);
           const performance = structurePerformance(structure);
           return {
             ...copy(structure),
@@ -1147,6 +1170,7 @@ function campaignFrom(state: CampaignState): Campaign {
             waterWalled: isWaterWalled(state, structure),
             performance,
             plant: readPlant(state, structure),
+            observing: observes(structure, night),
             lightRadiusMetres:
               (findStructureType(structure.structureTypeId)
                 ?.lightRadiusMetres ?? 0) * performance,
@@ -1242,6 +1266,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   );
   runPlants(state);
   events.push(...runResearch(state));
+  events.push(...runObservingProgramme(state, partBefore === "night"));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({
