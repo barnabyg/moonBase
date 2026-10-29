@@ -49,6 +49,7 @@ import type {
   ExportLine,
   ExportLoadingSnapshot,
   ExportsSnapshot,
+  LanderLeg,
   LanderSnapshot,
   LaunchManifestSnapshot,
   LunationSnapshot,
@@ -107,16 +108,33 @@ export function formatLunation(lunation: LunationSnapshot): string {
 
 /**
  * Formats a span of game time in Earth Days and hours for the status panel,
- * where space is short, for example "7d 23h", rounded up to the hour.
+ * where space is short, for example "7d 23h", rounded up to the hour. In
+ * whole Earth Days only, it leaves out the hours past them, for a folded
+ * section's title, where there is only room for one unit: "7d", or "5h"
+ * under an Earth Day.
  */
-export function formatShortDuration(minutes: number): string {
+export function formatShortDuration(
+  minutes: number,
+  wholeEarthDays = false,
+): string {
   const totalHours = Math.ceil(minutes / 60);
   const earthDays = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
   return [
     ...(earthDays > 0 ? [`${earthDays}d`] : []),
-    ...(hours > 0 || earthDays === 0 ? [`${hours}h`] : []),
+    ...(earthDays === 0 || (hours > 0 && !wholeEarthDays) ? [`${hours}h`] : []),
   ].join(" ");
+}
+
+/**
+ * The game-minutes left until a moment, none once it has passed, or none if
+ * there is no moment to wait for.
+ */
+function minutesUntil(
+  atMinute: number | undefined,
+  elapsedMinutes: number,
+): number {
+  return Math.max((atMinute ?? elapsedMinutes) - elapsedMinutes, 0);
 }
 
 /**
@@ -261,9 +279,6 @@ export function formatLander(
   exportsAboard: readonly ExportLine[],
   exportLoading?: ExportLoadingSnapshot,
 ): Stat {
-  const left = formatShortDuration(
-    Math.max((lander.legEndsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
-  );
   const onPad = lander.landingPadId === undefined ? "" : " on the landing pad";
   const aboard =
     exportsAboard.length === 0
@@ -286,23 +301,55 @@ export function formatLander(
             ? "free to fly"
             : `waiting for the Robot to load ${formatExportLines(exportLoading.exports)}`,
       };
-    case "travelling-to-earth":
+    default: {
+      const words = landerLegWords[lander.state];
+      // Exports go aboard only to be sold on Earth.
+      const carrying =
+        lander.state === "travelling-to-earth" && exportsAboard.length > 0
+          ? ` with ${formatExportLines(exportsAboard)}`
+          : "";
+      // Where it lands matters only on the way back to the Moon.
+      const where = lander.state === "travelling-to-moon" ? onPad : "";
       return {
-        value:
-          exportsAboard.length === 0
-            ? "travelling to Earth"
-            : `travelling to Earth with ${formatExportLines(exportsAboard)}`,
-        note: `arrives in ${left}`,
+        value: `${words.doing}${carrying}`,
+        note: `${words.next}${where} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
       };
-    case "turnaround":
-      return { value: "in turnaround on Earth", note: `leaves in ${left}` };
-    case "travelling-to-moon":
-      return {
-        value: "travelling to the Moon",
-        note: `lands${onPad} in ${left}`,
-      };
+    }
   }
 }
+
+/**
+ * What the Lander does on each leg of its round trip and at the end of it,
+ * in full for its status line, for example "travelling to Earth" and
+ * "arrives", and for a folded section's title, which doesn't say what it
+ * is doing now, for example "at Earth".
+ */
+const landerLegWords: Readonly<
+  Record<
+    LanderLeg,
+    {
+      readonly doing: string;
+      readonly next: string;
+      readonly nextInShort: string;
+    }
+  >
+> = {
+  "travelling-to-earth": {
+    doing: "travelling to Earth",
+    next: "arrives",
+    nextInShort: "at Earth",
+  },
+  turnaround: {
+    doing: "in turnaround on Earth",
+    next: "leaves",
+    nextInShort: "leaves Earth",
+  },
+  "travelling-to-moon": {
+    doing: "travelling to the Moon",
+    next: "lands",
+    nextInShort: "lands",
+  },
+};
 
 /**
  * Sums up the Lander and any Expedition under way for their folded
@@ -314,17 +361,12 @@ export function summariseTravel(
   expedition: ExpeditionSnapshot | undefined,
   elapsedMinutes: number,
 ): string {
-  const left = (endsAtMinute: number | undefined): string =>
-    formatRoughDuration(
-      Math.max((endsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0),
-    );
-  const where = {
-    "landed-occupied": "landed",
-    "landed-free": "landed",
-    "travelling-to-earth": `at Earth in ${left(lander.legEndsAtMinute)}`,
-    turnaround: `leaves Earth in ${left(lander.legEndsAtMinute)}`,
-    "travelling-to-moon": `lands in ${left(lander.legEndsAtMinute)}`,
-  }[lander.state];
+  const left = (atMinute: number | undefined): string =>
+    formatShortDuration(minutesUntil(atMinute, elapsedMinutes), true);
+  const where =
+    lander.state === "landed-occupied" || lander.state === "landed-free"
+      ? "landed"
+      : `${landerLegWords[lander.state].nextInShort} in ${left(lander.legEndsAtMinute)}`;
   if (expedition === undefined) return where;
   return expedition.stage === "away"
     ? `${where} · Rover back in ${left(expedition.returnsAtMinute)}`
@@ -419,16 +461,6 @@ export function formatSelfSufficiency(
   };
 }
 
-/**
- * Formats a span of game time for a folded section's title, where there is
- * only room for one unit: whole Earth Days, or hours under one, for example
- * "29d" for 29 Earth Days 15 hours, or "5h".
- */
-function formatRoughDuration(minutes: number): string {
-  const totalHours = Math.ceil(minutes / 60);
-  return totalHours < 24 ? `${totalHours}h` : `${Math.floor(totalHours / 24)}d`;
-}
-
 /** The chemical formulas of the life support stocks, short enough for a section's title. */
 const stockFormulas: Readonly<Record<string, string>> = {
   oxygen: "O₂",
@@ -466,7 +498,7 @@ function summariseLifeSupport(
   if (stock.kilograms === 0 && !rising) return "ran out";
   // Falling, or rising now but not enough to last the Night ahead.
   if (forecast?.minutesUntilEmpty !== undefined) {
-    return formatRoughDuration(forecast.minutesUntilEmpty);
+    return formatShortDuration(forecast.minutesUntilEmpty, true);
   }
   return rising ? "rising" : `${stock.kilograms.toFixed(1)} kg`;
 }
@@ -529,7 +561,7 @@ export function summariseStock(
       ? count
       : spares.minutesUntilEmpty === 0
         ? `${count}, too few`
-        : `${count}, last ${formatRoughDuration(spares.minutesUntilEmpty)}`;
+        : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
   const regolith = bulkResources.find(
     (stock) => stock.resourceId === "regolith",
   );
@@ -1350,7 +1382,7 @@ export function describeExpedition(
     case "driving-out":
       return "the Robot is driving the Rover to the map edge";
     case "away":
-      return `away, back in ${formatDuration(Math.max((expedition.returnsAtMinute ?? elapsedMinutes) - elapsedMinutes, 0))}`;
+      return `away, back in ${formatDuration(minutesUntil(expedition.returnsAtMinute, elapsedMinutes))}`;
     case "driving-back":
       return `back on the map with ${cargo}, driving to the stockpile`;
     case "unloading":
