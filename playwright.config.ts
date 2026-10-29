@@ -27,6 +27,8 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     headless: !headed,
+    // Beside the page snapshot a failure leaves anyway, as CI keeps them.
+    screenshot: "only-on-failure",
   },
   // Desktop Firefox is the only supported target (ADR-0004).
   projects: [
