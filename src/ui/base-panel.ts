@@ -276,6 +276,8 @@ export function createBasePanel(
         }
         if (entry.switcher !== undefined) {
           showSwitch(entry.switcher, structure.switchedOff);
+          // Like Dismantle, there is nothing more to choose for it.
+          entry.switcher.hidden = toBeDismantled;
         }
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =

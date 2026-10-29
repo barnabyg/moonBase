@@ -134,3 +134,26 @@ test("a Plant switched on between batches says so at once, then starts its next 
     /Condition \d+% running, \d+ min left of this batch/,
   );
 });
+
+test("a Plant to be dismantled can no longer be switched off or on", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  // Paused, so that the Robot doesn't start taking it apart.
+  await page.getByRole("button", { name: "Pause" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(switchSave);
+  const waterPlant = page
+    .getByRole("list", { name: "Structures" })
+    .getByRole("listitem")
+    .filter({ hasText: "Water-processing plant" });
+  await expect(
+    waterPlant.getByRole("button", { name: "Switch off" }),
+  ).toBeVisible();
+
+  await waterPlant.getByRole("button", { name: "Dismantle" }).click();
+
+  await expect(waterPlant).toContainText(/Condition \d+% to be dismantled/);
+  await expect(waterPlant.getByRole("button")).toHaveCount(0);
+});
