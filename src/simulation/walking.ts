@@ -30,14 +30,17 @@ const CLEARANCE_METRES = 0.5;
  * across the base: the Lander, every Structure, every Construction from the
  * moment it is planned, so that nothing is walked or driven across ground
  * being graded or built on, and every Structure being dismantled until it
- * has been taken apart, leaving only Components to carry away. Something
- * wider keeps that much further away.
+ * has been taken apart, leaving only Components to carry away. A Machine or
+ * Rover keeps further away by its own footprint's radius.
  */
-export function obstaclesFor(grounds: Grounds, radius = 0): Obstacle[] {
-  const clearance = CLEARANCE_METRES + radius;
+export function obstaclesFor(
+  grounds: Grounds,
+  walkerFootprintRadius = 0,
+): Obstacle[] {
+  const clearance = CLEARANCE_METRES + walkerFootprintRadius;
   // A Structure being taken apart is among the Structures as well until
   // the Robot starts, and is gone round once.
-  const ground = new Map(
+  const footingsById = new Map(
     [
       ...grounds.structures,
       ...grounds.constructions,
@@ -49,7 +52,7 @@ export function obstaclesFor(grounds: Grounds, radius = 0): Obstacle[] {
       centre: grounds.lander.position,
       radius: catalogue.lander.footprintRadiusMetres + clearance,
     },
-    ...[...ground.values()].map(({ position, structureTypeId }) => ({
+    ...[...footingsById.values()].map(({ position, structureTypeId }) => ({
       centre: position,
       radius: footprintRadius(structureTypeId) + clearance,
     })),
@@ -69,7 +72,7 @@ const CORNERS = 8;
  * or a corner a hair inside a neighbouring one; that counts as outside, or
  * a walker could lose its way where it is plainly clear.
  */
-const TOLERANCE = 1e-9;
+const ROUNDING_ALLOWANCE_METRES = 1e-9;
 /** How many routes are kept worked out, for walkers going the same way again. */
 const ROUTES_KEPT = 64;
 
@@ -120,13 +123,13 @@ export function stepTowards(
   obstacles: readonly Obstacle[],
   maxStep: number,
 ): GroundPosition {
-  const around = shrunkFrom(destination, obstacles);
+  const forDestination = shrunkFrom(destination, obstacles);
   let position = { x: from.x, y: from.y };
   let left = maxStep;
   // Each corner reached is closer to the destination along the way than the
   // last, so the walker passes each corner at most once.
-  for (let leg = 0; left > 0 && leg <= around.length * CORNERS; leg++) {
-    const waypoint = nextWaypoint(position, destination, around);
+  for (let leg = 0; left > 0 && leg <= forDestination.length * CORNERS; leg++) {
+    const waypoint = nextWaypoint(position, destination, forDestination);
     const gap = distance(position, waypoint);
     if (gap > left) {
       return {
@@ -172,9 +175,9 @@ function nextWaypoint(
   const shrunk = shrunkFrom(from, obstacles);
   const outside = obstacles.filter((obstacle) => !isInside(from, obstacle));
   return (
-    waypointPast(from, destination, obstacles, shrunk) ??
+    waypointAvoiding(from, destination, obstacles, shrunk) ??
     (outside.length < obstacles.length
-      ? waypointPast(from, destination, obstacles, outside)
+      ? waypointAvoiding(from, destination, obstacles, outside)
       : undefined) ??
     destination
   );
@@ -185,7 +188,7 @@ function nextWaypoint(
  * in the way. Otherwise heads for the corner in sight that the shortest way
  * round all the obstacles goes by, if there is one.
  */
-function waypointPast(
+function waypointAvoiding(
   from: GroundPosition,
   destination: GroundPosition,
   obstacles: readonly Obstacle[],
@@ -196,7 +199,7 @@ function waypointPast(
   // Cheapest first: the corners further along the way round the obstacle
   // being gone round cost less but are out of sight behind it.
   const costs = corners.map((corner, index) =>
-    distance(from, corner) > TOLERANCE
+    distance(from, corner) > ROUNDING_ALLOWANCE_METRES
       ? distance(from, corner) + (distances[index] ?? Infinity)
       : Infinity,
   );
@@ -309,7 +312,10 @@ function cornersOf({ centre, radius }: Obstacle): GroundPosition[] {
 }
 
 function isInside(position: GroundPosition, obstacle: Obstacle): boolean {
-  return distance(position, obstacle.centre) < obstacle.radius - TOLERANCE;
+  return (
+    distance(position, obstacle.centre) <
+    obstacle.radius - ROUNDING_ALLOWANCE_METRES
+  );
 }
 
 /** Whether a straight walk from one point to another keeps out of every obstacle. */
@@ -322,7 +328,7 @@ function isClear(
   const dy = b.y - a.y;
   const lengthSquared = dx * dx + dy * dy;
   for (const { centre, radius } of obstacles) {
-    const reach = radius - TOLERANCE;
+    const reach = radius - ROUNDING_ALLOWANCE_METRES;
     // Quickly past one well clear of the whole walk.
     if (
       reach <= 0 ||

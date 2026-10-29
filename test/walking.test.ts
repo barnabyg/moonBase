@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GroundPosition } from "../src/catalogue";
+import { distance } from "../src/simulation/construction";
 import { nextFraction, seedRandom } from "../src/simulation/random";
 import {
   obstaclesFor,
@@ -9,10 +10,6 @@ import {
 
 /** A Robot's walk in one game-minute, in metres. */
 const ROBOT_STEP = 12 / 60;
-
-function distanceBetween(a: GroundPosition, b: GroundPosition): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
 
 /**
  * Steps a walker towards its destination until it gets there, returning
@@ -33,7 +30,7 @@ function walk(
       return positions;
     }
     const next = stepTowards(position, destination, obstacles, maxStep);
-    expect(distanceBetween(position, next)).toBeLessThanOrEqual(maxStep + 1e-9);
+    expect(distance(position, next)).toBeLessThanOrEqual(maxStep + 1e-9);
     position = next;
     positions.push(position);
   }
@@ -44,7 +41,7 @@ function walk(
 
 /** Says whether a position stands inside an obstacle, allowing for rounding. */
 function isInside(position: GroundPosition, obstacle: Obstacle): boolean {
-  return distanceBetween(position, obstacle.centre) < obstacle.radius - 1e-6;
+  return distance(position, obstacle.centre) < obstacle.radius - 1e-6;
 }
 
 function expectNeverInside(
@@ -64,7 +61,7 @@ function lengthOf(positions: readonly GroundPosition[]): number {
     .slice(1)
     .reduce(
       (sum, position, index) =>
-        sum + distanceBetween(positions[index] ?? position, position),
+        sum + distance(positions[index] ?? position, position),
       0,
     );
 }
@@ -92,7 +89,7 @@ describe("Walking round obstacles", () => {
       Math.max(...positions.map((position) => position.y)),
     ).toBeLessThanOrEqual(0);
     // Along tangents to the obstacle's edge and round it between them.
-    const reach = distanceBetween(from, obstacles[0]?.centre ?? from);
+    const reach = distance(from, obstacles[0]?.centre ?? from);
     const tangent = Math.sqrt(reach * reach - radius * radius);
     const arc = radius * (Math.PI - 2 * Math.acos(radius / reach));
     expect(lengthOf(positions)).toBeLessThan((2 * tangent + arc) * 1.06);
@@ -167,7 +164,7 @@ describe("Walking round obstacles", () => {
     const positions = walk({ x: 4, y: 0 }, { x: -15, y: 1 }, [obstacle]);
 
     for (const position of positions) {
-      expect(distanceBetween(position, obstacle.centre)).toBeGreaterThanOrEqual(
+      expect(distance(position, obstacle.centre)).toBeGreaterThanOrEqual(
         4 - 1e-6,
       );
     }
@@ -180,7 +177,7 @@ describe("Walking round obstacles", () => {
     const positions = walk({ x: -10, y: 0.5 }, destination, [obstacle]);
 
     for (const position of positions) {
-      expect(distanceBetween(position, obstacle.centre)).toBeGreaterThanOrEqual(
+      expect(distance(position, obstacle.centre)).toBeGreaterThanOrEqual(
         4 - 1e-6,
       );
     }
@@ -232,7 +229,7 @@ describe("Walking round obstacles", () => {
           0,
         );
         expect(lengthOf(positions)).toBeLessThanOrEqual(
-          distanceBetween(rim.from, rim.to) + roundEvery,
+          distance(rim.from, rim.to) + roundEvery,
         );
       },
     );

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { catalogue, type Catalogue } from "../src/catalogue";
 import type { GroundPosition, Snapshot } from "../src/simulation";
+import { distance, footprintRadius } from "../src/simulation/construction";
+import { machineFootprintRadius } from "../src/simulation/machines";
 import { scenario, type Scenario } from "./scenario";
 
 // Nobody digs Regolith, so that the Robot and the excavator do nothing but
@@ -22,26 +24,6 @@ vi.mock("../src/catalogue", async (importOriginal) => {
  */
 const inTheWay: GroundPosition = { x: 20, y: -9.5 };
 const farSite: GroundPosition = { x: 34, y: -10 };
-
-function distanceBetween(a: GroundPosition, b: GroundPosition): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function footprintOf(structureTypeId: string): number {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === structureTypeId,
-  );
-  if (type === undefined) throw new Error(`expected a ${structureTypeId}`);
-  return type.footprintRadiusMetres;
-}
-
-function machineFootprintOf(machineTypeId: string): number {
-  const type = catalogue.machineTypes.find(
-    (candidate) => candidate.id === machineTypeId,
-  );
-  if (type === undefined) throw new Error(`expected a ${machineTypeId}`);
-  return type.footprintRadiusMetres;
-}
 
 /** Runs the game a game-minute at a time until no Construction is left, returning every state. */
 function runUntilBuilt(game: Scenario): Snapshot[] {
@@ -66,15 +48,15 @@ function expectAllKeptOut(
 ): void {
   for (const state of states) {
     for (const robot of state.robots) {
-      expect(
-        distanceBetween(robot.position, footprint.centre),
-      ).toBeGreaterThanOrEqual(footprint.radius - 1e-9);
+      expect(distance(robot.position, footprint.centre)).toBeGreaterThanOrEqual(
+        footprint.radius - 1e-9,
+      );
     }
     for (const machine of state.machines) {
       expect(
-        distanceBetween(machine.position, footprint.centre),
+        distance(machine.position, footprint.centre),
       ).toBeGreaterThanOrEqual(
-        footprint.radius + machineFootprintOf(machine.machineTypeId) - 1e-9,
+        footprint.radius + machineFootprintRadius(machine.machineTypeId) - 1e-9,
       );
     }
   }
@@ -97,12 +79,12 @@ describe("Robots on their way across the base", () => {
 
       expectAllKeptOut(states, {
         centre: inTheWay,
-        radius: footprintOf(structureTypeId),
+        radius: footprintRadius(structureTypeId),
       });
       for (const state of states) {
         for (const robot of state.robots) {
           expect(
-            distanceBetween(robot.position, state.lander.position),
+            distance(robot.position, state.lander.position),
           ).toBeGreaterThan(catalogue.lander.footprintRadiusMetres);
         }
       }
@@ -125,7 +107,7 @@ describe("Robots on their way across the base", () => {
     );
     expectAllKeptOut(planned, {
       centre: inTheWay,
-      radius: footprintOf("habitat"),
+      radius: footprintRadius("habitat"),
     });
   });
 
@@ -142,7 +124,7 @@ describe("Robots on their way across the base", () => {
     const [cable] = game.state.cables;
     if (cable === undefined) throw new Error("expected a cable");
     expect(cable.complete).toBe(true);
-    const padRadius = footprintOf("landing-pad");
+    const padRadius = footprintRadius("landing-pad");
     for (const [index, end] of cable.route.slice(1).entries()) {
       const start = cable.route[index] ?? end;
       // The nearest the stretch of cable comes to the pad's centre.
@@ -157,10 +139,7 @@ describe("Robots on their way across the base", () => {
         ),
       );
       expect(
-        distanceBetween(
-          { x: start.x + along * dx, y: start.y + along * dy },
-          pad,
-        ),
+        distance({ x: start.x + along * dx, y: start.y + along * dy }, pad),
       ).toBeGreaterThanOrEqual(padRadius);
     }
   });
