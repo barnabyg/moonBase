@@ -3,30 +3,25 @@ import {
   createHolds,
   createLingering,
   nextHeldHeight,
-  type HeldHeight,
   type HeldRoot,
 } from "../src/ui/hold";
 
-/** A 60th of a second, a frame at a full frame rate. */
-const FRAME_MS = 1000 / 60;
-
-/** Holds a line through a run of frames, each needing a height. */
+/** Holds a line through a run of frames, each showing it at a height, or not at all. */
 function runFrames(
-  heights: readonly number[],
-  frameMs = FRAME_MS,
-): HeldHeight | undefined {
-  let held: HeldHeight | undefined;
-  for (const height of heights) held = nextHeldHeight(held, height, frameMs);
+  heights: readonly (number | undefined)[],
+): number | undefined {
+  let held: number | undefined;
+  for (const height of heights) held = nextHeldHeight(held, height);
   return held;
 }
 
 /** A line needing the height for as many frames. */
-const frames = (count: number, height: number): number[] =>
-  Array<number>(count).fill(height);
+const frames = (count: number, height: number | undefined) =>
+  Array<number | undefined>(count).fill(height);
 
 describe("a panel line held against flicker", () => {
   it("grows at once to show everything", () => {
-    expect(runFrames([20, 52])?.heldPx).toBe(52);
+    expect(runFrames([20, 52])).toBe(52);
   });
 
   it("keeps its height while what it shows toggles shorter and back twice a second", () => {
@@ -35,31 +30,43 @@ describe("a panel line held against flicker", () => {
       ...frames(15, 20),
     ]).flat();
 
-    expect(runFrames(toggling)?.heldPx).toBe(40);
+    expect(runFrames(toggling)).toBe(40);
   });
 
-  it("shrinks once it has needed less for five seconds", () => {
-    expect(runFrames([40, ...frames(290, 20)])?.heldPx).toBe(40);
-    expect(runFrames([40, ...frames(310, 20)])?.heldPx).toBe(20);
+  it("never shrinks back while shown, so that a cycle slower than any hold doesn't move the lines below either", () => {
+    // Tall for a second, then short for 20 seconds at 60 frames a second,
+    // over and over: a Plant waiting long for its input between Batches.
+    const heights: (number | undefined)[] = [];
+    for (let cycle = 0; cycle < 5; cycle++) {
+      heights.push(...frames(60, 40), ...frames(1200, 20));
+    }
+    let held: number | undefined;
+    const kept = new Set<number | undefined>();
+    for (const height of heights) {
+      held = nextHeldHeight(held, height);
+      kept.add(held);
+    }
+
+    expect([...kept]).toEqual([40]);
   });
 
-  it("starts the wait again each time it needs its full height", () => {
-    expect(
-      runFrames([40, ...frames(250, 20), 40, ...frames(250, 20)])?.heldPx,
-    ).toBe(40);
+  it("starts again from what it needs once it has not been shown, such as when its section is folded and opened", () => {
+    expect(runFrames([40, undefined, 20])).toBe(20);
   });
 });
 
-/** A stand-in for a held line on the page, needing a height. */
+/** A stand-in for a held line on the page, needing a height, or hidden. */
 class FakeLine {
-  needed = 0;
+  needed: number | undefined = 0;
   readonly dataset: Record<string, string> = { hold: "" };
   readonly style = { minHeight: "" };
+  getClientRects(): unknown[] {
+    return this.needed === undefined ? [] : [{}];
+  }
   getBoundingClientRect(): { height: number } {
     const held = Number.parseFloat(this.style.minHeight);
-    return {
-      height: Number.isNaN(held) ? this.needed : Math.max(held, this.needed),
-    };
+    const needed = this.needed ?? 0;
+    return { height: Number.isNaN(held) ? needed : Math.max(held, needed) };
   }
 }
 
@@ -71,44 +78,55 @@ function fakeRoot(lines: FakeLine[]): HeldRoot {
 }
 
 describe("the holds on the page", () => {
-  it("keeps a line that got shorter at the height it needed, and lets it go once the hold is over", () => {
+  it("keeps a line that got shorter at the tallest it has been, frame after frame", () => {
     const line = new FakeLine();
     const holds = createHolds(fakeRoot([line]));
     line.needed = 40;
-    holds.refresh(FRAME_MS);
+    holds.refresh();
     line.needed = 20;
 
-    holds.refresh(FRAME_MS);
-    expect(line.style.minHeight).toBe("40px");
-    holds.refresh(4000);
-    expect(line.style.minHeight).toBe("40px");
-    holds.refresh(1000);
-    expect(line.style.minHeight).toBe("");
+    for (let frame = 0; frame < 1000; frame++) holds.refresh();
+
+    expect(line.getBoundingClientRect().height).toBe(40);
+  });
+
+  it("grows a held line at once when it needs more", () => {
+    const line = new FakeLine();
+    const holds = createHolds(fakeRoot([line]));
+    line.needed = 40;
+    holds.refresh();
+    line.needed = 60;
+
+    holds.refresh();
+
+    expect(line.style.minHeight).toBe("60px");
+  });
+
+  it("lets a line go once it is hidden, so that it is shown again at the height it needs", () => {
+    const line = new FakeLine();
+    const holds = createHolds(fakeRoot([line]));
+    line.needed = 40;
+    holds.refresh();
+
+    line.needed = undefined;
+    holds.refresh();
+    line.needed = 20;
+    holds.refresh();
+
     expect(line.getBoundingClientRect().height).toBe(20);
   });
 
-  it("sets no height on a line that needs as much as it has", () => {
+  it("lets every line go when it starts afresh, for a Campaign loaded in place of the last", () => {
     const line = new FakeLine();
     const holds = createHolds(fakeRoot([line]));
     line.needed = 40;
-
-    holds.refresh(FRAME_MS);
-    holds.refresh(FRAME_MS);
-
-    expect(line.style.minHeight).toBe("");
-  });
-
-  it("forgets every height held when it starts afresh, for a Campaign loaded in place of the last", () => {
-    const line = new FakeLine();
-    const holds = createHolds(fakeRoot([line]));
-    line.needed = 40;
-    holds.refresh(FRAME_MS);
+    holds.refresh();
     line.needed = 20;
 
     holds.startAfresh();
-    holds.refresh(FRAME_MS);
+    holds.refresh();
 
-    expect(line.style.minHeight).toBe("");
+    expect(line.getBoundingClientRect().height).toBe(20);
   });
 });
 

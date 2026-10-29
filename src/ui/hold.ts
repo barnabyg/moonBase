@@ -1,40 +1,30 @@
 /**
- * How long, in the real time the game loop counts, a panel line that has
- * got shorter keeps the height it last needed, and a row whose work is
- * done stays before it goes. At the fastest game speed a Plant's batch
- * takes half a real second and a Work Order can come and go in a couple,
- * so a line holds still through them rather than jumping up and down.
+ * How long, in the real time the game loop counts, a Work panel row whose
+ * work is done stays before it goes. At the fastest game speed a Work
+ * Order can come and go in a couple of real seconds, so its row holds
+ * still through it rather than jumping up and down.
  */
 export const HOLD_MS = 5000;
 
-/** How much a line has to shrink by, in pixels, to count as shorter. */
+/** How much taller a line has to be, in pixels, to count as growing. */
 const TOLERANCE_PX = 0.5;
 
-export interface HeldHeight {
-  /** The height kept, in pixels. */
-  readonly heldPx: number;
-  /** For how long the line has needed less than it is held at. */
-  readonly shorterForMs: number;
-}
-
 /**
- * The height to keep a line at, once a frame, from the one it was held at,
- * the height it needs now and the real time the frame counted: as tall as
- * it needs at once, and shorter only once it has needed less for
- * {@link HOLD_MS}.
+ * The height to keep a line at, from the one it is held at and the height
+ * it takes on the page now, or none while it isn't shown: as tall as it has
+ * been while shown, so that it never shrinks and grows back, however slowly
+ * its text changes. One no longer shown is forgotten, and starts again from
+ * what it needs when it is shown again, such as when its section is folded
+ * and opened.
  */
 export function nextHeldHeight(
-  held: HeldHeight | undefined,
-  neededPx: number,
-  frameMs: number,
-): HeldHeight {
-  if (held === undefined || neededPx >= held.heldPx - TOLERANCE_PX) {
-    return { heldPx: neededPx, shorterForMs: 0 };
-  }
-  const shorterForMs = held.shorterForMs + frameMs;
-  return shorterForMs >= HOLD_MS
-    ? { heldPx: neededPx, shorterForMs: 0 }
-    : { heldPx: held.heldPx, shorterForMs };
+  heldPx: number | undefined,
+  shownPx: number | undefined,
+): number | undefined {
+  if (shownPx === undefined) return undefined;
+  return heldPx === undefined || shownPx > heldPx + TOLERANCE_PX
+    ? shownPx
+    : heldPx;
 }
 
 /** Marks a panel line, or a whole panel, to be held in place by {@link createHolds}. */
@@ -51,43 +41,53 @@ export interface HeldRoot {
 
 export interface Holds {
   /**
-   * Measures the height every held line under the root needs and sets the
-   * height it is kept at, once a frame after the panels have updated, with
-   * the real time the frame counted. They are all measured together, so
-   * that the page is laid out only once for them.
+   * Measures every held line under the root, once a frame after the panels
+   * have updated, and keeps any that has grown at its new height. They are
+   * measured at the heights they are kept at, which needs no extra layout.
    */
-  refresh(frameMs: number): void;
-  /** Forgets every height held, for a Campaign loaded in place of the last. */
+  refresh(): void;
+  /**
+   * Lets every line go back to the height it needs, for a Campaign loaded
+   * in place of the last, or a window of another size.
+   */
   startAfresh(): void;
 }
 
 /**
- * Keeps the panel lines marked by {@link holdHeight} from getting shorter
- * the moment what they show does, so that a line whose text or rows come
- * and go quickly at high game speed doesn't move everything below it up
- * and down. A line still grows at once to show everything. What it holds
- * is kept by element, so a line taken off the page is forgotten with it.
+ * Keeps the panel lines marked by {@link holdHeight} at the tallest they
+ * have been while shown, so that a line whose text or rows change length
+ * as the game runs, quickly or slowly, never moves the lines below it up
+ * and down: they may move down once, as it grows, but never back. What it
+ * holds is kept by element, so a line taken off the page is forgotten with
+ * it.
  */
 export function createHolds(root: HeldRoot): Holds {
-  let holds = new WeakMap<HTMLElement, HeldHeight>();
+  let holds = new WeakMap<HTMLElement, number>();
+  let elements: HTMLElement[] = [];
   return {
-    refresh(frameMs) {
-      const elements = [...root.querySelectorAll<HTMLElement>("[data-hold]")];
-      for (const element of elements) element.style.minHeight = "";
-      const needed = elements.map(
-        (element) => element.getBoundingClientRect().height,
+    refresh() {
+      elements = [...root.querySelectorAll<HTMLElement>("[data-hold]")];
+      const shown = elements.map((element) =>
+        element.getClientRects().length === 0
+          ? undefined
+          : element.getBoundingClientRect().height,
       );
       elements.forEach((element, index) => {
-        const neededPx = needed[index] ?? 0;
-        const held = nextHeldHeight(holds.get(element), neededPx, frameMs);
-        holds.set(element, held);
-        if (held.heldPx > neededPx + TOLERANCE_PX) {
-          element.style.minHeight = `${held.heldPx}px`;
+        const held = holds.get(element);
+        const next = nextHeldHeight(held, shown[index]);
+        if (next === held) return;
+        if (next === undefined) {
+          holds.delete(element);
+          element.style.minHeight = "";
+        } else {
+          holds.set(element, next);
+          element.style.minHeight = `${next}px`;
         }
       });
     },
     startAfresh() {
       holds = new WeakMap();
+      for (const element of elements) element.style.minHeight = "";
     },
   };
 }

@@ -85,8 +85,12 @@ leftColumn.className = "left-column";
 const rightColumn = document.createElement("div");
 rightColumn.className = "right-column";
 container.append(topBarSlot, leftColumn, rightColumn);
-// Keeps the panels' lines from jumping as what they show changes quickly.
+// Keeps the panels' lines from jumping as what they show changes. Lines
+// laid out at another width need other heights.
 const holds = createHolds(container);
+window.addEventListener("resize", () => {
+  holds.startAfresh();
+});
 const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
@@ -167,7 +171,7 @@ function frame(time: number): void {
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);
   // Once every panel has updated, so that they are measured together.
-  holds.refresh(loop.frameMs);
+  holds.refresh();
   renderer?.render({
     current: snapshot,
     previous: loop.previous,
