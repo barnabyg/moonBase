@@ -122,10 +122,13 @@ export function createConstructionViews(scene: THREE.Scene) {
         view.model.group.visible = true;
         view.model.setAssembled(1);
         // A Plant has power only while it runs, so its light shows it is
-        // commissioned and in working order.
+        // commissioned and in working order, and goes out once it is
+        // switched off and has finished its last batch, as it stands idle.
         view.model.setStatusLight(
           structure.powered ||
-            (structure.plant !== undefined && structure.conditionPercent > 0)
+            (structure.plant !== undefined &&
+              structure.conditionPercent > 0 &&
+              !structure.switchedOff)
             ? "on"
             : "off",
         );

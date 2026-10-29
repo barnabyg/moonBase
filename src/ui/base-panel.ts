@@ -93,14 +93,18 @@ function createEntry(
  * The Base panel, beside the Work panel: the base's Structures, with what
  * state each is in and its Condition, and its Robots, Machines and Rovers,
  * with what each is doing. It sends a choice to dismantle a Structure, to
- * choose a Plant's recipe or to move the Mission Director into a Habitat
- * to the Campaign, which decides whether it is allowed and says why not.
+ * choose a Plant's recipe, to switch a Plant off or on, or to move the
+ * Mission Director into a Habitat to the Campaign, which decides whether
+ * it is allowed and says why not.
  */
 export function createBasePanel(
   container: HTMLElement,
   campaign: Pick<
     Campaign,
-    "dismantleStructure" | "moveMissionDirectorIn" | "setPlantRecipe"
+    | "dismantleStructure"
+    | "moveMissionDirectorIn"
+    | "setPlantRecipe"
+    | "switchPlant"
   >,
   showResult: (result: ChoiceResult) => void,
 ): BasePanel {
@@ -122,6 +126,7 @@ export function createBasePanel(
       readonly dismantle: HTMLButtonElement;
       readonly moveIn: HTMLButtonElement;
       readonly recipe: HTMLSelectElement | undefined;
+      readonly switcher: HTMLButtonElement | undefined;
     }
   >();
   const createStructureEntry = (structure: StructureSnapshot) => {
@@ -156,6 +161,24 @@ export function createBasePanel(
       });
       recipe = select;
     }
+    // Every Plant can be switched off and on again; the button says which
+    // it will do, and the update keeps it in step with the Campaign.
+    let switcher: HTMLButtonElement | undefined;
+    if (recipes.length > 0) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "panel-button";
+      showSwitch(button, structure.switchedOff);
+      button.addEventListener("click", () => {
+        showResult(
+          campaign.switchPlant(
+            structureId,
+            button.dataset["switchedOff"] === "true" ? "on" : "off",
+          ),
+        );
+      });
+      switcher = button;
+    }
     const moveIn = document.createElement("button");
     moveIn.type = "button";
     moveIn.className = "panel-button panel-button--primary";
@@ -177,11 +200,12 @@ export function createBasePanel(
     });
     entry.actions.append(
       ...(recipe === undefined ? [] : [recipe]),
+      ...(switcher === undefined ? [] : [switcher]),
       moveIn,
       dismantle,
     );
     structures.append(entry.item);
-    return { ...entry, dismantle, moveIn, recipe };
+    return { ...entry, dismantle, moveIn, recipe, switcher };
   };
 
   // What each Robot, Machine and Rover is doing, and its Condition.
@@ -250,6 +274,9 @@ export function createBasePanel(
         ) {
           entry.recipe.value = structure.recipeId;
         }
+        if (entry.switcher !== undefined) {
+          showSwitch(entry.switcher, structure.switchedOff);
+        }
         entry.dismantle.hidden = toBeDismantled;
         entry.moveIn.hidden =
           toBeDismantled ||
@@ -315,6 +342,20 @@ export function createBasePanel(
   };
 }
 
+/**
+ * Has a Plant's switch offer to switch it on if it is switched off, or off
+ * if it isn't, changing the page only when that changes.
+ */
+function showSwitch(button: HTMLButtonElement, switchedOff: boolean): void {
+  const state = String(switchedOff);
+  if (button.dataset["switchedOff"] === state) return;
+  button.dataset["switchedOff"] = state;
+  button.textContent = switchedOff ? "Switch on" : "Switch off";
+  button.title = switchedOff
+    ? "Let it start batches again, from the next game-minute, with no work for the Robot."
+    : "Stop it starting new batches, so that it takes no inputs and leaves its power to other Plants, with no work for the Robot. A batch under way finishes.";
+}
+
 /** A line at the top of a section saying how what it lists is repaired. */
 function createRepairHint(text: string): HTMLElement {
   const hint = document.createElement("p");
@@ -350,7 +391,8 @@ function describeStructure(
         ? structure.powered
           ? "commissioned"
           : "no power"
-        : (formatPlant(structure.plant) ?? "commissioned");
+        : (formatPlant(structure.plant, structure.switchedOff) ??
+          "commissioned");
   const notes = [
     formatPlantRates(structure),
     structure.lit

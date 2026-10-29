@@ -28,3 +28,79 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
     /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.35 kg(?! ·)/,
   ]);
 });
+
+/**
+ * A sample save of a Campaign in Daylight with the Mission Director in the
+ * Habitat, a water-processing plant 20 minutes into a batch of water, and
+ * an extraction plant switched off after its last batch.
+ */
+const switchSave = fileURLToPath(
+  new URL("../test/saves/version-37.moonbase", import.meta.url),
+);
+
+test("the Base panel switches a Plant off and on, the setting is saved, and the forecasts follow it", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/?seed=1");
+  // Paused throughout, so that no batch moves on between the steps.
+  await page.getByRole("button", { name: "Pause" }).click();
+  const loadFile = async (file: string) => {
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Load", exact: true }).click();
+    await (await chooser).setFiles(file);
+  };
+  await loadFile(switchSave);
+
+  const structures = page
+    .getByRole("list", { name: "Structures" })
+    .getByRole("listitem");
+  const waterPlant = structures.filter({ hasText: "Water-processing plant" });
+  const extraction = structures.filter({ hasText: "Extraction plant" });
+  const statusPanel = page.getByRole("complementary", { name: "Status panel" });
+  const water = statusPanel.getByRole("status", { name: "Water", exact: true });
+  const oxygen = statusPanel.getByRole("status", {
+    name: "Oxygen",
+    exact: true,
+  });
+  await expect(extraction).toContainText(/Condition \d+% switched off/);
+  await expect(oxygen).toHaveText(
+    /^Oxygen \d+\.\d kg · lasts .*, extraction plant switched off$/,
+  );
+  await expect(waterPlant).toContainText(
+    /Condition \d+% running, 40 min left of this batch · making 0\.9 kg of water an hour/,
+  );
+  await expect(water).toHaveText(/^Water \d+\.\d kg · rising /);
+
+  await waterPlant.getByRole("button", { name: "Switch off" }).click();
+
+  // The batch under way finishes, but the forecast counts on none of it.
+  await expect(waterPlant).toContainText(
+    /Condition \d+% running, 40 min left of its last batch before switching off/,
+  );
+  await expect(water).toHaveText(
+    /^Water \d+\.\d kg · lasts .*, water-processing plant switched off$/,
+  );
+
+  // Saved and loaded, it is still switched off.
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const saved = testInfo.outputPath("switched-off.moonbase");
+  await (await download).saveAs(saved);
+  await loadFile(switchSave);
+  await expect(
+    waterPlant.getByRole("button", { name: "Switch off" }),
+  ).toBeVisible();
+  await loadFile(saved);
+  const switchOn = waterPlant.getByRole("button", { name: "Switch on" });
+  await expect(switchOn).toBeVisible();
+
+  await switchOn.click();
+
+  await expect(waterPlant).toContainText(
+    /Condition \d+% running, 40 min left of this batch/,
+  );
+  await expect(water).toHaveText(/^Water \d+\.\d kg · rising /);
+  await expect(
+    waterPlant.getByRole("button", { name: "Switch off" }),
+  ).toBeVisible();
+});
