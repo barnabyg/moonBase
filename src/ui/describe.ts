@@ -9,7 +9,6 @@ import type { Snapshot } from "../simulation";
 import {
   componentLabel,
   formatComponents,
-  formatMillionDollars,
   formatScience,
   listInWords,
   machineLabel,
@@ -103,7 +102,6 @@ export function describeUnlocks(design: Design): string[] {
         }),
     ),
   ];
-  const { feeMillionDollars, reducedFee } = catalogue.launch;
   const tasks = catalogue.researchTasks
     .filter((task) => task.requiresDesignId === design.id)
     .map((task) => researchTaskLabel(task.id));
@@ -114,11 +112,6 @@ export function describeUnlocks(design: Design): string[] {
     ...(items.length === 0
       ? []
       : [`On the Launch manifest: ${listInWords(items)}.`]),
-    ...(reducedFee.designId === design.id
-      ? [
-          `Cuts the Launch fee from ${formatMillionDollars(feeMillionDollars)} to ${formatMillionDollars(reducedFee.feeMillionDollars)}.`,
-        ]
-      : []),
     ...(tasks.length === 0
       ? []
       : [

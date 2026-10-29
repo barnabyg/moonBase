@@ -129,7 +129,7 @@ export function setLaunchManifest(
   );
   const { payloadMassKilograms, costMillionDollars } = totals(
     items,
-    launchFee(state),
+    catalogue.launch.feeMillionDollars,
   );
   const limit = catalogue.launch.payloadMassLimitKilograms;
   if (payloadMassKilograms > limit) {
@@ -153,7 +153,7 @@ export function readLaunchManifest(
   state: CampaignState,
 ): LaunchManifestSnapshot {
   const feeMillionDollars =
-    state.launchFeePaidMillionDollars ?? launchFee(state);
+    state.launchFeePaidMillionDollars ?? catalogue.launch.feeMillionDollars;
   const { payloadMassKilograms, costMillionDollars } = totals(
     state.launchManifest,
     feeMillionDollars,
@@ -172,26 +172,15 @@ export function readLaunchManifest(
 /**
  * Pays for the Launch manifest as the Lander leaves Earth with it, which
  * locks it, and returns what it cost: nothing if it is empty. The fee it
- * was paid with stays with it until it lands, whatever is unlocked
- * meanwhile. Running out of Funding never ends the Campaign.
+ * was paid with stays with it until it lands. Running out of Funding never
+ * ends the Campaign.
  */
 export function payForLaunch(state: CampaignState): number {
-  const fee = launchFee(state);
+  const fee = catalogue.launch.feeMillionDollars;
   const { costMillionDollars } = totals(state.launchManifest, fee);
   state.fundingMillionDollars -= costMillionDollars;
   state.launchFeePaidMillionDollars = fee;
   return costMillionDollars;
-}
-
-/**
- * What a Launch costs on top of the price of what it brings: the reduced
- * fee once the Design that cuts it is unlocked.
- */
-export function launchFee(state: CampaignState): number {
-  const { feeMillionDollars, reducedFee } = catalogue.launch;
-  return isDesignUnlocked(state, reducedFee.designId)
-    ? reducedFee.feeMillionDollars
-    : feeMillionDollars;
 }
 
 /**

@@ -8,7 +8,6 @@ import {
   type Snapshot,
 } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
-import { earnScience, findDesign, unlock } from "./designs";
 import { changed, withFunding } from "./worn";
 
 // The Mission Director has to live in the Habitat for a whole round trip,
@@ -158,49 +157,27 @@ describe("paying for the Launch", () => {
     expect(game.state.fundingMillionDollars).toBe(programmeGrant - cost);
   });
 
-  it("charges the reduced Launch fee once Reusable boosters is unlocked", () => {
+  it("keeps the Launch fee a manifest was paid with while it is locked, through a save, with the fee in force from the next Launch", () => {
     const game = landerFree();
-    unlock(game.campaign, launch.reducedFee.designId);
-    const funding = game.state.fundingMillionDollars;
-    setManifest(game, cargo);
-    send(game);
-
-    const events = skipUntil(game, "travelling-to-moon");
-
-    const cost = launch.reducedFee.feeMillionDollars + price(cargo);
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        kind: "lander-left-earth",
-        chargedMillionDollars: cost,
-      }),
-    );
-    expect(game.state.fundingMillionDollars).toBe(funding - cost);
-  });
-
-  it("keeps the Launch fee a manifest was paid with while it is locked, through a save, with the reduced one from the next Launch", () => {
-    const game = landerFree();
-    // Earned first: the Research Tasks take longer than the flight back.
-    earnScience(
-      game.campaign,
-      findDesign(launch.reducedFee.designId).scienceCost,
-    );
     setManifest(game, cargo);
     send(game);
     skipUntil(game, "travelling-to-moon");
-    const paid = launch.feeMillionDollars + price(cargo);
 
-    const result = game.campaign.unlockDesign(launch.reducedFee.designId);
-    expect(result).toMatchObject({ ok: true });
-    const saved = scenarioOf(changed(game.campaign, () => undefined));
+    // Paid at a fee other than the one in force now.
+    const saved = scenarioOf(
+      changed(game.campaign, (state) => {
+        state.launchFeePaidMillionDollars = 100;
+      }),
+    );
 
     expect(saved.state.launchManifest).toMatchObject({
       locked: true,
-      costMillionDollars: paid,
-      feeMillionDollars: launch.feeMillionDollars,
+      costMillionDollars: 100 + price(cargo),
+      feeMillionDollars: 100,
     });
     skipUntil(saved, "landed-free");
     expect(saved.state.launchManifest.feeMillionDollars).toBe(
-      launch.reducedFee.feeMillionDollars,
+      launch.feeMillionDollars,
     );
   });
 

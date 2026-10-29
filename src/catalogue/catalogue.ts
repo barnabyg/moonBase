@@ -355,11 +355,6 @@ export interface LaunchRules {
   readonly payloadMassLimitKilograms: number;
   /** What every Launch costs on top of the price of what it brings. */
   readonly feeMillionDollars: number;
-  /** The lower fee every Launch costs instead once a Design is unlocked. */
-  readonly reducedFee: {
-    readonly designId: string;
-    readonly feeMillionDollars: number;
-  };
   /** Everything a Launch can bring, in the order the Launch manifest screen lists it. */
   readonly items: readonly LaunchItem[];
 }
@@ -418,8 +413,8 @@ export type DesignCategory =
 
 /**
  * A Design in the Tech Tree: permission to have the Structure types and
- * Launch items that name it, or the reduced Launch fee if the Launch rules
- * name it, unlocked with Science once the Designs it needs first are.
+ * Launch items that name it, unlocked with Science once the Designs it
+ * needs first are.
  * Unlocking one never creates anything on the base.
  */
 export interface Design {
@@ -2278,10 +2273,6 @@ export const catalogue: Catalogue = {
   launch: {
     payloadMassLimitKilograms: 2000,
     feeMillionDollars: 150,
-    // A third off. Once it is unlocked, a full Return Mass of wafers pays
-    // the fee with $50M to spare, though still well short of a Launch
-    // that brings much.
-    reducedFee: { designId: "reusable-boosters", feeMillionDollars: 100 },
     items: [
       {
         id: "solar-panel",
@@ -2654,7 +2645,6 @@ export const catalogue: Catalogue = {
       label: "Lander turnaround study",
       lengthHours: 60,
       science: 25,
-      requiresDesignId: "reusable-boosters",
     },
     {
       id: "seismic-monitoring",
@@ -3120,18 +3110,6 @@ export const catalogue: Catalogue = {
       starting: false,
       scienceCost: 220,
       prerequisiteDesignIds: ["landing-pads", "tall-light-masts"],
-    },
-    // A rule rather than a Structure: it cuts the Launch fee, which the
-    // Launch rules say by how much.
-    {
-      id: "reusable-boosters",
-      label: "Reusable boosters",
-      description:
-        "Boosters that fly back to Earth to be used again, so that every Launch costs a smaller fee.",
-      category: "mobility",
-      starting: false,
-      scienceCost: 100,
-      prerequisiteDesignIds: ["landing-pads"],
     },
   ],
   // Reaching past everything that lands beside the Lander, so the base has

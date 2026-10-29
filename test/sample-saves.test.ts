@@ -2416,13 +2416,11 @@ describe("the sample saves from before a Design could cut the Launch fee", () =>
 
 describe("the sample save of format version 36", () => {
   // Saved 45900 game-minutes in, an hour after the Lander left Earth with
-  // oxygen, water and five spare Components paid for at the full Launch
-  // fee, and just after Reusable boosters was unlocked.
-  it("loads with the Lander on its way back, its locked manifest at the fee it was paid with, though Reusable boosters is unlocked", () => {
+  // oxygen, water and five spare Components paid for at the Launch fee.
+  it("loads with the Lander on its way back, its locked manifest at the fee it was paid with", () => {
     const state = loadSample("version-36.moonbase").snapshot();
 
     expect(state.clock.elapsedMinutes).toBe(45900);
-    expect(state.unlockedDesignIds).toContain("reusable-boosters");
     expect(state.lander).toMatchObject({
       state: "travelling-to-moon",
       legEndsAtMinute: 50160,
@@ -2434,7 +2432,7 @@ describe("the sample save of format version 36", () => {
     });
   });
 
-  it("plays on from where it was saved, the next manifest costing the reduced Launch fee once the Lander has landed", () => {
+  it("plays on from where it was saved, the next manifest costing the Launch fee once the Lander has landed", () => {
     const campaign = loadSample("version-36.moonbase");
     const funding = campaign.snapshot().fundingMillionDollars;
 
@@ -2446,7 +2444,7 @@ describe("the sample save of format version 36", () => {
     expect(state.launchManifest).toMatchObject({
       items: [],
       locked: false,
-      feeMillionDollars: catalogue.launch.reducedFee.feeMillionDollars,
+      feeMillionDollars: catalogue.launch.feeMillionDollars,
     });
   });
 });

@@ -73,7 +73,7 @@ The list of what the next Launch is to bring from Earth: Components, oxygen and 
 _Avoid_: order, shopping list, cargo list
 
 **Launch fee**:
-The set amount of Funding every Launch costs on top of the price of what it brings. Unlocking Reusable boosters lowers it for every Launch paid for afterwards; a Launch keeps the fee it was paid with.
+The set amount of Funding every Launch costs on top of the price of what it brings.
 _Avoid_: shipping cost, flight cost
 
 ## Construction
