@@ -209,4 +209,47 @@ describe("a parking area", () => {
 
     expect(loaded.campaign.snapshot()).toEqual(game.state);
   });
+
+  it("keeps which bay each park Work Order is for in the save, not only where it goes", () => {
+    const game = baseWithParkingArea();
+    untilBeforeNight(game.campaign, parkingLeadHours * 60 - 1);
+    const area = structure(game.state, "parking-area");
+    const document = JSON.parse(game.campaign.save()) as {
+      state: {
+        parking: {
+          structureId: string;
+          bayIndex: number | null;
+          destination: GroundPosition;
+        }[];
+      };
+    };
+    const orders = document.state.parking;
+    expect(orders.length).toBeGreaterThanOrEqual(2);
+    expect(orders.map((order) => order.structureId)).toEqual(
+      orders.map(() => area.id),
+    );
+    const bays = orders.map((order) => order.bayIndex);
+    expect(new Set(bays).size).toBe(orders.length);
+    for (const order of orders) {
+      expect(order.bayIndex).not.toBeNull();
+      expect(order.destination).toEqual(baysOf(area)[order.bayIndex ?? -1]);
+    }
+
+    // Were a bay's spot to move, as if the bays were laid out afresh, the
+    // Work Order going to it still holds that bay, so it is still in a bay
+    // and no other Work Order is given it.
+    const moved = orders[orders.length - 1];
+    if (moved === undefined) throw new Error("expected a park Work Order");
+    moved.destination = { x: area.position.x, y: area.position.y };
+    const loaded = loadCampaign(JSON.stringify(document));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const after = JSON.parse(loaded.campaign.save()) as typeof document;
+
+    expect(loaded.campaign.snapshot().parking.map((p) => p.inBay)).toEqual(
+      loaded.campaign.snapshot().parking.map(() => true),
+    );
+    const held = after.state.parking.map((order) => order.bayIndex);
+    expect(new Set(held).size).toBe(held.length);
+  });
 });

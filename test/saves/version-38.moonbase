@@ -698,6 +698,7 @@
           "machineId": "excavator-1"
         },
         "structureId": "structure-3",
+        "bayIndex": 1,
         "destination": {
           "x": -17.75,
           "y": -17.75
@@ -709,6 +710,7 @@
           "machineId": "regolith-printer-2"
         },
         "structureId": "structure-3",
+        "bayIndex": 0,
         "destination": {
           "x": -22.25,
           "y": -17.75
@@ -720,6 +722,7 @@
           "roverId": "rover-1"
         },
         "structureId": "structure-3",
+        "bayIndex": 3,
         "destination": {
           "x": -17.75,
           "y": -22.25

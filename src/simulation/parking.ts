@@ -44,9 +44,15 @@ export interface ParkingState {
    */
   structureId: string;
   /**
+   * Which bay of the parking area it is parked in, by its place among the
+   * data catalogue's bays, or undefined if it is parked beside the
+   * Structure. No two Work Orders take what they park to the same bay.
+   */
+  bayIndex: number | undefined;
+  /**
    * Where it is to stand, within plug-in reach of the Structure: the centre
-   * of a bay, if it is parked in one, which is how a bay is known to be
-   * taken, so that no two Work Orders take what they park to the same bay.
+   * of its bay, if it is parked in one, as it was when the Work Order was
+   * raised.
    */
   destination: GroundPosition;
 }
@@ -111,6 +117,7 @@ export function planParking(state: CampaignState): void {
       state.parking.push({
         target,
         structureId: bay.structure.id,
+        bayIndex: bay.index,
         destination: bay.position,
       });
       continue;
@@ -120,6 +127,7 @@ export function planParking(state: CampaignState): void {
     state.parking.push({
       target,
       structureId: structure.id,
+      bayIndex: undefined,
       destination: chooseParkingSpot(
         state,
         structure,
@@ -184,8 +192,10 @@ function nearestFreeBay(
   let nearest: Bay | undefined;
   for (const bay of sockets.flatMap(baysOf)) {
     const free =
-      !state.parking.some((parking) =>
-        samePlace(parking.destination, bay.position),
+      !state.parking.some(
+        (parking) =>
+          parking.structureId === bay.structure.id &&
+          parking.bayIndex === bay.index,
       ) &&
       standing.every((other) => distance(other, bay.position) >= bay.radius);
     if (
@@ -238,15 +248,9 @@ export function readParking(state: CampaignState): ParkingSnapshot[] {
         subject: drivenSubject(driven),
         structureId: structure.id,
         structureTypeId: structure.structureTypeId,
-        inBay: baysOf(structure).some((bay) =>
-          samePlace(bay.position, parking.destination),
-        ),
+        inBay: parking.bayIndex !== undefined,
         underWay: isBeingParked(state, parking.target),
       },
     ];
   });
-}
-
-function samePlace(a: GroundPosition, b: GroundPosition): boolean {
-  return a.x === b.x && a.y === b.y;
 }

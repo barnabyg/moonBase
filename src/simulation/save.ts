@@ -889,17 +889,23 @@ export const migrations: readonly Migration[] = [
   // 37 to 38: the parking area, behind the Parking areas Design, a new
   // starting Design, so an older save has it unlocked, after the Designs
   // it had. Its bay socket is a new Component, which the base's stock
-  // keeps a count of after the others; none was there before. Which bay
-  // a park Work Order is for is where it takes the Machine or Rover, so
-  // nothing new is kept for the bays.
+  // keeps a count of after the others; none was there before. A park Work
+  // Order keeps which bay of a parking area it is for, if any; there were
+  // no parking areas before, so every one is for the spot beside its
+  // Structure.
   (document) => {
     const state = document["state"];
     if (!isRecord(state)) return { ...document };
-    const { stockpile, unlockedDesignIds } = state;
+    const { stockpile, unlockedDesignIds, parking } = state;
     return {
       ...document,
       state: {
         ...state,
+        parking: Array.isArray(parking)
+          ? parking.map((order: unknown) =>
+              isRecord(order) ? { ...order, bayIndex: null } : order,
+            )
+          : parking,
         stockpile:
           isRecord(stockpile) && Array.isArray(stockpile["components"])
             ? {
@@ -1818,6 +1824,7 @@ const simulationState = object({
         rover: object({ kind: exactly("rover"), roverId: text }),
       }),
       structureId: text,
+      bayIndex: optional(wholeNumber),
       destination: groundPosition,
     }),
   ),
