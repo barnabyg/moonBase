@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import type { ScreenPoint } from "../src/render/renderer";
 
 /**
  * Moves the pointer over the 3D view until the build menu says the
@@ -8,9 +9,7 @@ import type { Page } from "@playwright/test";
  * click would have the click refused. Returns where on the screen it clicked,
  * in page pixels.
  */
-export async function placeOnClearGround(
-  page: Page,
-): Promise<{ readonly x: number; readonly y: number }> {
+export async function placeOnClearGround(page: Page): Promise<ScreenPoint> {
   const box = await page.locator("canvas").boundingBox();
   if (box === null) throw new Error("The 3D view has no size.");
   const speeds = page.getByRole("group", { name: "Game speed" });

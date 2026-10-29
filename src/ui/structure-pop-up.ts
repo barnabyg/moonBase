@@ -30,8 +30,8 @@ export interface StructurePopUp {
   startAfresh(): void;
 }
 
-/** What the pop-up shows for the Structure it is open for. */
-interface Shown {
+/** The lines and controls built for the Structure the pop-up is open for. */
+interface BuiltPopUp {
   readonly structureId: string;
   readonly structureTypeId: string;
   readonly lines: Map<string, StatLine>;
@@ -84,15 +84,16 @@ export function createStructurePopUp(
   popUp.append(head, description, lines, links, actions);
   container.append(popUp);
 
-  let openFor: string | undefined;
-  let shown: Shown | undefined;
+  /** The Structure the pop-up is open for, if it is open. */
+  let openStructureId: string | undefined;
+  let built: BuiltPopUp | undefined;
   let latest: Snapshot | undefined;
   /** The ids of the Structures the links switch to, as shown. */
   let linked = "";
 
   function hide(): void {
-    openFor = undefined;
-    shown = undefined;
+    openStructureId = undefined;
+    built = undefined;
     popUp.hidden = true;
     lines.replaceChildren();
     links.replaceChildren();
@@ -103,7 +104,7 @@ export function createStructurePopUp(
 
   /** Opens the pop-up for a Structure, or switches it to that one. */
   function open(structureId: string): void {
-    openFor = structureId;
+    openStructureId = structureId;
     if (latest !== undefined) {
       show(latest);
       place(structureId);
@@ -136,31 +137,36 @@ export function createStructurePopUp(
     structureId: string,
     structureTypeId: string,
     detailLines: readonly DetailLine[],
-  ): Shown {
+  ): BuiltPopUp {
     lines.replaceChildren();
     actions.replaceChildren();
-    const built = new Map<string, StatLine>();
+    const statLines = new Map<string, StatLine>();
     for (const { label } of detailLines) {
       const line = createStatLine(label);
-      built.set(label, line);
+      statLines.set(label, line);
       lines.append(line.element);
     }
-    return { structureId, structureTypeId, lines: built, controls: undefined };
+    return {
+      structureId,
+      structureTypeId,
+      lines: statLines,
+      controls: undefined,
+    };
   }
 
   function show(snapshot: Snapshot): void {
-    if (openFor === undefined) return;
-    const details = structureDetails(snapshot, openFor);
+    if (openStructureId === undefined) return;
+    const details = structureDetails(snapshot, openStructureId);
     if (details === undefined) {
       hide();
       return;
     }
     if (
-      shown?.structureId !== details.structureId ||
-      shown.structureTypeId !== details.structureTypeId ||
-      details.lines.some(({ label }) => !shown?.lines.has(label))
+      built?.structureId !== details.structureId ||
+      built.structureTypeId !== details.structureTypeId ||
+      details.lines.some(({ label }) => !built?.lines.has(label))
     ) {
-      shown = build(
+      built = build(
         details.structureId,
         details.structureTypeId,
         details.lines,
@@ -170,7 +176,7 @@ export function createStructurePopUp(
       setText(description, details.description);
     }
     for (const line of details.lines) {
-      const statLine = shown.lines.get(line.label);
+      const statLine = built.lines.get(line.label);
       if (statLine === undefined) continue;
       statLine.show(line.stat);
       statLine.fill(line.fraction);
@@ -184,16 +190,16 @@ export function createStructurePopUp(
     }
     showLinks(details.switchTo);
     const { commissioned } = details;
-    if (commissioned !== undefined && shown.controls === undefined) {
-      shown.controls = createStructureControls(
+    if (commissioned !== undefined && built.controls === undefined) {
+      built.controls = createStructureControls(
         commissioned,
         campaign,
         showResult,
       );
-      actions.append(...shown.controls.elements);
+      actions.append(...built.controls.elements);
     }
     if (commissioned !== undefined) {
-      shown.controls?.update(snapshot, commissioned);
+      built.controls?.update(snapshot, commissioned);
     }
     actions.hidden = commissioned === undefined;
     popUp.hidden = false;
@@ -223,7 +229,7 @@ export function createStructurePopUp(
   window.addEventListener("keydown", (event) => {
     if (
       event.key === "Escape" &&
-      openFor !== undefined &&
+      openStructureId !== undefined &&
       !event.defaultPrevented &&
       !isPlacing() &&
       document.querySelector("dialog[open]") === null
@@ -250,7 +256,7 @@ export function createStructurePopUp(
     update(snapshot) {
       latest = snapshot;
       show(snapshot);
-      if (openFor !== undefined) place(openFor);
+      if (openStructureId !== undefined) place(openStructureId);
     },
     startAfresh() {
       hide();

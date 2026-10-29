@@ -1,10 +1,10 @@
+import type { ScreenPoint } from "../render/renderer";
+
 /** A pointer that moves less than this between press and release has clicked rather than dragged. */
 const CLICK_TOLERANCE_PX = 6;
 
-/** Where a pointer is on the screen, in client pixels, and which button it pressed or released. */
-export interface PointerPoint {
-  readonly x: number;
-  readonly y: number;
+/** Where a pointer is on the screen, and which button it pressed or released. */
+export interface PointerPoint extends ScreenPoint {
   readonly button: number;
 }
 
@@ -13,12 +13,15 @@ export interface Press extends PointerPoint {
   readonly dragged?: boolean;
 }
 
-function strayed(press: Press, point: { x: number; y: number }): boolean {
+function strayed(press: Press, point: ScreenPoint): boolean {
   return Math.hypot(point.x - press.x, point.y - press.y) > CLICK_TOLERANCE_PX;
 }
 
-/** The press, once the pointer has moved to a point while held down. */
-export function moved(press: Press, point: { x: number; y: number }): Press {
+/**
+ * The press, marked as a drag once the pointer, held down, has strayed to
+ * a point too far from where it was pressed to be a click.
+ */
+export function markDraggedIfStrayed(press: Press, point: ScreenPoint): Press {
   return press.dragged === true || !strayed(press, point)
     ? press
     : { ...press, dragged: true };
@@ -59,7 +62,10 @@ export function onClick(
   });
   element.addEventListener("pointermove", (event) => {
     if (pressed !== undefined) {
-      pressed = moved(pressed, { x: event.clientX, y: event.clientY });
+      pressed = markDraggedIfStrayed(pressed, {
+        x: event.clientX,
+        y: event.clientY,
+      });
     }
   });
   element.addEventListener("pointerup", (event) => {

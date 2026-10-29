@@ -20,7 +20,7 @@ import {
   type StructureChoices,
   type StructureControls,
 } from "./structure-controls";
-import { describeStructureState, isToBeDismantled } from "./structure-state";
+import { describeStructureEntry, isToBeDismantled } from "./structure-state";
 
 export interface BasePanel {
   update(snapshot: Snapshot): void;
@@ -182,7 +182,7 @@ export function createBasePanel(
           structureEntries.set(structure.id, entry);
         }
         entry.show(
-          describeStructureState(
+          describeStructureEntry(
             snapshot,
             structure,
             isToBeDismantled(snapshot, structure.id),

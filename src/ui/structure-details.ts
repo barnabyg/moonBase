@@ -22,7 +22,12 @@ import {
   structureLabel,
   type Stat,
 } from "./format";
-import { isHome, structureNotes, structureState } from "./structure-state";
+import {
+  isHome,
+  isToBeDismantled,
+  structureNotes,
+  structureStatus,
+} from "./structure-state";
 
 // What the pop-up shown for a Structure clicked on the map says about it,
 // from the latest snapshot. Its lines depend only on the Structure's type,
@@ -34,7 +39,7 @@ import { isHome, structureNotes, structureState } from "./structure-state";
 export interface DetailLine {
   readonly label: string;
   readonly stat: Stat;
-  readonly fraction?: number | undefined;
+  readonly fraction?: number;
   readonly warning?: boolean;
 }
 
@@ -108,6 +113,56 @@ function switchesFrom(snapshot: Snapshot, footing: Footing): StructureLink[] {
 /** What doesn't apply yet, such as the Condition of a Structure under Construction. */
 const NOT_YET: Stat = { value: "–" };
 
+/** Where a Structure is in its life, with what the snapshot says of it there. */
+type Phase =
+  | {
+      readonly kind: "construction";
+      readonly construction: ConstructionSnapshot;
+    }
+  | {
+      /** Commissioned, and perhaps to be dismantled, until the Robot starts taking it apart. */
+      readonly kind: "commissioned";
+      readonly structure: StructureSnapshot;
+      readonly toBeDismantled: boolean;
+    }
+  | {
+      readonly kind: "dismantling";
+      readonly dismantling: DismantlingSnapshot;
+    };
+
+function phaseOf(snapshot: Snapshot, structureId: string): Phase | undefined {
+  const structure = snapshot.structures.find(({ id }) => id === structureId);
+  if (structure !== undefined) {
+    return {
+      kind: "commissioned",
+      structure,
+      toBeDismantled: isToBeDismantled(snapshot, structureId),
+    };
+  }
+  const construction = snapshot.constructions.find(
+    ({ id }) => id === structureId,
+  );
+  if (construction !== undefined) return { kind: "construction", construction };
+  const dismantling = snapshot.dismantlings.find(
+    ({ id }) => id === structureId,
+  );
+  return dismantling === undefined
+    ? undefined
+    : { kind: "dismantling", dismantling };
+}
+
+/** Where it stands, in whichever phase it is in. */
+function footingIn(phase: Phase): Footing {
+  switch (phase.kind) {
+    case "construction":
+      return phase.construction;
+    case "commissioned":
+      return phase.structure;
+    case "dismantling":
+      return phase.dismantling;
+  }
+}
+
 /**
  * What the pop-up says about a Structure, commissioned, under
  * Construction or being dismantled, or undefined once it is gone.
@@ -116,40 +171,23 @@ export function structureDetails(
   snapshot: Snapshot,
   structureId: string,
 ): StructureDetails | undefined {
-  const structure = snapshot.structures.find(({ id }) => id === structureId);
-  const construction = snapshot.constructions.find(
-    ({ id }) => id === structureId,
-  );
-  const dismantling = snapshot.dismantlings.find(
-    ({ id }) => id === structureId,
-  );
-  const footing = footingOf(snapshot, structureId);
-  if (footing === undefined) return undefined;
+  const phase = phaseOf(snapshot, structureId);
+  if (phase === undefined) return undefined;
+  const footing = footingIn(phase);
   const { structureTypeId } = footing;
   const type = catalogue.structureTypes.find(
     ({ id }) => id === structureTypeId,
   );
   if (type === undefined) return undefined;
-  const toBeDismantled = dismantling !== undefined;
+  const structure = phase.kind === "commissioned" ? phase.structure : undefined;
   return {
     structureId,
     structureTypeId,
     title: structureLabel(structureTypeId),
     description: designOf(type.designId)?.description ?? "",
     lines: [
-      stageLine(construction, structure, dismantling),
-      {
-        label: "State",
-        stat: {
-          value:
-            structure !== undefined
-              ? structureState(structure, toBeDismantled)
-              : construction !== undefined
-                ? "under Construction"
-                : "being dismantled",
-        },
-        warning: structure !== undefined && structure.conditionPercent <= 0,
-      },
+      stageLine(phase),
+      stateLine(phase),
       conditionLine(snapshot, structure),
       {
         label: "Rated",
@@ -167,53 +205,68 @@ export function structureDetails(
       ...(type.power.generationKilowatts > 0 ? [dustLine(structure)] : []),
     ],
     commissioned: structure,
-    toBeDismantled,
+    toBeDismantled:
+      phase.kind === "dismantling" ||
+      (phase.kind === "commissioned" && phase.toBeDismantled),
     switchTo: switchesFrom(snapshot, footing),
   };
 }
 
 /** Its stage of Construction or dismantling, and how far that has got. */
-function stageLine(
-  construction: ConstructionSnapshot | undefined,
-  structure: StructureSnapshot | undefined,
-  dismantling: DismantlingSnapshot | undefined,
-): DetailLine {
+function stageLine(phase: Phase): DetailLine {
   const label = "Stage";
-  if (construction !== undefined) {
-    const value = formatStageProgress(
-      formatStage(construction.stage),
-      construction.stageProgress,
-    );
-    return {
-      label,
-      stat:
-        construction.waiting === undefined
-          ? { value }
-          : { value, note: formatWaiting(construction.waiting) },
-      fraction: construction.stageProgress,
-    };
+  switch (phase.kind) {
+    case "construction": {
+      const { construction } = phase;
+      const value = formatStageProgress(
+        formatStage(construction.stage),
+        construction.stageProgress,
+      );
+      return {
+        label,
+        stat:
+          construction.waiting === undefined
+            ? { value }
+            : { value, note: formatWaiting(construction.waiting) },
+        fraction: construction.stageProgress,
+      };
+    }
+    case "commissioned":
+      return {
+        label,
+        stat: {
+          value: phase.toBeDismantled ? "to be dismantled" : "commissioned",
+        },
+      };
+    case "dismantling":
+      return {
+        label,
+        stat: {
+          value: formatStageProgress(
+            formatDismantlingStage(phase.dismantling.stage),
+            phase.dismantling.stageProgress,
+          ),
+        },
+        fraction: phase.dismantling.stageProgress,
+      };
   }
-  // Until the Robot starts taking it apart, it stays a Structure.
-  if (structure !== undefined) {
-    return {
-      label,
-      stat: {
-        value: dismantling === undefined ? "commissioned" : "to be dismantled",
-      },
-    };
+}
+
+/** What state it is in, in a few words, as the Base panel says it once it is commissioned. */
+function stateLine(phase: Phase): DetailLine {
+  const label = "State";
+  switch (phase.kind) {
+    case "construction":
+      return { label, stat: { value: "under Construction" } };
+    case "commissioned":
+      return {
+        label,
+        stat: { value: structureStatus(phase.structure, phase.toBeDismantled) },
+        warning: phase.structure.conditionPercent <= 0,
+      };
+    case "dismantling":
+      return { label, stat: { value: "being dismantled" } };
   }
-  return {
-    label,
-    stat: {
-      value: formatStageProgress(
-        dismantling === undefined
-          ? ""
-          : formatDismantlingStage(dismantling.stage),
-        dismantling?.stageProgress ?? 0,
-      ),
-    },
-    fraction: dismantling?.stageProgress,
-  };
 }
 
 function conditionLine(

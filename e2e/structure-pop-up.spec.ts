@@ -1,13 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { ScreenPoint } from "../src/render/renderer";
 import { placeOnClearGround } from "./placement";
 
 /**
  * Plans a solar array on clear ground with the game paused, and returns
  * where on the screen it stands.
  */
-async function planSolarArray(
-  page: Page,
-): Promise<{ readonly x: number; readonly y: number }> {
+async function planSolarArray(page: Page): Promise<ScreenPoint> {
   await page.goto("/?seed=1");
   await page
     .getByRole("group", { name: "Game speed" })
@@ -23,8 +22,8 @@ async function planSolarArray(
 /** A point on the map well away from the solar array, as the placement helper tries others. */
 async function emptyGround(
   page: Page,
-  site: { readonly x: number; readonly y: number },
-): Promise<{ readonly x: number; readonly y: number }> {
+  site: ScreenPoint,
+): Promise<ScreenPoint> {
   const box = await page.locator("canvas").boundingBox();
   if (box === null) throw new Error("The 3D view has no size.");
   const left = { x: box.x + box.width * 0.3, y: box.y + box.height * 0.75 };

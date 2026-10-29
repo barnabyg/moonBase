@@ -21,6 +21,12 @@ import { createEarth, createGround } from "./scenery";
 
 export type { Frame, PlacementPreview };
 
+/** A point on the screen, in client pixels. */
+export interface ScreenPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface Renderer {
   /** The element the 3D view is drawn on, which receives the player's pointer input. */
   readonly canvas: HTMLCanvasElement;
@@ -42,9 +48,7 @@ export interface Renderer {
    * Where a Structure stands on the screen, in client pixels, as last
    * drawn, or undefined if it isn't drawn or is behind the camera.
    */
-  structureOnScreen(
-    structureId: string,
-  ): { readonly x: number; readonly y: number } | undefined;
+  structureOnScreen(structureId: string): ScreenPoint | undefined;
   /** Shows a Structure the player is about to place, or hides it when undefined. */
   showPlacementPreview(preview: PlacementPreview | undefined): void;
   /**

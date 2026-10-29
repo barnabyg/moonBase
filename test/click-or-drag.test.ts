@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isClick, moved } from "../src/ui/click";
+import { isClick, markDraggedIfStrayed } from "../src/ui/click";
 
 describe("a press and release on the 3D view", () => {
   it("is a click when the pointer stays put", () => {
@@ -22,10 +22,13 @@ describe("a press and release on the 3D view", () => {
 
   it("is a drag when the pointer wanders off and comes back, as the camera moved meanwhile", () => {
     const press = { x: 100, y: 200, button: 0 };
-    const wandered = moved(moved(press, { x: 160, y: 210 }), {
-      x: 101,
-      y: 200,
-    });
+    const wandered = markDraggedIfStrayed(
+      markDraggedIfStrayed(press, { x: 160, y: 210 }),
+      {
+        x: 101,
+        y: 200,
+      },
+    );
     expect(isClick(wandered, { x: 101, y: 200, button: 0 })).toBe(false);
   });
 

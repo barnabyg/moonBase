@@ -48,6 +48,7 @@ export function maintenanceOf(
   );
 }
 
+/** Whether a type of Structure is a telescope, which observes at Night for the observing programme. */
 export function isTelescope(structureTypeId: string): boolean {
   return (
     catalogue.structureTypes.find((type) => type.id === structureTypeId)
@@ -55,6 +56,7 @@ export function isTelescope(structureTypeId: string): boolean {
   );
 }
 
+/** Whether a type of Structure is a Habitat, which the Mission Director can live in. */
 export function isHabitat(structureTypeId: string): boolean {
   return (
     catalogue.structureTypes.find((type) => type.id === structureTypeId)
@@ -66,7 +68,7 @@ export function isHabitat(structureTypeId: string): boolean {
  * What state a Structure is in, in a few words: to be dismantled, Broken,
  * what a Plant is doing, or else whether it has power.
  */
-export function structureState(
+export function structureStatus(
   structure: StructureSnapshot,
   toBeDismantled: boolean,
 ): string {
@@ -131,17 +133,18 @@ export function structureNotes(
 }
 
 /**
- * What state a Structure is in, for its entry: anything out of the
+ * What the Base panel's entry for a Structure says of it: its status, and
+ * as notes anything out of the
  * ordinary, such as being Broken, a Plant's running and what it makes and
  * uses, a telescope observing, the Mission Director living in it or its
  * Dust coating, or that it is commissioned if nothing else.
  */
-export function describeStructureState(
+export function describeStructureEntry(
   snapshot: Snapshot,
   structure: StructureSnapshot,
   toBeDismantled: boolean,
 ): Stat {
-  const state = structureState(structure, toBeDismantled);
+  const state = structureStatus(structure, toBeDismantled);
   const {
     plantRates,
     observing,
