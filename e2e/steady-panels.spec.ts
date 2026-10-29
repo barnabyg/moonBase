@@ -17,8 +17,13 @@ const WATCHED_HOURS = 16;
 /** How far, in pixels, a row may be from a place to count as there. */
 const TOLERANCE_PX = 1;
 
-/** The parts of the page whose rows are watched, by their names. */
-const REGIONS = ["Status panel", "Work", "Base"];
+/** The parts of the page whose rows are watched: the panels, and any screen open over them. */
+const REGIONS = {
+  "Status panel": 'aside[aria-label="Status panel"]',
+  Work: 'aside[aria-label="Work"]',
+  Base: 'aside[aria-label="Base"]',
+  Screen: "dialog[open]",
+};
 
 /**
  * Where the top of every row shown in the watched parts of the page is, by
@@ -27,8 +32,8 @@ const REGIONS = ["Status panel", "Work", "Base"];
 async function rowTops(page: Page): Promise<Map<string, number>> {
   const rows = await page.evaluate(
     (regions) =>
-      regions.flatMap((name) => {
-        const region = document.querySelector(`[aria-label="${name}"]`);
+      Object.entries(regions).flatMap(([name, selector]) => {
+        const region = document.querySelector(selector);
         if (region === null) return [];
         return [...region.querySelectorAll<HTMLElement>("[data-row]")]
           .filter((row) => row.checkVisibility())
@@ -87,6 +92,12 @@ async function watchRows(
   page: Page,
   save: string,
   watched: (page: Page) => Locator,
+  /**
+   * What the player does once the game runs, before leaving the base to
+   * itself, such as opening a screen, which takes the pointer from the
+   * rest of the page.
+   */
+  prepare?: (page: Page) => Promise<void>,
 ): Promise<Set<string>> {
   await page.goto("/?seed=1");
   await page.getByRole("button", { name: "Pause" }).click();
@@ -95,7 +106,6 @@ async function watchRows(
   await (
     await chooser
   ).setFiles(fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url)));
-  await expect(watched(page)).toBeVisible();
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
     /^Earth Day \d+, \d+:00$/,
   );
@@ -105,6 +115,8 @@ async function watchRows(
     .getByRole("button", { name: /^\d+x$/ })
     .last()
     .click();
+  await prepare?.(page);
+  await expect(watched(page)).toBeVisible();
   const start = await gameHours(page);
   await expect
     .poll(() => gameHours(page))
@@ -161,4 +173,36 @@ test("at the fastest game speed, the panels' rows keep their order and place whi
 
   // A Work Order was finished while the rows were watched.
   expect([...texts].some((text) => text.includes("Done"))).toBe(true);
+});
+
+test("at the fastest game speed, the Research Tasks screen's lines keep their place while a Research Task counts down", async ({
+  page,
+}) => {
+  const screen = (on: Page) =>
+    on.getByRole("dialog", { name: "Research Tasks" });
+  const running = (on: Page) =>
+    screen(on).getByRole("status", { name: "Research Task running" });
+  const texts = await watchRows(
+    page,
+    "version-35.moonbase",
+    running,
+    async (on) => {
+      // Once the save has loaded, which has a vacuum fabrication plant.
+      await expect(
+        on
+          .getByRole("list", { name: "Structures" })
+          .getByText("Vacuum fabrication plant"),
+      ).toBeVisible();
+      await on.getByRole("button", { name: "Research Tasks" }).click();
+      // Two Earth Days long, so that it runs all the time it is watched,
+      // the time it has left changing length as it goes.
+      await screen(on)
+        .getByRole("button", { name: "Start Dust levitation study" })
+        .click();
+      await expect(running(on)).toContainText("Dust levitation study");
+    },
+  );
+
+  // The time it has left changed while it was watched.
+  expect(texts.size).toBeGreaterThan(2);
 });
