@@ -28,7 +28,7 @@ test("a Solar Particle Event is announced hours ahead, shown while it is coming 
 
   /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */
   const skipUntil = async (target: Locator) => {
-    for (let skips = 0; skips < 10 && !(await target.isVisible()); skips++) {
+    for (let skips = 0; skips < 20 && !(await target.isVisible()); skips++) {
       await skip.click();
       await nextFrame(page);
     }

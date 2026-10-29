@@ -901,13 +901,13 @@ describe("the sample save of format version 15", () => {
     expect(state.bulkResources[0]?.kilograms).toBeCloseTo(163.3, 1);
   });
 
-  it("plays on from where it was saved, until the Regolith reaches its level", () => {
+  it("plays on from where it was saved, until the Regolith is full", () => {
     const campaign = loadSample("version-15.moonbase");
 
-    campaign.advance(24 * 60);
+    campaign.advance(2 * 24 * 60);
 
     expect(campaign.snapshot().bulkResources[0]?.kilograms).toBe(
-      catalogue.digging.stockLevelKilograms,
+      catalogue.digging.fullKilograms,
     );
   });
 });

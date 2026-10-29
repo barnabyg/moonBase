@@ -146,7 +146,7 @@ A Machine or Rover standing close to a powered, unbroken Structure is **plugged 
 
 The base keeps bulk resources at the stockpile, measured in kilograms: Regolith, water ice, metals, silicon, wafers and circuit boards. The status panel shows them, with how fast any that is changing rises or falls a day, as the Plants and digging are running now, and roughly how long any that is falling will last.
 
-**Digging.** Whenever Regolith is below a set level and the excavator is free, a Robot with nothing else to do drives it to clear ground beside the stockpile and sets it digging. Digging always gives way to Site Preparation, Maintenance and parking, and carries on afterwards while the stock is still short.
+**Digging.** Whenever Regolith falls below 1000 kg and the excavator is free, a Robot with nothing else to do drives it to clear ground beside the stockpile and sets it digging. It digs on until the stock is full at 2000 kg, so the Plants can draw it down for days before the Robot is needed again. Digging always gives way to Site Preparation, Maintenance and parking, and carries on afterwards only if the stock has fallen below 1000 kg.
 
 **Expeditions.** "Start an Expedition" on the Expeditions screen sends a Robot off the map in the Rover. It finishes the Work Order it holds, drives off the nearest map edge, is away for some Earth Days, then drives back and unloads water ice at the stockpile. Only one Expedition can be under way at a time, and not while the Rover is Broken. While away, the Robot takes no Work Orders and doesn't repair itself, and the cold and Micrometeorites pass both of them by. The Rover wears down by Dust as it drives, but never so far that it can't come back.
 

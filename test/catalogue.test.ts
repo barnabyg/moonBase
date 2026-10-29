@@ -628,7 +628,11 @@ describe("the data catalogue", () => {
     expect(
       catalogue.landingSite.machines.map((machine) => machine.machineTypeId),
     ).toContain(digging.machineTypeId);
-    expect(digging.stockLevelKilograms).toBeGreaterThan(0);
+    expect(digging.refillBelowKilograms).toBeGreaterThan(0);
+    // Each time it starts, it digs far more than a few kilograms.
+    expect(digging.fullKilograms).toBeGreaterThanOrEqual(
+      2 * digging.refillBelowKilograms,
+    );
     expect(digging.kilogramsPerWorkingHour).toBeGreaterThan(0);
   });
 

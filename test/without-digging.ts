@@ -15,6 +15,10 @@ import type { Catalogue } from "../src/catalogue";
 export function withoutDigging(catalogue: Catalogue): Catalogue {
   return {
     ...catalogue,
-    digging: { ...catalogue.digging, stockLevelKilograms: 0 },
+    digging: {
+      ...catalogue.digging,
+      refillBelowKilograms: 0,
+      fullKilograms: 0,
+    },
   };
 }
