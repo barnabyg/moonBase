@@ -1079,6 +1079,18 @@ export function formatObservingProgramme(
 }
 
 /**
+ * Explains the observing programme, for hovering over its line in the
+ * status panel: what it is, what a round takes and pays, and how far the
+ * round under way has got.
+ */
+export function explainObservingProgramme(
+  programme: ObservingProgrammeSnapshot,
+): string {
+  const { lengthHours, science } = catalogue.observingProgramme;
+  return `The standing Research Task the base's telescopes work on at Night, beside the one running: each round, ${lengthHours} hours of a telescope's observing, pays ${formatScience(science)}. This round is ${Math.floor(programme.progress * 100)}% done.`;
+}
+
+/**
  * Sums up Research for its folded section: the Research Task running and
  * how far it has got, for example "Seismic monitoring · 45%", or that none
  * is, then, once the base has a telescope, how far the observing

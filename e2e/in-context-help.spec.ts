@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
 
@@ -103,6 +104,44 @@ test("the build menu offers a parking area from the start, and says what its bay
     new RegExp(
       `has ${area.parking?.bayOffsets.length} bays, each with a power socket`,
     ),
+  );
+});
+
+test("the Tech Tree says what the telescope earns, and its status line explains the observing programme on hover", async ({
+  page,
+}) => {
+  await pause(page);
+  const telescope = structureType("telescope");
+  const { label, science } = catalogue.observingProgramme;
+
+  await page.getByRole("button", { name: "Tech Tree" }).click();
+  const tree = page.getByRole("dialog", { name: "Tech Tree" });
+  await tree.getByRole("tab", { name: /^Industry/ }).click();
+  const card = tree.getByRole("article", { name: "Optical telescopes" });
+  await expect(card).toContainText(`Unlocks the ${telescope.label}`);
+  await expect(card).toContainText(
+    `observes the sky at Night for the ${label}`,
+  );
+  await expect(card).toContainText(`a round for ${science} Science`);
+  await tree.getByRole("button", { name: "Close" }).click();
+
+  // A base with a telescope observing.
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles(
+    fileURLToPath(
+      new URL("../test/saves/version-39.moonbase", import.meta.url),
+    ),
+  );
+  await expect(
+    page
+      .getByRole("complementary", { name: "Status panel" })
+      .getByRole("status", { name: "Observing programme" }),
+  ).toHaveAttribute(
+    "title",
+    new RegExp(`^The standing Research Task .* pays ${science} Science\\.`),
   );
 });
 

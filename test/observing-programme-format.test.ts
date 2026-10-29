@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ObservingProgrammeSnapshot } from "../src/simulation";
-import { formatObservingProgramme } from "../src/ui/format";
+import {
+  explainObservingProgramme,
+  formatObservingProgramme,
+} from "../src/ui/format";
 
 /** The observing programme as the status panel reads it, with one telescope unless given. */
 function programme(
@@ -51,6 +54,12 @@ describe("the status panel's line for the observing programme", () => {
       value: "Night-sky survey",
       note: "2 telescopes observing, 2h left",
     });
+  });
+
+  it("explains on hover what the programme is, what a round pays and how far this one has got", () => {
+    expect(explainObservingProgramme(programme({ progress: 0.208 }))).toBe(
+      "The standing Research Task the base's telescopes work on at Night, beside the one running: each round, 48 hours of a telescope's observing, pays 6 Science. This round is 20% done.",
+    );
   });
 
   it("says why no telescope observes", () => {

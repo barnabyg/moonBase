@@ -10,6 +10,7 @@ import {
 import { setText } from "./dom";
 import {
   describeExpedition,
+  explainObservingProgramme,
   formatBulkResources,
   formatHabitatPower,
   formatLander,
@@ -379,6 +380,12 @@ export function createStatusPanel(
       if (programme !== undefined) {
         observing.show(programme);
         observing.fill(snapshot.observingProgramme.progress);
+        const explanation = explainObservingProgramme(
+          snapshot.observingProgramme,
+        );
+        if (observing.element.title !== explanation) {
+          observing.element.title = explanation;
+        }
       }
 
       // What each section shows beside its title while it is folded.
