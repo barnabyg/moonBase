@@ -42,7 +42,7 @@ Milestones guide a new player through the Campaign. They carry no rewards and ne
 
 To plan a Construction, pick a Structure in the build menu, move its translucent preview over the map and click to place it; right-click or Esc cancels. The Robot carries it out by itself through the stages of Construction, and the Work panel shows each one:
 
-- **Site Preparation:** the Robot drives the excavator to the site and activates it, and the excavator grades the ground by itself while the Robot gets on with other work.
+- **Site Preparation:** the Robot drives the excavator to the site and activates it, and the excavator grades the ground by itself while the Robot gets on with other work. For a Structure the regolith printer prints, such as Regolith shielding or a sintered landing pad, it also digs the Regolith the printer will use, 6 hours more, so printed Structures cost excavator time and wear rather than Components or the base's Regolith stock. This is part of Site Preparation, not the digging that fills the stock (below).
 - **Component delivery and Assembly:** the Robot loads the Components at the stockpile beside the Lander, carries them over and assembles them.
 - **Commissioning**, which can fail.
 - **Cable:** every Construction after the first that uses power also has the Robot lay power cable from the nearest powered Structure (one on a network with a solar array or battery bank). It pays the cable out along the way it walks, so the cable goes round anything in the way. Only Structures joined by cable share power. If a Structure that uses power is ever left without a source, the Robot lays it a new cable as soon as there is one.
@@ -81,7 +81,7 @@ If oxygen or water runs out, the Habitat they live in loses power, or the Radiat
 
 ## Radiation
 
-- **Regolith shielding:** pick it in the build menu and place it on a commissioned Habitat. The excavator grades the ground round it, then the Robot drives the regolith printer over and activates it, and the printer builds the shielding up layer by layer from Regolith taken straight from the ground: no Components and no cable. It cuts the dose rate sharply.
+- **Regolith shielding:** pick it in the build menu and place it on a commissioned Habitat. The excavator grades the ground round it and digs the Regolith for it there, then the Robot drives the regolith printer over and activates it, and the printer builds the shielding up layer by layer: no Components and no cable. It cuts the dose rate sharply.
 - **Water wall** (the Water-wall shielding Design): its bladders come by Launch and go over a Habitat's Regolith shielding (either kind). They are filled from the base's water stock as Assembly starts, which must leave the Mission Director a reserve of drinking water; until there is enough, the Construction waits, and the Work panel says how much more water it needs. The water stays in the wall even if the Construction is cancelled or the wall dismantled. It cuts the dose rate much further again.
 - **Solar Particle Events** come at random, with a few hours' warning, and multiply the dose rate while they last. Aboard the Lander it stays zero and shielding keeps it low, but in an unshielded Habitat one can take half the dose limit. The forecasts and warnings account for them.
 

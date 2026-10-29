@@ -938,7 +938,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 56,
+  version: 57,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1002,7 +1002,7 @@ export const catalogue: Catalogue = {
       id: "excavator",
       label: "Excavator",
       description:
-        "Grades the ground for every Construction's Site Preparation, and digs Regolith into the base's stock when it has nothing else to do.",
+        "Grades the ground for every Construction's Site Preparation, digs the Regolith for the Structures the regolith printer prints, and digs Regolith into the base's stock when it has nothing else to do.",
       footprintRadiusMetres: 1.6,
       drivingSpeedMetresPerHour: 30,
       activationHours: 0.25,
@@ -1017,7 +1017,7 @@ export const catalogue: Catalogue = {
       id: "regolith-printer",
       label: "Regolith printer",
       description:
-        "Prints Structures made of Regolith layer by layer, such as shielding over a Habitat, taking the Regolith straight from the ground.",
+        "Prints Structures made of Regolith layer by layer, such as shielding over a Habitat, from Regolith the excavator digs on site.",
       footprintRadiusMetres: 1.8,
       drivingSpeedMetresPerHour: 20,
       activationHours: 0.5,
@@ -1587,10 +1587,12 @@ export const catalogue: Catalogue = {
       // The same as the Habitat's, so that the excavator, left beside the
       // Habitat after grading its site, isn't in the way.
       footprintRadiusMetres: 4,
-      // The printer takes its Regolith straight from the ground.
+      // The excavator digs the Regolith the printer prints it from, beside
+      // the Habitat, as part of Site Preparation: 3 hours of grading, then
+      // 6 of digging. No Components.
       components: [],
       stageHours: {
-        sitePreparation: 3,
+        sitePreparation: 9,
         componentDelivery: 0,
         assembly: 48,
         commissioning: 2,
@@ -1616,8 +1618,9 @@ export const catalogue: Catalogue = {
     },
     // Regolith shielding whose every layer is fused by microwaves as the
     // regolith printer lays it, rather than left to settle under the next,
-    // so that the printer lays it in 20 hours rather than 48: 25 hours in
-    // all rather than 53, under an unshielded Habitat's Radiation Dose.
+    // so that the printer lays it in 20 hours rather than 48: 31 hours in
+    // all rather than 59, under an unshielded Habitat's Radiation Dose. The
+    // excavator digs its Regolith just as long.
     {
       id: "sintered-regolith-shielding",
       label: "Sintered Regolith shielding",
@@ -1625,7 +1628,7 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 4,
       components: [],
       stageHours: {
-        sitePreparation: 3,
+        sitePreparation: 9,
         componentDelivery: 0,
         assembly: 20,
         commissioning: 2,
@@ -1725,8 +1728,9 @@ export const catalogue: Catalogue = {
     // A landing pad the regolith printer lays from Regolith, fusing it into
     // a hard slab as it goes, so that nothing has to be shipped from Earth
     // for it: the Lander comes down on its own radar, with no beacon. It
-    // stands on the same ground as a landing pad shipped from Earth, but
-    // takes 43 hours to build rather than 17, most of them printing.
+    // stands on the same ground as a landing pad shipped from Earth, graded
+    // as long, and then the excavator digs the Regolith for 6 hours more.
+    // It takes 49 hours to build rather than 17, most of them printing.
     {
       id: "sintered-landing-pad",
       label: "Sintered landing pad",
@@ -1734,7 +1738,7 @@ export const catalogue: Catalogue = {
       footprintRadiusMetres: 7,
       components: [],
       stageHours: {
-        sitePreparation: 6,
+        sitePreparation: 12,
         componentDelivery: 0,
         assembly: 36,
         commissioning: 1,
@@ -3112,7 +3116,7 @@ export const catalogue: Catalogue = {
       id: "regolith-sintering",
       label: "Regolith sintering",
       description:
-        "Fusing Regolith into a hard slab with heat as it is printed, so that the regolith printer can lay a landing pad with no Components from Earth.",
+        "Fusing Regolith into a hard slab with heat as it is printed, so that the regolith printer can lay a landing pad with no Components from Earth, from Regolith the excavator digs on site.",
       category: "construction",
       starting: false,
       scienceCost: 40,
@@ -3132,7 +3136,7 @@ export const catalogue: Catalogue = {
       id: "regolith-shielding",
       label: "Regolith shielding",
       description:
-        "A shell of Regolith printed over a Habitat, which cuts the Radiation Dose inside.",
+        "A shell of Regolith, dug on site by the excavator and printed over a Habitat, which cuts the Radiation Dose inside.",
       category: "protection",
       starting: true,
       scienceCost: 0,

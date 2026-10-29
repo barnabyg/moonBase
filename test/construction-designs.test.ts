@@ -11,7 +11,8 @@ import type {
   Snapshot,
   StructureSnapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 // The Construction Designs are unlocked from the start, with a kit for each
 // of their Structures in the starting stock. The Mission Director needs no
@@ -185,6 +186,66 @@ describe("sintered Regolith shielding", () => {
       stageMinutes(structureType("regolith-shielding")) -
         stageMinutes(sinteredShielding),
     );
+  });
+});
+
+describe("a Structure the regolith printer prints", () => {
+  it.each([
+    ["regolith-shielding"],
+    ["sintered-regolith-shielding"],
+    ["sintered-landing-pad"],
+  ])(
+    "%s has the excavator dig its Regolith on site through Site Preparation, taking none from the base's stock",
+    (typeId) => {
+      const type = structureType(typeId);
+      // Regolith in stock that printing could draw on; nothing else uses it.
+      const stocked = changed(scenario().campaign, (state) => {
+        for (const stock of state.bulkResources) {
+          if (stock.resourceId === "regolith") stock.kilograms = 1500;
+        }
+      });
+      const game = scenarioOf(stocked).plan("habitat", habitatSite);
+      runUntilBuilt(game);
+      const site = type.shieldsHabitat ? habitatSite : padSite;
+
+      const states = runUntilBuilt(game.plan(typeId, site));
+
+      expect(
+        states.filter(
+          (state) => machineOf(state, "excavator").activity.kind === "working",
+        ),
+      ).toHaveLength(type.stageHours.sitePreparation * 60);
+      for (const state of states) {
+        expect(
+          state.bulkResources.find((stock) => stock.resourceId === "regolith")
+            ?.kilograms,
+        ).toBe(1500);
+      }
+    },
+  );
+
+  it("keeps the excavator from another Construction's Site Preparation until it has dug its Regolith", () => {
+    const game = scenario()
+      .plan(sinteredPad.id, padSite)
+      .plan(prefabricated.id, { x: 40, y: -25 });
+    const [padId, arrayId] = game.state.constructions.map((c) => c.id);
+    if (padId === undefined || arrayId === undefined) {
+      throw new Error("expected both Constructions planned");
+    }
+
+    const states = runUntilBuilt(game);
+
+    const sitesExcavated = states
+      .map((state) => machineOf(state, "excavator").activity)
+      .flatMap((activity) =>
+        activity.kind === "working" ? [activity.constructionId] : [],
+      );
+    expect(sitesExcavated).toEqual([
+      ...Array<string>(sinteredPad.stageHours.sitePreparation * 60).fill(padId),
+      ...Array<string>(prefabricated.stageHours.sitePreparation * 60).fill(
+        arrayId,
+      ),
+    ]);
   });
 });
 
