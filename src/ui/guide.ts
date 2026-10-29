@@ -253,6 +253,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `Machines and the Rover parked within ${cold.plugInReachMetres} m of a powered Structure draw power for their heaters at Night, and the Robot parks them before Night falls; left in the cold, they wear down.`,
         "Plants work in batches of an hour of their recipe: each starts once there is an hour's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
         "Plants run only on power that nothing else uses and the battery banks can't store: in Daylight, once the battery banks are full. They stand idle all Night, with any batch they have started kept for the next Daylight, so keep enough oxygen and water in stock to last it; the status panel says when a stock won't.",
+        "Switch a Plant off in the Base panel to keep an input it would use, or to leave its power to other Plants, and switch it on again whenever you like: neither needs the Robot. A batch it has started finishes first. The forecasts count a switched-off Plant as making nothing. It wears no further by Dust while it stands idle, but Micrometeorites can still strike it and the Robot still maintains it.",
         `A Light Mast only helps you see, as work carries on in the dark. At Night it switches itself off to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(lightReserveHours)} more.`,
       ],
     },

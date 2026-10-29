@@ -628,6 +628,7 @@ function finishCommissioning(
     recipeId: defaultRecipeId(construction.structureTypeId),
     batch: undefined,
     plantStop: undefined,
+    switchedOff: false,
   });
   return [
     {

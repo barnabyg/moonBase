@@ -24,6 +24,7 @@ import {
   formatStock,
   formatStoredPower,
   stockLabel,
+  withSwitchedOffPlants,
 } from "./format";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
@@ -234,7 +235,13 @@ export function createStatusPanel(
         );
         line.element.hidden = stock === undefined;
         if (stock === undefined) continue;
-        line.show(formatLifeSupport(stock, forecast, missionDirector));
+        line.show(
+          withSwitchedOffPlants(
+            formatLifeSupport(stock, forecast, missionDirector),
+            type.id,
+            snapshot.structures,
+          ),
+        );
         // Shown as a warning from the first warning on, and once it has run out.
         const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
         line.warn(

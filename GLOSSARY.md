@@ -83,7 +83,7 @@ Anything built in place on the base, such as a habitat module, a solar array or 
 _Avoid_: building, facility
 
 **Plant**:
-A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design.
+A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design. The Mission Director can switch a Plant off, so that it starts no new Batch, and back on, without dismantling it.
 _Avoid_: factory, facility, Machine
 
 **Batch**:

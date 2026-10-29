@@ -28,6 +28,8 @@ export function createCampaignSlot(first: Campaign): CampaignSlot {
     loadExports: (exports) => current.loadExports(exports),
     setPlantRecipe: (structureId, recipeId) =>
       current.setPlantRecipe(structureId, recipeId),
+    switchPlant: (structureId, setting) =>
+      current.switchPlant(structureId, setting),
     startExpedition: () => current.startExpedition(),
     startResearchTask: (researchTaskId) =>
       current.startResearchTask(researchTaskId),

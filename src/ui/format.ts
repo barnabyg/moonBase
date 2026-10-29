@@ -12,7 +12,9 @@ import {
   launchItemLabel,
   milestoneLabel,
   readClock,
+  recipeOf,
   robotNumber,
+  workingRecipeOf,
   type BulkResourceForecast,
   type CampaignEnd,
   type DeathCause,
@@ -650,24 +652,20 @@ export function resourceRefLabel(resource: ResourceRef): string {
  * Says what a running Plant makes and uses an hour, as fast as its
  * Condition allows, for example "making 0.3 kg of wafers an hour from
  * 0.35 kg of silicon", and the recipe it switches to from its next batch if
- * it was switched during this one; undefined for one that isn't running.
+ * it was switched during this one and will start another; undefined for
+ * one that isn't running.
  */
 export function formatPlantRates(
   structure: Pick<
     StructureSnapshot,
-    "structureTypeId" | "recipeId" | "performance" | "plant"
+    "structureTypeId" | "recipeId" | "performance" | "plant" | "switchedOff"
   >,
 ): string | undefined {
-  if (structure.plant?.running !== true) return undefined;
-  const recipes =
-    catalogue.structureTypes.find(
-      (type) => type.id === structure.structureTypeId,
-    )?.recipes ?? [];
-  const chosen =
-    recipes.find(({ id }) => id === structure.recipeId) ?? recipes[0];
+  const { plant } = structure;
+  if (plant?.running !== true) return undefined;
+  const chosen = recipeOf(structure);
   // A batch it has started goes on with the recipe it was started with.
-  const recipe =
-    recipes.find(({ id }) => id === structure.plant?.batch?.recipeId) ?? chosen;
+  const recipe = workingRecipeOf({ ...structure, batch: plant.batch });
   if (recipe === undefined) return undefined;
   const flows = (resources: PlantRecipe["outputs"]) =>
     listInWords(
@@ -677,7 +675,7 @@ export function formatPlantRates(
       ),
     );
   const next =
-    chosen === undefined || chosen === recipe
+    chosen === undefined || chosen === recipe || structure.switchedOff
       ? ""
       : `; ${chosen.label} from the next batch`;
   return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}${next}`;
@@ -691,14 +689,21 @@ function plantKilograms(kilograms: number): string {
 /**
  * Says whether a Plant is running, why not, and how much of its batch is
  * left, for its line in the status panel, for example "running, 40 min
- * left of this batch" or "waiting for Silicon: 0.12 of 0.35 kg"; undefined
- * once it is Broken, which the line says already.
+ * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg" or "switched
+ * off"; undefined once it is Broken, which the line says already. Given
+ * that it is switched off, a batch it has started is its last.
  */
-export function formatPlant(plant: PlantSnapshot): string | undefined {
+export function formatPlant(
+  plant: PlantSnapshot,
+  switchedOff = false,
+): string | undefined {
+  const batch = switchedOff
+    ? "its last batch before switching off"
+    : "this batch";
   const left =
     plant.batch === undefined
       ? ""
-      : `, ${plant.batch.minutesLeft} min left of this batch`;
+      : `, ${plant.batch.minutesLeft} min left of ${batch}`;
   const stop = plant.stoppedFor;
   switch (stop?.reason) {
     case undefined:
@@ -711,7 +716,48 @@ export function formatPlant(plant: PlantSnapshot): string | undefined {
       return `idle at Night${left}`;
     case "no-power":
       return `waiting for power to spare${left}`;
+    case "switched-off":
+      return "switched off";
+    case "switched-on":
+      return "switched on: starts a batch as soon as it can";
   }
+}
+
+/**
+ * Adds to what a life support stock's line says which of the Plants that
+ * would make it are switched off, for example "lasts 4d 12h,
+ * water-processing plant switched off", so that the player sees why it is
+ * falling.
+ */
+export function withSwitchedOffPlants(
+  stat: Stat,
+  stockId: string,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff"
+  >[],
+): Stat {
+  const off = structures.filter((structure) => {
+    if (!structure.switchedOff) return false;
+    return (recipeOf(structure)?.outputs ?? []).some(
+      (flow) =>
+        flow.resource.kind === "life-support" &&
+        flow.resource.stockId === stockId,
+    );
+  });
+  if (off.length === 0) return stat;
+  const labels = [
+    ...new Set(
+      off.map((structure) =>
+        structureLabel(structure.structureTypeId).toLowerCase(),
+      ),
+    ),
+  ];
+  const said = `${listInWords(labels)} switched off`;
+  return {
+    ...stat,
+    note: stat.note === undefined ? said : `${stat.note}, ${said}`,
+  };
 }
 
 export function resourceLabel(resourceId: string): string {

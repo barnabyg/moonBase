@@ -867,6 +867,25 @@ export const migrations: readonly Migration[] = [
       state: { ...state, launchFeePaidMillionDollars: paid ? 150 : null },
     };
   },
+  // 36 to 37: the player can switch a Plant off and on. None could be
+  // switched off before, so every Structure is switched on.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure)
+            ? { ...structure, switchedOff: false }
+            : structure,
+        ),
+      },
+    };
+  },
 ];
 
 /**
@@ -1242,12 +1261,14 @@ const plantStop: Decoder<PlantStop> = tagged("reason", {
   "no-input": object({ reason: exactly("no-input"), resource: resourceRef }),
   night: object({ reason: exactly("night") }),
   "no-power": object({ reason: exactly("no-power") }),
+  "switched-off": object({ reason: exactly("switched-off") }),
+  "switched-on": object({ reason: exactly("switched-on") }),
 } satisfies Record<PlantStop["reason"], unknown>);
 
 /**
  * A commissioned Structure. If it is a Plant, its recipe, and that of any
  * batch it has started, must be one of its type's; if it isn't, it has no
- * recipe, batch or reason it didn't run.
+ * recipe, batch or reason it didn't run, and isn't switched off.
  */
 const structure: Decoder<StructureState> = (() => {
   const fields = object({
@@ -1262,6 +1283,7 @@ const structure: Decoder<StructureState> = (() => {
     recipeId: optional(text),
     batch: optional(object({ recipeId: text, minutesWorked: amount })),
     plantStop: optional(plantStop),
+    switchedOff: boolean,
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -1297,6 +1319,12 @@ const structure: Decoder<StructureState> = (() => {
     }
     if (recipes.length === 0 && decoded.plantStop !== undefined) {
       throw refuse(at(path, "plantStop"), notAPlant);
+    }
+    if (recipes.length === 0 && decoded.switchedOff) {
+      throw refuse(
+        at(path, "switchedOff"),
+        "is true, though the Structure isn't a Plant",
+      );
     }
     return decoded;
   };

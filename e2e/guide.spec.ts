@@ -30,6 +30,9 @@ test("the Guide says how the base works and what every Structure, Machine and te
   await expect(
     basics.getByRole("article", { name: "Power and Night" }),
   ).toContainText("switches itself off to save power");
+  await expect(
+    basics.getByRole("article", { name: "Power and Night" }),
+  ).toContainText("Switch a Plant off in the Base panel");
 
   // Every Structure, with what it does in figures and what it is built from.
   await guide.getByRole("tab", { name: "Structures" }).click();

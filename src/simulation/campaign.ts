@@ -155,8 +155,11 @@ import {
   readPlant,
   runPlants,
   setPlantRecipe,
+  switchPlant,
   type PlantSnapshot,
   type SetRecipeResult,
+  type PlantSwitchSetting,
+  type SwitchPlantResult,
 } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
@@ -391,6 +394,11 @@ export interface StructureSnapshot {
    * recipes in the data catalogue. Undefined for any other Structure.
    */
   readonly recipeId: string | undefined;
+  /**
+   * Whether the player has switched it off, if it is a Plant: it then
+   * starts no new batch. Always false for any other Structure.
+   */
+  readonly switchedOff: boolean;
 }
 
 /**
@@ -673,6 +681,17 @@ export interface Campaign {
    * or a recipe the Plant doesn't have.
    */
   setPlantRecipe(structureId: string, recipeId: string): SetRecipeResult;
+  /**
+   * Switches a commissioned Plant off, so that it starts no new batch once
+   * any it has started is finished, drawing no power and taking no inputs,
+   * or back on, from the next game-minute. It is a setting, not a
+   * Construction, so no Robot works on it. It is refused for a Structure
+   * that isn't a commissioned Plant, and once the Campaign has ended.
+   */
+  switchPlant(
+    structureId: string,
+    setting: PlantSwitchSetting,
+  ): SwitchPlantResult;
   /**
    * Starts an Expedition with a Robot that is free, if there is one: the
    * Robot finishes the Work Order it holds, then drives the Rover off the
@@ -980,6 +999,16 @@ function campaignFrom(state: CampaignState): Campaign {
         });
       }
       return deepFreeze(setPlantRecipe(state, structureId, recipeId));
+    },
+    switchPlant(structureId, setting) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(switchPlant(state, structureId, setting));
     },
     startExpedition() {
       if (state.ended !== undefined) {

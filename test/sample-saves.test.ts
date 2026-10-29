@@ -2450,3 +2450,84 @@ describe("the sample save of format version 36", () => {
     });
   });
 });
+
+describe("the sample saves from before a Plant could be switched off", () => {
+  it.each(["version-25.moonbase", "version-35.moonbase"])(
+    "%s loads with every Structure switched on, and its extraction plant runs on",
+    (name) => {
+      const campaign = loadSample(name);
+      const extraction = () =>
+        campaign
+          .snapshot()
+          .structures.find(
+            (structure) => structure.structureTypeId === "extraction-plant",
+          );
+
+      expect(
+        campaign
+          .snapshot()
+          .structures.map((structure) => structure.switchedOff),
+      ).not.toContain(true);
+      untilBatteriesFull(campaign);
+      campaign.advance(60);
+      expect(extraction()?.plant).toMatchObject({
+        running: true,
+        stoppedFor: undefined,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 37", () => {
+  // Saved 6740 game-minutes in, in the first Daylight, with the Mission
+  // Director in the Habitat, the water-processing plant 20 minutes into a
+  // batch, and the extraction plant switched off after its last batch.
+  it("loads with the extraction plant switched off, saying so, and the water-processing plant running", () => {
+    const state = loadSample("version-37.moonbase").snapshot();
+    const plantOf = (structureTypeId: string) =>
+      state.structures.find(
+        (structure) => structure.structureTypeId === structureTypeId,
+      );
+
+    expect(state.clock.elapsedMinutes).toBe(6740);
+    expect(plantOf("extraction-plant")).toMatchObject({
+      switchedOff: true,
+      plant: {
+        running: false,
+        stoppedFor: { reason: "switched-off" },
+        batch: undefined,
+      },
+    });
+    expect(plantOf("water-processing-plant")).toMatchObject({
+      switchedOff: false,
+      plant: {
+        running: true,
+        stoppedFor: undefined,
+        batch: { recipeId: "water", minutesLeft: 40 },
+      },
+    });
+  });
+
+  it("plays on from where it was saved, the extraction plant taking no Regolith until it is switched on", () => {
+    const campaign = loadSample("version-37.moonbase");
+    const regolith = () =>
+      campaign
+        .snapshot()
+        .bulkResources.find((stock) => stock.resourceId === "regolith")
+        ?.kilograms;
+    const before = regolith();
+
+    campaign.advance(3 * 60);
+    expect(regolith()).toBe(before);
+    const extraction = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "extraction-plant",
+      );
+    const result = campaign.switchPlant(extraction?.id ?? "", "on");
+    expect(result).toEqual({ ok: true });
+    campaign.advance(1);
+
+    expect(regolith()).toBeLessThan(before ?? 0);
+  });
+});

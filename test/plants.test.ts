@@ -270,6 +270,29 @@ describe("the extraction plant", () => {
     );
   });
 
+  it("wears no further by Dust while it is switched off, once its last batch is done", () => {
+    const campaign = withStocks(plantBase(), { regolith: 500 });
+    campaign.advance(1);
+    const plantId = plantOf(campaign.snapshot()).id;
+    expect(campaign.switchPlant(plantId, "off")).toEqual({ ok: true });
+    for (
+      let minutes = 0;
+      plantOf(campaign.snapshot()).plant?.batch;
+      minutes++
+    ) {
+      if (minutes > 2 * 60) throw new Error("The batch never finished.");
+      campaign.advance(1);
+    }
+    campaign.advance(1);
+    const { conditionPercent } = plantOf(campaign.snapshot());
+
+    campaign.advance(5 * 60);
+
+    expect(plantOf(campaign.snapshot()).conditionPercent).toBe(
+      conditionPercent,
+    );
+  });
+
   it("carries on after a save and load exactly as it would have", () => {
     const campaign = withStocks(plantBase(), { regolith: 500 });
     campaign.advance(30);
