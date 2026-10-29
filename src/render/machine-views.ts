@@ -1,8 +1,9 @@
 import * as THREE from "three";
-import type {
-  ConstructionSnapshot,
-  GroundPosition,
-  MachineSnapshot,
+import {
+  uncoveredRegolithHeap,
+  type ConstructionSnapshot,
+  type GroundPosition,
+  type MachineSnapshot,
 } from "../simulation";
 import { between, facingAngle, toScene, type Frame } from "./interpolation";
 import {
@@ -27,6 +28,8 @@ const PRINT_LINE_SHARE = 0.85;
 const PRINTER_PARKED_REACH = 1.7;
 /** How far from its centre the excavator digs, on the side away from the stockpile, in metres. */
 const DIGGING_REACH = 3;
+/** How long the excavator takes to scoop up Regolith, swing round, tip it onto the heap and swing back, in real seconds. */
+const TIPPING_CYCLE_SECONDS = 8;
 
 type MachineModel =
   | { readonly kind: "excavator"; readonly model: ExcavatorModel }
@@ -94,7 +97,13 @@ export function createMachineViews(scene: THREE.Scene) {
             view.heading,
             position,
             site?.position ?? digging,
-            { realSeconds },
+            {
+              realSeconds,
+              heap:
+                digging === undefined
+                  ? undefined
+                  : uncoveredRegolithHeap(frame.current)?.position,
+            },
           );
         } else {
           showPrinting(view.machine.model, view.heading, position, site, {
@@ -115,14 +124,21 @@ function createMachineModel(machineTypeId: string): MachineModel {
 
 /**
  * Works the excavator's arm over the ground it grades or digs, or tucks it
- * in.
+ * in. Digging, it swings round now and then to tip what it has scooped up
+ * onto the heap of Regolith.
  */
 function showGrading(
   model: ExcavatorModel,
   heading: number,
   position: THREE.Vector3,
   ground: GroundPosition | undefined,
-  { realSeconds }: { readonly realSeconds: number },
+  {
+    realSeconds,
+    heap,
+  }: {
+    readonly realSeconds: number;
+    readonly heap: GroundPosition | undefined;
+  },
 ): void {
   if (ground === undefined) {
     model.setSlew(0);
@@ -130,12 +146,35 @@ function showGrading(
     return;
   }
   const cycle = realSeconds * DIG_CYCLES_PER_SECOND * Math.PI * 2;
-  model.setSlew(
-    facingAngle(position, toScene(ground)) -
-      heading +
-      Math.sin(cycle / 3) * SWEEP_ANGLE,
+  const digging =
+    facingAngle(position, toScene(ground)) + Math.sin(cycle / 3) * SWEEP_ANGLE;
+  const tipping = heap === undefined ? 0 : tippingShare(realSeconds);
+  const towardsHeap =
+    heap === undefined
+      ? 0
+      : turnBetween(digging, facingAngle(position, toScene(heap)));
+  model.setSlew(digging + towardsHeap * tipping - heading);
+  model.setReach(
+    THREE.MathUtils.lerp(0.5 + Math.sin(cycle) * 0.5, 0.6, tipping),
   );
-  model.setReach(0.5 + Math.sin(cycle) * 0.5);
+}
+
+/**
+ * How far round towards the heap the excavator has swung, from 0 (over
+ * where it digs) to 1 (over the heap): scooping for half of each cycle,
+ * swinging round, tipping, and swinging back.
+ */
+function tippingShare(realSeconds: number): number {
+  const phase = (realSeconds / TIPPING_CYCLE_SECONDS) % 1;
+  if (phase < 0.5) return 0;
+  if (phase < 0.65) return THREE.MathUtils.smoothstep(phase, 0.5, 0.65);
+  if (phase < 0.85) return 1;
+  return 1 - THREE.MathUtils.smoothstep(phase, 0.85, 1);
+}
+
+/** The shortest turn from one angle to another, in radians, from -pi to pi. */
+function turnBetween(from: number, to: number): number {
+  return Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
 
 /**

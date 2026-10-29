@@ -10,6 +10,7 @@ import {
   type MachineState,
 } from "./machines";
 import type { PlantBatch, PlantStop } from "./plants";
+import { regolithHeapGround } from "./regolith-heap";
 import type { RoverState } from "./rovers";
 
 export type ConstructionStage =
@@ -707,9 +708,9 @@ export function chooseMachineSpot(
 }
 
 /**
- * Chooses where a Machine stands to dig: beside the stockpile, a little way
- * out from where the Robot loads and unloads, on the side away from the
- * Lander if that is clear, otherwise turning round the stockpile until it
+ * Chooses where a Machine stands to dig: beside the stockpile, just beyond
+ * the heap of Regolith it tips onto, on the side away from the landing site
+ * if that is clear, otherwise turning round the stockpile until it
  * finds ground clear of the Lander, every Structure and every other Machine
  * and the map's edge.
  */
@@ -721,10 +722,12 @@ export function chooseDiggingSpot(
   const gap = catalogue.robot.workingGapMetres;
   const centre = site.stockpile.position;
   const lander = site.lander.position;
+  const heap = regolithHeapGround(centre);
   return chooseSpotAround({
     centre,
-    reach: catalogue.stockpile.footprintRadiusMetres + gap * 2 + radius,
-    towards: { x: centre.x * 2 - lander.x, y: centre.y * 2 - lander.y },
+    // Just beyond the heap, so that it tips its Regolith onto it.
+    reach: distance(centre, heap.position) + heap.radiusMetres + radius,
+    towards: heap.position,
     clearance: radius,
     lander: {
       position: lander,

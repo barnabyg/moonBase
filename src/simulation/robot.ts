@@ -74,6 +74,7 @@ import {
 import {
   addCounts,
   addToStock,
+  spotClearOfRegolithHeap,
   stockpileSpot,
   takeFromStock,
 } from "./stockpile";
@@ -978,20 +979,24 @@ function park(
   return broken;
 }
 
-/** Where a Robot stands to maintain a Machine or Rover: just outside it, on the side facing the stockpile. */
+/**
+ * Where a Robot stands to maintain or park a Machine or Rover: just
+ * outside it, on the side facing the stockpile, or turned aside as little
+ * as it takes to stand clear of the Regolith heap, which lies between the
+ * stockpile and the excavator where it digs.
+ */
 function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
   const { position } = bodyOf(driven);
-  const reach =
+  return spotClearOfRegolithHeap(
+    state,
+    position,
     drivenSpec(driven).footprintRadiusMetres +
-    catalogue.robot.workingGapMetres / 2;
-  const angle = Math.atan2(
-    state.stockpile.position.y - position.y,
-    state.stockpile.position.x - position.x,
+      catalogue.robot.workingGapMetres / 2,
+    Math.atan2(
+      state.stockpile.position.y - position.y,
+      state.stockpile.position.x - position.x,
+    ),
   );
-  return {
-    x: position.x + Math.cos(angle) * reach,
-    y: position.y + Math.sin(angle) * reach,
-  };
 }
 
 /**

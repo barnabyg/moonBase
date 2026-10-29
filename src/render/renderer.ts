@@ -15,6 +15,7 @@ import {
   createPlacementPreview,
   type PlacementPreview,
 } from "./placement-preview";
+import { createRegolithHeapView } from "./regolith-heap-view";
 import { createRobotViews } from "./robot-views";
 import { createRoverViews } from "./rover-views";
 import { createEarth, createGround } from "./scenery";
@@ -97,17 +98,14 @@ export function createRenderer(
   camera.getWorldDirection(earthDirection);
   earthDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.12);
   const lighting = createLighting(catalogue.lunation, earthDirection);
-  scene.add(
-    createGround(
-      initial.map,
-      // Anisotropic filtering keeps the ground sharp towards the horizon at
-      // almost no cost on a GPU, but drawn in software it slows every frame
-      // several times over.
-      drawsInSoftware(webgl) ? 1 : webgl.capabilities.getMaxAnisotropy(),
-    ),
-    createEarth(earthDirection),
-    ...lighting.objects,
+  const ground = createGround(
+    initial.map,
+    // Anisotropic filtering keeps the ground sharp towards the horizon at
+    // almost no cost on a GPU, but drawn in software it slows every frame
+    // several times over.
+    drawsInSoftware(webgl) ? 1 : webgl.capabilities.getMaxAnisotropy(),
   );
+  scene.add(ground.group, createEarth(earthDirection), ...lighting.objects);
 
   const cameraControls = createCameraControls(
     camera,
@@ -121,6 +119,7 @@ export function createRenderer(
     catalogue.stockpile.footprintRadiusMetres,
   );
   scene.add(stockpile.group);
+  const regolithHeap = createRegolithHeapView(scene, ground.material);
   const missionDirector = createMissionDirectorView(scene);
   const robots = createRobotViews(scene);
   const machines = createMachineViews(scene);
@@ -184,6 +183,7 @@ export function createRenderer(
           0,
         ),
       );
+      regolithHeap.update(frame);
       robots.update(frame, realSeconds);
       machines.update(frame, realSeconds);
       rovers.update(frame);

@@ -49,6 +49,21 @@ export interface Catalogue {
   readonly stockpile: {
     /** Radius of the ground the stockpile stands on; Structures may not be placed over it. */
     readonly footprintRadiusMetres: number;
+    /**
+     * The heap the excavator tips the base's Regolith onto, outside the
+     * stockpile's footprint: a cone of loose Regolith that grows and shrinks
+     * with the stock.
+     */
+    readonly regolithHeap: {
+      /** How much loose, dug Regolith weighs, in kilograms a cubic metre. */
+      readonly bulkDensityKilogramsPerCubicMetre: number;
+      /** The slope it settles at when tipped: its angle of repose. */
+      readonly slopeDegrees: number;
+      /** The smallest heap there is while any Regolith is in stock, so that a few kilograms still show. */
+      readonly smallestRadiusMetres: number;
+      /** How far outside the stockpile's footprint the foot of a full heap comes. */
+      readonly gapFromFootprintMetres: number;
+    };
   };
   /**
    * Where the Lander has touched down, and the base's stockpile, Robots,
@@ -952,7 +967,17 @@ export const catalogue: Catalogue = {
     // wafers, or keeping them back, runs up against it.
     returnMassKilograms: 100,
   },
-  stockpile: { footprintRadiusMetres: 1.5 },
+  // A full stock of Regolith heaps up a little smaller than the stockpile's
+  // mat: about 1.2 m in radius and 0.85 m high.
+  stockpile: {
+    footprintRadiusMetres: 1.5,
+    regolithHeap: {
+      bulkDensityKilogramsPerCubicMetre: 1500,
+      slopeDegrees: 35,
+      smallestRadiusMetres: 0.3,
+      gapFromFootprintMetres: 0.1,
+    },
+  },
   landingSite: {
     landerPosition: { x: 0, y: 0 },
     // On the side the camera first looks from, clear of the ground beside

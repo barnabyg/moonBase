@@ -13,6 +13,9 @@ export { habitatDoseRate } from "./radiation";
 export { baysTaken } from "./parking";
 export { habitatUnder, shieldingOver, waterWallOver } from "./construction";
 export { obstaclesFor, routeBetween } from "./walking";
+export { regolithHeap, regolithHeapGround } from "./regolith-heap";
+export { uncoveredRegolithHeap } from "./stockpile";
+export type { RegolithHeap } from "./regolith-heap";
 export type { Grounds } from "./walking";
 export type {
   BulkResourceSnapshot,
