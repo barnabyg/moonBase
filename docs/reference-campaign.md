@@ -54,7 +54,7 @@ The spec's tunable defaults all hold:
 - The Robot repairs itself below 10% Condition.
 - The starting oxygen and water last about 30 Earth Days.
 
-The pacing targets, and where the reference Campaign came at data catalogue version 57:
+The pacing targets, and where the reference Campaign came at data catalogue version 58:
 
 | Target                                                                          | Reference Campaign                                                                         |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -63,7 +63,7 @@ The pacing targets, and where the reference Campaign came at data catalogue vers
 | The Habitat shielded before a Solar Particle Event could take a dangerous share | Earth Day 7.0, before the earliest a Solar Particle Event can start (Earth Day 10)         |
 | A landing pad by about Earth Day 60                                             | Earth Day 15.5                                                                             |
 | Both self-sufficiency Milestones within about four Lunations (118 Earth Days)   | Earth Days 62.5 and 82.8                                                                   |
-| By the end, Export income covers the cost of a typical Launch                   | Each Launch of circuit boards sells for $300M; Launches after the third cost $156M–180M    |
+| By the end, Export income covers the cost of a typical Launch                   | Each Launch of circuit boards sells for $300M; Launches after the third cost $154M–180M    |
 | The Radiation Dose, played as the hints and Designs allow, survivable for years | Over 4 years from the end with a water wall; about 5 months under Regolith shielding alone |
 
 The reference Campaign's test checks each of these.
