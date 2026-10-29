@@ -698,6 +698,11 @@ body {
   color: var(--text-muted);
 }
 
+.construction-panel__idle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .construction-panel__cancel {
   margin-top: 4px;
 }

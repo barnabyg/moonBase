@@ -64,7 +64,9 @@ test("a solar array can't be placed over the Lander", async ({ page }) => {
   await expect(page.getByRole("status", { name: "Placement" })).toHaveText(
     "The solar array would overlap the Lander.",
   );
-  await expect(page.getByRole("complementary", { name: "Work" })).toBeHidden();
+  await expect(page.getByRole("complementary", { name: "Work" })).toHaveText(
+    "WorkNo work under way",
+  );
 });
 
 /** Plans a solar array on clear ground with the game paused. */
@@ -93,7 +95,7 @@ test("cancelling a Construction removes it and frees its Components", async ({
 
   await work.getByRole("button", { name: "Cancel" }).click();
 
-  await expect(work).toBeHidden();
+  await expect(work).toHaveText("WorkNo work under way");
   await expect(solarArray).toContainText("1 available");
 });
 
@@ -116,7 +118,7 @@ test("dismantling a Structure has the Robot take it apart and return most of its
     /^Solar array Condition \d+% to be dismantled/,
   ]);
   await skip.click();
-  await expect(work).toBeHidden();
+  await expect(work).toHaveText("WorkNo work under way");
   await expect(structures).toBeHidden();
   // One of its two solar panels was damaged beyond reuse, so another solar
   // array can't be planned from what came back.

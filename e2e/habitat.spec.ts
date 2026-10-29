@@ -52,7 +52,9 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   await expect(page.getByRole("alert")).toHaveText(
     "The Mission Director lives in it, and can't move out.",
   );
-  await expect(page.getByRole("complementary", { name: "Work" })).toBeHidden();
+  await expect(page.getByRole("complementary", { name: "Work" })).toHaveText(
+    "WorkNo work under way",
+  );
   // It goes away by itself after a few seconds.
   await expect(page.getByRole("alert")).toBeHidden();
 });

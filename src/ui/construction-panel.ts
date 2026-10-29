@@ -67,10 +67,11 @@ interface Row {
  * The HTML Work panel: each Maintenance Work Order, each unfinished
  * Construction, each Structure being dismantled and any unloading of the
  * Lander or loading of Exports onto it, with its current stage, its
- * progress, and what is happening on it. Work that is done stays a few
- * seconds, saying so, before its row goes, and the panel keeps its height
- * as long, so that work coming and going at high game speed doesn't move
- * the rows below it, or the Base panel. The player can cancel a
+ * progress, and what is happening on it, or that there is no work under
+ * way. Work that is done stays a few seconds, saying so, before its row
+ * goes, and the panel stays in place and keeps its height, so that work
+ * coming and going at high game speed doesn't move the rows below it, or
+ * the Base panel. The player can cancel a
  * Construction from here, which removes it at once; the panel only sends
  * that choice to the Campaign.
  */
@@ -84,7 +85,11 @@ export function createConstructionPanel(
   const heading = document.createElement("h2");
   heading.textContent = "Work";
   const list = document.createElement("ul");
-  panel.append(heading, list);
+  // In place of the rows while there are none, so that the panel stays.
+  const idle = document.createElement("p");
+  idle.className = "construction-panel__idle";
+  idle.textContent = "No work under way";
+  panel.append(heading, list, idle);
   container.append(panel);
   holdHeight(panel);
 
@@ -299,7 +304,7 @@ export function createConstructionPanel(
         if (row.cancel !== undefined) row.cancel.hidden = true;
       }
       cancelled.clear();
-      panel.hidden = rows.size === 0;
+      idle.hidden = rows.size > 0;
     },
     startAfresh() {
       for (const row of rows.values()) row.item.remove();
