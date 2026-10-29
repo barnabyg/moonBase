@@ -355,14 +355,18 @@ export function hasPowerSource(
 
 /**
  * Whether a type of Structure has anything to do with power: it generates,
- * stores or draws some, if only while it runs, as a Plant does. One that
- * doesn't, such as Regolith shielding, is never cabled. A parking area's
- * bays have power sockets, so it is cabled though it draws nothing itself.
+ * stores or draws some, if only while it runs, as a Plant does, or the data
+ * catalogue has it cabled anyway, as a parking area is for its bay
+ * sockets. One that doesn't, such as Regolith shielding, is never cabled.
  */
 export function usesPower(structureTypeId: string): boolean {
+  const power = powerOf(structureTypeId);
   return (
-    Object.values(powerOf(structureTypeId)).some((value) => value > 0) ||
-    findStructureType(structureTypeId)?.parking !== undefined ||
+    power.cabled === true ||
+    power.generationKilowatts > 0 ||
+    power.storageKilowattHours > 0 ||
+    power.drawKilowatts > 0 ||
+    power.nightDrawKilowatts > 0 ||
     recipesOf(structureTypeId).some((recipe) => recipe.drawKilowatts > 0)
   );
 }

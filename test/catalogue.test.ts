@@ -728,7 +728,9 @@ describe("the data catalogue", () => {
       expect(Number.isInteger(componentDelivery * 60)).toBe(true);
       expect(type.commissioningFailureChance).toBeGreaterThanOrEqual(0);
       expect(type.commissioningFailureChance).toBeLessThan(1);
-      for (const value of Object.values(type.power)) {
+      const { cabled, ...figures } = type.power;
+      expect(cabled === undefined || typeof cabled === "boolean").toBe(true);
+      for (const value of Object.values(figures)) {
         expect(Number.isFinite(value)).toBe(true);
         expect(value).toBeGreaterThanOrEqual(0);
       }
@@ -1275,6 +1277,12 @@ describe("the data catalogue", () => {
       ...catalogue.machineTypes.map((type) => type.footprintRadiusMetres),
     );
 
+    it("is the only Structure cabled though it generates, stores and draws nothing", () => {
+      expect(
+        catalogue.structureTypes.filter((type) => type.power.cabled === true),
+      ).toEqual([area]);
+    });
+
     it("is the only Structure with bays, behind a Mobility Design there from the start", () => {
       expect(
         catalogue.structureTypes.filter((type) => type.parking !== undefined),
@@ -1321,10 +1329,14 @@ describe("the data catalogue", () => {
       ).toBeLessThanOrEqual(parkingLeadHours);
     });
 
-    it("draws no power itself, and is cheap: built by the Robot from a socket for each bay, which a Launch brings for about what a Light Mast costs, in a few hours", () => {
-      expect(Object.values(area.power).every((value) => value === 0)).toBe(
-        true,
-      );
+    it("draws no power itself but is cabled for its sockets, and is cheap: built by the Robot from a socket for each bay, which a Launch brings for about what a Light Mast costs, in a few hours", () => {
+      expect(area.power).toEqual({
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0,
+        cabled: true,
+      });
       expect(area.components).toEqual([
         { componentId: "bay-socket", count: bayOffsets.length },
       ]);

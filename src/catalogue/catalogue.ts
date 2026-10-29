@@ -766,6 +766,13 @@ export interface StructureType {
     readonly drawKilowatts: number;
     /** The extra power it draws at Night only, while its light is on. */
     readonly nightDrawKilowatts: number;
+    /**
+     * Whether the Robot lays it a power cable though it generates, stores
+     * and draws nothing itself, as for a parking area's bay sockets, which
+     * supply the heaters plugged in to them. Anything that generates,
+     * stores or draws power is cabled anyway.
+     */
+    readonly cabled?: boolean;
   };
   /**
    * How far round it a light that switches on by itself at Night lights the
@@ -816,9 +823,9 @@ export interface StructureType {
  * source, a Machine or Rover in a bay is plugged in; once the network can
  * also keep heaters on through the Night ahead, park Work Orders send
  * Machines and Rovers to a free bay rather than beside the nearest powered
- * Structure. A parking area counts as having something to do with
- * power, so that the Robot lays it a cable, though its sockets draw
- * nothing but the heaters plugged in to them.
+ * Structure. Its power has `cabled` set, so that the Robot lays it a
+ * cable, though its sockets draw nothing but the heaters plugged in to
+ * them.
  */
 export interface ParkingBays {
   /**
@@ -1730,12 +1737,14 @@ export const catalogue: Catalogue = {
       commissioningFailureChance: 0.1,
       dustWearPercentPerHour: 0.01,
       hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
-      // Its sockets draw nothing but the heaters plugged in to them.
+      // Its sockets draw nothing but the heaters plugged in to them, but
+      // they need a cable.
       power: {
         generationKilowatts: 0,
         storageKilowattHours: 0,
         drawKilowatts: 0,
         nightDrawKilowatts: 0,
+        cabled: true,
       },
       lightRadiusMetres: 0,
       habitat: false,
