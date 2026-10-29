@@ -53,7 +53,7 @@ export function describeStructure(type: StructureType): string {
     ...(type.parking === undefined
       ? []
       : [
-          `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover before Night rather than beside other Structures; once it is cabled to power, they plug in there and keep warm through the Night`,
+          `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover together before Night rather than beside other Structures, once it is cabled to battery banks that will keep them warm through the Night`,
         ]),
     ...(type.recipes ?? []).map(
       (recipe) =>

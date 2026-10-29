@@ -81,25 +81,41 @@ export interface ParkingSnapshot {
  * can take a plug and whose network can keep heaters on through the Night
  * (see `heatsThroughNight`), if there is one no further off than the
  * nearest powered Structure and the data catalogue's detour beyond it;
- * otherwise beside the nearest powered Structure, as
- * it would without a parking area. A Work Order that nobody has claimed
- * goes once what it parks no longer needs parking, is given other work or,
- * if it is for a bay, once that network can't keep heaters on; one a
- * Robot has claimed goes only if what it parks breaks or its Structure can
- * no longer take a plug.
+ * otherwise beside the nearest powered Structure, as it would without a
+ * parking area. In the lead time, while it is still Daylight, one that is
+ * plugged in but stands in no bay is parked in such a bay too, if there is
+ * one, so that idle Machines and Rovers stand together; never at Night,
+ * when the drive would leave it in the cold, and never one already in a
+ * bay. A Work Order that nobody has claimed goes once what it parks no
+ * longer needs parking, is given other work or, if it is for a bay, once
+ * that network can't keep heaters on; one a Robot has claimed goes only if
+ * what it parks breaks or its Structure can no longer take a plug.
  */
 export function planParking(state: CampaignState): void {
   const networks = structureNetworks(state);
   const plugs = pluggedIn(state, networks);
   const parkingTime = isParkingTime(state);
-  const needsParking = (driven: Driven) =>
+  const daylight =
+    readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight";
+  const idle = (driven: Driven) =>
     parkingTime &&
     (driven.kind === "rover"
       ? !isRoverSpokenFor(state, driven.rover.id)
       : driven.machine.assignment === undefined) &&
     !isDrivenBroken(driven) &&
-    !plugs.has(bodyOf(driven).id) &&
     !isUnderMaintenance(state, drivenTarget(driven));
+  const needsParking = (driven: Driven) =>
+    idle(driven) && !plugs.has(bodyOf(driven).id);
+  const everyBay = parkingTime ? state.structures.flatMap(baysOf) : [];
+  const wantsBay = (driven: Driven) => {
+    const { id, position } = bodyOf(driven);
+    return (
+      daylight &&
+      idle(driven) &&
+      plugs.has(id) &&
+      everyBay.every((bay) => distance(position, bay.position) >= bay.radius)
+    );
+  };
   const sockets = powerSockets(state, networks);
   const stillPowered = (parking: ParkingState) =>
     sockets.some((structure) => structure.id === parking.structureId);
@@ -115,18 +131,20 @@ export function planParking(state: CampaignState): void {
     if (driven === undefined || isDrivenBroken(driven)) return false;
     if (!stillPowered(parking)) return false;
     if (isBeingParked(state, parking.target)) return true;
+    if (parking.bayIndex === undefined) return needsParking(driven);
     // One for a bay goes once its parking area can't keep heaters on, so
-    // that it is raised again beside the nearest powered Structure.
+    // that it is raised again beside the nearest powered Structure if it
+    // needs to be.
     return (
-      needsParking(driven) &&
-      (parking.bayIndex === undefined ||
-        bayAreas.some((area) => area.id === parking.structureId))
+      (needsParking(driven) || wantsBay(driven)) &&
+      bayAreas.some((area) => area.id === parking.structureId)
     );
   });
   for (const driven of everyDriven(state)) {
     const target = drivenTarget(driven);
+    const needed = needsParking(driven);
     if (
-      !needsParking(driven) ||
+      !(needed || wantsBay(driven)) ||
       state.parking.some((parking) => isSameDriven(parking.target, target))
     ) {
       continue;
@@ -150,6 +168,8 @@ export function planParking(state: CampaignState): void {
       });
       continue;
     }
+    // One plugged in already stays where it is if there is no bay for it.
+    if (!needed) continue;
     state.parking.push({
       target,
       structureId: structure.id,
