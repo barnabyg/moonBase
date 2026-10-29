@@ -2,15 +2,15 @@
   "format": "moonbase-save",
   "version": 38,
   "random": {
-    "a": -543999109,
-    "b": 1609062819,
-    "c": 3284878211,
-    "d": 2291658347
+    "a": -1173658649,
+    "b": 3491389202,
+    "c": 4230593321,
+    "d": 2291658371
   },
   "state": {
-    "elapsedMinutes": 11200,
-    "nextStructureNumber": 4,
-    "nextPlanNumber": 4,
+    "elapsedMinutes": 53670,
+    "nextStructureNumber": 8,
+    "nextPlanNumber": 8,
     "lander": {
       "position": {
         "x": 0,
@@ -21,16 +21,18 @@
       "exports": []
     },
     "missionDirector": {
-      "residence": "lander"
+      "residence": "habitat",
+      "habitatId": "structure-5",
+      "movedInAtMinute": 5500
     },
     "lifeSupport": [
       {
         "stockId": "oxygen",
-        "kilograms": 25
+        "kilograms": 46.900833333344515
       },
       {
         "stockId": "water",
-        "kilograms": 108
+        "kilograms": 140.92013888922355
       }
     ],
     "selfSufficiency": [
@@ -38,132 +40,480 @@
         "stockId": "oxygen",
         "current": {
           "producedKilograms": 0,
-          "usedKilograms": 0
+          "usedKilograms": 0.017499999999999995
         },
         "records": [
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.20999999999999913
           }
         ]
       },
@@ -171,147 +521,495 @@
         "stockId": "water",
         "current": {
           "producedKilograms": 0,
-          "usedKilograms": 0
+          "usedKilograms": 0.07291666666666666
         },
         "records": [
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
           },
           {
             "producedKilograms": 0,
-            "usedKilograms": 0
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
+          },
+          {
+            "producedKilograms": 0,
+            "usedKilograms": 0.875000000000006
           }
         ]
       }
     ],
-    "radiationDoseMillisieverts": 0,
+    "radiationDoseMillisieverts": 155.14791666682405,
     "solarParticleEvent": {
-      "warnsAtMinute": 27881,
-      "startsAtMinute": 28121,
-      "endsAtMinute": 29644
+      "warnsAtMinute": 82422,
+      "startsAtMinute": 82662,
+      "endsAtMinute": 83178
     },
     "micrometeorite": {
-      "strikesAtMinute": 20309
+      "strikesAtMinute": 62444
     },
-    "spareComponentsWarnedMinutes": null,
-    "fundingMillionDollars": 650,
+    "spareComponentsWarnedMinutes": 1440,
+    "fundingMillionDollars": 486,
     "launchManifest": [],
     "launchFeePaidMillionDollars": null,
     "exportsToLoad": [],
@@ -334,27 +1032,30 @@
       "parking-areas"
     ],
     "reachedMilestoneIds": [
-      "power-storage"
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+      "habitat-shielded"
     ],
     "ended": null,
     "robots": [
       {
         "id": "robot-1",
         "position": {
-          "x": -2.46069612258048,
-          "y": -15.743038546279525
+          "x": 30.81753576113582,
+          "y": -16.777787219160928
         },
         "activity": {
-          "kind": "driving-machine",
-          "structureId": "structure-3",
-          "machineId": "excavator-1"
+          "kind": "walking",
+          "machineId": "excavator-1",
+          "destination": "machine"
         },
         "carrying": [],
         "workOrder": {
           "machineId": "excavator-1",
           "kind": "park-machine"
         },
-        "conditionPercent": 94.08166666667205,
+        "conditionPercent": 87.22833333334495,
         "selfRepair": null,
         "arrival": null
       }
@@ -364,24 +1065,8 @@
         "id": "excavator-1",
         "machineTypeId": "excavator",
         "position": {
-          "x": -2.46069612258048,
-          "y": -15.743038546279525
-        },
-        "activity": {
-          "kind": "being-parked",
-          "structureId": "structure-3"
-        },
-        "assignment": null,
-        "digging": null,
-        "conditionPercent": 80.26000000001795,
-        "powered": false
-      },
-      {
-        "id": "regolith-printer-2",
-        "machineTypeId": "regolith-printer",
-        "position": {
-          "x": -11,
-          "y": 4.5
+          "x": 36.80139666222888,
+          "y": -25.051925709712588
         },
         "activity": {
           "kind": "idle"
@@ -389,21 +1074,36 @@
         "assignment": null,
         "digging": null,
         "conditionPercent": 100,
-        "powered": false
+        "powered": true
+      },
+      {
+        "id": "regolith-printer-2",
+        "machineTypeId": "regolith-printer",
+        "position": {
+          "x": 51.43499721161525,
+          "y": -8.813967151811752
+        },
+        "activity": {
+          "kind": "idle"
+        },
+        "assignment": null,
+        "digging": null,
+        "conditionPercent": 84.9400000000137,
+        "powered": true
       }
     ],
     "rovers": [
       {
         "id": "rover-1",
         "position": {
-          "x": 0,
-          "y": 13
+          "x": 31.071780205960223,
+          "y": -8.577625143027934
         },
         "activity": {
           "kind": "idle"
         },
-        "conditionPercent": 100,
-        "powered": false
+        "conditionPercent": 93.13868134686118,
+        "powered": true
       }
     ],
     "stockpile": {
@@ -422,11 +1122,11 @@
         },
         {
           "componentId": "battery-module",
-          "count": 6
+          "count": 0
         },
         {
           "componentId": "battery-cabinet",
-          "count": 2
+          "count": 0
         },
         {
           "componentId": "mast-pole",
@@ -438,15 +1138,15 @@
         },
         {
           "componentId": "habitat-core",
-          "count": 1
+          "count": 0
         },
         {
           "componentId": "habitat-envelope",
-          "count": 1
+          "count": 0
         },
         {
           "componentId": "airlock",
-          "count": 1
+          "count": 0
         },
         {
           "componentId": "pad-panel",
@@ -458,7 +1158,7 @@
         },
         {
           "componentId": "spare-component",
-          "count": 6
+          "count": 1
         },
         {
           "componentId": "extraction-reactor",
@@ -586,14 +1286,14 @@
         "id": "structure-1",
         "structureTypeId": "solar-array",
         "position": {
-          "x": 20,
-          "y": 12
+          "x": 36,
+          "y": -12
         },
         "powered": true,
         "lit": false,
         "storedKilowattHours": 0,
-        "conditionPercent": 91.3841666666745,
-        "dustCoatingPercent": 17.231666666667234,
+        "conditionPercent": 69.74852412628633,
+        "dustCoatingPercent": 4.839999999999943,
         "recipeId": null,
         "batch": null,
         "plantStop": null,
@@ -603,13 +1303,13 @@
         "id": "structure-2",
         "structureTypeId": "battery-bank",
         "position": {
-          "x": -30,
-          "y": 4
+          "x": 33,
+          "y": -20
         },
         "powered": true,
         "lit": false,
         "storedKilowattHours": 200,
-        "conditionPercent": 97.06800000002767,
+        "conditionPercent": 69.65400212861339,
         "dustCoatingPercent": 0,
         "recipeId": null,
         "batch": null,
@@ -618,15 +1318,83 @@
       },
       {
         "id": "structure-3",
-        "structureTypeId": "parking-area",
+        "structureTypeId": "battery-bank",
         "position": {
-          "x": -20,
+          "x": 37.5,
           "y": -20
         },
         "powered": true,
         "lit": false,
+        "storedKilowattHours": 200,
+        "conditionPercent": 66.17852163900457,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-4",
+        "structureTypeId": "battery-bank",
+        "position": {
+          "x": 42,
+          "y": -20
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 200,
+        "conditionPercent": 83.12166666682593,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-5",
+        "structureTypeId": "habitat",
+        "position": {
+          "x": 46,
+          "y": -12
+        },
+        "powered": true,
+        "lit": false,
         "storedKilowattHours": 0,
-        "conditionPercent": 98.70283333329027,
+        "conditionPercent": 91.80733333306137,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-6",
+        "structureTypeId": "regolith-shielding",
+        "position": {
+          "x": 46,
+          "y": -12
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 100,
+        "dustCoatingPercent": 0,
+        "recipeId": null,
+        "batch": null,
+        "plantStop": null,
+        "switchedOff": false
+      },
+      {
+        "id": "structure-7",
+        "structureTypeId": "parking-area",
+        "position": {
+          "x": 30,
+          "y": -30
+        },
+        "powered": true,
+        "lit": false,
+        "storedKilowattHours": 0,
+        "conditionPercent": 94.50899999981772,
         "dustCoatingPercent": 0,
         "recipeId": null,
         "batch": null,
@@ -642,21 +1410,21 @@
         "fromStructureId": "structure-1",
         "toStructureId": "structure-2",
         "start": {
-          "x": 17.037678104249885,
-          "y": 11.52602849667998
+          "x": 34.946629675234824,
+          "y": -14.808987532707134
         },
         "end": {
-          "x": -28.02511873616659,
-          "y": 4.315981002213346
+          "x": 33.702246883176784,
+          "y": -18.12734164486191
         },
         "route": [
           {
-            "x": 17.037678104249885,
-            "y": 11.52602849667998
+            "x": 34.946629675234824,
+            "y": -14.808987532707134
           },
           {
-            "x": -28.02511873616659,
-            "y": 4.315981002213346
+            "x": 33.702246883176784,
+            "y": -18.12734164486191
           }
         ],
         "complete": true
@@ -665,43 +1433,145 @@
         "fromStructureId": "structure-2",
         "toStructureId": "structure-3",
         "start": {
-          "x": -29.23076923076923,
-          "y": 2.1538461538461537
+          "x": 35,
+          "y": -20
         },
         "end": {
-          "x": -22.115384615384617,
-          "y": -14.923076923076923
+          "x": 35.5,
+          "y": -20
         },
         "route": [
           {
-            "x": -29.23076923076923,
-            "y": 2.1538461538461537
+            "x": 35,
+            "y": -20
           },
           {
-            "x": -22.11538461538463,
-            "y": -14.923076923076891
+            "x": 35.5,
+            "y": -20
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-2",
+        "toStructureId": "structure-4",
+        "start": {
+          "x": 35,
+          "y": -20
+        },
+        "end": {
+          "x": 40,
+          "y": -20
+        },
+        "route": [
+          {
+            "x": 35,
+            "y": -20
           },
           {
-            "x": -22.115384615384617,
-            "y": -14.923076923076923
+            "x": 40,
+            "y": -20
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-1",
+        "toStructureId": "structure-5",
+        "start": {
+          "x": 39,
+          "y": -12
+        },
+        "end": {
+          "x": 42,
+          "y": -12
+        },
+        "route": [
+          {
+            "x": 39,
+            "y": -12
+          },
+          {
+            "x": 42,
+            "y": -12
+          }
+        ],
+        "complete": true
+      },
+      {
+        "fromStructureId": "structure-2",
+        "toStructureId": "structure-7",
+        "start": {
+          "x": 32.42530422886731,
+          "y": -21.9156525704423
+        },
+        "end": {
+          "x": 31.5804133706149,
+          "y": -24.731955431283666
+        },
+        "route": [
+          {
+            "x": 32.42530422886731,
+            "y": -21.9156525704423
+          },
+          {
+            "x": 31.5804133706149,
+            "y": -24.731955431283666
           }
         ],
         "complete": true
       }
     ],
     "reconnections": [],
-    "maintenance": [],
+    "maintenance": [
+      {
+        "target": {
+          "kind": "structure",
+          "structureId": "structure-3"
+        },
+        "workSpot": {
+          "x": 34.85294117647059,
+          "y": -18.58823529411765
+        },
+        "visit": null,
+        "workedMinutes": 0
+      },
+      {
+        "target": {
+          "kind": "structure",
+          "structureId": "structure-2"
+        },
+        "workSpot": {
+          "x": 30.434406505337947,
+          "y": -18.44509485171997
+        },
+        "visit": null,
+        "workedMinutes": 0
+      },
+      {
+        "target": {
+          "kind": "structure",
+          "structureId": "structure-1"
+        },
+        "workSpot": {
+          "x": 32.20526680779795,
+          "y": -10.735088935932648
+        },
+        "visit": null,
+        "workedMinutes": 0
+      }
+    ],
     "parking": [
       {
         "target": {
           "kind": "machine",
           "machineId": "excavator-1"
         },
-        "structureId": "structure-3",
+        "structureId": "structure-7",
         "bayIndex": 1,
         "destination": {
-          "x": -17.75,
-          "y": -17.75
+          "x": 32.25,
+          "y": -27.75
         }
       },
       {
@@ -709,11 +1579,11 @@
           "kind": "machine",
           "machineId": "regolith-printer-2"
         },
-        "structureId": "structure-3",
-        "bayIndex": 0,
+        "structureId": "structure-7",
+        "bayIndex": 3,
         "destination": {
-          "x": -22.25,
-          "y": -17.75
+          "x": 32.25,
+          "y": -32.25
         }
       },
       {
@@ -721,11 +1591,11 @@
           "kind": "rover",
           "roverId": "rover-1"
         },
-        "structureId": "structure-3",
-        "bayIndex": 3,
+        "structureId": "structure-7",
+        "bayIndex": 0,
         "destination": {
-          "x": -17.75,
-          "y": -22.25
+          "x": 27.75,
+          "y": -27.75
         }
       }
     ],

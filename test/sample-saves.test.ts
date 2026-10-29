@@ -2558,16 +2558,22 @@ describe("the sample saves from before Parking areas", () => {
 });
 
 describe("the sample save of format version 38", () => {
-  // Saved 11200 game-minutes in, 5 hours 20 minutes before the first Night
-  // falls, with a solar array, a battery bank and a parking area cabled
-  // together (its bay sockets put in the base's stock by hand, as if a
-  // Launch had brought them), and the Robot driving the excavator to a
-  // bay, with the regolith printer and the Rover waiting to be parked in
-  // bays after it.
+  // Saved 53670 game-minutes in, 5 hours 30 minutes before the second
+  // Night falls. The Mission Director lives in the shielded Habitat, on a
+  // network with a solar array and three battery banks, and the first
+  // Launch brought a parking area's four bay sockets, with oxygen and
+  // water; the parking area was built beside the battery banks during the
+  // first Night. Both Machines and the Rover stood plugged in beside other
+  // Structures, so the Robot is driving the excavator to a bay, with the
+  // regolith printer and the Rover waiting to be parked in bays after it.
   it("loads with the Robot parking the excavator in a bay of the parking area, and the regolith printer and the Rover to follow", () => {
     const state = loadSample("version-38.moonbase").snapshot();
 
-    expect(state.clock.elapsedMinutes).toBe(11200);
+    expect(state.clock.elapsedMinutes).toBe(53670);
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(
+      state.stockpile.components.find((s) => s.componentId === "bay-socket"),
+    ).toEqual({ componentId: "bay-socket", count: 0 });
     expect(state.parking).toEqual([
       expect.objectContaining({
         subject: {
