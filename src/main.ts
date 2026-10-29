@@ -15,6 +15,7 @@ import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
 import { createStatusPanel } from "./ui/status-panel";
+import { createStructurePopUp } from "./ui/structure-pop-up";
 import { createTechTreeScreen } from "./ui/tech-tree";
 import { createTopBar } from "./ui/top-bar";
 
@@ -68,6 +69,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   notifications.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
+  structurePopUp?.startAfresh();
   renderer?.startAfresh();
 });
 // The top bar across the screen; below it, the status panel above the build
@@ -135,6 +137,13 @@ const buildMenu =
   renderer === undefined
     ? undefined
     : createBuildMenu(leftColumn, campaign, renderer);
+// Clicking a Structure on the map shows what it is doing beside it.
+const structurePopUp =
+  renderer === undefined || buildMenu === undefined
+    ? undefined
+    : createStructurePopUp(container, campaign, showResult, renderer, () =>
+        buildMenu.isPlacing(),
+      );
 
 let lastFrameTime: number | undefined;
 function frame(time: number): void {
@@ -158,6 +167,8 @@ function frame(time: number): void {
     previous: loop.previous,
     tickProgress: loop.tickProgress,
   });
+  // Beside where the Structure has just been drawn.
+  structurePopUp?.update(snapshot);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

@@ -1503,3 +1503,70 @@ body {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+/* The pop-up beside a Structure clicked on the map. It keeps its width,
+   and its live figures stay on one line, so that it doesn't jump about as
+   they change. */
+
+.structure-pop-up {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 340px;
+  padding: 8px 12px 10px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 50%);
+}
+
+.structure-pop-up__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.structure-pop-up__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.structure-pop-up__close {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  font-size: 1.2rem;
+}
+
+.structure-pop-up__description {
+  margin: 2px 0 6px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.structure-pop-up .stat {
+  grid-template-columns: 6.6em minmax(0, 1fr);
+}
+
+.structure-pop-up .stat__body {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.structure-pop-up__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.structure-pop-up__actions .panel-button {
+  padding: 2px 8px;
+  font-size: 0.78rem;
+}

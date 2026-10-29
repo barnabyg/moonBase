@@ -8,6 +8,7 @@ import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
 import { createMachineViews } from "./machine-views";
 import { createMissionDirectorView } from "./mission-director-view";
+import { pickStructure } from "./picking";
 import { createLanderView } from "./lander-view";
 import { createStockpileModel } from "./models";
 import {
@@ -30,6 +31,20 @@ export interface Renderer {
    * pixels, or undefined if the ground isn't there (such as in the sky).
    */
   pickGround(clientX: number, clientY: number): GroundPosition | undefined;
+  /**
+   * The id of the Structure drawn under a position on the screen, in
+   * client pixels, whether commissioned, under Construction or being
+   * dismantled, or undefined if there is none there. It reads what was
+   * last drawn and changes nothing.
+   */
+  pickStructure(clientX: number, clientY: number): string | undefined;
+  /**
+   * Where a Structure stands on the screen, in client pixels, as last
+   * drawn, or undefined if it isn't drawn or is behind the camera.
+   */
+  structureOnScreen(
+    structureId: string,
+  ): { readonly x: number; readonly y: number } | undefined;
   /** Shows a Structure the player is about to place, or hides it when undefined. */
   showPlacementPreview(preview: PlacementPreview | undefined): void;
   /**
@@ -124,6 +139,26 @@ export function createRenderer(
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const pointer = new THREE.Vector2();
   const hit = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+
+  /** Aims the ray at a position on the screen, in client pixels. */
+  function aim(clientX: number, clientY: number): void {
+    const bounds = webgl.domElement.getBoundingClientRect();
+    pointer.set(
+      ((clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(pointer, camera);
+  }
+
+  /** The point on the ground the ray meets, or undefined if it doesn't. */
+  function groundHit(): GroundPosition | undefined {
+    if (raycaster.ray.intersectPlane(groundPlane, hit) === null) {
+      return undefined;
+    }
+    // Back from the scene (z south) to the ground (y north).
+    return { x: hit.x, y: -hit.z };
+  }
 
   return {
     canvas: webgl.domElement,
@@ -160,17 +195,28 @@ export function createRenderer(
       webgl.render(scene, camera);
     },
     pickGround(clientX, clientY) {
-      const bounds = webgl.domElement.getBoundingClientRect();
-      pointer.set(
-        ((clientX - bounds.left) / bounds.width) * 2 - 1,
-        -((clientY - bounds.top) / bounds.height) * 2 + 1,
+      aim(clientX, clientY);
+      return groundHit();
+    },
+    pickStructure(clientX, clientY) {
+      aim(clientX, clientY);
+      return pickStructure(
+        raycaster.intersectObjects(constructions.pickable(), true),
+        groundHit(),
+        constructions.sites(),
       );
-      raycaster.setFromCamera(pointer, camera);
-      if (raycaster.ray.intersectPlane(groundPlane, hit) === null) {
-        return undefined;
-      }
-      // Back from the scene (z south) to the ground (y north).
-      return { x: hit.x, y: -hit.z };
+    },
+    structureOnScreen(structureId) {
+      const position = constructions.positionOf(structureId);
+      if (position === undefined) return undefined;
+      projected.copy(position).project(camera);
+      // Behind the camera, or past the far plane.
+      if (projected.z > 1) return undefined;
+      const bounds = webgl.domElement.getBoundingClientRect();
+      return {
+        x: bounds.left + ((projected.x + 1) / 2) * bounds.width,
+        y: bounds.top + ((1 - projected.y) / 2) * bounds.height,
+      };
     },
     showPlacementPreview(preview) {
       placementPreview.show(preview);

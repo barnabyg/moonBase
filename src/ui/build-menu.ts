@@ -2,13 +2,13 @@ import { catalogue, type StructureType } from "../catalogue";
 import type { Renderer } from "../render/renderer";
 import type { Campaign, GroundPosition, Snapshot } from "../simulation";
 import { describeBuild, describeStructure, designOf } from "./describe";
+import { onClick } from "./click";
 import { setText } from "./dom";
-
-/** A pointer that moves less than this between press and release has clicked rather than dragged. */
-const CLICK_TOLERANCE_PX = 6;
 
 export interface BuildMenu {
   update(snapshot: Snapshot): void;
+  /** Whether the player is placing a Structure, so that a click on the map plans it. */
+  isPlacing(): boolean;
 }
 
 /**
@@ -145,28 +145,14 @@ export function createBuildMenu(
   }
 
   const { canvas } = renderer;
-  let pressed: { x: number; y: number; button: number } | undefined;
   canvas.addEventListener("pointermove", (event) => {
     preview(event.clientX, event.clientY);
   });
   canvas.addEventListener("pointerleave", () => {
     renderer.showPlacementPreview(undefined);
   });
-  canvas.addEventListener("pointerdown", (event) => {
-    pressed = { x: event.clientX, y: event.clientY, button: event.button };
-  });
-  canvas.addEventListener("pointerup", (event) => {
-    const start = pressed;
-    pressed = undefined;
-    if (
-      placing === undefined ||
-      start === undefined ||
-      start.button !== event.button ||
-      Math.hypot(event.clientX - start.x, event.clientY - start.y) >
-        CLICK_TOLERANCE_PX
-    ) {
-      return;
-    }
+  onClick(canvas, (event) => {
+    if (placing === undefined) return;
     if (event.button === 2) {
       stopPlacing("");
       return;
@@ -193,6 +179,9 @@ export function createBuildMenu(
   showPlacing();
 
   return {
+    isPlacing() {
+      return placing !== undefined;
+    },
     update(snapshot) {
       ({ plumeEjecta } = snapshot);
       for (const { type, button, stock, count, meaning } of buttons) {

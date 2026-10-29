@@ -11,6 +11,7 @@ import {
   createStructureModel,
   type StructureModel,
 } from "./models";
+import { markStructure, type StructureSite } from "./picking";
 
 const gradedGround = new THREE.MeshStandardMaterial({
   color: 0x8f8c87,
@@ -27,6 +28,8 @@ const TEST_BLINKS_PER_SECOND = 2;
 
 interface StructureView {
   readonly group: THREE.Group;
+  /** Where it stands and how far its footprint reaches, for picking it. */
+  readonly site: StructureSite;
   readonly graded: THREE.Mesh;
   readonly footprint: THREE.Mesh;
   readonly crates: THREE.Mesh[];
@@ -64,7 +67,7 @@ export function createConstructionViews(scene: THREE.Scene) {
   ) => {
     let view = views.get(id);
     if (view === undefined) {
-      view = createView(structureTypeId);
+      view = createView(id, structureTypeId, position);
       view.group.position.copy(toScene(position));
       scene.add(view.group);
       views.set(id, view);
@@ -73,6 +76,18 @@ export function createConstructionViews(scene: THREE.Scene) {
   };
 
   return {
+    /** The groups every Construction and Structure is drawn in, each marked with its id, to pick one from. */
+    pickable(): THREE.Object3D[] {
+      return [...views.values()].map((view) => view.group);
+    },
+    /** Where every Construction and Structure drawn stands. */
+    sites(): StructureSite[] {
+      return [...views.values()].map((view) => view.site);
+    },
+    /** The middle of a Construction or Structure's footprint in the scene, or undefined if it isn't drawn. */
+    positionOf(id: string): THREE.Vector3 | undefined {
+      return views.get(id)?.group.position;
+    },
     /**
      * Forgets every Construction and Structure drawn, for a Campaign loaded
      * in place of the last, which may give the same ids to others.
@@ -280,13 +295,18 @@ function showLit(
   }
 }
 
-function createView(structureTypeId: string): StructureView {
+function createView(
+  id: string,
+  structureTypeId: string,
+  position: GroundPosition,
+): StructureView {
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );
   const radius = type?.footprintRadiusMetres ?? 1;
   const group = new THREE.Group();
   group.name = `${type?.label ?? structureTypeId} site`;
+  markStructure(group, id);
 
   const graded = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 32),
@@ -330,6 +350,7 @@ function createView(structureTypeId: string): StructureView {
   }
   return {
     group,
+    site: { structureId: id, position, radiusMetres: radius },
     graded,
     footprint,
     crates,
