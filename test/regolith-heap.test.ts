@@ -11,7 +11,7 @@ import {
   type Snapshot,
 } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
-import { changed } from "./worn";
+import { changed, worn } from "./worn";
 
 const { digging, stockpile, landingSite } = catalogue;
 const stockpilePosition = landingSite.stockpilePosition;
@@ -190,6 +190,27 @@ describe("the heap on the base", () => {
       stockpile.footprintRadiusMetres + catalogue.robot.workingGapMetres,
       6,
     );
+  });
+
+  it("keeps the Robot off it while it maintains the excavator where it digs", () => {
+    const digging = scenario();
+    runUntil(
+      digging,
+      (current) => excavatorOf(current).activity.kind === "digging",
+    );
+    const game = scenarioOf(
+      worn(digging.campaign, excavatorOf(digging.state).id, 40),
+    );
+
+    const state = runUntil(
+      game,
+      (current) => robotOf(current).activity.kind === "maintaining",
+    );
+
+    const robot = robotOf(state).position;
+    expect(
+      distanceBetween(robot, heapGround.position) - heapGround.radiusMetres,
+    ).toBeGreaterThanOrEqual(0.5 - 1e-9);
   });
 
   it("leaves the Robot loading on the side facing the site, for a site elsewhere", () => {

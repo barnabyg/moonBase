@@ -112,7 +112,7 @@ export function uncoveredRegolithHeap(base: {
   return covered ? undefined : heap;
 }
 
-/** How far clear of the Regolith heap a Robot stands to load or unload. */
+/** How far clear of the Regolith heap a Robot stands to work. */
 const HEAP_CLEARANCE_METRES = 0.5;
 
 /**
@@ -126,51 +126,52 @@ export function stockpileSpot(
 ): GroundPosition {
   const stockpile = state.stockpile.position;
   const { workSpot } = site;
-  const reach =
-    catalogue.stockpile.footprintRadiusMetres +
-    catalogue.robot.workingGapMetres;
-  const angle = clearOfHeap(
+  return spotClearOfRegolithHeap(
+    state,
     stockpile,
-    reach,
+    catalogue.stockpile.footprintRadiusMetres +
+      catalogue.robot.workingGapMetres,
     Math.atan2(workSpot.y - stockpile.y, workSpot.x - stockpile.x),
   );
-  return {
-    x: stockpile.x + Math.cos(angle) * reach,
-    y: stockpile.y + Math.sin(angle) * reach,
-  };
 }
 
 /**
- * The direction from the stockpile nearest the one given in which a spot
- * this far from it stands clear of the Regolith heap's largest ground.
+ * The spot this far from a centre in the direction given, or, if that is
+ * too close to the Regolith heap's largest ground for a Robot to stand,
+ * turned round the centre as little as it takes to stand clear of it.
  */
-function clearOfHeap(
-  stockpile: GroundPosition,
+export function spotClearOfRegolithHeap(
+  state: CampaignState,
+  centre: GroundPosition,
   reach: number,
   angle: number,
-): number {
-  const heap = regolithHeapGround(stockpile);
-  const away = Math.hypot(
-    heap.position.x - stockpile.x,
-    heap.position.y - stockpile.y,
-  );
+): GroundPosition {
+  const heap = regolithHeapGround(state.stockpile.position);
+  const away = distance(centre, heap.position);
   const clear = heap.radiusMetres + HEAP_CLEARANCE_METRES;
   // The angle either side of the heap within which a spot is too close to
-  // it, from the triangle of the stockpile, the heap and the spot.
+  // it, from the triangle of the centre, the heap and the spot.
   const cosine =
     (reach * reach + away * away - clear * clear) / (2 * reach * away);
-  if (cosine >= 1) return angle;
-  const tooClose = Math.acos(Math.max(cosine, -1));
   const heapAngle = Math.atan2(
-    heap.position.y - stockpile.y,
-    heap.position.x - stockpile.x,
+    heap.position.y - centre.y,
+    heap.position.x - centre.x,
   );
   const off = Math.atan2(
     Math.sin(angle - heapAngle),
     Math.cos(angle - heapAngle),
   );
-  if (Math.abs(off) >= tooClose) return angle;
-  return heapAngle + (off < 0 ? -tooClose : tooClose);
+  // Standing in the middle of the heap, no way out is better than another.
+  const tooClose =
+    away === 0 ? 0 : Math.acos(Math.max(Math.min(cosine, 1), -1));
+  const turned =
+    Math.abs(off) >= tooClose
+      ? angle
+      : heapAngle + (off < 0 ? -tooClose : tooClose);
+  return {
+    x: centre.x + Math.cos(turned) * reach,
+    y: centre.y + Math.sin(turned) * reach,
+  };
 }
 
 function stockOf(
