@@ -143,17 +143,29 @@ export function planParking(state: CampaignState): void {
   }
 }
 
-/**
- * Where the bays of a Structure are on the ground, in the data catalogue's
- * order, or none if it isn't a parking area.
- */
-export function bayPositions(
-  structure: Pick<StructureState, "structureTypeId" | "position">,
-): GroundPosition[] {
+/** A bay of a parking area. */
+interface Bay {
+  readonly structure: StructureState;
+  /** Where it comes among the parking area's bays in the data catalogue. */
+  readonly index: number;
+  /** Where its centre is on the ground. */
+  readonly position: GroundPosition;
+  /** How far from its centre it holds what is parked in it. */
+  readonly radius: number;
+}
+
+/** The bays of a Structure, in the data catalogue's order, or none if it isn't a parking area. */
+function baysOf(structure: StructureState): Bay[] {
   const bays = findStructureType(structure.structureTypeId)?.parking;
-  return (bays?.bayOffsets ?? []).map((offset) => ({
-    x: structure.position.x + offset.x,
-    y: structure.position.y + offset.y,
+  if (bays === undefined) return [];
+  return bays.bayOffsets.map((offset, index) => ({
+    structure,
+    index,
+    position: {
+      x: structure.position.x + offset.x,
+      y: structure.position.y + offset.y,
+    },
+    radius: bays.bayRadiusMetres,
   }));
 }
 
@@ -167,26 +179,21 @@ function nearestFreeBay(
   state: CampaignState,
   sockets: readonly StructureState[],
   from: GroundPosition,
-): { structure: StructureState; position: GroundPosition } | undefined {
+): Bay | undefined {
   const standing = everyDriven(state).map((driven) => bodyOf(driven).position);
-  let nearest:
-    { structure: StructureState; position: GroundPosition } | undefined;
-  for (const structure of sockets) {
-    const bayRadius =
-      findStructureType(structure.structureTypeId)?.parking?.bayRadiusMetres ??
-      0;
-    for (const position of bayPositions(structure)) {
-      const free =
-        !state.parking.some((parking) =>
-          samePlace(parking.destination, position),
-        ) && standing.every((other) => distance(other, position) >= bayRadius);
-      if (
-        free &&
-        (nearest === undefined ||
-          distance(position, from) < distance(nearest.position, from))
-      ) {
-        nearest = { structure, position };
-      }
+  let nearest: Bay | undefined;
+  for (const bay of sockets.flatMap(baysOf)) {
+    const free =
+      !state.parking.some((parking) =>
+        samePlace(parking.destination, bay.position),
+      ) &&
+      standing.every((other) => distance(other, bay.position) >= bay.radius);
+    if (
+      free &&
+      (nearest === undefined ||
+        distance(bay.position, from) < distance(nearest.position, from))
+    ) {
+      nearest = bay;
     }
   }
   return nearest;
@@ -231,8 +238,8 @@ export function readParking(state: CampaignState): ParkingSnapshot[] {
         subject: drivenSubject(driven),
         structureId: structure.id,
         structureTypeId: structure.structureTypeId,
-        inBay: bayPositions(structure).some((bay) =>
-          samePlace(bay, parking.destination),
+        inBay: baysOf(structure).some((bay) =>
+          samePlace(bay.position, parking.destination),
         ),
         underWay: isBeingParked(state, parking.target),
       },

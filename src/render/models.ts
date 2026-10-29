@@ -557,14 +557,11 @@ export function createStructureModel(structureTypeId: string): StructureModel {
   if (structureTypeId === "sintered-landing-pad") {
     return createSinteredLandingPadModel();
   }
-  const parking = catalogue.structureTypes.find(
-    (type) => type.id === structureTypeId,
+  const type = catalogue.structureTypes.find(
+    (candidate) => candidate.id === structureTypeId,
   );
-  if (parking?.parking !== undefined) {
-    return createParkingAreaModel(
-      parking.footprintRadiusMetres,
-      parking.parking,
-    );
+  if (type?.parking !== undefined) {
+    return createParkingAreaModel(type.footprintRadiusMetres, type.parking);
   }
   const plant = PLANT_SHAPES[structureTypeId];
   if (plant !== undefined) return createPlantModel(plant);
