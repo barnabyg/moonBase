@@ -69,6 +69,8 @@ export type {
   PlantStop,
   SetRecipeRefusal,
   SetRecipeResult,
+  SwitchPlantRefusal,
+  SwitchPlantResult,
 } from "./plants";
 export type { SelfRepairSnapshot } from "./self-repair";
 export type {

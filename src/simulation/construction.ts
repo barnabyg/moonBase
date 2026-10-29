@@ -103,6 +103,11 @@ export interface StructureState {
    * didn't; undefined while it runs, and for any other Structure.
    */
   plantStop: PlantStop | undefined;
+  /**
+   * Whether the player has switched it off, if it is a Plant: it then
+   * starts no new batch. Always false for any other Structure.
+   */
+  switchedOff: boolean;
 }
 
 /**

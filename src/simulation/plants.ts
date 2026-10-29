@@ -40,7 +40,12 @@ export type PlantStop =
   /** It was Night, when no network has power to spare for a Plant. */
   | { readonly reason: "night" }
   /** Its network had no power to spare for it in Daylight. */
-  | { readonly reason: "no-power" };
+  | { readonly reason: "no-power" }
+  /**
+   * The player has switched it off, and it has no batch started: it
+   * starts none until it is switched on again.
+   */
+  | { readonly reason: "switched-off" };
 
 /** Why a Plant isn't running, as the player sees it. */
 export type PlantStopSnapshot =
@@ -76,6 +81,18 @@ export type SetRecipeResult =
   | {
       readonly ok: false;
       readonly reason: SetRecipeRefusal;
+      /** The reason in words the player can read. */
+      readonly message: string;
+    };
+
+export type SwitchPlantRefusal =
+  "unknown-structure" | "not-a-plant" | "campaign-ended";
+
+export type SwitchPlantResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: SwitchPlantRefusal;
       /** The reason in words the player can read. */
       readonly message: string;
     };
@@ -163,6 +180,42 @@ export function setPlantRecipe(
   return { ok: true };
 }
 
+/**
+ * Switches a commissioned Plant off or on. Switched off, it starts no new
+ * batch, so it takes no inputs and draws no power once any batch it has
+ * started is finished, and its share of its network's spare power goes to
+ * the Plants after it. Switched on, it starts its next batch as soon as it
+ * can. It is a setting, so no Robot works on it. A Structure that isn't a
+ * commissioned Plant is refused with the reason.
+ */
+export function switchPlant(
+  state: CampaignState,
+  structureId: string,
+  setting: "on" | "off",
+): SwitchPlantResult {
+  const structure = state.structures.find(
+    (candidate) => candidate.id === structureId,
+  );
+  if (structure === undefined) {
+    return {
+      ok: false,
+      reason: "unknown-structure",
+      message: `There is no commissioned Structure "${structureId}".`,
+    };
+  }
+  if (!isPlant(structure)) {
+    return {
+      ok: false,
+      reason: "not-a-plant",
+      message: `The ${labelOf(structure.structureTypeId)} isn't a Plant, so there is nothing to switch off.`,
+    };
+  }
+  structure.switchedOff = setting === "off";
+  // Why it waited may not hold now.
+  structure.plantStop = undefined;
+  return { ok: true };
+}
+
 function labelOf(structureTypeId: string): string {
   return (
     findStructureType(structureTypeId)?.label.toLowerCase() ?? structureTypeId
@@ -245,9 +298,9 @@ function shortInput(
 
 /**
  * Why a commissioned Plant couldn't run whatever power it had, if it
- * couldn't: it is Broken, or it has no batch started and too little of an
- * input to start one, beyond what other Plants have claimed this
- * game-minute. Undefined for any other Structure.
+ * couldn't: it is Broken, or it has no batch started and is switched off,
+ * or has too little of an input to start one, beyond what other Plants
+ * have claimed this game-minute. Undefined for any other Structure.
  */
 export function plantCantRun(
   state: CampaignState,
@@ -258,6 +311,7 @@ export function plantCantRun(
   if (recipe === undefined) return undefined;
   if (isBroken(structure)) return { reason: "broken" };
   if (structure.batch !== undefined) return undefined;
+  if (structure.switchedOff) return { reason: "switched-off" };
   const resource = shortInput(state, recipe, claims);
   return resource === undefined
     ? undefined
@@ -324,8 +378,9 @@ export function runPlants(state: CampaignState): void {
 
 /**
  * How many kilograms an hour of a resource the base's Plants are making
- * now: what those that worked on a batch during the latest game-minute
- * make in an hour of their recipes, as fast as their Condition allows.
+ * now: what those that worked on a batch during the latest game-minute,
+ * and aren't switched off, make in an hour of their recipes, as fast as
+ * their Condition allows.
  */
 export function productionPerHour(
   state: CampaignState,
@@ -336,8 +391,9 @@ export function productionPerHour(
 
 /**
  * How many kilograms an hour of a resource the base's Plants are using up
- * now: what those that worked on a batch during the latest game-minute
- * use in an hour of their recipes, as fast as their Condition allows.
+ * now: what those that worked on a batch during the latest game-minute,
+ * and aren't switched off, use in an hour of their recipes, as fast as
+ * their Condition allows.
  */
 export function consumptionPerHour(
   state: CampaignState,
@@ -350,10 +406,11 @@ export function consumptionPerHour(
  * How many kilograms of a resource a forecast counts on, for a stock that
  * changes in a batch at a time, so that the forecast runs on smoothly
  * through each batch and never ahead of the stock. Only the Plants that
- * ran during the latest game-minute count, as their rates do. What is left
- * of the inputs one took for its batch counts with the stock, as if it used
- * them evenly; its outputs count a batch late, as they come only as the
- * batch finishes: what its batch has made so far, less a whole batch.
+ * ran during the latest game-minute, and aren't switched off, count, as
+ * their rates do (see `countsOnPlant`). What is left of the inputs one
+ * took for its batch counts with the stock, as if it used them evenly; its
+ * outputs count a batch late, as they come only as the batch finishes:
+ * what its batch has made so far, less a whole batch.
  */
 export function kilogramsToCountOn(
   state: CampaignState,
@@ -362,7 +419,7 @@ export function kilogramsToCountOn(
   return state.structures.reduce(
     (sum, structure) => {
       const recipe = workingRecipeOf(structure);
-      if (recipe === undefined || !structure.powered) return sum;
+      if (!countsOnPlant(structure) || recipe === undefined) return sum;
       // Just finished, it has no batch: the next one's is still to come.
       const done =
         structure.batch === undefined
@@ -383,6 +440,17 @@ export function kilogramsToCountOn(
   );
 }
 
+/**
+ * Whether the forecasts count on what a Plant makes and uses: only while
+ * it runs and isn't switched off. One switched off counts as making
+ * nothing even while it finishes its last batch: that batch's outputs join
+ * the stocks only as it finishes, so counting none of them never runs a
+ * forecast ahead of the stocks.
+ */
+function countsOnPlant(structure: StructureState): boolean {
+  return structure.powered && !structure.switchedOff;
+}
+
 function flowPerHour(
   state: CampaignState,
   resource: ResourceRef,
@@ -390,7 +458,7 @@ function flowPerHour(
 ): number {
   return state.structures.reduce((sum, structure) => {
     const recipe = workingRecipeOf(structure);
-    if (recipe === undefined || !structure.powered) return sum;
+    if (!countsOnPlant(structure) || recipe === undefined) return sum;
     const moved = flows(recipe)
       .filter((flow) => isSameResource(flow.resource, resource))
       .reduce((total, flow) => total + flow.kilogramsPerHour, 0);
@@ -400,8 +468,8 @@ function flowPerHour(
 
 /**
  * Whether any of the base's Plants makes a resource with the recipe it is
- * set to, and isn't Broken, whether or not it ran during the latest
- * game-minute.
+ * set to, and isn't Broken or switched off, whether or not it ran during
+ * the latest game-minute.
  */
 export function isMadeByPlants(
   state: CampaignState,
@@ -410,6 +478,7 @@ export function isMadeByPlants(
   return state.structures.some(
     (structure) =>
       !isBroken(structure) &&
+      !structure.switchedOff &&
       (recipeOf(structure)?.outputs ?? []).some((flow) =>
         isSameResource(flow.resource, resource),
       ),
@@ -433,6 +502,14 @@ export function readPlant(
   const recipe = recipeOf(structure);
   if (recipe === undefined) return undefined;
   const batch = readBatch(structure);
+  // Switched off between batches, it starts no other: it says so at once.
+  if (
+    structure.switchedOff &&
+    structure.batch === undefined &&
+    !isBroken(structure)
+  ) {
+    return { running: false, stoppedFor: { reason: "switched-off" }, batch };
+  }
   if (structure.powered) return { running: true, stoppedFor: undefined, batch };
   return {
     running: false,
