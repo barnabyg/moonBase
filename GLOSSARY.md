@@ -22,6 +22,10 @@ _Avoid_: goal, objective, achievement
 A piece of scientific work carried out at the base whose successful completion earns Science.
 _Avoid_: experiment, mission, contract
 
+**Observing programme**:
+The standing Research Task the base's telescopes carry out at Night, a round at a time, each round earning a little Science; unlike any other Research Task it runs alongside the one started and never ends.
+_Avoid_: passive science, science income
+
 **Science**:
 The currency spent to unlock Designs in the Tech Tree, earned only through Research Tasks.
 _Avoid_: research points, RP, knowledge

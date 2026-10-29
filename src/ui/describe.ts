@@ -59,6 +59,11 @@ export function describeStructure(type: StructureType): string {
       (recipe) =>
         `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, for ${recipe.drawKilowatts} kW while it runs`,
     ),
+    ...(type.telescope === true
+      ? [
+          `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, for ${power.nightDrawKilowatts} kW while it observes and nothing in Daylight, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
+        ]
+      : []),
     ...(power.drawKilowatts > 0
       ? [`draws ${power.drawKilowatts} kW all the time`]
       : []),

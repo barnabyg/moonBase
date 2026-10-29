@@ -10,11 +10,13 @@ import {
 import { setText } from "./dom";
 import {
   describeExpedition,
+  explainObservingProgramme,
   formatBulkResources,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatMissionDirector,
+  formatObservingProgramme,
   formatPower,
   formatRadiationDose,
   formatResearchTask,
@@ -44,7 +46,8 @@ export interface StatusPanel {
  * The HTML status panel, in sections the player can fold away: the
  * Milestone to aim for now and the one after it, how the Mission Director
  * is keeping, the base's power, its stock, the Lander and
- * Expeditions, and the Research Task running. A folded section keeps its
+ * Expeditions, and the Research Task running, with the observing
+ * programme once the base has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
  * which decides whether it is allowed and says why not.
@@ -176,10 +179,14 @@ export function createStatusPanel(
   actions.append(sendLander, expeditions);
   travelSection.body.append(lander.element, expedition.element, actions);
 
-  // The Research Task running, how long it has left and how far it has got.
+  // The Research Task running, how long it has left and how far it has got,
+  // and, once the base has a telescope, the observing programme, the
+  // standing Research Task its telescopes work on at Night, so that the
+  // player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
   const researchTask = createStatLine("Task", "Research Task");
-  researchSection.body.append(researchTask.element);
+  const observing = createStatLine("Observing", "Observing programme");
+  researchSection.body.append(researchTask.element, observing.element);
 
   const sections = [
     milestonesSection,
@@ -368,6 +375,18 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
+      const programme = formatObservingProgramme(snapshot.observingProgramme);
+      observing.element.hidden = programme === undefined;
+      if (programme !== undefined) {
+        observing.show(programme);
+        observing.fill(snapshot.observingProgramme.progress);
+        const explanation = explainObservingProgramme(
+          snapshot.observingProgramme,
+        );
+        if (observing.element.title !== explanation) {
+          observing.element.title = explanation;
+        }
+      }
 
       // What each section shows beside its title while it is folded.
       milestonesSection.summarise(summariseMilestones(snapshot.milestones));
@@ -389,7 +408,9 @@ export function createStatusPanel(
           snapshot.clock.elapsedMinutes,
         ),
       );
-      researchSection.summarise(summariseResearch(snapshot.researchTask));
+      researchSection.summarise(
+        summariseResearch(snapshot.researchTask, snapshot.observingProgramme),
+      );
 
       for (const section of sections) section.refreshWarning();
     },

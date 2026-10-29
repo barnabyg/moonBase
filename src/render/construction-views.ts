@@ -132,7 +132,10 @@ export function createConstructionViews(scene: THREE.Scene) {
             ? "on"
             : "off",
         );
-        view.model.setRunning?.(structure.plant?.running === true, realSeconds);
+        view.model.setRunning?.(
+          structure.plant?.running === true || structure.observing,
+          realSeconds,
+        );
         view.model.setOccupied?.(structure.id === occupiedHabitatId);
         showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(

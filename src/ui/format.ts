@@ -30,6 +30,7 @@ import {
 import type {
   ClockSnapshot,
   GroundPosition,
+  ObservingProgrammeSnapshot,
   PowerForecast,
   PowerNetworkSnapshot,
   RobotActivity,
@@ -679,6 +680,8 @@ export function formatEvent(
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "observing-round-completed":
+      return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":
       return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
@@ -1040,16 +1043,70 @@ export function formatResearchTask(
 }
 
 /**
+ * Says how the observing programme is going, for the status panel's
+ * Research section: the standing Research Task the base's telescopes work
+ * on at Night, with how long its round has left while they observe, for
+ * example "Night-sky survey" and "observing, 1d 4h left", or why none
+ * does. Undefined while the base has no telescope.
+ */
+export function formatObservingProgramme(
+  programme: ObservingProgrammeSnapshot,
+): Stat | undefined {
+  if (programme.telescopes === 0) return undefined;
+  const value = catalogue.observingProgramme.label;
+  if (programme.minutesLeft !== undefined) {
+    const who =
+      programme.observing === 1
+        ? "observing"
+        : `${programme.observing} telescopes observing`;
+    return {
+      value,
+      note: `${who}, ${formatShortDuration(programme.minutesLeft)} left`,
+    };
+  }
+  switch (programme.stoppedFor) {
+    case "broken":
+      return {
+        value,
+        note: `${programme.telescopes === 1 ? "telescope" : "telescopes"} Broken`,
+      };
+    case "no-power":
+      return { value, note: "no power to observe" };
+    case "daylight":
+    case undefined:
+      return { value, note: "waits for Night" };
+  }
+}
+
+/**
+ * Explains the observing programme, for hovering over its line in the
+ * status panel: what it is, what a round takes and pays, and how far the
+ * round under way has got.
+ */
+export function explainObservingProgramme(
+  programme: ObservingProgrammeSnapshot,
+): string {
+  const { lengthHours, science } = catalogue.observingProgramme;
+  return `The standing Research Task the base's telescopes work on at Night, beside the one running: each round, ${lengthHours} hours of a telescope's observing, pays ${formatScience(science)}. This round is ${Math.floor(programme.progress * 100)}% done.`;
+}
+
+/**
  * Sums up Research for its folded section: the Research Task running and
  * how far it has got, for example "Seismic monitoring · 45%", or that none
- * is.
+ * is, then, once the base has a telescope, how far the observing
+ * programme's round has got, for example "Night-sky survey · 20%".
  */
 export function summariseResearch(
   running: ResearchTaskSnapshot | undefined,
+  programme: ObservingProgrammeSnapshot,
 ): string {
-  return running === undefined
-    ? "none running"
-    : `${researchTaskLabel(running.researchTaskId)} · ${Math.floor(running.progress * 100)}%`;
+  const task =
+    running === undefined
+      ? "none running"
+      : `${researchTaskLabel(running.researchTaskId)} · ${Math.floor(running.progress * 100)}%`;
+  return programme.telescopes === 0
+    ? task
+    : `${task}, ${catalogue.observingProgramme.label} · ${Math.floor(programme.progress * 100)}%`;
 }
 
 /** Sums up the Milestones for their folded section: the one to aim for now. */

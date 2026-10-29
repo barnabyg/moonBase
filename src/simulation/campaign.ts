@@ -119,7 +119,7 @@ import {
 } from "./machines";
 import {
   consumptionKilowatts,
-  lightsSavingPower,
+  nightLoadsSavingPower,
   plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
@@ -171,6 +171,12 @@ import {
   type ResearchTaskState,
   type StartResearchTaskResult,
 } from "./research";
+import {
+  observes,
+  readObservingProgramme,
+  runObservingProgramme,
+  type ObservingProgrammeSnapshot,
+} from "./observing";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   designLabel,
@@ -347,9 +353,10 @@ export interface StructureSnapshot {
   /** Whether its light was on during the latest game-minute: only at Night, with power. */
   readonly lit: boolean;
   /**
-   * Whether it is a light that switched itself off during the latest
-   * game-minute of Night to save power, so that the energy stored on its
-   * network carries everything else through to Daylight.
+   * Whether it is a Night load, a light or a telescope, that switched
+   * itself off during the latest game-minute of Night to save power, so
+   * that the energy stored on its network carries everything else through
+   * to Daylight.
    */
   readonly savingPower: boolean;
   /** The energy stored in it, if it is a battery bank. */
@@ -372,8 +379,9 @@ export interface StructureSnapshot {
   /**
    * How well it does its job as its Condition falls, from 1 down to 0 once
    * it is Broken: how much of its generation, storage capacity or light
-   * radius a solar array, battery bank or Light Mast has left. Anything
-   * else works fully until it is Broken.
+   * radius a solar array, battery bank or Light Mast has left, and how
+   * fast a Plant runs or a telescope observes. Anything else works fully
+   * until it is Broken.
    */
   readonly performance: number;
   /** How far round it its light reaches, as its performance allows, or 0 if it has none. */
@@ -389,6 +397,11 @@ export interface StructureSnapshot {
    * runs.
    */
   readonly plant: PlantSnapshot | undefined;
+  /**
+   * Whether it is a telescope that observed during the latest game-minute,
+   * for the observing programme: only at Night, with power, and not Broken.
+   */
+  readonly observing: boolean;
   /**
    * The id of the recipe it runs, if it is a Plant: one of its type's
    * recipes in the data catalogue. Undefined for any other Structure.
@@ -534,6 +547,8 @@ export interface Snapshot {
   readonly researchTask: ResearchTaskSnapshot | undefined;
   /** The ids of the Research Tasks completed, in the order they were. */
   readonly completedResearchTaskIds: readonly string[];
+  /** The observing programme, the standing Research Task the base's telescopes work on at Night. */
+  readonly observingProgramme: ObservingProgrammeSnapshot;
   /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
@@ -774,6 +789,12 @@ export interface CampaignState {
   /** The ids of the Research Tasks completed, in the order they were. */
   completedResearchTaskIds: string[];
   /**
+   * The game-minutes of observing done on the observing programme's
+   * current round, at full performance: a telescope at a lower Condition
+   * adds less for each game-minute it observes.
+   */
+  observingMinutes: number;
+  /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
    */
@@ -833,6 +854,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     science: 0,
     researchTask: undefined,
     completedResearchTaskIds: [],
+    observingMinutes: 0,
     unlockedDesignIds: startingDesignIds(),
     reachedMilestoneIds: [],
     ended: undefined,
@@ -1070,7 +1092,7 @@ function campaignFrom(state: CampaignState): Campaign {
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
       const plugs = pluggedIn(state);
-      const savingPower = lightsSavingPower(
+      const savingPower = nightLoadsSavingPower(
         state,
         state.elapsedMinutes > 0 &&
           readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
@@ -1091,6 +1113,7 @@ function campaignFrom(state: CampaignState): Campaign {
         science: state.science,
         researchTask: readResearchTask(state),
         completedResearchTaskIds: [...state.completedResearchTaskIds],
+        observingProgramme: readObservingProgramme(state),
         unlockedDesignIds: [...state.unlockedDesignIds],
         milestones: readMilestones(state),
         exports: readExports(state),
@@ -1140,16 +1163,21 @@ function campaignFrom(state: CampaignState): Campaign {
         })),
         structures: state.structures.map((structure) => {
           const performance = structurePerformance(structure);
+          const lightRadiusMetres =
+            findStructureType(structure.structureTypeId)?.lightRadiusMetres ??
+            0;
           return {
             ...copy(structure),
+            // The state keeps whether any Night load was on; only a light's
+            // is a light.
+            lit: structure.lit && lightRadiusMetres > 0,
             savingPower: savingPower.includes(structure),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
             performance,
             plant: readPlant(state, structure),
-            lightRadiusMetres:
-              (findStructureType(structure.structureTypeId)
-                ?.lightRadiusMetres ?? 0) * performance,
+            observing: observes(structure),
+            lightRadiusMetres: lightRadiusMetres * performance,
           };
         }),
         dismantlings: state.dismantlings.map((dismantling) => ({
@@ -1213,8 +1241,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       ? partBefore
       : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
   const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
-  const lightsSavingBefore = new Set(
-    lightsSavingPower(state, partSupplied === "night").map((light) => light.id),
+  const nightLoadsSavingBefore = new Set(
+    nightLoadsSavingPower(state, partSupplied === "night").map(
+      (load) => load.id,
+    ),
   );
   const minutesUntilLimitBefore =
     forecastRadiationDose(state).minutesUntilLimit;
@@ -1238,10 +1268,11 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planReconnections(state);
   supplyPower(state, partBefore === "daylight");
   events.push(
-    ...watchLights(state, partBefore === "night", lightsSavingBefore),
+    ...watchLights(state, partBefore === "night", nightLoadsSavingBefore),
   );
   runPlants(state);
   events.push(...runResearch(state));
+  events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
   if (partAfter !== partBefore) {
     events.push({

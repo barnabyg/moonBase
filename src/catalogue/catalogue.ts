@@ -169,6 +169,11 @@ export interface Catalogue {
    * the Research Tasks screen lists them. Each can be completed only once.
    */
   readonly researchTasks: readonly ResearchTask[];
+  /**
+   * The standing Research Task the base's telescopes work on together, a
+   * round at a time, for as long as the base has one.
+   */
+  readonly observingProgramme: ObservingProgramme;
   /** The categories of the Tech Tree, in the order the Tech Tree screen shows them. */
   readonly designCategories: readonly {
     readonly id: DesignCategory;
@@ -401,6 +406,28 @@ export interface ResearchTask {
    * one, it is available from the start.
    */
   readonly requiresDesignId?: string;
+}
+
+/**
+ * A standing Research Task: an observing programme that the base's
+ * telescopes carry out at Night, a round at a time. Each round earns its
+ * Science as it is completed, and the next starts straight after, so,
+ * unlike any other Research Task, it is never completed for good and runs
+ * alongside the one the player has started. A telescope observes only
+ * while it is commissioned, powered and not Broken, and only at Night;
+ * each one observing adds its performance's share of a game-minute to the
+ * round every game-minute, so two at full performance get through a round
+ * twice as fast.
+ */
+export interface ObservingProgramme {
+  readonly label: string;
+  /**
+   * How long one telescope at full performance takes to observe a round, in
+   * game-hours of Night. Must come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science each round earns as it is completed, a whole amount. */
+  readonly science: number;
 }
 
 /** The six categories the Tech Tree's Designs fall into. */
@@ -764,7 +791,14 @@ export interface StructureType {
     readonly storageKilowattHours: number;
     /** The power it draws all the time, for its own controls and heaters. */
     readonly drawKilowatts: number;
-    /** The extra power it draws at Night only, while its light is on. */
+    /**
+     * The extra power it draws at Night only, while it is on, if it is a
+     * Night load: a light, while it shines, or a telescope, while it
+     * observes. A Night load is supplied after the Machines' and Rovers'
+     * heaters, and switches itself off to save power once its network's
+     * battery banks hold only enough for everything else through the rest
+     * of the Night and the reserve after it (see `nightReserveHours`).
+     */
     readonly nightDrawKilowatts: number;
     /**
      * Whether the Robot lays it a power cable though it generates, stores
@@ -815,6 +849,12 @@ export interface StructureType {
    * and Rovers, each with a power socket.
    */
   readonly parking?: ParkingBays;
+  /**
+   * Whether it is a telescope, which works on the observing programme at
+   * Night while it is commissioned, powered and not Broken (see
+   * `ObservingProgramme`). Leaving it out is the same as false.
+   */
+  readonly telescope?: boolean;
 }
 
 /**
@@ -898,7 +938,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 55,
+  version: 56,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -1081,6 +1121,8 @@ export const catalogue: Catalogue = {
     { id: "landing-floodlight", label: "Pad light" },
     { id: "water-wall-bladder", label: "Water-wall bladder" },
     { id: "bay-socket", label: "Bay socket" },
+    { id: "telescope-optics", label: "Telescope optics" },
+    { id: "telescope-mount", label: "Telescope mount" },
   ],
   structureTypes: [
     {
@@ -1423,6 +1465,48 @@ export const catalogue: Catalogue = {
       habitat: false,
       shieldsHabitat: false,
       landingPad: false,
+    },
+    // An optical telescope: a half-metre mirror in an open tube on a
+    // fork mount, which observes the sky only at Night, when the sun is
+    // down. Like a light, it is a Night load: its drives, cooled camera and
+    // the heaters that keep its mirror from frosting draw 0.25 kW while it
+    // observes, 57 kWh through a whole Night, over a quarter of a battery
+    // bank and about half of what the starting battery banks have to spare
+    // once the Habitat and the Machines' heaters have theirs; it switches
+    // itself off before it would eat into that, and stands parked and
+    // unpowered in Daylight. Aligning its optics makes Commissioning slow
+    // and chancy.
+    {
+      id: "telescope",
+      label: "Telescope",
+      designId: "optical-telescopes",
+      footprintRadiusMetres: 1.5,
+      components: [
+        { componentId: "telescope-optics", count: 1 },
+        { componentId: "telescope-mount", count: 1 },
+      ],
+      stageHours: {
+        sitePreparation: 1,
+        componentDelivery: 0.5,
+        assembly: 3,
+        commissioning: 2,
+      },
+      stageMachines: { sitePreparation: "excavator" },
+      commissioningFailureChance: 0.2,
+      // Its drives and the mirror's cover grind on the Dust.
+      dustWearPercentPerHour: 0.03,
+      hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+      power: {
+        generationKilowatts: 0,
+        storageKilowattHours: 0,
+        drawKilowatts: 0,
+        nightDrawKilowatts: 0.25,
+      },
+      lightRadiusMetres: 0,
+      habitat: false,
+      shieldsHabitat: false,
+      landingPad: false,
+      telescope: true,
     },
     {
       id: "habitat",
@@ -2473,6 +2557,22 @@ export const catalogue: Catalogue = {
         massKilograms: 70,
         priceMillionDollars: 3,
       },
+      // A telescope's worth comes to 260 kg and $25M: about a battery
+      // bank's mass, for a little more money.
+      {
+        id: "telescope-optics",
+        designId: "optical-telescopes",
+        brings: { kind: "component", componentId: "telescope-optics" },
+        massKilograms: 140,
+        priceMillionDollars: 18,
+      },
+      {
+        id: "telescope-mount",
+        designId: "optical-telescopes",
+        brings: { kind: "component", componentId: "telescope-mount" },
+        massKilograms: 120,
+        priceMillionDollars: 7,
+      },
       {
         id: "habitat-core",
         designId: "inflatable-habitat",
@@ -2902,6 +3002,17 @@ export const catalogue: Catalogue = {
       science: 380,
     },
   ],
+  // A round takes two Earth Days of a telescope's observing at Night and
+  // earns 6 Science, so one telescope earns some 28 Science a Lunation,
+  // through its 228 hours of Night: about an eighth of what Research Tasks
+  // run back to back pay in a Lunation. A second telescope doubles it, for
+  // its price and its power through the Night. The telescope's Design
+  // pays for itself in about two Lunations of observing.
+  observingProgramme: {
+    label: "Night-sky survey",
+    lengthHours: 48,
+    science: 6,
+  },
   designCategories: [
     { id: "power", label: "Power" },
     { id: "construction", label: "Construction" },
@@ -3177,6 +3288,21 @@ export const catalogue: Catalogue = {
         "molten-regolith-electrolysis",
         "circuit-board-fabrication",
       ],
+    },
+    // An Industry Design, as the Plants' are: a Structure that, once
+    // commissioned, makes something by itself, here Science from the
+    // Night sky. In the first rank, needing only battery banks to carry it
+    // through the Night, and leading to nothing else: it adds Science, and
+    // the base needs it for nothing.
+    {
+      id: "optical-telescopes",
+      label: "Optical telescopes",
+      description:
+        "A telescope that observes the sky at Night for the base's standing observing programme, earning a little Science with every round it completes.",
+      category: "industry",
+      starting: false,
+      scienceCost: 60,
+      prerequisiteDesignIds: ["battery-banks"],
     },
     {
       id: "landing-pads",

@@ -1,4 +1,14 @@
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
+
+/**
+ * A sample save of a Campaign in its first Night, with a telescope ten
+ * hours into a round of the observing programme, on a network with a
+ * solar array and three battery banks, and 70 Science in hand.
+ */
+const telescopeSave = fileURLToPath(
+  new URL("../test/saves/version-39.moonbase", import.meta.url),
+);
 
 /**
  * Waits until the game has drawn a frame. The game updates its interface in
@@ -84,4 +94,67 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await expect(
     screen.getByRole("button", { name: "Start Regolith sample analysis" }),
   ).toBeHidden();
+});
+
+test("the Research section shows the observing programme a telescope works on at Night, and the Science each round earns", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  const observing = panel.getByRole("status", { name: "Observing programme" });
+  const science = page.getByRole("status", { name: "Science" });
+  // A new Campaign has no telescope, so the line isn't shown.
+  await expect(observing).toBeHidden();
+
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(telescopeSave);
+
+  await expect(observing).toHaveText(
+    "Observing Night-sky survey · observing, 1d 14h left",
+  );
+  await expect(
+    page
+      .getByRole("list", { name: "Structures" })
+      .getByRole("listitem")
+      .filter({ hasText: "Telescope" }),
+  ).toContainText("observing");
+  await expect(science).toHaveText("70");
+  // Folded, the Research section still shows how far the round has got,
+  // after the Research Task running.
+  const researchTitle = panel.getByText("Research", { exact: true });
+  await researchTitle.click();
+  await expect(
+    panel.getByRole("status", { name: "Research summary" }),
+  ).toHaveText("Thermal cycling survey · 49%, Night-sky survey · 20%");
+  await researchTitle.click();
+  // The Research Tasks screen shows it beside the task running.
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  const tasks = page.getByRole("dialog", { name: "Research Tasks" });
+  const standing = tasks.getByRole("status", { name: "Observing programme" });
+  await expect(standing).toContainText("Night-sky survey");
+  await expect(standing).toContainText("observing, 1d 14h left");
+  await expect(standing).toContainText("each round pays 6 Science");
+  await tasks.getByRole("button", { name: "Close" }).click();
+
+  // Skip from event to event until the round is complete.
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  const completed = page
+    .getByRole("log", { name: "Notifications" })
+    .getByText(
+      "Night-sky survey: a round of observing complete, earning 6 Science",
+    );
+  for (let skips = 0; skips < 40 && !(await completed.isVisible()); skips++) {
+    await skip.click();
+    await nextFrame(page);
+  }
+  await expect(completed).toBeVisible();
+  await expect(science).toHaveText("76");
+  await expect(observing).toHaveText(
+    "Observing Night-sky survey · observing, 2d left",
+  );
 });

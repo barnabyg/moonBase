@@ -1,12 +1,18 @@
 import { catalogue } from "../catalogue";
 import {
   researchTaskMinutes,
+  roundMinutes,
   type Campaign,
   type Snapshot,
 } from "../simulation";
 import { describeScienceReach, nextDesigns } from "./describe";
 import { setText } from "./dom";
-import { formatDuration, formatScience, researchTaskLabel } from "./format";
+import {
+  formatDuration,
+  formatObservingProgramme,
+  formatScience,
+  researchTaskLabel,
+} from "./format";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";
 
@@ -18,7 +24,8 @@ export interface ResearchTasksScreen {
 /**
  * The Research Tasks screen, where the player starts a Research Task to earn
  * Science: the one running, with how far it has got and how long it has
- * left, above a card for each of the others with its length, the Science
+ * left, and the observing programme the base's telescopes work on beside it,
+ * above a card for each of the others with its length, the Science
  * it pays and what that Science would do for the Designs that can be
  * unlocked next, and the completed ones below. Above them, what Science
  * buys next: the Designs that can be unlocked once there is enough. One
@@ -51,6 +58,31 @@ export function createResearchTasksScreen(
   nowDetail.className = "research-tasks__now-detail";
   now.append(nowHeading, nowName, nowMeter.element, nowDetail);
 
+  // The observing programme, the standing Research Task the base's
+  // telescopes work on at Night alongside the one running, so that the
+  // player sees where that Science comes from too.
+  const programme = catalogue.observingProgramme;
+  const standing = document.createElement("section");
+  standing.className = "screen__card";
+  standing.setAttribute("role", "status");
+  standing.setAttribute("aria-label", "Observing programme");
+  const standingHeading = document.createElement("p");
+  standingHeading.className = "screen__eyebrow";
+  standingHeading.textContent = "Standing Research Task";
+  const standingName = document.createElement("p");
+  standingName.className = "research-tasks__now-name";
+  standingName.textContent = programme.label;
+  const standingMeter = createMeter();
+  const standingDetail = document.createElement("p");
+  standingDetail.className = "research-tasks__now-detail";
+  standing.append(
+    standingHeading,
+    standingName,
+    standingMeter.element,
+    standingDetail,
+  );
+  const pays = `each round pays ${formatScience(programme.science)}`;
+
   // The Designs that Science can unlock next, so that the choice of task
   // needs no other screen.
   const buys = document.createElement("section");
@@ -67,7 +99,7 @@ export function createResearchTasksScreen(
 
   const available = createGroup("Available");
   const completed = createGroup("Completed");
-  screen.body.append(now, buys, available.section, completed.section);
+  screen.body.append(now, standing, buys, available.section, completed.section);
 
   const cards = catalogue.researchTasks.map((task) => {
     const card = document.createElement("article");
@@ -133,6 +165,23 @@ export function createResearchTasksScreen(
       }
       now.classList.toggle("screen__card--idle", running === undefined);
       nowMeter.fill(running?.progress);
+
+      const observing = formatObservingProgramme(snapshot.observingProgramme);
+      setText(
+        standingDetail,
+        observing === undefined
+          ? `Telescopes work on it at Night, alongside the task running, and ${pays} for every ${formatDuration(roundMinutes())} of a telescope's observing. The base has none yet.`
+          : `${observing.note ?? ""}; ${pays}`,
+      );
+      standing.classList.toggle(
+        "screen__card--idle",
+        snapshot.observingProgramme.observing === 0,
+      );
+      standingMeter.fill(
+        observing === undefined
+          ? undefined
+          : snapshot.observingProgramme.progress,
+      );
 
       const next = nextDesigns(snapshot);
       const nextIds = next.map((design) => design.id).join(" ");

@@ -2287,11 +2287,12 @@ describe("the sample saves from before Water-wall shielding", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(
-        state.stockpile.components.find(
-          (stock) => stock.componentId === "water-wall-bladder",
-        ),
-      ).toEqual({ componentId: "water-wall-bladder", count: 0 });
+      // Before the parking area's bay socket and the telescope's two
+      // Components, which came after it.
+      expect(state.stockpile.components.at(-4)).toEqual({
+        componentId: "water-wall-bladder",
+        count: 0,
+      });
     },
   );
 });
@@ -2549,7 +2550,8 @@ describe("the sample saves from before Parking areas", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.at(-1)).toEqual({
+      // Before the telescope's two Components, which came after it.
+      expect(state.stockpile.components.at(-3)).toEqual({
         componentId: "bay-socket",
         count: 0,
       });
@@ -2630,5 +2632,78 @@ describe("the sample save of format version 38", () => {
     expect(
       [...state.machines, ...state.rovers].map((driven) => driven.pluggedIn),
     ).toEqual([true, true, true]);
+  });
+});
+
+describe("the sample saves from before Optical telescopes", () => {
+  it.each(["version-1.moonbase", "version-27.moonbase", "version-38.moonbase"])(
+    "%s loads with no telescope Components, counted after the earlier ones in the base's stock, and nothing observed",
+    (name) => {
+      const state = loadSample(name).snapshot();
+
+      expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
+        catalogue.componentTypes.map((type) => type.id),
+      );
+      expect(state.stockpile.components.slice(-2)).toEqual([
+        { componentId: "telescope-optics", count: 0 },
+        { componentId: "telescope-mount", count: 0 },
+      ]);
+      expect(state.unlockedDesignIds).not.toContain("optical-telescopes");
+      expect(state.observingProgramme).toMatchObject({
+        progress: 0,
+        telescopes: 0,
+      });
+    },
+  );
+});
+
+describe("the sample save of format version 39", () => {
+  // Played with the real data catalogue: the starting solar array, three
+  // battery banks and the inflatable Habitat built, the Mission Director
+  // moved in and the Habitat shielded, the Lander sent at once, Research
+  // Tasks run shortest first until Optical telescopes could be unlocked,
+  // the telescope's optics and mount put on the Launch manifest before the
+  // Lander left Earth, and the telescope built once they landed, in the
+  // first Night. Saved 21526 game-minutes in, once it had observed ten
+  // hours of a round, with the Thermal cycling survey running.
+  it("loads with the telescope observing, ten hours into a round of the observing programme", () => {
+    const state = loadSample("version-39.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(21526);
+    expect(state.lunation.part).toBe("night");
+    expect(state.unlockedDesignIds).toContain("optical-telescopes");
+    expect(state.missionDirector).toMatchObject({ residence: "habitat" });
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: "thermal-cycling-survey",
+    });
+    expect(
+      state.structures.find((s) => s.structureTypeId === "telescope"),
+    ).toMatchObject({ powered: true, observing: true });
+    expect(state.observingProgramme).toMatchObject({
+      progress: 600 / (48 * 60),
+      telescopes: 1,
+      observing: 1,
+      minutesLeft: 48 * 60 - 600,
+    });
+  });
+
+  it("plays on from where it was saved, completing the round and earning its Science", () => {
+    const campaign = loadSample("version-39.moonbase");
+    const science = campaign.snapshot().science;
+
+    const events = campaign.advance(48 * 60 - 600);
+
+    expect(
+      events.filter((event) => event.kind === "observing-round-completed"),
+    ).toEqual([
+      {
+        kind: "observing-round-completed",
+        atMinute: 21526 + 48 * 60 - 600,
+        science: catalogue.observingProgramme.science,
+      },
+    ]);
+    expect(campaign.snapshot().science).toBe(
+      science + catalogue.observingProgramme.science,
+    );
   });
 });

@@ -297,6 +297,17 @@ export type GameEvent =
     }
   | {
       /**
+       * The base's telescopes have observed a whole round of the observing
+       * programme, the standing Research Task: the Science it pays has been
+       * added to the base's, and the next round has begun.
+       */
+      readonly kind: "observing-round-completed";
+      readonly atMinute: number;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
        * The player has unlocked a Design in the Tech Tree, for the Science
        * it cost. Unlocking happens at once, so it comes back from the
        * command, not from advancing the Campaign.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   ExpeditionSnapshot,
+  ObservingProgrammeSnapshot,
   LanderSnapshot,
   PowerNetworkSnapshot,
 } from "../src/simulation";
@@ -219,15 +220,44 @@ describe("a folded Lander & Expeditions section", () => {
 });
 
 describe("a folded Research section", () => {
+  /** The observing programme of a base with no telescope, unless given. */
+  const programme = (
+    figures: Partial<ObservingProgrammeSnapshot> = {},
+  ): ObservingProgrammeSnapshot => ({
+    progress: 0,
+    telescopes: 0,
+    observing: 0,
+    minutesLeft: undefined,
+    stoppedFor: undefined,
+    ...figures,
+  });
+  const seismic = {
+    researchTaskId: "seismic-monitoring",
+    progress: 0.456,
+    minutesLeft: toGameMinutes({ earthDays: 2 }),
+  };
+
   it("shows the Research Task running and how far it has got", () => {
-    expect(
-      summariseResearch({
-        researchTaskId: "seismic-monitoring",
-        progress: 0.456,
-        minutesLeft: toGameMinutes({ earthDays: 2 }),
-      }),
-    ).toBe("Seismic monitoring · 45%");
-    expect(summariseResearch(undefined)).toBe("none running");
+    expect(summariseResearch(seismic, programme())).toBe(
+      "Seismic monitoring · 45%",
+    );
+    expect(summariseResearch(undefined, programme())).toBe("none running");
+  });
+
+  it("shows how far the observing programme's round has got once the base has a telescope, with or without a Research Task running", () => {
+    const observing = programme({
+      progress: 0.208,
+      telescopes: 1,
+      observing: 1,
+      minutesLeft: 2280,
+    });
+
+    expect(summariseResearch(seismic, observing)).toBe(
+      "Seismic monitoring · 45%, Night-sky survey · 20%",
+    );
+    expect(summariseResearch(undefined, observing)).toBe(
+      "none running, Night-sky survey · 20%",
+    );
   });
 });
 

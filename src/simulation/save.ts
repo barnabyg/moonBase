@@ -922,6 +922,34 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 38 to 39: the telescope, behind the Optical telescopes Design, which
+  // observes at Night for the observing programme, a standing Research
+  // Task. It brings two new Components, which the base's stock keeps a
+  // count of after the others; none of them was there before. No telescope
+  // had observed, so the programme's first round has nothing done on it.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { stockpile } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        observingMinutes: 0,
+        stockpile:
+          isRecord(stockpile) && Array.isArray(stockpile["components"])
+            ? {
+                ...stockpile,
+                components: [
+                  ...(stockpile["components"] as unknown[]),
+                  { componentId: "telescope-optics", count: 0 },
+                  { componentId: "telescope-mount", count: 0 },
+                ],
+              }
+            : stockpile,
+      },
+    };
+  },
 ];
 
 /**
@@ -1674,6 +1702,7 @@ const simulationState = object({
     object({ researchTaskId, workedMinutes: wholeNumber }),
   ),
   completedResearchTaskIds: list(researchTaskId),
+  observingMinutes: amount,
   unlockedDesignIds: list(designId),
   reachedMilestoneIds: list(catalogueId(catalogue.milestones, "Milestone")),
   ended: optional(campaignEnd),

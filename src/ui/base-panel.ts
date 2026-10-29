@@ -369,8 +369,8 @@ function createRepairHint(text: string): HTMLElement {
 /**
  * What state a Structure is in, for its entry: anything out of the
  * ordinary, such as being Broken, a Plant's running and what it makes and
- * uses, the Mission Director living in it or its Dust coating, or that it
- * is commissioned if nothing else.
+ * uses, a telescope observing, the Mission Director living in it or its
+ * Dust coating, or that it is commissioned if nothing else.
  */
 function describeStructure(
   snapshot: Snapshot,
@@ -397,10 +397,13 @@ function describeStructure(
           "commissioned");
   const notes = [
     formatPlantRates(structure),
+    structure.observing ? "observing" : undefined,
     structure.lit
       ? "lit"
       : structure.savingPower
-        ? "light off to save power"
+        ? isTelescope(structure.structureTypeId)
+          ? "not observing, to save power"
+          : "light off to save power"
         : undefined,
     isHabitat(structure.structureTypeId)
       ? structure.shielded
@@ -416,6 +419,13 @@ function describeStructure(
   return notes.length === 0
     ? { value: state }
     : { value: state, note: notes.join(", ") };
+}
+
+function isTelescope(structureTypeId: string): boolean {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.telescope === true
+  );
 }
 
 function isHabitat(structureTypeId: string): boolean {
