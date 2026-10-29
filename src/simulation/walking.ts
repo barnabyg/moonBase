@@ -84,9 +84,16 @@ interface Routes {
 }
 
 /**
- * The routes most recently used, the latest first. Keeping them only saves
- * working them out again: it never changes where a walker goes, so the
- * simulation stays deterministic.
+ * The routes most recently used, the latest first.
+ *
+ * This is the simulation's only state outside the Campaign state, and it is
+ * safe there under ADR-0003. It only memoises a pure function, the routes
+ * to a destination round a set of obstacles, keyed by their exact values,
+ * so a route kept from another Campaign, or another test, is exactly the
+ * one that would be worked out afresh: it never changes a result, only
+ * saves time. It holds at most ROUTES_KEPT entries, so it can't grow, and
+ * it needs no saving, as a loaded Campaign works out the same routes again.
+ * Keeping it in the Campaign state instead would put it in every save.
  */
 const routesKept: (Routes & {
   readonly destination: GroundPosition;
