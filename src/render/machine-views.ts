@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {
-  regolithHeapGround,
+  uncoveredRegolithHeap,
   type ConstructionSnapshot,
   type GroundPosition,
   type MachineSnapshot,
@@ -102,8 +102,7 @@ export function createMachineViews(scene: THREE.Scene) {
               heap:
                 digging === undefined
                   ? undefined
-                  : regolithHeapGround(frame.current.stockpile.position)
-                      .position,
+                  : uncoveredRegolithHeap(frame.current)?.position,
             },
           );
         } else {
