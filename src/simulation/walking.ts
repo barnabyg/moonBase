@@ -52,11 +52,11 @@ const routesKept: (Routes & {
  * Each obstacle is gone round by a polygon just outside it, and the way is
  * the shortest one from corner to corner, so every step brings the walker
  * the length of the step closer to the destination along it, and no walker
- * can go back and forth. A walker starting inside an obstacle walks
- * straight out of it. A destination inside an obstacle is reached from its
- * nearest side: the obstacle shrinks to leave the destination just outside
- * it. If the obstacles box the walker or its destination in, it walks
- * straight there, through them.
+ * can go back and forth. A destination inside an obstacle is reached from
+ * its nearest side: the obstacle shrinks to leave the destination on its
+ * edge. A walker starting inside an obstacle likewise makes its way out
+ * from where it stands and round. If the obstacles box the walker or its
+ * destination in, it walks straight out, or straight there, through them.
  */
 export function stepTowards(
   from: GroundPosition,
@@ -64,7 +64,7 @@ export function stepTowards(
   obstacles: readonly Obstacle[],
   maxStep: number,
 ): GroundPosition {
-  const around = obstaclesAround(destination, obstacles);
+  const around = shrunkFrom(destination, obstacles);
   let position = { x: from.x, y: from.y };
   let left = maxStep;
   // Each corner reached is closer to the destination along the way than the
@@ -86,33 +86,55 @@ export function stepTowards(
 }
 
 /**
- * The obstacles as a walker to a destination goes round them: one with the
- * destination inside shrinks to leave it on its edge, and one with the
- * destination at its centre is left out.
+ * The obstacles as seen from a point inside some of them: each obstacle with
+ * the point inside shrinks to leave it on its edge, and one with the point
+ * at its centre is left out.
  */
-function obstaclesAround(
-  destination: GroundPosition,
+function shrunkFrom(
+  point: GroundPosition,
   obstacles: readonly Obstacle[],
 ): Obstacle[] {
   return obstacles.flatMap((obstacle) => {
-    const reach = distance(destination, obstacle.centre);
+    const reach = distance(point, obstacle.centre);
     if (reach >= obstacle.radius) return [obstacle];
     return reach > 0 ? [{ centre: obstacle.centre, radius: reach }] : [];
   });
 }
 
 /**
- * Heads straight for the destination when the way is clear, leaving out any
- * obstacle the walker is inside. Otherwise heads for the corner in sight
- * that the shortest way goes by, or straight for the destination if there
- * is no way round.
+ * Heads for the next point on the shortest way to the destination. A walker
+ * inside an obstacle sees it shrunk to leave it on its edge, so it makes
+ * its way out and round rather than across; if that leaves it no way, it
+ * walks straight out instead, as if the obstacle were not there; and if
+ * there is still no way, it heads straight for the destination.
  */
 function nextWaypoint(
   from: GroundPosition,
   destination: GroundPosition,
   obstacles: readonly Obstacle[],
 ): GroundPosition {
-  const inTheWay = obstacles.filter((obstacle) => !isInside(from, obstacle));
+  const shrunk = shrunkFrom(from, obstacles);
+  const outside = obstacles.filter((obstacle) => !isInside(from, obstacle));
+  return (
+    waypointPast(from, destination, obstacles, shrunk) ??
+    (outside.length < obstacles.length
+      ? waypointPast(from, destination, obstacles, outside)
+      : undefined) ??
+    destination
+  );
+}
+
+/**
+ * Heads straight for the destination when the way is clear of the obstacles
+ * in the way. Otherwise heads for the corner in sight that the shortest way
+ * round all the obstacles goes by, if there is one.
+ */
+function waypointPast(
+  from: GroundPosition,
+  destination: GroundPosition,
+  obstacles: readonly Obstacle[],
+  inTheWay: readonly Obstacle[],
+): GroundPosition | undefined {
   if (isClear(from, destination, inTheWay)) return destination;
   const { corners, distances } = routesTo(destination, obstacles);
   // The corner the shortest way goes by is nearly always among the first
@@ -132,7 +154,7 @@ function nextWaypoint(
       }
     }
     const corner = corners[cheapest];
-    if (corner === undefined) return destination;
+    if (corner === undefined) return undefined;
     if (isClear(from, corner, inTheWay)) return corner;
     costs[cheapest] = Infinity;
   }

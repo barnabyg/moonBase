@@ -156,6 +156,19 @@ describe("Walking round obstacles", () => {
     ).toBe(false);
   });
 
+  it("goes round an obstacle it starts just inside, rather than across it", () => {
+    // Such as a Robot that has laid cable to the edge of a Structure's footprint.
+    const obstacle = { centre: { x: 0, y: 0 }, radius: 4.5 };
+
+    const positions = walk({ x: 4, y: 0 }, { x: -15, y: 1 }, [obstacle]);
+
+    for (const position of positions) {
+      expect(distanceBetween(position, obstacle.centre)).toBeGreaterThanOrEqual(
+        4 - 1e-6,
+      );
+    }
+  });
+
   it("reaches a destination inside an obstacle from its near side", () => {
     const obstacle = { centre: { x: 0, y: 0 }, radius: 5 };
     const destination = { x: 4, y: 0 };
