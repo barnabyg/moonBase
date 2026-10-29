@@ -1,10 +1,7 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
-import { landerLadderFoot } from "./lander-model";
 import type { Frame } from "./interpolation";
 import { materials, part, roundedBox } from "./materials";
 import { alongRoute, routeLength, routeToHatch } from "./mission-director-walk";
-import { HABITAT_HATCH_OUT } from "./models";
 import { joint, limb } from "./robot-model";
 
 /** How fast the Mission Director walks across to their new Habitat, in metres per real second. */
@@ -14,8 +11,6 @@ const SHORTEST_WALK_SECONDS = 3;
 const LONGEST_WALK_SECONDS = 10;
 /** How far one stride carries the Mission Director, in metres. */
 const STRIDE_METRES = 1.3;
-/** Where they stand at the end of the walk, out from the Habitat's centre along +x by its airlock's hatch. */
-const HATCH_STAND_OUT = HABITAT_HATCH_OUT + 0.8;
 
 interface Walk {
   readonly habitatId: string;
@@ -51,7 +46,7 @@ export function createMissionDirectorView(scene: THREE.Scene) {
       figure.group.visible = false;
     },
     update(frame: Frame, realSeconds: number): void {
-      const { missionDirector, lander, structures } = frame.current;
+      const { missionDirector, structures } = frame.current;
       const residence =
         missionDirector.residence === "habitat"
           ? missionDirector.habitatId
@@ -65,21 +60,7 @@ export function createMissionDirectorView(scene: THREE.Scene) {
           (structure) => structure.id === missionDirector.habitatId,
         );
         if (habitat !== undefined) {
-          // From the scene (z south) back onto the ground (y north).
-          const ladderFoot = landerLadderFoot(
-            catalogue.lander.footprintRadiusMetres,
-          );
-          const route = routeToHatch(
-            frame.current,
-            {
-              x: lander.position.x + ladderFoot.x,
-              y: lander.position.y - ladderFoot.z,
-            },
-            {
-              x: habitat.position.x + HATCH_STAND_OUT,
-              y: habitat.position.y,
-            },
-          );
+          const route = routeToHatch(frame.current, habitat.position);
           const length = routeLength(route);
           walk = {
             habitatId: habitat.id,

@@ -1,17 +1,29 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { catalogue, type GroundPosition } from "../src/catalogue";
-import { alongRoute, routeToHatch } from "../src/render/mission-director-walk";
 import { toScene } from "../src/render/interpolation";
 import { footprintRadius } from "../src/simulation/construction";
 
-/** Where the foot of the Lander's ladder stands, as the Lander model has it. */
-const LADDER_FOOT = {
-  x: (catalogue.lander.footprintRadiusMetres - 0.2) * Math.SQRT1_2,
-  y: -(catalogue.lander.footprintRadiusMetres - 0.2) * Math.SQRT1_2,
-};
-/** Where the Mission Director stands by a Habitat's airlock hatch, out along +x. */
-const HATCH_STAND_OUT = 4.44 + 0.8;
+// The materials draw their textures on a canvas when they load; under Node
+// there is none, so they fall back to plain colours, as in a browser that
+// can't draw on one.
+vi.stubGlobal("document", {
+  createElement: () => ({ getContext: () => null }),
+});
+
+let walking: typeof import("../src/render/mission-director-walk");
+let landerModel: typeof import("../src/render/lander-model");
+let models: typeof import("../src/render/models");
+
+beforeAll(async () => {
+  walking = await import("../src/render/mission-director-walk");
+  landerModel = await import("../src/render/lander-model");
+  models = await import("../src/render/models");
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 interface Footing {
   readonly id: string;
@@ -20,14 +32,16 @@ interface Footing {
 }
 
 function base({
+  lander = { x: 0, y: 0 },
   structures,
   constructions = [],
 }: {
+  lander?: GroundPosition;
   structures: readonly Footing[];
   constructions?: readonly Footing[];
 }) {
   return {
-    lander: { position: { x: 0, y: 0 } },
+    lander: { position: lander },
     structures,
     constructions,
     dismantlings: [],
@@ -57,10 +71,10 @@ function pointsAlong(route: readonly THREE.Vector3[]): THREE.Vector3[] {
  */
 function expectRoundEverything(
   route: readonly THREE.Vector3[],
-  { structures, constructions }: ReturnType<typeof base>,
+  { lander, structures, constructions }: ReturnType<typeof base>,
 ): void {
   for (const point of pointsAlong(route)) {
-    expect(point.distanceTo(toScene({ x: 0, y: 0 }))).toBeGreaterThanOrEqual(
+    expect(point.distanceTo(toScene(lander.position))).toBeGreaterThanOrEqual(
       catalogue.lander.footprintRadiusMetres - 0.2 - 1e-6,
     );
     for (const { position, structureTypeId } of [
@@ -75,15 +89,23 @@ function expectRoundEverything(
 }
 
 describe("The Mission Director's walk from the Lander to their Habitat", () => {
-  it("goes round the Habitat to a hatch on its far side from the Lander", () => {
-    const habitat = habitatAt(20, 0);
-    const site = base({ structures: [habitat] });
-    const hatch = { x: 20 + HATCH_STAND_OUT, y: 0 };
+  it("goes from the foot of the Lander's ladder round the Habitat to a hatch on its far side", () => {
+    const habitat = habitatAt(24, -3);
+    const site = base({ lander: { x: 4, y: -3 }, structures: [habitat] });
 
-    const route = routeToHatch(site, LADDER_FOOT, hatch);
+    const route = walking.routeToHatch(site, habitat.position);
 
-    expect(route[0]).toEqual(toScene(LADDER_FOOT));
-    expect(route.at(-1)).toEqual(toScene(hatch));
+    const start = route[0] ?? new THREE.Vector3(NaN);
+    const ladderFoot = toScene(site.lander.position).add(
+      landerModel.landerLadderFoot(catalogue.lander.footprintRadiusMetres),
+    );
+    expect(start.distanceTo(ladderFoot)).toBeCloseTo(0);
+    // Level with the hatch, and just out from it.
+    const end = route.at(-1) ?? new THREE.Vector3(NaN);
+    const centre = toScene(habitat.position);
+    expect(end.z).toBeCloseTo(centre.z);
+    expect(end.x - centre.x).toBeGreaterThan(models.HABITAT_HATCH_OUT);
+    expect(end.x - centre.x).toBeLessThan(models.HABITAT_HATCH_OUT + 1);
     expectRoundEverything(route, site);
   });
 
@@ -99,10 +121,7 @@ describe("The Mission Director's walk from the Lander to their Habitat", () => {
       ],
     });
 
-    const route = routeToHatch(site, LADDER_FOOT, {
-      x: 30 + HATCH_STAND_OUT,
-      y: 0,
-    });
+    const route = walking.routeToHatch(site, { x: 30, y: 0 });
 
     expectRoundEverything(route, site);
   });
@@ -119,10 +138,7 @@ describe("The Mission Director's walk from the Lander to their Habitat", () => {
       ],
     });
 
-    const route = routeToHatch(site, LADDER_FOOT, {
-      x: -6 + HATCH_STAND_OUT,
-      y: 24,
-    });
+    const route = walking.routeToHatch(site, { x: -6, y: 24 });
 
     expectRoundEverything(route, site);
   });
@@ -137,8 +153,8 @@ describe("Walking along a route", () => {
   ];
 
   it("faces the way it walks on each leg", () => {
-    const first = alongRoute(route, 5);
-    const second = alongRoute(route, 15);
+    const first = walking.alongRoute(route, 5);
+    const second = walking.alongRoute(route, 15);
 
     expect(first.position.distanceTo(toScene({ x: 5, y: 0 }))).toBeCloseTo(0);
     // The model faces along its +z axis, which is south; east is a quarter
@@ -149,7 +165,7 @@ describe("Walking along a route", () => {
   });
 
   it("stays at the end once there, facing the way it arrived", () => {
-    const end = alongRoute(route, 25);
+    const end = walking.alongRoute(route, 25);
 
     expect(end.position.distanceTo(toScene({ x: 10, y: 10 }))).toBeCloseTo(0);
     expect(Math.abs(end.facing)).toBeCloseTo(Math.PI);

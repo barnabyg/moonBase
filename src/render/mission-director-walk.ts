@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { catalogue } from "../catalogue";
 import {
   obstaclesFor,
   routeBetween,
@@ -6,21 +7,30 @@ import {
   type Grounds,
 } from "../simulation";
 import { facingAngle, toScene } from "./interpolation";
+import { landerLadderFoot } from "./lander-model";
+import { HABITAT_HATCH_OUT } from "./models";
+
+/** Where the Mission Director stands at the end of the walk, out from the Habitat's centre along +x by its airlock's hatch. */
+const HATCH_STAND_OUT = HABITAT_HATCH_OUT + 0.8;
 
 /**
  * The way the Mission Director walks from the foot of the Lander's ladder to
- * a Habitat's airlock hatch, as the points it turns at in the scene: round
- * the Lander, the Habitat and everything else a Robot walks round, keeping
- * as far clear of them as a Robot does.
+ * the airlock hatch of the Habitat at the given position, as the points it
+ * turns at in the scene: round the Lander, the Habitat and everything else
+ * a Robot walks round, keeping as far clear of them as a Robot does.
  */
 export function routeToHatch(
   grounds: Grounds,
-  ladderFoot: GroundPosition,
-  hatch: GroundPosition,
+  habitat: GroundPosition,
 ): THREE.Vector3[] {
-  return routeBetween(ladderFoot, hatch, obstaclesFor(grounds)).map((point) =>
-    toScene(point),
-  );
+  const lander = grounds.lander.position;
+  // From the scene (z south) back onto the ground (y north).
+  const ladderFoot = landerLadderFoot(catalogue.lander.footprintRadiusMetres);
+  return routeBetween(
+    { x: lander.x + ladderFoot.x, y: lander.y - ladderFoot.z },
+    { x: habitat.x + HATCH_STAND_OUT, y: habitat.y },
+    obstaclesFor(grounds),
+  ).map((point) => toScene(point));
 }
 
 /** How far it is along a route from its start to its end. */
