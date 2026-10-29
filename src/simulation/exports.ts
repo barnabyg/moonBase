@@ -139,13 +139,10 @@ export function takeExportsAboard(state: CampaignState): ExportLine[] {
  * taken the Exports to load.
  */
 export function takeExportsFromStock(state: CampaignState): void {
-  state.exportsToLoad = state.exportsToLoad.flatMap(
-    ({ resourceId, kilograms }) => {
-      const taken = Math.min(kilograms, bulkInStock(state, resourceId));
-      addBulk(state, resourceId, -taken);
-      return taken > 0 ? [{ resourceId, kilograms: taken }] : [];
-    },
-  );
+  state.exportsToLoad = toLoadInStock(state);
+  for (const { resourceId, kilograms } of state.exportsToLoad) {
+    addBulk(state, resourceId, -kilograms);
+  }
 }
 
 /**
@@ -188,15 +185,40 @@ export function valueAboard(state: CampaignState): number {
  * fit within the Return Mass, as they were refused otherwise.
  */
 export function valueToLoad(state: CampaignState): number {
-  if (state.exportLoading?.collected === true) {
-    return valueOf(state.exportsToLoad);
-  }
+  return valueOf(toLoadAsTaken(state));
+}
+
+/**
+ * What the Exports aboard and to load will sell for together as the Lander
+ * reaches Earth, worked out just as the sale will, on the lines they will
+ * make once all are aboard, so that it comes to exactly what the sale
+ * raises the Funding by.
+ */
+export function valueToSell(state: CampaignState): number {
   return valueOf(
-    state.exportsToLoad.map(({ resourceId, kilograms }) => ({
-      resourceId,
-      kilograms: Math.min(kilograms, bulkInStock(state, resourceId)),
-    })),
+    inCatalogueOrder([...state.lander.exports, ...toLoadAsTaken(state)]),
   );
+}
+
+/**
+ * The Exports to load as they will go aboard: as much of each as the base
+ * has in stock, or, once the Robot has loaded them, what it carries.
+ */
+function toLoadAsTaken(state: CampaignState): ExportLine[] {
+  return state.exportLoading?.collected === true
+    ? state.exportsToLoad
+    : toLoadInStock(state);
+}
+
+/**
+ * The Exports to load, cut to as much of each as the base has in stock,
+ * leaving out any it has none of.
+ */
+function toLoadInStock(state: CampaignState): ExportLine[] {
+  return state.exportsToLoad.flatMap(({ resourceId, kilograms }) => {
+    const inStock = Math.min(kilograms, bulkInStock(state, resourceId));
+    return inStock > 0 ? [{ resourceId, kilograms: inStock }] : [];
+  });
 }
 
 export function readExports(state: CampaignState): ExportsSnapshot {

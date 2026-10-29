@@ -1,7 +1,7 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
-import { valueAboard, valueToLoad } from "./exports";
+import { valueAboard, valueToLoad, valueToSell } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
 
@@ -241,7 +241,9 @@ export function readManifestFunds(
 ): ManifestFunds {
   const aboard = valueAboard(state);
   const toLoad = valueToLoad(state);
-  const exportsMillionDollars = aboard + toLoad;
+  // Just as the sale will raise the Funding, so that a manifest within it
+  // never leaves the Funding below none once it is paid for.
+  const exportsMillionDollars = valueToSell(state);
   const totalMillionDollars =
     state.fundingMillionDollars + exportsMillionDollars;
   return {

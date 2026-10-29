@@ -480,3 +480,82 @@ describe("Exports to load with the Lander at the landing site", () => {
     expect(wafersInStock(campaign.snapshot())).toBe(20);
   });
 });
+
+describe("Exports both aboard and to load as the Lander takes off from the landing site", () => {
+  const waferPrice =
+    catalogue.exports.find((sold) => sold.resourceId === "wafers")
+      ?.priceMillionDollarsPerKilogram ?? Number.NaN;
+  const waterPrice =
+    catalogue.launch.items.find((item) => item.id === "water")
+      ?.priceMillionDollars ?? Number.NaN;
+  const water: ManifestLine[] = [{ itemId: "water", count: 1 }];
+  const cost = catalogue.launch.feeMillionDollars + waterPrice;
+  // 0.3 kg aboard and 21.6 kg to load, which the Lander sells as one line,
+  // for a hair less than the two lines' values added up.
+  const kilogramsAboard = 0.3;
+  const kilogramsToLoad = 21.6;
+  const sale = waferPrice * (kilogramsAboard + kilogramsToLoad);
+  const valuedApart =
+    waferPrice * kilogramsAboard + waferPrice * kilogramsToLoad;
+
+  /**
+   * The Lander back on the landing pad with wafers aboard, the pad then
+   * Broken, so that it takes off as from the landing site, and a manifest
+   * of water set against the Funding given and more wafers to load, which
+   * are then lowered.
+   */
+  function aboardAndToLoad(fundingMillionDollars: number): Campaign {
+    const loading = onPad(60);
+    load(loading, wafers(kilogramsAboard));
+    advanceUntil(loading, aboard);
+    const pad = loading
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === padType?.id,
+      );
+    const campaign = changed(worn(loading, pad?.id ?? "", 0), (state) => {
+      state.fundingMillionDollars = fundingMillionDollars;
+    });
+    load(campaign, wafers(30));
+    const manifest = campaign.setLaunchManifest(water);
+    if (!manifest.ok) throw new Error(manifest.message);
+    load(campaign, wafers(kilogramsToLoad));
+    return campaign;
+  }
+
+  it("are valued as they will be sold, so the Lander can't leave with a manifest the sale falls short of by a hair", () => {
+    // The most Funding that, with the sale, falls short of the cost.
+    let funding = cost - sale;
+    while (funding + sale >= cost) funding = nextBelow(funding);
+    expect(funding + valuedApart).toBeGreaterThanOrEqual(cost);
+    const campaign = aboardAndToLoad(funding);
+
+    expect(campaign.sendLander()).toMatchObject({
+      ok: false,
+      reason: "over-funding",
+    });
+  });
+
+  it("pay for a manifest the sale just covers, leaving no Funding below none", () => {
+    const funding = cost - sale;
+    expect(funding + sale).toBeGreaterThanOrEqual(cost);
+    const campaign = aboardAndToLoad(funding);
+
+    send(campaign);
+    const takeOff = eventOf(
+      skipUntil(campaign, "lander-took-off"),
+      "lander-took-off",
+    );
+    skipUntil(campaign, "lander-left-earth");
+
+    expect(takeOff.exports).toEqual(wafers(kilogramsAboard + kilogramsToLoad));
+    expect(campaign.snapshot().fundingMillionDollars).toBeGreaterThanOrEqual(0);
+  });
+});
+
+/** The next number below a positive one that a double can hold. */
+function nextBelow(value: number): number {
+  const bits = new BigInt64Array(new Float64Array([value]).buffer);
+  bits[0] = (bits[0] ?? 0n) - 1n;
+  return new Float64Array(bits.buffer)[0] ?? Number.NaN;
+}
