@@ -229,6 +229,9 @@ describe("a Structure the regolith printer prints", () => {
       .plan(sinteredPad.id, padSite)
       .plan(prefabricated.id, { x: 40, y: -25 });
     const [padId, arrayId] = game.state.constructions.map((c) => c.id);
+    if (padId === undefined || arrayId === undefined) {
+      throw new Error("expected both Constructions planned");
+    }
 
     const states = runUntilBuilt(game);
 
@@ -238,11 +241,9 @@ describe("a Structure the regolith printer prints", () => {
         activity.kind === "working" ? [activity.constructionId] : [],
       );
     expect(sitesExcavated).toEqual([
-      ...Array<string>(sinteredPad.stageHours.sitePreparation * 60).fill(
-        padId ?? "",
-      ),
+      ...Array<string>(sinteredPad.stageHours.sitePreparation * 60).fill(padId),
       ...Array<string>(prefabricated.stageHours.sitePreparation * 60).fill(
-        arrayId ?? "",
+        arrayId,
       ),
     ]);
   });
