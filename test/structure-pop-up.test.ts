@@ -7,6 +7,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import {
+  popUpFor,
   structureDetails,
   type StructureDetails,
 } from "../src/ui/structure-details";
@@ -328,5 +329,48 @@ describe("the pop-up for a Structure clicked on the map", () => {
     expect(line(under, "Stage")).toBe("Stage: Taking apart: 25%");
     expect(line(under, "State")).toBe("State: being dismantled");
     expect(under?.commissioned).toBeUndefined();
+  });
+});
+
+describe("the pop-up for a Habitat under Regolith shielding and a water wall", () => {
+  const site = { x: 30, y: -10 };
+  const covered = snapshotWith({
+    structures: [
+      structure("habitat", { id: "habitat", position: site, shielded: true }),
+      structure("regolith-shielding", { id: "shielding", position: site }),
+    ],
+    constructions: [construction("water-wall", { id: "wall", position: site })],
+  });
+
+  it("opens for the Habitat when its cover is clicked, which hides it", () => {
+    expect(popUpFor(covered, "shielding")).toBe("habitat");
+    expect(popUpFor(covered, "wall")).toBe("habitat");
+    expect(popUpFor(covered, "habitat")).toBe("habitat");
+  });
+
+  it("opens for anything else that is clicked", () => {
+    const array = snapshotWith({
+      structures: [structure("solar-array", { id: "array" })],
+    });
+    expect(popUpFor(array, "array")).toBe("array");
+  });
+
+  it("offers to switch to each Structure over the Habitat, and from each back to it", () => {
+    expect(structureDetails(covered, "habitat")?.switchTo).toEqual([
+      { structureId: "shielding", title: "Regolith shielding" },
+      { structureId: "wall", title: "Water wall" },
+    ]);
+    expect(structureDetails(covered, "shielding")?.switchTo).toEqual([
+      { structureId: "habitat", title: "Inflatable Habitat" },
+    ]);
+  });
+
+  it("offers nothing to switch to for a Structure standing alone", () => {
+    expect(
+      structureDetails(
+        snapshotWith({ structures: [structure("solar-array")] }),
+        "s1",
+      )?.switchTo,
+    ).toEqual([]);
   });
 });

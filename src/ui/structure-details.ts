@@ -1,6 +1,9 @@
 import { catalogue, type StructureType } from "../catalogue";
 import {
   habitatDoseRate,
+  habitatUnder,
+  shieldingOver,
+  waterWallOver,
   type ConstructionSnapshot,
   type DismantlingSnapshot,
   type Snapshot,
@@ -47,6 +50,59 @@ export interface StructureDetails {
   readonly commissioned: StructureSnapshot | undefined;
   /** Whether it is to be dismantled, or is being. */
   readonly toBeDismantled: boolean;
+  /**
+   * The other Structures on the same spot, to switch the pop-up to: for a
+   * Habitat, the Regolith shielding and water wall over it, which hide it
+   * from clicks; for those, the Habitat under them.
+   */
+  readonly switchTo: readonly StructureLink[];
+}
+
+/** A Structure to switch the pop-up to. */
+export interface StructureLink {
+  readonly structureId: string;
+  readonly title: string;
+}
+
+/** Anything with a Structure's footprint, commissioned, under Construction or being dismantled. */
+type Footing = Pick<StructureSnapshot, "id" | "structureTypeId" | "position">;
+
+/**
+ * The Structure whose pop-up a click on a Structure opens: the Habitat
+ * under Regolith shielding or a water wall, which cover it so that every
+ * click on it lands on them, or else the Structure clicked.
+ */
+export function popUpFor(snapshot: Snapshot, clickedId: string): string {
+  const clicked = footingOf(snapshot, clickedId);
+  return clicked === undefined
+    ? clickedId
+    : (habitatUnder(snapshot, clicked)?.id ?? clickedId);
+}
+
+function footingOf(
+  snapshot: Snapshot,
+  structureId: string,
+): Footing | undefined {
+  return (
+    snapshot.structures.find(({ id }) => id === structureId) ??
+    snapshot.constructions.find(({ id }) => id === structureId) ??
+    snapshot.dismantlings.find(({ id }) => id === structureId)
+  );
+}
+
+/** What to switch to from a Habitat's pop-up, or from that of something over one. */
+function switchesFrom(snapshot: Snapshot, footing: Footing): StructureLink[] {
+  const habitat = habitatUnder(snapshot, footing);
+  const others =
+    habitat !== undefined
+      ? [habitat]
+      : [shieldingOver(snapshot, footing), waterWallOver(snapshot, footing)];
+  return others
+    .filter((other) => other !== undefined)
+    .map(({ id, structureTypeId }) => ({
+      structureId: id,
+      title: structureLabel(structureTypeId),
+    }));
 }
 
 /** What doesn't apply yet, such as the Condition of a Structure under Construction. */
@@ -67,14 +123,13 @@ export function structureDetails(
   const dismantling = snapshot.dismantlings.find(
     ({ id }) => id === structureId,
   );
-  const structureTypeId =
-    structure?.structureTypeId ??
-    construction?.structureTypeId ??
-    dismantling?.structureTypeId;
+  const footing = footingOf(snapshot, structureId);
+  if (footing === undefined) return undefined;
+  const { structureTypeId } = footing;
   const type = catalogue.structureTypes.find(
     ({ id }) => id === structureTypeId,
   );
-  if (structureTypeId === undefined || type === undefined) return undefined;
+  if (type === undefined) return undefined;
   const toBeDismantled = dismantling !== undefined;
   return {
     structureId,
@@ -113,6 +168,7 @@ export function structureDetails(
     ],
     commissioned: structure,
     toBeDismantled,
+    switchTo: switchesFrom(snapshot, footing),
   };
 }
 

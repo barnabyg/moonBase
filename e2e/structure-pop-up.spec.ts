@@ -172,3 +172,53 @@ test("the pop-up's Dismantle does what the Base panel's does, and the pop-up clo
   await expect(structures).toBeHidden();
   await expect(popUp).toBeHidden();
 });
+
+test("clicking Regolith shielding over a Habitat opens the Habitat's pop-up, which switches to the shielding's", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const buildMenu = page.getByRole("complementary", { name: "Build menu" });
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  const notifications = page.getByRole("log", { name: "Notifications" });
+  /** Clicks "Skip to next event" until the notification shows. */
+  const skipUntil = async (notification: string) => {
+    const shown = notifications.getByText(notification);
+    for (let skips = 0; skips < 10 && !(await shown.isVisible()); skips++) {
+      await skip.click();
+    }
+    await expect(shown).toBeVisible();
+  };
+  await buildMenu.getByRole("button", { name: /Solar array/ }).click();
+  await placeOnClearGround(page);
+  await buildMenu.getByRole("button", { name: /Inflatable Habitat/ }).click();
+  const site = await placeOnClearGround(page);
+  await skipUntil("Inflatable Habitat commissioned");
+  // The only clear ground it can go on is the Habitat.
+  await buildMenu.getByRole("button", { name: /Regolith shielding/ }).click();
+  await placeOnClearGround(page);
+  // Its dome now covers the Habitat.
+  await skipUntil("Regolith shielding commissioned");
+
+  await page.mouse.click(site.x, site.y);
+
+  const habitat = page.getByRole("dialog", { name: "Inflatable Habitat" });
+  await expect(habitat.getByRole("status", { name: "Residents" })).toHaveText(
+    "Residents nobody",
+  );
+  await expect(habitat.getByRole("button", { name: "Move in" })).toBeVisible();
+  await habitat.getByRole("button", { name: "Regolith shielding ›" }).click();
+
+  const shielding = page.getByRole("dialog", { name: "Regolith shielding" });
+  await expect(shielding.getByRole("status", { name: "Stage" })).toHaveText(
+    "Stage commissioned",
+  );
+  await expect(
+    shielding.getByRole("button", { name: "Dismantle" }),
+  ).toBeVisible();
+  await shielding.getByRole("button", { name: "Inflatable Habitat ›" }).click();
+  await expect(habitat).toBeVisible();
+});

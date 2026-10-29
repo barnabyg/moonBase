@@ -1558,6 +1558,18 @@ body {
   text-overflow: ellipsis;
 }
 
+.structure-pop-up__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.structure-pop-up__links .panel-button {
+  padding: 2px 8px;
+  font-size: 0.78rem;
+}
+
 .structure-pop-up__actions {
   display: flex;
   flex-wrap: wrap;

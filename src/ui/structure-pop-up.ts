@@ -9,7 +9,12 @@ import {
   type StructureChoices,
   type StructureControls,
 } from "./structure-controls";
-import { structureDetails, type DetailLine } from "./structure-details";
+import {
+  popUpFor,
+  structureDetails,
+  type DetailLine,
+  type StructureLink,
+} from "./structure-details";
 
 /** How far the pop-up stands to the side of the Structure, in pixels. */
 const OFFSET_PX = 28;
@@ -69,21 +74,61 @@ export function createStructurePopUp(
   description.className = "structure-pop-up__description";
   const lines = document.createElement("div");
   lines.className = "structure-pop-up__lines";
+  // Buttons to switch to the other Structures on the same spot, such as
+  // the Regolith shielding over a Habitat.
+  const links = document.createElement("div");
+  links.className = "structure-pop-up__links";
+  links.hidden = true;
   const actions = document.createElement("div");
   actions.className = "structure-pop-up__actions";
-  popUp.append(head, description, lines, actions);
+  popUp.append(head, description, lines, links, actions);
   container.append(popUp);
 
   let openFor: string | undefined;
   let shown: Shown | undefined;
   let latest: Snapshot | undefined;
+  /** The ids of the Structures the links switch to, as shown. */
+  let linked = "";
 
   function hide(): void {
     openFor = undefined;
     shown = undefined;
     popUp.hidden = true;
     lines.replaceChildren();
+    links.replaceChildren();
+    links.hidden = true;
+    linked = "";
     actions.replaceChildren();
+  }
+
+  /** Opens the pop-up for a Structure, or switches it to that one. */
+  function open(structureId: string): void {
+    openFor = structureId;
+    if (latest !== undefined) {
+      show(latest);
+      place(structureId);
+    }
+  }
+
+  /** Shows a button for each Structure to switch to, changing the page only when they change. */
+  function showLinks(switchTo: readonly StructureLink[]): void {
+    const ids = switchTo.map(({ structureId }) => structureId).join(" ");
+    if (ids === linked) return;
+    linked = ids;
+    links.replaceChildren(
+      ...switchTo.map(({ structureId, title: name }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "panel-button";
+        button.textContent = `${name} ›`;
+        button.title = `Show the ${name.toLowerCase()} instead`;
+        button.addEventListener("click", () => {
+          open(structureId);
+        });
+        return button;
+      }),
+    );
+    links.hidden = switchTo.length === 0;
   }
 
   /** Builds the pop-up afresh for a Structure, with a line for each of its type's. */
@@ -137,6 +182,7 @@ export function createStructurePopUp(
           : `${line.stat.value} · ${line.stat.note}`;
       if (statLine.element.title !== text) statLine.element.title = text;
     }
+    showLinks(details.switchTo);
     const { commissioned } = details;
     if (commissioned !== undefined && shown.controls === undefined) {
       shown.controls = createStructureControls(
@@ -189,16 +235,12 @@ export function createStructurePopUp(
     view.canvas,
     (event) => {
       if (event.button !== 0) return;
-      const structureId = view.pickStructure(event.clientX, event.clientY);
-      if (structureId === undefined) {
+      const clicked = view.pickStructure(event.clientX, event.clientY);
+      if (clicked === undefined) {
         hide();
         return;
       }
-      openFor = structureId;
-      if (latest !== undefined) {
-        show(latest);
-        place(structureId);
-      }
+      open(latest === undefined ? clicked : popUpFor(latest, clicked));
     },
     // A click while placing a Structure places it.
     () => !isPlacing(),
