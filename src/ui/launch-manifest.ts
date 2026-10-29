@@ -236,10 +236,11 @@ export function createLaunchManifestScreen(
         section.hidden = [...body.rows].every((row) => row.hidden);
       }
       // What the manifest can be paid with: the Funding, and what the
-      // Exports aboard will sell for before it is paid.
+      // Exports aboard and to load will sell for before it is paid.
       const spendable =
         snapshot.fundingMillionDollars +
-        snapshot.exports.valueAboardMillionDollars;
+        snapshot.exports.valueAboardMillionDollars +
+        snapshot.exports.valueMillionDollars;
       payloadMass.show(
         formatPayloadMass(snapshot.launchManifest),
         snapshot.launchManifest.payloadMassKilograms /
@@ -249,7 +250,7 @@ export function createLaunchManifestScreen(
         formatLaunchCost(
           snapshot.launchManifest,
           snapshot.fundingMillionDollars,
-          snapshot.exports.valueAboardMillionDollars,
+          snapshot.exports,
         ),
         locked || spendable <= 0
           ? undefined

@@ -865,29 +865,40 @@ export function formatPayloadMass(manifest: LaunchManifestSnapshot): string {
 
 /**
  * Says what the manifest costs against the Funding balance, and what any
- * Exports aboard the Lander will sell for before it is paid for, for
- * example "Cost: $230M of $400M Funding, including the $150M Launch fee" or
- * "Cost: $480M of $400M Funding and $150M from the Exports aboard,
- * including the $150M Launch fee". An empty manifest costs nothing, so the
- * fee is left out until it has an item. Once it is locked, it has been paid
+ * Exports aboard the Lander and to load will sell for before it is paid
+ * for, for example "Cost: $230M of $400M Funding, including the $150M
+ * Launch fee" or "Cost: $161M of $150M Funding and $45M from the Exports
+ * to load, including the $150M Launch fee". An empty manifest costs
+ * nothing, so the fee is left out until it has an item. If it costs more
+ * than they come to, as once the Exports to load have been lowered, it
+ * says the Lander can't leave with it. Once it is locked, it has been paid
  * for.
  */
 export function formatLaunchCost(
   manifest: LaunchManifestSnapshot,
   fundingMillionDollars: number,
-  valueAboardMillionDollars: number,
+  exports: ExportsSnapshot,
 ): string {
   if (manifest.locked) {
     return `Cost: ${formatMillionDollars(manifest.costMillionDollars)}, paid as the Lander left Earth`;
   }
+  const aboard = exports.valueAboardMillionDollars;
+  const toLoad = exports.valueMillionDollars;
+  const from =
+    aboard === 0 ? "to load" : toLoad === 0 ? "aboard" : "aboard and to load";
   const funding = `${formatMillionDollars(fundingMillionDollars)} Funding${
-    valueAboardMillionDollars === 0
+    aboard + toLoad === 0
       ? ""
-      : ` and ${formatMillionDollars(valueAboardMillionDollars)} from the Exports aboard`
+      : ` and ${formatMillionDollars(aboard + toLoad)} from the Exports ${from}`
   }`;
-  return manifest.items.length === 0
-    ? `Cost: nothing of ${funding}, while the manifest is empty`
-    : `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(manifest.feeMillionDollars)} Launch fee`;
+  if (manifest.items.length === 0) {
+    return `Cost: nothing of ${funding}, while the manifest is empty`;
+  }
+  const over =
+    manifest.costMillionDollars > fundingMillionDollars + aboard + toLoad
+      ? ". The Lander can't leave with it until it costs no more."
+      : "";
+  return `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(manifest.feeMillionDollars)} Launch fee${over}`;
 }
 
 /**
