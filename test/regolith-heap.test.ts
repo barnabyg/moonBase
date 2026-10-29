@@ -75,7 +75,7 @@ describe("the heap of the base's Regolith", () => {
     expect(regolithHeap(stockpilePosition, 0)).toBeUndefined();
   });
 
-  it("holds a full stock as a cone of loose Regolith about 1.2 m across its radius and 0.85 m high, a little smaller than the stockpile's mat", () => {
+  it("holds a full stock as a cone of loose Regolith about 1.2 m in radius and 0.85 m high, a little smaller than the stockpile's mat", () => {
     const full = sizeAt(digging.fullKilograms);
 
     expect(full.radiusMetres).toBeCloseTo(1.22, 2);

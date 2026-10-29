@@ -72,6 +72,10 @@ _Avoid_: shipment, supply drop, resupply run
 The base's stock of Components, and of bulk resources such as Regolith measured in kilograms, kept on the ground beside the landing site, where Robots load Components for Construction and Exports to carry onto the Lander on a landing pad, and unload Components recovered by dismantling or carried off the Lander from a landing pad. It belongs to the base, not the Lander, and stays when the Lander leaves.
 _Avoid_: cargo, cargo stock, inventory
 
+**Regolith heap**:
+The base's stock of Regolith as it lies on the ground: a heap of loose Regolith beside the stockpile's footprint, where the excavator tips what it digs, growing and shrinking with the stock.
+_Avoid_: spoil heap, mound, pile
+
 **Payload Mass**:
 The mass a Launch can carry, and the main limit on what can be imported from Earth.
 _Avoid_: cargo capacity, weight
