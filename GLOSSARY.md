@@ -111,7 +111,7 @@ A cheap Structure of graded, marked ground with bays, each with a power socket, 
 _Avoid_: car park, garage, depot
 
 **Site Preparation**:
-The first stage of Construction, when the ground is cleared and graded for a Structure.
+The first stage of Construction, when the ground is cleared and graded for a Structure, and, for a Structure the regolith printer prints, the Regolith it is printed from is dug on the site, with none of it going into the base's stock.
 _Avoid_: groundwork, levelling
 
 **Component**:
