@@ -72,3 +72,12 @@ jobs:
       - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
         env:
           PLAYWRIGHT_HEADED: "1"
+      # A failing end-to-end test leaves the page as it was, as an
+      # accessibility snapshot and a screenshot, in test-results. CI can't
+      # be run locally with its software renderer, so keep them to diagnose.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 14

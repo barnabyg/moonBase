@@ -1383,10 +1383,11 @@ body {
 .launch-manifest__count {
   width: 4em;
   text-align: right;
+  white-space: nowrap;
   color: var(--text-faint);
 }
 
-/* A row with some of it on the manifest, or some to load, stands out. */
+/* A row with some of it on the manifest, or some to load or aboard, stands out. */
 .launch-manifest__row--chosen {
   background: rgb(242 193 78 / 6%);
   box-shadow: inset 3px 0 0 var(--accent);
