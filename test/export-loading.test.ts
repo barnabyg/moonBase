@@ -391,6 +391,20 @@ describe("Exports to load with the Lander on a landing pad", () => {
     expect(campaign.snapshot().exports.toLoad).toEqual(wafers(40));
   });
 
+  it("are still worth what the Robot carries once it has taken them out of the base's stock", () => {
+    const campaign = onPad(40);
+    load(campaign, wafers(40));
+    advanceUntil(campaign, collected);
+
+    const state = campaign.snapshot();
+    expect(wafersInStock(state)).toBe(0);
+    expect(state.exports.valueMillionDollars).toBe(
+      40 *
+        (catalogue.exports.find((sold) => sold.resourceId === "wafers")
+          ?.priceMillionDollarsPerKilogram ?? Number.NaN),
+    );
+  });
+
   it("are as much as is left, if the stock has fallen below them before the Robot loads them", () => {
     const set = onPad(60);
     load(set, wafers(40));

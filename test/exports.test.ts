@@ -385,17 +385,13 @@ describe("a manifest paid for by that trip's Exports", () => {
   const landerFreeWithFunding = (wafers: number) =>
     withFunding(landerFreeWith(wafers), funding);
 
-  it("is refused before the Exports are aboard, on the Funding balance alone", () => {
+  it("is accepted before the Exports are aboard, counting what the Exports to load will sell for", () => {
     const campaign = landerFreeWithFunding(returnMass);
     load(campaign, wafers(returnMass));
     expect(cost).toBeGreaterThan(funding);
     expect(cost).toBeLessThanOrEqual(funding + returnMass * waferPrice);
 
-    expect(campaign.setLaunchManifest(dear)).toEqual({
-      ok: false,
-      reason: "over-funding",
-      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M.`,
-    });
+    expect(campaign.setLaunchManifest(dear)).toEqual({ ok: true });
   });
 
   it("is accepted while they are aboard, counting what they will sell for, and is paid for as the Lander leaves Earth", () => {
@@ -424,6 +420,89 @@ describe("a manifest paid for by that trip's Exports", () => {
       ok: false,
       reason: "over-funding",
       message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M and the $${2 * waferPrice}M the Exports aboard will sell for.`,
+    });
+  });
+});
+
+describe("a solar array paid for by the Exports to load", () => {
+  // The Components of one solar array.
+  const solarArray: ManifestLine[] = [
+    { itemId: "solar-panel", count: 2 },
+    { itemId: "array-mast", count: 1 },
+  ];
+  const cost =
+    launch.feeMillionDollars +
+    solarArray.reduce(
+      (total, { itemId, count }) =>
+        total +
+        (launch.items.find((item) => item.id === itemId)?.priceMillionDollars ??
+          Number.NaN) *
+          count,
+      0,
+    );
+  // Funding for the Launch fee alone, and wafers worth the rest and more.
+  const funding = launch.feeMillionDollars;
+  const loaded = 30;
+  const landerFreeWithFee = () => withFunding(landerFreeWith(60), funding);
+
+  function inStock(state: Snapshot, componentId: string): number {
+    return (
+      state.stockpile.components.find(
+        (count) => count.componentId === componentId,
+      )?.count ?? 0
+    );
+  }
+
+  it("is accepted with the Exports to load, and once the Lander is back, it is delivered and the Funding is what it was, plus the sale, less the cost", () => {
+    const campaign = landerFreeWithFee();
+    load(campaign, wafers(loaded));
+    expect(cost).toBeGreaterThan(funding);
+    expect(cost).toBeLessThanOrEqual(funding + loaded * waferPrice);
+    const before = campaign.snapshot();
+
+    expect(campaign.setLaunchManifest(solarArray)).toEqual({ ok: true });
+    send(campaign);
+    const landed = eventOf(
+      skipUntil(campaign, "lander-landed"),
+      "lander-landed",
+    );
+
+    const state = campaign.snapshot();
+    expect(landed.delivered).toEqual(solarArray);
+    expect(inStock(state, "solar-panel")).toBe(
+      inStock(before, "solar-panel") + 2,
+    );
+    expect(inStock(state, "array-mast")).toBe(
+      inStock(before, "array-mast") + 1,
+    );
+    expect(state.fundingMillionDollars).toBe(
+      funding + loaded * waferPrice - cost,
+    );
+  });
+
+  it("counts only as much of the Exports to load as the base still has in stock, as the Lander takes no more", () => {
+    const set = landerFreeWithFee();
+    load(set, wafers(loaded));
+    const campaign = withWafers(set, 5);
+    expect(cost).toBeGreaterThan(funding + 5 * waferPrice);
+
+    expect(campaign.snapshot().exports.valueMillionDollars).toBe(
+      5 * waferPrice,
+    );
+    expect(campaign.setLaunchManifest(solarArray)).toEqual({
+      ok: false,
+      reason: "over-funding",
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M and the $${5 * waferPrice}M the Exports to load will sell for.`,
+    });
+  });
+
+  it("is refused without the Exports to load, saying there are none", () => {
+    const campaign = landerFreeWithFee();
+
+    expect(campaign.setLaunchManifest(solarArray)).toEqual({
+      ok: false,
+      reason: "over-funding",
+      message: `That would bring the manifest's cost to $${cost}M, more than the Funding balance of $${funding}M, with no Exports aboard or to load to sell first.`,
     });
   });
 });

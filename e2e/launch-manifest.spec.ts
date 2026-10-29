@@ -104,7 +104,7 @@ test("the Launch manifest screen refuses an item the Funding can't pay for", asy
   );
   await screen.getByRole("button", { name: "Add one Habitat core" }).click();
   await expect(screen.getByRole("alert")).toHaveText(
-    `That would bring the manifest's cost to $${oneCost + core.priceMillionDollars}M, more than the Funding balance of $${savedFunding}M.`,
+    `That would bring the manifest's cost to $${oneCost + core.priceMillionDollars}M, more than the Funding balance of $${savedFunding}M, with no Exports aboard or to load to sell first.`,
   );
   // Its count, after its name and its mass and price.
   await expect(

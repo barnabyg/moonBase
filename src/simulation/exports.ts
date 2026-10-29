@@ -20,7 +20,11 @@ export interface ExportsSnapshot {
   readonly toLoad: readonly ExportLine[];
   /** The mass of the Exports to load, against the Lander's Return Mass. */
   readonly massKilograms: number;
-  /** What the Exports to load would sell for. */
+  /**
+   * What the Exports to load will sell for: as much of each as the base
+   * still has in stock, or, once the Robot has loaded them, what it
+   * carries.
+   */
   readonly valueMillionDollars: number;
   /**
    * The Exports aboard the Lander, from its take-off, or on a landing pad
@@ -177,11 +181,29 @@ export function valueAboard(state: CampaignState): number {
   return valueOf(state.lander.exports);
 }
 
+/**
+ * What the Exports to load will sell for as the Lander reaches Earth: as
+ * much of each as the base still has in stock, as no more goes aboard, or,
+ * once the Robot has loaded them at the stockpile, what it carries. They
+ * fit within the Return Mass, as they were refused otherwise.
+ */
+export function valueToLoad(state: CampaignState): number {
+  if (state.exportLoading?.collected === true) {
+    return valueOf(state.exportsToLoad);
+  }
+  return valueOf(
+    state.exportsToLoad.map(({ resourceId, kilograms }) => ({
+      resourceId,
+      kilograms: Math.min(kilograms, bulkInStock(state, resourceId)),
+    })),
+  );
+}
+
 export function readExports(state: CampaignState): ExportsSnapshot {
   return {
     toLoad: state.exportsToLoad.map((line) => ({ ...line })),
     massKilograms: massOf(state.exportsToLoad),
-    valueMillionDollars: valueOf(state.exportsToLoad),
+    valueMillionDollars: valueToLoad(state),
     aboard: state.lander.exports.map((line) => ({ ...line })),
     valueAboardMillionDollars: valueAboard(state),
   };

@@ -1,7 +1,7 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
-import { valueAboard } from "./exports";
+import { valueAboard, valueToLoad } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
 
@@ -113,15 +113,10 @@ export function setLaunchManifest(
       `That would bring the manifest's Payload Mass to ${payloadMassKilograms} kg, over the Launch's limit of ${limit} kg.`,
     );
   }
-  const exportsValue = valueAboard(state);
-  if (costMillionDollars > state.fundingMillionDollars + exportsValue) {
-    const exports =
-      exportsValue === 0
-        ? ""
-        : ` and the ${millionDollars(exportsValue)} the Exports aboard will sell for`;
+  if (costMillionDollars > spendable(state)) {
     return refuse(
       "over-funding",
-      `That would bring the manifest's cost to ${millionDollars(costMillionDollars)}, more than the Funding balance of ${millionDollars(state.fundingMillionDollars)}${exports}.`,
+      `That would bring the manifest's cost to ${millionDollars(costMillionDollars)}, more than ${spendableInWords(state)}.`,
     );
   }
   state.launchManifest = items;
@@ -197,6 +192,32 @@ export function deliverLaunch(
   state.launchManifest = [];
   state.launchFeePaidMillionDollars = undefined;
   return delivered;
+}
+
+/**
+ * What the manifest can be paid with as the Lander leaves Earth: the
+ * Funding balance, and what the Exports aboard and to load will sell for
+ * as it reaches Earth, before it is paid for.
+ */
+function spendable(state: CampaignState): number {
+  return state.fundingMillionDollars + valueAboard(state) + valueToLoad(state);
+}
+
+/**
+ * What the manifest can be paid with, as a refusal gives it, for example
+ * "the Funding balance of $150M and the $45M the Exports to load will sell
+ * for".
+ */
+function spendableInWords(state: CampaignState): string {
+  const funding = `the Funding balance of ${millionDollars(state.fundingMillionDollars)}`;
+  const aboard = valueAboard(state);
+  const toLoad = valueToLoad(state);
+  if (aboard === 0 && toLoad === 0) {
+    return `${funding}, with no Exports aboard or to load to sell first`;
+  }
+  const exports =
+    aboard === 0 ? "to load" : toLoad === 0 ? "aboard" : "aboard and to load";
+  return `${funding} and the ${millionDollars(aboard + toLoad)} the Exports ${exports} will sell for`;
 }
 
 /** Whether the Lander has left Earth with the manifest and not yet landed. */
