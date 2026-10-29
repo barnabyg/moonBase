@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 4173;
+// E2E_PORT lets two checkouts (such as git worktrees) run their end-to-end
+// tests at once: each starts its own dev server rather than reusing another's.
+const port = Number(process.env["E2E_PORT"] ?? 4173);
 // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
 // context, so CI runs Firefox with a window inside a virtual X display
 // (see .github/workflows/verify.yml).
