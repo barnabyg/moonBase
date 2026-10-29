@@ -212,7 +212,7 @@ export function switchPlant(
     return {
       ok: false,
       reason: "not-a-plant",
-      message: `The ${labelOf(structure.structureTypeId)} isn't a Plant, so there is nothing to switch off.`,
+      message: `The ${labelOf(structure.structureTypeId)} isn't a Plant, so it can't be switched off or on.`,
     };
   }
   structure.switchedOff = setting === "off";

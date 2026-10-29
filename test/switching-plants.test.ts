@@ -469,12 +469,14 @@ describe("switching a Plant", () => {
       reason: "unknown-structure",
       message: 'There is no commissioned Structure "no-such-structure".',
     });
-    expect(campaign.switchPlant(array.id, "off")).toEqual({
-      ok: false,
-      reason: "not-a-plant",
-      message:
-        "The solar array isn't a Plant, so there is nothing to switch off.",
-    });
+    for (const setting of ["off", "on"] as const) {
+      expect(campaign.switchPlant(array.id, setting)).toEqual({
+        ok: false,
+        reason: "not-a-plant",
+        message:
+          "The solar array isn't a Plant, so it can't be switched off or on.",
+      });
+    }
     expect(structureOf(campaign.snapshot(), "solar-array").switchedOff).toBe(
       false,
     );
