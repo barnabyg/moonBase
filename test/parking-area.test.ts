@@ -278,6 +278,71 @@ describe("a parking area", () => {
   });
 });
 
+describe("a parking area far from what is to be parked", () => {
+  it("takes nothing from further than the data catalogue's detour beyond the nearest powered Structure: parking is beside that, as without one", () => {
+    const farSite: GroundPosition = { x: -20, y: -130 };
+    const game = buildAll(poweredBase().plan("parking-area", farSite));
+    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const area = structure(game.state, "parking-area");
+    const nearestBay = (position: GroundPosition) =>
+      Math.min(
+        ...baysOf(area).map((bay) =>
+          Math.hypot(bay.x - position.x, bay.y - position.y),
+        ),
+      );
+    // The regolith printer and the Rover, still where they began, are each
+    // within 25 m of a powered Structure.
+    const farOff = [...game.state.machines, ...game.state.rovers].filter(
+      (driven) => !driven.pluggedIn && nearestBay(driven.position) > 100,
+    );
+    expect(farOff.map((driven) => driven.id)).toEqual(
+      expect.arrayContaining(["regolith-printer-2", "rover-1"]),
+    );
+
+    game.advance({ minutes: 1 });
+
+    const orders = game.state.parking.filter((order) =>
+      farOff.some(
+        (driven) =>
+          driven.id ===
+          (order.subject.kind === "rover"
+            ? order.subject.roverId
+            : order.subject.machineId),
+      ),
+    );
+    expect(orders).toHaveLength(farOff.length);
+    expect(orders.map((order) => order.inBay)).not.toContain(true);
+  });
+
+  it("is still used from as far as the detour beyond the nearest powered Structure", () => {
+    const game = baseWithParkingArea();
+    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const area = structure(game.state, "parking-area");
+    const printer = game.state.machines.find(
+      (machine) => machine.machineTypeId === "regolith-printer",
+    );
+    if (printer === undefined) throw new Error("expected the printer");
+    const bank = structure(game.state, "battery-bank");
+    const gap = (a: GroundPosition, b: GroundPosition) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+    const detour =
+      Math.min(...baysOf(area).map((bay) => gap(bay, printer.position))) -
+      gap(bank.position, printer.position);
+    expect(detour).toBeGreaterThan(0);
+    expect(detour).toBeLessThanOrEqual(catalogue.cold.bayDetourMetres);
+
+    game.advance({ minutes: 1 });
+
+    expect(
+      game.state.parking.find(
+        (order) =>
+          order.subject.kind === "machine" &&
+          order.subject.machineId === printer.id,
+      )?.inBay,
+    ).toBe(true);
+  });
+});
+
 describe("a parking area that can't keep heaters on through the Night", () => {
   /** The park Work Orders raised in the first game-minute of parking. */
   function ordersRaised(game: Scenario): Snapshot["parking"] {

@@ -1307,6 +1307,20 @@ describe("the data catalogue", () => {
       }
     });
 
+    it("is used only within a detour of the nearest powered Structure that the slowest Machine can drive, and the Robot walk back, in the lead time before Night", () => {
+      const { bayDetourMetres, parkingLeadHours } = catalogue.cold;
+      const slowest = Math.min(
+        catalogue.rover.drivingSpeedMetresPerHour,
+        ...catalogue.machineTypes.map((type) => type.drivingSpeedMetresPerHour),
+      );
+
+      expect(bayDetourMetres).toBeGreaterThan(0);
+      expect(
+        bayDetourMetres / slowest +
+          bayDetourMetres / catalogue.robot.walkingSpeedMetresPerHour,
+      ).toBeLessThanOrEqual(parkingLeadHours);
+    });
+
     it("draws no power itself, and is cheap: built by the Robot from a socket for each bay, which a Launch brings for about what a Light Mast costs, in a few hours", () => {
       expect(Object.values(area.power).every((value) => value === 0)).toBe(
         true,

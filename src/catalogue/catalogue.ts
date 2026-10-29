@@ -678,6 +678,13 @@ export interface ColdRules {
    * game-minutes.
    */
   readonly parkingLeadHours: number;
+  /**
+   * How much further than the nearest powered Structure a free bay of a
+   * parking area may be from a Machine or Rover for the Robot to park it
+   * there instead, so that the drive and the walk back still fit in the
+   * lead time before Night.
+   */
+  readonly bayDetourMetres: number;
 }
 
 export interface ComponentType {
@@ -3235,8 +3242,12 @@ export const catalogue: Catalogue = {
   // Below half its Condition, a Machine works and drives slower in step
   // with it.
   machinePerformance: { thresholdPercent: 50, exponent: 1 },
-  // A Night unpowered takes nearly half a Machine's Condition.
-  cold: { plugInReachMetres: 3, parkingLeadHours: 6 },
+  // A Night unpowered takes nearly half a Machine's Condition. A bay up to
+  // 25 m further off than the nearest powered Structure adds at most an
+  // hour and a quarter to the regolith printer's drive, the slowest, and
+  // about two hours to the Robot's walk back, so that both Machines and
+  // the Rover are still parked in the lead time.
+  cold: { plugInReachMetres: 3, parkingLeadHours: 6, bayDetourMetres: 25 },
   // A couple of strikes a Lunation, rarely enough on their own to break
   // anything at full Condition.
   micrometeorites: {

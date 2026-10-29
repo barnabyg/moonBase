@@ -79,8 +79,9 @@ export interface ParkingSnapshot {
  * on an Expedition or out on one, as long as there is a powered Structure
  * to park it beside. It goes to the nearest free bay of a parking area that
  * can take a plug and whose network can keep heaters on through the Night
- * (see `heatsThroughNight`), if there is one, however much nearer another
- * powered Structure is; otherwise beside the nearest powered Structure, as
+ * (see `heatsThroughNight`), if there is one no further off than the
+ * nearest powered Structure and the data catalogue's detour beyond it;
+ * otherwise beside the nearest powered Structure, as
  * it would without a parking area. A Work Order that nobody has claimed
  * goes once what it parks no longer needs parking, is given other work or,
  * if it is for a bay, once that network can't keep heaters on; one a
@@ -131,7 +132,15 @@ export function planParking(state: CampaignState): void {
       continue;
     }
     const body = bodyOf(driven);
-    const bay = nearestFreeBay(state, bayAreas, body.position);
+    const structure = nearestPoweredStructure(state, body.position);
+    if (structure === undefined) continue;
+    const bay = nearestFreeBay(
+      state,
+      bayAreas,
+      body.position,
+      distance(structure.position, body.position) +
+        catalogue.cold.bayDetourMetres,
+    );
     if (bay !== undefined) {
       state.parking.push({
         target,
@@ -141,8 +150,6 @@ export function planParking(state: CampaignState): void {
       });
       continue;
     }
-    const structure = nearestPoweredStructure(state, body.position);
-    if (structure === undefined) continue;
     state.parking.push({
       target,
       structureId: structure.id,
@@ -246,20 +253,22 @@ function heatsThroughNight(
 }
 
 /**
- * The free bay nearest a position, on the given parking areas: one no park
- * Work Order is taking anything to and nothing stands in. The earlier
- * parking area, and the earlier bay on it, wins a tie, so the choice is
- * always the same.
+ * The free bay nearest a position, on the given parking areas and no
+ * further from it than the given distance: one no park Work Order is
+ * taking anything to and nothing stands in. The earlier parking area, and
+ * the earlier bay on it, wins a tie, so the choice is always the same.
  */
 function nearestFreeBay(
   state: CampaignState,
   areas: readonly StructureState[],
   from: GroundPosition,
+  within: number,
 ): Bay | undefined {
   const standing = everyDriven(state).map((driven) => bodyOf(driven).position);
   let nearest: Bay | undefined;
   for (const bay of areas.flatMap(baysOf)) {
     const free =
+      distance(bay.position, from) <= within &&
       !state.parking.some(
         (parking) =>
           parking.structureId === bay.structure.id &&
