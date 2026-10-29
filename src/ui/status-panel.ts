@@ -401,7 +401,9 @@ export function createStatusPanel(
           snapshot.clock.elapsedMinutes,
         ),
       );
-      researchSection.summarise(summariseResearch(snapshot.researchTask));
+      researchSection.summarise(
+        summariseResearch(snapshot.researchTask, snapshot.observingProgramme),
+      );
 
       for (const section of sections) section.refreshWarning();
     },

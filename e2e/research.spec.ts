@@ -124,6 +124,22 @@ test("the Research section shows the observing programme a telescope works on at
       .filter({ hasText: "Telescope" }),
   ).toContainText("observing");
   await expect(science).toHaveText("70");
+  // Folded, the Research section still shows how far the round has got,
+  // after the Research Task running.
+  const researchTitle = panel.getByText("Research", { exact: true });
+  await researchTitle.click();
+  await expect(
+    panel.getByRole("status", { name: "Research summary" }),
+  ).toHaveText("Thermal cycling survey · 49%, Night-sky survey · 20%");
+  await researchTitle.click();
+  // The Research Tasks screen shows it beside the task running.
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  const tasks = page.getByRole("dialog", { name: "Research Tasks" });
+  const standing = tasks.getByRole("status", { name: "Observing programme" });
+  await expect(standing).toContainText("Night-sky survey");
+  await expect(standing).toContainText("observing, 1d 14h left");
+  await expect(standing).toContainText("each round pays 6 Science");
+  await tasks.getByRole("button", { name: "Close" }).click();
 
   // Skip from event to event until the round is complete.
   const skip = page.getByRole("button", { name: "Skip to next event" });

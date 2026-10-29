@@ -1079,16 +1079,22 @@ export function formatObservingProgramme(
 }
 
 /**
- * Sums up Research for its folded section:the Research Task running and
+ * Sums up Research for its folded section: the Research Task running and
  * how far it has got, for example "Seismic monitoring · 45%", or that none
- * is.
+ * is, then, once the base has a telescope, how far the observing
+ * programme's round has got, for example "Night-sky survey · 20%".
  */
 export function summariseResearch(
   running: ResearchTaskSnapshot | undefined,
+  programme: ObservingProgrammeSnapshot,
 ): string {
-  return running === undefined
-    ? "none running"
-    : `${researchTaskLabel(running.researchTaskId)} · ${Math.floor(running.progress * 100)}%`;
+  const task =
+    running === undefined
+      ? "none running"
+      : `${researchTaskLabel(running.researchTaskId)} · ${Math.floor(running.progress * 100)}%`;
+  return programme.telescopes === 0
+    ? task
+    : `${task}, ${catalogue.observingProgramme.label} · ${Math.floor(programme.progress * 100)}%`;
 }
 
 /** Sums up the Milestones for their folded section: the one to aim for now. */
