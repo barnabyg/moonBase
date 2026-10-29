@@ -492,10 +492,15 @@ function layerAtBroaderScale(
 }
 
 /**
- * The ground: the base map, the land round it, the craters and the rocks.
- * `anisotropy` sharpens the ground's texture where it is seen at a low angle.
+ * The ground: the base map, the land round it, the craters and the rocks,
+ * and the ground's material, for anything else made of Regolith that should
+ * look like it, which colours each vertex by its shade. `anisotropy`
+ * sharpens the ground's texture where it is seen at a low angle.
  */
-export function createGround(map: MapSnapshot, anisotropy = 1): THREE.Group {
+export function createGround(
+  map: MapSnapshot,
+  anisotropy = 1,
+): { readonly group: THREE.Group; readonly material: THREE.Material } {
   const ground = new THREE.Group();
   ground.name = "Regolith";
 
@@ -532,7 +537,7 @@ export function createGround(map: MapSnapshot, anisotropy = 1): THREE.Group {
     createCraterRims(craters, material, shade),
     createRocks(craters, map, textures),
   );
-  return ground;
+  return { group: ground, material };
 }
 
 /** Earth, low on the horizon in the given direction. */
