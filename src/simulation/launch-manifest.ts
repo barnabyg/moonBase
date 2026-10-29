@@ -195,6 +195,23 @@ export function deliverLaunch(
 }
 
 /**
+ * Says what the Launch manifest costs and what it can be paid with, for
+ * example "costs $161M, more than the Funding balance of $150M", if that
+ * is more than it can be paid with as the Lander leaves Earth; otherwise
+ * undefined. The Lander can't leave with it then, so it is always paid
+ * for: once the Lander is sent, the Exports to load can't change and go
+ * aboard before anything can use them up, and until it leaves Earth the
+ * Funding only rises, the fee only falls and the manifest is checked again
+ * at every change.
+ */
+export function unpayableManifest(state: CampaignState): string | undefined {
+  const { costMillionDollars } = totals(state.launchManifest, launchFee(state));
+  return costMillionDollars > spendable(state)
+    ? `costs ${millionDollars(costMillionDollars)}, more than ${spendableInWords(state)}`
+    : undefined;
+}
+
+/**
  * What the manifest can be paid with as the Lander leaves Earth: the
  * Funding balance, and what the Exports aboard and to load will sell for
  * as it reaches Earth, before it is paid for.

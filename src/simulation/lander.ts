@@ -14,7 +14,11 @@ import {
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
 import { sellExports, takeExportsAboard } from "./exports";
-import { deliverLaunch, payForLaunch } from "./launch-manifest";
+import {
+  deliverLaunch,
+  payForLaunch,
+  unpayableManifest,
+} from "./launch-manifest";
 import { blastPlumeEjecta } from "./plume-ejecta";
 
 /** The legs of the Lander's round trip, in the order it flies them. */
@@ -74,6 +78,8 @@ export type SendLanderRefusal =
   | "cargo-aboard"
   | "robot-aboard"
   | "exports-loading"
+  /** The Launch manifest costs more than it can be paid with. */
+  | "over-funding"
   | "campaign-ended";
 
 export type SendLanderResult =
@@ -90,7 +96,11 @@ export type SendLanderResult =
  * leave while the Mission Director lives aboard it, before the Robot has
  * taken its cargo off, while a Robot it brought is climbing down from it,
  * or, on a landing pad, before the Robot has put the Exports to load
- * aboard. It takes off in the game-minute that follows.
+ * aboard. Nor can it leave with a Launch manifest that costs more than the
+ * Funding balance and what the Exports aboard and to load will sell for, as
+ * they may have been lowered, or the stock run short of them, since it was
+ * set. It takes off in the game-minute that follows, before anything else
+ * can use up the Exports to load.
  */
 export function sendLander(state: CampaignState): SendLanderResult {
   if (state.missionDirector.residence === "lander") {
@@ -124,6 +134,13 @@ export function sendLander(state: CampaignState): SendLanderResult {
     return refuse(
       "exports-loading",
       "The Exports to load aren't aboard yet. The Robot has to finish loading them onto the Lander first.",
+    );
+  }
+  const unpayable = unpayableManifest(state);
+  if (unpayable !== undefined) {
+    return refuse(
+      "over-funding",
+      `The Lander can't leave with a Launch manifest that ${unpayable}. Take something off the manifest or load more Exports first.`,
     );
   }
   state.lander.trip = startLeg("travelling-to-earth", state.elapsedMinutes);
