@@ -19,8 +19,8 @@ export interface RobotModel {
   pose(pose: RobotPose): void;
 }
 
-/** The height of the Robot's hips above its feet. */
-const HIP_HEIGHT = 0.86;
+/** The height of the Robot's hips above its feet, where it bends to sit. */
+export const HIP_HEIGHT = 0.86;
 const THIGH_LENGTH = 0.42;
 const UPPER_ARM_LENGTH = 0.3;
 
