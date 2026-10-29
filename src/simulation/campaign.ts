@@ -379,8 +379,9 @@ export interface StructureSnapshot {
   /**
    * How well it does its job as its Condition falls, from 1 down to 0 once
    * it is Broken: how much of its generation, storage capacity or light
-   * radius a solar array, battery bank or Light Mast has left. Anything
-   * else works fully until it is Broken.
+   * radius a solar array, battery bank or Light Mast has left, and how
+   * fast a Plant runs or a telescope observes. Anything else works fully
+   * until it is Broken.
    */
   readonly performance: number;
   /** How far round it its light reaches, as its performance allows, or 0 if it has none. */

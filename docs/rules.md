@@ -114,7 +114,7 @@ Every commissioned Structure, Machine, Rover and Robot has a Condition, from 100
 - **The cold of Night:** Machines and Rovers left unpowered (see [Machines and the Rover](#machines-and-the-rover)).
 - **Dust coating:** solar arrays also gather Dust coating in Daylight, which cuts their output on top of any wear.
 
-Below a threshold, things work less well in step with their Condition: solar arrays generate less, battery banks store less (losing any energy above what they can now hold), Light Masts light a smaller circle, Plants run slower, and Machines and Robots work and move more slowly. The power figures and forecasts follow. The Habitat, shielding and landing pads work fully until Broken.
+Below a threshold, things work less well in step with their Condition: solar arrays generate less, battery banks store less (losing any energy above what they can now hold), Light Masts light a smaller circle, Plants run slower, telescopes observe more slowly, and Machines and Robots work and move more slowly. The power figures and forecasts follow. The Habitat, shielding and landing pads work fully until Broken.
 
 At 0% a Structure or Machine is **Broken**: it stays where it is but stops working. A Broken battery bank loses its stored energy, and a Broken Habitat loses its power and shielding, which kills the Mission Director if they live in it. A Broken Machine gives up the Construction stage it was on until another is free or it is repaired. A Broken Rover can't be driven. Robots are never Broken.
 

@@ -25,7 +25,8 @@ export function performanceAt(
 /**
  * How well a Structure does its job, from 1 down to 0 once it is Broken. A
  * solar array's generation, a battery bank's storage capacity, a Light
- * Mast's light and a Plant's rate fall along the data catalogue's curve;
+ * Mast's light, a Plant's rate and how fast a telescope observes fall
+ * along the data catalogue's curve;
  * anything else, such as a Habitat or Regolith shielding, works fully
  * until it is Broken.
  */
@@ -39,7 +40,8 @@ export function structurePerformance(
     (type.power.generationKilowatts > 0 ||
       type.power.storageKilowattHours > 0 ||
       type.lightRadiusMetres > 0 ||
-      type.recipes !== undefined);
+      type.recipes !== undefined ||
+      type.telescope === true);
 
   return partial
     ? performanceAt(catalogue.structurePerformance, structure.conditionPercent)

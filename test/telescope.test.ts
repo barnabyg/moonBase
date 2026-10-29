@@ -197,6 +197,33 @@ describe("a Broken telescope", () => {
   });
 });
 
+describe("a worn telescope", () => {
+  it("observes more slowly below the performance threshold, in step with its Condition", () => {
+    const game = observatory();
+    runUntil(game, "night");
+    const telescopeId = telescopesOf(game.state)[0]?.id ?? "";
+    // Half the threshold, with no spares in stock, so that Maintenance
+    // waits and the Condition stays where it is.
+    const { thresholdPercent } = catalogue.structurePerformance;
+    const half = scenarioOf(
+      worn(game.campaign, telescopeId, thresholdPercent / 2, 0),
+    );
+
+    half.advance({ hours: 2 });
+
+    // Along the data catalogue's curve, which is a straight line.
+    expect(catalogue.structurePerformance.exponent).toBe(1);
+    expect(telescopesOf(half.state)[0]).toMatchObject({
+      performance: 0.5,
+      observing: true,
+    });
+    expect(half.state.observingProgramme).toMatchObject({
+      progress: 60 / roundMinutes,
+      minutesLeft: (roundMinutes - 60) * 2,
+    });
+  });
+});
+
 describe("the observing programme", () => {
   it("completes a round every so often through a Night, and keeps the part of a round left over through Daylight for the next Night", () => {
     const game = observatory();
