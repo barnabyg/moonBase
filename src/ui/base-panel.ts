@@ -167,6 +167,7 @@ export function createBasePanel(
     if (entry === undefined) {
       entry = createEntry(name, repair);
       list.append(entry.item);
+      entry.item.dataset["row"] = id;
       entries.set(id, entry);
     }
     return entry;
@@ -183,6 +184,7 @@ export function createBasePanel(
         let entry = structureEntries.get(structure.id);
         if (entry === undefined) {
           entry = createStructureEntry(structure);
+          entry.item.dataset["row"] = structure.id;
           structureEntries.set(structure.id, entry);
         }
         entry.show(

@@ -71,6 +71,7 @@ export function createStatusPanel(
   milestoneHintLine.setAttribute("role", "status");
   milestoneHintLine.setAttribute("aria-label", "Milestone hint");
   milestoneHintLine.setAttribute("aria-live", "off");
+  milestoneHintLine.dataset["row"] = "Milestone hint";
   holdHeight(milestoneHintLine);
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
@@ -100,6 +101,7 @@ export function createStatusPanel(
   const selfSufficiencyBody = document.createElement("span");
   selfSufficiencyBody.className = "stat__body stat__chips";
   selfSufficiencyLine.append(selfSufficiencyLabel, " ", selfSufficiencyBody);
+  selfSufficiencyLine.dataset["row"] = "Self-sufficient";
   holdHeight(selfSufficiencyLine);
   const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
     const chip = document.createElement("span");
@@ -340,6 +342,7 @@ export function createStatusPanel(
           const note = document.createElement("span");
           note.className = "resources__note";
           cell.append(name, " ", amount, " ", note);
+          cell.dataset["row"] = resource.label;
           holdHeight(cell);
           bulkResources.append(cell);
           entry = { cell, amount, note };

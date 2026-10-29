@@ -141,6 +141,11 @@ export function createConstructionPanel(
     holdHeight(item);
     return { item, stage, progress, work, cancel };
   };
+  /** Lists a new row by its key, which it carries as a stable name for the row. */
+  const keepRow = (key: string, row: Row) => {
+    row.item.dataset["row"] = key;
+    rows.set(key, row);
+  };
   /** Finds a row by its key, taking it back if its work was done. */
   const rowFor = (key: string): Row | undefined => {
     const row = rows.get(key);
@@ -186,7 +191,7 @@ export function createConstructionPanel(
             ([other]) => !other.startsWith(MAINTENANCE_ROW),
           )?.[1];
           list.insertBefore(row.item, firstOther?.item ?? null);
-          rows.set(key, row);
+          keepRow(key, row);
         }
         showStage(
           row,
@@ -213,7 +218,7 @@ export function createConstructionPanel(
               !other.startsWith(PARKING_ROW),
           )?.[1];
           list.insertBefore(row.item, firstOther?.item ?? null);
-          rows.set(key, row);
+          keepRow(key, row);
         }
         // How far it has to go isn't known, so it shows no progress.
         showProgress(row.progress, undefined, "Parking progress");
@@ -228,7 +233,7 @@ export function createConstructionPanel(
             structureLabel(construction.structureTypeId),
             construction.id,
           );
-          rows.set(construction.id, row);
+          keepRow(construction.id, row);
         }
         showStage(
           row,
@@ -249,7 +254,7 @@ export function createConstructionPanel(
             `Dismantling the ${structureLabel(dismantling.structureTypeId).toLowerCase()}`,
             undefined,
           );
-          rows.set(key, row);
+          keepRow(key, row);
         }
         showStage(
           row,
@@ -264,7 +269,7 @@ export function createConstructionPanel(
         let row = rowFor(UNLOADING_ROW);
         if (row === undefined) {
           row = createRow("Unloading the Lander", undefined);
-          rows.set(UNLOADING_ROW, row);
+          keepRow(UNLOADING_ROW, row);
         }
         showStage(
           row,
@@ -281,7 +286,7 @@ export function createConstructionPanel(
         let row = rowFor(LOADING_ROW);
         if (row === undefined) {
           row = createRow("Loading the Lander", undefined);
-          rows.set(LOADING_ROW, row);
+          keepRow(LOADING_ROW, row);
         }
         showStage(
           row,

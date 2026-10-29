@@ -9,38 +9,35 @@ const WARM_UP_HOURS = 4;
 /**
  * Game-hours over which no row may go back to a place it has left. A row
  * may move once, when what it shows really changes for good, such as the
- * spare Components it lists being used, but not back and forth.
+ * spare Components it lists being used, but not back and forth. It is
+ * longer than anything the panels hold in place for, 5 real seconds or 10
+ * game-hours at 20x, so that a hold let go and taken up again would show.
  */
-const WATCHED_HOURS = 8;
+const WATCHED_HOURS = 16;
+/** How far, in pixels, a row may be from a place to count as there. */
+const TOLERANCE_PX = 1;
+
+/** The parts of the page whose rows are watched, by their names. */
+const REGIONS = ["Status panel", "Work", "Base"];
 
 /**
- * Where the top of every row shown in the status, Work and Base panels is
- * on the page, by row: each named line, by its name, and each entry of a
- * list, by the text it starts with, such as a Structure's name, numbered
- * where several start the same.
+ * Where the top of every row shown in the watched parts of the page is, by
+ * the stable name each row carries in its data-row attribute.
  */
 async function rowTops(page: Page): Promise<Map<string, number>> {
-  const rows = await page.evaluate(() =>
-    ["Status panel", "Work", "Base"].flatMap((name) => {
-      const panel = document.querySelector(`aside[aria-label="${name}"]`);
-      if (panel === null) return [];
-      const seen = new Map<string, number>();
-      return [...panel.querySelectorAll<HTMLElement>('[role="status"], li')]
-        .filter((row) => row.checkVisibility())
-        .map((row): [string, number] => {
-          let first: Element = row;
-          while (first.firstElementChild !== null) {
-            first = first.firstElementChild;
-          }
-          const key = row.getAttribute("aria-label") ?? first.textContent;
-          const count = (seen.get(key) ?? 0) + 1;
-          seen.set(key, count);
-          return [
-            `${name} › ${key} #${count}`,
-            Math.round(row.getBoundingClientRect().top),
-          ];
-        });
-    }),
+  const rows = await page.evaluate(
+    (regions) =>
+      regions.flatMap((name) => {
+        const region = document.querySelector(`[aria-label="${name}"]`);
+        if (region === null) return [];
+        return [...region.querySelectorAll<HTMLElement>("[data-row]")]
+          .filter((row) => row.checkVisibility())
+          .map((row): [string, number] => [
+            `${name} › ${row.dataset["row"] ?? ""}`,
+            row.getBoundingClientRect().top,
+          ]);
+      }),
+    REGIONS,
   );
   return new Map(rows);
 }
@@ -70,12 +67,21 @@ async function nextFrame(page: Page): Promise<void> {
   );
 }
 
+/** A row's place on the page, or "gone" while it isn't shown. */
+type Place = number | "gone";
+
+const samePlace = (a: Place | undefined, b: Place): boolean =>
+  a === b ||
+  (typeof a === "number" &&
+    typeof b === "number" &&
+    Math.abs(a - b) <= TOLERANCE_PX);
+
 /**
  * Loads a sample save and runs it at the fastest game speed with the player
- * doing nothing, checking once a frame that no row of the panels goes back
- * to a place it has left, or comes back after going, over some game-hours.
- * It is all counted in game time, so that a slow machine plays the same
- * game. Returns every text the row to watch showed meanwhile.
+ * doing nothing, checking once a frame that no row goes back to a place it
+ * has left, or comes back after going, over some game-hours. It is all
+ * counted in game time, so that a slow machine plays the same game. Returns
+ * every text the row to watch showed meanwhile.
  */
 async function watchRows(
   page: Page,
@@ -104,8 +110,8 @@ async function watchRows(
     .poll(() => gameHours(page))
     .toBeGreaterThanOrEqual(start + WARM_UP_HOURS);
 
-  // Each row's places in turn, "gone" while it isn't shown.
-  const places = new Map<string, (number | "gone")[]>();
+  // Each row's places in turn.
+  const places = new Map<string, Place[]>();
   const texts = new Set<string>();
   for (let first = true; ; first = false) {
     const hours = await gameHours(page);
@@ -115,11 +121,11 @@ async function watchRows(
     for (const key of new Set([...places.keys(), ...tops.keys()])) {
       const place = tops.get(key) ?? "gone";
       const before = places.get(key) ?? (first ? [] : ["gone"]);
-      if (before.at(-1) === place) continue;
+      if (samePlace(before.at(-1), place)) continue;
       expect(
-        before,
+        before.some((left) => samePlace(left, place)),
         `${key} goes back to ${place} at game-hour ${hours}, after ${before.join(", ")}`,
-      ).not.toContain(place);
+      ).toBe(false);
       places.set(key, [...before, place]);
     }
     await nextFrame(page);

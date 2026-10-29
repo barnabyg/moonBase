@@ -30,14 +30,14 @@ When Firefox runs headed (`PLAYWRIGHT_HEADED=1`, as in CI), `playwright.config.t
 
 A timeout is there to stop a test that hangs, not to check how fast it runs. Each limit is set well above the slowest run seen in CI, so ordinary variation in machine speed can't fail a test. If a test needs to check speed, it should measure it explicitly. Set limits for the whole suite, not for single tests, with one exception: the reference Campaign's test plays some 170 Earth Days a game-minute at a time, far longer than any other, so it sets its own limit rather than raising the suite's for every test.
 
-| Limit                                 | Where                             | Value  | Slowest seen in CI                                                    | Margin    |
-| ------------------------------------- | --------------------------------- | ------ | --------------------------------------------------------------------- | --------- |
-| Vitest test and hook timeout          | `vitest.config.ts`                | 60 s   | about 6 s (a long scenario test; CI runs Vitest about 2.5× slower)    | 10×       |
-| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts` | 300 s  | not yet seen; about 20 s locally, so about 50 s expected              | about 6×  |
-| Playwright test timeout               | `playwright.config.ts`, `timeout` | 120 s  | about 11 s (`construction.spec.ts` and `habitat.spec.ts`, one worker) | about 10× |
-| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`  | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                    | 7.5×      |
-| Playwright web server start           | Playwright's default              | 60 s   | under 1 s (Vite is ready in about 0.2 s)                              | over 60×  |
-| Each CI job                           | `.github/workflows/verify.yml`    | 10 min | about 1.5 min                                                         | about 7×  |
+| Limit                                 | Where                             | Value  | Slowest seen in CI                                                                                                                                                                     | Margin   |
+| ------------------------------------- | --------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Vitest test and hook timeout          | `vitest.config.ts`                | 60 s   | about 6 s (a long scenario test; CI runs Vitest about 2.5× slower)                                                                                                                     | 10×      |
+| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts` | 300 s  | not yet seen; about 20 s locally, so about 50 s expected                                                                                                                               | about 6× |
+| Playwright test timeout               | `playwright.config.ts`, `timeout` | 120 s  | not yet seen for `steady-panels.spec.ts`, which watches 20 game-hours at 20x, about 15 s locally; about 11 s for the others (`construction.spec.ts` and `habitat.spec.ts`, one worker) | about 8× |
+| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`  | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                                                                                     | 7.5×     |
+| Playwright web server start           | Playwright's default              | 60 s   | under 1 s (Vite is ready in about 0.2 s)                                                                                                                                               | over 60× |
+| Each CI job                           | `.github/workflows/verify.yml`    | 10 min | about 1.5 min                                                                                                                                                                          | about 7× |
 
 The cost of a generous limit is that a test that really hangs takes longer to report. That is cheaper than a red run that has to be investigated and re-run.
 

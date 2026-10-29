@@ -42,6 +42,7 @@ export function createStatLine(label: string, name = label): StatLine {
   const meter = createMeter();
   meter.element.classList.add("stat__meter");
   element.append(labelText, " ", body, meter.element);
+  element.dataset["row"] = name;
   holdHeight(element);
   return {
     element,
