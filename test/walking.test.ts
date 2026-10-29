@@ -4,6 +4,7 @@ import { distance } from "../src/simulation/construction";
 import { nextFraction, seedRandom } from "../src/simulation/random";
 import {
   obstaclesFor,
+  routeBetween,
   stepTowards,
   type Obstacle,
 } from "../src/simulation/walking";
@@ -240,6 +241,102 @@ describe("Walking round obstacles", () => {
         walk(inside.from, inside.to, obstacles, maxStep);
       },
     );
+  });
+});
+
+/**
+ * Every point along a route, a tenth of a metre or less apart, so that a
+ * check covers its legs and not just its corners.
+ */
+function pointsAlong(route: readonly GroundPosition[]): GroundPosition[] {
+  return route.flatMap((to, index) => {
+    const from = route[index - 1];
+    if (from === undefined) return [to];
+    const pieces = Math.max(1, Math.ceil(distance(from, to) / 0.1));
+    return Array.from({ length: pieces }, (_, piece) => ({
+      x: from.x + ((to.x - from.x) * (piece + 1)) / pieces,
+      y: from.y + ((to.y - from.y) * (piece + 1)) / pieces,
+    }));
+  });
+}
+
+/**
+ * Checks that a route goes the same way round each obstacle as a walker
+ * stepping there does. Each step, the walker sees a little further round a
+ * corner as it nears it and cuts it by a few centimetres, so the route is
+ * a little longer, but by no more than a few per cent, where going round
+ * any obstacle the other way would add far more.
+ */
+function expectSameWayAs(
+  route: readonly GroundPosition[],
+  positions: readonly GroundPosition[],
+): void {
+  expect(lengthOf(route)).toBeGreaterThanOrEqual(lengthOf(positions) - 1e-6);
+  expect(lengthOf(route)).toBeLessThan(lengthOf(positions) * 1.02);
+}
+
+describe("The whole way round obstacles", () => {
+  it("is a straight line to a destination in plain sight", () => {
+    const obstacles = [{ centre: { x: 0, y: 10 }, radius: 4 }];
+
+    expect(routeBetween({ x: -5, y: 0 }, { x: 5, y: 0 }, obstacles)).toEqual([
+      { x: -5, y: 0 },
+      { x: 5, y: 0 },
+    ]);
+  });
+
+  it("goes round an obstacle in the way, the way a walker steps along", () => {
+    const obstacles = [{ centre: { x: 0, y: 0.5 }, radius: 4 }];
+    const from = { x: -10, y: 0 };
+    const to = { x: 10, y: 0 };
+
+    const route = routeBetween(from, to, obstacles);
+
+    expect(route[0]).toEqual(from);
+    expect(route.at(-1)).toEqual(to);
+    expect(route.length).toBeGreaterThan(2);
+    expectNeverInside(pointsAlong(route), obstacles);
+    expectSameWayAs(route, walk(from, to, obstacles));
+  });
+
+  it("goes round several obstacles in random layouts, never through one", () => {
+    const random = seedRandom(110);
+    const between = (low: number, high: number) =>
+      low + nextFraction(random) * (high - low);
+    for (let layout = 0; layout < 40; layout++) {
+      const obstacles = Array.from({ length: 2 + (layout % 10) }, () => ({
+        centre: { x: between(-20, 20), y: between(-20, 20) },
+        radius: between(0.8, 6),
+      }));
+      const angle = between(0, 2 * Math.PI);
+      const from = { x: Math.cos(angle) * 40, y: Math.sin(angle) * 40 };
+      const to = { x: -from.x, y: -from.y };
+
+      const route = routeBetween(from, to, obstacles);
+
+      expect(route.at(-1)).toEqual(to);
+      expectNeverInside(pointsAlong(route), obstacles);
+      expectSameWayAs(route, walk(from, to, obstacles));
+    }
+  });
+
+  it("goes out of and round an obstacle it starts just inside, rather than across it", () => {
+    // Such as the Mission Director at the foot of the Lander's ladder.
+    const obstacle = { centre: { x: 0, y: 0 }, radius: 4.5 };
+
+    const route = routeBetween({ x: 4, y: 0 }, { x: -15, y: 1 }, [obstacle]);
+
+    for (const position of pointsAlong(route)) {
+      expect(distance(position, obstacle.centre)).toBeGreaterThanOrEqual(
+        4 - 1e-6,
+      );
+    }
+  });
+
+  it("is just the starting point for a walker already there", () => {
+    expect(routeBetween({ x: 1, y: 2 }, { x: 1, y: 2 }, [])).toEqual([
+      { x: 1, y: 2 },
+    ]);
   });
 });
 
