@@ -25,38 +25,41 @@ describe("the ice store's model", () => {
   const model = () => models.createIceStoreModel(containers);
 
   it("shows only the containers holding ice", () => {
-    const { group, showLevels } = model();
+    const store = model();
+    const { group } = store;
     const shown = () =>
       group.children.filter(
         (child) => child.name === "Ice container" && child.visible,
       ).length;
 
     expect(shown()).toBe(0);
-    showLevels([1, 0.5]);
+    store.showLevels([1, 0.5]);
     expect(shown()).toBe(2);
-    showLevels([1, 1, 1, 1, 1, 1, 1]);
+    store.showLevels([1, 1, 1, 1, 1, 1, 1]);
     expect(shown()).toBe(7);
-    showLevels([0.25]);
+    store.showLevels([0.25]);
     expect(shown()).toBe(1);
   });
 
   it("raises the ice in a container with its level", () => {
-    const { group, showLevels } = model();
+    const store = model();
+    const { group } = store;
     const iceHeight = () =>
       new THREE.Box3().setFromObject(
         group.getObjectByName("Ice") ?? new THREE.Object3D(),
       ).max.y;
 
-    showLevels([0.25]);
+    store.showLevels([0.25]);
     const low = iceHeight();
-    showLevels([1]);
+    store.showLevels([1]);
 
     expect(iceHeight()).toBeGreaterThan(low * 2);
   });
 
   it("stands within the store's ground", () => {
-    const { group, showLevels } = model();
-    showLevels(Array.from({ length: containers }, () => 1));
+    const store = model();
+    const { group } = store;
+    store.showLevels(Array.from({ length: containers }, () => 1));
     const box = new THREE.Box3().setFromObject(group);
 
     expect(
