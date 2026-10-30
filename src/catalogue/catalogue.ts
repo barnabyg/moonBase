@@ -953,7 +953,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 57,
+  version: 58,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
