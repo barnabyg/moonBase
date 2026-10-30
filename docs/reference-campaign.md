@@ -57,6 +57,20 @@ It reads only the data catalogue, plays nothing, and takes a second or two. Each
 - **Income and cost of each Launch, for each Export:** a full Return Mass's price less the Launch fee, and how many Launches' profit buys one of every Launch item. That number is how soon Funding stops being a limit: the smaller it is, the less the late game asks of Funding.
 - **Designs that something cheaper beats outright:** anything listed is no reason to spend the Science. It compares only things that do the same job, across everything they cost and do; anything else, such as a Design that's better in a way the player doesn't value, is for a person to see.
 
+## The long game
+
+To see how the late game holds up, run this from the repository's root folder:
+
+```powershell
+npm.cmd run long-game
+```
+
+It plays the reference Campaign's play guide (`test/reference-campaign.ts`), then carries on (`test/long-game.ts`), through the simulation interface alone, with the same seed and every Hazard. It keeps a Research Task running, unlocks the cheapest Design as soon as it can, and goes on keeping the base supplied, until Earth Day 1650. It prints the reference Campaign's timeline, then when each Research Task was completed and each Design unlocked, then the game's forecast of the date the Radiation Dose reaches its limit. The forecast counts only the Solar Particle Events the Mission Director knows of, so the limit really comes sooner: playing on, the Mission Director died of it on Earth Day 1,765, against the forecast's 1,796.
+
+It takes about 5 minutes (`scripts/long-game.mjs` stops it at a hard limit of 30), so it stays out of `npm run verify`, and no test plays it. Run it after changing what the late game depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, and before and after adding an Act.
+
+Like the reference Campaign, it says why and fails if a step can't go on. It also fails if a Research Task wasn't completed or a Design wasn't unlocked by the end, if the Mission Director died, or if it built nothing of a Design `designsTheLongGameUses` says it uses. A later Act adds its steps to `longGameSteps`, its Designs to that list, and moves `LONG_GAME_END_EARTH_DAY` out as the Mission Director gets a way to live past the Radiation Dose limit.
+
 ## Balancing
 
 The data catalogue's numbers are balanced against the reference Campaign's timeline, so that a new player can play from the landing to a self-sufficient, export-funded base by following the Milestones, and carry on afterwards. Every balancing change is in the data catalogue; none is in code.

@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "reference-campaign": "node scripts/reference-campaign.mjs",
     "pacing-report": "node scripts/pacing-report.mjs",
+    "long-game": "node scripts/long-game.mjs",
     "audit": "npm audit",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"

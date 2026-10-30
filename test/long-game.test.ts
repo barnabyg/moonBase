@@ -1,0 +1,107 @@
+import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
+import {
+  designsNotUsed,
+  designsTheLongGameUses,
+  formatLongGame,
+  LONG_GAME_END_EARTH_DAY,
+  longGameSteps,
+  longGameSucceeded,
+  playLongGame,
+} from "./long-game";
+import { referenceSteps, type ReferenceTimeline } from "./reference-campaign";
+
+// The long game itself takes minutes, so nothing here plays it through: `npm
+// run long-game` does, on demand (see docs/reference-campaign.md).
+
+const everythingBuilt: ReferenceTimeline["structureTypesBuilt"] =
+  catalogue.structureTypes.map(({ id }) => ({
+    structureTypeId: id,
+    atMinute: 0,
+  }));
+
+function timeline(
+  overrides: Partial<ReferenceTimeline> = {},
+): ReferenceTimeline {
+  return {
+    ...playLongGame([]),
+    structureTypesBuilt: everythingBuilt,
+    ...overrides,
+  };
+}
+
+describe("the long-game play guide", () => {
+  it("plays the reference Campaign first, then its own steps", () => {
+    expect(longGameSteps.slice(0, referenceSteps.length)).toEqual(
+      referenceSteps,
+    );
+    expect(longGameSteps.length).toBeGreaterThan(referenceSteps.length);
+  });
+
+  it("says why it gave up, as the reference Campaign does", () => {
+    const given = playLongGame([
+      {
+        milestoneId: undefined,
+        description: "Give up.",
+        play() {
+          throw new Error("Something never came.");
+        },
+      },
+    ]);
+
+    expect(given.failure).toBe("Something never came.");
+    expect(longGameSucceeded(given)).toBe(false);
+    expect(formatLongGame(given)).toContain(
+      "It gave up: Something never came.",
+    );
+  });
+
+  it("names only Designs the Tech Tree has as those it uses", () => {
+    const ids = catalogue.designs.map((design) => design.id);
+
+    for (const designId of designsTheLongGameUses) {
+      expect(ids).toContain(designId);
+    }
+  });
+});
+
+describe("its timeline", () => {
+  it("shows each Research Task and Design by the Earth Day it was done", () => {
+    const lines = formatLongGame(
+      timeline({
+        researchTasksCompleted: [
+          { researchTaskId: "regolith-sample-analysis", atMinute: 1440 },
+        ],
+        designsUnlocked: [{ designId: "robots", atMinute: 2880 }],
+      }),
+    );
+
+    expect(lines).toContain("     1.0  Regolith sample analysis");
+    expect(lines).toContain("     2.0  Robots");
+  });
+
+  it("shows the forecast date the Radiation Dose reaches its limit", () => {
+    expect(
+      formatLongGame(
+        timeline({ endMinute: 1440, minutesUntilDoseLimit: 2 * 1440 }),
+      ),
+    ).toContainEqual(
+      expect.stringContaining("reaches the limit on Earth Day 3."),
+    );
+    expect(
+      formatLongGame(timeline({ minutesUntilDoseLimit: undefined })),
+    ).toContainEqual(expect.stringContaining("isn't rising"));
+  });
+
+  it("fails if a Design it says it uses was never built", () => {
+    const missing = timeline({ structureTypesBuilt: [] });
+
+    expect(designsNotUsed(missing)).toContain("solar-arrays");
+    expect(longGameSucceeded(missing)).toBe(false);
+    expect(longGameSucceeded(timeline())).toBe(true);
+  });
+
+  it("ends well past the reference Campaign", () => {
+    expect(LONG_GAME_END_EARTH_DAY).toBeGreaterThan(171);
+  });
+});

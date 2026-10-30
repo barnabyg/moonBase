@@ -24,6 +24,17 @@ describe("the reference Campaign", () => {
     timeline = playReferenceCampaign();
   }, timeoutMs);
 
+  it("records what the long game's timeline shows: Research Tasks, Designs and Structures", () => {
+    expect(
+      timeline.designsUnlocked.map((unlocked) => unlocked.designId),
+    ).toEqual(["water-wall-shielding"]);
+    expect(timeline.researchTasksCompleted.length).toBeGreaterThan(0);
+    expect(
+      timeline.structureTypesBuilt.map((built) => built.structureTypeId),
+    ).toContain("habitat");
+    expect(timeline.minutesUntilDoseLimit).toBeGreaterThan(0);
+  });
+
   const reachedAt = (milestoneId: string): number => {
     const reached = timeline.milestones.find(
       (milestone) => milestone.milestoneId === milestoneId,
