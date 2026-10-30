@@ -1,11 +1,10 @@
 import { defineConfig } from "vitest/config";
 
 // A timeout is there to stop a test that hangs, not to judge its speed (see
-// docs/verification.md). The longest scenario tests take about 1 s locally
-// and up to about 6 s on CI, which runs Vitest about 2.5 times slower than a
-// developer machine; Vitest's 5 s default failed them there. 60 s is ten times
-// the slowest seen in CI.
-const timeoutMs = 60_000;
+// docs/verification.md). The longest scenario tests take up to about 12 s on
+// CI; Vitest's 5 s default failed them there. 120 s is ten times the slowest
+// seen in CI, as the runners' speed varies a lot from one run to the next.
+const timeoutMs = 120_000;
 
 export default defineConfig({
   test: {

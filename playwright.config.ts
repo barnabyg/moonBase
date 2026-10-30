@@ -21,7 +21,7 @@ export default defineConfig({
   workers: headed ? 1 : "50%",
   reporter: "list",
   // A timeout is there to stop a test that hangs, not to judge its speed (see
-  // docs/verification.md). In CI the slowest test has taken about 39 s, and
+  // docs/verification.md). In CI the slowest test takes about 26 s, and
   // the longest single wait is about 8 s, for a refusal that hides after a
   // fixed 8 s. Each limit is about seven times those or more.
   timeout: 300_000,
