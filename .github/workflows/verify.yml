@@ -40,9 +40,9 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-24.04
-    # Has taken from 1 minute to over 10 for the same tests, and grows with
+    # Has taken from 1 minute to about 13 for the same tests, and grows with
     # each new test; see docs/verification.md.
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
