@@ -207,8 +207,11 @@ export function returnSpot(
     [
       {
         position: stockpile,
+        // With room for a Robot to work at the stockpile beside it.
         radiusMetres:
-          catalogue.stockpile.footprintRadiusMetres + footprintRadiusMetres,
+          catalogue.stockpile.footprintRadiusMetres +
+          footprintRadiusMetres +
+          catalogue.robot.workingGapMetres,
       },
       {
         position: heap.position,

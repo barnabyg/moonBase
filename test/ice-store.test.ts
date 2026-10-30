@@ -245,7 +245,8 @@ describe("the ice store on the base", () => {
       expect(
         distanceBetween(spot, stockpilePosition) -
           stockpile.footprintRadiusMetres -
-          rover.footprintRadiusMetres,
+          rover.footprintRadiusMetres -
+          robotSpec.workingGapMetres,
       ).toBeGreaterThanOrEqual(-1e-9);
       expect(
         distanceBetween(spot, heap.position) -
