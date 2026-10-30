@@ -2,4 +2,5 @@ dist/
 coverage/
 playwright-report/
 test-results/
+.try/
 package-lock.json
