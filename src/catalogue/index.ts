@@ -36,4 +36,4 @@ export type {
   SolarParticleEventRules,
   StructureType,
   WaterWallRules,
-} from "./catalogue";
+} from "./types";

@@ -1,6 +1,6 @@
 # How the game works
 
-This is how a Campaign plays. It describes the rules, not the numbers: rates, masses, prices, thresholds, durations and Science costs are set in the data catalogue (`src/catalogue/catalogue.ts`), and the game shows them where they matter. [`GLOSSARY.md`](../GLOSSARY.md) defines the terms in capitals.
+This is how a Campaign plays. It describes the rules, not the numbers: rates, masses, prices, thresholds, durations and Science costs are set in the data catalogue (`src/catalogue/`, one file for each domain), and the game shows them where they matter. [`GLOSSARY.md`](../GLOSSARY.md) defines the terms in capitals.
 
 ## Conventions
 

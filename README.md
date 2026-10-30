@@ -39,7 +39,7 @@ npm.cmd run verify
 ## Project layout
 
 - `src/simulation/`: the headless, deterministic game rules. Create a Campaign from a seed, advance it in fixed 1-game-minute ticks, and read immutable snapshots. It never imports the renderer or interface, and never reads the system clock or `Math.random`; lint rules and a separate type check enforce this.
-- `src/catalogue/`: the typed data catalogue holding all content and tuning numbers.
+- `src/catalogue/`: the typed data catalogue holding all content and tuning numbers, in a file for each domain (`site.ts`, `workers.ts`, `resources.ts`, `structures.ts`, `launch.ts`, `research.ts`, `hazards.ts`, `milestones.ts`), its types in `types.ts`, and `catalogue.ts` putting them together.
 - `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed, and the Campaign slot and save files, which load a Campaign from a file in place of the one being played.
 - `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
