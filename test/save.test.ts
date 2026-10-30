@@ -53,6 +53,16 @@ function shieldedAsAnEventComes(): Scenario {
   return game;
 }
 
+/**
+ * The saved text of `shieldedAsAnEventComes`, for the tests that need only a
+ * valid save: played once and shared, as a save's text never changes.
+ */
+let shieldedSave: string | undefined;
+function validSave(): string {
+  shieldedSave ??= shieldedAsAnEventComes().campaign.save();
+  return shieldedSave;
+}
+
 function load(text: string): Campaign {
   const result = loadCampaign(text);
   if (!result.ok) throw new Error(result.message);
@@ -193,8 +203,6 @@ describe("a save document", () => {
 });
 
 describe("loading a file", () => {
-  const valid = () => shieldedAsAnEventComes().campaign.save();
-
   it.each([
     ["isn't JSON", "Earth Day 3, 07:12"],
     ["is empty", ""],
@@ -212,7 +220,7 @@ describe("loading a file", () => {
   });
 
   it("is refused when it comes from a newer format version", () => {
-    const text = edited(valid(), (document) => {
+    const text = edited(validSave(), (document) => {
       document.version = 40;
     });
 
@@ -230,7 +238,7 @@ describe("loading a file", () => {
     ["a fractional version", 1.5],
     ["a version in words", "one"],
   ])("is refused as damaged when it has %s", (_, version) => {
-    const text = edited(valid(), (document) => {
+    const text = edited(validSave(), (document) => {
       document.version = version;
     });
 
@@ -303,7 +311,7 @@ describe("loading a file", () => {
       'state.missionDirector.residence isn\'t one of "lander", "habitat"',
     ],
   ])("is refused as damaged when it has %s", (_, edit, detail) => {
-    const result = loadCampaign(edited(valid(), edit));
+    const result = loadCampaign(edited(validSave(), edit));
 
     expect(result).toMatchObject({ ok: false, reason: "damaged" });
     expect(result.ok ? "" : result.message).toContain(
@@ -327,7 +335,7 @@ describe("the chain of migrations", () => {
     ];
   }
   const atVersion = (version: number) =>
-    edited(shieldedAsAnEventComes().campaign.save(), (document) => {
+    edited(validSave(), (document) => {
       document.version = version;
     });
 

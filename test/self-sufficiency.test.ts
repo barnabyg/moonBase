@@ -132,13 +132,33 @@ function untilGained(campaign: Campaign, stockId: string): GameEvent {
   throw new Error(`The base never became self-sufficient in ${stockId}.`);
 }
 
+/**
+ * The base moved into, played until it has just become self-sufficient in a
+ * stock: its saved text and the event. Played once for each stock, and
+ * loaded afresh for each test.
+ */
+const gains = new Map<
+  string,
+  { readonly text: string; readonly gained: GameEvent }
+>();
+function gainedIn(stockId: string): { campaign: Campaign; gained: GameEvent } {
+  let played = gains.get(stockId);
+  if (played === undefined) {
+    const campaign = base();
+    const gained = untilGained(campaign, stockId);
+    played = { text: campaign.save(), gained };
+    gains.set(stockId, played);
+  }
+  const loaded = loadCampaign(played.text);
+  if (!loaded.ok) throw new Error(loaded.message);
+  return { campaign: loaded.campaign, gained: played.gained };
+}
+
 describe("self-sufficiency", () => {
   it.each(["oxygen", "water"])(
     "comes in %s once a whole window has passed with the Plants making more than the Mission Director used",
     (stockId) => {
-      const campaign = base();
-
-      const gained = untilGained(campaign, stockId);
+      const { campaign, gained } = gainedIn(stockId);
 
       expect(gained.atMinute).toBeGreaterThanOrEqual(windowMinutes);
       expect(gained.atMinute % recordMinutes).toBe(0);
@@ -180,8 +200,7 @@ describe("self-sufficiency", () => {
   });
 
   it("stays through a Night in which the Plants stand idle", () => {
-    const campaign = base();
-    untilGained(campaign, "oxygen");
+    const { campaign } = gainedIn("oxygen");
     // Into the next Night, and through it.
     const { lunation } = campaign.snapshot();
     const toNightEnd =
@@ -200,8 +219,7 @@ describe("self-sufficiency", () => {
   });
 
   it("is lost once the Plants stop making it, as the window moves on", () => {
-    const gainedBase = base();
-    untilGained(gainedBase, "oxygen");
+    const { campaign: gainedBase } = gainedIn("oxygen");
     // No more Regolith, so the extraction plant stops for good.
     const campaign = withStocks(gainedBase, { regolith: 0 });
 
@@ -228,8 +246,7 @@ describe("self-sufficiency", () => {
   });
 
   it("keeps its Milestone reached once the base stops being self-sufficient", () => {
-    const gainedBase = base();
-    untilGained(gainedBase, "oxygen");
+    const { campaign: gainedBase } = gainedIn("oxygen");
     expect(gainedBase.snapshot().milestones.reachedIds).toContain(
       "oxygen-self-sufficient",
     );

@@ -17,6 +17,7 @@ export interface SavedState {
   lifeSupport: { stockId: string; kilograms: number }[];
   fundingMillionDollars: number;
   launchFeePaidMillionDollars: number | null;
+  science: number;
 }
 
 /**

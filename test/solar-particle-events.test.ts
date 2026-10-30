@@ -53,9 +53,24 @@ function skipThrough(
   return seen;
 }
 
+/**
+ * The Solar Particle Events' events of a new Campaign skipped through for
+ * 100 Earth Days, enough for three whole events however far apart the data
+ * catalogue lets them come. Played once, and shared by the tests that only
+ * look at them.
+ */
+let firstHundredDays: { event: GameEvent; stoppedAt: number }[] | undefined;
+function skipThroughFirstHundredDays(): {
+  event: GameEvent;
+  stoppedAt: number;
+}[] {
+  firstHundredDays ??= skipThrough(scenario(), 100);
+  return firstHundredDays;
+}
+
 describe("Solar Particle Events", () => {
   it("are each announced by a warning the warning time ahead, then start and end, and every skip stops at each", () => {
-    const seen = skipThrough(scenario(), 200);
+    const seen = skipThroughFirstHundredDays();
 
     expect(seen.length).toBeGreaterThanOrEqual(9);
     for (const { event, stoppedAt } of seen) {
@@ -93,7 +108,7 @@ describe("Solar Particle Events", () => {
   });
 
   it("come at random intervals within the data catalogue's bounds, starting none too soon", () => {
-    const seen = skipThrough(scenario(), 200);
+    const seen = skipThroughFirstHundredDays();
     const starts = seen
       .map(({ event }) => event)
       .filter((event) => event.kind === "solar-particle-event-started");
@@ -118,12 +133,18 @@ describe("Solar Particle Events", () => {
         .plan("solar-array", { x: 20, y: 12 })
         .advance({ hours: 5 })
         .plan("habitat", { x: 25, y: -20 });
-      // Long enough for at least one whole event, however late it comes.
-      return skipThrough(game, 35);
+      // Until the first whole event has ended: its warning, start and end.
+      const seen: GameEvent[] = [];
+      for (let skips = 0; seen.length < 3; skips++) {
+        if (skips > 1000) throw new Error("No whole event came.");
+        seen.push(
+          ...game.campaign.advanceToNextEvent().filter(isSolarParticleEvent),
+        );
+      }
+      return seen;
     };
 
     const first = play(42);
-    expect(first.length).toBeGreaterThanOrEqual(3);
     expect(play(42)).toEqual(first);
     expect(play(43)).not.toEqual(first);
   });
