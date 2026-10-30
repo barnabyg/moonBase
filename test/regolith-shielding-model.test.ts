@@ -99,6 +99,8 @@ describe("Regolith shielding's model", () => {
     for (const point of points) {
       const radius = Math.hypot(point.x, point.z);
       expect(radius).toBeLessThan(4);
+      // The middle of a course's lid, which the Habitat stands up through.
+      if (radius === 0) continue;
       const up = (point.y - ENVELOPE.deck) / ENVELOPE.height;
       if (up > 0 && up < 1) {
         expect(radius).toBeGreaterThan(
@@ -111,7 +113,10 @@ describe("Regolith shielding's model", () => {
   it("keeps a water wall's bladders pressed against its flank", () => {
     const flank = pointsOf(finished())
       .flat()
-      .filter((point) => Math.abs(point.y - 1.1) < 0.2)
+      .filter(
+        (point) =>
+          Math.abs(point.y - 1.1) < 0.2 && Math.hypot(point.x, point.z) > 0,
+      )
       .map((point) => domeRadiusAt(point.y) - Math.hypot(point.x, point.z));
 
     // The bladders' tubes reach 25 cm into the dome.
@@ -132,6 +137,31 @@ describe("Regolith shielding's model", () => {
       const joint = layer.filter((point) => point.y > top - 0.15);
       // Each layer's top ring is also the next layer's foot.
       expect(joint.filter((point) => nextKeys.has(key(point))).length).toBe(72);
+    }
+  });
+
+  it("shows a lid over the course being printed, facing up, with no gap round the Habitat", () => {
+    const layers = layersOf(finished());
+
+    for (const layer of layers.slice(0, -1)) {
+      const position = layer.geometry.getAttribute("position");
+      const indices = layer.geometry.getIndex();
+      if (indices === null) throw new Error("expected indexed faces");
+      const middle = position.count - 1;
+      expect(position.getX(middle)).toBe(0);
+      expect(position.getZ(middle)).toBe(0);
+      const faces = Array.from({ length: indices.count / 3 }, (_, face) =>
+        [0, 1, 2].map((corner) => indices.getX(face * 3 + corner)),
+      ).filter((face) => face.includes(middle));
+      expect(faces).toHaveLength(72);
+      for (const [a = 0, b = 0, c = 0] of faces) {
+        const point = (at: number) =>
+          new THREE.Vector3().fromBufferAttribute(position, at);
+        const normal = point(b)
+          .sub(point(a))
+          .cross(point(c).sub(point(a)));
+        expect(normal.y).toBeGreaterThan(0);
+      }
     }
   });
 

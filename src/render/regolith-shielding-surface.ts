@@ -153,6 +153,18 @@ export function createPrintedCourseGeometry(
       indices.push(a, c, b, b, c, d);
     }
   }
+  // A lid over all but the last, which closes at a point, so that the course
+  // being printed shows no gap round the Habitat from above. The next course
+  // hides it, and the Habitat stands up through it.
+  if (index < layers - 1) {
+    const middle = positions.length / 3;
+    positions.push(0, layerHeight, 0);
+    uvs.push(TEXTURE_OFFSET.u, TEXTURE_OFFSET.v);
+    colours.push(1, 1, 1);
+    for (let step = 0; step < AROUND; step++) {
+      indices.push(middle, at(gaps, step + 1), at(gaps, step));
+    }
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     "position",
