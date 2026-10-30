@@ -68,6 +68,10 @@ _Avoid_: shipment, delivery, upmass
 The mass of Exports the Lander can carry off the Moon when it leaves. Producing propellant locally increases it.
 _Avoid_: downmass, return cargo
 
+**Precision optics**:
+An Export planned for the last Act: optical parts made in the Moon's vacuum, worth far more for their mass than circuit boards.
+_Avoid_: lenses, mirrors
+
 **Propellant**:
 What the Lander burns to leave the Moon. Planned for the third Act: making it at the base raises the Return Mass, and oxygen can be sold as propellant.
 _Avoid_: fuel
