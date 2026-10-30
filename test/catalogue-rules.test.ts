@@ -153,6 +153,40 @@ describe("the rule that every Export can be sold", () => {
   });
 });
 
+describe("the rule that every Export can be sold, for its price", () => {
+  it("fails one that sells for nothing", () => {
+    expect(
+      breaches(
+        madeUp({
+          exports: [{ resourceId: "gems", priceMillionDollarsPerKilogram: 0 }],
+          designs: [design("base", 0)],
+          structureTypes: [
+            structure("plant", "base", {
+              recipes: [
+                {
+                  id: "gems",
+                  label: "Gems",
+                  inputs: [],
+                  outputs: [{ resource: bulk("gems"), kilogramsPerHour: 1 }],
+                  drawKilowatts: 1,
+                },
+              ],
+            }),
+          ],
+        }),
+        ["base"],
+      ),
+    ).toEqual([
+      {
+        rule: "export-can-be-sold",
+        item: "gems",
+        message:
+          "export-can-be-sold: gems can't be sold: a full Return Mass of it sells for nothing.",
+      },
+    ]);
+  });
+});
+
 describe("the rule that every bulk resource has a use", () => {
   it("fails one no Plant takes in and nobody buys, naming it and the rule", () => {
     expect(
