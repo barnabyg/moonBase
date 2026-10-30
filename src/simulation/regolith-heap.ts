@@ -77,10 +77,7 @@ function slopeRadians(): number {
  * Lander stands on a landing pad.
  */
 function heapPosition(stockpile: GroundPosition): GroundPosition {
-  const landingSite = catalogue.landingSite.landerPosition;
-  const dx = stockpile.x - landingSite.x;
-  const dy = stockpile.y - landingSite.y;
-  const angle = dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
+  const angle = awayFromLandingSite(stockpile);
   const reach =
     catalogue.stockpile.footprintRadiusMetres +
     catalogue.stockpile.regolithHeap.gapFromFootprintMetres +
@@ -89,4 +86,12 @@ function heapPosition(stockpile: GroundPosition): GroundPosition {
     x: stockpile.x + Math.cos(angle) * reach,
     y: stockpile.y + Math.sin(angle) * reach,
   };
+}
+
+/** The direction from a stockpile standing here away from the landing site, in radians. */
+export function awayFromLandingSite(stockpile: GroundPosition): number {
+  const landingSite = catalogue.landingSite.landerPosition;
+  const dx = stockpile.x - landingSite.x;
+  const dy = stockpile.y - landingSite.y;
+  return dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
 }

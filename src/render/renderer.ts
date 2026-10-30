@@ -15,6 +15,7 @@ import {
   createPlacementPreview,
   type PlacementPreview,
 } from "./placement-preview";
+import { createIceStoreView } from "./ice-store-view";
 import { createRegolithHeapView } from "./regolith-heap-view";
 import { createRobotViews } from "./robot-views";
 import { createRoverViews } from "./rover-views";
@@ -120,6 +121,7 @@ export function createRenderer(
   );
   scene.add(stockpile.group);
   const regolithHeap = createRegolithHeapView(scene, ground.material);
+  const iceStore = createIceStoreView(scene);
   const missionDirector = createMissionDirectorView(scene);
   const robots = createRobotViews(scene);
   const machines = createMachineViews(scene);
@@ -184,6 +186,7 @@ export function createRenderer(
         ),
       );
       regolithHeap.update(frame);
+      iceStore.update(frame);
       robots.update(frame, realSeconds);
       machines.update(frame, realSeconds);
       rovers.update(frame);

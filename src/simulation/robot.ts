@@ -74,7 +74,7 @@ import {
 import {
   addCounts,
   addToStock,
-  spotClearOfRegolithHeap,
+  spotClearOfStores,
   stockpileSpot,
   takeFromStock,
 } from "./stockpile";
@@ -983,11 +983,11 @@ function park(
  * Where a Robot stands to maintain or park a Machine or Rover: just
  * outside it, on the side facing the stockpile, or turned aside as little
  * as it takes to stand clear of the Regolith heap, which lies between the
- * stockpile and the excavator where it digs.
+ * stockpile and the excavator where it digs, and the ice store.
  */
 function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
   const { position } = bodyOf(driven);
-  return spotClearOfRegolithHeap(
+  return spotClearOfStores(
     state,
     position,
     drivenSpec(driven).footprintRadiusMetres +
@@ -1146,7 +1146,7 @@ function repairItself(
 /**
  * Lets the Robot do one game-minute of an Expedition: it walks to the
  * Rover, drives it to the nearest map edge and off the map, is away for the
- * data catalogue's time, then drives back onto the map to the stockpile and
+ * data catalogue's time, then drives back onto the map to the ice store and
  * unloads what it brought back, which joins the base's stock. A Rover
  * Broken before it is driven off calls the Expedition off. Returns any
  * events.
@@ -1184,7 +1184,7 @@ function goOnExpedition(
     wearRoverOnExpedition(rover);
     return samePlace(rover.position, spot);
   };
-  /** Drives the Rover back onto the map, beside the stockpile, to unload. */
+  /** Drives the Rover back onto the map, beside the ice store, to unload. */
   const driveBack = (): GameEvent[] => {
     if (drive(returnSpot(state, expedition.exitPoint ?? rover.position))) {
       expedition.stage = "unloading";

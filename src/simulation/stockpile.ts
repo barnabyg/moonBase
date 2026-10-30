@@ -5,6 +5,7 @@ import {
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { distance, footprintRadius } from "./construction";
+import { iceStore, iceStoreGround, type IceStore } from "./ice-store";
 import {
   regolithHeap,
   regolithHeapGround,
@@ -83,13 +84,8 @@ interface Footing {
   readonly structureTypeId: string;
 }
 
-/**
- * The heap of the base's Regolith beside the stockpile, sized to the
- * stock, or undefined if there is none, or if a Structure stands, or is
- * planned to stand, over it: the heap lies outside the stockpile's
- * footprint, where Structures may be built.
- */
-export function uncoveredRegolithHeap(base: {
+/** The parts of a Campaign's state, or its snapshot, that say what lies beside the stockpile. */
+interface BaseGround {
   readonly stockpile: { readonly position: GroundPosition };
   readonly bulkResources: readonly {
     readonly resourceId: string;
@@ -97,28 +93,63 @@ export function uncoveredRegolithHeap(base: {
   }[];
   readonly structures: readonly Footing[];
   readonly constructions: readonly Footing[];
-}): RegolithHeap | undefined {
-  const kilograms =
-    base.bulkResources.find(
-      (stock) => stock.resourceId === catalogue.digging.resourceId,
-    )?.kilograms ?? 0;
-  const heap = regolithHeap(base.stockpile.position, kilograms);
-  if (heap === undefined) return undefined;
-  const covered = [...base.structures, ...base.constructions].some(
-    (footing) =>
-      distance(footing.position, heap.position) <
-      heap.radiusMetres + footprintRadius(footing.structureTypeId),
-  );
-  return covered ? undefined : heap;
 }
 
-/** How far clear of the Regolith heap a Robot stands to work. */
-const HEAP_CLEARANCE_METRES = 0.5;
+function kilogramsOf(base: BaseGround, resourceId: string): number {
+  return (
+    base.bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? 0
+  );
+}
+
+/** Whether a Structure stands, or is planned to stand, over this ground. */
+function isCovered(
+  base: BaseGround,
+  ground: { readonly position: GroundPosition; readonly radiusMetres: number },
+): boolean {
+  return [...base.structures, ...base.constructions].some(
+    (footing) =>
+      distance(footing.position, ground.position) <
+      ground.radiusMetres + footprintRadius(footing.structureTypeId),
+  );
+}
+
+/**
+ * The heap of the base's Regolith beside the stockpile, sized to the
+ * stock, or undefined if there is none, or if a Structure stands, or is
+ * planned to stand, over it: the heap lies outside the stockpile's
+ * footprint, where Structures may be built.
+ */
+export function uncoveredRegolithHeap(
+  base: BaseGround,
+): RegolithHeap | undefined {
+  const heap = regolithHeap(
+    base.stockpile.position,
+    kilogramsOf(base, catalogue.digging.resourceId),
+  );
+  return heap === undefined || isCovered(base, heap) ? undefined : heap;
+}
+
+/**
+ * The store of the base's water ice beside the stockpile, or undefined if
+ * there is none, or if a Structure stands, or is planned to stand, over it,
+ * as with the Regolith heap.
+ */
+export function uncoveredIceStore(base: BaseGround): IceStore | undefined {
+  const store = iceStore(
+    base.stockpile.position,
+    kilogramsOf(base, catalogue.expeditions.resourceId),
+  );
+  return store === undefined || isCovered(base, store) ? undefined : store;
+}
+
+/** How far clear of the Regolith heap and the ice store a Robot stands to work. */
+const STORE_CLEARANCE_METRES = 0.5;
 
 /**
  * Where the Robot stands to load or unload Components: beside the stockpile,
  * on the side facing the site, or turned aside as little as it takes to
- * stand clear of the Regolith heap if that is in the way.
+ * stand clear of the Regolith heap and the ice store if they are in the way.
  */
 export function stockpileSpot(
   state: CampaignState,
@@ -126,7 +157,7 @@ export function stockpileSpot(
 ): GroundPosition {
   const stockpile = state.stockpile.position;
   const { workSpot } = site;
-  return spotClearOfRegolithHeap(
+  return spotClearOfStores(
     state,
     stockpile,
     catalogue.stockpile.footprintRadiusMetres +
@@ -137,41 +168,85 @@ export function stockpileSpot(
 
 /**
  * The spot this far from a centre in the direction given, or, if that is
- * too close to the Regolith heap's largest ground for a Robot to stand,
- * turned round the centre as little as it takes to stand clear of it.
+ * too close to the Regolith heap's largest ground or the ice store for a
+ * Robot to stand, turned round the centre as little as it takes to stand
+ * clear of them.
  */
-export function spotClearOfRegolithHeap(
+export function spotClearOfStores(
   state: CampaignState,
   centre: GroundPosition,
   reach: number,
   angle: number,
 ): GroundPosition {
-  const heap = regolithHeapGround(state.stockpile.position);
-  const away = distance(centre, heap.position);
-  const clear = heap.radiusMetres + HEAP_CLEARANCE_METRES;
-  // The angle either side of the heap within which a spot is too close to
-  // it, from the triangle of the centre, the heap and the spot.
-  const cosine =
-    (reach * reach + away * away - clear * clear) / (2 * reach * away);
-  const heapAngle = Math.atan2(
-    heap.position.y - centre.y,
-    heap.position.x - centre.x,
+  const stockpile = state.stockpile.position;
+  return spotClearOf(
+    [regolithHeapGround(stockpile), iceStoreGround(stockpile)].map(
+      ({ position, radiusMetres }) => ({
+        position,
+        radiusMetres: radiusMetres + STORE_CLEARANCE_METRES,
+      }),
+    ),
+    centre,
+    reach,
+    angle,
   );
-  const off = Math.atan2(
-    Math.sin(angle - heapAngle),
-    Math.cos(angle - heapAngle),
-  );
-  // Standing in the middle of the heap, no way out is better than another.
-  const tooClose =
-    away === 0 ? 0 : Math.acos(Math.max(Math.min(cosine, 1), -1));
-  const turned =
-    Math.abs(off) >= tooClose
-      ? angle
-      : heapAngle + (off < 0 ? -tooClose : tooClose);
-  return {
+}
+
+/**
+ * The spot this far from a centre in the direction given, or turned round
+ * the centre as little as it takes to be outside all this ground. Where no
+ * spot is, it takes the one that comes closest.
+ */
+export function spotClearOf(
+  grounds: readonly {
+    readonly position: GroundPosition;
+    readonly radiusMetres: number;
+  }[],
+  centre: GroundPosition,
+  reach: number,
+  angle: number,
+): GroundPosition {
+  const spotAt = (turned: number): GroundPosition => ({
     x: centre.x + Math.cos(turned) * reach,
     y: centre.y + Math.sin(turned) * reach,
-  };
+  });
+  // Standing in the middle of some ground, no way out is better than another.
+  const around = grounds.filter(
+    ({ position }) => distance(centre, position) > 0,
+  );
+  /** How far outside the nearest ground a spot is, in metres. */
+  const margin = (spot: GroundPosition) =>
+    Math.min(
+      ...around.map(
+        ({ position, radiusMetres }) => distance(spot, position) - radiusMetres,
+      ),
+    );
+  // The directions to try: the one given, then either side of each ground,
+  // from the triangle of the centre, the ground and the spot.
+  const edges = around.flatMap(({ position, radiusMetres }) => {
+    const away = distance(centre, position);
+    const cosine =
+      (reach * reach + away * away - radiusMetres * radiusMetres) /
+      (2 * reach * away);
+    const tooClose = Math.acos(Math.max(Math.min(cosine, 1), -1));
+    const towards = Math.atan2(position.y - centre.y, position.x - centre.x);
+    return [towards - tooClose, towards + tooClose];
+  });
+  const turnFrom = (direction: number) =>
+    Math.abs(
+      Math.atan2(Math.sin(direction - angle), Math.cos(direction - angle)),
+    );
+  const directions = [angle, ...edges].sort(
+    (a, b) => turnFrom(a) - turnFrom(b),
+  );
+  const clear = directions.find(
+    (direction) => margin(spotAt(direction)) >= -1e-9,
+  );
+  if (clear !== undefined) return spotAt(clear);
+  const closest = directions.reduce((best, direction) =>
+    margin(spotAt(direction)) > margin(spotAt(best)) ? direction : best,
+  );
+  return spotAt(closest);
 }
 
 function stockOf(

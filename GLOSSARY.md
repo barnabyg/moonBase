@@ -76,6 +76,10 @@ _Avoid_: cargo, cargo stock, inventory
 The base's stock of Regolith as it lies on the ground: a heap of loose Regolith beside the stockpile's footprint, where the excavator tips what it digs, growing and shrinking with the stock.
 _Avoid_: spoil heap, mound, pile
 
+**Ice store**:
+The base's stock of water ice as it stands on the ground: insulated containers beside the stockpile's footprint, where the Robot unloads what an Expedition brings back, showing more ice as the stock rises and less as it falls. It is scenery: the stock has no limit, and it shows none beyond its full containers.
+_Avoid_: ice bin, ice depot, ice tank
+
 **Payload Mass**:
 The mass a Launch can carry, and the main limit on what can be imported from Earth.
 _Avoid_: cargo capacity, weight

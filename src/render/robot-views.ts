@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { iceStoreGround } from "../simulation";
 import type {
   GroundPosition,
   RobotActivity,
@@ -115,7 +116,7 @@ function aboardMachine(robot: RobotSnapshot): boolean {
 
 /**
  * What the Robot faces while it works: the stockpile when loading or
- * unloading there, the Lander when loading or unloading it or climbing
+ * unloading there, the ice store when unloading an Expedition's ice, the Lander when loading or unloading it or climbing
  * down from it, otherwise the site.
  */
 function workTarget(
@@ -139,6 +140,9 @@ function workTarget(
     activity.kind === "loading-exports"
   ) {
     return toScene(frame.current.stockpile.position);
+  }
+  if (activity.kind === "unloading-expedition") {
+    return toScene(iceStoreGround(frame.current.stockpile.position).position);
   }
   if (
     activity.kind === "putting-exports-aboard" ||

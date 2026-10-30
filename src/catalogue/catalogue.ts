@@ -70,6 +70,21 @@ export interface Catalogue {
       /** How far outside the stockpile's footprint the foot of a full heap comes. */
       readonly gapFromFootprintMetres: number;
     };
+    /**
+     * The insulated containers beside the stockpile that show the base's
+     * water ice. It is scenery: the stock itself has no limit.
+     */
+    readonly iceStore: {
+      /** How many containers there are, which is as much ice as it can show. */
+      readonly containers: number;
+      readonly kilogramsPerContainer: number;
+      /** The smallest level a container with any ice shows, so that a little ice still shows. */
+      readonly smallestLevel: number;
+      /** Radius of the ground the containers stand on. */
+      readonly radiusMetres: number;
+      /** How far outside the stockpile's footprint that ground comes. */
+      readonly gapFromFootprintMetres: number;
+    };
   };
   /**
    * Where the Lander has touched down, and the base's stockpile, Robots,
@@ -959,7 +974,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 59,
+  version: 60,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -984,6 +999,15 @@ export const catalogue: Catalogue = {
       drawnLargerBy: 1.3,
       smallestRadiusMetres: 0.3,
       gapFromFootprintMetres: 0.1,
+    },
+    // A container for each Expedition's ice, which is about the 0.22 m³ one
+    // of these holds, and enough to show the stock of several Expeditions.
+    iceStore: {
+      containers: 7,
+      kilogramsPerContainer: 200,
+      smallestLevel: 0.1,
+      radiusMetres: 1.2,
+      gapFromFootprintMetres: 0.3,
     },
   },
   landingSite: {

@@ -2503,6 +2503,84 @@ export function createStockpileModel(footprintRadius: number): {
   };
 }
 
+/** How far from the ice store's middle its outer containers stand. */
+const ICE_STORE_RING = 0.8;
+/** The radius of an ice container, within the ice store's ground, and its height. */
+const ICE_CONTAINER_RADIUS = 0.35;
+const ICE_CONTAINER_HEIGHT = 0.58;
+
+const iceContainerMaterial = new THREE.MeshStandardMaterial({
+  color: 0xdde3e6,
+  metalness: 0.35,
+  roughness: 0.5,
+});
+const iceMaterial = new THREE.MeshStandardMaterial({
+  color: 0xbfe4f5,
+  metalness: 0,
+  roughness: 0.3,
+});
+
+/**
+ * The base's ice store: insulated, open-topped white containers, each with
+ * a pale blue mound of ice in it that rises with its level. Only those
+ * holding ice show, so that it looks unlike the Regolith heap or the crates.
+ */
+export function createIceStoreModel(containers: number): {
+  readonly group: THREE.Group;
+  /** Shows a container at each of these levels, from 0 to 1, in order. */
+  showLevels(levels: readonly number[]): void;
+} {
+  const group = new THREE.Group();
+  group.name = "Ice store";
+  const shell = lathe(
+    [
+      [0, 0],
+      [ICE_CONTAINER_RADIUS, 0],
+      [ICE_CONTAINER_RADIUS, ICE_CONTAINER_HEIGHT],
+      [ICE_CONTAINER_RADIUS - 0.03, ICE_CONTAINER_HEIGHT],
+      [ICE_CONTAINER_RADIUS - 0.03, 0.04],
+      [0, 0.04],
+    ],
+    16,
+  );
+  const mound = lathe(
+    [
+      [ICE_CONTAINER_RADIUS - 0.03, 0],
+      [ICE_CONTAINER_RADIUS - 0.03, 1],
+      [0.2, 1.1],
+      [0, 1.14],
+    ],
+    16,
+  );
+  // The first in the middle, then round it.
+  const parts = Array.from({ length: containers }, (_, index) => {
+    const angle = ((index - 1) / (containers - 1)) * Math.PI * 2;
+    const reach = index === 0 ? 0 : ICE_STORE_RING;
+    const container = part(shell, iceContainerMaterial, [
+      Math.cos(angle) * reach,
+      0,
+      Math.sin(angle) * reach,
+    ]);
+    container.name = "Ice container";
+    const ice = part(mound, iceMaterial, [0, 0.04, 0]);
+    ice.name = "Ice";
+    container.add(ice);
+    container.visible = false;
+    group.add(container);
+    return { container, ice };
+  });
+  return {
+    group,
+    showLevels(levels) {
+      for (const [index, { container, ice }] of parts.entries()) {
+        const level = levels[index] ?? 0;
+        container.visible = level > 0;
+        ice.scale.y = (ICE_CONTAINER_HEIGHT - 0.06) * level;
+      }
+    },
+  };
+}
+
 /** The height of every Machine's deck, where a Robot sits to drive it. */
 export const MACHINE_SEAT_HEIGHT = 1.15;
 
