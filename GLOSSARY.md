@@ -77,7 +77,7 @@ The base's stock of Regolith as it lies on the ground: a heap of loose Regolith 
 _Avoid_: spoil heap, mound, pile
 
 **Ice store**:
-The base's stock of water ice as it stands on the ground: insulated containers beside the stockpile's footprint, where the Robot unloads what an Expedition brings back, showing more ice as the stock rises and less as it falls. It is scenery: the stock has no limit, and it shows none beyond its full containers.
+The base's stock of water ice as it stands on the ground: insulated containers beside the stockpile's footprint, where the Robot unloads what an Expedition brings back, showing more ice as the stock rises and less as it falls. It only shows the stock, which has no limit of its own: past its full containers, it shows no more.
 _Avoid_: ice bin, ice depot, ice tank
 
 **Payload Mass**:

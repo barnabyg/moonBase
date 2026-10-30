@@ -144,7 +144,7 @@ export function uncoveredIceStore(base: BaseGround): IceStore | undefined {
 }
 
 /** How far clear of the Regolith heap and the ice store a Robot stands to work. */
-const STORE_CLEARANCE_METRES = 0.5;
+const HEAP_AND_ICE_STORE_CLEARANCE_METRES = 0.5;
 
 /**
  * Where the Robot stands to load or unload Components: beside the stockpile,
@@ -157,7 +157,7 @@ export function stockpileSpot(
 ): GroundPosition {
   const stockpile = state.stockpile.position;
   const { workSpot } = site;
-  return spotClearOfStores(
+  return spotClearOfHeapAndIceStore(
     state,
     stockpile,
     catalogue.stockpile.footprintRadiusMetres +
@@ -172,7 +172,7 @@ export function stockpileSpot(
  * Robot to stand, turned round the centre as little as it takes to stand
  * clear of them.
  */
-export function spotClearOfStores(
+export function spotClearOfHeapAndIceStore(
   state: CampaignState,
   centre: GroundPosition,
   reach: number,
@@ -183,7 +183,7 @@ export function spotClearOfStores(
     [regolithHeapGround(stockpile), iceStoreGround(stockpile)].map(
       ({ position, radiusMetres }) => ({
         position,
-        radiusMetres: radiusMetres + STORE_CLEARANCE_METRES,
+        radiusMetres: radiusMetres + HEAP_AND_ICE_STORE_CLEARANCE_METRES,
       }),
     ),
     centre,

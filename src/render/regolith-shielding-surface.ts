@@ -119,16 +119,16 @@ export function createPrintedCourseGeometry(
               edge * COURSE_GROOVE_METRES),
         0,
       );
-      // Sinking only, so that it never rises above a strap laid over the dome.
-      const rise =
+      // Sinking only, so that it never rises above the smooth dome.
+      const sink =
         fades *
-        Math.min(wander, 0) *
+        Math.max(-wander, 0) *
         WANDER_DOWN_METRES *
         (1 - smooth / SHIELDING_BASE_RADIUS);
       const sunk = index === 0 && ring === 0 ? SUNK_METRES : 0;
       positions.push(
         Math.cos(angle) * radius,
-        height + rise - bottom - sunk,
+        height - sink - bottom - sunk,
         Math.sin(angle) * radius,
       );
       const slope = slopeLengthAt(height);
@@ -179,15 +179,15 @@ export function createPrintedCourseGeometry(
 
 /** The height above the ground this far down the dome's slope from the top. */
 function heightDownSlope(length: number): number {
-  let high = 0;
-  let low = SLOPE_STEPS;
-  while (low - high > 1) {
-    const middle = Math.floor((high + low) / 2);
-    if ((slopeLengths[middle] ?? 0) <= length) high = middle;
-    else low = middle;
+  let above = 0;
+  let below = SLOPE_STEPS;
+  while (below - above > 1) {
+    const middle = Math.floor((above + below) / 2);
+    if ((slopeLengths[middle] ?? 0) <= length) above = middle;
+    else below = middle;
   }
-  const higher = slopeLengths[high] ?? 0;
-  const lower = slopeLengths[low] ?? higher;
-  const steps = high + (length - higher) / Math.max(lower - higher, 1e-9);
+  const higher = slopeLengths[above] ?? 0;
+  const lower = slopeLengths[below] ?? higher;
+  const steps = above + (length - higher) / Math.max(lower - higher, 1e-9);
   return Math.max(SHIELDING_HEIGHT * (1 - steps / SLOPE_STEPS), 0);
 }

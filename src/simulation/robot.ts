@@ -74,7 +74,7 @@ import {
 import {
   addCounts,
   addToStock,
-  spotClearOfStores,
+  spotClearOfHeapAndIceStore,
   stockpileSpot,
   takeFromStock,
 } from "./stockpile";
@@ -987,7 +987,7 @@ function park(
  */
 function besideDriven(state: CampaignState, driven: Driven): GroundPosition {
   const { position } = bodyOf(driven);
-  return spotClearOfStores(
+  return spotClearOfHeapAndIceStore(
     state,
     position,
     drivenSpec(driven).footprintRadiusMetres +

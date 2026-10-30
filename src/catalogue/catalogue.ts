@@ -61,8 +61,9 @@ export interface Catalogue {
       readonly slopeDegrees: number;
       /**
        * How many times wider and higher it is drawn than a cone of that
-       * density would be, so that a full stock shows larger than the mat. It
-       * changes only how it looks.
+       * density would be, so that a full stock shows larger than the mat.
+       * What digs and stands beside it keeps clear of the size it is drawn at,
+       * but how much the base digs and stockpiles doesn't change.
        */
       readonly drawnLargerBy: number;
       /** The smallest heap there is while any Regolith is in stock, so that a few kilograms still show. */
@@ -72,7 +73,7 @@ export interface Catalogue {
     };
     /**
      * The insulated containers beside the stockpile that show the base's
-     * water ice. It is scenery: the stock itself has no limit.
+     * water ice. They only show it: the stock itself has no limit.
      */
     readonly iceStore: {
       /** How many containers there are, which is as much ice as it can show. */

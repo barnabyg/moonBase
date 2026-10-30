@@ -4,7 +4,7 @@ import { awayFromLandingSite } from "./regolith-heap";
 /**
  * The base's water ice as it stands on the ground beside the stockpile's
  * mat: insulated containers that fill as the stock rises and empty as it
- * falls. It is scenery: the stock stays one number, with no limit of its own.
+ * falls. It only shows the stock, which stays one number with no limit.
  */
 export interface IceStore {
   readonly position: GroundPosition;
