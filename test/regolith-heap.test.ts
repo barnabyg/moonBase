@@ -75,16 +75,19 @@ describe("the heap of the base's Regolith", () => {
     expect(regolithHeap(stockpilePosition, 0)).toBeUndefined();
   });
 
-  it("holds a full stock as a cone of loose Regolith about 1.2 m in radius and 0.85 m high, a little smaller than the stockpile's mat", () => {
+  it("draws a full stock as a cone about 1.6 m in radius and 1.1 m high, larger than the stockpile's mat", () => {
     const full = sizeAt(digging.fullKilograms);
 
-    expect(full.radiusMetres).toBeCloseTo(1.22, 2);
-    expect(full.heightMetres).toBeCloseTo(0.85, 2);
-    expect(full.radiusMetres).toBeLessThan(stockpile.footprintRadiusMetres);
-    expect(volume(full)).toBeCloseTo(
+    expect(full.radiusMetres).toBeCloseTo(1.59, 2);
+    expect(full.heightMetres).toBeCloseTo(1.11, 2);
+    expect(full.radiusMetres).toBeGreaterThan(stockpile.footprintRadiusMetres);
+  });
+
+  it("is drawn larger than the bulk density says, which stays true of loose Regolith", () => {
+    expect(stockpile.regolithHeap.bulkDensityKilogramsPerCubicMetre).toBe(1500);
+    expect(volume(sizeAt(digging.fullKilograms))).toBeGreaterThan(
       digging.fullKilograms /
         stockpile.regolithHeap.bulkDensityKilogramsPerCubicMetre,
-      3,
     );
   });
 

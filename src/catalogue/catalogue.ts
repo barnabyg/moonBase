@@ -59,6 +59,12 @@ export interface Catalogue {
       readonly bulkDensityKilogramsPerCubicMetre: number;
       /** The slope it settles at when tipped: its angle of repose. */
       readonly slopeDegrees: number;
+      /**
+       * How many times wider and higher it is drawn than a cone of that
+       * density would be, so that a full stock shows larger than the mat. It
+       * changes only how it looks.
+       */
+      readonly drawnLargerBy: number;
       /** The smallest heap there is while any Regolith is in stock, so that a few kilograms still show. */
       readonly smallestRadiusMetres: number;
       /** How far outside the stockpile's footprint the foot of a full heap comes. */
@@ -953,7 +959,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 58,
+  version: 59,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -967,13 +973,15 @@ export const catalogue: Catalogue = {
     // wafers, or keeping them back, runs up against it.
     returnMassKilograms: 100,
   },
-  // A full stock of Regolith heaps up a little smaller than the stockpile's
-  // mat: about 1.2 m in radius and 0.85 m high.
+  // A full stock of Regolith really makes a cone about 1.2 m in radius and
+  // 0.85 m high, a little smaller than the stockpile's mat. It is drawn about
+  // a third larger, about 1.6 m in radius and 1.1 m high, to look bigger.
   stockpile: {
     footprintRadiusMetres: 1.5,
     regolithHeap: {
       bulkDensityKilogramsPerCubicMetre: 1500,
       slopeDegrees: 35,
+      drawnLargerBy: 1.3,
       smallestRadiusMetres: 0.3,
       gapFromFootprintMetres: 0.1,
     },

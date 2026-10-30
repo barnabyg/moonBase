@@ -14,9 +14,9 @@ export interface RegolithHeap {
 
 /**
  * The heap holding this many kilograms of Regolith, beside a stockpile
- * standing here, or undefined if there is none. Its volume goes with the
- * mass, up to the stock digging fills, so its radius goes with the cube
- * root of the mass.
+ * standing here, or undefined if there is none, at the size it is drawn. Its
+ * volume goes with the mass, up to the stock digging fills, so its radius
+ * goes with the cube root of the mass.
  */
 export function regolithHeap(
   stockpile: GroundPosition,
@@ -47,18 +47,22 @@ export function regolithHeapGround(stockpile: GroundPosition): {
 }
 
 /**
- * The radius of a cone of loose Regolith of this mass, up to the stock
- * digging fills, and no smaller than the smallest heap.
+ * The radius a cone of loose Regolith of this mass is drawn at, up to the
+ * stock digging fills, and no smaller than the smallest heap.
  */
 function radiusHolding(kilograms: number): number {
-  const { bulkDensityKilogramsPerCubicMetre, smallestRadiusMetres } =
-    catalogue.stockpile.regolithHeap;
+  const {
+    bulkDensityKilogramsPerCubicMetre,
+    drawnLargerBy,
+    smallestRadiusMetres,
+  } = catalogue.stockpile.regolithHeap;
   const cubicMetres =
     Math.min(kilograms, catalogue.digging.fullKilograms) /
     bulkDensityKilogramsPerCubicMetre;
   // A cone's volume is a third of pi r² h, and its height r tan(slope).
   return Math.max(
-    Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(slopeRadians()))),
+    Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(slopeRadians()))) *
+      drawnLargerBy,
     smallestRadiusMetres,
   );
 }
