@@ -950,6 +950,11 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 39 to 40: nothing in the document changes. From this version on, reading
+  // gives a count of none to any Component or bulk resource a save doesn't
+  // have a count for, so that adding one to the data catalogue no longer needs
+  // a migration.
+  (document) => ({ ...document }),
 ];
 
 /**
@@ -1063,7 +1068,9 @@ export function writeSaveDocument(state: CampaignState): string {
  * Reads the text of a save document back into a Campaign state, first
  * bringing an older format version up to date through the chain of
  * migrations. Anything that isn't a save document of a version it can load,
- * with every field present and valid, is refused with the reason.
+ * with every field present and valid, is refused with the reason; the one
+ * thing that may be missing is a count in the base's stock (see
+ * `componentStock`).
  */
 export function readSaveDocument(
   text: string,
@@ -1302,6 +1309,46 @@ const componentCount = object({
   componentId: catalogueId(catalogue.componentTypes, "Component"),
   count: wholeNumber,
 });
+
+/**
+ * The base's stock of Components: one count for every Component, in catalogue
+ * order, and none of any the save has no count for, as it was written before
+ * that Component was added. A count of a Component the data catalogue doesn't
+ * have is refused, as any other unknown id is.
+ */
+const componentStock: Decoder<{ componentId: string; count: number }[]> = (
+  value,
+  path,
+) => {
+  const saved = list(componentCount)(value, path);
+  return catalogue.componentTypes.map(
+    ({ id }) =>
+      saved.find((stock) => stock.componentId === id) ?? {
+        componentId: id,
+        count: 0,
+      },
+  );
+};
+
+/** The base's stock of bulk resources, read as `componentStock` reads Components. */
+const bulkStock: Decoder<{ resourceId: string; kilograms: number }[]> = (
+  value,
+  path,
+) => {
+  const saved = list(
+    object({
+      resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
+      kilograms: amount,
+    }),
+  )(value, path);
+  return catalogue.bulkResources.map(
+    ({ id }) =>
+      saved.find((stock) => stock.resourceId === id) ?? {
+        resourceId: id,
+        kilograms: 0,
+      },
+  );
+};
 
 const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 
@@ -1761,14 +1808,9 @@ const simulationState = object({
   ),
   stockpile: object({
     position: groundPosition,
-    components: list(componentCount),
+    components: componentStock,
   }),
-  bulkResources: list(
-    object({
-      resourceId: catalogueId(catalogue.bulkResources, "bulk resource"),
-      kilograms: amount,
-    }),
-  ),
+  bulkResources: bulkStock,
   constructions: list(
     object({
       id: text,

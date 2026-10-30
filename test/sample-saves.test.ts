@@ -2707,3 +2707,34 @@ describe("the sample save of format version 39", () => {
     );
   });
 });
+
+describe("the sample save of format version 40", () => {
+  // A fresh Campaign, seed 20261030: a solar array, a battery bank and a
+  // Habitat planned east of the landing site, and saved 36 game-hours in,
+  // with the first two built and the Habitat's Components being delivered.
+  it("loads with the Habitat being built", () => {
+    const state = loadSample("version-40.moonbase").snapshot();
+
+    expect(state.clock.elapsedMinutes).toBe(2160);
+    expect(state.structures.map((s) => s.structureTypeId)).toEqual([
+      "solar-array",
+      "battery-bank",
+    ]);
+    expect(
+      state.constructions.map((c) => [c.structureTypeId, c.stage]),
+    ).toEqual([["habitat", "component-delivery"]]);
+  });
+
+  it("plays on from where it was saved, until the Habitat is commissioned", () => {
+    const campaign = loadSample("version-40.moonbase");
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 10 * 24) throw new Error("The Habitat was never built.");
+      campaign.advance(60);
+    }
+
+    expect(
+      campaign.snapshot().structures.map((s) => s.structureTypeId),
+    ).toContain("habitat");
+  });
+});
