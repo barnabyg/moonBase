@@ -40,6 +40,23 @@ It plays the reference Campaign, which takes about 20 seconds, and prints its ti
 
 If the play guide can't go on, it says why and the command fails. That happens when a command is refused, something it waits for never comes, or the Mission Director dies.
 
+## The pacing report
+
+To judge a balancing change without replaying the game, run this from the repository's root folder:
+
+```powershell
+npm.cmd run pacing-report
+```
+
+It reads only the data catalogue, plays nothing, and takes a second or two. Each part says what it assumes; where a figure is a span of game time, it also gives the real time at each game speed.
+
+- **Science earned and spent over time:** the Research Tasks run back to back, the shortest on offer first, unlocking the cheapest Design as soon as it can be afforded. A Research Task or Design it never reaches is named. The Science left at the end is what a player has to spare, and a long gap between unlocks is a stretch of the Tech Tree with nothing to choose.
+- **The Designs' cost by depth in the Tech Tree:** the cost should rise with the depth.
+- **Payback of each Plant that earns anything:** what its Components cost against the value it adds, up to what the Lander can carry away. A payback of a few Earth Days means the Plant is a clear buy as soon as it can be had; "all the Lander can carry" means Return Mass rather than the Plant is the limit.
+- **Payback of each Design that earns Science:** "never pays back" isn't a fault, as most Designs are bought for what they bring, but a Design that pays back fast is an early buy for every player.
+- **Income and cost of each Launch, for each Export:** a full Return Mass's price less the Launch fee, and how many Launches' profit buys one of every Launch item. That number is how soon Funding stops being a limit: the smaller it is, the less the late game asks of Funding.
+- **Designs that something cheaper beats outright:** anything listed is no reason to spend the Science. It compares only things that do the same job, across everything they cost and do; anything else, such as a Design that's better in a way the player doesn't value, is for a person to see.
+
 ## Balancing
 
 The data catalogue's numbers are balanced against the reference Campaign's timeline, so that a new player can play from the landing to a self-sufficient, export-funded base by following the Milestones, and carry on afterwards. Every balancing change is in the data catalogue; none is in code.
