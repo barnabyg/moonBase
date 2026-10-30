@@ -592,7 +592,7 @@ function keepResearching(play: Play): void {
 }
 
 /** Gives up on the Campaign if a command was refused, saying what was refused and why. */
-function succeed(
+export function succeed(
   result: { readonly ok: true } | { readonly ok: false; message: string },
   what: string,
 ): void {
@@ -680,6 +680,28 @@ export interface ReferenceTimeline {
   readonly radiationDoseWithoutWaterWall: DoseRate | undefined;
   /** The Funding balance as the play guide ended. */
   readonly fundingAtEndMillionDollars: number;
+  /** Each Research Task completed, in the order they were. */
+  readonly researchTasksCompleted: readonly {
+    readonly researchTaskId: string;
+    readonly atMinute: number;
+  }[];
+  /** Each Design unlocked, in the order they were. */
+  readonly designsUnlocked: readonly {
+    readonly designId: string;
+    readonly atMinute: number;
+  }[];
+  /** Each Launch item ever put on the Launch manifest. */
+  readonly launchItemsManifested: readonly string[];
+  /** Each Structure type commissioned at least once, the first time it was. */
+  readonly structureTypesBuilt: readonly {
+    readonly structureTypeId: string;
+    readonly atMinute: number;
+  }[];
+  /**
+   * The game's own forecast, as the play guide ended, of the game-minutes
+   * until the Radiation Dose reaches the limit: undefined if it isn't rising.
+   */
+  readonly minutesUntilDoseLimit: number | undefined;
 }
 
 /**
@@ -795,9 +817,34 @@ function recorder(campaign: Campaign) {
   let dose: Extreme = { value: start.radiationDoseMillisieverts, atMinute: 0 };
   const doses: Extreme[] = [dose];
   let waterWallAtMinute: number | undefined;
+  const researchTasksCompleted: {
+    researchTaskId: string;
+    atMinute: number;
+  }[] = [];
+  const designsUnlocked: { designId: string; atMinute: number }[] = [];
+  const launchItemsManifested = new Set<string>();
+  const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
+    [];
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
+        if (event.kind === "research-task-completed") {
+          researchTasksCompleted.push({
+            researchTaskId: event.researchTaskId,
+            atMinute: event.atMinute,
+          });
+        }
+        if (
+          event.kind === "construction-completed" &&
+          !structureTypesBuilt.some(
+            (built) => built.structureTypeId === event.structureTypeId,
+          )
+        ) {
+          structureTypesBuilt.push({
+            structureTypeId: event.structureTypeId,
+            atMinute: event.atMinute,
+          });
+        }
         if (event.kind === "milestone-reached") {
           milestones.push({
             milestoneId: event.milestoneId,
@@ -826,6 +873,18 @@ function recorder(campaign: Campaign) {
     },
     margins(state: Snapshot) {
       const atMinute = state.clock.elapsedMinutes;
+      for (const { itemId } of state.launchManifest.items) {
+        launchItemsManifested.add(itemId);
+      }
+      // Unlocking is a command, which brings no event from advancing the game.
+      for (const designId of state.unlockedDesignIds) {
+        if (
+          !start.unlockedDesignIds.includes(designId) &&
+          !designsUnlocked.some((unlocked) => unlocked.designId === designId)
+        ) {
+          designsUnlocked.push({ designId, atMinute });
+        }
+      }
       funding = lowest(funding, state.fundingMillionDollars, atMinute);
       if (state.radiationDoseMillisieverts > dose.value) {
         dose = { value: state.radiationDoseMillisieverts, atMinute };
@@ -913,6 +972,12 @@ function recorder(campaign: Campaign) {
             ? undefined
             : rateUpTo(waterWallAtMinute),
         fundingAtEndMillionDollars: state.fundingMillionDollars,
+        researchTasksCompleted,
+        designsUnlocked,
+        launchItemsManifested: [...launchItemsManifested],
+        structureTypesBuilt,
+        minutesUntilDoseLimit:
+          campaign.forecasts().radiationDose.minutesUntilLimit,
       };
     },
   };
@@ -927,7 +992,10 @@ function describeRate(over: string, rate: DoseRate): string {
 }
 
 /** The timeline as lines of text, for `npm run reference-campaign`. */
-export function formatTimeline(timeline: ReferenceTimeline): string[] {
+export function formatTimeline(
+  timeline: ReferenceTimeline,
+  title = "Reference Campaign",
+): string[] {
   const day = (minute: number) =>
     (minute / MINUTES_PER_EARTH_DAY).toFixed(1).padStart(5);
   const on = (extreme: Extreme) =>
@@ -935,7 +1003,7 @@ export function formatTimeline(timeline: ReferenceTimeline): string[] {
   const money = (millionDollars: number) => `$${millionDollars.toFixed(1)}M`;
   const { margins } = timeline;
   const lines = [
-    `Reference Campaign: seed ${timeline.seed}, data catalogue version ${catalogue.version}`,
+    `${title}: seed ${timeline.seed}, data catalogue version ${catalogue.version}`,
     "",
     "Milestones, by the Earth Day they were reached (game time since the landing):",
     ...catalogue.milestones.map((milestone) => {

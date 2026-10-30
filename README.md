@@ -23,7 +23,7 @@ The Milestones in the status panel guide you through the Campaign, each with a h
 - [`docs/rules.md`](docs/rules.md): how the game works, system by system.
 - [`GLOSSARY.md`](GLOSSARY.md): the game's language.
 - [`docs/adr/`](docs/adr/): the design decisions.
-- [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthrough the tests play, and how the data catalogue is balanced against it (`npm.cmd run reference-campaign` prints its timeline).
+- [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthrough the tests play, and how the data catalogue is balanced against it (`npm.cmd run reference-campaign` prints its timeline, `npm.cmd run pacing-report` how the numbers fit together, and `npm.cmd run long-game` how a longer Campaign holds up).
 - [`docs/save-format.md`](docs/save-format.md): the `.moonbase` format and the rules for changing it.
 - [`docs/verification.md`](docs/verification.md): the checks, test timeouts and exceptions.
 - The [spec](https://github.com/barnabyg/moonBase/issues/1): what the game will be, and its eight phases.
@@ -39,11 +39,11 @@ npm.cmd run verify
 ## Project layout
 
 - `src/simulation/`: the headless, deterministic game rules. Create a Campaign from a seed, advance it in fixed 1-game-minute ticks, and read immutable snapshots. It never imports the renderer or interface, and never reads the system clock or `Math.random`; lint rules and a separate type check enforce this.
-- `src/catalogue/`: the typed data catalogue holding all content and tuning numbers.
+- `src/catalogue/`: the typed data catalogue holding all content and tuning numbers, in a file for each domain (`site.ts`, `workers.ts`, `resources.ts`, `structures.ts`, `launch.ts`, `research.ts`, `hazards.ts`, `milestones.ts`), its types in `types.ts`, and `catalogue.ts` putting them together.
 - `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed, and the Campaign slot and save files, which load a Campaign from a file in place of the one being played.
 - `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
-- `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, and `test/reference-campaign.ts` is the reference Campaign.
-- `scripts/`: the verification command (`verify.mjs`) and the reference Campaign's timeline (`reference-campaign.mjs`).
+- `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, and `test/catalogue-rules.ts` holds the catalogue's consistency rules.
+- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`) and the long-game play guide (`long-game.mjs`).
 - `e2e/`: Playwright end-to-end tests in Firefox.
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.

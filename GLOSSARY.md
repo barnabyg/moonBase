@@ -16,6 +16,14 @@ _Avoid_: run, scenario, game
 A named achievement that marks progress through the Campaign, such as the first crew landing.
 _Avoid_: goal, objective, achievement
 
+**Act**:
+A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. There are four: the first as the game stands, then Independence, Scale and Permanence.
+_Avoid_: chapter, level, stage, era
+
+**Mechanic**:
+A new way of playing that an Act brings, as distinct from more of something already in the game.
+_Avoid_: feature, system
+
 ## Research and technology
 
 **Research Task**:
@@ -60,6 +68,14 @@ _Avoid_: shipment, delivery, upmass
 The mass of Exports the Lander can carry off the Moon when it leaves. Producing propellant locally increases it.
 _Avoid_: downmass, return cargo
 
+**Precision optics**:
+An Export planned for the last Act: optical parts made in the Moon's vacuum, worth far more for their mass than circuit boards.
+_Avoid_: lenses, mirrors
+
+**Propellant**:
+What the Lander burns to leave the Moon. Planned for the third Act: making it at the base raises the Return Mass, and oxygen can be sold as propellant.
+_Avoid_: fuel
+
 **Lander**:
 The reusable spacecraft that makes every Launch, flying between Earth and the base. It brings the Mission Director at the start of the Campaign and keeps them safe indefinitely while they live aboard, but it can't leave until they've moved into a Habitat.
 _Avoid_: spaceship, ship, shuttle
@@ -101,6 +117,10 @@ _Avoid_: building, facility
 **Plant**:
 A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design. The Mission Director can switch a Plant off, so that it starts no new Batch, and back on, without dismantling it.
 _Avoid_: factory, facility, Machine
+
+**Workshop**:
+A Plant, planned for the second Act, that makes spare Components at the base, so that they no longer need a Launch.
+_Avoid_: factory, fabricator, printer
 
 **Batch**:
 A game-hour of a Plant's recipe, the unit a Plant works in: it takes the inputs as it starts and puts out the outputs as it finishes.
@@ -163,6 +183,10 @@ _Avoid_: colonists, astronauts, settlers
 **Habitat**:
 A Structure in which people live, which provides life support and, once shielded, protection from radiation.
 _Avoid_: accommodation module, hab, living quarters
+
+**Buried Habitat**:
+A Habitat built under the Regolith, planned for the last Act, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
+_Avoid_: bunker, underground base, deep Habitat
 
 **Water wall**:
 Bladders of water laid over a Habitat's Regolith shielding, filled from the base's water, which cut the Radiation Dose inside further than Regolith alone.

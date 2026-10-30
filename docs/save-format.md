@@ -8,9 +8,10 @@ Each released format version is a compatibility contract:
 
 - To change the format, raise the version and add a migration from the one before to `migrations` in `save.ts`. Never edit a released migration.
 - Check in a sample save of the new version beside the old ones in `test/saves/`, where every file must go on loading. Never edit or regenerate a sample.
-- New Components change the format, because the base's stock keeps a count of every Component. The migration adds a count of none for each new one, after the others, naming them in the migration rather than reading them from the data catalogue (the migration to version 28 is the model). Structures built without Components, and Launch items that aren't Components (such as oxygen and water tanks), add no counts.
+- New Components and bulk resources don't change the format. A save has one count for each Component and bulk resource it knew of, and from version 40 reading gives a count of none to any that a save doesn't have a count for, whatever the save's version, and puts the counts in catalogue order, so adding one needs no migration. It may go anywhere in its list.
+- A count naming something the data catalogue doesn't have is refused as damaged, as any other unknown id is, so removing or renaming a Component or bulk resource still changes the format and needs a migration. Every other check stays as strict: a whole number or amount is still needed where a count is given, and a stock that isn't a list is refused. Structures built without Components, and Launch items that aren't Components (such as oxygen and water tanks), have no counts at all.
 
-The migrations themselves, with their comments, are the history of what each version added.
+The migrations themselves, with their comments, are the history of what each version added. Those before version 40 add a count for each new Component or bulk resource; that was how it had to be done then, and they stay as released.
 
 ## Loading older saves
 
