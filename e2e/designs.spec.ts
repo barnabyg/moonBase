@@ -78,6 +78,10 @@ test("Science from a Research Task unlocks a Design, whose Components then appea
     notifications.getByText("Large battery banks unlocked, for 25 Science"),
   ).toBeVisible();
   await expect(science).toHaveText("5");
+  // Its card now says only that it is unlocked, no longer what it needed.
+  const largeCard = tree.getByRole("article", { name: "Large battery banks" });
+  await expect(largeCard).toContainText("✓ Unlocked");
+  await expect(largeCard.getByText("Needs", { exact: true })).toBeHidden();
   await tree.getByRole("button", { name: "Close" }).click();
 
   // Its Components can now be shipped, with their mass and price.
