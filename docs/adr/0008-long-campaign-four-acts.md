@@ -1,0 +1,5 @@
+# The long Campaign has four Acts, with one Mission Director and one Lander
+
+The Campaign's content is planned to last about 10 real hours at 20x (3,000 Earth Days), in four Acts, each with one new bottleneck, one new Mechanic, one new Export, its own Milestones and a pacing target. `docs/reference-campaign.md` has them. A player used to run out of Research Tasks and important Imports in about an hour at 20x, and the aim is more depth, not only more waiting, so each Act has to change what the player is short of rather than make the same wait longer.
+
+The Radiation Dose cap, the last Act's bottleneck, is lifted by a Buried Habitat. We rejected Crew rotation, which would have needed Crew (deferred by ADR-0001) and would have changed what the Mission Director's death means, and is a far larger piece of work than the Act needs. Return Mass, the third Act's bottleneck, is raised by making propellant at the base, as the Glossary has always said it would be. We rejected a second Lander, which would have reversed ADR-0005 and doubled capacity without giving the player anything new to build. ADR-0001 and ADR-0005 therefore stand as they are.

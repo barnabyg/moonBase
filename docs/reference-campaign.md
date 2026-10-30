@@ -110,6 +110,26 @@ The pacing targets, and where the reference Campaign came at data catalogue vers
 
 The reference Campaign's test checks each of these.
 
+### The long Campaign's Acts
+
+The Campaign's content is to last about 10 real hours at 20x (3,000 Earth Days, as an hour at 20x is 300 Earth Days), in four Acts (ADR-0008). Act 1 is the game as it stands. Acts 2, 3 and 4 are decided here but not built yet, so their numbers are targets for the tickets that build them. A Campaign stays open-ended: it doesn't stop on Earth Day 3,000, but its content has run out by then.
+
+| Act            | Earth Days  | At 20x | The player's bottleneck                                                          | New Mechanic                                       | New Export                  |
+| -------------- | ----------- | ------ | -------------------------------------------------------------------------------- | -------------------------------------------------- | --------------------------- |
+| 1              | 0–350       | 1.2 h  | Staying alive and making a first sale                                            | None: what the game has today                      | Wafers, then circuit boards |
+| 2 Independence | 350–1,100   | 2.5 h  | Dependence on Earth, as spare Components and Payload Mass become the limit       | A Workshop that makes spare Components             | Metals                      |
+| 3 Scale        | 1,100–1,650 | 1.8 h  | Return Mass, 100 kg a trip, which caps income                                    | Propellant made at the base, which raises it       | Oxygen, sold as propellant  |
+| 4 Permanence   | 1,650–3,000 | 4.5 h  | The Radiation Dose limit, which behind a water wall comes around Earth Day 1,765 | A Buried Habitat, which cuts the dose rate further | Precision optics            |
+
+Each Act's pacing targets, added to the targets above as it is built, and measured with the pacing report and the long game:
+
+| Act | Pacing targets                                                                                                                                                                                                                                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | The targets above. Every Research Task complete by Earth Day 350 (the Research Tasks take 315.5 Earth Days back to back, from the first on Earth Day 15.8).                                                                                                                                                           |
+| 2   | Its Research Tasks and Designs last until about Earth Day 1,100, not all bought by Earth Day 800. A Workshop running by Earth Day 500. Spare Components no longer need a Launch by Earth Day 800. Buying one of every Launch item takes the profit of at least 20 Launches (7 today), so that Funding stays a choice. |
+| 3   | Propellant made at the base by Earth Day 1,300. Return Mass at least three times what it is now by Earth Day 1,500, with a Plant, not the Lander, then limiting income. Research lasts until about Earth Day 1,650.                                                                                                   |
+| 4   | The Radiation Dose forecast warns of the limit by Earth Day 1,500, in time to act. A Buried Habitat commissioned by Earth Day 1,650, which puts the limit past Earth Day 3,000 for a player who moves in by then. Research lasts until about Earth Day 3,000.                                                         |
+
 ### The larger changes, and why
 
 **Battery banks.** A Night lasts 228 hours. Through it the Habitat draws 274 kWh (1.2 kW), each solar array 11 kWh, and the heaters of the excavator, the regolith printer and the Rover, which the Robot plugs in before every Night, 137 kWh between them. A battery bank stores 200 kWh, about what a small electric car carries, and its heaters draw 0.07 kW, 16 kWh through a Night. The starting stock holds three battery banks, 600 kWh, which carry the Habitat, two solar arrays and all the heaters through a Night, about 480 kWh, with over 100 kWh to spare; two would not. The large battery bank stays the better buy: 800 kWh for 0.2 kW of heaters, less mass and money for each kWh. (A battery bank used to store 60 kWh, and its heaters to draw 0.25 kW, 57 of those 60 through a Night, so no number of battery banks could carry anything else through one.)
