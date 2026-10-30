@@ -9,7 +9,8 @@ import {
   type ManifestLine,
   type Snapshot,
 } from "../src/simulation";
-import { formatEvent, formatLander } from "../src/ui/format";
+import { formatEvent } from "../src/ui/notifications-text";
+import { formatLander } from "../src/ui/status-panel-text";
 import { scenario } from "./scenario";
 import { changed, withFunding } from "./worn";
 

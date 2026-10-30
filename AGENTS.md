@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Verification
+
+`npm run verify` runs every check, from the repository's root folder. While working, run one test file or test instead. `docs/verification.md` has the commands for both, and says what each check does.
+
 ## Agent skills
 
 ### Issue tracker

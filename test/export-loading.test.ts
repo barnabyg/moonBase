@@ -11,12 +11,10 @@ import {
   type RobotActivity,
   type Snapshot,
 } from "../src/simulation";
-import {
-  describeExportLoading,
-  formatEvent,
-  formatLander,
-  formatReturnMass,
-} from "../src/ui/format";
+import { describeExportLoading } from "../src/ui/construction-panel-text";
+import { formatReturnMass } from "../src/ui/launch-manifest-text";
+import { formatEvent } from "../src/ui/notifications-text";
+import { formatLander } from "../src/ui/status-panel-text";
 import { scenario, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 

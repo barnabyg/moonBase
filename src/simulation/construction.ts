@@ -163,8 +163,27 @@ export function footings(site: Footings): Footing[] {
   return [...site.structures, ...site.constructions, ...site.dismantlings];
 }
 
+/**
+ * The data catalogue's Structure types by id, as Structure types are looked
+ * up many times a game-minute. Built again whenever the list of them is a
+ * different one, so that a test's own data catalogue gets its own.
+ */
+let indexedStructureTypes: readonly StructureType[] | undefined;
+let structureTypesById = new Map<string, StructureType>();
+
 export function findStructureType(id: string): StructureType | undefined {
-  return catalogue.structureTypes.find((type) => type.id === id);
+  const types = catalogue.structureTypes;
+  if (types !== indexedStructureTypes) {
+    structureTypesById = new Map();
+    // The first of any with the same id wins, as a search would find it.
+    for (const type of types) {
+      if (!structureTypesById.has(type.id)) {
+        structureTypesById.set(type.id, type);
+      }
+    }
+    indexedStructureTypes = types;
+  }
+  return structureTypesById.get(id);
 }
 
 /** A Hazard a Structure may take only a share of, by its type. */

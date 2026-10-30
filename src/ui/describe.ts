@@ -7,16 +7,15 @@ import {
   type StructureType,
 } from "../catalogue";
 import type { Snapshot } from "../simulation";
+import { formatScience, listInWords } from "./format";
 import {
   componentLabel,
   formatComponents,
-  formatScience,
-  listInWords,
   machineLabel,
   researchTaskLabel,
   resourceRefLabel,
   stockLabel,
-} from "./format";
+} from "./labels";
 
 // What things in the game are for, in words built from the data catalogue,
 // for the screens where the player chooses them and for the Guide.

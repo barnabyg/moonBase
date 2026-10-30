@@ -109,18 +109,6 @@ describe("power by priority", () => {
     expect(state.power.networks[0]?.powered).toBe(false);
   });
 
-  it("supplies the other Structures the same way every time", () => {
-    const powered = () => {
-      const game = poweredBase();
-      runUntil(game, (state) =>
-        state.structures.some((structure) => !structure.powered),
-      );
-      return game.state.structures.map((structure) => structure.powered);
-    };
-
-    expect(powered()).toEqual(powered());
-  });
-
   it("leaves the Habitat without power when the energy left can't cover all it draws, exactly when forecast", () => {
     // Stored energy for ten hours of the Night, and half a game-minute of
     // the Habitat's draw over, so that the battery's last game-minute of

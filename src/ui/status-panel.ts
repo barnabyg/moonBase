@@ -8,6 +8,7 @@ import {
   type StructureSnapshot,
 } from "../simulation";
 import { setText } from "./dom";
+import { stockLabel } from "./labels";
 import {
   describeExpedition,
   explainObservingProgramme,
@@ -25,7 +26,6 @@ import {
   formatSpareComponents,
   formatStock,
   formatStoredPower,
-  stockLabel,
   summariseMilestones,
   summariseMissionDirector,
   summarisePower,
@@ -33,7 +33,7 @@ import {
   summariseStock,
   summariseTravel,
   withSwitchedOffPlants,
-} from "./format";
+} from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";

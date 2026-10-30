@@ -295,7 +295,9 @@ export function structureNetworks(
   const members = new Map<string, StructureState[]>();
   for (const structure of state.structures) {
     const key = root(structure.id);
-    members.set(key, [...(members.get(key) ?? []), structure]);
+    const network = members.get(key);
+    if (network === undefined) members.set(key, [structure]);
+    else network.push(structure);
   }
   return [...members.values()].map((structures) => {
     // Worked out once for each Structure, as networks are grouped many

@@ -8,7 +8,8 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatEvent, formatMaintenanceWait } from "../src/ui/format";
+import { formatMaintenanceWait } from "../src/ui/construction-panel-text";
+import { formatEvent } from "../src/ui/notifications-text";
 import { scenario, type Scenario } from "./scenario";
 import { worn } from "./worn";
 

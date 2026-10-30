@@ -9,14 +9,10 @@ import {
   formatHours,
 } from "./describe";
 import { setText } from "./dom";
-import {
-  describeDesignState,
-  formatLaunchItem,
-  formatMillionDollars,
-  formatScience,
-  listInWords,
-  stockLabel,
-} from "./format";
+import { formatMillionDollars, formatScience, listInWords } from "./format";
+import { stockLabel } from "./labels";
+import { formatLaunchItem } from "./launch-manifest-text";
+import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
 
 export interface GuideScreen {

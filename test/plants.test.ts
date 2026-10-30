@@ -8,7 +8,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatPlant } from "../src/ui/format";
+import { formatPlant } from "../src/ui/structure-state";
 import { scenario } from "./scenario";
 import { changed, worn } from "./worn";
 

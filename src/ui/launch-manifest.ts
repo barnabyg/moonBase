@@ -9,18 +9,19 @@ import {
 import { describeLaunchItemUse } from "./describe";
 import { setText } from "./dom";
 import {
-  formatExportLines,
-  formatExportPrice,
   formatExportStock,
-  formatExportsValue,
   formatKilogramAmount,
+  formatMillionDollars,
+} from "./format";
+import { formatExportLines, resourceLabel } from "./labels";
+import {
+  formatExportPrice,
+  formatExportsValue,
   formatLaunchCost,
   formatLaunchItem,
-  formatMillionDollars,
   formatPayloadMass,
   formatReturnMass,
-  resourceLabel,
-} from "./format";
+} from "./launch-manifest-text";
 import { createGauge, createScreen } from "./screen";
 
 export interface LaunchManifestScreen {

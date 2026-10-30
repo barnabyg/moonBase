@@ -7,7 +7,8 @@ import {
 } from "../simulation";
 import { describeUnlocks } from "./describe";
 import { setText } from "./dom";
-import { describeDesignState, formatScience } from "./format";
+import { formatScience } from "./format";
+import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
 
 export interface TechTreeScreen {

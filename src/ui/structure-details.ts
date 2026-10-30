@@ -12,18 +12,19 @@ import {
 } from "../simulation";
 import { designOf, powerRatings } from "./describe";
 import {
+  formatDismantlingStage,
+  formatStage,
+  formatWaiting,
+} from "./construction-panel-text";
+import {
   formatCharge,
   formatCondition,
-  formatObservingProgramme,
-  formatDismantlingStage,
-  formatPower,
-  formatStage,
   formatStageProgress,
-  formatWaiting,
   listInWords,
-  structureLabel,
-  type Stat,
 } from "./format";
+import { structureLabel } from "./labels";
+import type { Stat } from "./stat";
+import { formatObservingProgramme, formatPower } from "./status-panel-text";
 import {
   isHome,
   isToBeDismantled,

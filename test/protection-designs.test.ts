@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { earnScience, findDesign, unlock } from "./designs";
-import { scenario, type Scenario } from "./scenario";
+import { findDesign, unlock } from "./designs";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
+import { changed } from "./worn";
 
 /**
  * The hardened Structures of the Protection Designs. The water wall, which
@@ -59,24 +60,34 @@ describe.each(hardened)("the $label", (type) => {
 
 describe("unlocking the Protection Designs", () => {
   /**
-   * A base with a solar array, a battery bank and a Habitat, and Science
-   * enough for every Protection Design, earned as the Structures wear.
+   * A base with a solar array, a battery bank and a Habitat, all
+   * commissioned, and Science enough for every Protection Design, given it
+   * through its save rather than earned by Research Tasks, which take far
+   * longer to play.
    */
   function base(): Scenario {
     const game = scenario()
       .plan("solar-array", { x: 20, y: 12 })
       .plan("battery-bank", { x: 30, y: 25 })
       .plan("habitat", { x: 45, y: 0 });
+    for (let hours = 0; game.state.constructions.length > 0; hours++) {
+      if (hours > 10 * 24) throw new Error("The Constructions never finished.");
+      game.advance({ hours: 1 });
+    }
     const cost = catalogue.designs
       .filter((design) => hardened.some((type) => type.designId === design.id))
       .reduce((sum, design) => sum + design.scienceCost, 0);
-    earnScience(game.campaign, cost);
-    return game;
+    return scenarioOf(
+      changed(game.campaign, (state) => {
+        state.science = cost;
+      }),
+    );
   }
 
   it("leaves the Structures already on the base wearing down just as they did", () => {
     const unlocked = base();
-    const control = base();
+    // The same base again, loaded from its save unchanged.
+    const control = scenarioOf(changed(unlocked.campaign, () => undefined));
     for (const type of hardened) unlock(unlocked.campaign, type.designId);
 
     unlocked.advance({ earthDays: 10 });

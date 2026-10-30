@@ -7,7 +7,10 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { describeParking, formatParkingPlace } from "../src/ui/format";
+import {
+  describeParking,
+  formatParkingPlace,
+} from "../src/ui/construction-panel-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 
 // Dust wears nothing down, so that only parking moves the Machines and the

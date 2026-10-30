@@ -5,6 +5,7 @@ import type {
   MaintenanceSubject,
   Snapshot,
 } from "../simulation";
+import { isEveryRobotOnExpedition } from "./base-panel-text";
 import {
   describeDismantling,
   describeExportLoading,
@@ -12,19 +13,20 @@ import {
   describeParking,
   describeUnloading,
   describeWork,
-  drivenLabel,
-  inSentence,
-  isEveryRobotOnExpedition,
-  formatComponents,
   formatDismantlingStage,
   formatMaintenanceStep,
   formatParkingPlace,
   formatStage,
-  formatStageProgress,
   hasComponents,
+} from "./construction-panel-text";
+import { formatStageProgress } from "./format";
+import {
+  drivenLabel,
+  inSentence,
+  formatComponents,
   structureLabel,
   subjectLabel,
-} from "./format";
+} from "./labels";
 import { setText } from "./dom";
 import { createLingering, holdHeight } from "./hold";
 

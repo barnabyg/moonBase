@@ -93,9 +93,12 @@ export interface ParkingSnapshot {
  * what it parks breaks or its Structure can no longer take a plug.
  */
 export function planParking(state: CampaignState): void {
+  const parkingTime = isParkingTime(state);
+  // Nothing is raised outside parking time, so with no Work Orders to keep
+  // or drop there is nothing to do.
+  if (!parkingTime && state.parking.length === 0) return;
   const networks = structureNetworks(state);
   const plugs = pluggedIn(state, networks);
-  const parkingTime = isParkingTime(state);
   const daylight =
     readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight";
   const idle = (driven: Driven) =>

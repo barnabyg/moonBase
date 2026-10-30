@@ -1,17 +1,16 @@
-import { catalogue } from "../catalogue";
-import type {
-  MaintenanceSnapshot,
-  Snapshot,
-  StructureSnapshot,
-} from "../simulation";
+import { catalogue, type PlantRecipe } from "../catalogue";
 import {
-  formatDustCoating,
-  formatPerformance,
-  formatPlant,
-  formatPlantRates,
-  maintenanceState,
-  type Stat,
-} from "./format";
+  recipeOf,
+  workingRecipeOf,
+  type MaintenanceSnapshot,
+  type PlantSnapshot,
+  type Snapshot,
+  type StructureSnapshot,
+} from "../simulation";
+import { maintenanceState } from "./base-panel-text";
+import { formatPerformance, listInWords } from "./format";
+import { resourceRefLabel } from "./labels";
+import type { Stat } from "./stat";
 
 // What state a commissioned Structure is in, in words, for the Base panel's
 // entry for it and the pop-up shown when it is clicked on the map.
@@ -170,4 +169,92 @@ export function describeStructureEntry(
   return notes.length === 0
     ? { value: state }
     : { value: state, note: notes.join(", ") };
+}
+
+/**
+ * Says what a running Plant makes and uses an hour, as fast as its
+ * Condition allows, for example "making 0.3 kg of wafers an hour from
+ * 0.35 kg of silicon", and the recipe it switches to from its next batch if
+ * it was switched during this one and will start another; undefined for
+ * one that isn't running.
+ */
+export function formatPlantRates(
+  structure: Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "performance" | "plant" | "switchedOff"
+  >,
+): string | undefined {
+  const { plant } = structure;
+  if (plant?.running !== true) return undefined;
+  const chosen = recipeOf(structure);
+  // A batch it has started goes on with the recipe it was started with.
+  const recipe = workingRecipeOf({ ...structure, batch: plant.batch });
+  if (recipe === undefined) return undefined;
+  const flows = (resources: PlantRecipe["outputs"]) =>
+    listInWords(
+      resources.map(
+        (flow) =>
+          `${plantKilograms(flow.kilogramsPerHour * structure.performance)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+      ),
+    );
+  const next =
+    chosen === undefined || chosen === recipe || structure.switchedOff
+      ? ""
+      : `; ${chosen.label} from the next batch`;
+  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}${next}`;
+}
+
+/** Kilograms a Plant takes in or puts out, to the hundredth of one, for example "0.35". */
+function plantKilograms(kilograms: number): string {
+  return String(Number(kilograms.toFixed(2)));
+}
+
+/**
+ * Says whether a Plant is running, why not, and how much of its batch is
+ * left, for its line in the status panel, for example "running, 40 min
+ * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg" or "switched
+ * off"; undefined once it is Broken, which the line says already. Given
+ * that it is switched off, a batch it has started is its last.
+ */
+export function formatPlant(
+  plant: PlantSnapshot,
+  switchedOff = false,
+): string | undefined {
+  const batch = switchedOff
+    ? "its last batch before switching off"
+    : "this batch";
+  const left =
+    plant.batch === undefined
+      ? ""
+      : `, ${plant.batch.minutesLeft} min left of ${batch}`;
+  const stop = plant.stoppedFor;
+  switch (stop?.reason) {
+    case undefined:
+      return `running${left}`;
+    case "broken":
+      return undefined;
+    case "no-input":
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
+    case "night":
+      return `idle at Night: no stored power to spare${left}`;
+    case "no-power":
+      return `waiting for power to spare${left}`;
+    case "switched-off":
+      return "switched off";
+    case "switched-on":
+      return "switched on: starts a batch as soon as it can";
+  }
+}
+
+/** Says how thickly Dust coats a solar array, for example "Dust coating 12%"; undefined for anything else. */
+export function formatDustCoating(
+  structure: Pick<StructureSnapshot, "structureTypeId" | "dustCoatingPercent">,
+): string | undefined {
+  const generates =
+    (catalogue.structureTypes.find(
+      (type) => type.id === structure.structureTypeId,
+    )?.power.generationKilowatts ?? 0) > 0;
+  return generates
+    ? `Dust coating ${Math.round(structure.dustCoatingPercent)}%`
+    : undefined;
 }
