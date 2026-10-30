@@ -127,7 +127,7 @@ export function createRenderer(
   const machines = createMachineViews(scene);
   const rovers = createRoverViews(scene);
   const cables = createCableViews(scene);
-  const constructions = createConstructionViews(scene);
+  const constructions = createConstructionViews(scene, ground.material);
   const placementPreview = createPlacementPreview(scene);
 
   function resize(): void {

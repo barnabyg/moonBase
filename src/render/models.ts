@@ -12,6 +12,11 @@ import {
   setStatusLight,
   windowGlass,
 } from "./materials";
+import {
+  createPrintedCourseGeometry,
+  SHIELDING_HEIGHT,
+  shieldingRadiusAt,
+} from "./regolith-shielding-surface";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
@@ -526,8 +531,15 @@ const SOLAR_ARRAY_SHAPES: Readonly<Record<string, SolarArrayShape>> = {
   "prefabricated-solar-array": PREFABRICATED_SOLAR_ARRAY,
 };
 
-/** The model for a type of Structure from the data catalogue. */
-export function createStructureModel(structureTypeId: string): StructureModel {
+/**
+ * The model for a type of Structure from the data catalogue. Given the
+ * ground's material, what is made of the ground's own Regolith is drawn in
+ * it; a preview of it, with no need to match, goes without.
+ */
+export function createStructureModel(
+  structureTypeId: string,
+  groundMaterial?: THREE.Material,
+): StructureModel {
   if (structureTypeId === "battery-bank") {
     return createBatteryBankModel(BATTERY_BANK);
   }
@@ -546,10 +558,13 @@ export function createStructureModel(structureTypeId: string): StructureModel {
     return createHabitatModel(HARDENED_HABITAT);
   }
   if (structureTypeId === "regolith-shielding") {
-    return createRegolithShieldingModel(REGOLITH_SHIELDING);
+    return createRegolithShieldingModel(REGOLITH_SHIELDING, groundMaterial);
   }
   if (structureTypeId === "sintered-regolith-shielding") {
-    return createRegolithShieldingModel(SINTERED_REGOLITH_SHIELDING);
+    return createRegolithShieldingModel(
+      SINTERED_REGOLITH_SHIELDING,
+      groundMaterial,
+    );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
   if (structureTypeId === "landing-pad") {
@@ -1373,11 +1388,6 @@ const flagEmblem = new THREE.MeshStandardMaterial({
   roughness: 0.9,
 });
 
-/** How high Regolith shielding rises over the Habitat's dome. */
-const SHIELDING_HEIGHT = 3.4;
-/** The radius of the shielding where it meets the ground, just inside its footprint. */
-const SHIELDING_BASE_RADIUS = 3.95;
-
 /** What sets one kind of Regolith shielding's model apart from another. */
 interface ShieldingShape {
   readonly name: string;
@@ -1388,6 +1398,11 @@ interface ShieldingShape {
   readonly material: THREE.Material;
   /** Whether a glassy seam shows where each layer meets the next. */
   readonly seams: boolean;
+  /**
+   * Whether it is rough printed Regolith, in the ground's own material where
+   * there is ground to match, rather than flat, even courses in its material.
+   */
+  readonly printed: boolean;
 }
 
 const REGOLITH_SHIELDING: ShieldingShape = {
@@ -1396,6 +1411,7 @@ const REGOLITH_SHIELDING: ShieldingShape = {
   sides: 20,
   material: materials.regolith,
   seams: false,
+  printed: true,
 };
 
 /**
@@ -1409,38 +1425,37 @@ const SINTERED_REGOLITH_SHIELDING: ShieldingShape = {
   sides: 14,
   material: materials.sinteredRegolith,
   seams: true,
+  printed: false,
 };
-
-/**
- * The radius of Regolith shielding's outer surface at a height above the
- * ground: a rounded dome over the Habitat.
- */
-function shieldingRadiusAt(height: number): number {
-  const h = THREE.MathUtils.clamp(height / SHIELDING_HEIGHT, 0, 1);
-  return SHIELDING_BASE_RADIUS * Math.sqrt(1 - h * h);
-}
 
 /**
  * Regolith shielding: a thick dome of printed Regolith over the Habitat,
  * with the airlock's hatch left showing. During Assembly it builds up layer
  * by layer from the ground, the layer being printed growing as it goes.
  */
-function createRegolithShieldingModel(shape: ShieldingShape): StructureModel {
+function createRegolithShieldingModel(
+  shape: ShieldingShape,
+  groundMaterial: THREE.Material | undefined,
+): StructureModel {
   const shielding = new THREE.Group();
   shielding.name = shape.name;
   const layerHeight = SHIELDING_HEIGHT / shape.layers;
   const layers = Array.from({ length: shape.layers }, (_, index) => {
     const bottom = index * layerHeight;
     const top = bottom + layerHeight;
-    const geometry = new THREE.CylinderGeometry(
-      shieldingRadiusAt(top),
-      shieldingRadiusAt(bottom),
-      layerHeight,
-      shape.sides,
+    const geometry = shape.printed
+      ? createPrintedCourseGeometry(index, shape.layers)
+      : new THREE.CylinderGeometry(
+          shieldingRadiusAt(top),
+          shieldingRadiusAt(bottom),
+          layerHeight,
+          shape.sides,
+        ).translate(0, layerHeight / 2, 0); // Grows upwards from its base as it is printed.
+    const layer = part(
+      geometry,
+      shape.printed ? (groundMaterial ?? shape.material) : shape.material,
+      [0, bottom, 0],
     );
-    // Grows upwards from its base as it is printed.
-    geometry.translate(0, layerHeight / 2, 0);
-    const layer = part(geometry, shape.material, [0, bottom, 0]);
     layer.name = `Layer ${index + 1}`;
     if (shape.seams && shieldingRadiusAt(top) > 0.3) {
       const seam = part(
