@@ -22,6 +22,17 @@ It runs these checks, in this order:
 
 Every check applies; none is skipped. Tool versions are pinned exactly in `package.json` (`.npmrc` sets `save-exact`), and the Node version for CI is in `.nvmrc`.
 
+## Running one test
+
+While working on a change, run just the tests it touches, then `npm run verify` before handing it over. Give a file, and optionally part of a test's name:
+
+```powershell
+npm.cmd test -- test/digging.test.ts -t "start with no Regolith"
+npm.cmd run test:e2e -- e2e/habitat.spec.ts --grep "moves from the Lander"
+```
+
+The first runs one Vitest test, the second one Playwright test. Leave out `-t` or `--grep` to run the whole file.
+
 ## One worker for headed end-to-end runs
 
 When Firefox runs headed (`PLAYWRIGHT_HEADED=1`, as in CI), `playwright.config.ts` runs the end-to-end tests one at a time. CI draws with Mesa's software renderer into one virtual display, where two Firefox windows hold back each other's animation frames, and the game updates what it shows only once a frame, so a starved test can time out. One worker is no slower overall, because both workers compete for the same CPUs. Headless runs on a developer machine still use Playwright's default number of workers.
