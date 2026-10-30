@@ -14,9 +14,9 @@ export interface RegolithHeap {
 
 /**
  * The heap holding this many kilograms of Regolith, beside a stockpile
- * standing here, or undefined if there is none. Its volume goes with the
- * mass, up to the stock digging fills, so its radius goes with the cube
- * root of the mass.
+ * standing here, or undefined if there is none, at the size it is drawn. Its
+ * volume goes with the mass, up to the stock digging fills, so its radius
+ * goes with the cube root of the mass.
  */
 export function regolithHeap(
   stockpile: GroundPosition,
@@ -47,18 +47,22 @@ export function regolithHeapGround(stockpile: GroundPosition): {
 }
 
 /**
- * The radius of a cone of loose Regolith of this mass, up to the stock
- * digging fills, and no smaller than the smallest heap.
+ * The radius a cone of loose Regolith of this mass is drawn at, up to the
+ * stock digging fills, and no smaller than the smallest heap.
  */
 function radiusHolding(kilograms: number): number {
-  const { bulkDensityKilogramsPerCubicMetre, smallestRadiusMetres } =
-    catalogue.stockpile.regolithHeap;
+  const {
+    bulkDensityKilogramsPerCubicMetre,
+    drawnLargerBy,
+    smallestRadiusMetres,
+  } = catalogue.stockpile.regolithHeap;
   const cubicMetres =
     Math.min(kilograms, catalogue.digging.fullKilograms) /
     bulkDensityKilogramsPerCubicMetre;
   // A cone's volume is a third of pi r² h, and its height r tan(slope).
   return Math.max(
-    Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(slopeRadians()))),
+    Math.cbrt((3 * cubicMetres) / (Math.PI * Math.tan(slopeRadians()))) *
+      drawnLargerBy,
     smallestRadiusMetres,
   );
 }
@@ -73,10 +77,7 @@ function slopeRadians(): number {
  * Lander stands on a landing pad.
  */
 function heapPosition(stockpile: GroundPosition): GroundPosition {
-  const landingSite = catalogue.landingSite.landerPosition;
-  const dx = stockpile.x - landingSite.x;
-  const dy = stockpile.y - landingSite.y;
-  const angle = dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
+  const angle = awayFromLandingSite(stockpile);
   const reach =
     catalogue.stockpile.footprintRadiusMetres +
     catalogue.stockpile.regolithHeap.gapFromFootprintMetres +
@@ -85,4 +86,12 @@ function heapPosition(stockpile: GroundPosition): GroundPosition {
     x: stockpile.x + Math.cos(angle) * reach,
     y: stockpile.y + Math.sin(angle) * reach,
   };
+}
+
+/** The direction from a stockpile standing here away from the landing site, in radians. */
+export function awayFromLandingSite(stockpile: GroundPosition): number {
+  const landingSite = catalogue.landingSite.landerPosition;
+  const dx = stockpile.x - landingSite.x;
+  const dy = stockpile.y - landingSite.y;
+  return dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
 }

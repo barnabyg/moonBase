@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
 import { createRegolithHeapGeometry } from "../src/render/regolith-heap-view";
+import { REGOLITH_TILE_METRES } from "../src/render/regolith-texture";
+import { regolithHeapGround } from "../src/simulation";
 
 describe("the Regolith heap's model", () => {
   const geometry = createRegolithHeapGeometry();
@@ -29,6 +32,24 @@ describe("the Regolith heap's model", () => {
       .map((point) => Math.hypot(point.x, point.z));
 
     expect(Math.max(...foot) - Math.min(...foot)).toBeGreaterThan(0.1);
+  });
+
+  it("lays its grains as large as the ground's on a full heap", () => {
+    const { radiusMetres } = regolithHeapGround(
+      catalogue.landingSite.stockpilePosition,
+    );
+    const uv = geometry.getAttribute("uv");
+    for (const [index, point] of points.entries()) {
+      // How far from the top, in metres on a full heap and on the texture.
+      expect((uv.getX(index) - uv.getX(0)) * REGOLITH_TILE_METRES).toBeCloseTo(
+        point.x * radiusMetres,
+        5,
+      );
+      expect((uv.getY(index) - uv.getY(0)) * REGOLITH_TILE_METRES).toBeCloseTo(
+        point.z * radiusMetres,
+        5,
+      );
+    }
   });
 
   it("faces up and out everywhere, to be lit from above", () => {

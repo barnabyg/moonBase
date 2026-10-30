@@ -57,7 +57,10 @@ const LIGHT_AT_EDGE_LUX = 0.5;
  * unfolding. A commissioned Structure keeps its Construction's id, so the
  * same view carries on, until it has been dismantled.
  */
-export function createConstructionViews(scene: THREE.Scene) {
+export function createConstructionViews(
+  scene: THREE.Scene,
+  groundMaterial: THREE.Material,
+) {
   const views = new Map<string, StructureView>();
 
   const viewFor = (
@@ -67,7 +70,7 @@ export function createConstructionViews(scene: THREE.Scene) {
   ) => {
     let view = views.get(id);
     if (view === undefined) {
-      view = createView(id, structureTypeId, position);
+      view = createView(id, structureTypeId, position, groundMaterial);
       view.group.position.copy(toScene(position));
       scene.add(view.group);
       views.set(id, view);
@@ -299,6 +302,7 @@ function createView(
   id: string,
   structureTypeId: string,
   position: GroundPosition,
+  groundMaterial: THREE.Material,
 ): StructureView {
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
@@ -333,7 +337,7 @@ function createView(
     return crate;
   });
 
-  const model = createStructureModel(structureTypeId);
+  const model = createStructureModel(structureTypeId, groundMaterial);
   model.group.visible = false;
   group.add(graded, footprint, ...crates, model.group);
 

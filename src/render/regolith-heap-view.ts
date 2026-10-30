@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { uncoveredRegolithHeap } from "../simulation";
+import { catalogue } from "../catalogue";
+import { regolithHeapGround, uncoveredRegolithHeap } from "../simulation";
 import { toScene, type Frame } from "./interpolation";
 import { REGOLITH_TILE_METRES } from "./regolith-texture";
 import { fixedRandom } from "./scenery";
@@ -16,7 +17,8 @@ const ROUNDED_TOP = 0.22;
 /** How far below the ground the heap's foot is sunk, so that no seam shows. */
 const SUNK_METRES = 0.02;
 /** The size the texture is laid at, as if over the largest heap, so the grains look as large as the ground's. */
-const TEXTURE_METRES = 2.5;
+const TEXTURE_METRES =
+  2 * regolithHeapGround(catalogue.landingSite.stockpilePosition).radiusMetres;
 
 /**
  * A low, slightly lopsided mound reaching out to radius 1, as high as a

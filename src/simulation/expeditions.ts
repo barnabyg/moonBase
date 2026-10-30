@@ -1,15 +1,18 @@
 import { catalogue, type GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
+import { iceStoreGround } from "./ice-store";
+import { regolithHeapGround } from "./regolith-heap";
 import { isRoverBroken, type RoverState } from "./rovers";
+import { spotClearOf } from "./stockpile";
 
 /**
  * Where an Expedition has got to: "boarding", the Robot finishing the Work
  * Order it holds, then, once no other Robot holds one for the Rover,
  * walking to the Rover; "driving-out", driving it to the nearest map edge
  * and off the map; "away", beyond the base; "driving-back", driving back
- * onto the map to the stockpile; and "unloading", unloading what it
- * brought back there.
+ * onto the map to the ice store beside the stockpile; and "unloading",
+ * unloading what it brought back there.
  */
 export type ExpeditionStage =
   "boarding" | "driving-out" | "away" | "driving-back" | "unloading";
@@ -26,7 +29,7 @@ export interface ExpeditionState {
   exitPoint: GroundPosition | undefined;
   /** The game-minute it comes back onto the map, once it has left it. */
   returnsAtMinute: number | undefined;
-  /** The Robot's working time unloading at the stockpile so far. */
+  /** The Robot's working time unloading at the ice store so far. */
   workedMinutes: number;
 }
 
@@ -189,22 +192,38 @@ export function exitPointFrom(position: GroundPosition): GroundPosition {
 
 /**
  * Where the Rover stops on its way back, for the Robot to unload: beside
- * the stockpile, on the side it comes from.
+ * the ice store, on the side it comes from, or turned aside as little as it
+ * takes to stand clear of the stockpile's mat and the Regolith heap.
  */
 export function returnSpot(
-  state: CampaignState,
+  state: { readonly stockpile: { readonly position: GroundPosition } },
   from: GroundPosition,
 ): GroundPosition {
   const stockpile = state.stockpile.position;
-  const angle = Math.atan2(from.y - stockpile.y, from.x - stockpile.x);
-  const reach =
-    catalogue.stockpile.footprintRadiusMetres +
-    catalogue.rover.footprintRadiusMetres +
-    catalogue.robot.workingGapMetres;
-  return {
-    x: stockpile.x + Math.cos(angle) * reach,
-    y: stockpile.y + Math.sin(angle) * reach,
-  };
+  const store = iceStoreGround(stockpile);
+  const heap = regolithHeapGround(stockpile);
+  const { footprintRadiusMetres } = catalogue.rover;
+  return spotClearOf(
+    [
+      {
+        position: stockpile,
+        // With room for a Robot to work at the stockpile beside it.
+        radiusMetres:
+          catalogue.stockpile.footprintRadiusMetres +
+          footprintRadiusMetres +
+          catalogue.robot.workingGapMetres,
+      },
+      {
+        position: heap.position,
+        radiusMetres: heap.radiusMetres + footprintRadiusMetres,
+      },
+    ],
+    store.position,
+    store.radiusMetres +
+      footprintRadiusMetres +
+      catalogue.robot.workingGapMetres,
+    Math.atan2(from.y - store.position.y, from.x - store.position.x),
+  );
 }
 
 /**

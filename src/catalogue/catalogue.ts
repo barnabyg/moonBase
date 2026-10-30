@@ -59,9 +59,31 @@ export interface Catalogue {
       readonly bulkDensityKilogramsPerCubicMetre: number;
       /** The slope it settles at when tipped: its angle of repose. */
       readonly slopeDegrees: number;
+      /**
+       * How many times wider and higher it is drawn than a cone of that
+       * density would be, so that a full stock shows larger than the mat.
+       * What digs and stands beside it keeps clear of the size it is drawn at,
+       * but how much the base digs and stockpiles doesn't change.
+       */
+      readonly drawnLargerBy: number;
       /** The smallest heap there is while any Regolith is in stock, so that a few kilograms still show. */
       readonly smallestRadiusMetres: number;
       /** How far outside the stockpile's footprint the foot of a full heap comes. */
+      readonly gapFromFootprintMetres: number;
+    };
+    /**
+     * The insulated containers beside the stockpile that show the base's
+     * water ice. They only show it: the stock itself has no limit.
+     */
+    readonly iceStore: {
+      /** How many containers there are, which is as much ice as it can show. */
+      readonly containers: number;
+      readonly kilogramsPerContainer: number;
+      /** The smallest level a container with any ice shows, so that a little ice still shows. */
+      readonly smallestLevel: number;
+      /** Radius of the ground the containers stand on. */
+      readonly radiusMetres: number;
+      /** How far outside the stockpile's footprint that ground comes. */
       readonly gapFromFootprintMetres: number;
     };
   };
@@ -953,7 +975,7 @@ export interface GameSpeed {
 }
 
 export const catalogue: Catalogue = {
-  version: 58,
+  version: 60,
   map: { widthMetres: 1000, depthMetres: 1000 },
   lander: {
     footprintRadiusMetres: 4,
@@ -967,15 +989,26 @@ export const catalogue: Catalogue = {
     // wafers, or keeping them back, runs up against it.
     returnMassKilograms: 100,
   },
-  // A full stock of Regolith heaps up a little smaller than the stockpile's
-  // mat: about 1.2 m in radius and 0.85 m high.
+  // A full stock of Regolith really makes a cone about 1.2 m in radius and
+  // 0.85 m high, a little smaller than the stockpile's mat. It is drawn about
+  // a third larger, about 1.6 m in radius and 1.1 m high, to look bigger.
   stockpile: {
     footprintRadiusMetres: 1.5,
     regolithHeap: {
       bulkDensityKilogramsPerCubicMetre: 1500,
       slopeDegrees: 35,
+      drawnLargerBy: 1.3,
       smallestRadiusMetres: 0.3,
       gapFromFootprintMetres: 0.1,
+    },
+    // A container for each Expedition's ice, which is about the 0.22 m³ one
+    // of these holds, and enough to show the stock of several Expeditions.
+    iceStore: {
+      containers: 7,
+      kilogramsPerContainer: 200,
+      smallestLevel: 0.1,
+      radiusMetres: 1.2,
+      gapFromFootprintMetres: 0.3,
     },
   },
   landingSite: {
