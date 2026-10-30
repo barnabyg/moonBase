@@ -117,7 +117,9 @@ export function createTechTreeScreen(
       element.append(unlocks);
     }
 
-    // Each Design it needs first, marked once it is unlocked.
+    // Each Design it needs first, marked once it is unlocked. Gone once this
+    // one is unlocked, when what it needed no longer matters.
+    const needsLine = document.createElement("p");
     const needs = design.prerequisiteDesignIds.map((id) => {
       const chip = document.createElement("span");
       chip.className = "chip design-card__need";
@@ -135,13 +137,12 @@ export function createTechTreeScreen(
       return { id, chip };
     });
     if (needs.length > 0) {
-      const line = document.createElement("p");
-      line.className = "design-card__needs";
+      needsLine.className = "design-card__needs";
       const label = document.createElement("span");
       label.className = "design-card__needs-label";
       label.textContent = "Needs";
-      line.append(label, ...needs.map(({ chip }) => chip));
-      element.append(line);
+      needsLine.append(label, ...needs.map(({ chip }) => chip));
+      element.append(needsLine);
     }
 
     const foot = document.createElement("div");
@@ -172,11 +173,11 @@ export function createTechTreeScreen(
         );
         state.className = `design-card__state design-card__state--${described.state}`;
         element.dataset["state"] = described.state;
+        needsLine.hidden = described.state === "unlocked";
         for (const { id, chip } of needs) {
-          chip.classList.toggle(
-            "chip--met",
-            snapshot.unlockedDesignIds.includes(id),
-          );
+          const met = snapshot.unlockedDesignIds.includes(id);
+          chip.classList.toggle("chip--met", met);
+          chip.classList.toggle("chip--unmet", !met);
         }
         // One out of reach keeps its button, so that unlocking it says why
         // it can't; only one that can be unlocked now stands out.
