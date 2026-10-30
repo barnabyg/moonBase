@@ -62,7 +62,10 @@ export const tryScenarios: readonly TryScenario[] = [
     id: "everything-unlocked",
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
-      "Open the Launch manifest: every item the game has today is on offer.",
+      "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 42 items".',
+      "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
+      "Press Clear: all 42 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -72,7 +75,10 @@ export const tryScenarios: readonly TryScenario[] = [
       "As everything-unlocked, on a catalogue crowded with made-up items: 80 Launch items and 15 bulk resources, all in stock",
     crowded: true,
     steps: [
-      "Open the Launch manifest and look through the items.",
+      'Set the game to 20x and open the Launch manifest: it says "80 items", in groups. Scroll to the end: the Payload Mass and cost bars and the box to find an item stay in sight at the top.',
+      'Type "solar array" in the box, slowly, with the game running: nothing you type is lost or moved, and only what goes into a solar array stays, even an Array mast, which doesn\'t say "solar" in its name.',
+      "Press + on an item a dozen times, then − as many: its count and the bars change, and no row moves.",
+      "Open the Exports tab and come back: what you typed is still there. Press Clear: all 80 come back, in the same order.",
       "Look down the status panel's bulk resources.",
     ],
     save: () =>

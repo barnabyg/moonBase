@@ -1417,6 +1417,75 @@ body {
   border-bottom: 1px solid var(--panel-border);
 }
 
+/* Stays in sight with the bars, on a line of its own. */
+.launch-manifest__find {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.launch-manifest__find[hidden] {
+  display: none;
+}
+
+.launch-manifest__find-box {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: rgb(0 0 0 / 25%);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+}
+
+.launch-manifest__find-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.launch-manifest__find .screen__button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* Wide enough for its longest, so that the box beside it keeps its width. */
+.launch-manifest__shown {
+  width: 11rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+/* The same columns in every group, whatever the counts in them, so that no
+   count can squeeze the words beside it onto another line. */
+.launch-manifest__items {
+  table-layout: fixed;
+}
+
+.launch-manifest__items thead th:nth-child(2) {
+  width: 8rem;
+}
+
+.launch-manifest__items thead th:nth-child(3) {
+  width: 4rem;
+}
+
+.launch-manifest__items thead th:nth-child(4) {
+  width: 5rem;
+}
+
+.launch-manifest__items thead th:first-child {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .launch-manifest__intro {
   margin: 0 0 14px;
   font-size: 0.85rem;

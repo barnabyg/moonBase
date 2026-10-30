@@ -13,14 +13,19 @@ import {
   formatKilogramAmount,
   formatMillionDollars,
 } from "./format";
+import { holdHeight } from "./hold";
 import { formatExportLines, resourceLabel } from "./labels";
 import {
   formatExportPrice,
   formatExportsValue,
+  formatItemsShown,
   formatLaunchCost,
   formatLaunchItem,
   formatPayloadMass,
   formatReturnMass,
+  groupLaunchItems,
+  matchesItemFilter,
+  offersItemFilter,
 } from "./launch-manifest-text";
 import { createGauge, createScreen } from "./screen";
 
@@ -33,10 +38,13 @@ export interface LaunchManifestScreen {
  * The Launch manifest screen, where the player chooses what the next Launch
  * brings from Earth and what the Lander carries off the Moon, on a tab
  * each. On the Imports tab, the totals against the Payload Mass limit and
- * the Funding balance stay in sight over the items, grouped as Components,
- * oxygen and water, and Robots, each with what it is for, its mass and
- * price and how many the manifest has. An item whose Design isn't unlocked isn't listed until
- * it is. On the Exports tab, the Return Mass and what the Exports will sell
+ * the Funding balance stay in sight over the items, in the groups of
+ * {@link groupLaunchItems}, each with what it is for, its mass and price and
+ * how many the manifest has. An item whose Design isn't unlocked isn't listed
+ * until it is. Once the list is long, a box that stays in sight with the
+ * totals finds an item by its name, what it is for or its group; only the
+ * player changes what is typed in it, so it holds still as the game runs. On
+ * the Exports tab, the Return Mass and what the Exports will sell
  * for stay in sight over each Export, with what is in stock, what is aboard
  * the Lander already, its price and the kilograms to load. It only sends what the player asks for to the
  * Campaign, which decides whether it is allowed and says why not. The game
@@ -64,8 +72,12 @@ export function createLaunchManifestScreen(
   const cost = createGauge("Launch cost");
   const intro = document.createElement("p");
   intro.className = "launch-manifest__intro";
+  // It says more, in a box, once the manifest is locked.
+  intro.dataset["row"] = "Launch manifest intro";
+  holdHeight(intro);
+  const find = createItemFinder();
   importsTab.panel.append(
-    createSummary(payloadMass.element, cost.element),
+    createSummary(payloadMass.element, cost.element, find.element),
     intro,
   );
 
@@ -85,35 +97,37 @@ export function createLaunchManifestScreen(
     screen.refuse(result.ok ? undefined : result.message);
   };
 
-  // A table for each kind of item, in the order the catalogue first has one.
-  const groups = new Map<LaunchItemKind, ItemGroup>();
-  const groupOf = (kind: LaunchItemKind): ItemGroup => {
-    const known = groups.get(kind);
-    if (known !== undefined) return known;
-    const label = GROUP_LABELS[kind];
+  const groups = groupLaunchItems(catalogue.launch.items).map((group) => {
     const section = document.createElement("section");
     section.className = "launch-manifest__group";
-    section.setAttribute("aria-label", label);
-    const heading = document.createElement("h3");
-    heading.className = "screen__section-title";
-    heading.textContent = label;
-    const table = createTable(["Item", "Mass and price", "Count", ""]);
-    section.append(heading, table.table);
+    section.setAttribute("aria-label", group.label);
+    // Headed by its group, in the place of a heading of its own, so that the
+    // groups take no more room than the rows need.
+    const table = createTable([group.label, "Mass and price", "Count", ""]);
+    table.table.className = "launch-manifest__items";
+    section.append(table.table);
     importsTab.panel.append(section);
-    const group = { section, body: table.body };
-    groups.set(kind, group);
-    return group;
-  };
+    return { ...group, section, body: table.body };
+  });
 
-  const rows = catalogue.launch.items.map((item) => {
+  const rows = groups.flatMap((group) =>
+    group.items.map((item) => createItemRow(item, group.label, group.body)),
+  );
+  function createItemRow(
+    item: LaunchItem,
+    groupLabel: string,
+    body: HTMLTableSectionElement,
+  ) {
     const label = launchItemLabel(item);
+    const purpose = describeLaunchItemUse(item);
     const row = document.createElement("tr");
+    row.dataset["row"] = item.id;
     const name = document.createElement("th");
     name.scope = "row";
     // What it is for, under its name.
     const use = document.createElement("span");
     use.className = "launch-manifest__use";
-    use.textContent = describeLaunchItemUse(item);
+    use.textContent = purpose;
     name.append(label, use);
     const details = document.createElement("td");
     details.className = "launch-manifest__details";
@@ -138,8 +152,48 @@ export function createLaunchManifestScreen(
     });
     actions.append(remove, add);
     row.append(name, details, count, actions);
-    groupOf(item.brings.kind).body.append(row);
-    return { item, row, count, remove, add };
+    body.append(row);
+    const about = `${label} ${purpose} ${groupLabel}`;
+    return { item, about, row, count, remove, add };
+  }
+
+  /** The Designs unlocked as of the latest snapshot. */
+  let unlocked: readonly string[] = [];
+  /**
+   * Shows the rows of the items whose Design is unlocked and that match what
+   * is typed, in the groups that have any. They keep their order throughout,
+   * being only ever hidden or shown.
+   */
+  const showRows = (): void => {
+    const listed = rows.filter(({ item }) => unlocked.includes(item.designId));
+    const offered = offersItemFilter(listed.length);
+    find.element.hidden = !offered;
+    // A shorter list, from another Campaign loaded, has no box to clear it with.
+    if (!offered) find.input.value = "";
+    let shown = 0;
+    for (const { item, about, row } of rows) {
+      const match =
+        unlocked.includes(item.designId) &&
+        matchesItemFilter(find.input.value, about);
+      row.hidden = !match;
+      if (match) shown++;
+    }
+    for (const { section, body } of groups) {
+      section.hidden = [...body.rows].every((row) => row.hidden);
+    }
+    setText(find.shown, formatItemsShown(shown, listed.length));
+    find.clear.disabled = find.input.value === "";
+  };
+  find.input.addEventListener("input", () => {
+    showRows();
+    // What is left starts at the top, whatever had been scrolled past.
+    screen.body.scrollTop = 0;
+  });
+  find.clear.addEventListener("click", () => {
+    find.input.value = "";
+    showRows();
+    screen.body.scrollTop = 0;
+    find.input.focus();
   });
 
   const returnMass = createGauge("Return Mass");
@@ -224,17 +278,14 @@ export function createLaunchManifestScreen(
           : "Choose what the next Launch brings from Earth. It is paid for as the Lander leaves Earth.",
       );
       intro.classList.toggle("launch-manifest__intro--locked", locked);
+      unlocked = snapshot.unlockedDesignIds;
+      showRows();
       for (const { item, row, count, remove, add } of rows) {
-        // Not listed until its Design is unlocked.
-        row.hidden = !snapshot.unlockedDesignIds.includes(item.designId);
         const onManifest = countOf(item.id);
         setText(count, String(onManifest));
         row.classList.toggle("launch-manifest__row--chosen", onManifest > 0);
         remove.disabled = locked || onManifest === 0;
         add.disabled = locked;
-      }
-      for (const { section, body } of groups.values()) {
-        section.hidden = [...body.rows].every((row) => row.hidden);
       }
       payloadMass.show(
         formatPayloadMass(snapshot.launchManifest),
@@ -295,19 +346,32 @@ export function createLaunchManifestScreen(
   };
 }
 
-type LaunchItemKind = LaunchItem["brings"]["kind"];
-
-interface ItemGroup {
-  readonly section: HTMLElement;
-  readonly body: HTMLTableSectionElement;
+/** The box to find an item in, what it finds, and a button to empty it. */
+function createItemFinder(): {
+  readonly element: HTMLElement;
+  readonly input: HTMLInputElement;
+  readonly shown: HTMLElement;
+  readonly clear: HTMLButtonElement;
+} {
+  const element = document.createElement("div");
+  element.className = "launch-manifest__find";
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "launch-manifest__find-box";
+  input.placeholder = "Find an item by its name or what it is for";
+  input.autocomplete = "off";
+  input.setAttribute("aria-label", "Find an item");
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "screen__button";
+  clear.textContent = "Clear";
+  const shown = document.createElement("p");
+  shown.className = "launch-manifest__shown";
+  shown.setAttribute("role", "status");
+  shown.setAttribute("aria-label", "Items shown");
+  element.append(input, clear, shown);
+  return { element, input, shown, clear };
 }
-
-/** How the Imports tab heads each kind of item. */
-const GROUP_LABELS: Record<LaunchItemKind, string> = {
-  component: "Components",
-  "life-support": "Oxygen and water",
-  robot: "Robots",
-};
 
 /** The figures that stay in sight at the top of a tab as its list scrolls. */
 function createSummary(...gauges: readonly HTMLElement[]): HTMLElement {

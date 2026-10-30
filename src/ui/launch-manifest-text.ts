@@ -9,6 +9,81 @@ import { formatKilogramAmount, formatMillionDollars } from "./format";
 // What the Launch manifest carries, costs and earns, in words, for the
 // Launch manifest screen and the Guide.
 
+/** A heading on the Imports tab and the Launch items under it. */
+export interface LaunchItemGroup {
+  readonly label: string;
+  readonly items: readonly LaunchItem[];
+}
+
+/**
+ * How many items can be listed before the Imports tab offers a box to find
+ * one: a Campaign starts with fewer, which a look down the groups will do for.
+ */
+const ITEMS_LISTED_WITHOUT_A_BOX = 30;
+
+/** Whether a list this long needs a box to find an item in it. */
+export function offersItemFilter(itemsListed: number): boolean {
+  return itemsListed > ITEMS_LISTED_WITHOUT_A_BOX;
+}
+
+/** Whether an item is what the base keeps on buying, not part of a Structure. */
+function isSupply(item: LaunchItem): boolean {
+  const { brings } = item;
+  return (
+    brings.kind === "life-support" ||
+    (brings.kind === "component" &&
+      brings.componentId === catalogue.maintenance.spareComponentId)
+  );
+}
+
+/**
+ * Sorts Launch items into the groups the Imports tab lists them under, each
+ * in the order given, with none left empty: first the Supplies the base keeps
+ * on buying (oxygen, water and spare Components), then each of the Tech Tree's
+ * categories, in its order, with the items of its Designs, so that an item is
+ * found where the player unlocked it. The groups are in a fixed order, so one
+ * unlocked later has its place waiting and the others keep theirs.
+ */
+export function groupLaunchItems(
+  items: readonly LaunchItem[],
+): LaunchItemGroup[] {
+  const categoryOf = (item: LaunchItem): string | undefined =>
+    catalogue.designs.find((design) => design.id === item.designId)?.category;
+  return [
+    { label: "Supplies", items: items.filter(isSupply) },
+    ...catalogue.designCategories.map((category) => ({
+      label: category.label,
+      items: items.filter(
+        (item) => !isSupply(item) && categoryOf(item) === category.id,
+      ),
+    })),
+  ].filter((group) => group.items.length > 0);
+}
+
+/**
+ * Whether what the player typed to find an item matches the words said about
+ * it: every word typed has to be there, in any order and any case, even as
+ * part of a longer word. With nothing typed, everything matches.
+ */
+export function matchesItemFilter(typed: string, about: string): boolean {
+  const text = about.toLowerCase();
+  return typed
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => text.includes(word));
+}
+
+/**
+ * Says how many of the items listed are shown, for example "Showing 5 of 61
+ * items", or "61 items" with none filtered out.
+ */
+export function formatItemsShown(shown: number, listed: number): string {
+  if (shown === 0) return "No items match";
+  return shown === listed
+    ? `${listed} items`
+    : `Showing ${shown} of ${listed} items`;
+}
+
 /** Says a Launch item's mass and price, for example "60 kg, $4M". */
 export function formatLaunchItem(item: LaunchItem): string {
   return `${item.massKilograms} kg, ${formatMillionDollars(item.priceMillionDollars)}`;
