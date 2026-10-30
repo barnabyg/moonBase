@@ -21,4 +21,25 @@ describe("what npm run try can start the game in", () => {
       catalogue.designs.length,
     );
   });
+
+  it("crowded has some of every bulk resource, and silicon about to run out", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "crowded",
+    );
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { bulkResources } = loaded.campaign.snapshot();
+    expect(bulkResources).toHaveLength(catalogue.bulkResources.length);
+    for (const stock of bulkResources) {
+      expect(stock.kilograms).toBeGreaterThan(0);
+    }
+    // The vacuum fabrication plant starts on it as soon as the game runs.
+    loaded.campaign.advance(1);
+    const silicon = loaded.campaign
+      .forecasts()
+      .bulkResources.find((forecast) => forecast.resourceId === "silicon");
+    expect(silicon?.minutesUntilEmpty).toBeLessThanOrEqual(
+      catalogue.bulkResourceWarningEarthDaysLeft * 24 * 60,
+    );
+  });
 });

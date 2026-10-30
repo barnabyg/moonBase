@@ -12,6 +12,10 @@ export const bulkResources: Catalogue["bulkResources"] = [
   { id: "water-ice", label: "Water ice" },
 ];
 
+// About as long as an Expedition takes to bring more water ice. Regolith
+// never shows it while the excavator is free, as digging starts well before.
+export const bulkResourceWarningEarthDaysLeft: Catalogue["bulkResourceWarningEarthDaysLeft"] = 3;
+
 // A full Return Mass of wafers sells for $150M, the Launch fee. A vacuum
 // fabrication plant, running through the Daylight, makes about that much
 // in a Lunation, so it earns back its $65M of Components, the $11M second

@@ -69,6 +69,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
   holds.startAfresh();
   notifications.startAfresh();
+  statusPanel.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
   structurePopUp?.startAfresh();

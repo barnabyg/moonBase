@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { useCrowdedCatalogue } from "./crowded";
+import { crowdedSave, useCrowdedCatalogue, type SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
 
 // The smallest screen the panels are laid out for.
@@ -94,7 +94,7 @@ const samePlace = (a: Place | undefined, b: Place): boolean =>
  */
 async function watchRows(
   page: Page,
-  save: string | undefined,
+  save: string | SaveFile | undefined,
   watched: (page: Page) => Locator,
   /**
    * What the player does once the game runs, before leaving the base to
@@ -111,7 +111,9 @@ async function watchRows(
     await (
       await chooser
     ).setFiles(
-      fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url)),
+      typeof save === "string"
+        ? fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url))
+        : save,
     );
   }
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
@@ -297,6 +299,20 @@ test("at the fastest game speed, on a catalogue of 80 Launch items, the Launch m
   // The game ran on all the while.
   expect(await gameHours(page)).toBeGreaterThan(start);
   await expect(cost(page)).toContainText("nothing");
+});
+
+test("at the fastest game speed, the status panel's rows keep their place with 15 bulk resources while silicon runs out and wafers are made", async ({
+  page,
+}) => {
+  await useCrowdedCatalogue(page);
+  const texts = await watchRows(page, crowdedSave(), (on) =>
+    on
+      .getByRole("complementary", { name: "Status panel" })
+      .getByRole("status", { name: "Bulk resources", exact: true }),
+  );
+
+  // Their figures changed while they were watched.
+  expect(texts.size).toBeGreaterThan(2);
 });
 
 test("at the fastest game speed, a Structure's pop-up keeps its lines in place while it is built", async ({

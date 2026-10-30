@@ -8,10 +8,10 @@ npm.cmd run try -- crowded
 
 It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox with that Campaign loaded, and prints what to do and what should happen. Press `Ctrl+C` in the window that ran it to stop the game. Run `npm.cmd run try` with no scenario to list them. Some scenarios play a long way through a Campaign first, which can take a minute or more.
 
-| Scenario              | What it starts in                                                             |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `everything-unlocked` | An hour into a Campaign with every Design unlocked and $5,000M                |
-| `crowded`             | The same, on a catalogue crowded with made-up items, with every bulk resource |
+| Scenario              | What it starts in                                                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `everything-unlocked` | An hour into a Campaign with every Design unlocked and $5,000M                                                                   |
+| `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out |
 
 ## Adding a scenario
 

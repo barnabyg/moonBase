@@ -245,6 +245,12 @@ export interface Catalogue {
    */
   readonly spareComponentWarningEarthDaysLeft: readonly number[];
   /**
+   * The status panel marks a falling bulk resource as needing attention once
+   * it will run out within this many Earth Days. It only changes what the
+   * panel shows: no notification comes, and nothing in the game depends on it.
+   */
+  readonly bulkResourceWarningEarthDaysLeft: number;
+  /**
    * The Milestones, in the order the status panel offers them.
    * They are guidance only: they carry no rewards and never end the
    * Campaign.

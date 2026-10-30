@@ -30,6 +30,7 @@ import {
   summariseMissionDirector,
   summarisePower,
   summariseResearch,
+  summariseBulkResources,
   summariseStock,
   summariseTravel,
   withSwitchedOffPlants,
@@ -41,13 +42,15 @@ import { createStatLine } from "./stat";
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
+  /** Forgets which bulk resources have shown, for a Campaign loaded in place of the last. */
+  startAfresh(): void;
 }
 
 /**
  * The HTML status panel, in sections the player can fold away: the
  * Milestone to aim for now and the one after it, how the Mission Director
- * is keeping, the base's power, its stock, the Lander and
- * Expeditions, and the Research Task running, with the observing
+ * is keeping, the base's power, its stock, its bulk resources, the Lander
+ * and Expeditions, and the Research Task running, with the observing
  * programme once the base has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
@@ -137,25 +140,31 @@ export function createStatusPanel(
   const storedPower = createStatLine("Stored", "Stored power");
   powerSection.body.append(power.element, storedPower.element);
 
-  // The base's stock: Components at the stockpile, bulk resources such as
-  // Regolith, and spare Components and how long they will last.
+  // The base's stock: Components at the stockpile, and spare Components and
+  // how long they will last.
   const stockSection = createPanelSection("stock", "Stock");
   const components = createStatLine("Components", "Base's stock");
+  const spareComponents = createStatLine("Spares", "Spare Components");
+
+  // The bulk resources the base has had, such as Regolith, a line each. One
+  // never in play has no line, and one that has stays, so that none comes and
+  // goes as its stock does.
+  const bulkSection = createPanelSection("bulk-resources", "Bulk resources");
   const bulkResources = document.createElement("div");
   bulkResources.className = "resources";
   bulkResources.setAttribute("role", "status");
   bulkResources.setAttribute("aria-label", "Bulk resources");
   bulkResources.setAttribute("aria-live", "off");
+  const noneInStock = document.createElement("span");
+  noneInStock.className = "resources__name";
+  noneInStock.textContent = "none in stock";
+  bulkResources.append(noneInStock);
   const resourceCells = new Map<
     string,
     { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
-  const spareComponents = createStatLine("Spares", "Spare Components");
-  stockSection.body.append(
-    components.element,
-    bulkResources,
-    spareComponents.element,
-  );
+  stockSection.body.append(components.element, spareComponents.element);
+  bulkSection.body.append(bulkResources);
 
   // The Lander and any Expedition under way, each beside the button that
   // acts on it.
@@ -197,6 +206,7 @@ export function createStatusPanel(
     missionDirectorSection,
     powerSection,
     stockSection,
+    bulkSection,
     travelSection,
     researchSection,
   ];
@@ -325,12 +335,15 @@ export function createStatusPanel(
       storedPower.fill(stored.fraction);
 
       components.show({ value: formatStock(snapshot.stockpile) });
+      // The line before each, so that a new one goes in its place in the list.
+      let above: HTMLElement | undefined;
       for (const resource of formatBulkResources(
         snapshot.bulkResources,
         forecasts.bulkResources,
       )) {
         let entry = resourceCells.get(resource.label);
         if (entry === undefined) {
+          if (!resource.inPlay) continue;
           const cell = document.createElement("span");
           cell.className = "resources__cell";
           const name = document.createElement("span");
@@ -338,20 +351,24 @@ export function createStatusPanel(
           name.textContent = resource.label;
           const amount = document.createElement("span");
           amount.className = "resources__amount";
-          // How fast it is changing, on a line of its own.
+          // How fast it is changing, and how long it lasts if falling.
           const note = document.createElement("span");
           note.className = "resources__note";
           cell.append(name, " ", amount, " ", note);
           cell.dataset["row"] = resource.label;
           holdHeight(cell);
-          bulkResources.append(cell);
+          noneInStock.remove();
+          if (above === undefined) bulkResources.prepend(cell);
+          else above.after(cell);
           entry = { cell, amount, note };
           resourceCells.set(resource.label, entry);
         }
+        above = entry.cell;
         setText(entry.amount, resource.value);
         setText(entry.note, resource.note ?? "");
         entry.note.hidden = resource.note === undefined;
         entry.cell.classList.toggle("resources__cell--empty", resource.empty);
+        entry.cell.classList.toggle("stat--warning", resource.warning);
       }
       spareComponents.show(formatSpareComponents(forecasts.spareComponents));
       // Shown as a warning from the first warning on.
@@ -403,8 +420,9 @@ export function createStatusPanel(
         ),
       );
       powerSection.summarise(summarisePower(snapshot.power));
-      stockSection.summarise(
-        summariseStock(snapshot.bulkResources, forecasts.spareComponents),
+      stockSection.summarise(summariseStock(forecasts.spareComponents));
+      bulkSection.summarise(
+        summariseBulkResources(snapshot.bulkResources, forecasts.bulkResources),
       );
       travelSection.summarise(
         summariseTravel(
@@ -418,6 +436,10 @@ export function createStatusPanel(
       );
 
       for (const section of sections) section.refreshWarning();
+    },
+    startAfresh() {
+      bulkResources.replaceChildren(noneInStock);
+      resourceCells.clear();
     },
   };
 }

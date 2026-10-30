@@ -9,6 +9,7 @@ import {
 import { robot, machineTypes, rover, expeditions } from "./workers";
 import {
   bulkResources,
+  bulkResourceWarningEarthDaysLeft,
   exports,
   digging,
   componentTypes,
@@ -84,5 +85,6 @@ export const catalogue: Catalogue = {
   cold,
   micrometeorites,
   spareComponentWarningEarthDaysLeft,
+  bulkResourceWarningEarthDaysLeft,
   milestones,
 };

@@ -463,12 +463,11 @@ body {
   border-radius: 2px;
 }
 
-/* Bulk resources, two to a row. */
+/* Bulk resources, a line each, in columns of a set width that don't shift
+   sideways as the figures change. */
 
 .resources {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px 10px;
   margin: 2px 0;
   line-height: 1.3;
   font-size: 0.8rem;
@@ -476,15 +475,19 @@ body {
 }
 
 .resources__cell {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  justify-content: space-between;
-  gap: 0 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.6em 9.6em;
+  column-gap: 4px;
+  align-content: start;
+  align-items: baseline;
+}
+
+.resources__amount {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .resources__note {
-  flex-basis: 100%;
   font-size: 0.72rem;
   text-align: right;
   color: var(--text-muted);
@@ -494,8 +497,14 @@ body {
   color: var(--text-muted);
 }
 
-.resources__cell--empty {
+.resources__cell--empty:not(.stat--warning) {
   opacity: 0.45;
+}
+
+.stat--warning .resources__name,
+.stat--warning .resources__amount,
+.stat--warning .resources__note {
+  color: var(--warning);
 }
 
 .panel-actions {

@@ -415,27 +415,50 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
 
 /**
  * Sums up the base's stock for its folded section: how many spare
- * Components it has and how long they last, which is what keeps it
- * running, and how much Regolith it has to build with, for example
- * "6 spares, last 9d · Regolith 1250 kg".
+ * Components it has and how long they last, which is what keeps it running,
+ * for example "6 spares, last 9d".
  */
-export function summariseStock(
-  bulkResources: Snapshot["bulkResources"],
-  spares: SpareComponentsForecast,
-): string {
+export function summariseStock(spares: SpareComponentsForecast): string {
   const count = plural(spares.inStock, "spare");
-  const lasting =
-    spares.minutesUntilEmpty === undefined
-      ? count
-      : spares.minutesUntilEmpty === 0
-        ? `${count}, too few`
-        : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
-  const regolith = bulkResources.find(
-    (stock) => stock.resourceId === "regolith",
+  return spares.minutesUntilEmpty === undefined
+    ? count
+    : spares.minutesUntilEmpty === 0
+      ? `${count}, too few`
+      : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
+}
+
+/**
+ * Sums up the base's bulk resources for their folded section: how long the
+ * one that will run out soonest lasts, then how much there is of the first
+ * other in stock, which is Regolith to build with once the base has any, for
+ * example "Silicon 2d · Regolith 1250 kg", or that there is none in stock.
+ */
+export function summariseBulkResources(
+  bulkResources: Snapshot["bulkResources"],
+  forecasts: readonly BulkResourceForecast[],
+): string {
+  const held = bulkResources.filter((stock) => stock.kilograms > 0);
+  if (held.length === 0) return "none in stock";
+  const left = (resourceId: string): number =>
+    forecasts.find((forecast) => forecast.resourceId === resourceId)
+      ?.minutesUntilEmpty ?? Infinity;
+  const soonest = held.reduce((first, stock) =>
+    left(stock.resourceId) < left(first.resourceId) ? stock : first,
   );
-  return regolith === undefined
-    ? lasting
-    : `${lasting} · ${resourceLabel(regolith.resourceId)} ${formatKilograms(regolith.kilograms)}`;
+  const falling = left(soonest.resourceId) !== Infinity;
+  const other = held.find((stock) => !falling || stock !== soonest);
+  return [
+    ...(falling
+      ? [
+          `${resourceLabel(soonest.resourceId)} ${formatShortDuration(left(soonest.resourceId), true)}`,
+        ]
+      : []),
+    ...(other === undefined
+      ? []
+      : [
+          `${resourceLabel(other.resourceId)} ${formatKilograms(other.kilograms)}`,
+        ]),
+  ].join(" · ");
 }
 
 /**
@@ -532,12 +555,20 @@ export function withSwitchedOffPlants(
 /**
  * Lists the base's stock of bulk resources, each with its amount and,
  * if it is falling, roughly how long it will last at the current rate, for
- * example "Water ice", "190 kg" and "~7d 22h".
+ * example "Water ice", "190 kg" and "~7d 22h". Each says whether it is a
+ * warning, as one falling with little time left is, and whether it is in
+ * play, with any in stock or being made or used.
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
   forecasts: readonly BulkResourceForecast[],
-): (Stat & { readonly label: string; readonly empty: boolean })[] {
+): (Stat & {
+  readonly label: string;
+  readonly empty: boolean;
+  readonly warning: boolean;
+  readonly inPlay: boolean;
+})[] {
+  const warnFrom = catalogue.bulkResourceWarningEarthDaysLeft * 24 * 60;
   return bulkResources.map((stock) => {
     const label = resourceLabel(stock.resourceId);
     const value = formatKilograms(stock.kilograms);
@@ -557,9 +588,16 @@ export function formatBulkResources(
         ? undefined
         : `~${formatShortDuration(minutes)}`;
     const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
-    return note === ""
-      ? { label, value, empty }
-      : { label, value, note, empty };
+    const shown = {
+      label,
+      value,
+      empty,
+      // With none left, it may be that nothing wants any.
+      warning:
+        stock.kilograms > 0 && minutes !== undefined && minutes <= warnFrom,
+      inPlay: stock.kilograms > 0 || note !== "",
+    };
+    return note === "" ? shown : { ...shown, note };
   });
 }
 
