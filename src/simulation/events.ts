@@ -339,6 +339,15 @@ export type GameEvent =
       readonly milestoneId: string;
     }
   | {
+      /**
+       * Reaching a Milestone has moved the current Act on: the earliest
+       * Milestone not reached is now in a later Act, or none is left.
+       */
+      readonly kind: "act-started";
+      readonly atMinute: number;
+      readonly actId: string;
+    }
+  | {
       /** The Mission Director has died, which ends the Campaign. */
 
       readonly kind: "mission-director-died";

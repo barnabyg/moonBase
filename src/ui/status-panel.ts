@@ -12,11 +12,13 @@ import { stockLabel } from "./labels";
 import {
   describeExpedition,
   explainObservingProgramme,
+  formatAct,
   formatBulkResources,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatMissionDirector,
+  formatNextMilestone,
   formatObservingProgramme,
   formatPower,
   formatRadiationDose,
@@ -40,6 +42,21 @@ import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine } from "./stat";
 
+/**
+ * A line of words in the Milestones section, a status like any other line of
+ * the panel, that keeps its height when its words get shorter.
+ */
+function createMilestoneText(className: string, name: string): HTMLElement {
+  const line = document.createElement("p");
+  line.className = className;
+  line.setAttribute("role", "status");
+  line.setAttribute("aria-label", name);
+  line.setAttribute("aria-live", "off");
+  line.dataset["row"] = name;
+  holdHeight(line);
+  return line;
+}
+
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /** Forgets which bulk resources have shown, for a Campaign loaded in place of the last. */
@@ -47,9 +64,9 @@ export interface StatusPanel {
 }
 
 /**
- * The HTML status panel, in sections the player can fold away: the
- * Milestone to aim for now and the one after it, how the Mission Director
- * is keeping, the base's power, its stock, its bulk resources, the Lander
+ * The HTML status panel, in sections the player can fold away: the current
+ * Act, the Milestone to aim for now and the one after it, how the Mission
+ * Director is keeping, the base's power, its stock, its bulk resources, the Lander
  * and Expeditions, and the Research Task running, with the observing
  * programme once the base has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
@@ -66,18 +83,20 @@ export function createStatusPanel(
   panel.className = "status-panel";
   panel.setAttribute("aria-label", "Status panel");
 
-  // The Milestone to aim for now, what to do to reach it, and the one after.
+  // The Act the Campaign is in and what it asks, the Milestone to aim for now,
+  // what to do to reach it, and the one after.
   const milestonesSection = createPanelSection("milestones", "Milestones");
+  const actLine = createMilestoneText("milestone-act", "Current Act");
+  const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
   const currentMilestone = createStatLine("Now", "Current Milestone");
-  const milestoneHintLine = document.createElement("p");
-  milestoneHintLine.className = "milestone-hint";
-  milestoneHintLine.setAttribute("role", "status");
-  milestoneHintLine.setAttribute("aria-label", "Milestone hint");
-  milestoneHintLine.setAttribute("aria-live", "off");
-  milestoneHintLine.dataset["row"] = "Milestone hint";
-  holdHeight(milestoneHintLine);
+  const milestoneHintLine = createMilestoneText(
+    "milestone-hint",
+    "Milestone hint",
+  );
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
+    actLine,
+    actAsksLine,
     currentMilestone.element,
     milestoneHintLine,
     nextMilestone.element,
@@ -215,7 +234,10 @@ export function createStatusPanel(
 
   return {
     update(snapshot, forecasts) {
-      const { currentId, nextId } = snapshot.milestones;
+      const { currentId } = snapshot.milestones;
+      const act = formatAct(snapshot.milestones);
+      setText(actLine, act.label);
+      setText(actAsksLine, act.asks);
       currentMilestone.show({
         value:
           currentId === undefined
@@ -228,10 +250,7 @@ export function createStatusPanel(
           ? "The Campaign carries on: keep the base running and growing."
           : milestoneHint(currentId),
       );
-      nextMilestone.element.hidden = nextId === undefined;
-      if (nextId !== undefined) {
-        nextMilestone.show({ value: milestoneLabel(nextId) });
-      }
+      nextMilestone.show({ value: formatNextMilestone(snapshot.milestones) });
 
       const { missionDirector } = snapshot;
       residence.show({

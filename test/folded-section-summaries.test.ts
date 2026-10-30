@@ -317,6 +317,7 @@ describe("a folded Milestones section", () => {
         reachedIds: ["power-storage"],
         currentId: "moved-in",
         nextId: "lander-departs",
+        currentActId: "act-1",
       }),
     ).toBe("Habitat commissioned, Mission Director moved in");
     expect(
@@ -324,6 +325,7 @@ describe("a folded Milestones section", () => {
         reachedIds: [],
         currentId: undefined,
         nextId: undefined,
+        currentActId: "act-1",
       }),
     ).toBe("every Milestone reached");
   });

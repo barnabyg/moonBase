@@ -96,7 +96,7 @@ The spec's tunable defaults all hold:
 - The Robot repairs itself below 10% Condition.
 - The starting oxygen and water last about 30 Earth Days.
 
-The pacing targets, and where the reference Campaign came at data catalogue version 60:
+The pacing targets, and where the reference Campaign came at data catalogue version 61:
 
 | Target                                                                          | Reference Campaign                                                                         |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |

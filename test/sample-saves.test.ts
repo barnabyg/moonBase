@@ -2258,6 +2258,7 @@ describe("the sample save of format version 33", () => {
     expect(state.milestones).toMatchObject({
       reachedIds: ["power-storage", "moved-in"],
       currentId: "lander-departs",
+      currentActId: "act-1",
     });
   });
 

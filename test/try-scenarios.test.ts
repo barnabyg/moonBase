@@ -22,6 +22,36 @@ describe("what npm run try can start the game in", () => {
     );
   });
 
+  it("last-milestone has every Milestone reached but power storage, and building a battery bank reaches it", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "last-milestone",
+    );
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { campaign } = loaded;
+    expect(campaign.snapshot().milestones).toMatchObject({
+      currentId: "power-storage",
+      nextId: undefined,
+    });
+
+    expect(
+      campaign.planConstruction({
+        structureTypeId: "battery-bank",
+        position: { x: 28, y: 12 },
+      }).ok,
+    ).toBe(true);
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 5 * 24) throw new Error("It was never built.");
+      campaign.advance(60);
+    }
+    campaign.advance(1);
+
+    const { milestones, ended } = campaign.snapshot();
+    expect(milestones.currentId).toBeUndefined();
+    expect(milestones.reachedIds).toContain("power-storage");
+    expect(ended).toBeUndefined();
+  });
+
   it("crowded has some of every bulk resource, and silicon about to run out", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "crowded",

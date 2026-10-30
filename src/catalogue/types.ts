@@ -251,11 +251,29 @@ export interface Catalogue {
    */
   readonly bulkResourceWarningEarthDaysLeft: number;
   /**
-   * The Milestones, in the order the status panel offers them.
+   * The Acts, in the order the Campaign comes to them. Like the Milestones,
+   * they are guidance only.
+   */
+  readonly acts: readonly Act[];
+  /**
+   * The Milestones, in the order the status panel offers them, an Act's
+   * together and in the order of the Acts.
    * They are guidance only: they carry no rewards and never end the
    * Campaign.
    */
   readonly milestones: readonly Milestone[];
+}
+
+/**
+ * A stretch of the Campaign. It starts when the earliest Milestone not yet
+ * reached is one of its own, so nothing needs saving to know which is current.
+ */
+export interface Act {
+  readonly id: string;
+  /** Its name, for example "Act 1" or "Act 2: Independence". */
+  readonly label: string;
+  /** One sentence telling the player what the Act asks of them. */
+  readonly asks: string;
 }
 
 /**
@@ -265,6 +283,8 @@ export interface Catalogue {
  */
 export interface Milestone {
   readonly id: string;
+  /** The Act it belongs to. */
+  readonly actId: string;
   readonly label: string;
   /** One line telling a new player what to do next to reach it. */
   readonly hint: string;

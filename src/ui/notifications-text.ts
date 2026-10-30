@@ -1,5 +1,7 @@
 import { catalogue } from "../catalogue";
 import {
+  actAsks,
+  actLabel,
   designLabel,
   launchItemLabel,
   milestoneLabel,
@@ -70,6 +72,8 @@ export function formatEvent(
       return "Solar Particle Event over";
     case "milestone-reached":
       return `Milestone reached: ${milestoneLabel(event.milestoneId)}`;
+    case "act-started":
+      return `${actLabel(event.actId)} begins. ${actAsks(event.actId)}`;
     case "lander-took-off":
       return event.exports.length === 0
         ? "Lander took off for Earth"

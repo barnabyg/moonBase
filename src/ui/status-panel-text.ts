@@ -1,5 +1,8 @@
 import { catalogue } from "../catalogue";
 import {
+  actAsks,
+  actLabel,
+  milestoneActId,
   milestoneLabel,
   recipeOf,
   type BulkResourceForecast,
@@ -682,6 +685,40 @@ export function summariseResearch(
   return programme.telescopes === 0
     ? task
     : `${task}, ${catalogue.observingProgramme.label} · ${Math.floor(programme.progress * 100)}%`;
+}
+
+/**
+ * Names the current Act and says what it asks of the player, or that it has
+ * all been done once every Milestone is reached.
+ */
+export function formatAct(milestones: Snapshot["milestones"]): {
+  readonly label: string;
+  readonly asks: string;
+} {
+  return {
+    label: actLabel(milestones.currentActId),
+    asks:
+      milestones.currentId === undefined
+        ? "Everything this Act asks of you is done."
+        : actAsks(milestones.currentActId),
+  };
+}
+
+/**
+ * Names the Milestone after the current one, with its Act if that is a later
+ * one, for example "Lander departs" or "Workshop running, in Act 2:
+ * Independence", or says that none is left. The line stays when there is
+ * none, so that the lines below it don't move up.
+ */
+export function formatNextMilestone(
+  milestones: Snapshot["milestones"],
+): string {
+  const { nextId, currentActId } = milestones;
+  if (nextId === undefined) return "none left";
+  const actId = milestoneActId(nextId);
+  return actId === currentActId
+    ? milestoneLabel(nextId)
+    : `${milestoneLabel(nextId)}, in ${actLabel(actId)}`;
 }
 
 /** Sums up the Milestones for their folded section: the one to aim for now. */

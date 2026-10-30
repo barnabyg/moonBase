@@ -31,6 +31,7 @@ export interface EditableSaveState {
   science: number;
   fundingMillionDollars: number;
   bulkResources: { resourceId: string; kilograms: number }[];
+  reachedMilestoneIds: string[];
 }
 
 /** The Campaign as a save's text, with its state changed as the edit says. */
@@ -89,6 +90,16 @@ function stockOf(
   }
 }
 
+/** Every Milestone reached but one. */
+function reachEveryMilestoneBut(
+  state: EditableSaveState,
+  milestoneId: string,
+): void {
+  state.reachedMilestoneIds = catalogue.milestones
+    .map((milestone) => milestone.id)
+    .filter((id) => id !== milestoneId);
+}
+
 export const tryScenarios: readonly TryScenario[] = [
   {
     id: "everything-unlocked",
@@ -100,6 +111,23 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Clear: all 42 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
+  },
+  {
+    id: "last-milestone",
+    title:
+      "An hour into a Campaign with every Milestone reached but power storage, the quickest to reach",
+    steps: [
+      'Look at the status panel\'s Milestones: it says "Act 1" and what the Act asks, then "Now" with Power storage before the first Night and its hint, then "Next" with "none left".',
+      "Pick the Battery bank in the build menu, place it on clear ground beside the Lander, and set the game to 20x. In a few real seconds the Robot has built it.",
+      'A notification says "Milestone reached: Power storage before the first Night", and no notification says a new Act begins.',
+      'The panel still says "Act 1", now with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
+      "Leave the game running: it carries on, and nothing ends.",
+      'Click the Milestones title to fold it: beside the title it says "every Milestone reached".',
+    ],
+    save: () =>
+      freshSaveWith((state) => {
+        reachEveryMilestoneBut(state, "power-storage");
+      }),
   },
   {
     id: "crowded",

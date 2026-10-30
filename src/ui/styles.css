@@ -419,6 +419,19 @@ body {
   background: var(--warning);
 }
 
+.milestone-act {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.milestone-act-asks {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
 .milestone-hint {
   margin: 0 0 2px;
   /* Under the figure, past the label column of the stat lines (6.2em of their 0.85rem). */

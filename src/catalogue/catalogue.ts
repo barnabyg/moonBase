@@ -39,7 +39,7 @@ import {
   micrometeorites,
   spareComponentWarningEarthDaysLeft,
 } from "./hazards";
-import { milestones } from "./milestones";
+import { acts, milestones } from "./milestones";
 import type { Catalogue } from "./types";
 
 /**
@@ -47,7 +47,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 60,
+  version: 61,
   map,
   lander,
   stockpile,
@@ -86,5 +86,6 @@ export const catalogue: Catalogue = {
   micrometeorites,
   spareComponentWarningEarthDaysLeft,
   bulkResourceWarningEarthDaysLeft,
+  acts,
   milestones,
 };

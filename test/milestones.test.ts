@@ -78,6 +78,7 @@ describe("the Milestones", () => {
       reachedIds: [],
       currentId: "power-storage",
       nextId: "moved-in",
+      currentActId: "act-1",
     });
   });
 
@@ -104,6 +105,7 @@ describe("the Milestones", () => {
       reachedIds: ["power-storage"],
       currentId: "moved-in",
       nextId: "lander-departs",
+      currentActId: "act-1",
     });
   });
 
@@ -136,6 +138,7 @@ describe("the Milestones", () => {
       reachedIds: ["moved-in"],
       currentId: "power-storage",
       nextId: "lander-departs",
+      currentActId: "act-1",
     });
 
     game.plan("battery-bank", bankSite);
@@ -148,6 +151,7 @@ describe("the Milestones", () => {
       reachedIds: ["moved-in", "power-storage"],
       currentId: "lander-departs",
       nextId: "habitat-shielded",
+      currentActId: "act-1",
     });
   });
 
@@ -200,6 +204,7 @@ describe("the Milestones", () => {
       reachedIds: ["power-storage"],
       currentId: "moved-in",
       nextId: "lander-departs",
+      currentActId: "act-1",
     });
   });
 
@@ -317,6 +322,7 @@ describe("the later Milestones", () => {
       reachedIds: catalogue.milestones.map((milestone) => milestone.id),
       currentId: undefined,
       nextId: undefined,
+      currentActId: catalogue.acts.at(-1)?.id,
     });
 
     const events = game.campaign.advance(24 * 60);

@@ -13,11 +13,11 @@ A single open-ended playthrough, advanced by reaching Milestones and lost by hit
 _Avoid_: run, scenario, game
 
 **Milestone**:
-A named achievement that marks progress through the Campaign, such as the first crew landing.
+A named achievement that marks progress through the Campaign, such as the first crew landing. Each belongs to an Act.
 _Avoid_: goal, objective, achievement
 
 **Act**:
-A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. There are four: the first as the game stands, then Independence, Scale and Permanence.
+A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. The current Act is the one holding the earliest Milestone not yet reached, or the last Act once every Milestone is reached. There are to be four: the first as the game stands, then Independence, Scale and Permanence.
 _Avoid_: chapter, level, stage, era
 
 **Mechanic**:

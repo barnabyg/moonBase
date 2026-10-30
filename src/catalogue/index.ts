@@ -1,5 +1,6 @@
 export { catalogue } from "./catalogue";
 export type {
+  Act,
   BulkResource,
   Catalogue,
   ColdRules,
