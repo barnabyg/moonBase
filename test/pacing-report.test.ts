@@ -303,6 +303,7 @@ describe("what a Launch earns, for each Export", () => {
         feeMillionDollars: 50,
         profitMillionDollars: 150,
         launchesToBuyEverything: 5,
+        earthDaysPerTrip: 10,
       },
       {
         resourceId: "dross",
@@ -310,6 +311,7 @@ describe("what a Launch earns, for each Export", () => {
         feeMillionDollars: 50,
         profitMillionDollars: -25,
         launchesToBuyEverything: undefined,
+        earthDaysPerTrip: 10,
       },
     ]);
   });
@@ -320,6 +322,37 @@ describe("what a Launch earns, for each Export", () => {
       kilograms: 1500,
       launchesToCarry: 2,
     });
+  });
+});
+
+describe("how long a trip takes, for each Export", () => {
+  const withPlant = (kilogramsPerHour: number) =>
+    exportEconomics(
+      madeUp({
+        exports: [{ resourceId: "gems", priceMillionDollarsPerKilogram: 2 }],
+        structureTypes: [
+          structure("plant", "x", {
+            recipes: [
+              {
+                id: "gems",
+                label: "Gems",
+                inputs: [],
+                outputs: [{ resource: bulk("gems"), kilogramsPerHour }],
+                drawKilowatts: 1,
+              },
+            ],
+          }),
+        ],
+      }),
+    ).exports[0]?.earthDaysPerTrip;
+
+  it("is as long as the Plant takes to fill the Return Mass, running through Daylight", () => {
+    // 0.25 kg/h for 16 hours an Earth Day is 4 kg: 25 Earth Days for 100 kg.
+    expect(withPlant(0.25)).toBeCloseTo(25, 6);
+  });
+
+  it("is never shorter than a round trip", () => {
+    expect(withPlant(100)).toBe(10);
   });
 });
 

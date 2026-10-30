@@ -26,6 +26,7 @@ function timeline(
   return {
     ...playLongGame([]),
     structureTypesBuilt: everythingBuilt,
+    launchItemsManifested: catalogue.launch.items.map(({ id }) => id),
     ...overrides,
   };
 }
@@ -93,10 +94,14 @@ describe("its timeline", () => {
     ).toContainEqual(expect.stringContaining("isn't rising"));
   });
 
-  it("fails if a Design it says it uses was never built", () => {
-    const missing = timeline({ structureTypesBuilt: [] });
+  it("fails if a Design it says it uses was never built or sent for", () => {
+    const missing = timeline({
+      structureTypesBuilt: [],
+      launchItemsManifested: [],
+    });
 
     expect(designsNotUsed(missing)).toContain("solar-arrays");
+    expect(designsNotUsed(missing)).toContain("maintenance-spares");
     expect(longGameSucceeded(missing)).toBe(false);
     expect(longGameSucceeded(timeline())).toBe(true);
   });

@@ -29,6 +29,7 @@ describe("the reference Campaign", () => {
       timeline.designsUnlocked.map((unlocked) => unlocked.designId),
     ).toEqual(["water-wall-shielding"]);
     expect(timeline.researchTasksCompleted.length).toBeGreaterThan(0);
+    expect(timeline.launchItemsManifested).toContain("spare-component");
     expect(
       timeline.structureTypesBuilt.map((built) => built.structureTypeId),
     ).toContain("habitat");

@@ -13,7 +13,6 @@ export type PacedCatalogue = Pick<
   | "designs"
   | "structureTypes"
   | "bulkResources"
-  | "lifeSupportStocks"
   | "exports"
   | "launch"
   | "lander"
@@ -186,8 +185,8 @@ export function designsByDepth(
     }));
 }
 
-/** What one of a Structure's Components comes to by Launch: infinite if a Launch can't bring them. */
-export function shippedCost(
+/** What a full set of a Structure's Components comes to by Launch: infinite if a Launch can't bring them. */
+export function importCost(
   catalogue: Pick<PacedCatalogue, "launch">,
   type: StructureType,
 ): { readonly millionDollars: number; readonly kilograms: number } {
@@ -271,7 +270,7 @@ export function plantEarnings(
       const sold = Math.min(made, carriedPerEarthDay);
       const millionDollarsPerEarthDay =
         valuePerHour * hoursRunPerEarthDay * (sold / made);
-      const costMillionDollars = shippedCost(catalogue, type).millionDollars;
+      const costMillionDollars = importCost(catalogue, type).millionDollars;
       earnings.push({
         structureTypeId: type.id,
         designId: type.designId,
@@ -350,6 +349,31 @@ export function scienceEarners(
   });
 }
 
+/** How long the first Plant that makes a bulk resource takes to make a full Return Mass of it, running through Daylight: none if no Plant does. */
+function earthDaysToFillReturnMass(
+  catalogue: Pick<PacedCatalogue, "lander" | "lunation" | "structureTypes">,
+  resourceId: string,
+): number {
+  for (const type of catalogue.structureTypes) {
+    for (const recipe of type.recipes ?? []) {
+      const output = recipe.outputs.find(
+        ({ resource }) =>
+          resource.kind === "bulk-resource" &&
+          resource.resourceId === resourceId,
+      );
+      if (output !== undefined) {
+        return (
+          catalogue.lander.returnMassKilograms /
+          (output.kilogramsPerHour *
+            HOURS_PER_EARTH_DAY *
+            daylightShare(catalogue))
+        );
+      }
+    }
+  }
+  return 0;
+}
+
 export interface ExportEconomics {
   /** One of every Launch item: the whole of what Earth can sell the base. */
   readonly everyItem: {
@@ -365,6 +389,11 @@ export interface ExportEconomics {
     readonly profitMillionDollars: number;
     /** How many Launches' profit buys one of every Launch item: undefined if there is none. */
     readonly launchesToBuyEverything: number | undefined;
+    /**
+     * How long each trip takes: a round trip, or as long as the first Plant
+     * that makes the Export takes to fill the Return Mass, if that is longer.
+     */
+    readonly earthDaysPerTrip: number;
   }[];
 }
 
@@ -374,7 +403,10 @@ export interface ExportEconomics {
  * that whatever it brings comes out of the profit.
  */
 export function exportEconomics(
-  catalogue: Pick<PacedCatalogue, "exports" | "launch" | "lander">,
+  catalogue: Pick<
+    PacedCatalogue,
+    "exports" | "launch" | "lander" | "lunation" | "structureTypes"
+  >,
 ): ExportEconomics {
   const { items, feeMillionDollars, payloadMassLimitKilograms } =
     catalogue.launch;
@@ -404,6 +436,10 @@ export function exportEconomics(
         profitMillionDollars: profit,
         launchesToBuyEverything:
           profit > 0 ? Math.ceil(millionDollars / profit) : undefined,
+        earthDaysPerTrip: Math.max(
+          roundTripEarthDays(catalogue),
+          earthDaysToFillReturnMass(catalogue, sold.resourceId),
+        ),
       };
     }),
   };
@@ -464,7 +500,7 @@ export function offerings(
   };
   const found: Offering[] = [];
   for (const type of catalogue.structureTypes) {
-    const { millionDollars, kilograms } = shippedCost(catalogue, type);
+    const { millionDollars, kilograms } = importCost(catalogue, type);
     const { sitePreparation, componentDelivery, assembly, commissioning } =
       type.stageHours;
     const costs = {
@@ -621,14 +657,18 @@ function days(earthDays: number): string {
   return `${Number(earthDays.toFixed(1))} Earth Days`;
 }
 
+/** What the catalogue calls something, for a line of text. */
+export function labelOf(
+  entries: readonly { readonly id: string; readonly label: string }[],
+  id: string,
+): string {
+  return entries.find((entry) => entry.id === id)?.label ?? id;
+}
+
 /** The report as lines of text, for `npm run pacing-report`. */
 export function formatPacingReport(
   catalogue: PacedCatalogue & Pick<Catalogue, "version">,
 ): string[] {
-  const labelOf = (
-    entries: readonly { readonly id: string; readonly label: string }[],
-    id: string,
-  ) => entries.find((entry) => entry.id === id)?.label ?? id;
   const timeline = scienceTimeline(catalogue);
   const economics = exportEconomics(catalogue);
   const earnings = plantEarnings(catalogue);
@@ -649,7 +689,7 @@ export function formatPacingReport(
       const unlocks = step.unlockedDesignIds.map((id) =>
         labelOf(catalogue.designs, id),
       );
-      return `  ${step.earthDay.toFixed(1).padStart(9)}  ${String(step.earned).padStart(6)}  ${String(step.spent).padStart(5)}  ${labelOf(catalogue.researchTasks, step.taskId)}${unlocks.length > 0 ? `; unlocks ${unlocks.join(", ")}` : ""}`;
+      return `  ${step.earthDay.toFixed(1).padStart(9)}  ${String(step.earned).padStart(6)}  ${String(step.spent).padStart(5)}  ${labelOf(catalogue.researchTasks, step.taskId)}${unlocks.length > 0 ? `; unlocks ${unlocks.join(", ")}` : ""} (${atEachSpeed(catalogue, step.earthDay)})`;
     }),
     ...(timeline.lockedDesignIds.length > 0
       ? [
@@ -698,20 +738,20 @@ export function formatPacingReport(
     }),
     "",
     "Income and cost of each Launch, for each Export",
-    `  Assumes every trip carries off a full Return Mass (${catalogue.lander.returnMassKilograms} kg) of the one Export, and the Launch pays only its fee, so that whatever it brings comes out of the profit. A round trip takes ${days(roundTrip)} (${atEachSpeed(catalogue, roundTrip)}).`,
+    `  Assumes every trip carries off a full Return Mass (${catalogue.lander.returnMassKilograms} kg) of the one Export, and the Launch pays only its fee, so that whatever it brings comes out of the profit. A trip waits for the first Plant that makes it to fill the Return Mass, running through Daylight. A round trip takes ${days(roundTrip)} (${atEachSpeed(catalogue, roundTrip)}).`,
     `  One of every Launch item comes to ${money(economics.everyItem.millionDollars)} and ${economics.everyItem.kilograms} kg, ${economics.everyItem.launchesToCarry} Launches to carry.`,
     ...economics.exports.map((sold) => {
       const { launchesToBuyEverything: launches } = sold;
       return `  ${labelOf(catalogue.bulkResources, sold.resourceId)}: sells for ${money(sold.incomeMillionDollars)}, less the ${money(sold.feeMillionDollars)} fee is ${money(sold.profitMillionDollars)} profit; ${
         launches === undefined
           ? "no number of Launches' profit buys one of every Launch item"
-          : `the profit of ${launches} Launches buys one of every Launch item (${days(launches * roundTrip)}, ${atEachSpeed(catalogue, launches * roundTrip)})`
+          : `the profit of ${launches} Launches buys one of every Launch item (a trip every ${days(sold.earthDaysPerTrip)}, so ${days(launches * sold.earthDaysPerTrip)}, ${atEachSpeed(catalogue, launches * sold.earthDaysPerTrip)})`
       }.`;
     }),
     ...(best === undefined || best.launchesToBuyEverything === undefined
       ? []
       : [
-          `  So Funding stops being a limit about ${days(best.launchesToBuyEverything * roundTrip)} after the base first sells ${labelOf(catalogue.bulkResources, best.resourceId).toLowerCase()}.`,
+          `  So Funding stops being a limit about ${days(best.launchesToBuyEverything * best.earthDaysPerTrip)} after the base first sells ${labelOf(catalogue.bulkResources, best.resourceId).toLowerCase()}.`,
         ]),
     "",
     "Designs that something cheaper beats outright",

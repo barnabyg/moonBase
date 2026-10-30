@@ -8,6 +8,7 @@ import {
   type PlayStep,
   type ReferenceTimeline,
 } from "./reference-campaign";
+import { labelOf } from "./pacing-report";
 import { toGameMinutes } from "./scenario";
 
 // The long-game play guide: plays on well past the end of the reference
@@ -20,9 +21,9 @@ import { toGameMinutes } from "./scenario";
 // to `designsTheLongGameUses`.
 
 /**
- * The Earth Day the long-game play guide ends: the end of the last Act but
- * one, before the Radiation Dose reaches its limit behind a water wall. It
- * moves out as later Acts give the Mission Director a way to live past that.
+ * The Earth Day the long-game play guide ends: into the last Act, a little
+ * before the Radiation Dose reaches its limit behind a water wall. It moves out
+ * as later Acts give the Mission Director a way to live past that.
  */
 export const LONG_GAME_END_EARTH_DAY = 1650;
 
@@ -66,7 +67,7 @@ function unlockEveryDesign(play: Play): void {
   succeed(play.campaign.unlockDesign(next.id), `Unlocking ${next.label}`);
 }
 
-/** Gives up on the Campaign if the guide has left any of the first Act's research undone. */
+/** Gives up on the Campaign if the guide has left any research undone. */
 function checkEverythingResearched(play: Play): void {
   const { state } = play;
   const tasksLeft = catalogue.researchTasks.filter(
@@ -115,33 +116,27 @@ export function playLongGame(
 
 const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });
 
-/** The Designs the long-game play guide says it uses, but built nothing of. */
+/** The Designs the long-game play guide says it uses, but built nothing of and sent for nothing of. */
 export function designsNotUsed(timeline: ReferenceTimeline): string[] {
-  const built = new Set(
-    timeline.structureTypesBuilt.flatMap(
+  const used = new Set([
+    ...timeline.structureTypesBuilt.flatMap(
       ({ structureTypeId }) =>
         catalogue.structureTypes.find((type) => type.id === structureTypeId)
           ?.designId ?? [],
     ),
-  );
-  return designsTheLongGameUses.filter((designId) => {
-    const hasStructures = catalogue.structureTypes.some(
-      (type) => type.designId === designId,
-    );
-    // A Design that brings only Launch items is used by the Launches the
-    // guide sends, which keep the base supplied.
-    return hasStructures && !built.has(designId);
-  });
+    ...timeline.launchItemsManifested.flatMap(
+      (itemId) =>
+        catalogue.launch.items.find((item) => item.id === itemId)?.designId ??
+        [],
+    ),
+  ]);
+  return designsTheLongGameUses.filter((designId) => !used.has(designId));
 }
 
 /** The timeline as lines of text, for `npm run long-game`. */
 export function formatLongGame(timeline: ReferenceTimeline): string[] {
   const day = (minute: number) =>
     (minute / MINUTES_PER_EARTH_DAY).toFixed(1).padStart(6);
-  const labelOf = (
-    entries: readonly { readonly id: string; readonly label: string }[],
-    id: string,
-  ) => entries.find((entry) => entry.id === id)?.label ?? id;
   const { minutesUntilDoseLimit, endMinute } = timeline;
   const limitAt =
     minutesUntilDoseLimit === undefined
@@ -149,7 +144,7 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
       : endMinute + minutesUntilDoseLimit;
   const notUsed = designsNotUsed(timeline);
   return [
-    ...formatTimeline(timeline, "Long game"),
+    ...formatTimeline(timeline, "Long-game play guide"),
     "",
     "Research Tasks, by the Earth Day each was completed:",
     ...timeline.researchTasksCompleted.map(
@@ -168,7 +163,7 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
       : `Forecast: at the rate it was rising as the play guide ended, the Radiation Dose reaches the limit on Earth Day ${(limitAt / MINUTES_PER_EARTH_DAY).toFixed(0)}.`,
     ...(notUsed.length > 0
       ? [
-          `The play guide says it uses these Designs, but built nothing of them: ${notUsed.join(", ")}.`,
+          `The play guide says it uses these Designs, but built and sent for nothing of them: ${notUsed.join(", ")}.`,
         ]
       : []),
   ];

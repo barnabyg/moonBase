@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-/** About five times the longest it has taken, so that it stops only a game that hangs. */
+/** About six times the longest it has taken, so that it stops only a game that hangs. */
 const HARD_LIMIT_MINUTES = 30;
 const PLAY = "--play";
 

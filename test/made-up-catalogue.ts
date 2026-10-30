@@ -87,7 +87,6 @@ export function madeUp(
     designs: [],
     structureTypes: [],
     bulkResources: [],
-    lifeSupportStocks: [],
     exports: [],
     launch: {
       payloadMassLimitKilograms: 1000,

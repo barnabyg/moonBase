@@ -690,6 +690,8 @@ export interface ReferenceTimeline {
     readonly designId: string;
     readonly atMinute: number;
   }[];
+  /** Each Launch item ever put on the Launch manifest. */
+  readonly launchItemsManifested: readonly string[];
   /** Each Structure type commissioned at least once, the first time it was. */
   readonly structureTypesBuilt: readonly {
     readonly structureTypeId: string;
@@ -820,6 +822,7 @@ function recorder(campaign: Campaign) {
     atMinute: number;
   }[] = [];
   const designsUnlocked: { designId: string; atMinute: number }[] = [];
+  const launchItemsManifested = new Set<string>();
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
   return {
@@ -870,6 +873,9 @@ function recorder(campaign: Campaign) {
     },
     margins(state: Snapshot) {
       const atMinute = state.clock.elapsedMinutes;
+      for (const { itemId } of state.launchManifest.items) {
+        launchItemsManifested.add(itemId);
+      }
       // Unlocking is a command, which brings no event from advancing the game.
       for (const designId of state.unlockedDesignIds) {
         if (
@@ -968,6 +974,7 @@ function recorder(campaign: Campaign) {
         fundingAtEndMillionDollars: state.fundingMillionDollars,
         researchTasksCompleted,
         designsUnlocked,
+        launchItemsManifested: [...launchItemsManifested],
         structureTypesBuilt,
         minutesUntilDoseLimit:
           campaign.forecasts().radiationDose.minutesUntilLimit,
