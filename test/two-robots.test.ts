@@ -9,13 +9,10 @@ import type {
   Snapshot,
 } from "../src/simulation";
 import { scenario, toGameMinutes, type Scenario } from "./scenario";
-import {
-  describeWork,
-  formatEvent,
-  isEveryRobotOnExpedition,
-  isFor,
-  robotLabel,
-} from "../src/ui/format";
+import { isEveryRobotOnExpedition } from "../src/ui/base-panel-text";
+import { describeWork, isFor } from "../src/ui/construction-panel-text";
+import { robotLabel } from "../src/ui/labels";
+import { formatEvent } from "../src/ui/notifications-text";
 import { changed, withSpares, worn } from "./worn";
 
 // Two Robots at the landing site; nothing strikes at random, and nobody

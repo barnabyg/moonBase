@@ -7,12 +7,9 @@ import {
 } from "../simulation";
 import { describeScienceReach, nextDesigns } from "./describe";
 import { setText } from "./dom";
-import {
-  formatDuration,
-  formatObservingProgramme,
-  formatScience,
-  researchTaskLabel,
-} from "./format";
+import { formatDuration, formatScience } from "./format";
+import { researchTaskLabel } from "./labels";
+import { formatObservingProgramme } from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";

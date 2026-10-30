@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue, type ResearchTask } from "../src/catalogue";
 import { loadCampaign, type Campaign, type GameEvent } from "../src/simulation";
-import { formatEvent } from "../src/ui/format";
+import { formatEvent } from "../src/ui/notifications-text";
 import { scenario } from "./scenario";
 
 const [shortTask, otherTask] = catalogue.researchTasks;

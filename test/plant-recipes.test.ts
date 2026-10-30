@@ -11,7 +11,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatPlantRates } from "../src/ui/format";
+import { formatPlantRates } from "../src/ui/structure-state";
 import { DEFAULT_SEED } from "./scenario";
 import { changed } from "./worn";
 

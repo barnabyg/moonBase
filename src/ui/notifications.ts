@@ -1,5 +1,6 @@
 import type { Campaign, GameEvent } from "../simulation";
-import { formatEvent, formatMoment } from "./format";
+import { formatMoment } from "./format";
+import { formatEvent } from "./notifications-text";
 import { holdHeight } from "./hold";
 
 /** How many of the latest notifications stay on screen. */

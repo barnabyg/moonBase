@@ -7,7 +7,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatLifeSupport } from "../src/ui/format";
+import { formatLifeSupport } from "../src/ui/status-panel-text";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
 

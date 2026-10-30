@@ -12,7 +12,7 @@ import {
   summariseStock,
   summariseResearch,
   summariseTravel,
-} from "../src/ui/format";
+} from "../src/ui/status-panel-text";
 import { toGameMinutes } from "./scenario";
 
 /** A power network as the status panel reads it, with nothing in it unless given. */

@@ -1,7 +1,7 @@
 import type { SaveFiles } from "../game/save-files";
 import type { Snapshot } from "../simulation";
 import { setText } from "./dom";
-import { formatDeath } from "./format";
+import { formatDeath } from "./game-over-text";
 import { createSaveButtons } from "./save-buttons";
 
 export interface GameOverScreen {

@@ -2,16 +2,14 @@ import { catalogue } from "../catalogue";
 import type { Snapshot, StructureSnapshot } from "../simulation";
 import { setText } from "./dom";
 import {
-  formatCondition,
   formatMachine,
   formatRobot,
   formatRover,
   describeRepair,
-  machineLabel,
-  robotLabel,
-  structureLabel,
-  type Stat,
-} from "./format";
+} from "./base-panel-text";
+import { formatCondition } from "./format";
+import { machineLabel, robotLabel, structureLabel } from "./labels";
+import type { Stat } from "./stat";
 import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";

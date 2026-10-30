@@ -1,6 +1,14 @@
 import { setText } from "./dom";
-import type { Stat } from "./format";
 import { holdHeight } from "./hold";
+
+/**
+ * A figure in the status panel: its value, and an optional note on where
+ * it is heading, shown after it, for example "24.2 kg" and "lasts 28d 19h".
+ */
+export interface Stat {
+  readonly value: string;
+  readonly note?: string;
+}
 
 export interface StatLine {
   readonly element: HTMLElement;

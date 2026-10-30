@@ -1,6 +1,6 @@
 import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot, StructureSnapshot } from "../simulation";
-import { structureLabel } from "./format";
+import { structureLabel } from "./labels";
 import type { ChoiceResult } from "./refusal";
 import { isHabitat, isToBeDismantled } from "./structure-state";
 

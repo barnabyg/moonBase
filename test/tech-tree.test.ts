@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { loadCampaign } from "../src/simulation";
-import { formatEvent } from "../src/ui/format";
+import { formatEvent } from "../src/ui/notifications-text";
 import { earnScience } from "./designs";
 import { scenario } from "./scenario";
 

@@ -3,7 +3,7 @@ import type { ObservingProgrammeSnapshot } from "../src/simulation";
 import {
   explainObservingProgramme,
   formatObservingProgramme,
-} from "../src/ui/format";
+} from "../src/ui/status-panel-text";
 
 /** The observing programme as the status panel reads it, with one telescope unless given. */
 function programme(

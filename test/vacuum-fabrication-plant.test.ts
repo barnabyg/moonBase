@@ -6,11 +6,8 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import {
-  formatBulkResources,
-  formatPlant,
-  formatPlantRates,
-} from "../src/ui/format";
+import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
 

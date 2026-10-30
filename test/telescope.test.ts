@@ -12,7 +12,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { formatEvent } from "../src/ui/format";
+import { formatEvent } from "../src/ui/notifications-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 

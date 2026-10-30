@@ -1,7 +1,9 @@
 import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot } from "../simulation";
 import { setText } from "./dom";
-import { describeExpedition, formatDuration, resourceLabel } from "./format";
+import { formatDuration } from "./format";
+import { resourceLabel } from "./labels";
+import { describeExpedition } from "./status-panel-text";
 import { createScreen } from "./screen";
 
 export interface ExpeditionsScreen {

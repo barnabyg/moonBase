@@ -8,7 +8,9 @@ import {
   type RobotSnapshot,
   type Snapshot,
 } from "../src/simulation";
-import { formatEvent, formatRobot, robotLabel } from "../src/ui/format";
+import { formatRobot } from "../src/ui/base-panel-text";
+import { robotLabel } from "../src/ui/labels";
+import { formatEvent } from "../src/ui/notifications-text";
 import { findDesign, unlock } from "./designs";
 import { scenario, type Scenario } from "./scenario";
 
