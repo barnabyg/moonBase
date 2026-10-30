@@ -71,6 +71,17 @@ It takes about 5 minutes (`scripts/long-game.mjs` stops it at a hard limit of 30
 
 Like the reference Campaign, it says why and fails if a step can't go on. It also fails if a Research Task wasn't completed or a Design wasn't unlocked by the end, if the Mission Director died, or if it built nothing of a Design `designsTheLongGameUses` says it uses. A later Act adds its steps to `longGameSteps`, its Designs to that list, and moves `LONG_GAME_END_EARTH_DAY` out as the Mission Director gets a way to live past the Radiation Dose limit.
 
+## The catalogue's consistency rules
+
+`test/catalogue-rules.test.ts` holds the data catalogue to these rules with the other tests, so that a bad addition fails with a clear reason, naming the item and the rule, and nobody has to replay the game to find it:
+
+- **`design-has-a-purpose`:** every Design brings something the long-game play guide uses (`designsTheLongGameUses`), or something from another Design does the same job, so that it offers a choice.
+- **`design-not-beaten`:** no Design is beaten outright by something at least as cheap, in Science on the way to it, money and mass, and at least as good at the same job, as the pacing report works it out.
+- **`export-can-be-sold`:** every Export can be made by some Plant, and sold within the Return Mass.
+- **`bulk-resource-has-a-use`:** every bulk resource goes into some Plant, or is an Export.
+
+An item may break a rule only if it is on the exemption list in `test/catalogue-rules.ts`, with the reason. An exemption for something that no longer breaks the rule fails too, so the list can't go stale.
+
 ## Balancing
 
 The data catalogue's numbers are balanced against the reference Campaign's timeline, so that a new player can play from the landing to a self-sufficient, export-funded base by following the Milestones, and carry on afterwards. Every balancing change is in the data catalogue; none is in code.
