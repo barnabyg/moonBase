@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { catalogue, type Catalogue } from "../src/catalogue";
-import type {
-  GameEvent,
-  GroundPosition,
-  Snapshot,
-  StructureSnapshot,
+import {
+  loadCampaign,
+  type GameEvent,
+  type GroundPosition,
+  type Snapshot,
+  type StructureSnapshot,
 } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed } from "./worn";
@@ -50,21 +51,59 @@ function structureOf(
 }
 
 /**
+ * The saved text of a game played once, by name, and loaded afresh for each
+ * test: saved as first played, however many tests go on from there.
+ */
+const saves = new Map<string, string>();
+function shared(name: string, play: () => Scenario): Scenario {
+  let text = saves.get(name);
+  if (text === undefined) {
+    text = play().campaign.save();
+    saves.set(name, text);
+  }
+  const loaded = loadCampaign(text);
+  if (!loaded.ok) throw new Error(loaded.message);
+  return scenarioOf(loaded.campaign);
+}
+
+/**
  * A solar array, a battery bank, a Habitat and one or more Light Masts, all
  * commissioned and joined by cable, with the Mission Director still aboard
  * the Lander.
  */
 function poweredBase(lightMasts = 1): Scenario {
-  const game = scenario()
-    .plan("solar-array", solarSite)
-    .plan("battery-bank", batterySite)
-    .plan("habitat", habitatSite);
-  for (const site of mastSites.slice(0, lightMasts)) {
-    game.plan("light-mast", site);
-  }
-  runUntil(game, (state) => state.constructions.length === 0);
+  const game = shared(`${lightMasts} Light Masts`, () => {
+    const played = scenario()
+      .plan("solar-array", solarSite)
+      .plan("battery-bank", batterySite)
+      .plan("habitat", habitatSite);
+    for (const site of mastSites.slice(0, lightMasts)) {
+      played.plan("light-mast", site);
+    }
+    runUntil(played, (state) => state.constructions.length === 0);
+    return played;
+  });
   expect(game.state.power.networks).toHaveLength(1);
   return game;
+}
+
+/** `poweredBase` as its first Night falls. */
+function poweredBaseAtNightfall(lightMasts = 1): Scenario {
+  return shared(`${lightMasts} Light Masts at nightfall`, () => {
+    const played = poweredBase(lightMasts);
+    played.advance({ minutes: played.state.lunation.minutesRemaining });
+    expect(played.state.lunation.part).toBe("night");
+    return played;
+  });
+}
+
+/** `poweredBase` as its Habitat first loses power, with nobody in it. */
+function poweredBaseOutOfPower(): Scenario {
+  return shared("out of power", () => {
+    const played = poweredBaseAtNightfall();
+    runUntil(played, (state) => !structureOf(state, "habitat").powered);
+    return played;
+  });
 }
 
 function moveIn(game: Scenario): string {
@@ -83,8 +122,7 @@ function forecastPowerLost(game: Scenario): number {
 
 describe("power by priority", () => {
   it("keeps the Habitat powered while a Light Mast on the same network loses power", () => {
-    const game = poweredBase();
-    runUntil(game, (state) => state.lunation.part === "night");
+    const game = poweredBaseAtNightfall();
     expect(game.state.structures.every((structure) => structure.powered)).toBe(
       true,
     );
@@ -113,8 +151,7 @@ describe("power by priority", () => {
     // Stored energy for ten hours of the Night, and half a game-minute of
     // the Habitat's draw over, so that the battery's last game-minute of
     // energy falls short of what the Habitat draws in a game-minute.
-    const base = poweredBase(0);
-    runUntil(base, (state) => state.lunation.part === "night");
+    const base = poweredBaseAtNightfall(0);
     const bankId = structureOf(base.state, "battery-bank").id;
     const drawn = base.state.power.networks[0]?.consumptionKilowatts ?? 0;
     const game = scenarioOf(
@@ -142,9 +179,9 @@ describe("power by priority", () => {
   });
 
   it("kills nobody when the Habitat loses power with nobody in it", () => {
-    const game = poweredBase();
+    const game = poweredBaseOutOfPower();
+    expect(structureOf(game.state, "habitat").powered).toBe(false);
 
-    runUntil(game, (state) => !structureOf(state, "habitat").powered);
     game.advance({ earthDays: 1 });
 
     expect(game.state.ended).toBeUndefined();
@@ -154,8 +191,7 @@ describe("power by priority", () => {
 
 describe("moving into a Habitat without power", () => {
   it("is refused, with a reason", () => {
-    const game = poweredBase();
-    runUntil(game, (state) => !structureOf(state, "habitat").powered);
+    const game = poweredBaseOutOfPower();
     const habitatId = structureOf(game.state, "habitat").id;
 
     const result = game.campaign.moveMissionDirectorIn(habitatId);
@@ -171,10 +207,7 @@ describe("the Habitat power forecast", () => {
   it.each(["daylight", "night"] as const)(
     "says when the Mission Director's Habitat will lose power, moving in during %s, and they die exactly then",
     (part) => {
-      const game = poweredBase();
-      if (part === "night") {
-        runUntil(game, (state) => state.lunation.part === "night");
-      }
+      const game = part === "night" ? poweredBaseAtNightfall() : poweredBase();
       const habitatId = moveIn(game);
       const forecast = game.campaign.forecasts().habitatPower;
       expect(forecast?.habitatId).toBe(habitatId);
@@ -207,10 +240,9 @@ describe("the Habitat power forecast", () => {
 
 describe("letting the battery run flat at Night with the Mission Director in the Habitat", () => {
   it("warns on the first game-minute when the Mission Director moves in with less power left than a warning level", () => {
-    const game = poweredBase();
+    const game = poweredBaseAtNightfall();
     const [firstLevel = 0, secondLevel = 0] =
       catalogue.habitatPowerWarningHoursLeft.map((hours) => hours * 60);
-    runUntil(game, (state) => state.lunation.part === "night");
     // An hour inside the first warning level of what is stored, at the
     // Night's rate.
     runUntil(game, (state) => {

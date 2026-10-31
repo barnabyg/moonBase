@@ -22,15 +22,11 @@ const sites: readonly [string, GroundPosition][] = [
   ["light-mast", { x: 40, y: -10 }],
 ];
 
-/** Runs the game a game-minute at a time until the condition holds, keeping the events. */
-function runUntil(
-  game: Scenario,
-  done: (state: Snapshot) => boolean,
-  events: GameEvent[] = [],
-): GameEvent[] {
+/** Runs the game a game-minute at a time until the condition holds. */
+function runUntil(game: Scenario, done: (state: Snapshot) => boolean): void {
   for (let minute = 0; minute < 40 * 24 * 60; minute++) {
-    if (done(game.state)) return events;
-    events.push(...game.campaign.advance(1));
+    if (done(game.state)) return;
+    game.campaign.advance(1);
   }
   throw new Error("It never happened.");
 }
@@ -70,7 +66,8 @@ let atNightfall: string | undefined;
 function startingBaseAtNightfall(): Scenario {
   if (atNightfall === undefined) {
     const game = startingBase();
-    runUntil(game, (state) => state.lunation.part === "night");
+    game.campaign.advance(game.state.lunation.minutesRemaining);
+    expect(game.state.lunation.part).toBe("night");
     atNightfall = game.campaign.save();
   }
   const loaded = loadCampaign(atNightfall);
@@ -97,17 +94,18 @@ function firstNight(): FirstNight {
     const game = startingBaseAtNightfall();
     const events = [...game.campaign.advance(60)];
     const lightsAnHourIn = lightsOf(game.state);
+    // Looked at every ten game-minutes, far more often than the lights change.
     let everyLightSavedPower = false;
-    runUntil(
-      game,
-      (state) => {
-        everyLightSavedPower ||= lightsOf(state).every(
-          (light) => light.savingPower,
-        );
-        return state.lunation.part === "daylight" || state.ended !== undefined;
-      },
-      events,
-    );
+    let state = game.state;
+    while (state.lunation.part === "night" && state.ended === undefined) {
+      everyLightSavedPower ||= lightsOf(state).every(
+        (light) => light.savingPower,
+      );
+      events.push(
+        ...game.campaign.advance(Math.min(10, state.lunation.minutesRemaining)),
+      );
+      state = game.state;
+    }
     firstNightPlayed = {
       lightsAnHourIn,
       everyLightSavedPower,

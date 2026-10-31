@@ -54,13 +54,18 @@ function shieldedAsAnEventComes(): Scenario {
 }
 
 /**
- * The saved text of `shieldedAsAnEventComes`, for the tests that need only a
- * valid save: played once and shared, as a save's text never changes.
+ * `shieldedAsAnEventComes` played once and shared by the tests that only look
+ * at it, and don't advance it or give it commands.
  */
-let shieldedSave: string | undefined;
+let shieldedPlayed: Scenario | undefined;
+function shieldedToLookAt(): Scenario {
+  shieldedPlayed ??= shieldedAsAnEventComes();
+  return shieldedPlayed;
+}
+
+/** The saved text of `shieldedToLookAt`, for the tests that need only a valid save. */
 function validSave(): string {
-  shieldedSave ??= shieldedAsAnEventComes().campaign.save();
-  return shieldedSave;
+  return shieldedToLookAt().campaign.save();
 }
 
 function load(text: string): Campaign {
@@ -88,9 +93,7 @@ interface SaveJson {
 
 describe("a save document", () => {
   it("is JSON with the format, its version, the random generator state and the simulation state", () => {
-    const document = JSON.parse(
-      shieldedAsAnEventComes().campaign.save(),
-    ) as SaveJson;
+    const document = JSON.parse(validSave()) as SaveJson;
 
     expect(document).toMatchObject({
       format: "moonbase-save",
@@ -125,7 +128,7 @@ describe("a save document", () => {
   });
 
   it("starts a Campaign identical to the one saved", () => {
-    const game = shieldedAsAnEventComes();
+    const game = shieldedToLookAt();
     const saved = game.campaign.save();
 
     const loaded = load(saved);
@@ -170,7 +173,7 @@ describe("a save document", () => {
   });
 
   it("starts a Campaign that shares nothing with the one saved", () => {
-    const game = shieldedAsAnEventComes();
+    const game = shieldedToLookAt();
     const loaded = load(game.campaign.save());
 
     loaded.advance(60);

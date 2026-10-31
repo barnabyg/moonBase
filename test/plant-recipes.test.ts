@@ -140,6 +140,33 @@ function structureOf(
   return found;
 }
 
+/**
+ * The base with a window's history behind it, but for the record under way:
+ * what the Plants made only just covering what the Mission Director used, and
+ * water closer still, so that it stays self-sufficient only if the
+ * water-processing plant carries on. A stand-in for playing a whole Lunation
+ * first, and for the surplus of one that the window would take as long to
+ * move past.
+ */
+function aRecordShortOfAWindow(): Campaign {
+  const { recordHours } = catalogue.selfSufficiency;
+  const records = windowMinutes / (recordHours * 60);
+  return changed(base(), (state) => {
+    for (const history of state.selfSufficiency) {
+      const usePerEarthDay =
+        catalogue.lifeSupportStocks.find(
+          (stock) => stock.id === history.stockId,
+        )?.usePerEarthDayKilograms ?? Number.NaN;
+      const usedKilograms = (usePerEarthDay / 24) * recordHours;
+      history.records = Array.from({ length: records - 1 }, () => ({
+        producedKilograms:
+          (history.stockId === "oxygen" ? 1.02 : 1.001) * usedKilograms,
+        usedKilograms,
+      }));
+    }
+  });
+}
+
 /** The base with both Plants running, in Daylight. */
 function running(): Campaign {
   const campaign = base();
@@ -297,7 +324,7 @@ describe("a Plant's recipe", () => {
   });
 
   it("switched to metals and silicon, loses the base its self-sufficiency in oxygen", () => {
-    const campaign = base();
+    const campaign = aRecordShortOfAWindow();
     const gained = until(
       campaign,
       (event) =>

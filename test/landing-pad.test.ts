@@ -8,11 +8,13 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { worn } from "./worn";
 
 // The Mission Director has to live in the Habitat through several round
-// trips, and the Funding has to pay for more than one Launch.
+// trips, and the Funding has to pay for more than one Launch. A round trip
+// takes 3 Earth Days rather than 10, as trips take most of these tests' time
+// and none of them looks at how long one takes.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
@@ -27,6 +29,10 @@ vi.mock("../src/catalogue", async (importOriginal) => {
         "solar-particle-events",
       ]),
       programmeGrantMillionDollars: 2000,
+      lander: {
+        ...actual.catalogue.lander,
+        roundTripEarthDays: { toEarth: 1, turnaround: 1, toMoon: 1 },
+      },
     },
   };
 });
@@ -90,20 +96,30 @@ function inStock(state: Snapshot, componentId: string): number {
 /**
  * The Mission Director in a Habitat, the Lander back at the landing site
  * from bringing a landing pad's Components, the pad commissioned, and a
- * light mast standing near the landing site.
+ * light mast standing near the landing site. Played once, and loaded afresh
+ * for each test.
  */
+let withPadSave: string | undefined;
 function withPad(): { game: Scenario; padId: string } {
-  const game = buildAll(
-    scenario().plan("habitat", habitatSite).plan("light-mast", nearLandingSite),
-  );
-  const movedIn = game.campaign.moveMissionDirectorIn(
-    structure(game.state, "habitat").id,
-  );
-  if (!movedIn.ok) throw new Error(movedIn.message);
-  setManifest(game, padComponents);
-  send(game);
-  skipUntil(game, "lander-landed");
-  buildAll(game.plan(padType?.id ?? "", padSite));
+  if (withPadSave === undefined) {
+    const played = buildAll(
+      scenario()
+        .plan("habitat", habitatSite)
+        .plan("light-mast", nearLandingSite),
+    );
+    const movedIn = played.campaign.moveMissionDirectorIn(
+      structure(played.state, "habitat").id,
+    );
+    if (!movedIn.ok) throw new Error(movedIn.message);
+    setManifest(played, padComponents);
+    send(played);
+    skipUntil(played, "lander-landed");
+    buildAll(played.plan(padType?.id ?? "", padSite));
+    withPadSave = played.campaign.save();
+  }
+  const loaded = loadCampaign(withPadSave);
+  if (!loaded.ok) throw new Error(loaded.message);
+  const game = scenarioOf(loaded.campaign);
   return { game, padId: structure(game.state, "landing-pad").id };
 }
 

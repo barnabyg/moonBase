@@ -15,6 +15,10 @@ export interface SavedState {
   stockpile: { components: { componentId: string; count: number }[] };
   bulkResources: { resourceId: string; kilograms: number }[];
   lifeSupport: { stockId: string; kilograms: number }[];
+  selfSufficiency: {
+    stockId: string;
+    records: { producedKilograms: number; usedKilograms: number }[];
+  }[];
   fundingMillionDollars: number;
   launchFeePaidMillionDollars: number | null;
   science: number;
