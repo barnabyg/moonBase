@@ -37,12 +37,15 @@ Milestones guide a new player through the Campaign. They carry no rewards and ne
 7. **First Export:** an Export is sold as the Lander reaches Earth.
 8. **Oxygen self-sufficiency:** as the status panel judges it (see [Self-sufficiency](#self-sufficiency)).
 9. **Water self-sufficiency:** the same, for water.
+10. **Workshop running:** a Plant that makes spare Components has started a batch.
+11. **Self-sufficiency in spare Components:** as the status panel judges it (see [Self-sufficiency](#self-sufficiency)).
+12. **Metals sold:** an Export of metals is sold as the Lander reaches Earth.
 
 ### Acts
 
-Each Milestone belongs to an Act, set in the data catalogue. All nine above make up Act 1, the only Act so far; `docs/reference-campaign.md` has the Acts planned after it. Like Milestones, Acts carry no rewards and never end the Campaign.
+Each Milestone belongs to an Act, set in the data catalogue. The first nine above make up Act 1, and the last three Act 2: Independence; `docs/reference-campaign.md` has the Acts planned after them. Like Milestones, Acts carry no rewards and never end the Campaign.
 
-The current Act is the Act of the current Milestone, or the last Act once every Milestone is reached. It isn't saved: it comes from the Milestones reached, so a save, however old, loads in the Act they imply. The Milestones section of the status panel shows its name and what it asks, above the current Milestone. The line for the next Milestone also names that Milestone's Act if it is a later one. Once every Milestone is reached, the section says so, and that the Campaign carries on, with one Act or several.
+The current Act is the Act of the current Milestone, or the last Act once every Milestone is reached. It isn't saved: it comes from the Milestones reached, so a save, however old, loads in the Act they imply: one with Act 1's Milestones all reached loads straight into Act 2, and says nothing of it beyond the panel. The Milestones section of the status panel shows its name and what it asks, above the current Milestone. The line for the next Milestone also names that Milestone's Act if it is a later one. Once every Milestone is reached, the section says so, and that the Campaign carries on, with one Act or several.
 
 A notification marks the start of a new Act, the moment reaching a Milestone moves the current Act on. Reaching a Milestone of a later Act early doesn't do so while one of an earlier Act is left, and passing over an Act whose Milestones were all reached early gives only the one notification, for the Act that is now current. No notification comes for Act 1 at the landing, or on loading a save.
 
@@ -112,7 +115,7 @@ Once the Mission Director has moved into a Habitat, "Send the Lander" sends it o
 
 ## Exports
 
-Wafers and circuit boards are Exports. The Launch manifest screen's Exports tab sets how many kilograms of each to load, against the Lander's Return Mass and the base's stock, with what they will sell for. Its Aboard column shows the kilograms of each already on the Lander, until they are sold. They can't be changed while the Lander is away.
+Wafers, circuit boards and metals are Exports. A Plant's rate is what limits circuit boards, but metals are cheap to make and sell for little by the kilogram, so they run into the Return Mass instead: they are for filling what the circuit boards leave of it, and a full Return Mass of them doesn't pay the Launch fee. The Launch manifest screen's Exports tab sets how many kilograms of each to load, against the Lander's Return Mass and the base's stock, with what they will sell for. Its Aboard column shows the kilograms of each already on the Lander, until they are sold. They can't be changed while the Lander is away.
 
 - **At the landing site**, Exports stay in the base's stock until take-off, then go aboard (as much as is left).
 - **On a landing pad**, setting them raises a loading Work Order, and a Robot carries them aboard. Until it picks them up, changing the amounts changes what it carries and clearing them cancels the loading; once it has them, changes and sending the Lander are refused until they are aboard. You can then set more for another round of loading.
@@ -171,7 +174,7 @@ The base keeps bulk resources at the stockpile, measured in kilograms: Regolith,
 
 ## Plants
 
-A Plant is a Structure that runs a recipe by itself once commissioned: it turns bulk resources (or Regolith) into others, or into oxygen or water, or, in a Workshop, metals into spare Components. Its Components come by Launch, and a Robot lays it a cable like any other. It draws power only while running, last of everything on its network, so it can never take power from the Habitat.
+A Plant is a Structure that runs a recipe by itself once commissioned: it turns bulk resources (or Regolith) into others, or into oxygen or water, or, in a Workshop or an array works, into Components, or, in a cold-trap ice line, takes nothing in and brings water ice from the ground. Its Components come by Launch, and a Robot lays it a cable like any other. It draws power only while running, last of everything on its network, so it can never take power from the Habitat.
 
 A Plant works in batches, each a game-hour of its recipe, or more if the recipe says so: a Workshop's makes one whole spare Component, and takes a whole Earth Day. It starts one only once a batch's worth of every input is in stock, and takes them as it starts; the batch's outputs come as it finishes, a batch's length later at full Condition and longer below it, and the next batch starts straight after if the inputs are there. A batch needs power to spare the whole time it runs: without it, as at Night once the battery banks have none to spare, the batch waits with the work done on it kept, and finishes once there is power again. A Broken Plant's batch waits for its repair. A batch is lost if its Plant is dismantled.
 
@@ -187,18 +190,24 @@ The Base panel says what each Plant is doing: running, with the time left of its
 | Large extraction plant       | Molten regolith electrolysis | The extraction plant's two recipes, faster and for less power for each kilogram                    |
 | Integrated fabrication plant | Integrated fabrication       | Circuit boards from silicon and metals, or wafers alone; needs a large extraction plant to feed it |
 | Workshop                     | Parts machining              | Spare Components, from metals, one every Earth Day                                                 |
+| Array works                  | Array fabrication            | Either solar panels, from silicon and metals, or array masts, from metals, one every Earth Day     |
+| Cold-trap ice line           | Cold-trap mining             | Water ice, straight from the ground, with no Robot going for it                                    |
 
 A Plant with more than one recipe has a recipe list beside it in the Base panel. Choosing another switches it from its next batch, as one it has started finishes with the recipe it was started with; it is a setting, so no Robot does any work for it. The forecasts follow the recipe each Plant runs. So that they never run ahead of the stocks, they count what each running Plant makes a batch late, as it comes only as the batch finishes, and the inputs it has taken for its batch as if it used them evenly through the hour: while production outruns use, the status panel shows a stock rising instead of when it runs out. Plants may stand idle at Night, so the oxygen and water forecasts count on them making nothing through it: in Daylight they follow the current rate to nightfall, then what the Mission Director uses through the Night, and so on through the Lunations ahead, and at Night they look as far as the next Daylight. A stock that is rising but won't last the Night ahead shows when it will run out, and its warnings come before Night falls; one that will last it gets none.
 
 "Switch off" beside a Plant in the Base panel stops it starting batches, to keep an input it would use, or to leave its share of the spare Daylight power to the Plants after it; "Switch on" lets it start them again from the next game-minute. Both are settings, so no Robot does any work for them. A batch it has started when switched off finishes, as its inputs are already taken, and the Base panel says it is its last. The forecasts count a switched-off Plant as making and using nothing from the moment it is switched off, and the oxygen and water lines in the status panel name any that would make them. Standing idle, it wears no further by Dust, but Micrometeorites can still strike it and the Robot still maintains it, so that it is ready to switch back on.
 
-A Workshop's spare Components join the base's stock as each batch finishes, and Maintenance uses them like any others. Running through the Daylight, it makes a little more than a base of about a dozen Structures uses in a Lunation, on most of the metals such a base has to spare beside its circuit board plant, so once it runs the base can stop spending Payload Mass on spares, but has little metal left over for anything else. Switch it off once there are enough in stock to keep the metals.
+A Workshop's spare Components join the base's stock as each batch finishes, and Maintenance uses them like any others. Running through the Daylight, it makes a little more than a base of about a dozen Structures uses in a Lunation, on most of the metals such a base has to spare beside its circuit board plant, so once it runs the base can stop spending Payload Mass on spares, and a Launch that would have brought only those can bring nothing and pay no fee, but has little metal left over for anything else. A larger base needs a second one. Switch it off once there are enough in stock to keep the metals.
+
+An array works makes what a solar array is built from, so that more power needs no Launch, at the cost of silicon and metals that would otherwise have been sold. It can make far more than a base uses: switch it off once there are enough.
 
 An extraction plant, a vacuum fabrication plant and a circuit board plant are balanced to run together on what two solar arrays can spare. One extraction plant can't keep the Mission Director in oxygen and feed a vacuum fabrication plant at once, so switch its recipe as the stocks need, or ship a second.
 
 ### Self-sufficiency
 
 The status panel shows whether the base is self-sufficient in oxygen and in water: whether, over the last Lunation, its Plants made at least as much as the Mission Director used, judged at regular intervals. Because it looks back a whole Lunation, it holds through a Night when the Plants stand idle. It can't hold before a whole Lunation has passed since the Campaign began (or since an older save was loaded), or while the Mission Director lives aboard the Lander. Gaining and losing it are notifications.
+
+Once the base has a Plant that makes spare Components, it shows the same for them: whether, over the last Lunation, its Plants made at least as many as Maintenance and the Robots' repairs of themselves used. What a Launch brings doesn't count.
 
 ## Research and the Tech Tree
 
@@ -212,28 +221,32 @@ Unlocking a Design is permission, not the thing itself: its items appear on the 
 
 The Designs beyond the starting ones:
 
-| Category     | Design                       | Unlocks                                                                                               |
-| ------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                             |
-| Power        | Thin-film solar cells        | A thin-film solar array: more power from a lighter array                                              |
-| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                       |
-| Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning         |
-| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                 |
-| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                      |
-| Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                               |
-| Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                              |
-| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                |
-| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                            |
-| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                          |
-| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation)) |
-| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                         |
-| Life Support | Bulk supply tanks            | Larger, cheaper-for-each-kilogram oxygen and water tanks for the Launch manifest                      |
-| Industry     | Molten regolith electrolysis | A large extraction plant                                                                              |
-| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                       |
-| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                          |
-| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                          |
-| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                           |
-| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded       |
+| Category     | Design                       | Unlocks                                                                                                    |
+| ------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                                  |
+| Power        | Thin-film solar cells        | A thin-film solar array: more power from a lighter array                                                   |
+| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                            |
+| Power        | Concentrator towers          | A concentrator tower: as much power as ten solar arrays, with far less to clean and repair, far dearer     |
+| Power        | Thermal storage              | A thermal store: as much as a row of large battery banks in one Launch, with less to keep warm, far dearer |
+| Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning              |
+| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                      |
+| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                           |
+| Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                                    |
+| Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                                   |
+| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                     |
+| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                                 |
+| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                               |
+| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation))      |
+| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                              |
+| Life Support | Bulk supply tanks            | Larger, cheaper-for-each-kilogram oxygen and water tanks for the Launch manifest                           |
+| Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))         |
+| Industry     | Molten regolith electrolysis | A large extraction plant                                                                                   |
+| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                            |
+| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                               |
+| Industry     | Array fabrication            | An array works, which makes solar panels and array masts at the base (see [Plants](#plants))               |
+| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                               |
+| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                                |
+| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded            |
 
 A hardened Structure does the same job as the one it is based on, on the same footprint, but wears down more slowly, and the Mission Director can move into a hardened Habitat and shield it as usual. Unlocking some Designs also offers new Research Tasks.
 

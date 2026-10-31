@@ -50,11 +50,11 @@ describe.each(unlockable)("the $label", (type) => {
       }
     }
 
-    if (ownItems.length > 0) {
+    // Each on its own: a dear Structure's whole kit needs more than the
+    // Programme Grant, which is the point of it.
+    for (const item of ownItems) {
       expect(
-        campaign.setLaunchManifest(
-          ownItems.map((item) => ({ itemId: item.id, count: 1 })),
-        ),
+        campaign.setLaunchManifest([{ itemId: item.id, count: 1 }]),
       ).toEqual({ ok: true });
     }
     expect(

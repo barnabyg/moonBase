@@ -152,9 +152,9 @@ export function formatEvent(
     case "design-unlocked":
       return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
-      return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+      return `The base is now self-sufficient in ${selfSufficiencySubject(event.stockId)}`;
     case "self-sufficiency-lost":
-      return `The base is no longer self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+      return `The base is no longer self-sufficient in ${selfSufficiencySubject(event.stockId)}`;
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
@@ -177,6 +177,13 @@ export function formatManifestLines(lines: readonly ManifestLine[]): string {
       return `${count} × ${item === undefined ? itemId : launchItemLabel(item)}`;
     }),
   );
+}
+
+/** What the base is or isn't self-sufficient in, for a sentence. */
+function selfSufficiencySubject(stockId: string): string {
+  return stockId === catalogue.maintenance.spareComponentId
+    ? "spare Components"
+    : stockLabel(stockId).toLowerCase();
 }
 
 /**

@@ -10,7 +10,7 @@ import {
   scienceEarners,
   scienceTimeline,
 } from "./pacing-report";
-import { componentMakers, offerings } from "./pacing-report";
+import { actBalance, componentMakers, offerings } from "./pacing-report";
 import {
   bulk,
   design,
@@ -377,6 +377,7 @@ describe("what a Launch earns, for each Export", () => {
         profitMillionDollars: 150,
         launchesToBuyEverything: 5,
         earthDaysPerTrip: 10,
+        limitedBy: "return-mass",
       },
       {
         resourceId: "dross",
@@ -385,6 +386,7 @@ describe("what a Launch earns, for each Export", () => {
         profitMillionDollars: -25,
         launchesToBuyEverything: undefined,
         earthDaysPerTrip: 10,
+        limitedBy: "return-mass",
       },
     ]);
   });
@@ -574,13 +576,31 @@ describe("the pacing report on today's catalogue", () => {
   const report = formatPacingReport(catalogue).join("\n");
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
-    expect(report).toContain("389.5 Earth Days");
-    expect(report).toContain("2775 Science");
+    expect(report).toContain("885 Earth Days");
+    expect(report).toContain("5725 Science");
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$2010M");
-    expect(report).toMatch(/Circuit boards.*14 Launches/);
+    expect(report).toContain("$6220M");
+    expect(report).toMatch(/Circuit boards.*42 Launches/);
+  });
+
+  it("says what limits each Export, and they differ", () => {
+    expect(report).toMatch(/Circuit boards: .*What limits it: a Plant's rate/);
+    expect(report).toMatch(/Metals: .*What limits it: the Return Mass/);
+  });
+
+  it("gives Act 2's Science and Funding, with Designs still to buy at Earth Day 700", () => {
+    const act = actBalance(catalogue);
+
+    expect(act.designsLeftIds.length).toBeGreaterThan(0);
+    expect(Math.abs(act.researchEndsEarthDay - 900)).toBeLessThan(50);
+    expect(act.scienceSpent).toBeGreaterThan(0);
+    expect(act.purchasesMillionDollars).toBeGreaterThan(
+      act.incomeMillionDollars / 2,
+    );
+    expect(report).toContain("Science and Funding over Act 2");
+    expect(report).toContain("At Earth Day 700 there are still to buy");
   });
 
   it("says what it assumes", () => {

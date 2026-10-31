@@ -16,7 +16,7 @@ import {
   type StructureState,
 } from "./construction";
 import { readLunation } from "./lunation";
-import { recordLifeSupport } from "./self-sufficiency";
+import { recordLifeSupport, recordSpareComponents } from "./self-sufficiency";
 import { addToStock, inStock } from "./stockpile";
 
 /**
@@ -408,6 +408,9 @@ export function runPlants(state: CampaignState): void {
       }
     }
     addToStock(state, componentOutputs(working));
+    recordSpareComponents(state, {
+      made: madeInABatch(working, catalogue.maintenance.spareComponentId),
+    });
     structure.batch = undefined;
   }
 }

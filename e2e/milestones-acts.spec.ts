@@ -5,8 +5,8 @@ import { actsCatalogueModule } from "../test/with-acts";
 import type { SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
 
-// The real catalogue has one Act until later ones are written, so the tests of
-// several run on made-up ones.
+// These run on made-up Acts, to try more than the real catalogue has yet. The
+// tests of Act 2 itself are in `act-2.spec.ts`.
 
 const milestoneIds = catalogue.milestones.map((milestone) => milestone.id);
 
@@ -74,7 +74,7 @@ function milestonesSection(page: Page) {
   };
 }
 
-test("with one Act, the panel shows it and what it asks, and says so sensibly once the last Milestone is reached, with no line below moving up", async ({
+test("with the last Milestone reached, the panel shows the last Act, and says so sensibly, with no line below moving up", async ({
   page,
 }) => {
   await page.goto("/?seed=1");
@@ -99,8 +99,10 @@ test("with one Act, the panel shows it and what it asks, and says so sensibly on
   await expect(section.notifications).toContainText(
     "Milestone reached: Power storage before the first Night",
   );
-  await expect(section.notifications).not.toContainText("begins");
-  await expect(section.act).toHaveText("Act 1");
+  await expect(section.notifications).toContainText(
+    "Act 2: Independence begins.",
+  );
+  await expect(section.act).toHaveText("Act 2: Independence");
   await expect(section.asks).toHaveText(
     "Everything this Act asks of you is done.",
   );

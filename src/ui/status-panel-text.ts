@@ -571,6 +571,15 @@ export function withSwitchedOffPlants(
   );
 }
 
+/** Whether a Structure is a Plant set to make spare Components. */
+export function makesSpareComponents(
+  structure: Pick<StructureSnapshot, "structureTypeId" | "recipeId">,
+): boolean {
+  return componentOutputs(recipeOf(structure)).some(
+    (made) => made.componentId === catalogue.maintenance.spareComponentId,
+  );
+}
+
 /**
  * Adds to what the spare Components' line says which of the Plants that would
  * make them are switched off, for example "last 9d 4h, Workshop switched off".

@@ -37,6 +37,7 @@ import {
   summariseTravel,
   withSwitchedOffPlants,
   withSwitchedOffSpareMakers,
+  makesSpareComponents,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
@@ -139,6 +140,17 @@ export function createStatusPanel(
     selfSufficiencyBody.append(chip, " ");
     return { type, chip };
   });
+  const spareSufficiencyChip = document.createElement("span");
+  spareSufficiencyChip.className = "stat-chip";
+  spareSufficiencyChip.setAttribute("role", "status");
+  spareSufficiencyChip.setAttribute(
+    "aria-label",
+    "Self-sufficiency in spare Components",
+  );
+  spareSufficiencyChip.setAttribute("aria-live", "off");
+  // Until the base has a Plant that makes them, there is nothing to judge.
+  spareSufficiencyChip.hidden = true;
+  selfSufficiencyBody.append(spareSufficiencyChip, " ");
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = createStatLine("Radiation", "Radiation Dose");
   // A Solar Particle Event that is coming or under way, as a warning, or
@@ -314,6 +326,28 @@ export function createStatusPanel(
         );
         if (chip.title !== explanation) chip.title = explanation;
         chip.classList.toggle("stat-chip--good", value === "yes");
+      }
+      // Once it has shown, it stays, so that nothing beside it moves.
+      if (
+        !spareSufficiencyChip.hidden ||
+        snapshot.structures.some(makesSpareComponents)
+      ) {
+        spareSufficiencyChip.hidden = false;
+        const { value, share, explanation } = formatSelfSufficiency(
+          snapshot.spareComponentSufficiency,
+          missionDirector,
+        );
+        setText(
+          spareSufficiencyChip,
+          `Spares ${value}${share === undefined ? "" : ` ${share}`}`,
+        );
+        if (spareSufficiencyChip.title !== explanation) {
+          spareSufficiencyChip.title = explanation;
+        }
+        spareSufficiencyChip.classList.toggle(
+          "stat-chip--good",
+          value === "yes",
+        );
       }
       selfSufficiencyLine.hidden = selfSufficiency.every(
         ({ chip }) => chip.hidden,

@@ -1257,7 +1257,10 @@ describe("the data catalogue", () => {
                   flow.resource.kind === "life-support" &&
                   stock.id === flow.resource.stockId,
               );
-        expect(plant.inputs.length).toBeGreaterThan(0);
+        // Only what comes straight from the ground takes nothing in.
+        if (plant.id !== "water-ice") {
+          expect(plant.inputs.length).toBeGreaterThan(0);
+        }
         expect(plant.outputs.length).toBeGreaterThan(0);
         for (const flow of [...plant.inputs, ...resourceOutputs(plant)]) {
           expect(known(flow)).toBe(true);
@@ -1265,9 +1268,11 @@ describe("the data catalogue", () => {
         }
         const total = (flows: typeof plant.inputs) =>
           flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
-        expect(total(resourceOutputs(plant))).toBeLessThanOrEqual(
-          total(plant.inputs),
-        );
+        if (plant.inputs.length > 0) {
+          expect(total(resourceOutputs(plant))).toBeLessThanOrEqual(
+            total(plant.inputs),
+          );
+        }
         expect(plant.drawKilowatts).toBeGreaterThan(0);
       },
     );
@@ -1486,9 +1491,9 @@ describe("the data catalogue", () => {
       (design) => design.category === "power" && !design.starting,
     );
 
-    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+    it("has about five beyond the starting ones, some needing another that isn't a starting one first", () => {
       expect(power.length).toBeGreaterThanOrEqual(3);
-      expect(power.length).toBeLessThanOrEqual(4);
+      expect(power.length).toBeLessThanOrEqual(6);
       expect(
         power.some((design) =>
           design.prerequisiteDesignIds.some(
@@ -1764,9 +1769,9 @@ describe("the data catalogue", () => {
     });
   });
 
-  it("has about 25 Designs in the Tech Tree, and no more than 33", () => {
+  it("has enough Designs in the Tech Tree for the Acts so far, and no more than 50", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(33);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(50);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {
@@ -1854,8 +1859,8 @@ describe("the data catalogue", () => {
       }
     });
 
-    it("has four beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(industry).toHaveLength(4);
+    it("has five beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(5);
       expect(
         industry.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
@@ -2646,6 +2651,9 @@ describe("the Milestones", () => {
       "first-export",
       "oxygen-self-sufficient",
       "water-self-sufficient",
+      "workshop-running",
+      "spare-components-self-sufficient",
+      "metals-sold",
     ]);
     expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
       milestones.length,

@@ -8,9 +8,9 @@ import {
   type PlayStep,
   type ReferenceTimeline,
 } from "./reference-campaign";
-import { labelOf } from "./pacing-report";
+import { exportEconomics, labelOf } from "./pacing-report";
 import { toGameMinutes } from "./scenario";
-import type { ManifestLine, Snapshot } from "../src/simulation";
+import type { GroundPosition, ManifestLine, Snapshot } from "../src/simulation";
 
 // The long-game play guide: plays on well past the end of the reference
 // Campaign, through the simulation interface alone, with the same seed and
@@ -50,15 +50,31 @@ export const designsTheLongGameUses: readonly string[] = [
   "water-processing",
   "life-support-resupply",
   "maintenance-spares",
+  "molten-regolith-electrolysis",
   "parts-machining",
+  "array-fabrication",
+  "concentrator-towers",
+  "cold-trap-mining",
   "buried-habitat",
 ];
 
 /** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
 const ACT_2_EARTH_DAY = 350;
 
-/** Where the Workshop stands: at the east end of the row of Plants. */
-const WORKSHOP_SITE = { x: 66, y: -33 } as const;
+/** The Earth Day Act 2 is meant to last until. */
+const ACT_2_END_EARTH_DAY = 900;
+
+/** Act 2's pacing targets, in Earth Days (docs/reference-campaign.md). */
+export const act2Targets = {
+  workshopRunningBy: 500,
+  sparesNeedNoLaunchBy: 800,
+  designsStillToBuyAt: 700,
+  researchLastsUntilAbout: ACT_2_END_EARTH_DAY,
+  /** How far from that it may finish and still count as about then. */
+  researchWithin: 50,
+  /** How many Launches' profit one of every Launch item takes, at least. */
+  launchesToBuyEverything: 20,
+} as const;
 
 /** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
 const SPARES_HELD = 40;
@@ -203,80 +219,254 @@ function moveIntoBuriedHabitat(play: Play): void {
   }
 }
 
-/** Sees to the Workshop's Components coming, and builds it once they have. */
-function shipWorkshop(play: Play): void {
+/**
+ * What Funding buys in Act 2, in the order the guide wants it, each once its
+ * Design is unlocked and its Components have come. It holds a good deal more
+ * than a base can buy at once, so that it waits for Funding as well as Science.
+ */
+const ACT_2_PURCHASES: readonly {
+  readonly structureTypeId: string;
+  readonly site: GroundPosition;
+}[] = [
+  { structureTypeId: "workshop", site: { x: 66, y: -33 } },
+  // The Workshop and what makes its metals want more than two solar arrays.
+  { structureTypeId: "solar-array", site: { x: 28, y: -33 } },
+  // Metals to spare, to sell, and for the Workshop whatever the first runs for.
+  { structureTypeId: "large-extraction-plant", site: { x: 44, y: -44 } },
+  // One Workshop's 20 spare Components a Lunation fall short of what this base
+  // uses once it grows: with only the one it ran out by Earth Day 530, and its
+  // solar arrays wearing out unrepaired killed the Mission Director on 935.
+  { structureTypeId: "workshop", site: { x: 74, y: -33 } },
+  { structureTypeId: "array-works", site: { x: 54, y: -44 } },
+  { structureTypeId: "concentrator-tower", site: { x: 66, y: -14 } },
+  { structureTypeId: "cold-trap-ice-line", site: { x: 82, y: -33 } },
+];
+
+/** What the array works makes the guide before it switches it off, and where those arrays go. */
+const ARRAYS_FROM_THE_WORKS: readonly GroundPosition[] = [
+  { x: 26, y: -24 },
+  { x: 26, y: -14 },
+];
+
+/** The Funding the guide keeps back, so that supplies can always be paid for. */
+const FUNDING_KEPT_MILLION_DOLLARS = 300;
+
+/** The metals the guide keeps from what it sells, for the Workshop and the circuit boards. */
+const METALS_KEPT_KILOGRAMS = 40;
+
+/** The fewest circuit boards it is worth sending the Lander with. */
+const BOARDS_WORTH_A_TRIP_KILOGRAMS = 30;
+
+/** What a Launch manifest line costs, and weighs. */
+function launchItem(itemId: string): { price: number; mass: number } {
+  const item = catalogue.launch.items.find(({ id }) => id === itemId);
+  return {
+    price: item?.priceMillionDollars ?? 0,
+    mass: item?.massKilograms ?? 0,
+  };
+}
+
+/**
+ * Adds what the base lacks of a Structure to the Launch manifest, as much as its
+ * Payload Mass leaves room for beside what is on it, once the Lander is away, if
+ * the Funding runs to all of that and the supplies. Otherwise it waits.
+ */
+function sendForAsFundingAllows(
+  play: Play,
+  missing: readonly ManifestLine[],
+  what: string,
+): void {
   const { state } = play;
-  const workshop = catalogue.structureTypes.find(({ id }) => id === "workshop");
-  if (
-    workshop === undefined ||
-    state.clock.elapsedMinutes <
-      toGameMinutes({ earthDays: ACT_2_EARTH_DAY }) ||
-    !state.unlockedDesignIds.includes(workshop.designId) ||
-    [...state.constructions, ...state.structures].some(
-      (structure) => structure.structureTypeId === workshop.id,
-    )
-  ) {
-    return;
-  }
-  const missing = workshop.components.filter(
-    ({ componentId, count }) =>
-      (state.stockpile.components.find(
-        (stock) => stock.componentId === componentId,
-      )?.count ?? 0) < count,
-  );
-  if (missing.length === 0) {
-    play.plan(workshop.id, WORKSHOP_SITE);
-    return;
-  }
-  // Once the Lander is away and the guide has set its manifest, these go on
-  // it, as they can until it leaves Earth.
   if (state.lander.state !== "travelling-to-earth") return;
-  const manifest = state.launchManifest.items;
+  const manifest = new Map(
+    state.launchManifest.items.map(({ itemId, count }) => [itemId, count]),
+  );
+  let room = catalogue.launch.payloadMassLimitKilograms;
+  for (const [itemId, count] of manifest) {
+    room -= launchItem(itemId).mass * count;
+  }
+  let cost = 0;
+  for (const { itemId, count } of missing) {
+    const { price, mass } = launchItem(itemId);
+    const already = manifest.get(itemId) ?? 0;
+    const more = Math.min(count - already, Math.floor(room / mass));
+    if (more <= 0) continue;
+    room -= more * mass;
+    cost += more * price;
+    manifest.set(itemId, already + more);
+  }
+  if (cost === 0) return;
+  const paid =
+    (state.launchManifest.items.length === 0
+      ? catalogue.launch.feeMillionDollars
+      : state.launchManifest.costMillionDollars) + cost;
+  const funds =
+    state.fundingMillionDollars + state.exports.valueAboardMillionDollars;
+  if (paid > funds - FUNDING_KEPT_MILLION_DOLLARS) return;
+  succeed(
+    play.campaign.setLaunchManifest(
+      [...manifest].map(([itemId, count]) => ({ itemId, count })),
+    ),
+    `Putting ${what} on the Launch manifest`,
+  );
+}
+
+/** Sees to the next of Act 2's purchases coming, and builds it once it has. */
+function buyForAct2(play: Play): void {
+  const { state } = play;
   if (
-    missing.every(({ componentId }) =>
-      manifest.some(({ itemId }) => itemId === componentId),
-    )
+    state.clock.elapsedMinutes < toGameMinutes({ earthDays: ACT_2_EARTH_DAY })
   ) {
     return;
   }
+  const next = ACT_2_PURCHASES.find(({ structureTypeId, site }) => {
+    const type = catalogue.structureTypes.find(
+      ({ id }) => id === structureTypeId,
+    );
+    return (
+      type !== undefined &&
+      state.unlockedDesignIds.includes(type.designId) &&
+      ![...state.constructions, ...state.structures].some(
+        ({ position }) => position.x === site.x && position.y === site.y,
+      )
+    );
+  });
+  if (next === undefined) return;
+  const lines = manifestLinesOf(next.structureTypeId);
+  const missing = missingFromStock(state, lines);
+  if (missing.length === 0) {
+    // A Machine or Rover may be standing there for now: it tries again.
+    play.campaign.planConstruction({
+      structureTypeId: next.structureTypeId,
+      position: next.site,
+    });
+    return;
+  }
+  sendForAsFundingAllows(play, missing, `a ${next.structureTypeId}`);
+}
+
+/** Sets a large extraction plant to metals and silicon, as what the base has it for. */
+function runLargeExtractionPlant(play: Play): void {
+  const plant = play.state.structures.find(
+    ({ structureTypeId }) => structureTypeId === "large-extraction-plant",
+  );
+  if (plant === undefined || plant.recipeId === "metals-and-silicon") return;
   succeed(
-    play.campaign.setLaunchManifest([
-      ...manifest.filter(
-        ({ itemId }) =>
-          !missing.some(({ componentId }) => componentId === itemId),
-      ),
-      ...missing.map(({ componentId, count }) => ({
-        itemId: componentId,
-        count,
-      })),
-    ]),
-    "Putting the Workshop on the Launch manifest",
+    play.campaign.setPlantRecipe(plant.id, "metals-and-silicon"),
+    "Setting the large extraction plant to metals and silicon",
   );
 }
 
 /**
- * Runs the Workshop only as far as the spare Components need it, so that it
- * doesn't spend metals on more than the base will use for a long time.
+ * Has the array works make what two more solar arrays are built from, plans them
+ * once it has, and switches it off, as the base then has power enough.
  */
-function runWorkshop(play: Play): void {
+function runArrayWorks(play: Play): void {
   const { state } = play;
-  const workshop = state.structures.find(
-    (structure) => structure.structureTypeId === "workshop",
+  const works = state.structures.find(
+    ({ structureTypeId }) => structureTypeId === "array-works",
   );
-  if (workshop === undefined) return;
+  if (works === undefined) return;
+  const planned = ARRAYS_FROM_THE_WORKS.filter(({ x, y }) =>
+    [...state.constructions, ...state.structures].some(
+      ({ position }) => position.x === x && position.y === y,
+    ),
+  );
+  const site = ARRAYS_FROM_THE_WORKS[planned.length];
+  if (site === undefined) {
+    if (!works.switchedOff) {
+      succeed(
+        play.campaign.switchPlant(works.id, "off"),
+        "Switching the array works off",
+      );
+    }
+    return;
+  }
+  const lines = manifestLinesOf("solar-array");
+  const missing = missingFromStock(state, lines);
+  if (missing.length === 0) {
+    // A Machine or Rover may be standing there for now: it tries again.
+    play.campaign.planConstruction({
+      structureTypeId: "solar-array",
+      position: site,
+    });
+    return;
+  }
+  const recipeId = missing.some(({ itemId }) => itemId === "solar-panel")
+    ? "solar-panels"
+    : "array-masts";
+  if (works.recipeId !== recipeId) {
+    succeed(
+      play.campaign.setPlantRecipe(works.id, recipeId),
+      "Switching the array works' recipe",
+    );
+  }
+}
+
+/**
+ * Fills what the circuit boards leave of the Return Mass with metals, whenever
+ * the Lander is free and there are circuit boards worth a trip and metals to
+ * spare, so that it no longer waits for a full Return Mass of circuit boards.
+ * It leaves a full load of them to the reference Campaign's habit, which sends
+ * the Lander once anything is loaded.
+ */
+function sellMetals(play: Play): void {
+  const { state } = play;
+  if (
+    state.clock.elapsedMinutes <
+      toGameMinutes({ earthDays: ACT_2_EARTH_DAY }) ||
+    state.lander.state !== "landed-free" ||
+    state.exports.toLoad.length > 0 ||
+    state.exports.aboard.length > 0
+  ) {
+    return;
+  }
+  const amount = (resourceId: string) =>
+    state.bulkResources.find((stock) => stock.resourceId === resourceId)
+      ?.kilograms ?? 0;
+  const returnMass = catalogue.lander.returnMassKilograms;
+  const boards = Math.floor(amount("circuit-boards"));
+  const metals = returnMass - boards;
+  if (
+    boards < BOARDS_WORTH_A_TRIP_KILOGRAMS ||
+    metals <= 0 ||
+    amount("metals") - METALS_KEPT_KILOGRAMS < metals
+  ) {
+    return;
+  }
+  succeed(
+    play.campaign.loadExports([
+      { resourceId: "circuit-boards", kilograms: boards },
+      { resourceId: "metals", kilograms: metals },
+    ]),
+    "Loading circuit boards and metals",
+  );
+}
+
+/**
+ * Runs the Workshops only as far as the spare Components need them, so that
+ * they don't spend metals on more than the base will use for a long time.
+ */
+function runWorkshops(play: Play): void {
+  const { state } = play;
   const spares =
     state.stockpile.components.find(
       (stock) => stock.componentId === catalogue.maintenance.spareComponentId,
     )?.count ?? 0;
   const setting =
     spares > SPARES_HELD ? "off" : spares < SPARES_HELD ? "on" : undefined;
-  if (setting === undefined || (setting === "off") === workshop.switchedOff) {
-    return;
+  if (setting === undefined) return;
+  for (const workshop of state.structures) {
+    if (
+      workshop.structureTypeId === "workshop" &&
+      (setting === "off") !== workshop.switchedOff
+    ) {
+      succeed(
+        play.campaign.switchPlant(workshop.id, setting),
+        "Switching the Workshop",
+      );
+    }
   }
-  succeed(
-    play.campaign.switchPlant(workshop.id, setting),
-    "Switching the Workshop",
-  );
 }
 
 /** Unlocks the cheapest Design it can, once the Science is there. */
@@ -322,11 +512,14 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build a Workshop east of the other Plants, and once it runs stop bringing spare Components by Launch, switching it off while more than ${SPARES_HELD} are in stock. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
-      play.keepUp(shipWorkshop);
-      play.keepUp(runWorkshop);
+      play.keepUp(buyForAct2);
+      play.keepUp(runWorkshops);
+      play.keepUp(runLargeExtractionPlant);
+      play.keepUp(runArrayWorks);
+      play.keepUp(sellMetals);
       play.keepUp(shipBuriedHabitat);
       play.keepUp(moveIntoBuriedHabitat);
       const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
@@ -494,6 +687,10 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     "",
     ...formatSpares(timeline),
     "",
+    ...formatAct2(timeline),
+    "",
+    ...formatFunding(timeline),
+    "",
     ...formatBuriedHabitat(timeline),
     "",
     limitAt === undefined
@@ -505,6 +702,167 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
         ]
       : []),
   ];
+}
+
+/** What the guide's Exports came to in each Act's stretch of game time, by Export. */
+function exportsSoldBetween(
+  timeline: ReferenceTimeline,
+  fromEarthDay: number,
+  toEarthDay: number,
+): { kilograms: Map<string, number>; earned: number; trips: number } {
+  const kilograms = new Map<string, number>();
+  let earned = 0;
+  let trips = 0;
+  for (const sale of timeline.sales) {
+    const earthDay = sale.atMinute / MINUTES_PER_EARTH_DAY;
+    if (earthDay < fromEarthDay || earthDay >= toEarthDay) continue;
+    earned += sale.earnedMillionDollars;
+    trips += 1;
+    for (const line of sale.sold) {
+      kilograms.set(
+        line.resourceId,
+        (kilograms.get(line.resourceId) ?? 0) + line.kilograms,
+      );
+    }
+  }
+  return { kilograms, earned, trips };
+}
+
+/** The Funding every 100 Earth Days, and the lowest and highest in Act 2, as lines of text. */
+function formatFunding(timeline: ReferenceTimeline): string[] {
+  const at = (earthDay: number) =>
+    timeline.looks.find(
+      ({ atMinute }) => atMinute >= earthDay * MINUTES_PER_EARTH_DAY,
+    )?.fundingMillionDollars;
+  const curve: string[] = [];
+  for (
+    let earthDay = 100;
+    earthDay <= LONG_GAME_END_EARTH_DAY;
+    earthDay += 100
+  ) {
+    const funding = at(earthDay);
+    if (funding !== undefined) {
+      curve.push(`  ${String(earthDay).padStart(6)}  $${funding.toFixed(0)}M`);
+    }
+  }
+  const inAct2 = timeline.looks.filter(({ atMinute }) => {
+    const earthDay = atMinute / MINUTES_PER_EARTH_DAY;
+    return earthDay >= ACT_2_EARTH_DAY && earthDay < ACT_2_END_EARTH_DAY;
+  });
+  const lowest = inAct2.reduce(
+    (low, look) =>
+      look.fundingMillionDollars < low.fundingMillionDollars ? look : low,
+    inAct2[0] ?? { atMinute: 0, fundingMillionDollars: 0 },
+  );
+  const sold = exportsSoldBetween(
+    timeline,
+    ACT_2_EARTH_DAY,
+    ACT_2_END_EARTH_DAY,
+  );
+  const rate = (name: string) => (sold.kilograms.get(name) ?? 0).toFixed(0);
+  return [
+    "Funding, every 100 Earth Days:",
+    ...curve,
+    `In Act 2 (Earth Days ${ACT_2_EARTH_DAY} to ${ACT_2_END_EARTH_DAY}) it was lowest at $${lowest.fundingMillionDollars.toFixed(0)}M on Earth Day ${(lowest.atMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}. Exports earned $${sold.earned.toFixed(0)}M over ${sold.trips} trips: ${rate("circuit-boards")} kg of circuit boards and ${rate("metals")} kg of metals.`,
+  ];
+}
+
+/** When each of the Structures Act 2 brings first came. */
+function formatAct2(timeline: ReferenceTimeline): string[] {
+  const dates = timeline.structureTypesBuilt
+    .filter(({ structureTypeId }) =>
+      ACT_2_PURCHASES.some(
+        (entry) => entry.structureTypeId === structureTypeId,
+      ),
+    )
+    .filter(({ structureTypeId }) => structureTypeId !== "solar-array")
+    .map(
+      ({ structureTypeId, atMinute }) =>
+        `  ${(atMinute / MINUTES_PER_EARTH_DAY).toFixed(1).padStart(6)}  ${labelOf(catalogue.structureTypes, structureTypeId)}`,
+    );
+  const missed = act2TargetsMissed(timeline);
+  return [
+    "Act 2's Structures, by the Earth Day the first of each was commissioned:",
+    ...dates,
+    ...(missed.length === 0
+      ? ["Act 2's pacing targets were all met."]
+      : missed.map((target) => `Act 2's pacing target missed: ${target}`)),
+  ];
+}
+
+/** Which of Act 2's pacing targets the guide missed, in words. */
+export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
+  const reachedOn = (milestoneId: string) => {
+    const reached = timeline.milestones.find(
+      (milestone) => milestone.milestoneId === milestoneId,
+    );
+    return reached === undefined
+      ? Infinity
+      : reached.atMinute / MINUTES_PER_EARTH_DAY;
+  };
+  const {
+    workshopRunningBy,
+    sparesNeedNoLaunchBy,
+    designsStillToBuyAt,
+    researchLastsUntilAbout,
+    researchWithin,
+    launchesToBuyEverything,
+  } = act2Targets;
+  const lastSpares = Math.max(
+    0,
+    ...timeline.sparesShipped.map(({ atMinute }) => atMinute),
+  );
+  const lastResearch =
+    Math.max(
+      0,
+      ...timeline.researchTasksCompleted.map(({ atMinute }) => atMinute),
+    ) / MINUTES_PER_EARTH_DAY;
+  const lastDesign =
+    Math.max(0, ...timeline.designsUnlocked.map(({ atMinute }) => atMinute)) /
+    MINUTES_PER_EARTH_DAY;
+  const built = timeline.structureTypesBuilt.find(
+    ({ structureTypeId }) => structureTypeId === "workshop",
+  )?.atMinute;
+  const fewestSpares = Math.min(
+    Infinity,
+    ...timeline.sparesInStock
+      .filter(({ atMinute }) => built !== undefined && atMinute > built)
+      .map(({ fewest }) => fewest),
+  );
+  const launches = launchesToBuyOneOfEverything();
+  return [
+    ...(reachedOn("workshop-running") <= workshopRunningBy
+      ? []
+      : [`a Workshop running by Earth Day ${workshopRunningBy}.`]),
+    ...(reachedOn("spare-components-self-sufficient") <= sparesNeedNoLaunchBy &&
+    lastSpares <= sparesNeedNoLaunchBy * MINUTES_PER_EARTH_DAY
+      ? []
+      : [
+          `spare Components needing no Launch by Earth Day ${sparesNeedNoLaunchBy}.`,
+        ]),
+    ...(lastDesign > designsStillToBuyAt
+      ? []
+      : [`Designs still to buy at Earth Day ${designsStillToBuyAt}.`]),
+    ...(Math.abs(lastResearch - researchLastsUntilAbout) <= researchWithin
+      ? []
+      : [
+          `research lasting until about Earth Day ${researchLastsUntilAbout} (it ended on ${lastResearch.toFixed(0)}).`,
+        ]),
+    ...(fewestSpares > 0 ? [] : ["spare Components never running out."]),
+    ...(launches !== undefined && launches >= launchesToBuyEverything
+      ? []
+      : [
+          `one of every Launch item taking at least ${launchesToBuyEverything} Launches' profit (it takes ${launches ?? "no number of"}).`,
+        ]),
+  ];
+}
+
+/** How many Launches' profit, of the Export that makes the most, one of every Launch item takes. */
+function launchesToBuyOneOfEverything(): number | undefined {
+  const { exports: sold } = exportEconomics(catalogue);
+  return [...sold].sort(
+    (a, b) => b.profitMillionDollars - a.profitMillionDollars,
+  )[0]?.launchesToBuyEverything;
 }
 
 /** Whether the Mission Director moved into a Buried Habitat by the Act's target. */
@@ -520,13 +878,15 @@ function movedInByTheTarget(timeline: ReferenceTimeline): boolean {
 /**
  * Whether the long game went as it should, so that the command can fail if it
  * didn't: to the end with the Mission Director alive, having moved in by the
- * Act's target. Alive at the end, their Radiation Dose's limit is still ahead.
+ * Act's target and met Act 2's. Alive at the end, their Radiation Dose's limit
+ * is still ahead.
  */
 export function longGameSucceeded(timeline: ReferenceTimeline): boolean {
   return (
     timeline.failure === undefined &&
     timeline.ended === undefined &&
     designsNotUsed(timeline).length === 0 &&
-    movedInByTheTarget(timeline)
+    movedInByTheTarget(timeline) &&
+    act2TargetsMissed(timeline).length === 0
   );
 }

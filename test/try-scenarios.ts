@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { catalogue } from "../src/catalogue";
 import { createCampaign, loadCampaign, type Campaign } from "../src/simulation";
-import { REFERENCE_SEED } from "./reference-campaign";
+import {
+  playReferenceCampaign,
+  REFERENCE_SEED,
+  referenceSteps,
+} from "./reference-campaign";
 import { toGameMinutes } from "./scenario";
 
 // What `npm run try` can start the game in, so that a change can be tried by
@@ -169,6 +173,44 @@ function workshopBaseSave(): string {
   return campaign.save();
 }
 
+/**
+ * The reference Campaign's base as Act 2 opens, the moment the base is
+ * self-sufficient in water, reached by playing it, with the Design and Funding
+ * for a Workshop and more metals to hand, so that Act 2 can be tried without
+ * waiting for Science. It plays about 83 Earth Days.
+ */
+function act2Save(): string {
+  let save: string | undefined;
+  const { failure } = playReferenceCampaign([
+    ...referenceSteps.filter(({ milestoneId }) => milestoneId !== undefined),
+    {
+      milestoneId: undefined,
+      description: "Keep the Campaign as Act 2 opens.",
+      play(play) {
+        play.waitUntil(
+          "the Lander free to fly",
+          (state) => state.lander.state === "landed-free",
+        );
+        save = play.campaign.save();
+      },
+    },
+  ]);
+  if (save === undefined) throw new Error(failure ?? "It never got there.");
+  const opened = JSON.parse(save) as { state: EditableSaveState };
+  // Enough to live on and keep the base repaired while the game is tried.
+  for (const stock of opened.state.lifeSupport) {
+    stock.kilograms = Math.max(stock.kilograms, 400);
+  }
+  addComponents(opened.state, [
+    { componentId: catalogue.maintenance.spareComponentId, count: 40 },
+  ]);
+  opened.state.science = 400;
+  opened.state.fundingMillionDollars = 2500;
+  stockOf(opened.state, "metals", 150);
+  stockOf(opened.state, "circuit-boards", 60);
+  return JSON.stringify(opened, undefined, 2);
+}
+
 /** Where `buriedHabitatBase` puts what can be lived in, in view north of the Lander. */
 export const buriedHabitatSites = {
   waterWalledHabitat: { x: -14, y: 30 },
@@ -285,9 +327,9 @@ export const tryScenarios: readonly TryScenario[] = [
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
       "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
-      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 46 items".',
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 53 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
-      "Press Clear: all 46 come back, in the same order.",
+      "Press Clear: all 53 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -298,8 +340,8 @@ export const tryScenarios: readonly TryScenario[] = [
     steps: [
       'Look at the status panel\'s Milestones: it says "Act 1" and what the Act asks, then "Now" with Power storage before the first Night and its hint, then "Next" with "none left".',
       "Pick the Battery bank in the build menu, place it on clear ground beside the Lander, and set the game to 20x. In a few real seconds the Robot has built it.",
-      'A notification says "Milestone reached: Power storage before the first Night", and no notification says a new Act begins.',
-      'The panel still says "Act 1", now with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
+      'A notification says "Milestone reached: Power storage before the first Night", and another that Act 2: Independence begins, the last Act there is so far.',
+      'The panel now says "Act 2: Independence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
       "Leave the game running: it carries on, and nothing ends.",
       'Click the Milestones title to fold it: beside the title it says "every Milestone reached".',
     ],
@@ -307,6 +349,21 @@ export const tryScenarios: readonly TryScenario[] = [
       freshSaveWith((state) => {
         reachEveryMilestoneBut(state, "power-storage");
       }),
+  },
+  {
+    id: "act-2",
+    title:
+      "The start of Act 2, at the reference Campaign's base with $2,500M, 400 Science, 150 kg of metals and 60 kg of circuit boards",
+    steps: [
+      'Look at the status panel\'s Milestones: it says "Act 2: Independence" and what it asks, then "Now" with Workshop running and its hint, then "Next" with Self-sufficiency in spare Components.',
+      "Press Tech Tree and, under Industry, unlock Molten regolith electrolysis, then Parts machining. The new Designs of Act 2 are there too: Array fabrication, Concentrator towers, Thermal storage and Cold-trap mining, each saying what it brings, and for now too dear in Science.",
+      "Press Launch manifest. Under Industry, add a machine tool and a casting furnace: the cost bar shows $1,150M with the Launch fee, of $2,500M. Open the Exports tab: Metals are there at $1 a kilogram. Set 60 kg of circuit boards and 40 kg of metals: Return Mass says 100 of 100 kg, and it won't take more.",
+      'Press Send the Lander and set the game to 20x. As the Lander reaches Earth a notification says the Exports sold, and "Milestone reached: Metals sold", though the Milestones section still has Workshop running as "Now": Milestones can be reached in any order.',
+      'When the Lander is back and unloaded, pick the Workshop in the build menu and place it near the other Plants. Once it is running, a notification says "Milestone reached: Workshop running", "Now" moves on to Self-sufficiency in spare Components, and Self-sufficient has a new chip, Spares.',
+      "Leave it running on 20x for about 3 real minutes, a whole Lunation: the Spares chip says whether the Workshop has made as many as repairs have used. If it has, the Milestone is reached and the Milestones section says every Milestone is reached.",
+      "Open the Guide: the Structures tab has the Concentrator tower under Power and the Array works under Industry, and Launches and Funding says metals are an Export.",
+    ],
+    save: act2Save,
   },
   {
     id: "workshop",

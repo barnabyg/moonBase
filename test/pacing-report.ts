@@ -409,29 +409,34 @@ export function scienceEarners(
   });
 }
 
-/** How long the first Plant that makes a bulk resource takes to make a full Return Mass of it, running through Daylight: none if no Plant does. */
-function earthDaysToFillReturnMass(
-  catalogue: Pick<PacedCatalogue, "lander" | "lunation" | "structureTypes">,
+/** How fast each type of Plant that makes a bulk resource can make it, by the recipe that makes the most, in catalogue order. */
+function kilogramsPerHourByPlant(
+  catalogue: Pick<PacedCatalogue, "structureTypes">,
   resourceId: string,
+): number[] {
+  return catalogue.structureTypes.flatMap((type) => {
+    const rates = (type.recipes ?? []).flatMap((recipe) =>
+      resourceOutputs(recipe)
+        .filter(
+          ({ resource }) =>
+            resource.kind === "bulk-resource" &&
+            resource.resourceId === resourceId,
+        )
+        .map(({ kilogramsPerHour }) => kilogramsPerHour),
+    );
+    return rates.length === 0 ? [] : [Math.max(...rates)];
+  });
+}
+
+/** How long a Plant making this much an hour takes to make a full Return Mass, running through Daylight. */
+function earthDaysToFill(
+  catalogue: Pick<PacedCatalogue, "lander" | "lunation">,
+  kilogramsPerHour: number,
 ): number {
-  for (const type of catalogue.structureTypes) {
-    for (const recipe of type.recipes ?? []) {
-      const output = resourceOutputs(recipe).find(
-        ({ resource }) =>
-          resource.kind === "bulk-resource" &&
-          resource.resourceId === resourceId,
-      );
-      if (output !== undefined) {
-        return (
-          catalogue.lander.returnMassKilograms /
-          (output.kilogramsPerHour *
-            HOURS_PER_EARTH_DAY *
-            daylightShare(catalogue))
-        );
-      }
-    }
-  }
-  return 0;
+  return (
+    catalogue.lander.returnMassKilograms /
+    (kilogramsPerHour * HOURS_PER_EARTH_DAY * daylightShare(catalogue))
+  );
 }
 
 export interface ExportEconomics {
@@ -454,6 +459,13 @@ export interface ExportEconomics {
      * that makes the Export takes to fill the Return Mass, if that is longer.
      */
     readonly earthDaysPerTrip: number;
+    /**
+     * What limits how much of it can be sold in the end: "plant" if even the
+     * fastest Plant that makes it fills the Return Mass more slowly than the
+     * Lander makes the round trip, and "return-mass" if the Lander can't carry
+     * away what that Plant makes.
+     */
+    readonly limitedBy: "plant" | "return-mass";
   }[];
 }
 
@@ -489,6 +501,8 @@ export function exportEconomics(
         sold.priceMillionDollarsPerKilogram *
         catalogue.lander.returnMassKilograms;
       const profit = income - feeMillionDollars;
+      const rates = kilogramsPerHourByPlant(catalogue, sold.resourceId);
+      const fastest = Math.max(0, ...rates);
       return {
         resourceId: sold.resourceId,
         incomeMillionDollars: income,
@@ -498,10 +512,143 @@ export function exportEconomics(
           profit > 0 ? Math.ceil(millionDollars / profit) : undefined,
         earthDaysPerTrip: Math.max(
           roundTripEarthDays(catalogue),
-          earthDaysToFillReturnMass(catalogue, sold.resourceId),
+          rates[0] === undefined ? 0 : earthDaysToFill(catalogue, rates[0]),
         ),
+        limitedBy:
+          fastest > 0 &&
+          earthDaysToFill(catalogue, fastest) > roundTripEarthDays(catalogue)
+            ? "plant"
+            : "return-mass",
       };
     }),
+  };
+}
+
+/** The stretch of game time an Act is meant to last, and what it brings to spend Funding on. */
+export interface ActPlan {
+  readonly label: string;
+  readonly fromEarthDay: number;
+  readonly toEarthDay: number;
+  /** The Earth Day it wants Designs still to buy at. */
+  readonly designsLeftAtEarthDay: number;
+  /** The Designs whose Structures are the Act's big purchases. */
+  readonly designIds: readonly string[];
+}
+
+/** Act 2's plan, as docs/reference-campaign.md has it. */
+export const act2Plan: ActPlan = {
+  label: "Act 2",
+  fromEarthDay: 350,
+  toEarthDay: 900,
+  designsLeftAtEarthDay: 700,
+  designIds: [
+    "parts-machining",
+    "array-fabrication",
+    "concentrator-towers",
+    "thermal-storage",
+    "cold-trap-mining",
+  ],
+};
+
+/**
+ * Roughly the Earth Day a base following the Milestones starts its first
+ * Research Task, as the reference Campaign does, to set research's clock against
+ * the Campaign's.
+ */
+const FIRST_RESEARCH_EARTH_DAY = 16;
+
+export interface ActBalance {
+  readonly plan: ActPlan;
+  /** What Research Tasks pay over the Act, and what the Designs unlocked in it cost. */
+  readonly scienceEarned: number;
+  readonly scienceSpent: number;
+  /** The Designs unlocked over the Act, in order. */
+  readonly designsUnlockedIds: readonly string[];
+  /** The Designs still locked at the Earth Day the Act wants some left at. */
+  readonly designsLeftIds: readonly string[];
+  /** The Earth Day the last Research Task is complete. */
+  readonly researchEndsEarthDay: number;
+  /** What the Act's Designs' Structures cost, one of each, with no Launch fee. */
+  readonly purchases: readonly {
+    readonly structureTypeId: string;
+    readonly millionDollars: number;
+    readonly kilograms: number;
+  }[];
+  readonly purchasesMillionDollars: number;
+  /** A full Return Mass of the best Export sold at the rate its first Plant makes it, over the Act. */
+  readonly incomeMillionDollars: number;
+  /** The same, with the second-best Export filling all the Return Mass that leaves, a trip every round trip. */
+  readonly incomeWithRestFilledMillionDollars: number;
+}
+
+/**
+ * How Science and Funding balance over an Act, by the same assumptions as the
+ * rest of the report: research on its clock from the first Research Task, every
+ * Export as fast as its first Plant makes it, and no Launch fees.
+ */
+export function actBalance(
+  catalogue: PacedCatalogue,
+  plan: ActPlan = act2Plan,
+): ActBalance {
+  const { steps } = scienceTimeline(catalogue);
+  const onClock = (step: ScienceStep) =>
+    step.earthDay + FIRST_RESEARCH_EARTH_DAY;
+  const upTo = (earthDay: number) =>
+    steps.filter((step) => onClock(step) < earthDay).at(-1);
+  const start = upTo(plan.fromEarthDay);
+  const end = upTo(plan.toEarthDay);
+  const unlockedBy = (earthDay: number) =>
+    new Set(
+      steps
+        .filter((step) => onClock(step) < earthDay)
+        .flatMap((step) => step.unlockedDesignIds),
+    );
+  const atLeft = unlockedBy(plan.designsLeftAtEarthDay);
+  const types = catalogue.structureTypes.filter((type) =>
+    plan.designIds.includes(type.designId),
+  );
+  const purchases = types.map((type) => ({
+    structureTypeId: type.id,
+    ...importCost(catalogue, type),
+  }));
+  const earthDays = plan.toEarthDay - plan.fromEarthDay;
+  const { exports: sold } = exportEconomics(catalogue);
+  const [best, next] = [...sold].sort(
+    (a, b) => b.incomeMillionDollars - a.incomeMillionDollars,
+  );
+  const roundTrip = roundTripEarthDays(catalogue);
+  const rest =
+    best === undefined ? 0 : Math.max(1 - roundTrip / best.earthDaysPerTrip, 0);
+  const income =
+    best === undefined
+      ? 0
+      : (best.incomeMillionDollars / best.earthDaysPerTrip) * earthDays;
+  return {
+    plan,
+    scienceEarned: (end?.earned ?? 0) - (start?.earned ?? 0),
+    scienceSpent: (end?.spent ?? 0) - (start?.spent ?? 0),
+    designsUnlockedIds: steps
+      .filter(
+        (step) =>
+          onClock(step) >= plan.fromEarthDay && onClock(step) < plan.toEarthDay,
+      )
+      .flatMap((step) => step.unlockedDesignIds),
+    designsLeftIds: catalogue.designs
+      .filter((design) => !design.starting && !atLeft.has(design.id))
+      .map((design) => design.id),
+    researchEndsEarthDay:
+      (steps.at(-1)?.earthDay ?? 0) + FIRST_RESEARCH_EARTH_DAY,
+    purchases,
+    purchasesMillionDollars: purchases.reduce(
+      (total, purchase) => total + purchase.millionDollars,
+      0,
+    ),
+    incomeMillionDollars: income,
+    incomeWithRestFilledMillionDollars:
+      income +
+      (next === undefined
+        ? 0
+        : (next.incomeMillionDollars * rest * earthDays) / roundTrip),
   };
 }
 
@@ -752,6 +899,7 @@ export function formatPacingReport(
     (a, b) => b.profitMillionDollars - a.profitMillionDollars,
   )[0];
   const roundTrip = roundTripEarthDays(catalogue);
+  const act = actBalance(catalogue);
   return [
     `Pacing report: data catalogue version ${catalogue.version}. It reads only the catalogue; nothing is played.`,
     "",
@@ -827,13 +975,20 @@ export function formatPacingReport(
         launches === undefined
           ? "no number of Launches' profit buys one of every Launch item"
           : `the profit of ${launches} Launches buys one of every Launch item (a trip every ${days(sold.earthDaysPerTrip)}, so ${days(launches * sold.earthDaysPerTrip)}, ${atEachSpeed(catalogue, launches * sold.earthDaysPerTrip)})`
-      }.`;
+      }. What limits it: ${sold.limitedBy === "plant" ? "a Plant's rate, as even the fastest fills the Return Mass more slowly than a round trip" : "the Return Mass, as the Lander can't carry away what the fastest Plant makes"}.`;
     }),
     ...(best === undefined || best.launchesToBuyEverything === undefined
       ? []
       : [
           `  So Funding stops being a limit about ${days(best.launchesToBuyEverything * best.earthDaysPerTrip)} after the base first sells ${labelOf(catalogue.bulkResources, best.resourceId).toLowerCase()}.`,
         ]),
+    "",
+    `Science and Funding over ${act.plan.label} (Earth Days ${act.plan.fromEarthDay} to ${act.plan.toEarthDay})`,
+    `  Assumes research runs as above from about Earth Day ${FIRST_RESEARCH_EARTH_DAY}, the first Plant that makes each Export runs through Daylight, and no Launch fees.`,
+    `  Science: the Research Tasks pay ${act.scienceEarned} over the Act, and it unlocks Designs for ${act.scienceSpent}: ${act.designsUnlockedIds.map((id) => labelOf(catalogue.designs, id)).join(", ") || "none"}.`,
+    `  At Earth Day ${act.plan.designsLeftAtEarthDay} there are still to buy: ${act.designsLeftIds.map((id) => labelOf(catalogue.designs, id)).join(", ") || "none"}. The last Research Task is complete about Earth Day ${act.researchEndsEarthDay.toFixed(0)}.`,
+    `  Funding: its big purchases come to ${money(act.purchasesMillionDollars)}: ${act.purchases.map((purchase) => `${labelOf(catalogue.structureTypes, purchase.structureTypeId)} ${money(purchase.millionDollars)} (${purchase.kilograms} kg)`).join(", ")}.`,
+    `  Against that, circuit boards alone earn about ${money(act.incomeMillionDollars)} over the Act, or ${money(act.incomeWithRestFilledMillionDollars)} with metals filling the rest of a Return Mass every round trip: buying them all takes ${((act.purchasesMillionDollars / act.incomeWithRestFilledMillionDollars) * 100).toFixed(0)}% of that.`,
     "",
     "Designs that something cheaper beats outright",
     "  Compares only things that do the same job: Science on the way to it, money and mass against everything it does, including how fast it is built and how well it stands up to Hazards.",

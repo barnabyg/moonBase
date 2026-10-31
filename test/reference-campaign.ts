@@ -6,6 +6,7 @@ import {
   recipeOf,
   type Campaign,
   type GameEvent,
+  type ExportLine,
   type GroundPosition,
   type ManifestLine,
   type Snapshot,
@@ -651,6 +652,8 @@ export interface ReferenceTimeline {
   readonly sales: readonly {
     readonly atMinute: number;
     readonly earnedMillionDollars: number;
+    /** What was sold, and how much of it. */
+    readonly sold: readonly ExportLine[];
   }[];
   readonly margins: {
     /**
@@ -832,7 +835,11 @@ const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });
 function recorder(campaign: Campaign) {
   const milestones: { milestoneId: string; atMinute: number }[] = [];
   const launches: { atMinute: number; chargedMillionDollars: number }[] = [];
-  const sales: { atMinute: number; earnedMillionDollars: number }[] = [];
+  const sales: {
+    atMinute: number;
+    earnedMillionDollars: number;
+    sold: readonly ExportLine[];
+  }[] = [];
   const lowest = (
     current: Extreme | undefined,
     value: number,
@@ -925,6 +932,7 @@ function recorder(campaign: Campaign) {
           sales.push({
             atMinute: event.atMinute,
             earnedMillionDollars: event.earnedMillionDollars,
+            sold: event.sold,
           });
         }
       }
@@ -1117,10 +1125,15 @@ export function formatTimeline(
     `${title}: seed ${timeline.seed}, data catalogue version ${catalogue.version}`,
     "",
     "Milestones, by the Earth Day they were reached (game time since the landing):",
-    ...catalogue.milestones.map((milestone) => {
+    // A later Act's Milestones show only once reached, so that a play guide
+    // that stops short of them says nothing of them.
+    ...catalogue.milestones.flatMap((milestone) => {
       const reached = timeline.milestones.find(
         (candidate) => candidate.milestoneId === milestone.id,
       );
+      if (reached === undefined && milestone.actId !== catalogue.acts[0]?.id) {
+        return [];
+      }
       return reached === undefined
         ? `  ${"-".padStart(5)}  ${milestone.label} (not reached)`
         : `  ${day(reached.atMinute)}  ${milestone.label}`;

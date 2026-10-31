@@ -12,8 +12,8 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-/** About four and a half times the longest it has taken, so that it stops only a game that hangs. */
-const HARD_LIMIT_MINUTES = 45;
+/** About three and a half times the longest it has taken, so that it stops only a game that hangs. */
+const HARD_LIMIT_MINUTES = 60;
 const PLAY = "--play";
 
 if (process.argv.includes(PLAY)) {

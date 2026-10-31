@@ -28,10 +28,21 @@ export const bulkResourceWarningEarthDaysLeft: Catalogue["bulkResourceWarningEar
 // circuit board plant makes 0.4 kg of them an hour, worth $1.2M, from
 // 0.25 kg of wafers that would sell for under $0.4M, so the wafers earn
 // over three times as much made into circuit boards, for the power and
-// time it takes.
+// time it takes. What limits them is that Plant's rate: 192 kg in a Daylight,
+// against the 295 kg three round trips can carry away in a Lunation.
+//
+// Metals sell for a third of that by the kilogram, so that a full Return Mass,
+// at $100M, doesn't pay the Launch fee, and they only fill what the circuit
+// boards leave of it. An extraction plant makes 288 kg in a Daylight, with
+// metals to spare in any Plant that has the Regolith, so what limits them is
+// the Return Mass, a limit no Plant can lift until Act 3. Any dearer and an
+// extraction plant alone would earn more than a vacuum fabrication plant does,
+// and Act 1 would have no reason to make wafers. The Workshop wants the same
+// metals, at 3.6 kg a spare Component.
 export const exports: Catalogue["exports"] = [
   { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
   { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
+  { resourceId: "metals", priceMillionDollarsPerKilogram: 1 },
 ];
 
 // Digging from one level to the other is about a day's work, wearing the
@@ -86,6 +97,13 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "landing-floodlight", label: "Pad light" },
   { id: "vault-section", label: "Vault section" },
   { id: "deep-life-support-core", label: "Deep life support core" },
+  { id: "heliostat-panel", label: "Heliostat panel" },
+  { id: "receiver-tower", label: "Receiver tower" },
+  { id: "panel-line", label: "Panel line" },
+  { id: "heat-store-core", label: "Heat store core" },
+  { id: "thermal-exchanger", label: "Thermal exchanger" },
+  { id: "cold-trap-head", label: "Cold-trap head" },
+  { id: "ice-haul-line", label: "Ice haul line" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },

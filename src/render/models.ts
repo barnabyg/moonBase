@@ -550,6 +550,12 @@ export function createStructureModel(
   if (structureTypeId === "tall-light-mast") {
     return createLightMastModel(TALL_LIGHT_MAST);
   }
+  if (structureTypeId === "concentrator-tower") {
+    return createConcentratorTowerModel();
+  }
+  if (structureTypeId === "thermal-store") {
+    return createBatteryBankModel(THERMAL_STORE);
+  }
   if (structureTypeId === "whipple-shielded-battery-bank") {
     return createBatteryBankModel(WHIPPLE_SHIELDED_BATTERY_BANK);
   }
@@ -1800,6 +1806,124 @@ const LARGE_BATTERY_BANK: BatteryBankShape = {
   finHeight: 0.35,
   chargeSegments: 8,
   chargeHeight: 1.7,
+  endRadiators: true,
+  bumperGap: undefined,
+};
+
+/** How many mirrors stand round a concentrator tower, and how far out. */
+const TOWER_MIRRORS = 8;
+const TOWER_MIRROR_RING_METRES = 3;
+const TOWER_HEIGHT_METRES = 7;
+
+/**
+ * A concentrator tower: a ring of mirrors on short posts, each turned towards
+ * the sun as a solar array's panel is, and a lattice mast in the middle with a
+ * receiver at the top that shines once it is commissioned. During Assembly the
+ * mast and the mirrors rise from the ground.
+ */
+function createConcentratorTowerModel(): StructureModel {
+  const tower = new THREE.Group();
+  tower.name = "Concentrator tower";
+  const statusLightMaterial = materials.statusOff.clone();
+  const receiverGlow = materials.statusOff.clone();
+  tower.add(
+    part(
+      new THREE.CylinderGeometry(1.1, 1.3, 0.3, 12),
+      materials.darkMetal,
+      [0, 0.15, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.08, 8, 6),
+      statusLightMaterial,
+      [1, 0.38, 0],
+    ),
+  );
+  const upper = new THREE.Group();
+  upper.add(
+    part(
+      new THREE.CylinderGeometry(0.22, 0.42, TOWER_HEIGHT_METRES, 8),
+      materials.aluminium,
+      [0, 0.3 + TOWER_HEIGHT_METRES / 2, 0],
+    ),
+    part(new THREE.CylinderGeometry(0.6, 0.6, 0.9, 12), materials.darkMetal, [
+      0,
+      0.3 + TOWER_HEIGHT_METRES + 0.2,
+      0,
+    ]),
+    part(new THREE.CylinderGeometry(0.64, 0.64, 0.35, 12), receiverGlow, [
+      0,
+      0.3 + TOWER_HEIGHT_METRES + 0.2,
+      0,
+    ]),
+  );
+  const mirrors = Array.from({ length: TOWER_MIRRORS }, (_, index) => {
+    const angle = (index / TOWER_MIRRORS) * Math.PI * 2;
+    const x = Math.cos(angle) * TOWER_MIRROR_RING_METRES;
+    const z = Math.sin(angle) * TOWER_MIRROR_RING_METRES;
+    upper.add(
+      part(
+        new THREE.CylinderGeometry(0.06, 0.08, 0.9, 6),
+        materials.darkMetal,
+        [x, 0.45, z],
+      ),
+    );
+    const mirror = new THREE.Group();
+    mirror.position.set(x, 1, z);
+    const face = part(
+      new THREE.BoxGeometry(1.5, 1.1, 0.05),
+      materials.aluminium,
+      [0, 0, 0],
+    );
+    face.rotation.x = -0.5;
+    mirror.add(face);
+    upper.add(mirror);
+    return mirror;
+  });
+  tower.add(upper);
+  return {
+    group: tower,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      upper.visible = f > 0;
+      upper.scale.y = Math.max(f, 0.01);
+    },
+    setFacing(angle) {
+      for (const mirror of mirrors) mirror.rotation.y = angle;
+    },
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+      const receiver =
+        state === "on" ? materials.statusTesting : materials.statusOff;
+      receiverGlow.color.copy(receiver.color);
+      receiverGlow.emissive.copy(receiver.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}
+
+/**
+ * A thermal store: a low, wide block of sintered Regolith in three cores, with
+ * a long row of charge lights and radiator panels at both ends for its
+ * exchanger.
+ */
+const THERMAL_STORE: BatteryBankShape = {
+  name: "Thermal store",
+  modules: 3,
+  moduleSize: [1.5, 1.5, 2.6],
+  modulePitch: 1.7,
+  plinthSize: [6, 0.3, 3.6],
+  cabinetSize: [5.6, 1.8, 3],
+  fins: 26,
+  finHeight: 0.25,
+  chargeSegments: 12,
+  chargeHeight: 1.6,
   endRadiators: true,
   bumperGap: undefined,
 };
@@ -3260,12 +3384,20 @@ const PLINTH_TOP = 0.25;
  * A vessel standing on a Plant's plinth. A reactor is tall and narrow, a
  * tank squat and wide, a chamber a drum lying on its side, an oven a low
  * tunnel with a conveyor running through it, a stack a block of cell
- * plates, a hopper a funnel on legs that Regolith is tipped into, and a mill
- * a machine tool, with a spindle hanging from a gantry over its bed.
+ * plates, a hopper a funnel on legs that Regolith is tipped into, a mill a
+ * machine tool, with a spindle hanging from a gantry over its bed, and a
+ * conveyor a long sloping belt.
  */
 interface PlantVessel {
   readonly kind:
-    "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper" | "mill";
+    | "reactor"
+    | "tank"
+    | "chamber"
+    | "oven"
+    | "stack"
+    | "hopper"
+    | "mill"
+    | "conveyor";
   /** Where its centre stands on the plinth, across and front to back. */
   readonly at: readonly [number, number];
   /** How much bigger it is than the plain vessel of its kind; 1 if not given. */
@@ -3369,6 +3501,34 @@ const WORKSHOP: PlantShape = {
   feederAt: 1.3,
 };
 
+/**
+ * A cold-trap ice line: a lagged tank for the ice, and the sloping belt where
+ * the line from the crater comes in.
+ */
+const COLD_TRAP_ICE_LINE: PlantShape = {
+  name: "Cold-trap ice line",
+  plinth: [5, 3],
+  vessels: [
+    { kind: "tank", at: [-1.5, 0], scale: 0.7 },
+    { kind: "conveyor", at: [0.05, 0], scale: 0.7 },
+  ],
+  feederAt: 1.6,
+};
+
+/**
+ * An array works: a long belt the panels come off, with a small casting furnace
+ * behind it.
+ */
+const ARRAY_WORKS: PlantShape = {
+  name: "Array works",
+  plinth: [5.4, 4],
+  vessels: [
+    { kind: "conveyor", at: [-0.8, 0.8] },
+    { kind: "tank", at: [-1.5, -1.05], scale: 0.42 },
+  ],
+  feederAt: 1.7,
+};
+
 /** The Plants, by Structure type. */
 const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "extraction-plant": EXTRACTION_PLANT,
@@ -3379,6 +3539,8 @@ const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "circuit-board-plant": CIRCUIT_BOARD_PLANT,
   "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
   workshop: WORKSHOP,
+  "cold-trap-ice-line": COLD_TRAP_ICE_LINE,
+  "array-works": ARRAY_WORKS,
 };
 
 /**
@@ -3523,6 +3685,36 @@ function plantVesselParts(
           [0.2, 0.95, 0],
         ),
       ];
+    case "conveyor": {
+      // A long belt on two legs, sloping up from side to side, with a light
+      // along it that glows while it runs.
+      const belt = part(
+        new THREE.BoxGeometry(3, 0.12, 0.9),
+        materials.darkMetal,
+        [0, 1.05, 0],
+      );
+      belt.rotation.z = 0.25;
+      const light = part(
+        new THREE.BoxGeometry(2.6, 0.05, 0.2),
+        glow,
+        [0, 1.14, 0],
+      );
+      light.rotation.z = 0.25;
+      return [
+        belt,
+        light,
+        part(
+          new THREE.BoxGeometry(0.2, 0.6, 0.7),
+          materials.machinePaint,
+          [-1, 0.55, 0],
+        ),
+        part(
+          new THREE.BoxGeometry(0.2, 1.2, 0.7),
+          materials.machinePaint,
+          [1, 0.85, 0],
+        ),
+      ];
+    }
     case "reactor":
     case "tank": {
       const [radius, height] = kind === "reactor" ? [0.9, 3.2] : [1.3, 1.6];

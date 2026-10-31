@@ -8,6 +8,11 @@ export const acts: Catalogue["acts"] = [
     label: "Act 1",
     asks: "Keep the Mission Director alive, make a first sale to Earth, and have the base make its own oxygen and water.",
   },
+  {
+    id: "act-2",
+    label: "Act 2: Independence",
+    asks: "Stop relying on Earth: make your own spare Components and sell metals as well as circuit boards, and choose what Funding buys, as it no longer buys everything.",
+  },
 ];
 
 export const milestones: Catalogue["milestones"] = [
@@ -73,5 +78,26 @@ export const milestones: Catalogue["milestones"] = [
     label: "Water self-sufficiency",
     hint: "Ship a water-processing plant and send Expeditions for water ice, until the base's Plants have made at least as much water as the Mission Director drinks over a whole Lunation.",
     condition: { kind: "self-sufficient", stockId: "water" },
+  },
+  {
+    id: "workshop-running",
+    actId: "act-2",
+    label: "Workshop running",
+    hint: "Unlock Molten regolith electrolysis, then Parts machining, on the Tech Tree. Put a machine tool and a casting furnace on the Launch manifest, saving up for them if you have to, and build a Workshop on the power network: it makes a spare Component every Earth Day from metals, so keep some metals in stock.",
+    condition: { kind: "component-being-made", componentId: "spare-component" },
+  },
+  {
+    id: "spare-components-self-sufficient",
+    actId: "act-2",
+    label: "Self-sufficiency in spare Components",
+    hint: "Keep the Workshop running until it has made at least as many spare Components as repairs have used over a whole Lunation: the status panel shows how it is going beside Self-sufficient. If it stands idle, it is short of metals or of power: a Plant runs only on power nothing else needs, so build another solar array. Then no Launch has to bring them, and a Launch that brings nothing pays no fee.",
+    condition: { kind: "self-sufficient-in-spare-components" },
+  },
+  {
+    id: "metals-sold",
+    actId: "act-2",
+    label: "Metals sold",
+    hint: "Metals sell for less than circuit boards, so use them to fill what the circuit boards leave of the Return Mass: on the Launch manifest's Exports tab, load all the circuit boards there are, then metals, keeping enough for the Workshop. To have metals to spare, ship a second extraction plant, or a large one, and set it to metals and silicon.",
+    condition: { kind: "export-sold", resourceId: "metals" },
   },
 ];

@@ -204,6 +204,7 @@ describe("the Workshop's whole path", () => {
     expect(design?.category).toBe("industry");
     const rich = changed(game.campaign, (state) => {
       state.science = 1000;
+      state.fundingMillionDollars = 5000;
     });
     expect(rich.unlockDesign(designId).ok).toBe(false);
     for (const needed of design?.prerequisiteDesignIds ?? []) {

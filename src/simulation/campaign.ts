@@ -206,6 +206,9 @@ import {
   watchSelfSufficiency,
   type SelfSufficiencySnapshot,
   type SelfSufficiencyState,
+  readSpareComponentSufficiency,
+  startingSpareComponentSufficiency,
+  type SpareComponentSufficiencyState,
 } from "./self-sufficiency";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
@@ -532,6 +535,11 @@ export interface Snapshot {
    */
   readonly selfSufficiency: readonly SelfSufficiencySnapshot[];
   /**
+   * The same for spare Components: how many of those used over the window the
+   * base's Plants made.
+   */
+  readonly spareComponentSufficiency: SelfSufficiencySnapshot;
+  /**
    * The total radiation the Mission Director has absorbed. The data
    * catalogue sets the limit.
    */
@@ -760,6 +768,8 @@ export interface CampaignState {
   lifeSupport: LifeSupportState[];
   /** What the base's Plants made of each life support stock, and the Mission Director used, lately. */
   selfSufficiency: SelfSufficiencyState[];
+  /** What the base's Plants made of spare Components, and repairs used, lately. */
+  spareComponentSufficiency: SpareComponentSufficiencyState;
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
@@ -848,6 +858,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     selfSufficiency: startingSelfSufficiency(),
+    spareComponentSufficiency: startingSpareComponentSufficiency(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     micrometeorite: scheduleMicrometeorite(random, 0),
@@ -1111,6 +1122,7 @@ function campaignFrom(state: CampaignState): Campaign {
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         selfSufficiency: readSelfSufficiency(state),
+        spareComponentSufficiency: readSpareComponentSufficiency(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
@@ -1254,7 +1266,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   );
   const minutesUntilLimitBefore = minutesUntilLimitAsMinuteStarts(state);
   const sparesBefore = forecastSpareComponents(state);
-  const selfSufficiencyBefore = readSelfSufficiency(state);
+  const selfSufficiencyBefore = [
+    ...readSelfSufficiency(state),
+    readSpareComponentSufficiency(state),
+  ];
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));

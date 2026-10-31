@@ -309,8 +309,18 @@ export type MilestoneCondition =
   | { readonly kind: "landing-pad-commissioned" }
   /** A Research Task has been completed. */
   | { readonly kind: "research-task-completed" }
-  /** Exports are sold, as the Lander reaches Earth with some aboard. */
-  | { readonly kind: "export-sold" }
+  /**
+   * Exports are sold, as the Lander reaches Earth with some aboard: any
+   * Export, or just the one named.
+   */
+  | { readonly kind: "export-sold"; readonly resourceId?: string }
+  /** A Plant has started a batch of a recipe that makes this Component. */
+  | { readonly kind: "component-being-made"; readonly componentId: string }
+  /**
+   * The base is self-sufficient in spare Components: over the data catalogue's
+   * window its Plants made at least as many as were used.
+   */
+  | { readonly kind: "self-sufficient-in-spare-components" }
   /**
    * The base is self-sufficient in a life support stock, as the status
    * panel judges it.

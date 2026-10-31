@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import {
+  act2TargetsMissed,
   designsNotUsed,
   designsTheLongGameUses,
   formatLongGame,
+  act2Targets,
   LONG_GAME_END_EARTH_DAY,
   longGameSteps,
   longGameSucceeded,
@@ -13,6 +15,8 @@ import { referenceSteps, type ReferenceTimeline } from "./reference-campaign";
 
 // The long game itself takes minutes, so nothing here plays it through: `npm
 // run long-game` does, on demand (see docs/reference-campaign.md).
+
+const earthDay = 24 * 60;
 
 const everythingBuilt: ReferenceTimeline["structureTypesBuilt"] =
   catalogue.structureTypes.map(({ id }) => ({
@@ -28,6 +32,19 @@ function timeline(
     structureTypesBuilt: everythingBuilt,
     launchItemsManifested: catalogue.launch.items.map(({ id }) => id),
     moves: [{ atMinute: 1500 * 24 * 60, structureTypeId: "buried-habitat" }],
+    milestones: [
+      { milestoneId: "workshop-running", atMinute: 400 * earthDay },
+      {
+        milestoneId: "spare-components-self-sufficient",
+        atMinute: 500 * earthDay,
+      },
+    ],
+    researchTasksCompleted: [
+      { researchTaskId: "long-stay-health-study", atMinute: 890 * earthDay },
+    ],
+    designsUnlocked: [
+      { designId: "cold-trap-mining", atMinute: 800 * earthDay },
+    ],
     ...overrides,
   };
 }
@@ -105,7 +122,6 @@ describe("the long-game play guide", () => {
   });
 
   it("says when the Buried Habitat was sent for, commissioned and moved into, with the Radiation Dose at each, and how fast it rose after", () => {
-    const earthDay = 24 * 60;
     const lines = formatLongGame(
       timeline({
         endMinute: 3000 * earthDay,
@@ -163,6 +179,109 @@ describe("the long-game play guide", () => {
     );
   });
 
+  it("fails if it misses any of Act 2's pacing targets, and says which", () => {
+    expect(act2TargetsMissed(timeline())).toEqual([]);
+
+    const later = (milestoneId: string, atDay: number) => ({
+      milestones: [
+        ...timeline().milestones.filter(
+          (milestone) => milestone.milestoneId !== milestoneId,
+        ),
+        { milestoneId, atMinute: atDay * earthDay },
+      ],
+    });
+    const missed = [
+      [later("workshop-running", 501), "a Workshop running by Earth Day 500."],
+      [
+        later("spare-components-self-sufficient", 801),
+        "spare Components needing no Launch by Earth Day 800.",
+      ],
+      [
+        { sparesShipped: [{ atMinute: 801 * earthDay, count: 5 }] },
+        "spare Components needing no Launch by Earth Day 800.",
+      ],
+      [
+        {
+          designsUnlocked: [
+            { designId: "cold-trap-mining", atMinute: 699 * earthDay },
+          ],
+        },
+        "Designs still to buy at Earth Day 700.",
+      ],
+      [
+        {
+          researchTasksCompleted: [
+            {
+              researchTaskId: "long-stay-health-study",
+              atMinute: 800 * earthDay,
+            },
+          ],
+        },
+        "research lasting until about Earth Day 900 (it ended on 800).",
+      ],
+      [
+        {
+          structureTypesBuilt: [
+            { structureTypeId: "workshop", atMinute: 400 * earthDay },
+          ],
+          sparesInStock: [{ atMinute: 500 * earthDay, inStock: 2, fewest: 0 }],
+        },
+        "spare Components never running out.",
+      ],
+    ] as const;
+    for (const [overrides, target] of missed) {
+      expect(act2TargetsMissed(timeline(overrides))).toContain(target);
+      expect(longGameSucceeded(timeline(overrides))).toBe(false);
+    }
+  });
+
+  it("has one of every Launch item take at least the profit of 20 Launches", () => {
+    expect(act2TargetsMissed(timeline()).join()).not.toContain(
+      "Launches' profit",
+    );
+    expect(act2Targets.launchesToBuyEverything).toBe(20);
+  });
+
+  it("says when Act 2's Structures came, and shows the Funding every 100 Earth Days", () => {
+    const lines = formatLongGame(
+      timeline({
+        looks: [
+          {
+            atMinute: 100 * earthDay,
+            radiationDoseMillisieverts: 0,
+            fundingMillionDollars: 1234,
+          },
+          {
+            atMinute: 400 * earthDay,
+            radiationDoseMillisieverts: 0,
+            fundingMillionDollars: 99,
+          },
+        ],
+        sales: [
+          {
+            atMinute: 400 * earthDay,
+            earnedMillionDollars: 228,
+            sold: [
+              { resourceId: "circuit-boards", kilograms: 64 },
+              { resourceId: "metals", kilograms: 36 },
+            ],
+          },
+        ],
+        structureTypesBuilt: [
+          { structureTypeId: "workshop", atMinute: 363 * earthDay },
+        ],
+      }),
+    );
+
+    expect(lines).toContain("     100  $1234M");
+    expect(lines).toContain("   363.0  Workshop");
+    expect(lines).toContainEqual(
+      expect.stringContaining(
+        "lowest at $99M on Earth Day 400.0. Exports earned $228M over 1 trips: 64 kg of circuit boards and 36 kg of metals.",
+      ),
+    );
+  });
+
   it("names only Designs the Tech Tree has as those it uses", () => {
     const ids = catalogue.designs.map((design) => design.id);
 
@@ -177,9 +296,9 @@ describe("its timeline", () => {
     const lines = formatLongGame(
       timeline({
         researchTasksCompleted: [
-          { researchTaskId: "regolith-sample-analysis", atMinute: 1440 },
+          { researchTaskId: "regolith-sample-analysis", atMinute: earthDay },
         ],
-        designsUnlocked: [{ designId: "robots", atMinute: 2880 }],
+        designsUnlocked: [{ designId: "robots", atMinute: 2 * earthDay }],
       }),
     );
 

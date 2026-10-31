@@ -109,7 +109,7 @@ export function describeStructure(type: StructureType): string {
         ]),
     ...(type.recipes ?? []).map(
       (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, turning ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+        `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
     ),
     ...(type.telescope === true
       ? [
@@ -303,17 +303,21 @@ function flows(resources: readonly ResourceFlow[], hours: number = 1): string {
 }
 
 /**
- * Says what a recipe takes in and puts out, for example "4 kg of regolith into
- * 0.15 kg of oxygen an hour", or, for one that makes Components, what a batch
- * does, for example "3.6 kg of metals into 1 spare Component every 24 hours".
+ * Says what a recipe takes in and puts out, for example "turning 4 kg of
+ * regolith into 0.15 kg of oxygen an hour", for one that makes Components what a
+ * batch does, for example "turning 3.6 kg of metals into 1 spare Component every
+ * 24 hours", or for one that takes nothing in what it gets from the ground, for
+ * example "making 0.4 kg of water ice an hour from the ground".
  */
 function describeRecipeFlows(recipe: PlantRecipe): string {
   const components = componentOutputs(recipe);
   if (components.length === 0) {
-    return `${flows(recipe.inputs)} into ${flows(resourceOutputs(recipe))} an hour`;
+    return recipe.inputs.length === 0
+      ? `making ${flows(resourceOutputs(recipe))} an hour from the ground`
+      : `turning ${flows(recipe.inputs)} into ${flows(resourceOutputs(recipe))} an hour`;
   }
   const hours = batchHoursOf(recipe);
-  return `${flows(recipe.inputs, hours)} into ${formatComponentsMade(components)} every ${formatHours(hours)}`;
+  return `turning ${flows(recipe.inputs, hours)} into ${formatComponentsMade(components)} every ${formatHours(hours)}`;
 }
 
 /** Lists the Components a batch makes, for example "1 spare Component". */

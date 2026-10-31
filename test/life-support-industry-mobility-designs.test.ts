@@ -39,14 +39,13 @@ describe.each(structures)("the $label", (type) => {
     const { campaign } = scenario();
     unlock(campaign, design.id);
 
-    expect(
-      campaign.setLaunchManifest(
-        type.components.map((need) => ({
-          itemId: need.componentId,
-          count: need.count,
-        })),
-      ),
-    ).toEqual({ ok: true });
+    // Each on its own: a dear Structure's whole kit needs more than the
+    // Programme Grant, which is the point of it.
+    for (const need of type.components) {
+      expect(
+        campaign.setLaunchManifest([{ itemId: need.componentId, count: 1 }]),
+      ).toEqual({ ok: true });
+    }
     expect(
       campaign.planConstruction({ structureTypeId: type.id, position: site }),
     ).toMatchObject({ ok: true });

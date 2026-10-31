@@ -19,6 +19,7 @@ import {
 } from "./driven";
 import { isDueForCleaning } from "./dust-coating";
 import type { GameEvent } from "./events";
+import { recordSpareComponents } from "./self-sufficiency";
 import { addToStock, inStock } from "./stockpile";
 
 /** What a Maintenance Work Order is for: a commissioned Structure, a Machine or a Rover. */
@@ -135,6 +136,9 @@ export function planMaintenance(state: CampaignState): GameEvent[] {
     (maintenance) => !wanted(maintenance.target),
   )) {
     addToStock(state, spares(dropped.visit?.spareComponents ?? 0));
+    recordSpareComponents(state, {
+      used: -(dropped.visit?.spareComponents ?? 0),
+    });
     for (const robot of state.robots) {
       if (isClaimedBy(robot, dropped.target)) {
         robot.workOrder = undefined;

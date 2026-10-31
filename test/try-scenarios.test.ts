@@ -45,7 +45,40 @@ describe("what npm run try can start the game in", () => {
     );
   });
 
-  it("last-milestone has every Milestone reached but power storage, and building a battery bank reaches it", () => {
+  it("act-2 starts with Act 1 done, Act 2 current, its first Milestone next to reach, and the means to reach it", () => {
+    const scenario = tryScenarios.find((candidate) => candidate.id === "act-2");
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { campaign } = loaded;
+    const state = campaign.snapshot();
+
+    expect(state.milestones).toMatchObject({
+      currentActId: "act-2",
+      currentId: "workshop-running",
+      nextId: "spare-components-self-sufficient",
+    });
+    expect(state.fundingMillionDollars).toBe(2500);
+    expect(campaign.unlockDesign("molten-regolith-electrolysis").ok).toBe(true);
+    expect(campaign.unlockDesign("parts-machining").ok).toBe(true);
+    expect(
+      campaign.setLaunchManifest([
+        { itemId: "machine-tool", count: 1 },
+        { itemId: "casting-furnace", count: 1 },
+      ]).ok,
+    ).toBe(true);
+    expect(
+      campaign.loadExports([
+        { resourceId: "circuit-boards", kilograms: 60 },
+        { resourceId: "metals", kilograms: 40 },
+      ]).ok,
+    ).toBe(true);
+    // Loading it brings no notification of an Act already under way.
+    expect(
+      campaign.advance(60).filter(({ kind }) => kind === "act-started"),
+    ).toEqual([]);
+  });
+
+  it("last-milestone has every Milestone reached but power storage, and building a battery bank reaches it, which opens the last Act", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "last-milestone",
     );
@@ -63,14 +96,17 @@ describe("what npm run try can start the game in", () => {
         position: { x: 28, y: 12 },
       }).ok,
     ).toBe(true);
+    const events = [];
     for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
       if (hours > 5 * 24) throw new Error("It was never built.");
-      campaign.advance(60);
+      events.push(...campaign.advance(60));
     }
-    campaign.advance(1);
+    events.push(...campaign.advance(1));
 
     const { milestones, ended } = campaign.snapshot();
     expect(milestones.currentId).toBeUndefined();
+    expect(milestones.currentActId).toBe(catalogue.acts.at(-1)?.id);
+    expect(events.filter(({ kind }) => kind === "act-started")).toHaveLength(1);
     expect(milestones.reachedIds).toContain("power-storage");
     expect(ended).toBeUndefined();
   });

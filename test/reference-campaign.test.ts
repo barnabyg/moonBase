@@ -44,11 +44,14 @@ describe("the reference Campaign", () => {
     return reached.atMinute;
   };
 
-  it("plays to the end, reaching every Milestone in catalogue order with the Mission Director alive", () => {
+  it("plays to the end, reaching all nine of Act 1's Milestones in catalogue order with the Mission Director alive", () => {
     expect(timeline.failure).toBeUndefined();
     expect(timeline.milestones.map((reached) => reached.milestoneId)).toEqual(
-      catalogue.milestones.map((milestone) => milestone.id),
+      catalogue.milestones
+        .filter((milestone) => milestone.actId === catalogue.acts[0]?.id)
+        .map((milestone) => milestone.id),
     );
+    expect(timeline.milestones).toHaveLength(9);
     expect(timeline.ended).toBeUndefined();
   });
 

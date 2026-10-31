@@ -220,7 +220,11 @@ export function formatPlantRates(
     return `making ${formatComponentsMade(components)} every ${every} from ${flows(recipe.inputs, hours)}${next}`;
   }
   const { performance } = structure;
-  return `making ${flows(resourceOutputs(recipe), performance)} an hour from ${flows(recipe.inputs, performance)}${next}`;
+  const from =
+    recipe.inputs.length === 0
+      ? "the ground"
+      : flows(recipe.inputs, performance);
+  return `making ${flows(resourceOutputs(recipe), performance)} an hour from ${from}${next}`;
 }
 
 /** Kilograms a Plant takes in or puts out, to the hundredth of one, for example "0.35". */

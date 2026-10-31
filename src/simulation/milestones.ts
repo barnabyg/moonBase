@@ -1,5 +1,6 @@
 import {
   catalogue,
+  componentOutputs,
   type Act,
   type Milestone,
   type MilestoneCondition,
@@ -7,7 +8,11 @@ import {
 import type { CampaignState } from "./campaign";
 import { findStructureType, isShielded } from "./construction";
 import type { GameEvent } from "./events";
-import { readSelfSufficiency } from "./self-sufficiency";
+import { isPlant, recipeOf } from "./plants";
+import {
+  readSelfSufficiency,
+  readSpareComponentSufficiency,
+} from "./self-sufficiency";
 
 /** Which Milestones are reached, and which to aim for now and next. */
 export interface MilestonesSnapshot {
@@ -154,8 +159,24 @@ function holds(
     case "export-sold":
       return events.some(
         (event) =>
-          event.kind === "lander-reached-earth" && event.sold.length > 0,
+          event.kind === "lander-reached-earth" &&
+          event.sold.some(
+            ({ resourceId }) =>
+              condition.resourceId === undefined ||
+              resourceId === condition.resourceId,
+          ),
       );
+    case "component-being-made":
+      return state.structures.some(
+        (structure) =>
+          isPlant(structure) &&
+          structure.batch !== undefined &&
+          componentOutputs(recipeOf(structure)).some(
+            ({ componentId }) => componentId === condition.componentId,
+          ),
+      );
+    case "self-sufficient-in-spare-components":
+      return readSpareComponentSufficiency(state).selfSufficient;
     case "self-sufficient":
       return readSelfSufficiency(state).some(
         (judged) =>

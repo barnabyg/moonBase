@@ -261,7 +261,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       paragraphs: [
         `You never repair anything yourself: the Robot does it. Dust, the cold of Night, Micrometeorites and the Lander's Plume Ejecta wear everything down, and below ${catalogue.structurePerformance.thresholdPercent}% Condition a thing works less well.`,
         `Once a Structure, Machine or Rover is below ${maintenance.thresholdPercent}% Condition, or Broken, the Robot repairs it by itself, ahead of other work: it collects spare Components at the stockpile and brings it back to 100%, using one for every ${maintenance.conditionPercentPerSpareComponent} percentage points. A Robot below ${robot.selfRepairThresholdPercent}% repairs itself where the Mission Director lives.`,
-        "Without enough spare Components, Maintenance waits, so keep them coming on the Launch manifest, or make them from metals in a Workshop, once you have its Design; the status panel shows how long they will last, or that they are rising. The Robot cleans Dust off solar arrays the same way, with no spares.",
+        "Without enough spare Components, Maintenance waits, so keep them coming on the Launch manifest, or make them from metals in a Workshop, once you have its Design; the status panel shows how long they will last, or that they are rising, and beside Self-sufficient whether the base makes as many as it uses. The Robot cleans Dust off solar arrays the same way, with no spares.",
       ],
     },
     {
@@ -276,7 +276,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       title: "Launches and Funding",
       paragraphs: [
         `The Lander can fly to Earth and back once the Mission Director has moved into a Habitat. Each Launch costs a ${formatMillionDollars(launch.feeMillionDollars)} fee plus the price of what it brings, up to ${launch.payloadMassLimitKilograms} kg; choose it on the Launch manifest.`,
-        `Funding starts with the ${formatMillionDollars(catalogue.programmeGrantMillionDollars)} Programme Grant. Exports, such as wafers and circuit boards, earn more: load them on the Launch manifest's Exports tab, and they sell as the Lander reaches Earth, before the next Launch is paid for. What the Exports aboard and to load will sell for counts towards what it can cost, so the Lander can't leave if they fall short of it. A landing pad stops it blasting Plume Ejecta over the base.`,
+        `Funding starts with the ${formatMillionDollars(catalogue.programmeGrantMillionDollars)} Programme Grant. Exports, such as wafers, circuit boards and metals, earn more: load them on the Launch manifest's Exports tab, and they sell as the Lander reaches Earth, before the next Launch is paid for. What the Exports aboard and to load will sell for counts towards what it can cost, so the Lander can't leave if they fall short of it. A landing pad stops it blasting Plume Ejecta over the base.`,
       ],
     },
     {
