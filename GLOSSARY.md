@@ -131,7 +131,7 @@ A Plant that brings water ice in from a shadowed crater by a heated line, so tha
 _Avoid_: pipeline, ice mine
 
 **Batch**:
-A game-hour of a Plant's recipe, or longer if its recipe says so, as a Workshop's does: the unit a Plant works in. It takes the inputs as it starts and puts out the outputs as it finishes.
+A game-hour of a Plant's recipe, or longer if its recipe says so, as a Workshop's and an array works' do: the unit a Plant works in. It takes the inputs as it starts and puts out the outputs as it finishes.
 _Avoid_: job, run, cycle
 
 **Construction**:
