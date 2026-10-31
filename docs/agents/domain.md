@@ -4,7 +4,7 @@ How to use this repo's domain documentation when exploring the codebase.
 
 ## Before exploring, read these
 
-- **`GLOSSARY.md`** at the repo root.
+- **`GLOSSARY.md`** at the repo root: the sections that touch your work. It runs past 200 lines because it defines every term the game uses, with the words to avoid for each, so look terms up rather than read it through.
 - **`docs/adr/`**: the ADRs that touch the area you're about to work in.
 
 ## Use the glossary's vocabulary
