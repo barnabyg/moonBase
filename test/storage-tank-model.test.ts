@@ -89,6 +89,35 @@ describe("a storage tank's model", () => {
     expect(capsule.x).toBeGreaterThan(1.8 * capsule.z);
   });
 
+  it("draws the propellant tank as a fat capsule, with radiators on top, unlike either of the others", () => {
+    const model = models.createStructureModel("propellant-tank");
+    model.setAssembled(1);
+    const vessel = model.group.getObjectByName("Vessel");
+    if (vessel === undefined) throw new Error("expected a vessel");
+    const size = boundsOf(vessel).getSize(new THREE.Vector3());
+
+    expect(size.x).toBeGreaterThan(1.5 * size.z);
+    const water = models.createStructureModel("water-tank");
+    water.setAssembled(1);
+    const waterVessel = water.group.getObjectByName("Vessel");
+    if (waterVessel === undefined) throw new Error("expected a vessel");
+    expect(size.z).toBeGreaterThan(
+      boundsOf(waterVessel).getSize(new THREE.Vector3()).z,
+    );
+    // A radiator's height stands above the top of the vessel itself.
+    expect(boundsOf(vessel).max.y).toBeGreaterThan(1.9 + 1.5 + 0.5);
+  });
+
+  it("shows how full the propellant tank is on its own column of lights", () => {
+    const model = models.createStructureModel("propellant-tank");
+    model.setAssembled(1);
+
+    model.setCharge(0.5);
+    expect(lightsLit(model.group)).toBe(4);
+    model.setCharge(1);
+    expect(lightsLit(model.group)).toBe(8);
+  });
+
   it("goes up during Assembly: nothing at first, then the cradle, then the vessel", () => {
     const model = models.createStructureModel("oxygen-tank");
     const vessel = model.group.getObjectByName("Vessel");

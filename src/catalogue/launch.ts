@@ -323,6 +323,23 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 500,
       priceMillionDollars: 500,
     },
+    // A propellant tank's worth comes to 600 kg and $80M: about a third of a Launch,
+    // and little against what a base earns by then, as what it costs is the Payload
+    // Mass and the Night's power.
+    {
+      id: "propellant-tank-shell",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "propellant-tank-shell" },
+      massKilograms: 480,
+      priceMillionDollars: 60,
+    },
+    {
+      id: "propellant-cooler",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "propellant-cooler" },
+      massKilograms: 120,
+      priceMillionDollars: 20,
+    },
     {
       id: "optical-grinder",
       designId: "precision-optics",

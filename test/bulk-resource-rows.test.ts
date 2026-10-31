@@ -11,7 +11,14 @@ function row(
 ) {
   const [shown] = formatBulkResources(
     [{ resourceId: "silicon", kilograms }],
-    [{ resourceId: "silicon", kilogramsPerHour, minutesUntilEmpty }],
+    [
+      {
+        resourceId: "silicon",
+        kilogramsPerHour,
+        minutesUntilEmpty,
+        holdingFull: false,
+      },
+    ],
   );
   if (shown === undefined) throw new Error("expected a row");
   return shown;

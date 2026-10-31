@@ -1,5 +1,6 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { storageLimitKilograms } from "./storage-limits";
 
 /**
  * The base's stock of a bulk resource, such as Regolith, kept at the
@@ -13,6 +14,8 @@ export interface BulkResourceState {
 export interface BulkResourceSnapshot {
   readonly resourceId: string;
   readonly kilograms: number;
+  /** How many kilograms the base can hold (see `storageLimitKilograms`), if it has a limit. */
+  readonly limitKilograms?: number;
 }
 
 /** The bulk resources a Campaign begins with: none of each, in catalogue order. */
@@ -26,7 +29,15 @@ export function startingBulkResources(): BulkResourceState[] {
 export function readBulkResources(
   state: CampaignState,
 ): BulkResourceSnapshot[] {
-  return state.bulkResources.map((stock) => ({ ...stock }));
+  return state.bulkResources.map((stock) => {
+    const limit = storageLimitKilograms(state, {
+      kind: "bulk-resource",
+      resourceId: stock.resourceId,
+    });
+    return limit === undefined
+      ? { ...stock }
+      : { ...stock, limitKilograms: limit };
+  });
 }
 
 /** How many kilograms of a bulk resource the base has in stock. */

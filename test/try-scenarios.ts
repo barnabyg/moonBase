@@ -610,6 +610,61 @@ export function greenhouseSave(): string {
   return watered.campaign.save();
 }
 
+/** Where `propellantTanksSave` puts what it builds. */
+const PROPELLANT_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["solar-array", { x: 40, y: 13 }],
+  ["solar-array", { x: 40, y: 1 }],
+  ["battery-bank", { x: 40, y: 37 }],
+  ["propellant-plant", { x: 54, y: 25 }],
+  ["propellant-tank", { x: 54, y: 37 }],
+] as const;
+
+/**
+ * A base with a commissioned propellant plant and propellant tank, three batches
+ * below what the base can hold, with Regolith for the Plant and a second tank's
+ * Components in stock. It stops a few hours before Night, as `storageTanksSave` does.
+ */
+export function propellantTanksSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("propellant-production");
+      addComponents(state, [
+        ...PROPELLANT_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("propellant-tank"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of PROPELLANT_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    stockOf(state, "propellant", 1047);
+    stockOf(state, "regolith", 1500);
+  });
+}
+
 /** Where `storageTanksSave` puts what it builds. */
 const TANKS_BASE_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -719,7 +774,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Launch manifest and open the Exports tab. Return Mass says 0 of 350 kg, as 500 kg of propellant adds 250 kg. Set 150 kg of circuit boards and 150 kg of metals: it says 300 of 350 kg, burning 400 kg of propellant. Try 250 kg of metals: it is refused, naming the Return Mass.",
       'Press Send the Lander. A notification says "Milestone reached: Return Mass tripled", and the status panel shows 100 kg of propellant left.',
       "When the Lander reaches Earth the Funding rises by $600M. When it is back, load the last of the propellant on the Exports tab, and send it again: Oxygen sold as propellant is reached as it reaches Earth, and the Milestones section moves on to Act 4.",
-      "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel rises by about a kilogram a game-hour.",
+      "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel, shown now against the limit of 450 kg that the Plant brings, rises by about a kilogram a game-hour.",
     ],
     save: act3Save,
   },
@@ -787,6 +842,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
     ],
     save: storageTanksSave,
+  },
+  {
+    id: "propellant-tanks",
+    title:
+      "A base with a propellant plant and a propellant tank three batches from full, a few hours before Night, on three solar arrays and a battery bank, and a second tank's Components in stock",
+    steps: [
+      'Pause the game. The status panel\'s Bulk resources say "Propellant 1047.0 of 1050 kg". In the Base panel the Propellant tank says "holds 598.3 of 600 kg of propellant, draws 0.2 kW at Night". Find it on the map: a fat silver capsule on two saddles, with white radiators on top and all its lights lit on the post beside it.',
+      'Set the game to 5x. Within a few real seconds the Propellant plant says "waiting for tank space: Propellant is 1050.0 of 1050 kg", and the status panel says "holding full". Its Regolith stops falling.',
+      'Carry on until Night falls: the tank says "drawing 0.2 kW", and the power line uses that much more.',
+      "Pick the Propellant tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 1650 kg, and in Daylight the Plant starts again by itself, as a tank comes empty.",
+      "Open the Launch manifest's Exports tab: the Return Mass is 400 kg, however much more than 600 kg there is. Set 300 kg of propellant to load: it stops being counted, but the 750 kg left is still more than the 600 kg the ceiling takes, so the Return Mass stays at 400 kg. Propellant can't be brought by Launch: there is no such item on the Imports tab, only the tank's parts, under Industry.",
+      "Press Dismantle beside the Propellant plant. When the Robot starts on it the limit falls by 450 kg, the stock doesn't, and no notification says anything was lost. Press Dismantle beside a Propellant tank: when the Robot starts on it, a notification says what no longer fits was lost.",
+    ],
+    save: propellantTanksSave,
   },
   {
     id: "greenhouse",

@@ -93,7 +93,7 @@ The last Act's Export: optical parts made in the Moon's vacuum, worth far more f
 _Avoid_: lenses, mirrors
 
 **Propellant**:
-Liquid oxygen made at the base, a bulk resource apart from the Mission Director's oxygen. The Lander burns 2 kg of it to carry each kilogram above 100 kg of Exports, and it can be sold as an Export instead.
+Liquid oxygen made at the base, a bulk resource apart from the Mission Director's oxygen. The Lander burns 2 kg of it to carry each kilogram above 100 kg of Exports, and it can be sold as an Export instead. It is the one bulk resource with a storage limit.
 _Avoid_: fuel
 
 **Lander**:
@@ -143,7 +143,7 @@ A Plant that makes spare Components from metals at the base, so that they no lon
 _Avoid_: factory, fabricator, printer
 
 **Propellant plant**:
-A Plant that makes propellant from Regolith. A large one makes three times as much.
+A Plant that makes propellant from Regolith. A large one makes three times as much, and holds no more of it: each holds a set amount, which is what the base's storage limit for propellant is made of, with any propellant tanks.
 _Avoid_: refinery, fuel plant
 
 **Optics works**:
@@ -273,11 +273,11 @@ Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
 
 **Storage limit**:
-How much of a life support stock the base can hold, in its own tanks and its storage tanks, as the data catalogue sets: what doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full.
+How much of a life support stock or of propellant the base can hold, as the data catalogue sets: of a stock, in the base's own tanks and its storage tanks, and of propellant, in its propellant plants and propellant tanks. What doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full. Water ice and the other bulk resources have none.
 _Avoid_: capacity, cap, maximum
 
 **Storage tank**:
-A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, or an oxygen tank, the large insulated sphere with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night.
+A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, an oxygen tank, the large insulated sphere with a cooler, or a propellant tank, a fat silver capsule with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night.
 _Avoid_: silo, reservoir, water wall
 
 **Reserve**:

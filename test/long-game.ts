@@ -291,6 +291,8 @@ const PURCHASES: readonly {
   // them all. A second and third tower drew 0.2 kW each through the Night, which
   // this base's battery banks couldn't carry: the Mission Director died on 1,255.
   { structureTypeId: "propellant-plant", site: { x: 92, y: -33 } },
+  // Its Design is the Plant's, so this comes as soon as the Plant is up.
+  { structureTypeId: "propellant-tank", site: { x: 92, y: -21 } },
   { structureTypeId: "large-propellant-plant", site: { x: 104, y: -33 } },
   { structureTypeId: "optics-works", site: { x: 54, y: -56 } },
   { structureTypeId: "grinding-line", site: { x: 44, y: -56 } },
@@ -349,7 +351,11 @@ const TRIPLED_RETURN_MASS_KILOGRAMS = 300;
 /** The propellant the guide keeps from what it sells, to burn. */
 const PROPELLANT_KEPT_KILOGRAMS = 400;
 
-/** The propellant it wants in stock, above which the Plants stop making it. */
+/**
+ * The propellant it wants in stock, above which the Plants stop making it. It is
+ * more than two Plants hold, which is what its propellant tank is for, and that
+ * tank's limit leaves room to spare.
+ */
 const PROPELLANT_HELD_KILOGRAMS = 1200;
 
 /** The fewest circuit boards it is worth sending the Lander with. */
@@ -734,7 +740,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
       play.keepUp(buyInTurn);
@@ -907,6 +913,39 @@ function formatGreenhouse(timeline: ReferenceTimeline): string[] {
   ];
 }
 
+/** What became of the base's propellant, as lines of text. */
+function formatPropellant({
+  propellantUse,
+  sales,
+  structureTypesBuilt,
+}: ReferenceTimeline): string[] {
+  const sold = sales
+    .flatMap((sale) => sale.sold)
+    .filter(({ resourceId }) => resourceId === "propellant")
+    .reduce((sum, { kilograms }) => sum + kilograms, 0);
+  const {
+    burnedKilograms,
+    takeOffsBurning,
+    takeOffs,
+    mostBurnedKilograms,
+    mostCarriedKilograms,
+    highestKilograms,
+    limitKilograms,
+    minutesWaiting,
+  } = propellantUse;
+  const tank = structureTypesBuilt.find(
+    ({ structureTypeId }) => structureTypeId === "propellant-tank",
+  )?.atMinute;
+  return [
+    ...(tank === undefined
+      ? []
+      : [
+          `A propellant tank was commissioned on Earth Day ${(tank / MINUTES_PER_EARTH_DAY).toFixed(1)}.`,
+        ]),
+    `Propellant: ${burnedKilograms.toFixed(0)} kg burned, on ${takeOffsBurning} of ${takeOffs} take-offs, the most on one ${mostBurnedKilograms.toFixed(0)} kg, for the most carried, ${mostCarriedKilograms.toFixed(0)} kg; ${sold.toFixed(0)} kg sold. It held at most ${highestKilograms.toFixed(0)} kg, against a limit by the end of ${limitKilograms} kg, and some Plant waited for tank space for ${(minutesWaiting / MINUTES_PER_EARTH_DAY).toFixed(0)} Earth Days.`,
+  ];
+}
+
 /** The timeline as lines of text, for `npm run long-game`. */
 export function formatLongGame(timeline: ReferenceTimeline): string[] {
   const day = (minute: number) =>
@@ -939,6 +978,7 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     ...formatFunding(timeline),
     "",
     ...formatAct4Exports(timeline),
+    ...formatPropellant(timeline),
     "",
     ...formatBuriedHabitat(timeline),
     "",

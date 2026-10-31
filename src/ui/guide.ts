@@ -20,6 +20,20 @@ export interface GuideScreen {
   update(snapshot: Snapshot): void;
 }
 
+/** What the Guide says of the limit on propellant, from the data catalogue's figures. */
+function propellantStorage(): string[] {
+  const holds = catalogue.structureTypes.find(
+    ({ ownStorage }) => ownStorage !== undefined,
+  )?.ownStorage;
+  const tank = catalogue.structureTypes.find(
+    ({ storageTank }) => storageTank?.resource.kind === "bulk-resource",
+  )?.storageTank;
+  if (holds === undefined || tank === undefined) return [];
+  return [
+    `Propellant has a limit as well: a propellant plant of either size holds ${holds.kilograms} kg, and a propellant tank (the Propellant production Design) adds ${tank.kilograms} kg. A Plant with no room waits for tank space, and the status panel says it is holding full. Nobody depends on it, so no reserve is kept: a Broken tank's share goes at once and a tank with no power at Night goes on losing its share, however little is left. A Plant that is Broken or taken apart only lowers the limit: what the base has stays, and can be burned or sold, though no more is made until it fits.`,
+  ];
+}
+
 /**
  * The Guide screen, for a player who wants to know how the base works and
  * what each thing on it does, without leaving the game. A tab says how
@@ -265,6 +279,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
           ),
         )}, and the status panel shows each stock against its limit. A Plant that makes only a full stock waits for tank space, using no power or inputs, and starts again as the Mission Director uses some: the status panel says the stock is holding full, and that doesn't count against being self-sufficient in it. A Plant that makes other things as well keeps running and loses what doesn't fit, so that oxygen can't hold up metals. The Launch manifest warns if a Launch would bring more than there is room for: what doesn't fit is lost on landing.`,
         `A storage tank (the Bulk supply tanks Design) raises a stock's limit once it is commissioned. It comes empty and takes a cable, as it draws a little power all through the Night to stop what it holds freezing or boiling off. Every tank, and the base's own, holds its share of the stock. A Broken tank loses its share at once and the limit falls until it is repaired, a tank taken apart loses whatever no longer fits, and with no power at Night a tank loses a little of its share every hour. None of that takes the stock below the Mission Director's reserve.`,
+        ...propellantStorage(),
         "Switch a Plant off in the Base panel to keep an input it would use, or to leave its power to other Plants, and switch it on again whenever you like: neither needs the Robot. A batch it has started finishes first. The forecasts count a switched-off Plant as making nothing. It wears no further by Dust while it stands idle, but Micrometeorites can still strike it and the Robot still maintains it.",
         `A Light Mast only helps you see, as work carries on in the dark. At Night it switches itself off to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more.`,
       ],

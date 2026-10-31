@@ -197,6 +197,7 @@ describe("a folded Bulk resources section", () => {
     resourceId,
     kilogramsPerHour: -1,
     minutesUntilEmpty: toGameMinutes({ earthDays }),
+    holdingFull: false,
   });
 
   it("shows what will run out soonest, then the first other in stock", () => {
@@ -222,6 +223,7 @@ describe("a folded Bulk resources section", () => {
             resourceId: "metals",
             kilogramsPerHour: 1,
             minutesUntilEmpty: undefined,
+            holdingFull: false,
           },
         ],
       ),

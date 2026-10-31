@@ -81,6 +81,17 @@ describe("the Return Mass", () => {
     expect(campaign.snapshot().exports.returnMassKilograms).toBe(400);
   });
 
+  it("reaches that ceiling at 600 kg of propellant, the 2 kg a kilogram of the 300 kg above the first 100 kg", () => {
+    expect(
+      landerFreeWith({ propellant: 599 }).snapshot().exports
+        .returnMassKilograms,
+    ).toBe(399.5);
+    expect(
+      landerFreeWith({ propellant: 600 }).snapshot().exports
+        .returnMassKilograms,
+    ).toBe(400);
+  });
+
   it("doesn't count propellant loaded to be sold, as it can't be burned as well", () => {
     const campaign = landerFreeWith({ metals: 500, propellant: 60 });
 

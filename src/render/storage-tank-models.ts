@@ -51,12 +51,26 @@ export const OXYGEN_TANK: StorageTankShape = {
   radiatorPanels: 3,
 };
 
+/**
+ * A fat capsule in silver foil, standing high on two saddles, with the cooler's
+ * two radiators on top: as cold as the oxygen tank, and not to be taken for either.
+ */
+export const PROPELLANT_TANK: StorageTankShape = {
+  name: "Propellant tank",
+  vessel: { kind: "capsule", radius: 1.5, length: 3.2 },
+  skin: "silverFoil",
+  vesselHeight: 1.9,
+  gaugeSegments: 8,
+  radiatorPanels: 2,
+};
+
 /** The model of each type of storage tank in the data catalogue, by its id. */
 export const STORAGE_TANK_SHAPES: Readonly<
   Record<string, StorageTankShape | undefined>
 > = {
   "water-tank": WATER_TANK,
   "oxygen-tank": OXYGEN_TANK,
+  "propellant-tank": PROPELLANT_TANK,
 };
 
 /** From the middle of one of a gauge's lights to the next. */

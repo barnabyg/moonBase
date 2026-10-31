@@ -720,9 +720,10 @@ function withPlantsOff(
 /**
  * Lists the base's stock of bulk resources, each with its amount and,
  * if it is falling, roughly how long it will last at the current rate, for
- * example "Water ice", "190 kg" and "~7d 22h". Each says whether it is a
- * warning, as one falling with little time left is, and whether it is in
- * play, with any in stock or being made or used.
+ * example "Water ice", "190 kg" and "~7d 22h". One with a limit is shown against
+ * it, for example "450.0 of 450 kg", and while the Plants are holding it there the
+ * line says so. Each says whether it is a warning, as one falling with little time
+ * left is, and whether it is in play, with any in stock or being made or used.
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
@@ -736,7 +737,11 @@ export function formatBulkResources(
   const warnFrom = catalogue.bulkResourceWarningEarthDaysLeft * 24 * 60;
   return bulkResources.map((stock) => {
     const label = resourceLabel(stock.resourceId);
-    const value = formatKilograms(stock.kilograms);
+    // With a limit of none, as with no Plant to hold it, there is nothing to say of it.
+    const value =
+      stock.limitKilograms === undefined || stock.limitKilograms === 0
+        ? formatKilograms(stock.kilograms)
+        : `${stock.kilograms.toFixed(1)} of ${stock.limitKilograms} kg`;
     const empty = stock.kilograms < 1;
     const forecast = forecasts.find(
       (candidate) => candidate.resourceId === stock.resourceId,
@@ -752,7 +757,15 @@ export function formatBulkResources(
       minutes === undefined || stock.kilograms === 0
         ? undefined
         : `~${formatShortDuration(minutes, true)}`;
-    const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
+    const held =
+      forecast?.holdingFull !== true
+        ? undefined
+        : stock.kilograms > (stock.limitKilograms ?? Infinity)
+          ? "holding full, over the limit"
+          : "holding full";
+    const note = [held, rate, lasts]
+      .filter((part) => part !== undefined)
+      .join(", ");
     const shown = {
       label,
       value,

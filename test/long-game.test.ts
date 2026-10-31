@@ -113,6 +113,43 @@ describe("the long-game play guide", () => {
     expect(lines).toContain("     140  25 (22)");
   });
 
+  it("says what became of the propellant", () => {
+    const lines = formatLongGame(
+      timeline({
+        structureTypesBuilt: [
+          { structureTypeId: "propellant-tank", atMinute: 1000 * earthDay },
+        ],
+        sales: [
+          {
+            atMinute: 1200 * earthDay,
+            earnedMillionDollars: 120,
+            sold: [
+              { resourceId: "propellant", kilograms: 100 },
+              { resourceId: "metals", kilograms: 20 },
+            ],
+          },
+        ],
+        propellantUse: {
+          burnedKilograms: 1000,
+          takeOffsBurning: 4,
+          takeOffs: 10,
+          mostBurnedKilograms: 400,
+          mostCarriedKilograms: 300,
+          highestKilograms: 1050,
+          limitKilograms: 1500,
+          minutesWaiting: 12 * earthDay,
+        },
+      }),
+    );
+
+    expect(lines).toContain(
+      "A propellant tank was commissioned on Earth Day 1000.0.",
+    );
+    expect(lines).toContain(
+      "Propellant: 1000 kg burned, on 4 of 10 take-offs, the most on one 400 kg, for the most carried, 300 kg; 100 kg sold. It held at most 1050 kg, against a limit by the end of 1500 kg, and some Plant waited for tank space for 12 Earth Days.",
+    );
+  });
+
   it("plays to the length the Campaign's content is meant to last", () => {
     expect(LONG_GAME_END_EARTH_DAY).toBe(3000);
   });

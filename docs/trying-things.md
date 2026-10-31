@@ -19,6 +19,7 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `water-reserve`       | A base with an optics works running on six batches' water above the reserve, and a water-processing plant switched off with water ice to use    |
 | `full-store`          | A base with a water-processing plant running three batches below the limit of 400 kg, its water ice to spare, and an optics works switched off  |
 | `storage-tanks`       | A base with a water tank and an oxygen tank half full, a few hours before Night, and a second water tank's Components in stock                  |
+| `propellant-tanks`    | A base with a propellant plant and a propellant tank three batches from full, a few hours before Night, and a second tank's Components in stock |
 | `greenhouse`          | A base with a Greenhouse growing a few hours before Night on a day's water above the reserve, and a water-processing plant switched off         |
 | `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                |
 

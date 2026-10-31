@@ -729,6 +729,21 @@ export interface ReferenceTimeline {
     readonly science: number;
     readonly lostFor?: string;
   }[];
+  /** What became of the base's propellant: what is sold comes from `sales`. */
+  readonly propellantUse: {
+    /** What the Lander burned on all its take-offs, and on how many it burned any. */
+    readonly burnedKilograms: number;
+    readonly takeOffsBurning: number;
+    readonly takeOffs: number;
+    /** What the most any take-off burned and carried came to. */
+    readonly mostBurnedKilograms: number;
+    readonly mostCarriedKilograms: number;
+    /** The most the base held, and how much it could hold by the end. */
+    readonly highestKilograms: number;
+    readonly limitKilograms: number;
+    /** How long some Plant was waiting for tank space for it. */
+    readonly minutesWaiting: number;
+  };
   /** What each round trip's Launch manifest brought, by the game-minute it left. */
   readonly launchManifests: readonly {
     readonly atMinute: number;
@@ -902,9 +917,32 @@ function recorder(campaign: Campaign) {
     science: number;
     lostFor?: string;
   }[] = [];
+  const { returnMassKilograms, propellant } = catalogue.lander;
+  let burnedKilograms = 0;
+  let takeOffsBurning = 0;
+  let takeOffs = 0;
+  let mostBurnedKilograms = 0;
+  let mostCarriedKilograms = 0;
+  let highestPropellant = 0;
+  let minutesWaiting = 0;
+  let lastLookAtPropellant = 0;
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
+        if (event.kind === "lander-took-off") {
+          const carried = event.exports.reduce(
+            (sum, { kilograms }) => sum + kilograms,
+            0,
+          );
+          const burned =
+            Math.max(carried - returnMassKilograms, 0) *
+            propellant.kilogramsPerReturnKilogram;
+          takeOffs += 1;
+          takeOffsBurning += burned > 0 ? 1 : 0;
+          burnedKilograms += burned;
+          mostBurnedKilograms = Math.max(mostBurnedKilograms, burned);
+          mostCarriedKilograms = Math.max(mostCarriedKilograms, carried);
+        }
         if (event.kind === "greenhouse-round-completed") {
           greenhouseRounds.push({
             atMinute: event.atMinute,
@@ -964,6 +1002,23 @@ function recorder(campaign: Campaign) {
     },
     margins(state: Snapshot) {
       const atMinute = state.clock.elapsedMinutes;
+      highestPropellant = Math.max(
+        highestPropellant,
+        state.bulkResources.find(
+          ({ resourceId }) => resourceId === propellant.resourceId,
+        )?.kilograms ?? 0,
+      );
+      if (
+        state.structures.some(
+          ({ plant }) =>
+            plant?.stoppedFor?.reason === "output-full" &&
+            plant.stoppedFor.resource.kind === "bulk-resource" &&
+            plant.stoppedFor.resource.resourceId === propellant.resourceId,
+        )
+      ) {
+        minutesWaiting += atMinute - lastLookAtPropellant;
+      }
+      lastLookAtPropellant = atMinute;
       for (const { itemId } of state.launchManifest.items) {
         launchItemsManifested.add(itemId);
       }
@@ -1114,6 +1169,19 @@ function recorder(campaign: Campaign) {
         })),
         launchItemsManifested: [...launchItemsManifested],
         greenhouseRounds,
+        propellantUse: {
+          burnedKilograms,
+          takeOffsBurning,
+          takeOffs,
+          mostBurnedKilograms,
+          mostCarriedKilograms,
+          highestKilograms: highestPropellant,
+          limitKilograms:
+            state.bulkResources.find(
+              ({ resourceId }) => resourceId === propellant.resourceId,
+            )?.limitKilograms ?? 0,
+          minutesWaiting,
+        },
         launchManifests: [...launchManifests].map(([atMinute, items]) => ({
           atMinute,
           items,

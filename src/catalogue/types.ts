@@ -1005,6 +1005,18 @@ export interface StructureType {
    * taken apart, it adds to what the base can hold of a resource.
    */
   readonly storageTank?: StorageTank;
+  /**
+   * If it is a Plant that stores what it makes: once it is commissioned, and until
+   * it is Broken or taken apart, it holds this much of it. A bulk resource that some
+   * type of Structure holds has a limit, which is what they hold between them.
+   */
+  readonly ownStorage?: OwnStorage;
+}
+
+/** How much of a resource a Plant holds in its own tanks. */
+export interface OwnStorage {
+  readonly resource: ResourceRef;
+  readonly kilograms: number;
 }
 
 /**

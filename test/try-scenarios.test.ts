@@ -151,6 +151,43 @@ describe("what npm run try can start the game in", () => {
     ).toBe("output-full");
   });
 
+  it("propellant-tanks has a Plant and a tank commissioned, three batches from full, with a second tank's Components in stock, and the Plant comes to wait", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "propellant-tanks",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+
+    expect(
+      state.bulkResources.find(({ resourceId }) => resourceId === "propellant"),
+    ).toEqual({
+      resourceId: "propellant",
+      kilograms: 1047,
+      limitKilograms: 1050,
+    });
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    expect(
+      state.stockpile.components.find(
+        ({ componentId }) => componentId === "propellant-tank-shell",
+      )?.count,
+    ).toBe(1);
+
+    loaded.campaign.advance(4 * 60);
+
+    const later = loaded.campaign.snapshot();
+    expect(
+      later.bulkResources.find(({ resourceId }) => resourceId === "propellant")
+        ?.kilograms,
+    ).toBe(1050);
+    expect(
+      later.structures.find(
+        ({ structureTypeId }) => structureTypeId === "propellant-plant",
+      )?.plant?.stoppedFor?.reason,
+    ).toBe("output-full");
+  });
+
   it("everything-unlocked has every Design unlocked", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",

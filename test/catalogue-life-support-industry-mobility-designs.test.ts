@@ -448,7 +448,17 @@ describe("the data catalogue", () => {
       for (const type of tanks) {
         const tank = type.storageTank;
         if (tank === undefined) throw new Error("expected a tank");
-        expect(tank.resource.kind).toBe("life-support");
+        // Whatever it adds to has a limit: a life support stock, or a bulk
+        // resource a Plant holds.
+        const { resource } = tank;
+        expect(
+          resource.kind === "life-support" ||
+            catalogue.structureTypes.some(
+              ({ ownStorage }) =>
+                ownStorage?.resource.kind === "bulk-resource" &&
+                ownStorage.resource.resourceId === resource.resourceId,
+            ),
+        ).toBe(true);
         expect(tank.kilograms).toBeGreaterThan(0);
         expect(tank.shareLostPerEarthDayWithoutPower).toBeGreaterThan(0);
         expect(tank.shareLostPerEarthDayWithoutPower).toBeLessThan(1);

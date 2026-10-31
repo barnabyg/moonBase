@@ -1334,12 +1334,18 @@ export const structureTypes: Catalogue["structureTypes"] = [
   },
   // Act 3: liquid oxygen for the Lander, or to sell. 480 kg in a Daylight lifts
   // 240 kg more of Exports a Lunation, so one is enough to raise the Return Mass
-  // but not to triple it every trip.
+  // but not to triple it every trip. Its two cryogenic tanks hold 450 kg, a
+  // tripled Return Mass's 400 kg and some to spare, and not the 600 kg of the
+  // Lander's ceiling: that takes a propellant tank, or a second Plant.
   {
     id: "propellant-plant",
     label: "Propellant plant",
     designId: "propellant-production",
     footprintRadiusMetres: 4,
+    ownStorage: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 450,
+    },
     components: [
       { componentId: "oxygen-liquefier", count: 2 },
       { componentId: "cryogenic-tank", count: 2 },
@@ -1387,12 +1393,16 @@ export const structureTypes: Catalogue["structureTypes"] = [
   },
   // Three times the rate for under one and a half times the price, and enough Regolith to keep an
   // excavator busy, which is what a base pays for every trip at a tripled Return
-  // Mass.
+  // Mass. It has the same two cryogenic tanks, so holds no more than the small one.
   {
     id: "large-propellant-plant",
     label: "Large propellant plant",
     designId: "large-propellant-production",
     footprintRadiusMetres: 5,
+    ownStorage: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 450,
+    },
     components: [
       { componentId: "oxygen-liquefier", count: 2 },
       { componentId: "cryogenic-tank", count: 2 },
@@ -1438,6 +1448,51 @@ export const structureTypes: Catalogue["structureTypes"] = [
         drawKilowatts: 20,
       },
     ],
+  },
+  // The same liquid oxygen as the oxygen tank, in a vessel that holds twice as much
+  // for a third more cooling, as its surface grows more slowly than what it holds.
+  // 600 kg is the Lander's whole ceiling, and with a Plant's 450 kg it is more than
+  // the 1,000 kg one trip can use, burning 600 kg to lift 400 kg of propellant. So
+  // one tank does what a second Plant does, at about a fifteenth of the price. 0.2
+  // kW is 46 kWh through a Night, under a quarter of a battery bank. Nobody depends
+  // on what it holds, so with no power at Night it boils off as the oxygen tank's
+  // does, and all the way down.
+  {
+    id: "propellant-tank",
+    label: "Propellant tank",
+    designId: "propellant-production",
+    footprintRadiusMetres: 3.5,
+    components: [
+      { componentId: "propellant-tank-shell", count: 1 },
+      { componentId: "propellant-cooler", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 1,
+      componentDelivery: 1,
+      assembly: 5,
+      commissioning: 1,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.15,
+    // Its cooler has moving parts for Dust to grind on.
+    dustWearPercentPerHour: 0.01,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+      nightUpkeepKilowatts: 0.2,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    storageTank: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 600,
+      shareLostPerEarthDayWithoutPower: 0.1,
+    },
   },
   // Act 3: a dome of growing racks, the one Plant that goes on through the Night,
   // so what makes water standing idle then is what makes storing it matter. 1 kg

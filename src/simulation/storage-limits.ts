@@ -10,13 +10,14 @@ import {
 /**
  * How many kilograms of a resource the base can hold, or undefined if there is
  * no limit to it. This is the one place that says so: the data catalogue's figure
- * for the base's built-in storage, and each working storage tank's for it.
+ * for the base's built-in storage or for each working Plant that stores it, and
+ * each working storage tank's for it.
  */
 export function storageLimitKilograms(
   state: CampaignState,
   resource: ResourceRef,
 ): number | undefined {
-  const own = ownStorageKilograms(resource);
+  const own = ownStorageKilograms(state, resource);
   if (own === undefined) return undefined;
   return workingTanks(state).reduce((limit, structure) => {
     const tank = storageTankOf(structure);
@@ -26,12 +27,42 @@ export function storageLimitKilograms(
   }, own);
 }
 
-/** What the base holds of a resource with no tank, or undefined if it has no limit. */
-function ownStorageKilograms(resource: ResourceRef): number | undefined {
-  if (resource.kind === "bulk-resource") return undefined;
-  return catalogue.lifeSupportStocks.find(
-    (stock) => stock.id === resource.stockId,
-  )?.storageLimitKilograms;
+/**
+ * The bulk resources that some type of Structure stores: most have none, and this
+ * is asked of each of a Plant's outputs every game-minute it can start a batch.
+ */
+const BULK_RESOURCES_STORED: ReadonlySet<string> = new Set(
+  catalogue.structureTypes.flatMap(({ ownStorage }) =>
+    ownStorage?.resource.kind === "bulk-resource"
+      ? [ownStorage.resource.resourceId]
+      : [],
+  ),
+);
+
+/**
+ * What the base holds of a resource with no tank, or undefined if it has no limit.
+ * A bulk resource has a limit only if some type of Structure stores it, and then
+ * holds what the commissioned ones that aren't Broken do, which may be none. One to
+ * be dismantled still counts until the Robot starts on it, as a tank does.
+ */
+function ownStorageKilograms(
+  state: CampaignState,
+  resource: ResourceRef,
+): number | undefined {
+  if (resource.kind === "life-support") {
+    return catalogue.lifeSupportStocks.find(
+      (stock) => stock.id === resource.stockId,
+    )?.storageLimitKilograms;
+  }
+  if (!BULK_RESOURCES_STORED.has(resource.resourceId)) return undefined;
+  return state.structures.reduce((sum, structure) => {
+    const own = findStructureType(structure.structureTypeId)?.ownStorage;
+    return own !== undefined &&
+      sameResource(own.resource, resource) &&
+      !isBroken(structure)
+      ? sum + own.kilograms
+      : sum;
+  }, 0);
 }
 
 /** What a Structure holds if it is a storage tank, whatever state it is in. */

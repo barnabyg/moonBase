@@ -40,6 +40,7 @@ export type {
   SelfSufficiencyRules,
   SolarParticleEventRules,
   StorageTank,
+  OwnStorage,
   StructureType,
   WaterWallRules,
 } from "./types";

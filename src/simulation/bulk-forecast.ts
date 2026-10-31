@@ -3,6 +3,7 @@ import type { CampaignState } from "./campaign";
 import { machinePerformance } from "./machines";
 import {
   consumptionPerHour,
+  isHeldFull,
   kilogramsToCountOn,
   productionPerHour,
 } from "./plants";
@@ -22,6 +23,11 @@ export interface BulkResourceForecast {
    * batches go (see `kilogramsToCountOn`).
    */
   readonly minutesUntilEmpty: number | undefined;
+  /**
+   * Whether the Plants that make it are keeping it at its limit, so that it is
+   * neither rising nor running out (see `isHeldFull`).
+   */
+  readonly holdingFull: boolean;
 }
 
 /** Says how long each of the base's bulk resources will last, in catalogue order, as things stand. */
@@ -33,6 +39,14 @@ export function forecastBulkResources(
       kind: "bulk-resource" as const,
       resourceId: stock.resourceId,
     };
+    if (isHeldFull(state, resource)) {
+      return {
+        resourceId: stock.resourceId,
+        kilogramsPerHour: 0,
+        minutesUntilEmpty: undefined,
+        holdingFull: true,
+      };
+    }
     const dug =
       stock.resourceId === catalogue.digging.resourceId
         ? state.machines
@@ -55,6 +69,7 @@ export function forecastBulkResources(
       kilogramsPerHour: perHour,
       minutesUntilEmpty:
         perHour < 0 ? Math.floor((kilograms / -perHour) * 60) : undefined,
+      holdingFull: false,
     };
   });
 }

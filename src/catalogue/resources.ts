@@ -119,6 +119,8 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "oxygen-liquefier", label: "Oxygen liquefier" },
   { id: "cryogenic-tank", label: "Cryogenic tank" },
   { id: "propellant-reactor", label: "Propellant reactor" },
+  { id: "propellant-tank-shell", label: "Propellant tank shell" },
+  { id: "propellant-cooler", label: "Propellant cooler" },
   { id: "optical-grinder", label: "Optical grinder" },
   { id: "metrology-bench", label: "Metrology bench" },
   { id: "greenhouse-dome", label: "Greenhouse dome" },

@@ -730,7 +730,7 @@ export const designs: Catalogue["designs"] = [
     id: "propellant-production",
     label: "Propellant production",
     description:
-      "A Plant that makes liquid oxygen from Regolith, for the Lander to burn and carry more, or to sell.",
+      "A Plant that makes liquid oxygen from Regolith, for the Lander to burn and carry more, or to sell, and a cooled tank to hold more of it than the Plant can.",
     category: "industry",
     starting: false,
     scienceCost: 500,

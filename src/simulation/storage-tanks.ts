@@ -19,7 +19,7 @@ export interface TankSnapshot {
   readonly resource: ResourceRef;
   /** What it adds to the base's limit, whether or not it is Broken. */
   readonly capacityKilograms: number;
-  /** Its share of the stock, in proportion to what it holds of the limit; none if it is Broken. */
+  /** Its share of the stock, in proportion to what it holds of the limit, up to all it can hold; none if it is Broken. */
   readonly heldKilograms: number;
   /** Whether it had no power during the latest game-minute of Night, so is losing what it holds. */
   readonly losing: boolean;
@@ -68,6 +68,7 @@ function isLosing(structure: StructureState, night: boolean): boolean {
  * with no power at Night loses a little of its share. A stock already over its
  * limit before the tank went keeps the excess, as such a stock always does, and
  * none of this takes a life support stock below the Mission Director's reserve.
+ * Nobody depends on a bulk resource, so nothing keeps a reserve of one.
  */
 export function watchTanks(
   state: CampaignState,
@@ -102,7 +103,7 @@ export function watchTanks(
       tank.resource,
       dismantled
         ? Math.min(Math.max(stock - limit, 0), tank.kilograms)
-        : (stock * tank.kilograms) / limitBefore,
+        : Math.min((stock * tank.kilograms) / limitBefore, tank.kilograms),
     );
     if (kilograms > 0) {
       events.push({
@@ -139,7 +140,10 @@ export function watchTanks(
   return events;
 }
 
-/** A tank's share of a stock: as much of it as the tank holds of the limit. */
+/**
+ * A tank's share of a stock: as much of it as the tank holds of the limit, and no
+ * more than it can hold, as what a stock has over its limit is held elsewhere.
+ */
 function shareOf(
   state: CampaignState,
   resource: ResourceRef,
@@ -148,7 +152,7 @@ function shareOf(
   const limit = storageLimitKilograms(state, resource);
   return limit === undefined || limit === 0
     ? 0
-    : (amountOf(state, resource) * kilograms) / limit;
+    : Math.min((amountOf(state, resource) * kilograms) / limit, kilograms);
 }
 
 /** Takes up to so many kilograms out of a stock, as far as the reserve, and says how many went. */

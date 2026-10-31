@@ -200,7 +200,12 @@ export function describeStructure(type: StructureType): string {
     ...(type.storageTank === undefined
       ? []
       : [
-          `It comes empty, and holds its share of the stock. With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day. A Broken one loses its share at once, and one taken apart whatever no longer fits. None of that takes the stock below the Mission Director's reserve.`,
+          `It comes empty, and holds its share of the stock. With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day. A Broken one loses its share at once, and one taken apart whatever no longer fits.${type.storageTank.resource.kind === "life-support" ? " None of that takes the stock below the Mission Director's reserve." : ""}`,
+        ]),
+    ...(type.ownStorage === undefined
+      ? []
+      : [
+          `It holds ${type.ownStorage.kilograms} kg of ${resourceRefLabel(type.ownStorage.resource).toLowerCase()} in its own tanks, and with no room for a batch in what the base can hold, it waits for tank space, using nothing. Broken or taken apart it no longer counts towards that, though what the base has stays.`,
         ]),
     ...stocksMade(type).map(({ stock, only }) =>
       only
