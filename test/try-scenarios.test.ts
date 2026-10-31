@@ -5,9 +5,9 @@ import { tryScenarios, type TryScenario } from "./try-scenarios";
 
 /**
  * The save a scenario prepares, prepared once and shared, as a save's text
- * never changes and the tests load it afresh. The act-2 scenario plays the
- * reference Campaign to get there, which takes far longer than anything else
- * here.
+ * never changes and the tests load it afresh. The act-2 and act-3 scenarios
+ * play the reference Campaign to get there, which takes far longer than
+ * anything else here.
  */
 const saves = new Map<string, string>();
 function saveOf(scenario: TryScenario | undefined): string {

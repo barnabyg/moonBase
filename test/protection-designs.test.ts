@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
-import { changed } from "./worn";
+import { changed, withScience } from "./worn";
 
 /**
  * The hardened Structures of the Protection Designs. The water wall, which
@@ -79,11 +79,7 @@ describe("unlocking the Protection Designs", () => {
     const cost = catalogue.designs
       .filter((design) => hardened.some((type) => type.designId === design.id))
       .reduce((sum, design) => sum + design.scienceCost, 0);
-    return scenarioOf(
-      changed(game.campaign, (state) => {
-        state.science = cost;
-      }),
-    );
+    return scenarioOf(withScience(game.campaign, cost));
   }
 
   it("leaves the Structures already on the base wearing down just as they did", () => {

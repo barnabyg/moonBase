@@ -1,21 +1,18 @@
 import { catalogue, type Design } from "../src/catalogue";
 import type { Campaign } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
-import { changed } from "./worn";
+import { withScience } from "./worn";
 
 /**
- * A Campaign just begun with the Science for every Design: a stand-in for the
- * Research Tasks that would earn it, for a test of what unlocking a Design
- * allows. Playing them takes the dearest Design most of a minute.
+ * A Campaign just begun with the Science for every Design, for a test of what
+ * unlocking a Design allows, as playing Research Tasks for a dear one is slow.
  */
 export function scenarioWithScience(): Scenario {
   return scenarioOf(
-    changed(scenario().campaign, (state) => {
-      state.science = catalogue.designs.reduce(
-        (sum, design) => sum + design.scienceCost,
-        0,
-      );
-    }),
+    withScience(
+      scenario().campaign,
+      catalogue.designs.reduce((sum, design) => sum + design.scienceCost, 0),
+    ),
   );
 }
 
