@@ -47,7 +47,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 66,
+  version: 67,
   map,
   lander,
   stockpile,

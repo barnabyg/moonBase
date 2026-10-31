@@ -151,6 +151,9 @@ export const startingStock: Catalogue["startingStock"] = [
 
 // Enough for about 30 Earth Days at a person's daily use; the oxygen runs
 // out first.
+// The reserve is a fortnight, as a water wall leaves: enough to outlast a Night
+// and a Lander's round trip, and to come before the first warning, so that
+// nothing warns of a Plant taking what is above it.
 export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
   {
     id: "oxygen",
@@ -158,6 +161,7 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     startingKilograms: 25,
     usePerEarthDayKilograms: 0.84,
     warningEarthDaysLeft: [7, 3, 1],
+    reserveEarthDays: 14,
   },
   {
     id: "water",
@@ -165,6 +169,7 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     startingKilograms: 108,
     usePerEarthDayKilograms: 3.5,
     warningEarthDaysLeft: [7, 3, 1],
+    reserveEarthDays: 14,
   },
 ];
 

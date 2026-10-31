@@ -1484,6 +1484,12 @@ export const structureTypes: Catalogue["structureTypes"] = [
             resource: { kind: "bulk-resource", resourceId: "metals" },
             kilogramsPerHour: 0.2,
           },
+          // Coolant for the grinders: the Mission Director's water, which it
+          // never takes below their reserve.
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 1,
+          },
         ],
         outputs: [
           {
@@ -1540,6 +1546,10 @@ export const structureTypes: Catalogue["structureTypes"] = [
           {
             resource: { kind: "bulk-resource", resourceId: "metals" },
             kilogramsPerHour: 0.5,
+          },
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 2.5,
           },
         ],
         outputs: [

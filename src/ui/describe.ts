@@ -6,11 +6,12 @@ import {
   type ComponentCount,
   type Design,
   type LaunchItem,
+  type LifeSupportStock,
   type PlantRecipe,
   type ResourceFlow,
   type StructureType,
 } from "../catalogue";
-import type { Snapshot } from "../simulation";
+import { reserveKilograms, type Snapshot } from "../simulation";
 import { formatScience, listInWords } from "./format";
 import {
   componentInSentence,
@@ -70,6 +71,18 @@ export function powerRatings(
   ];
 }
 
+/** The life support stocks a Structure's recipes take from. */
+function stocksTaken(type: StructureType): LifeSupportStock[] {
+  return catalogue.lifeSupportStocks.filter((stock) =>
+    type.recipes?.some((recipe) =>
+      recipe.inputs.some(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === stock.id,
+      ),
+    ),
+  );
+}
+
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {
   const { power } = type;
@@ -125,6 +138,10 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
+    ...stocksTaken(type).map(
+      (stock) =>
+        `It starts no batch that would take ${stock.label.toLowerCase()} below the Mission Director's reserve of ${reserveKilograms(stock.id)} kg, ${stock.reserveEarthDays} Earth Days of what they use, and waits instead.`,
+    ),
     ...(stage === undefined
       ? []
       : [`The ${machineLabel(stage).toLowerCase()} builds it.`]),

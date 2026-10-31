@@ -68,6 +68,9 @@ const ACT_2_EARTH_DAY = 350;
 /** The Earth Day Act 2 is meant to last until. */
 const ACT_2_END_EARTH_DAY = 900;
 
+/** The Earth Day Act 4 opens. */
+const ACT_4_EARTH_DAY = 1400;
+
 /** Act 2's pacing targets, in Earth Days (docs/balancing.md). */
 export const act2Targets = {
   workshopRunningBy: 500,
@@ -780,6 +783,8 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     "",
     ...formatFunding(timeline),
     "",
+    ...formatAct4Exports(timeline),
+    "",
     ...formatBuriedHabitat(timeline),
     "",
     limitAt === undefined
@@ -853,6 +858,21 @@ function formatFunding(timeline: ReferenceTimeline): string[] {
     "Funding, every 100 Earth Days:",
     ...curve,
     `In Act 2 (Earth Days ${ACT_2_EARTH_DAY} to ${ACT_2_END_EARTH_DAY}) it was lowest at $${lowest.fundingMillionDollars.toFixed(0)}M on Earth Day ${(lowest.atMinute / MINUTES_PER_EARTH_DAY).toFixed(1)}. Exports earned $${sold.earned.toFixed(0)}M over ${sold.trips} trips: ${rate("circuit-boards")} kg of circuit boards and ${rate("metals")} kg of metals.`,
+  ];
+}
+
+/** What Act 4's Exports came to, which the water for its precision optics limits. */
+function formatAct4Exports(timeline: ReferenceTimeline): string[] {
+  const sold = exportsSoldBetween(
+    timeline,
+    ACT_4_EARTH_DAY,
+    LONG_GAME_END_EARTH_DAY,
+  );
+  const kilograms = [...sold.kilograms]
+    .map(([resourceId, amount]) => `${amount.toFixed(0)} kg of ${resourceId}`)
+    .join(", ");
+  return [
+    `In Act 4 (Earth Days ${ACT_4_EARTH_DAY} to ${LONG_GAME_END_EARTH_DAY}), Exports earned $${sold.earned.toFixed(0)}M over ${sold.trips} trips: ${kilograms}.`,
   ];
 }
 

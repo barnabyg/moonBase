@@ -99,6 +99,22 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
+  it("keeps a reserve of each life support stock that outlasts a Night and a Lander's round trip, and comes before the first warning", () => {
+    const { lunation, lander } = catalogue;
+    for (const stock of catalogue.lifeSupportStocks) {
+      expect(stock.reserveEarthDays).toBeGreaterThan(lunation.nightEarthDays);
+      expect(stock.reserveEarthDays).toBeGreaterThan(
+        Object.values(lander.roundTripEarthDays).reduce(
+          (sum, leg) => sum + leg,
+          0,
+        ),
+      );
+      expect(stock.reserveEarthDays).toBeGreaterThan(
+        Math.max(...stock.warningEarthDaysLeft),
+      );
+    }
+  });
+
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {
     const stocks = catalogue.lifeSupportStocks;
 

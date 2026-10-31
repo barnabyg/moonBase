@@ -16,6 +16,7 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `act-3`               | The start of Act 3, with a propellant plant's Components in stock, 500 kg of propellant, 150 kg of circuit boards, 400 kg of metals and $5,000M |
 | `workshop`            | A base with a Workshop running on two solar arrays and a battery bank, its metals about to run out, and a second Workshop's Components in stock |
 | `buried-habitat`      | A base with the Mission Director behind a water wall at 568 mSv, a Buried Habitat commissioned to move to, and a bare Habitat beside it         |
+| `water-reserve`       | A base with an optics works running on six batches' water above the reserve, and a water-processing plant switched off with water ice to use    |
 | `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                |
 
 ## Adding a scenario

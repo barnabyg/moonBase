@@ -147,7 +147,7 @@ A Plant that makes propellant from Regolith. A large one makes three times as mu
 _Avoid_: refinery, fuel plant
 
 **Optics works**:
-A Plant that makes precision optics from silicon and metals. A grinding line makes them two and a half times as fast.
+A Plant that makes precision optics from silicon and metals, with water as coolant, which it never takes below the reserve. A grinding line makes them two and a half times as fast, for two and a half times the water.
 _Avoid_: lens factory
 
 **Array works**:
@@ -263,6 +263,10 @@ _Avoid_: node, vein, resource patch
 **Prospecting**:
 Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
+
+**Reserve**:
+The part of a life support stock kept for the Mission Director, set in the data catalogue in Earth Days of what they use. Nothing else that takes from the stock, such as a Plant using water as coolant, may take it below that, so that nothing else can kill them.
+_Avoid_: buffer, safety stock, minimum
 
 ## Hazards
 

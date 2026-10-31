@@ -1,5 +1,5 @@
 import { catalogue } from "../catalogue";
-import { designLabel, type Snapshot } from "../simulation";
+import { designLabel, reserveKilograms, type Snapshot } from "../simulation";
 import {
   describeBuild,
   describeComponentUse,
@@ -252,6 +252,12 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `Build a parking area to keep them together: before Night falls the Robot parks them in its bays, even those already plugged in elsewhere, rather than beside the nearest powered Structure, as long as it has a bay free, is cabled to battery banks that will keep their heaters on through the Night, and is no more than ${cold.bayDetourMetres} m further off than that Structure. Put it near where the Machines work, as the Robot drives them there and back.`,
         "Plants work in batches of their recipe, most of them an hour long: each starts once there is a batch's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
         `Plants run only on power that nothing else needs: in Daylight, once the battery banks are full, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
+        ...catalogue.lifeSupportStocks
+          .filter((stock) => stock.id === "water")
+          .map(
+            (water) =>
+              `An optics works and a grinding line use water as coolant, the Mission Director's water, so it has to come from somewhere: Launches, or ice turned into water. They start no batch that would take it below a reserve kept for the Mission Director, ${water.reserveEarthDays} Earth Days of what they use (${reserveKilograms(water.id)} kg): the Base panel then says the Plant is waiting, and the status panel says what is using the water and what is waiting. So they can never drink it all, and what they use doesn't count against being self-sufficient in water, which judges only what the Mission Director uses.`,
+          ),
         "Switch a Plant off in the Base panel to keep an input it would use, or to leave its power to other Plants, and switch it on again whenever you like: neither needs the Robot. A batch it has started finishes first. The forecasts count a switched-off Plant as making nothing. It wears no further by Dust while it stands idle, but Micrometeorites can still strike it and the Robot still maintains it.",
         `A Light Mast only helps you see, as work carries on in the dark. At Night it switches itself off to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more.`,
       ],

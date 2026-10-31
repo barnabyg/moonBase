@@ -35,6 +35,7 @@ import {
   summariseBulkResources,
   summariseStock,
   summariseTravel,
+  withPlantsTaking,
   withSwitchedOffPlants,
   withSwitchedOffSpareMakers,
   makesSpareComponents,
@@ -296,8 +297,12 @@ export function createStatusPanel(
         line.element.hidden = stock === undefined;
         if (stock === undefined) continue;
         line.show(
-          withSwitchedOffPlants(
-            formatLifeSupport(stock, forecast, missionDirector),
+          withPlantsTaking(
+            withSwitchedOffPlants(
+              formatLifeSupport(stock, forecast, missionDirector),
+              type.id,
+              snapshot.structures,
+            ),
             type.id,
             snapshot.structures,
           ),

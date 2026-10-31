@@ -235,8 +235,9 @@ function plantKilograms(kilograms: number): string {
 /**
  * Says whether a Plant is running, why not, and how much of its batch is
  * left, for its line in the status panel, for example "running, 40 min
- * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg" or "switched
- * off"; undefined once it is Broken, which the line says already. Given
+ * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg", "waiting for
+ * Water: 49.5 of 50 kg, to leave the Mission Director's reserve of 49 kg" or
+ * "switched off"; undefined once it is Broken, which the line says already. Given
  * that it is switched off, a batch it has started is its last.
  */
 export function formatPlant(
@@ -258,6 +259,8 @@ export function formatPlant(
       return undefined;
     case "no-input":
       return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
+    case "reserve":
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg, to leave the Mission Director's reserve of ${plantKilograms(stop.reserveKilograms)} kg`;
     case "night":
       return `idle at Night: no stored power to spare${left}`;
     case "no-power":

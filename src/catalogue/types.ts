@@ -621,6 +621,11 @@ export interface LifeSupportStock {
    * use left, largest first. Each must come to a whole number of game-minutes.
    */
   readonly warningEarthDaysLeft: readonly number[];
+  /**
+   * How many Earth Days of the Mission Director's use are kept for them: a Plant
+   * that takes the stock starts no batch that would take it below this.
+   */
+  readonly reserveEarthDays: number;
 }
 
 /**

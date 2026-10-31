@@ -2,6 +2,7 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type ResourceRef,
   type PlantRecipe,
 } from "../catalogue";
 import {
@@ -10,6 +11,7 @@ import {
   milestoneActId,
   milestoneLabel,
   recipeOf,
+  workingRecipeOf,
   type BulkResourceForecast,
   type ExpeditionSnapshot,
   type ExportLine,
@@ -343,7 +345,9 @@ export function formatSelfSufficiency(
       ? undefined
       : `${Math.round(selfSufficiency.coveredShare * 100)}%`;
   const made =
-    share === undefined ? "Nothing used" : `${share} of use made at the base`;
+    share === undefined
+      ? "Nothing used"
+      : `${share} of the Mission Director's use made at the base`;
   if (!selfSufficiency.windowComplete) {
     return {
       value: "not yet",
@@ -569,6 +573,73 @@ export function withSwitchedOffPlants(
         flow.resource.stockId === stockId,
     ),
   );
+}
+
+/**
+ * Adds to what a life support stock's line says which Plants are using it and
+ * how much, and which are waiting at the Mission Director's reserve, for example
+ * "lasts 14d 6h, optics works using 24 kg a day", so that the player sees why it
+ * is falling, and why it has stopped falling so fast.
+ */
+export function withPlantsTaking(
+  stat: Stat,
+  stockId: string,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff" | "performance" | "plant"
+  >[],
+): Stat {
+  const isThisStock = (resource: ResourceRef) =>
+    resource.kind === "life-support" && resource.stockId === stockId;
+  const usingPerHour = (
+    structure: (typeof structures)[number],
+  ): number | undefined => {
+    if (structure.plant?.running !== true || structure.switchedOff) {
+      return undefined;
+    }
+    const flow = workingRecipeOf({
+      ...structure,
+      batch: structure.plant.batch,
+    })?.inputs.find(({ resource }) => isThisStock(resource));
+    return flow === undefined
+      ? undefined
+      : flow.kilogramsPerHour * structure.performance;
+  };
+  const using = structures.filter((s) => usingPerHour(s) !== undefined);
+  const waiting = structures.filter(
+    ({ plant }) =>
+      plant?.stoppedFor?.reason === "reserve" &&
+      isThisStock(plant.stoppedFor.resource),
+  );
+  const labelsOf = (plants: readonly (typeof structures)[number][]) =>
+    listInWords([
+      ...new Set(
+        plants.map(({ structureTypeId }) =>
+          inSentence(structureLabel(structureTypeId)),
+        ),
+      ),
+    ]);
+  const perEarthDay =
+    using.reduce((sum, structure) => sum + (usingPerHour(structure) ?? 0), 0) *
+    24;
+  const said = [
+    ...(using.length === 0
+      ? []
+      : [
+          `${labelsOf(using)} using ${Number(perEarthDay.toFixed(1))} kg a day`,
+        ]),
+    ...(waiting.length === 0
+      ? []
+      : [`${labelsOf(waiting)} waiting at the reserve`]),
+  ];
+  return said.length === 0
+    ? stat
+    : {
+        ...stat,
+        note: [...(stat.note === undefined ? [] : [stat.note]), ...said].join(
+          ", ",
+        ),
+      };
 }
 
 /** Whether a Structure is a Plant set to make spare Components. */

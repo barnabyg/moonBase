@@ -1,6 +1,6 @@
-import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { findStructureType, type ConstructionState } from "./construction";
+import { earthDaysOfUseKilograms } from "./life-support-reserve";
 
 /**
  * Why a water wall's Construction waits to start its Assembly: filling it
@@ -77,13 +77,13 @@ function fillOf(construction: ConstructionState):
   ) {
     return undefined;
   }
-  const use =
-    catalogue.lifeSupportStocks.find((stock) => stock.id === rules.stockId)
-      ?.usePerEarthDayKilograms ?? 0;
   return {
     stockId: rules.stockId,
     kilograms: rules.kilograms,
-    reserveKilograms: rules.reserveEarthDays * use,
+    reserveKilograms: earthDaysOfUseKilograms(
+      rules.stockId,
+      rules.reserveEarthDays,
+    ),
   };
 }
 

@@ -51,6 +51,25 @@ describe("what npm run try can start the game in", () => {
     expect(habitats.filter(({ waterWalled }) => waterWalled)).toHaveLength(1);
   });
 
+  it("water-reserve has an optics works running six batches above the reserve, with the Mission Director living behind Regolith shielding", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "water-reserve",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const typed = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(typed("optics-works")?.plant?.running).toBe(true);
+    expect(typed("habitat")?.shielded).toBe(true);
+    expect(state.missionDirector.residence).toBe("habitat");
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeCloseTo(49 + 6, 5);
+    expect(state.lunation.part).toBe("daylight");
+  });
+
   it("everything-unlocked has every Design unlocked", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",

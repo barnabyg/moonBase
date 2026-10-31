@@ -16,6 +16,10 @@ import {
   isBroken,
   type StructureState,
 } from "./construction";
+import {
+  kilogramsAboveReserve,
+  reserveKilograms,
+} from "./life-support-reserve";
 import { readLunation } from "./lunation";
 import { recordLifeSupport, recordSpareComponents } from "./self-sufficiency";
 import { addToStock, inStock } from "./stockpile";
@@ -41,7 +45,8 @@ export type PlantStop =
   | { readonly reason: "broken" }
   /**
    * It has no batch started and too little of one of its inputs to start
-   * one: the first in its recipe it is short of.
+   * one: the first in its recipe it is short of. Of a life support stock,
+   * that means too little above the Mission Director's reserve.
    */
   | { readonly reason: "no-input"; readonly resource: ResourceRef }
   /**
@@ -72,6 +77,21 @@ export type PlantStopSnapshot =
       readonly kilograms: number;
       /** How much of it a batch needs. */
       readonly kilogramsNeeded: number;
+    }
+  /**
+   * It has too little of a life support stock to start a batch and leave the
+   * Mission Director's reserve: saved as `no-input`, as a stock's shortage
+   * always comes to this.
+   */
+  | {
+      readonly reason: "reserve";
+      readonly resource: ResourceRef;
+      /** How much of it the base has, up to what the Plant waits for. */
+      readonly kilograms: number;
+      /** What the Plant waits for: a batch's worth above the reserve. */
+      readonly kilogramsNeeded: number;
+      /** How much of it is kept for the Mission Director. */
+      readonly reserveKilograms: number;
     };
 
 /** Whether a Plant is running, why not if it isn't, and how far its batch has got. */
@@ -309,6 +329,17 @@ function claimKey(resource: ResourceRef): string {
 }
 
 /**
+ * How many kilograms of a resource a Plant may take as it starts a batch: all
+ * there is of a bulk resource, and of a life support stock what is above the
+ * Mission Director's reserve.
+ */
+function amountToTake(state: CampaignState, resource: ResourceRef): number {
+  return resource.kind === "bulk-resource"
+    ? amountOf(state, resource)
+    : kilogramsAboveReserve(state, resource.stockId);
+}
+
+/**
  * The first of a recipe's inputs that the base has too little of to start
  * a batch, once what other Plants have claimed is set aside, if any.
  */
@@ -319,7 +350,7 @@ function shortInput(
 ): ResourceRef | undefined {
   return recipe.inputs.find(
     (flow) =>
-      amountOf(state, flow.resource) -
+      amountToTake(state, flow.resource) -
         (claims.get(claimKey(flow.resource)) ?? 0) <
       batchKilograms(recipe, flow) - AMOUNT_TOLERANCE,
   )?.resource;
@@ -329,7 +360,8 @@ function shortInput(
  * Why a commissioned Plant couldn't run whatever power it had, if it
  * couldn't: it is Broken, or it has no batch started and is switched off,
  * or has too little of an input to start one, beyond what other Plants
- * have claimed this game-minute. Undefined for any other Structure.
+ * have claimed this game-minute and any reserve kept of it. Undefined for
+ * any other Structure.
  */
 export function plantCantRun(
   state: CampaignState,
@@ -673,6 +705,16 @@ function readStop(
     isSameResource(input.resource, stop.resource),
   );
   const needed = flow === undefined ? 0 : batchKilograms(recipe, flow);
+  if (stop.resource.kind === "life-support") {
+    const reserve = reserveKilograms(stop.resource.stockId);
+    return {
+      reason: "reserve",
+      resource: { ...stop.resource },
+      kilograms: Math.min(amountOf(state, stop.resource), reserve + needed),
+      kilogramsNeeded: reserve + needed,
+      reserveKilograms: reserve,
+    };
+  }
   return {
     reason: "no-input",
     resource: { ...stop.resource },

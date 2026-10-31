@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { catalogue } from "../src/catalogue";
-import { createCampaign, loadCampaign, type Campaign } from "../src/simulation";
+import {
+  createCampaign,
+  loadCampaign,
+  reserveKilograms,
+  type Campaign,
+} from "../src/simulation";
 import {
   playReferenceCampaign,
   REFERENCE_SEED,
@@ -368,6 +373,109 @@ function buriedHabitatSave(): string {
   });
 }
 
+/** Where `opticsBase` puts what makes precision optics, and what powers it. */
+const OPTICS_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["battery-bank", { x: 40, y: 35 }],
+  ["solar-array", { x: 50, y: 35 }],
+  ["solar-array", { x: 60, y: 35 }],
+  ["habitat", { x: -14, y: 30 }],
+  ["optics-works", { x: 50, y: 25 }],
+  ["water-processing-plant", { x: 60, y: 25 }],
+] as const;
+
+/**
+ * A base in Daylight with an optics works running, the Mission Director living
+ * in a shielded Habitat, and a water-processing plant switched off with water
+ * ice to turn into water. It plays only as far as the Robot's building takes, on
+ * a save edited to have what it needs.
+ */
+function opticsBase(): Campaign {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("precision-optics", "water-processing");
+      addComponents(
+        state,
+        OPTICS_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+      );
+      addComponents(state, [
+        { componentId: catalogue.maintenance.spareComponentId, count: 60 },
+      ]);
+      for (const stock of state.lifeSupport) stock.kilograms = 2000;
+      stockOf(state, "silicon", 500);
+      stockOf(state, "metals", 200);
+      stockOf(state, "water-ice", 100);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  const build = (
+    plans: readonly (readonly [string, { x: number; y: number }])[],
+  ) => {
+    for (const [structureTypeId, position] of plans) {
+      const planned = campaign.planConstruction({ structureTypeId, position });
+      if (!planned.ok) throw new Error(planned.message);
+    }
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 40 * 24) throw new Error("The base was never finished.");
+      campaign.advance(60);
+    }
+  };
+  const structureOf = (id: string) =>
+    campaign
+      .snapshot()
+      .structures.find(({ structureTypeId }) => structureTypeId === id);
+  build(OPTICS_BASE_SITES);
+  const switched = campaign.switchPlant(
+    structureOf("water-processing-plant")?.id ?? "",
+    "off",
+  );
+  if (!switched.ok) throw new Error(switched.message);
+  build([["regolith-shielding", { x: -14, y: 30 }]]);
+  // Far enough into a Daylight for the optics works to reach the reserve in it.
+  for (let hours = 0; ; hours++) {
+    const { lunation, solarParticleEvent } = campaign.snapshot();
+    if (
+      lunation.part === "daylight" &&
+      lunation.minutesRemaining >= toGameMinutes({ earthDays: 5 }) &&
+      solarParticleEvent === undefined &&
+      structureOf("optics-works")?.plant?.running === true
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("The optics works never started.");
+    campaign.advance(60);
+  }
+  const moved = campaign.moveMissionDirectorIn(
+    structureOf("habitat")?.id ?? "",
+  );
+  if (!moved.ok) throw new Error(moved.message);
+  return campaign;
+}
+
+/**
+ * `opticsBase`, with water enough for so many batches of an optics works before
+ * the Mission Director's reserve stops it.
+ */
+export function opticsBaseSave(batches: number): string {
+  const batchKilograms =
+    catalogue.structureTypes
+      .find(({ id }) => id === "optics-works")
+      ?.recipes?.[0]?.inputs.find(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === "water",
+      )?.kilogramsPerHour ?? 0;
+  return saveWith(opticsBase(), (state) => {
+    for (const stock of state.lifeSupport) {
+      if (stock.stockId === "water") {
+        stock.kilograms = reserveKilograms("water") + batches * batchKilograms;
+      }
+    }
+  });
+}
+
 export const tryScenarios: readonly TryScenario[] = [
   {
     id: "everything-unlocked",
@@ -453,6 +561,18 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Keeping the Mission Director alive says what a Buried Habitat is for, and the Structures tab has it under Protection. Open the Launch manifest: the vault section and deep life support core are under Protection.",
     ],
     save: buriedHabitatSave,
+  },
+  {
+    id: "water-reserve",
+    title:
+      "A base with an optics works running on six batches' water above the Mission Director's reserve, and a water-processing plant switched off with water ice to use",
+    steps: [
+      'Pause the game. Look at the Base panel\'s Structures: the Optics works says "running" and "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water". The status panel\'s Water says how long it lasts, "optics works using 24 kg a day", and that the water-processing plant is switched off.',
+      'Set the game to 20x. In a few real seconds the Optics works says "waiting for Water", how much there is of the 50 kg it needs, and that this is to leave the Mission Director\'s reserve of 49 kg. Water now falls only as they drink: it lasts about 14 days, and says "optics works waiting at the reserve".',
+      'Pause. Press "Switch on" beside the Water-processing plant and set the game going: Water rises, and each time there is a batch\'s worth above the reserve, the Optics works runs again.',
+      "Open the Guide: the Optics works' card under Structures says it takes water and leaves the reserve, and Power and Night says what the reserve is. Hover over Water beside Self-sufficient: it speaks only of the Mission Director's use, as what the Optics works uses doesn't count against it.",
+    ],
+    save: () => opticsBaseSave(6),
   },
   {
     id: "crowded",
