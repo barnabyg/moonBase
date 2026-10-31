@@ -74,6 +74,7 @@ export const act2Targets = {
   researchWithin: 50,
   /** How many Launches' profit one of every Launch item takes, at least. */
   launchesToBuyEverything: 20,
+  metalsSoldBy: ACT_2_END_EARTH_DAY,
 } as const;
 
 /** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
@@ -807,6 +808,7 @@ export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
     researchLastsUntilAbout,
     researchWithin,
     launchesToBuyEverything,
+    metalsSoldBy,
   } = act2Targets;
   const lastSpares = Math.max(
     0,
@@ -840,6 +842,9 @@ export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
       : [
           `spare Components needing no Launch by Earth Day ${sparesNeedNoLaunchBy}.`,
         ]),
+    ...(reachedOn("metals-sold") <= metalsSoldBy
+      ? []
+      : [`metals sold by Earth Day ${metalsSoldBy}.`]),
     ...(lastDesign > designsStillToBuyAt
       ? []
       : [`Designs still to buy at Earth Day ${designsStillToBuyAt}.`]),

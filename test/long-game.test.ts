@@ -34,6 +34,7 @@ function timeline(
     moves: [{ atMinute: 1500 * 24 * 60, structureTypeId: "buried-habitat" }],
     milestones: [
       { milestoneId: "workshop-running", atMinute: 400 * earthDay },
+      { milestoneId: "metals-sold", atMinute: 400 * earthDay },
       {
         milestoneId: "spare-components-self-sufficient",
         atMinute: 500 * earthDay,
@@ -192,6 +193,7 @@ describe("the long-game play guide", () => {
     });
     const missed = [
       [later("workshop-running", 501), "a Workshop running by Earth Day 500."],
+      [later("metals-sold", 901), "metals sold by Earth Day 900."],
       [
         later("spare-components-self-sufficient", 801),
         "spare Components needing no Launch by Earth Day 800.",
