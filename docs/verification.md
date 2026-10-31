@@ -1,6 +1,6 @@
 # Verification
 
-`npm run verify` is the single verification command. Run it from the repository's root folder. It changes nothing apart from the ignored `dist/`, `test-results/` and `playwright-report/` folders, and it stops at the first failing check. CI runs the same command (`.github/workflows/verify.yml`) split across two parallel jobs: `npm run verify -- --skip-e2e` runs every check except the end-to-end tests, and `npm run verify -- --e2e-only` runs just those, so a failure in one job can be re-run on its own.
+`npm run verify` is the single verification command. Run it from the repository's root folder. It changes nothing apart from the ignored `dist/`, `test-results/` and `playwright-report/` folders, and it stops at the first failing check. CI runs the same command (`.github/workflows/verify.yml`) split across parallel jobs: `npm run verify -- --skip-e2e` runs every check except the end-to-end tests, and `npm run verify -- --e2e-only` runs just those, on four runners that each take a share of them (see below), so a failure in one job can be re-run on its own.
 
 Before the first run on a machine, install Playwright's Firefox once:
 
@@ -41,6 +41,8 @@ In CI (`CI` set), `playwright.config.ts` stops the end-to-end tests at the first
 
 When Firefox runs headed (`PLAYWRIGHT_HEADED=1`, as in CI), `playwright.config.ts` runs the end-to-end tests one at a time. CI draws with Mesa's software renderer into one virtual display, where two Firefox windows hold back each other's animation frames, and the game updates what it shows only once a frame, so a starved test can time out. One worker is no slower overall, because both workers compete for the same CPUs. Headless runs on a developer machine still use Playwright's default number of workers.
 
+So CI gets its parallelism from separate runners instead, each with its own display and CPUs: four jobs each run one share of the tests, chosen by `E2E_SHARD` (`1/4` to `4/4`). Playwright shares them out a whole file at a time. To run one share locally, set `$env:E2E_SHARD = "1/4"` first.
+
 ## Timeouts
 
 A timeout is there to stop a test that hangs, not to check how fast it runs. Each limit is set well above the slowest run seen in CI, so ordinary variation in machine speed can't fail a test. If a test needs to check speed, it should measure it explicitly. Set limits for the whole suite, not for single tests, with one exception: the reference Campaign's test plays some 170 Earth Days a game-minute at a time, far longer than any other, so it sets its own limit rather than raising the suite's for every test.
@@ -55,9 +57,9 @@ The test figures are from the CI run of pull request #139 (30 October 2026), the
 | Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`  | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                 | 7.5×      |
 | Playwright web server start           | Playwright's default              | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)               | over 30×  |
 | CI checks job                         | `.github/workflows/verify.yml`    | 30 min | 5.9 min                                                                                                            | about 5×  |
-| CI end-to-end job                     | `.github/workflows/verify.yml`    | 75 min | 12.8 min for 56 tests                                                                                              | about 6×  |
+| CI end-to-end job, each of four       | `.github/workflows/verify.yml`    | 30 min | 15.8 min for all 77 tests on one runner, before they were shared out                                               | about 2×  |
 
-The runners' speed varies a lot from one run to the next: the same end-to-end tests have taken from 5.6 to 12.8 minutes in those 20 runs, so the job limits are set against the slowest run, not a typical one.
+The runners' speed varies a lot from one run to the next: the same end-to-end tests have taken from 5.6 to 12.8 minutes in those 20 runs, so the job limits are set against the slowest run, not a typical one. The end-to-end limit would cover every test landing on one runner; a share of a quarter of them has more margin than that.
 
 The cost of a generous limit is that a test that really hangs takes longer to report. That is cheaper than a red run that has to be investigated and re-run.
 

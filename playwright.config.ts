@@ -7,11 +7,15 @@ const port = Number(process.env["E2E_PORT"] ?? 4173);
 // context, so CI runs Firefox with a window inside a virtual X display
 // (see .github/workflows/verify.yml).
 const headed = process.env["PLAYWRIGHT_HEADED"] === "1";
+// E2E_SHARD, such as "2/4", runs that share of the tests, so CI can spread them
+// over several runners (see docs/verification.md).
+const shard = /^(\d+)\/(\d+)$/.exec(process.env["E2E_SHARD"] ?? "");
 
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: !!process.env["CI"],
   retries: 0,
+  shard: shard && { current: Number(shard[1]), total: Number(shard[2]) },
   // In CI, stop at the first failure and report it, rather than making whoever
   // is waiting sit through every remaining test first (see
   // docs/verification.md). Local runs still try them all.
