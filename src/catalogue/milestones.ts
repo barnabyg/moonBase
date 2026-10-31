@@ -90,7 +90,7 @@ export const milestones: Catalogue["milestones"] = [
     id: "spare-components-self-sufficient",
     actId: "act-2",
     label: "Self-sufficiency in spare Components",
-    hint: "Keep the Workshop running until it has made at least as many spare Components as repairs have used over a whole Lunation: the status panel shows how it is going beside Self-sufficient. If it stands idle, it is short of metals or of power: a Plant runs only on power nothing else needs, so build another solar array. Then no Launch has to bring them, and a Launch that brings nothing pays no fee.",
+    hint: "Keep the Workshop running until it has made at least as many spare Components as repairs have used over a whole Lunation: the status panel shows how it is going beside Self-sufficient. If it stands idle, it is short of metals or of power: a Plant runs only on power nothing else needs, so build another solar array. Then no Launch has to bring them, and a Launch that brings nothing pays no fee. A bigger base uses more: if the stock starts to fall after that, build a second Workshop before it runs out.",
     condition: { kind: "self-sufficient-in-spare-components" },
   },
   {
