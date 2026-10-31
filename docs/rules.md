@@ -43,7 +43,7 @@ Milestones guide a new player through the Campaign. They carry no rewards and ne
 
 ### Acts
 
-Each Milestone belongs to an Act, set in the data catalogue. The first nine above make up Act 1, and the last three Act 2: Independence; `docs/reference-campaign.md` has the Acts planned after them. Like Milestones, Acts carry no rewards and never end the Campaign.
+Each Milestone belongs to an Act, set in the data catalogue. The first nine above make up Act 1, and the last three Act 2: Independence; `docs/balancing.md` has the Acts planned after them. Like Milestones, Acts carry no rewards and never end the Campaign.
 
 The current Act is the Act of the current Milestone, or the last Act once every Milestone is reached. It isn't saved: it comes from the Milestones reached, so a save, however old, loads in the Act they imply: one with Act 1's Milestones all reached loads straight into Act 2, and says nothing of it beyond the panel. The Milestones section of the status panel shows its name and what it asks, above the current Milestone. The line for the next Milestone also names that Milestone's Act if it is a later one. Once every Milestone is reached, the section says so, and that the Campaign carries on, with one Act or several.
 

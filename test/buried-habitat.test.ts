@@ -334,8 +334,10 @@ describe("the Radiation Dose in a Buried Habitat", () => {
     expect(state.ended).toBeUndefined();
     // As few Solar Particle Events as this can run a little over the average.
     expect(state.radiationDoseMillisieverts / earthDays).toBeLessThan(0.025);
+    // Clearly more than the usual rate alone comes to, or the Solar Particle
+    // Events aren't counted.
     expect(state.radiationDoseMillisieverts).toBeGreaterThan(
-      earthDays * rates.buriedHabitat,
+      1.01 * earthDays * rates.buriedHabitat,
     );
   });
 

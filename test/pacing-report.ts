@@ -600,7 +600,7 @@ export function catalogueUpToAct<C extends PacedCatalogue>(
   };
 }
 
-/** Act 2's plan, as docs/reference-campaign.md has it. */
+/** Act 2's plan, as docs/balancing.md has it. */
 export const act2Plan: ActPlan = {
   act: 2,
   label: "Act 2",

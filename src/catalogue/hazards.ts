@@ -17,8 +17,8 @@ export const nightReserveHours: Catalogue["nightReserveHours"] = 24;
 // Habitat is urgent. Regolith shielding cuts it to a twentieth, so that
 // with Solar Particle Events the limit still comes in about nine
 // Lunations; a water wall over the shielding cuts it to a tenth of that
-// again, so that it comes only after many years, about Earth Day 1,790 in
-// the long game. A Buried Habitat cuts it to a tenth of that again, the
+// again, so that it comes only after many years (docs/balancing.md has the
+// dates). A Buried Habitat cuts it to a tenth of that again, the
 // last of the Campaign's cuts: Act 4 opens at about 530 mSv and asks the
 // player to move in by Earth Day 1,600 at about 570, leaving 30 mSv for
 // 1,400 Earth Days, at most 0.02 mSv an Earth Day with Solar Particle Events

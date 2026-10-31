@@ -68,7 +68,7 @@ const ACT_2_EARTH_DAY = 350;
 /** The Earth Day Act 2 is meant to last until. */
 const ACT_2_END_EARTH_DAY = 900;
 
-/** Act 2's pacing targets, in Earth Days (docs/reference-campaign.md). */
+/** Act 2's pacing targets, in Earth Days (docs/balancing.md). */
 export const act2Targets = {
   workshopRunningBy: 500,
   sparesNeedNoLaunchBy: 800,

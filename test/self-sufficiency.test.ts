@@ -89,9 +89,7 @@ function base(movedIn = true): Campaign {
     text = withStocks(campaign, { regolith: 20_000, ice: 5_000 }).save();
     bases.set(movedIn, text);
   }
-  const loaded = loadCampaign(text);
-  if (!loaded.ok) throw new Error(loaded.message);
-  return loaded.campaign;
+  return loaded(text);
 }
 
 function withStocks(
@@ -118,40 +116,117 @@ function judged(campaign: Campaign, stockId: string): SelfSufficiencySnapshot {
   return found;
 }
 
-/** Advances until the base becomes self-sufficient in a stock, returning the event. */
-function untilGained(campaign: Campaign, stockId: string): GameEvent {
-  for (let hours = 0; hours < 3 * 30 * 24; hours++) {
-    const gained = campaign
-      .advance(60)
-      .find(
-        (event) =>
-          event.kind === "self-sufficiency-gained" && event.stockId === stockId,
-      );
-    if (gained !== undefined) return gained;
+/**
+ * The base moved in, played once through its first window and until it has
+ * become self-sufficient in oxygen and water: every event on the way, and
+ * what the tests look at along the way. The tests only read this, and load
+ * the saved texts afresh.
+ */
+interface FirstWindow {
+  /** Every event from the base on. */
+  readonly events: readonly GameEvent[];
+  /** The saved text and the event, just after becoming self-sufficient in a stock. */
+  readonly gains: ReadonlyMap<
+    string,
+    { readonly text: string; readonly gained: GameEvent }
+  >;
+  /** The saved text one record short of the first whole window since the Campaign began. */
+  readonly recordShort: string;
+  /** The game-minute of `recordShort`. */
+  readonly recordShortMinute: number;
+  /** The judgements two records on from `recordShort`. */
+  readonly twoRecordsOn: readonly SelfSufficiencySnapshot[];
+}
+
+let firstWindowPlayed: FirstWindow | undefined;
+function firstWindow(): FirstWindow {
+  if (firstWindowPlayed !== undefined) return firstWindowPlayed;
+  const campaign = base();
+  const clock = () => campaign.snapshot().clock.elapsedMinutes;
+  const recordShortMinute = windowMinutes - recordMinutes;
+  const events: GameEvent[] = [];
+  const gains = new Map<string, { text: string; gained: GameEvent }>();
+  let recordShort: string | undefined;
+  let twoRecordsOn: readonly SelfSufficiencySnapshot[] | undefined;
+  // Every stop is on a whole game-hour, as the base is built an hour at a time.
+  for (let hours = 0; gains.size < 2 || twoRecordsOn === undefined; hours++) {
+    if (hours > (3 * windowMinutes) / 60) {
+      throw new Error("The base never became self-sufficient.");
+    }
+    const minute = clock();
+    if (minute === recordShortMinute) recordShort = campaign.save();
+    if (minute === recordShortMinute + 2 * recordMinutes) {
+      twoRecordsOn = campaign.snapshot().selfSufficiency;
+    }
+    const passed = campaign.advance(60);
+    events.push(...passed);
+    for (const event of passed) {
+      if (event.kind === "self-sufficiency-gained") {
+        gains.set(event.stockId, { text: campaign.save(), gained: event });
+      }
+    }
   }
-  throw new Error(`The base never became self-sufficient in ${stockId}.`);
+  if (recordShort === undefined) throw new Error("expected a save");
+  firstWindowPlayed = {
+    events,
+    gains,
+    recordShort,
+    recordShortMinute,
+    twoRecordsOn,
+  };
+  return firstWindowPlayed;
+}
+
+function loaded(text: string): Campaign {
+  const result = loadCampaign(text);
+  if (!result.ok) throw new Error(result.message);
+  return result.campaign;
+}
+
+/** The base just after it has become self-sufficient in a stock, loaded afresh. */
+function gainedIn(stockId: string): { campaign: Campaign; gained: GameEvent } {
+  const played = firstWindow().gains.get(stockId);
+  if (played === undefined) throw new Error(`expected ${stockId}`);
+  return { campaign: loaded(played.text), gained: played.gained };
 }
 
 /**
- * The base moved into, played until it has just become self-sufficient in a
- * stock: its saved text and the event. Played once for each stock, and
- * loaded afresh for each test.
+ * The base just after it has become self-sufficient in oxygen, out of
+ * Regolith so that the extraction plant stops for good. All its oxygen surplus
+ * is in the window's oldest record, three times what the whole window used,
+ * and the rest fall just short: a stand-in for the Lunation of surplus the
+ * window would otherwise take to move past. So only the window moving on can
+ * lose it, as what is used up to then can't come near that record. Water's are
+ * scaled until they only just cover what was used, so that it stays
+ * self-sufficient only if the water-processing plant carries on.
  */
-const gains = new Map<
-  string,
-  { readonly text: string; readonly gained: GameEvent }
->();
-function gainedIn(stockId: string): { campaign: Campaign; gained: GameEvent } {
-  let played = gains.get(stockId);
-  if (played === undefined) {
-    const campaign = base();
-    const gained = untilGained(campaign, stockId);
-    played = { text: campaign.save(), gained };
-    gains.set(stockId, played);
-  }
-  const loaded = loadCampaign(played.text);
-  if (!loaded.ok) throw new Error(loaded.message);
-  return { campaign: loaded.campaign, gained: played.gained };
+function oxygenPlantStopped(): Campaign {
+  return changed(gainedIn("oxygen").campaign, (state) => {
+    for (const stock of state.bulkResources) {
+      if (stock.resourceId === "regolith") stock.kilograms = 0;
+    }
+    for (const { stockId, records } of state.selfSufficiency) {
+      const used = records.reduce(
+        (total, record) => total + record.usedKilograms,
+        0,
+      );
+      if (stockId === "oxygen") {
+        for (const record of records) {
+          record.producedKilograms = 0.99 * record.usedKilograms;
+        }
+        const oldest = records[0];
+        if (oldest !== undefined) oldest.producedKilograms = 3 * used;
+      } else {
+        const produced = records.reduce(
+          (total, record) => total + record.producedKilograms,
+          0,
+        );
+        for (const record of records) {
+          record.producedKilograms *= (1.001 * used) / produced;
+        }
+      }
+    }
+  });
 }
 
 describe("self-sufficiency", () => {
@@ -171,9 +246,9 @@ describe("self-sufficiency", () => {
   );
 
   it("doesn't come before a whole window has passed since the Campaign began", () => {
-    const campaign = base();
-    campaign.advance(
-      windowMinutes - recordMinutes - campaign.snapshot().clock.elapsedMinutes,
+    const campaign = loaded(firstWindow().recordShort);
+    expect(campaign.snapshot().clock.elapsedMinutes).toBe(
+      windowMinutes - recordMinutes,
     );
 
     for (const stockId of ["oxygen", "water"]) {
@@ -186,15 +261,25 @@ describe("self-sufficiency", () => {
   });
 
   it("never comes while the Mission Director lives aboard the Lander, using nothing", () => {
-    const campaign = base(false);
+    // A record short of a whole window of the Plants making it and nobody
+    // using it: a stand-in for playing a whole Lunation first.
+    const campaign = changed(base(false), (state) => {
+      for (const history of state.selfSufficiency) {
+        history.records = Array.from(
+          { length: windowMinutes / recordMinutes - 1 },
+          () => ({ producedKilograms: 1, usedKilograms: 0 }),
+        );
+      }
+    });
 
-    const events = campaign.advance(windowMinutes + 2 * recordMinutes);
+    const events = campaign.advance(3 * recordMinutes);
 
     expect(
       events.filter((event) => event.kind === "self-sufficiency-gained"),
     ).toEqual([]);
     expect(judged(campaign, "oxygen")).toMatchObject({
       selfSufficient: false,
+      windowComplete: true,
       coveredShare: undefined,
     });
   });
@@ -219,9 +304,7 @@ describe("self-sufficiency", () => {
   });
 
   it("is lost once the Plants stop making it, as the window moves on", () => {
-    const { campaign: gainedBase } = gainedIn("oxygen");
-    // No more Regolith, so the extraction plant stops for good.
-    const campaign = withStocks(gainedBase, { regolith: 0 });
+    const campaign = oxygenPlantStopped();
 
     let lost: GameEvent | undefined;
     for (
@@ -250,8 +333,7 @@ describe("self-sufficiency", () => {
     expect(gainedBase.snapshot().milestones.reachedIds).toContain(
       "oxygen-self-sufficient",
     );
-    // No more Regolith, so the extraction plant stops for good.
-    const campaign = withStocks(gainedBase, { regolith: 0 });
+    const campaign = oxygenPlantStopped();
 
     const events: GameEvent[] = [];
     for (let hours = 0; judged(campaign, "oxygen").selfSufficient; hours++) {
@@ -268,17 +350,7 @@ describe("self-sufficiency", () => {
   });
 
   it("reaches the oxygen and water self-sufficiency Milestones in the game-minute each is gained", () => {
-    const campaign = base();
-    const events: GameEvent[] = [];
-    for (
-      let hours = 0;
-      !judged(campaign, "oxygen").selfSufficient ||
-      !judged(campaign, "water").selfSufficient;
-      hours++
-    ) {
-      if (hours > (3 * windowMinutes) / 60) throw new Error("It never came.");
-      events.push(...campaign.advance(60));
-    }
+    const { events } = firstWindow();
 
     for (const [stockId, milestoneId] of [
       ["oxygen", "oxygen-self-sufficient"],
@@ -299,21 +371,22 @@ describe("self-sufficiency", () => {
   });
 
   it("goes on the same way through saving and loading", () => {
-    const campaign = base();
-    campaign.advance(windowMinutes / 2);
-    const loaded = loadCampaign(campaign.save());
-    if (!loaded.ok) throw new Error(loaded.message);
+    const { events, recordShort, recordShortMinute, twoRecordsOn } =
+      firstWindow();
+    const reloaded = loaded(recordShort);
 
     // On past the end of the first window, when it becomes self-sufficient.
-    const original = campaign.advance(windowMinutes / 2);
-    const reloaded = loaded.campaign.advance(windowMinutes / 2);
+    const original = events.filter(
+      (event) =>
+        event.atMinute > recordShortMinute &&
+        event.atMinute <= recordShortMinute + 2 * recordMinutes,
+    );
+    const carriedOn = reloaded.advance(2 * recordMinutes);
     expect(original.map((event) => event.kind)).toContain(
       "self-sufficiency-gained",
     );
 
-    expect(reloaded).toEqual(original);
-    expect(loaded.campaign.snapshot().selfSufficiency).toEqual(
-      campaign.snapshot().selfSufficiency,
-    );
+    expect(carriedOn).toEqual(original);
+    expect(reloaded.snapshot().selfSufficiency).toEqual(twoRecordsOn);
   });
 });

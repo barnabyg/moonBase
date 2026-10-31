@@ -1,12 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { loadCampaign, type Campaign } from "../src/simulation";
+import {
+  loadCampaign,
+  lunationMinutes,
+  type Campaign,
+  type GameEvent,
+} from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
 import { formatEvent } from "../src/ui/notifications-text";
 import { formatPlantRates } from "../src/ui/structure-state";
 import { exportEconomics } from "./pacing-report";
 import { freshSaveWith } from "./try-scenarios";
+import { changed } from "./worn";
 
 // Act 2 through the simulation interface: its Milestones, the metals Export and
 // what limits it, and the Plants that take nothing in.
@@ -230,8 +236,13 @@ describe("self-sufficiency in spare Components", () => {
       windowComplete: false,
     });
 
-    const events = [];
-    for (let days = 0; days < 62; days++) {
+    // Looked at as it comes: if it came before a whole window had passed, this
+    // would see that.
+    const isGained = (event: GameEvent) =>
+      event.kind === "self-sufficiency-gained" &&
+      event.stockId === catalogue.maintenance.spareComponentId;
+    const events: GameEvent[] = [];
+    for (let days = 0; days < 62 && !events.some(isGained); days++) {
       events.push(...campaign.advance(EARTH_DAY));
     }
 
@@ -242,11 +253,7 @@ describe("self-sufficiency in spare Components", () => {
     expect(campaign.snapshot().milestones.reachedIds).toContain(
       "spare-components-self-sufficient",
     );
-    const gained = events.find(
-      (event) =>
-        event.kind === "self-sufficiency-gained" &&
-        event.stockId === catalogue.maintenance.spareComponentId,
-    );
+    const gained = events.find(isGained);
     expect(gained).toBeDefined();
     if (gained === undefined) return;
     expect(formatEvent(gained)).toBe(
@@ -258,12 +265,71 @@ describe("self-sufficiency in spare Components", () => {
     const campaign = baseWith(HOME);
     build(campaign, HOME);
     moveIn(campaign);
+    const spares = catalogue.launch.items.find(
+      ({ brings }) =>
+        brings.kind === "component" &&
+        brings.componentId === catalogue.maintenance.spareComponentId,
+    );
+    const manifest = campaign.setLaunchManifest([
+      { itemId: spares?.id ?? "", count: 50 },
+    ]);
+    if (!manifest.ok) throw new Error(manifest.message);
+    const sent = campaign.sendLander();
+    if (!sent.ok) throw new Error(sent.message);
 
-    for (let days = 0; days < 45; days++) campaign.advance(EARTH_DAY);
+    // As soon as there is a whole window to judge, with the Launch in it,
+    // repairs having used some and no Plant having made any.
+    const events: GameEvent[] = [];
+    for (
+      let days = 0;
+      days < 45 &&
+      !campaign.snapshot().spareComponentSufficiency.windowComplete;
+      days++
+    ) {
+      events.push(...campaign.advance(EARTH_DAY));
+    }
 
+    expect(events.map(({ kind }) => kind)).toContain("lander-landed");
     const judged = campaign.snapshot().spareComponentSufficiency;
     expect(judged.windowComplete).toBe(true);
+    expect(judged.coveredShare).toBe(0);
     expect(judged.selfSufficient).toBe(false);
+  });
+
+  it("is lost as what the Plants made leaves the window", () => {
+    const home = baseWith(HOME);
+    build(home, HOME);
+    moveIn(home);
+    const { recordHours, windowLunations } = catalogue.selfSufficiency;
+    const recordCount = Math.round(
+      (lunationMinutes(catalogue.lunation).lunation * windowLunations) /
+        (recordHours * 60),
+    );
+    // A stand-in for a Lunation of it: all that was made is in the oldest
+    // record, three times what the window used, so that only the window moving
+    // on can lose it.
+    const campaign = changed(home, (state) => {
+      state.spareComponentSufficiency.records = Array.from(
+        { length: recordCount },
+        (_, index) => ({ made: index === 0 ? 3 * recordCount : 0, used: 1 }),
+      );
+    });
+    expect(campaign.snapshot().spareComponentSufficiency.selfSufficient).toBe(
+      true,
+    );
+
+    const events = campaign.advance(recordHours * 60);
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "self-sufficiency-lost",
+        stockId: catalogue.maintenance.spareComponentId,
+      }),
+    );
+    expect(campaign.snapshot().spareComponentSufficiency).toMatchObject({
+      selfSufficient: false,
+      windowComplete: true,
+    });
   });
 });
 

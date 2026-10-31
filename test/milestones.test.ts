@@ -11,11 +11,22 @@ import { scenario, toGameMinutes, type Scenario } from "./scenario";
 import { changed } from "./worn";
 
 // A Habitat on a single solar array can't get through a Night, and these
-// tests keep the Mission Director in one past the first.
+// tests keep the Mission Director in one past the first. A round trip takes
+// 3 Earth Days rather than 10, as trips take most of these tests' time and
+// none of them looks at how long one takes.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { safeHabitat } = await import("./safe-habitat");
-  return { ...actual, catalogue: safeHabitat(actual.catalogue, ["power"]) };
+  return {
+    ...actual,
+    catalogue: {
+      ...safeHabitat(actual.catalogue, ["power"]),
+      lander: {
+        ...actual.catalogue.lander,
+        roundTripEarthDays: { toEarth: 1, turnaround: 1, toMoon: 1 },
+      },
+    },
+  };
 });
 
 const solarSite: GroundPosition = { x: 20, y: 12 };

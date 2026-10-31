@@ -357,7 +357,7 @@ export const launch: Catalogue["launch"] = {
       priceMillionDollars: 500,
     },
     // Act 2's dear choices: see "The long Campaign's Acts" in
-    // docs/reference-campaign.md. Everything the reference Campaign buys has to
+    // docs/balancing.md. Everything the reference Campaign buys has to
     // stay as cheap as it is, so a base's Funding can only come to matter in what
     // it buys later. None costs more than a vault section, the most a Launch can
     // carry on the Programme Grant alone.

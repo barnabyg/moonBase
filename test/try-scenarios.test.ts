@@ -1,13 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { loadCampaign } from "../src/simulation";
-import { tryScenarios } from "./try-scenarios";
+import { tryScenarios, type TryScenario } from "./try-scenarios";
+
+/**
+ * The save a scenario prepares, prepared once and shared, as a save's text
+ * never changes and the tests load it afresh. The act-2 scenario plays the
+ * reference Campaign to get there, which takes far longer than anything else
+ * here.
+ */
+const saves = new Map<string, string>();
+function saveOf(scenario: TryScenario | undefined): string {
+  if (scenario === undefined) return "";
+  let save = saves.get(scenario.id);
+  if (save === undefined) {
+    save = scenario.save();
+    saves.set(scenario.id, save);
+  }
+  return save;
+}
 
 describe("what npm run try can start the game in", () => {
   it.each(tryScenarios.filter((scenario) => scenario.slow !== true))(
     "$id prepares a Campaign the game can load",
     (scenario) => {
-      expect(loadCampaign(scenario.save()).ok).toBe(true);
+      expect(loadCampaign(saveOf(scenario)).ok).toBe(true);
     },
   );
 
@@ -15,7 +32,7 @@ describe("what npm run try can start the game in", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "buried-habitat",
     );
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const state = loaded.campaign.snapshot();
     const habitats = state.structures.filter(({ structureTypeId }) =>
@@ -38,7 +55,7 @@ describe("what npm run try can start the game in", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",
     );
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     expect(loaded.campaign.snapshot().unlockedDesignIds).toHaveLength(
       catalogue.designs.length,
@@ -67,7 +84,7 @@ describe("what npm run try can start the game in", () => {
 
   it("act-2 starts with Act 1 done, Act 2 current, its first Milestone next to reach, and the means to reach it", () => {
     const scenario = tryScenarios.find((candidate) => candidate.id === "act-2");
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { campaign } = loaded;
     const state = campaign.snapshot();
@@ -102,7 +119,7 @@ describe("what npm run try can start the game in", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "last-milestone",
     );
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { campaign } = loaded;
     expect(campaign.snapshot().milestones).toMatchObject({
@@ -135,7 +152,7 @@ describe("what npm run try can start the game in", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "workshop",
     );
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { campaign } = loaded;
     const spares = () =>
@@ -160,7 +177,7 @@ describe("what npm run try can start the game in", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "crowded",
     );
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { bulkResources } = loaded.campaign.snapshot();
     expect(bulkResources).toHaveLength(catalogue.bulkResources.length);

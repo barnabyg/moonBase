@@ -307,7 +307,7 @@ describe("a Structure cut off from power", () => {
     const laterMastCommissioned = firstMinute((state) =>
       state.structures.some((structure) => structure.id === laterMastId),
     );
-    const recablingStarted = firstMinute((state) => {
+    const reconnectionStarted = firstMinute((state) => {
       const activity = state.robots[0]?.activity;
       return (
         activity !== undefined &&
@@ -316,7 +316,7 @@ describe("a Structure cut off from power", () => {
       );
     });
     expect(laterMastCommissioned).toBeGreaterThan(0);
-    expect(recablingStarted).toBeGreaterThan(laterMastCommissioned);
+    expect(reconnectionStarted).toBeGreaterThan(laterMastCommissioned);
   });
 
   it("isn't cabled again if it is due to be dismantled", () => {

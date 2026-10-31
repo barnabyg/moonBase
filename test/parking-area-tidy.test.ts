@@ -11,7 +11,8 @@ import { scenario, scenarioOf, type Scenario } from "./scenario";
 
 // Dust wears nothing down and nothing is dug, so that the Machines stand
 // idle wherever their last work left them, and the starting stock holds a
-// parking area's bay sockets.
+// parking area's bay sockets. A Lunation is shorter, as playing through one
+// takes most of the time of the test that does, and none looks at its length.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDust } = await import("./without-dust");
@@ -19,9 +20,16 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const { withDesigns } = await import("./with-designs");
   return {
     ...actual,
-    catalogue: withDesigns(withoutDigging(withoutDust(actual.catalogue)), [
-      "parking-areas",
-    ]),
+    catalogue: {
+      ...withDesigns(withoutDigging(withoutDust(actual.catalogue)), [
+        "parking-areas",
+      ]),
+      lunation: {
+        ...actual.catalogue.lunation,
+        daylightEarthDays: 10,
+        nightEarthDays: 2,
+      },
+    },
   };
 });
 
@@ -73,24 +81,30 @@ function bayAt(state: Snapshot, position: GroundPosition): number | undefined {
  * banks, so that the excavator is left plugged in beside the last battery
  * bank, after grading its site.
  */
+let excavatorBesideABatteryBankSave: string | undefined;
 function excavatorBesideABatteryBank(): Scenario {
-  const game = scenario().plan("parking-area", parkingSite);
-  game.plan("solar-array", arraySite);
-  for (const site of bankSites) game.plan("battery-bank", site);
-  buildAll(game);
-  const cabled = () => {
-    const area = structure(game.state, "parking-area");
-    return game.state.power.networks.some(
-      (network) =>
-        network.structureIds.includes(area.id) &&
-        network.storageCapacityKilowattHours > 0,
-    );
-  };
-  for (let hours = 0; !cabled(); hours++) {
-    if (hours > 2 * 24) throw new Error("The parking area was never cabled.");
-    game.advance({ hours: 1 });
+  if (excavatorBesideABatteryBankSave === undefined) {
+    const game = scenario().plan("parking-area", parkingSite);
+    game.plan("solar-array", arraySite);
+    for (const site of bankSites) game.plan("battery-bank", site);
+    buildAll(game);
+    const cabled = () => {
+      const area = structure(game.state, "parking-area");
+      return game.state.power.networks.some(
+        (network) =>
+          network.structureIds.includes(area.id) &&
+          network.storageCapacityKilowattHours > 0,
+      );
+    };
+    for (let hours = 0; !cabled(); hours++) {
+      if (hours > 2 * 24) throw new Error("The parking area was never cabled.");
+      game.advance({ hours: 1 });
+    }
+    excavatorBesideABatteryBankSave = game.campaign.save();
   }
-  return game;
+  const loaded = loadCampaign(excavatorBesideABatteryBankSave);
+  if (!loaded.ok) throw new Error(loaded.message);
+  return scenarioOf(loaded.campaign);
 }
 
 function excavator(state: Snapshot) {
