@@ -20,6 +20,7 @@ import {
   formatExportsValue,
   formatItemsShown,
   formatLaunchCost,
+  formatLaunchStorage,
   formatLaunchItem,
   formatPayloadMass,
   formatReturnMass,
@@ -75,9 +76,15 @@ export function createLaunchManifestScreen(
   // It says more, in a box, once the manifest is locked.
   intro.dataset["row"] = "Launch manifest intro";
   holdHeight(intro);
+  const storageWarning = document.createElement("p");
+  storageWarning.className = "launch-manifest__storage-warning";
+  storageWarning.setAttribute("role", "status");
+  storageWarning.setAttribute("aria-label", "Storage warning");
+  storageWarning.hidden = true;
   const find = createItemFinder();
   importsTab.panel.append(
     createSummary(payloadMass.element, cost.element, find.element),
+    storageWarning,
     intro,
   );
 
@@ -301,6 +308,10 @@ export function createLaunchManifestScreen(
           : snapshot.launchManifest.costMillionDollars /
               funds.totalMillionDollars,
       );
+
+      const storage = formatLaunchStorage(snapshot.launchManifest);
+      storageWarning.hidden = storage === undefined;
+      setText(storageWarning, storage ?? "");
 
       toLoad = snapshot.exports.toLoad;
       const away = snapshot.lander.legEndsAtMinute !== undefined;

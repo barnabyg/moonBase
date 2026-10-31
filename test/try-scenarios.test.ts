@@ -70,6 +70,34 @@ describe("what npm run try can start the game in", () => {
     expect(state.lunation.part).toBe("daylight");
   });
 
+  it("full-store has a water-processing plant running three batches below the limit, with the optics works switched off", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "full-store",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const typed = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(typed("optics-works")?.switchedOff).toBe(true);
+    expect(typed("water-processing-plant")?.switchedOff).toBe(false);
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeCloseTo(400 - 3 * 0.9, 5);
+    expect(state.lunation.part).toBe("daylight");
+
+    loaded.campaign.advance(4 * 60);
+
+    expect(
+      loaded.campaign
+        .snapshot()
+        .structures.find(
+          ({ structureTypeId }) => structureTypeId === "water-processing-plant",
+        )?.plant?.stoppedFor?.reason,
+    ).toBe("output-full");
+  });
+
   it("everything-unlocked has every Design unlocked", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",

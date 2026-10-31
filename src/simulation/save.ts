@@ -973,6 +973,10 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 41 to 42: nothing in the document changes. From this version on, a Plant
+  // may be saved as waiting for room for what it makes. A stock over its new
+  // storage limit stays as it is, and its Plants wait until it falls.
+  (document) => ({ ...document }),
 ];
 
 /**
@@ -1388,6 +1392,10 @@ const resourceRef: Decoder<ResourceRef> = tagged("kind", {
 const plantStop: Decoder<PlantStop> = tagged("reason", {
   broken: object({ reason: exactly("broken") }),
   "no-input": object({ reason: exactly("no-input"), resource: resourceRef }),
+  "output-full": object({
+    reason: exactly("output-full"),
+    resource: resourceRef,
+  }),
   night: object({ reason: exactly("night") }),
   "no-power": object({ reason: exactly("no-power") }),
   "switched-off": object({ reason: exactly("switched-off") }),

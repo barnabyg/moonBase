@@ -45,7 +45,7 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
     "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water",
   );
   await expect(water).toHaveText(
-    /^Water 5\d\.\d kg · lasts .*, water-processing plant switched off, optics works using 24 kg a day$/,
+    /^Water 5\d\.\d of 400 kg · lasts .*, water-processing plant switched off, optics works using 24 kg a day$/,
   );
 
   await speed(page, "20x");
@@ -54,7 +54,7 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
   );
   await speed(page, "Pause");
   await expect(water).toHaveText(
-    /^Water 4\d\.\d kg · lasts 1[234]d.*, water-processing plant switched off, optics works waiting at the reserve$/,
+    /^Water 4\d\.\d of 400 kg · lasts 1[234]d.*, water-processing plant switched off, optics works waiting at the reserve$/,
   );
 
   await structures

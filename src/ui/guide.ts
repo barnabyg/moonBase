@@ -258,6 +258,12 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
             (water) =>
               `An optics works and a grinding line use water as coolant, the Mission Director's water, so it has to come from somewhere: Launches, or ice turned into water. They start no batch that would take it below a reserve kept for the Mission Director, ${water.reserveEarthDays} Earth Days of what they use (${reserveKilograms(water.id)} kg): the Base panel then says the Plant is waiting, and the status panel says what is using the water and what is waiting. So they can never drink it all, and what they use doesn't count against being self-sufficient in water, which judges only what the Mission Director uses.`,
           ),
+        `The base's own tanks hold ${listInWords(
+          catalogue.lifeSupportStocks.map(
+            (stock) =>
+              `${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}`,
+          ),
+        )}, and the status panel shows each stock against its limit. A Plant that makes only a full stock waits for tank space, using no power or inputs, and starts again as the Mission Director uses some: the status panel says the stock is holding full, and that doesn't count against being self-sufficient in it. A Plant that makes other things as well keeps running and loses what doesn't fit, so that oxygen can't hold up metals. The Launch manifest warns if a Launch would bring more than there is room for: what doesn't fit is lost on landing.`,
         "Switch a Plant off in the Base panel to keep an input it would use, or to leave its power to other Plants, and switch it on again whenever you like: neither needs the Robot. A batch it has started finishes first. The forecasts count a switched-off Plant as making nothing. It wears no further by Dust while it stands idle, but Micrometeorites can still strike it and the Robot still maintains it.",
         `A Light Mast only helps you see, as work carries on in the dark. At Night it switches itself off to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more.`,
       ],

@@ -154,6 +154,9 @@ export const startingStock: Catalogue["startingStock"] = [
 // The reserve is a fortnight, as a water wall leaves: enough to outlast a Night
 // and a Lander's round trip, and to come before the first warning, so that
 // nothing warns of a Plant taking what is above it.
+// The storage is the base's own, as the Mission Director starts aboard the
+// Lander with stock already held. Water's holds a water wall's 300 kg and its
+// 49 kg reserve, with room for the Plant to work; oxygen's about four months.
 export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
   {
     id: "oxygen",
@@ -162,6 +165,7 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     usePerEarthDayKilograms: 0.84,
     warningEarthDaysLeft: [7, 3, 1],
     reserveEarthDays: 14,
+    storageLimitKilograms: 100,
   },
   {
     id: "water",
@@ -170,6 +174,7 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     usePerEarthDayKilograms: 3.5,
     warningEarthDaysLeft: [7, 3, 1],
     reserveEarthDays: 14,
+    storageLimitKilograms: 400,
   },
 ];
 

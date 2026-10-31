@@ -14,6 +14,7 @@ import { hasComponents } from "./construction-panel-text";
 import {
   formatCondition,
   formatDuration,
+  formatKilogramAmount,
   formatKilograms,
   formatMillionDollars,
   formatScience,
@@ -91,6 +92,8 @@ export function formatEvent(
       return event.delivered.length === 0
         ? "Lander landed"
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
+    case "lost-on-landing":
+      return `The base had no room for ${formatKilogramAmount(event.kilograms)} kg of the ${stockLabel(event.stockId).toLowerCase()} the Lander brought, and it was lost`;
     case "lander-unloaded":
       return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
     case "lander-loaded":

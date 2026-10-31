@@ -3,6 +3,7 @@ import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { valueAboard, valueToLoad, valueToSell } from "./exports";
 import { addCounts, addToStock } from "./stockpile";
+import { addWithinLimit, spaceKilograms } from "./storage-limits";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /** How many of a Launch item the manifest asks for. */
@@ -34,6 +35,26 @@ export interface LaunchManifestSnapshot {
   readonly locked: boolean;
   /** What it can be paid with, until it is locked, paid for. */
   readonly funds: ManifestFunds | undefined;
+  /**
+   * The life support stocks it would take over their limits if it landed now,
+   * in catalogue order. A warning, not a refusal: what doesn't fit is lost.
+   */
+  readonly overLimits: readonly ManifestOverLimit[];
+}
+
+/** How much a manifest brings of a life support stock that won't all fit. */
+export interface ManifestOverLimit {
+  readonly stockId: string;
+  /** How much of it the manifest brings. */
+  readonly kilograms: number;
+  /** How much more of it the base can hold as things stand. */
+  readonly spaceKilograms: number;
+}
+
+/** What a landing brought of a life support stock and couldn't keep. */
+export interface LostOnLanding {
+  readonly stockId: string;
+  readonly kilograms: number;
 }
 
 /**
@@ -166,7 +187,26 @@ export function readLaunchManifest(
     feeMillionDollars,
     locked,
     funds: locked ? undefined : readManifestFunds(state, costMillionDollars),
+    overLimits: readOverLimits(state),
   };
+}
+
+function readOverLimits(state: CampaignState): ManifestOverLimit[] {
+  return catalogue.lifeSupportStocks.flatMap((stock) => {
+    const kilograms = state.launchManifest.reduce((sum, { itemId, count }) => {
+      const brings = findLaunchItem(itemId)?.brings;
+      return brings?.kind === "life-support" && brings.stockId === stock.id
+        ? sum + brings.kilograms * count
+        : sum;
+    }, 0);
+    const space = spaceKilograms(state, {
+      kind: "life-support",
+      stockId: stock.id,
+    });
+    return kilograms > space
+      ? [{ stockId: stock.id, kilograms, spaceKilograms: space }]
+      : [];
+  });
 }
 
 /**
@@ -185,17 +225,18 @@ export function payForLaunch(state: CampaignState): number {
 
 /**
  * Unloads everything on the Launch manifest as the Lander lands: oxygen and
- * water join the life support stocks, Components join the base's stock
- * at the stockpile beside the landing site, or, on a landing pad, stay
- * aboard for the Robot to carry there, and Robots climb down from it,
- * wherever it has landed. A new, empty manifest starts, and what was
- * delivered is returned.
+ * water join the life support stocks, as far as their limits, what doesn't fit
+ * being lost, Components join the base's stock at the stockpile beside the
+ * landing site, or, on a landing pad, stay aboard for the Robot to carry there,
+ * and Robots climb down from it, wherever it has landed. A new, empty manifest
+ * starts, and what was delivered, and what was lost of it, is returned.
  */
 export function deliverLaunch(
   state: CampaignState,
   onLandingPad: boolean,
-): ManifestLine[] {
+): { delivered: ManifestLine[]; lost: LostOnLanding[] } {
   const delivered = state.launchManifest;
+  const lost = new Map<string, number>();
   for (const { itemId, count } of delivered) {
     const brings = findLaunchItem(itemId)?.brings;
     if (brings?.kind === "component") {
@@ -203,17 +244,28 @@ export function deliverLaunch(
       if (onLandingPad) addCounts(state.lander.cargo, components);
       else addToStock(state, components);
     } else if (brings?.kind === "life-support") {
-      const stock = state.lifeSupport.find(
-        (candidate) => candidate.stockId === brings.stockId,
+      const kilograms = brings.kilograms * count;
+      const kept = addWithinLimit(
+        state,
+        { kind: "life-support", stockId: brings.stockId },
+        kilograms,
       );
-      if (stock !== undefined) stock.kilograms += brings.kilograms * count;
+      if (kept < kilograms) {
+        lost.set(
+          brings.stockId,
+          (lost.get(brings.stockId) ?? 0) + kilograms - kept,
+        );
+      }
     } else if (brings?.kind === "robot") {
       deliverRobots(state, count);
     }
   }
   state.launchManifest = [];
   state.launchFeePaidMillionDollars = undefined;
-  return delivered;
+  return {
+    delivered,
+    lost: [...lost].map(([stockId, kilograms]) => ({ stockId, kilograms })),
+  };
 }
 
 /**

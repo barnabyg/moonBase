@@ -13,9 +13,12 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   return {
     ...actual,
     catalogue: withDesigns(
+      // Life support too, as with no tank to hold it a bulk tank's worth of
+      // oxygen wouldn't fit in the base's own storage.
       safeHabitat(actual.catalogue, [
         "power",
         "radiation",
+        "life-support",
         "solar-particle-events",
       ]),
       ["bulk-supply-tanks"],

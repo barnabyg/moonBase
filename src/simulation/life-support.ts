@@ -7,11 +7,14 @@ import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import { minutesUntilEmptyThroughLunations } from "./lunation";
 import {
   consumptionPerHour,
+  isHeldFull,
   isMadeByPlants,
   kilogramsToCountOn,
   productionPerHour,
+  waitingForSpacePerHour,
 } from "./plants";
 import { recordLifeSupport } from "./self-sufficiency";
+import { storageLimitKilograms } from "./storage-limits";
 
 /**
  * How far short of a whole game-minute of use a stock may be and still count
@@ -28,6 +31,8 @@ export interface LifeSupportState {
 export interface LifeSupportSnapshot {
   readonly stockId: string;
   readonly kilograms: number;
+  /** How many kilograms the base can hold (see `storageLimitKilograms`). */
+  readonly limitKilograms: number;
   /**
    * Whether it is being used up: only while the Mission Director lives in a
    * Habitat, and is alive.
@@ -40,14 +45,19 @@ export interface LifeSupportForecast {
   /**
    * How fast it is changing now: what the base's Plants are making, less
    * what they are using and what the Mission Director uses. Positive while
-   * it is rising.
+   * it is rising, and none while it is held full.
    */
   readonly kilogramsPerEarthDay: number;
   /**
    * Game-minutes until it runs out, or undefined if it doesn't within the
-   * forecast's look-ahead (see `minutesUntilEmpty`).
+   * forecast's look-ahead (see `minutesUntilEmpty`), or while it is held full.
    */
   readonly minutesUntilEmpty: number | undefined;
+  /**
+   * Whether the Plants that make it are holding it full, topping it up as it
+   * is used, rather than its rising or running out (see `isHeldFull`).
+   */
+  readonly holdingFull: boolean;
 }
 
 export function startingLifeSupport(): LifeSupportState[] {
@@ -62,6 +72,7 @@ export function readLifeSupport(state: CampaignState): LifeSupportSnapshot[] {
   return state.lifeSupport.map((stock) => ({
     stockId: stock.stockId,
     kilograms: stock.kilograms,
+    limitKilograms: storageLimitKilograms(state, resourceOf(stock)) ?? Infinity,
     inUse,
   }));
 }
@@ -70,11 +81,20 @@ export function forecastLifeSupport(
   state: CampaignState,
 ): LifeSupportForecast[] {
   return state.lifeSupport.map((stock) => {
+    if (isHeldFull(state, resourceOf(stock))) {
+      return {
+        stockId: stock.stockId,
+        kilogramsPerEarthDay: 0,
+        minutesUntilEmpty: undefined,
+        holdingFull: true,
+      };
+    }
     const minutes = minutesUntilEmpty(state, stock);
     return {
       stockId: stock.stockId,
       kilogramsPerEarthDay: netPerMinute(state, stock) * MINUTES_PER_EARTH_DAY,
       minutesUntilEmpty: Number.isFinite(minutes) ? minutes : undefined,
+      holdingFull: false,
     };
   });
 }
@@ -87,6 +107,8 @@ export function forecastLifeSupport(
  * Plants make as much as is used, Night included, none comes. If one runs out, the
  * Mission Director dies at once, which ends the Campaign; the death is then
  * the only event, as any warning that minute would come too late to matter.
+ * What Plants could have made but for a full store counts towards
+ * self-sufficiency, up to what is used, so that being full can't lose it.
  */
 export function useLifeSupport(state: CampaignState): GameEvent[] {
   if (!isInUse(state)) return [];
@@ -98,7 +120,13 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
     const before = minutesUntilEmpty(state, stock);
     const used = Math.min(usePerMinute(type), stock.kilograms);
     stock.kilograms -= used;
-    recordLifeSupport(state, stock.stockId, { used });
+    recordLifeSupport(state, stock.stockId, {
+      used,
+      produced: Math.min(
+        used,
+        waitingForSpacePerHour(state, resourceOf(stock)) / 60,
+      ),
+    });
     const after = minutesUntilEmpty(state, stock);
     if (stock.kilograms === 0 || minutesLeft(stock, perMinute) === 0) {
       stock.kilograms = 0;

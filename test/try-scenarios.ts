@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { catalogue } from "../src/catalogue";
+import { catalogue, resourceOutputs } from "../src/catalogue";
 import {
   createCampaign,
   loadCampaign,
@@ -203,9 +203,7 @@ function playAct2Save(): string {
   if (save === undefined) throw new Error(failure ?? "It never got there.");
   const opened = JSON.parse(save) as { state: EditableSaveState };
   // Enough to live on and keep the base repaired while the game is tried.
-  for (const stock of opened.state.lifeSupport) {
-    stock.kilograms = Math.max(stock.kilograms, 400);
-  }
+  fillStocks(opened.state);
   addComponents(opened.state, [
     { componentId: catalogue.maintenance.spareComponentId, count: 40 },
   ]);
@@ -369,6 +367,7 @@ function buriedHabitatSave(): string {
   const moved = campaign.moveMissionDirectorIn(home?.id ?? "");
   if (!moved.ok) throw new Error(moved.message);
   return saveWith(campaign, (state) => {
+    fillStocks(state);
     state.radiationDoseMillisieverts = 568;
   });
 }
@@ -456,6 +455,19 @@ function opticsBase(): Campaign {
 }
 
 /**
+ * Fills every life support stock to its storage limit, whatever it held: a
+ * scenario's way of living on while it is tried, and of ending with no more than
+ * the base can hold after building on more.
+ */
+function fillStocks(state: EditableSaveState): void {
+  for (const stock of state.lifeSupport) {
+    stock.kilograms =
+      catalogue.lifeSupportStocks.find(({ id }) => id === stock.stockId)
+        ?.storageLimitKilograms ?? stock.kilograms;
+  }
+}
+
+/**
  * `opticsBase`, with water enough for so many batches of an optics works before
  * the Mission Director's reserve stops it.
  */
@@ -468,9 +480,43 @@ export function opticsBaseSave(batches: number): string {
           resource.kind === "life-support" && resource.stockId === "water",
       )?.kilogramsPerHour ?? 0;
   return saveWith(opticsBase(), (state) => {
+    fillStocks(state);
     for (const stock of state.lifeSupport) {
       if (stock.stockId === "water") {
         stock.kilograms = reserveKilograms("water") + batches * batchKilograms;
+      }
+    }
+  });
+}
+
+/**
+ * `opticsBase`, with its optics works switched off and its water-processing plant
+ * on, and water so many of the Plant's batches below what the base can hold.
+ */
+export function fullStoreSave(batches: number): string {
+  const type = catalogue.structureTypes.find(
+    ({ id }) => id === "water-processing-plant",
+  );
+  const batchKilograms =
+    resourceOutputs(type?.recipes?.[0])[0]?.kilogramsPerHour ?? 0;
+  const campaign = opticsBase();
+  const { structures } = campaign.snapshot();
+  for (const [id, setting] of [
+    ["optics-works", "off"],
+    ["water-processing-plant", "on"],
+  ] as const) {
+    const switched = campaign.switchPlant(
+      structures.find(({ structureTypeId }) => structureTypeId === id)?.id ??
+        "",
+      setting,
+    );
+    if (!switched.ok) throw new Error(switched.message);
+  }
+  return saveWith(campaign, (state) => {
+    fillStocks(state);
+    for (const stock of state.lifeSupport) {
+      if (stock.stockId === "water") {
+        stock.kilograms -= batches * batchKilograms;
       }
     }
   });
@@ -573,6 +619,18 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: the Optics works' card under Structures says it takes water and leaves the reserve, and Power and Night says what the reserve is. Hover over Water beside Self-sufficient: it speaks only of the Mission Director's use, as what the Optics works uses doesn't count against it.",
     ],
     save: () => opticsBaseSave(6),
+  },
+  {
+    id: "full-store",
+    title:
+      "A base with a water-processing plant running three batches below the limit of 400 kg of water, with water ice to spare, and an optics works switched off",
+    steps: [
+      "Pause the game. The status panel's Water says \"397.3 of 400 kg\" and that it is rising. The Base panel's Water-processing plant says it is running.",
+      'Set the game to 5x. In a few real seconds the Water-processing plant says "waiting for tank space: Water is 400.0 of 400 kg" or a little under, and the status panel\'s Water says "holding full" instead of how fast it is rising. Water ice stops falling.',
+      "Leave it running: the Mission Director drinks a little, and about every six game-hours there is room for a batch, so the Plant runs for an hour and waits again. Water stays within a batch of 400 kg.",
+      "Open the Launch manifest and add a Water, 50 kg: it warns how much there is room for, and that what doesn't fit is lost on landing. Hover over Water beside Self-sufficient once a whole Lunation has passed: holding full hasn't cost it the title.",
+    ],
+    save: () => fullStoreSave(3),
   },
   {
     id: "crowded",

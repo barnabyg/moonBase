@@ -284,14 +284,25 @@ export function summariseTravel(
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
  * day", and when it will run out even so, if the Plants standing idle at
- * Night leave it too little to last the Night.
+ * Night leave it too little to last the Night. The amount is shown against what
+ * the base can hold, for example "399.5 of 400 kg", and while the Plants are
+ * holding it there the line says so, whatever else it might have said.
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
   forecast: LifeSupportForecast | undefined,
   missionDirector: MissionDirectorResidence,
 ): Stat {
-  const value = `${stock.kilograms.toFixed(1)} kg`;
+  const value = `${stock.kilograms.toFixed(1)} of ${stock.limitKilograms} kg`;
+  if (forecast?.holdingFull === true) {
+    return {
+      value,
+      note:
+        stock.kilograms > stock.limitKilograms
+          ? "holding full, over the limit"
+          : "holding full",
+    };
+  }
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
     const rising = `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`;
     // Rising now, but not enough to last the Night ahead.
@@ -395,6 +406,7 @@ function summariseLifeSupport(
   stock: LifeSupportSnapshot,
   forecast: LifeSupportForecast | undefined,
 ): string {
+  if (forecast?.holdingFull === true) return "full";
   const rising = (forecast?.kilogramsPerEarthDay ?? 0) > 0;
   if (stock.kilograms === 0 && !rising) return "ran out";
   // Falling, or rising now but not enough to last the Night ahead.

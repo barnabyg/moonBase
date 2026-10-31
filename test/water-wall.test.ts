@@ -223,6 +223,24 @@ describe("planning a water wall", () => {
 });
 
 describe("building a water wall", () => {
+  it("can be filled with no tank, from as much water as the base can hold", () => {
+    const limit =
+      catalogue.lifeSupportStocks.find(({ id }) => id === "water")
+        ?.storageLimitKilograms ?? 0;
+    const campaign = readyBase(limit);
+    plan(campaign, wall.id, habitatSite);
+
+    runUntil(campaign, (state) => state.constructions.length === 0);
+
+    expect(
+      campaign.snapshot().structures.some((s) => s.structureTypeId === wall.id),
+    ).toBe(true);
+    expect(waterInStock(campaign.snapshot())).toBeLessThan(
+      limit - fillKilograms,
+    );
+    expect(waterInStock(campaign.snapshot())).toBeGreaterThan(reserveKilograms);
+  });
+
   it("fills it with water from the base's stock as Assembly starts, besides what the Mission Director drinks", () => {
     const water = fillKilograms + reserveKilograms + 100;
     const campaign = readyBase(water);

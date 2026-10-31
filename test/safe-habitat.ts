@@ -10,7 +10,7 @@ export type HabitatDanger =
  * Habitat for longer than they would otherwise live: with the starting
  * stock, for one, a Habitat can't get through a Night. Taken away, the
  * Habitat needs no power, it lets in no radiation, its oxygen and water
- * last a thousand times as long, or no Solar Particle Event comes for
+ * last and hold a thousand times as much, or no Solar Particle Event comes for
  * thousands of Earth Days. A test file swaps it in for the real one
  * with:
  *
@@ -52,7 +52,12 @@ export function safeHabitat(
       : solarParticleEvents,
     lifeSupportStocks: catalogue.lifeSupportStocks.map((stock) =>
       from.includes("life-support")
-        ? { ...stock, startingKilograms: stock.startingKilograms * 1000 }
+        ? {
+            ...stock,
+            startingKilograms: stock.startingKilograms * 1000,
+            // So that Plants still have room to make more of it.
+            storageLimitKilograms: stock.storageLimitKilograms * 1000,
+          }
         : stock,
     ),
   };

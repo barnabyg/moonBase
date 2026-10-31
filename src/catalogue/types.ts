@@ -626,6 +626,11 @@ export interface LifeSupportStock {
    * that takes the stock starts no batch that would take it below this.
    */
   readonly reserveEarthDays: number;
+  /**
+   * How many kilograms the base's built-in storage holds. A Plant that makes
+   * nothing else waits once a batch's worth won't fit.
+   */
+  readonly storageLimitKilograms: number;
 }
 
 /**

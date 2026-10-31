@@ -87,11 +87,13 @@ describe("oxygen and water aboard the Lander", () => {
         stockId: "oxygen",
         kilogramsPerEarthDay: 0,
         minutesUntilEmpty: undefined,
+        holdingFull: false,
       },
       {
         stockId: "water",
         kilogramsPerEarthDay: 0,
         minutesUntilEmpty: undefined,
+        holdingFull: false,
       },
     ]);
   });
@@ -171,11 +173,13 @@ describe("running out of oxygen", () => {
         stockId: "oxygen",
         kilogramsPerEarthDay: 0,
         minutesUntilEmpty: undefined,
+        holdingFull: false,
       },
       {
         stockId: "water",
         kilogramsPerEarthDay: 0,
         minutesUntilEmpty: undefined,
+        holdingFull: false,
       },
     ]);
   });

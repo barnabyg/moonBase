@@ -208,12 +208,14 @@ export function flyLander(state: CampaignState): GameEvent[] {
       const pad = workingLandingPad(state);
       state.lander.trip = undefined;
       state.lander.position = { ...landingSpot(state) };
+      const { delivered, lost } = deliverLaunch(state, pad !== undefined);
       return [
-        {
-          kind: "lander-landed",
+        { kind: "lander-landed", atMinute, delivered },
+        ...lost.map((line): GameEvent => ({
+          kind: "lost-on-landing",
           atMinute,
-          delivered: deliverLaunch(state, pad !== undefined),
-        },
+          ...line,
+        })),
         ...(pad === undefined
           ? blastPlumeEjecta(state, state.lander.position)
           : []),

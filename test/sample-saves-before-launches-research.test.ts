@@ -22,6 +22,7 @@ describe("the sample saves from before Funding", () => {
         payloadMassKilograms: 0,
         costMillionDollars: 0,
         feeMillionDollars: catalogue.launch.feeMillionDollars,
+        overLimits: [],
         locked: false,
         funds: {
           fundingMillionDollars: 400,

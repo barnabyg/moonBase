@@ -17,6 +17,7 @@ const emptyManifest = {
   payloadMassKilograms: 0,
   costMillionDollars: 0,
   feeMillionDollars: launch.feeMillionDollars,
+  overLimits: [],
   locked: false,
   funds: {
     fundingMillionDollars: programmeGrant,
@@ -69,6 +70,7 @@ describe("the Launch manifest", () => {
         panel.priceMillionDollars * 2 +
         water.priceMillionDollars,
       feeMillionDollars: launch.feeMillionDollars,
+      overLimits: [],
       locked: false,
       funds: emptyManifest.funds,
     });

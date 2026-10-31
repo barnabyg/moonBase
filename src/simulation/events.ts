@@ -127,6 +127,16 @@ export type GameEvent =
       readonly delivered: readonly ManifestLine[];
     }
   | {
+      /**
+       * The Lander brought more of a life support stock than the base has room
+       * for, and what didn't fit was lost.
+       */
+      readonly kind: "lost-on-landing";
+      readonly atMinute: number;
+      readonly stockId: string;
+      readonly kilograms: number;
+    }
+  | {
       /** The Robot has carried the cargo of the Lander, landed on a landing pad, to the stockpile. */
       readonly kind: "lander-unloaded";
       readonly atMinute: number;

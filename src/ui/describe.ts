@@ -83,6 +83,33 @@ function stocksTaken(type: StructureType): LifeSupportStock[] {
   );
 }
 
+/**
+ * What a Structure's recipes make of the life support stocks, with whether a
+ * recipe makes nothing else, so that it waits when the store is full.
+ */
+function stocksMade(
+  type: StructureType,
+): { readonly stock: LifeSupportStock; readonly only: boolean }[] {
+  return catalogue.lifeSupportStocks.flatMap((stock) => {
+    const recipes = (type.recipes ?? []).filter((recipe) =>
+      resourceOutputs(recipe).some(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === stock.id,
+      ),
+    );
+    return recipes.length === 0
+      ? []
+      : [
+          {
+            stock,
+            only: recipes.every(
+              (recipe) => resourceOutputs(recipe).length === 1,
+            ),
+          },
+        ];
+  });
+}
+
 /** Says what a Structure does once it is commissioned, in figures. */
 export function describeStructure(type: StructureType): string {
   const { power } = type;
@@ -138,6 +165,11 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
+    ...stocksMade(type).map(({ stock, only }) =>
+      only
+        ? `The base holds ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: with no room for a batch, it waits for tank space, using nothing.`
+        : `The base holds ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: once that is full, it keeps running for what else it makes, and what doesn't fit is lost.`,
+    ),
     ...stocksTaken(type).map(
       (stock) =>
         `It starts no batch that would take ${stock.label.toLowerCase()} below the Mission Director's reserve of ${reserveKilograms(stock.id)} kg, ${stock.reserveEarthDays} Earth Days of what they use, and waits instead.`,
