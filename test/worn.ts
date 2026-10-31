@@ -54,6 +54,16 @@ export function withFunding(
 }
 
 /**
+ * The Campaign as saved, but with the Science given: a stand-in for the
+ * Research Tasks that would have earned it.
+ */
+export function withScience(campaign: Campaign, science: number): Campaign {
+  return changed(campaign, (state) => {
+    state.science = science;
+  });
+}
+
+/**
  * The Campaign as saved, but with a Structure, Machine, Rover or Robot worn down
  * to a Condition and, if given, a number of spare Components in the base's
  * stock.

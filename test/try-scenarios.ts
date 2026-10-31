@@ -179,7 +179,7 @@ function workshopBaseSave(): string {
  * for a Workshop and more metals to hand, so that Act 2 can be tried without
  * waiting for Science. It plays about 83 Earth Days.
  */
-function act2Save(): string {
+function playAct2Save(): string {
   let save: string | undefined;
   const { failure } = playReferenceCampaign([
     ...referenceSteps.filter(({ milestoneId }) => milestoneId !== undefined),
@@ -209,6 +209,13 @@ function act2Save(): string {
   stockOf(opened.state, "metals", 150);
   stockOf(opened.state, "circuit-boards", 60);
   return JSON.stringify(opened, undefined, 2);
+}
+
+/** The save `playAct2Save` prepares, played once, as Act 3's is made from it too. */
+let act2Text: string | undefined;
+function act2Save(): string {
+  act2Text ??= playAct2Save();
+  return act2Text;
 }
 
 /**

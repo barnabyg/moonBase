@@ -5,9 +5,9 @@ import { tryScenarios, type TryScenario } from "./try-scenarios";
 
 /**
  * The save a scenario prepares, prepared once and shared, as a save's text
- * never changes and the tests load it afresh. The act-2 scenario plays the
- * reference Campaign to get there, which takes far longer than anything else
- * here.
+ * never changes and the tests load it afresh. The act-2 and act-3 scenarios
+ * play the reference Campaign to get there, which takes far longer than
+ * anything else here.
  */
 const saves = new Map<string, string>();
 function saveOf(scenario: TryScenario | undefined): string {
@@ -64,7 +64,7 @@ describe("what npm run try can start the game in", () => {
 
   it("act-3 starts with Act 2 done and enough propellant to fly a tripled Return Mass", () => {
     const scenario = tryScenarios.find((candidate) => candidate.id === "act-3");
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { campaign } = loaded;
     const state = campaign.snapshot();
