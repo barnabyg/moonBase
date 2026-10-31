@@ -13,7 +13,7 @@ A single open-ended playthrough, advanced by reaching Milestones and lost by hit
 _Avoid_: run, scenario, game
 
 **Milestone**:
-A named achievement that marks progress through the Campaign, such as the first crew landing. Each belongs to an Act.
+A named achievement that marks progress through the Campaign, such as the Lander departing for the first time. Each belongs to an Act.
 _Avoid_: goal, objective, achievement
 
 **Act**:
@@ -23,6 +23,18 @@ _Avoid_: chapter, level, stage, era
 **Mechanic**:
 A new way of playing that an Act brings, as distinct from more of something already in the game.
 _Avoid_: feature, system
+
+**Reference Campaign**:
+The scripted playthrough the tests play, with a fixed seed and through the simulation interface alone, from the landing to a self-sufficient, export-funded base and on for three more Lunations. The data catalogue's numbers are balanced against its timeline.
+_Avoid_: golden run, benchmark, test game
+
+**Play guide**:
+A scripted list of steps that plays a Campaign as a player would, by sending commands and reading the snapshot. The reference Campaign is one, and the long-game play guide carries it on to Earth Day 3,000.
+_Avoid_: bot, walkthrough, script
+
+**Data catalogue**:
+The game's data, in `src/catalogue/`: every rate, mass, price, threshold, duration and Science cost, and every Structure, Design and Launch item they belong to. Every balancing change is made here.
+_Avoid_: config, game data, database
 
 ## Research and technology
 
@@ -64,8 +76,16 @@ _Avoid_: trade good, sale item
 Anything a Launch brings from Earth: the Components, oxygen and water, and Robots on the Launch manifest, listed on its Imports tab. Imports are limited by the Payload Mass and paid for with Funding.
 _Avoid_: shipment, delivery, upmass
 
+**Launch item**:
+One of the things the data catalogue lets a Launch bring, with its mass and price, and a row on the Launch manifest's Imports tab. A Launch item is what can be chosen; an Import is what a Launch brings.
+_Avoid_: import item, product
+
+**Cargo**:
+The Components aboard the Lander after it lands on a landing pad, until a Robot has carried them to the Stockpile; the Lander can't leave until then. Once there, they are stock, not cargo.
+_Avoid_: payload, load
+
 **Return Mass**:
-The mass of Exports the Lander can carry off the Moon when it leaves. Producing propellant locally increases it.
+The mass of Exports the Lander can carry off the Moon when it leaves. It is fixed for now: producing propellant locally is planned to increase it.
 _Avoid_: downmass, return cargo
 
 **Precision optics**:
@@ -193,7 +213,7 @@ A trip a Robot makes in a Rover beyond the base, returning some time later with 
 _Avoid_: sortie, trip, run
 
 **Crew**:
-The humans living at the base other than the Mission Director.
+Planned: the humans living at the base other than the Mission Director. For now the Mission Director lives there alone.
 _Avoid_: colonists, astronauts, settlers
 
 **Habitat**:
@@ -229,17 +249,17 @@ The loose rock and soil covering the lunar surface, treated as a resource, such 
 _Avoid_: soil, dirt, sand
 
 **Deposit**:
-A concentration of a resource at a specific place on the map, such as water ice in a shadowed crater. Its location and grade are unknown until it has been prospected.
+Planned: a concentration of a resource at a specific place on the map, such as water ice in a shadowed crater. Its location and grade would be unknown until it has been prospected.
 _Avoid_: node, vein, resource patch
 
 **Prospecting**:
-Surveying an area to find Deposits and estimate how rich they are.
+Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
 
 ## Hazards
 
 **Hazard**:
-An environmental threat that damages or wears down the base, its Robots or its Crew.
+An environmental threat that damages or wears down the base, its Robots or the people living there.
 _Avoid_: disaster, event
 
 **Dust**:
@@ -251,7 +271,7 @@ Dust and rock blasted outwards by a landing or departing lander, which damages n
 _Avoid_: blast, exhaust damage
 
 **Solar Particle Event**:
-A burst of solar radiation, announced a few hours in advance, during which Crew must be inside shielded Structures.
+A burst of solar radiation, announced a few hours in advance, during which people must be inside shielded Structures.
 _Avoid_: solar flare, radiation storm
 
 **Radiation Dose**:
