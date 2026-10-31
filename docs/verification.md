@@ -33,6 +33,10 @@ npm.cmd run test:e2e -- e2e/habitat.spec.ts --grep "moves from the Lander"
 
 The first runs one Vitest test, the second one Playwright test. Leave out `-t` or `--grep` to run the whole file.
 
+## Stopping at the first end-to-end failure in CI
+
+In CI (`CI` set), `playwright.config.ts` stops the end-to-end tests at the first failure, as its details only print once the run ends: one run's failure came 80 seconds in and was reported over 14 minutes later. A run therefore reports only the first failure it meets, so fixing it can reveal another. Local runs don't stop early.
+
 ## One worker for headed end-to-end runs
 
 When Firefox runs headed (`PLAYWRIGHT_HEADED=1`, as in CI), `playwright.config.ts` runs the end-to-end tests one at a time. CI draws with Mesa's software renderer into one virtual display, where two Firefox windows hold back each other's animation frames, and the game updates what it shows only once a frame, so a starved test can time out. One worker is no slower overall, because both workers compete for the same CPUs. Headless runs on a developer machine still use Playwright's default number of workers.
