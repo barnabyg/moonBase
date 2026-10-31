@@ -5,13 +5,21 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env["E2E_PORT"] ?? 4173);
 // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
 // context, so CI runs Firefox with a window inside a virtual X display
-// (see .github/workflows/verify.yml).
+// (see .github/workflows/end-to-end.yml).
 const headed = process.env["PLAYWRIGHT_HEADED"] === "1";
+// E2E_SHARD, such as "2/4", runs that share of the tests, so CI can spread them
+// over several runners (see docs/verification.md).
+const shard = /^(\d+)\/(\d+)$/.exec(process.env["E2E_SHARD"] ?? "");
 
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: !!process.env["CI"],
   retries: 0,
+  shard: shard && { current: Number(shard[1]), total: Number(shard[2]) },
+  // In CI, stop at the first failure and report it, rather than making whoever
+  // is waiting sit through every remaining test first (see
+  // docs/verification.md). Local runs still try them all.
+  maxFailures: process.env["CI"] ? 1 : 0,
   // Firefox windows sharing one software-rendered display hold back each
   // other's animation frames: in CI, with two workers, one test's page went
   // up to 28 s without a frame while its timers ran on time, and the game
