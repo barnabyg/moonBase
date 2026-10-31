@@ -81,7 +81,7 @@ One of the things the data catalogue lets a Launch bring, with its mass and pric
 _Avoid_: import item, product
 
 **Cargo**:
-The Components aboard the Lander after it lands on a landing pad, until a Robot has carried them to the Stockpile; the Lander can't leave until then. Once there, they are stock, not cargo.
+The Components aboard the Lander after it lands on a landing pad, and on a Robot's way to the Stockpile. The Lander can't leave until the Robot has taken them off. At the Stockpile they become stock, not cargo.
 _Avoid_: payload, load
 
 **Return Mass**:
