@@ -6,6 +6,7 @@ import {
   type PlantRecipe,
   type ResourceFlow,
   type ResourceRef,
+  inSentence,
 } from "../catalogue";
 import { addBulk, bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
@@ -242,9 +243,8 @@ export function switchPlant(
 }
 
 function labelOf(structureTypeId: string): string {
-  return (
-    findStructureType(structureTypeId)?.label.toLowerCase() ?? structureTypeId
-  );
+  const label = findStructureType(structureTypeId)?.label;
+  return label === undefined ? structureTypeId : inSentence(label);
 }
 
 /** A refusal of a command to a Plant, with the reason in words the player can read. */

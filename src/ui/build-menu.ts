@@ -139,7 +139,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${placing.label.toLowerCase()} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };

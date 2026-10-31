@@ -3,6 +3,7 @@ import {
   type ComponentCount,
   type GroundPosition,
   type StructureType,
+  inSentence,
 } from "../catalogue";
 import {
   findMachineType,
@@ -275,7 +276,7 @@ function checkWaterWallPlacement(
       distance(position, structure.position) <
         footprintRadius(structure.structureTypeId),
   );
-  const name = type.label.toLowerCase();
+  const name = inSentence(type.label);
   if (
     habitat !== undefined &&
     findStructureType(habitat.structureTypeId)?.buried === true
@@ -442,7 +443,7 @@ function checkFooting(
   position: GroundPosition,
   standsOverIds: readonly string[] = [],
 ): PlacementCheck {
-  const name = `The ${type.label.toLowerCase()}`;
+  const name = `The ${inSentence(type.label)}`;
   const radius = type.footprintRadiusMetres;
   const halfWidth = catalogue.map.widthMetres / 2;
   const halfDepth = catalogue.map.depthMetres / 2;

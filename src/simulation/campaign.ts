@@ -3,6 +3,7 @@ import {
   type ComponentCount,
   type GroundPosition,
   type MapSize,
+  inSentence,
 } from "../catalogue";
 import {
   cancelConstruction,
@@ -1335,7 +1336,7 @@ function checkCampaignPlacement(
     return {
       ok: false,
       reason: "design-locked",
-      message: `The ${type.label.toLowerCase()} needs the ${designLabel(type.designId)} Design unlocked first.`,
+      message: `The ${inSentence(type.label)} needs the ${designLabel(type.designId)} Design unlocked first.`,
     };
   }
   return checkPlacement(state, plan);

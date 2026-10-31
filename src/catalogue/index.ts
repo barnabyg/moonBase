@@ -1,4 +1,5 @@
 export { catalogue } from "./catalogue";
+export { inSentence } from "./labels";
 export { batchHoursOf, componentOutputs, resourceOutputs } from "./recipes";
 export type {
   Act,

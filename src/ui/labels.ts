@@ -125,9 +125,4 @@ export function subjectLabel(subject: MaintenanceSubject): string {
     : drivenLabel(subject);
 }
 
-/** Lowercases a name, except one, such as the Rover or a Workshop, that the glossary always capitalises. */
-export function inSentence(label: string): string {
-  return label === catalogue.rover.label || label === "Workshop"
-    ? label
-    : label.toLowerCase();
-}
+export { inSentence } from "../catalogue";
