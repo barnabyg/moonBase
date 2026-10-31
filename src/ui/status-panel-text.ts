@@ -295,13 +295,7 @@ export function formatLifeSupport(
 ): Stat {
   const value = `${stock.kilograms.toFixed(1)} of ${stock.limitKilograms} kg`;
   if (forecast?.holdingFull === true) {
-    return {
-      value,
-      note:
-        stock.kilograms > stock.limitKilograms
-          ? "holding full, over the limit"
-          : "holding full",
-    };
+    return { value, note: "holding full" };
   }
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
     const rising = `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`;

@@ -87,7 +87,12 @@ export function forecastLifeSupport(
   state: CampaignState,
 ): LifeSupportForecast[] {
   return state.lifeSupport.map((stock) => {
-    if (isHeldFull(state, resourceOf(stock))) {
+    // Over the limit, as an older save may be, nothing tops it up: it falls.
+    if (
+      isHeldFull(state, resourceOf(stock)) &&
+      stock.kilograms <=
+        (storageLimitKilograms(state, resourceOf(stock)) ?? Infinity)
+    ) {
       return {
         stockId: stock.stockId,
         kilogramsPerEarthDay: 0,

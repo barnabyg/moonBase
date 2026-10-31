@@ -441,21 +441,23 @@ describe("the forecasts of a stock held full", () => {
     expect(forecast?.minutesUntilEmpty).toBeGreaterThan(100 * EARTH_DAY);
   });
 
-  it("say so of a stock over the limit too, and the panel shows it against the limit", () => {
+  it("say a stock over the limit is falling, as nothing holds it there, and the panel shows it against the limit", () => {
     const campaign = withStocks(base(), { water: WATER_LIMIT + 50 });
     campaign.advance(5);
     const state = campaign.snapshot();
     const stat = state.lifeSupport.find(({ stockId }) => stockId === "water");
     if (stat === undefined) throw new Error("expected water");
 
-    const said = formatLifeSupport(
-      stat,
-      campaign.forecasts().lifeSupport.find((f) => f.stockId === "water"),
-      state.missionDirector,
-    );
+    const forecast = campaign
+      .forecasts()
+      .lifeSupport.find((f) => f.stockId === "water");
+    const said = formatLifeSupport(stat, forecast, state.missionDirector);
 
+    expect(forecast?.holdingFull).toBe(false);
+    expect(forecast?.kilogramsPerEarthDay).toBeLessThan(0);
+    expect(forecast?.minutesUntilEmpty).toBeGreaterThan(0);
     expect(said.value).toBe("450.0 of 400 kg");
-    expect(said.note).toBe("holding full, over the limit");
+    expect(said.note).not.toContain("holding full");
   });
 });
 
