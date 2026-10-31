@@ -608,6 +608,50 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // drinking water kept back for the Mission Director.
     waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
   },
+  // The end of what can be done about the Radiation Dose: cells of water sunk round a
+  // Buried Habitat's vault, filled all at once, so that the base must first hold more
+  // water than its own tanks and one water tank can: 2,000 kg is 400 kg of precision
+  // optics, or 16 rounds of a Greenhouse. See the Greenhouse chain in
+  // docs/balancing.md.
+  {
+    id: "vault-cistern",
+    label: "Vault cistern",
+    designId: "vault-cistern",
+    // The same as the Buried Habitat's, which it stands round.
+    footprintRadiusMetres: 6,
+    components: [{ componentId: "cistern-cell", count: 16 }],
+    stageHours: {
+      sitePreparation: 12,
+      componentDelivery: 8,
+      assembly: 24,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.1,
+    // Under the Regolith with the vault, with nothing moving for Dust to wear.
+    dustWearPercentPerHour: 0,
+    hazardMultipliers: {
+      dustCoating: 1,
+      micrometeorites: 0.1,
+      plumeEjecta: 0.1,
+    },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    waterWall: {
+      stockId: "water",
+      kilograms: 2000,
+      reserveEarthDays: 14,
+      overBuriedHabitat: true,
+    },
+  },
   // A pressure vault sunk in a trench and heaped over with Regolith, so that
   // nothing goes over it and the Mission Director's dose rate falls to a
   // tenth of a water wall's. It is the way past the Radiation Dose limit, and
@@ -1549,6 +1593,61 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
     growing: { lengthHours: 120, science: 20 },
+  },
+  // The Greenhouse chain's way to spend Funding on water: 100 Science for 480 kg, a
+  // fifth less water for each Science than a Greenhouse, for fourteen times the price
+  // of a dome. Its 10 Earth Day round is longer than a Night, so a Night short of
+  // water or power always costs one whole, and there is only the one basket. Against
+  // the two and a half Greenhouses that earn as much, the 354 kg a Lunation it saves
+  // is about what two cold-trap ice lines bring, at $6000M.
+  {
+    id: "growing-hall",
+    label: "Growing hall",
+    designId: "growing-halls",
+    footprintRadiusMetres: 8,
+    components: [
+      { componentId: "hall-vault-section", count: 4 },
+      { componentId: "light-pipe", count: 6 },
+    ],
+    stageHours: {
+      sitePreparation: 12,
+      componentDelivery: 4,
+      assembly: 36,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.05,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      // 798 kWh through a Night, about what a large battery bank stores. By day the
+      // light pipes bring the sun in, so that it draws about what two domes would.
+      nightDrawKilowatts: 3.5,
+      daylightDrawKilowatts: 1,
+    },
+    lightRadiusMetres: 22,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    // It draws its power as a Structure does (above), not as a recipe does.
+    recipes: [
+      {
+        id: "growing",
+        label: "Growing",
+        inputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 2,
+          },
+        ],
+        outputs: [],
+        drawKilowatts: 0,
+      },
+    ],
+    growing: { lengthHours: 240, science: 100 },
   },
   // Act 4: the dearest thing the base can sell for its mass, for space telescopes
   // that can't be made in a gravity well. 96 kg in a Daylight.

@@ -150,6 +150,65 @@ describe("the long-game play guide", () => {
     );
   });
 
+  it("says what a Greenhouse and a growing hall each earned, and what the Greenhouse chain had it buy", () => {
+    const lines = formatLongGame(
+      timeline({
+        endMinute: 3000 * earthDay,
+        structureTypesBuilt: [
+          { structureTypeId: "greenhouse", atMinute: 1640 * earthDay },
+          { structureTypeId: "growing-hall", atMinute: 2300 * earthDay },
+          { structureTypeId: "vault-cistern", atMinute: 2800 * earthDay },
+        ],
+        designsUnlocked: [
+          { designId: "growing-halls", atMinute: 2200 * earthDay },
+        ],
+        looks: [
+          {
+            atMinute: 2200 * earthDay,
+            radiationDoseMillisieverts: 575,
+            fundingMillionDollars: 20000,
+          },
+        ],
+        greenhouseRounds: [
+          {
+            atMinute: 1700 * earthDay,
+            structureTypeId: "greenhouse",
+            science: 20,
+          },
+          {
+            atMinute: 2400 * earthDay,
+            structureTypeId: "growing-hall",
+            science: 100,
+          },
+          {
+            atMinute: 2500 * earthDay,
+            structureTypeId: "growing-hall",
+            science: 0,
+            lostFor: "water",
+          },
+        ],
+      }),
+    );
+
+    expect(lines).toContainEqual(
+      expect.stringContaining(
+        "A Greenhouse was commissioned on Earth Day 1640.0. It earned 20 Science in 1 rounds",
+      ),
+    );
+    expect(lines).toContainEqual(
+      expect.stringContaining(
+        "A growing hall was commissioned on Earth Day 2300.0. It earned 100 Science in 1 rounds",
+      ),
+    );
+    expect(lines).toContainEqual(
+      expect.stringContaining("lost 1 rounds for want of water"),
+    );
+    expect(lines).toContain(
+      "Growing halls was unlocked on Earth Day 2200.0, with $20000M in hand. The first of each commissioned since:",
+    );
+    expect(lines).toContain("  2800.0  Vault cistern");
+  });
+
   it("plays to the length the Campaign's content is meant to last", () => {
     expect(LONG_GAME_END_EARTH_DAY).toBe(3000);
   });

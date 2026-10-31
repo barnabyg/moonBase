@@ -610,6 +610,8 @@ export interface RadiationRules {
     readonly waterWalledHabitat: number;
     /** In a Buried Habitat that isn't Broken, which needs nothing over it. */
     readonly buriedHabitat: number;
+    /** In a Buried Habitat with a commissioned vault cistern round it, neither Broken. */
+    readonly cisternedBuriedHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -1077,6 +1079,11 @@ export interface WaterWallRules {
    * left once it is filled; its Construction waits until there is.
    */
   readonly reserveEarthDays: number;
+  /**
+   * Whether it goes round a Buried Habitat, as a vault cistern does, rather than
+   * over a Habitat's Regolith shielding.
+   */
+  readonly overBuriedHabitat?: boolean;
 }
 
 /**

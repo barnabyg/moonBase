@@ -57,6 +57,7 @@ export function runGreenhouses(state: CampaignState): GameEvent[] {
           kind: "greenhouse-round-completed",
           atMinute: state.elapsedMinutes,
           structureId: structure.id,
+          structureTypeId: structure.structureTypeId,
           science: growing.science,
         },
       ];
@@ -73,6 +74,7 @@ export function runGreenhouses(state: CampaignState): GameEvent[] {
             kind: "greenhouse-round-lost",
             atMinute: state.elapsedMinutes,
             structureId: structure.id,
+            structureTypeId: structure.structureTypeId,
             reason,
           },
         ];

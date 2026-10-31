@@ -548,7 +548,11 @@ function tradeWithEarth(): (play: Play) => void {
         );
         return;
       }
-      if (loading && state.exportLoading === undefined) {
+      if (
+        loading &&
+        state.exportLoading === undefined &&
+        state.lander.cargo.length === 0
+      ) {
         succeed(play.campaign.sendLander(), "Sending the Lander");
       }
       return;
@@ -725,6 +729,8 @@ export interface ReferenceTimeline {
   /** Each round a Greenhouse completed or lost, by the game-minute it did. */
   readonly greenhouseRounds: readonly {
     readonly atMinute: number;
+    /** Whether it was a Greenhouse's or a growing hall's. */
+    readonly structureTypeId: string;
     /** The Science it earned; none for a round lost. */
     readonly science: number;
     readonly lostFor?: string;
@@ -914,6 +920,7 @@ function recorder(campaign: Campaign) {
     [];
   const greenhouseRounds: {
     atMinute: number;
+    structureTypeId: string;
     science: number;
     lostFor?: string;
   }[] = [];
@@ -946,12 +953,14 @@ function recorder(campaign: Campaign) {
         if (event.kind === "greenhouse-round-completed") {
           greenhouseRounds.push({
             atMinute: event.atMinute,
+            structureTypeId: event.structureTypeId,
             science: event.science,
           });
         }
         if (event.kind === "greenhouse-round-lost") {
           greenhouseRounds.push({
             atMinute: event.atMinute,
+            structureTypeId: event.structureTypeId,
             science: 0,
             lostFor: event.reason,
           });

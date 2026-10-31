@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
+import { GREENHOUSE_CHAIN_DESIGN_IDS } from "./pacing-report";
 
 /**
  * The data catalogue's research.ts: Research Tasks, the observing programme and
@@ -189,16 +190,19 @@ describe("the data catalogue", () => {
     for (const task of gated) expect(ids).toContain(task.requiresDesignId);
   });
 
-  it("has Research Tasks that pay at least as much Science as every Design beyond the starting ones costs", () => {
+  it("has Research Tasks that pay at least as much Science as every Design beyond the starting ones costs, but for the last of the Greenhouse chain, which they can't", () => {
     const paid = catalogue.researchTasks.reduce(
       (sum, task) => sum + task.science,
       0,
     );
-    const cost = catalogue.designs
-      .filter((design) => !design.starting)
-      .reduce((sum, design) => sum + design.scienceCost, 0);
+    const costOf = (keep: (id: string) => boolean) =>
+      catalogue.designs
+        .filter((design) => !design.starting && keep(design.id))
+        .reduce((sum, design) => sum + design.scienceCost, 0);
 
-    expect(paid).toBeGreaterThanOrEqual(cost);
+    expect(paid).toBeGreaterThanOrEqual(costOf((id) => id !== "vault-cistern"));
+    expect(paid).toBeLessThan(costOf(() => true));
+    expect(GREENHOUSE_CHAIN_DESIGN_IDS).toContain("vault-cistern");
   });
 
   it("lets a player unlock every Design and complete every Research Task, completing all the Research Tasks on offer, then unlocking the cheapest Design they can, in turn", () => {
@@ -238,7 +242,13 @@ describe("the data catalogue", () => {
       }
     }
 
-    expect(unlocked.size).toBe(catalogue.designs.length);
+    // The last of the Greenhouse chain takes a Greenhouse's Science too: the pacing
+    // report's test has that.
+    expect(
+      catalogue.designs
+        .filter(({ id }) => !unlocked.has(id))
+        .map(({ id }) => id),
+    ).toEqual(["vault-cistern"]);
     expect(completed.size).toBe(catalogue.researchTasks.length);
   });
 

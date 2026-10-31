@@ -44,6 +44,7 @@ export type PlacementRefusal =
   | "not-on-shielded-habitat"
   /** The Habitat has a water wall over it already, or planned. */
   | "already-water-walled"
+  | "not-on-buried-habitat"
   /** A Buried Habitat is under the Regolith already, and neither goes over it. */
   | "habitat-buried"
   | "campaign-ended";
@@ -217,7 +218,8 @@ export function hazardShare(
  * but nothing else. A water wall goes over a commissioned Habitat with
  * commissioned Regolith shielding over it and no water wall yet, standing
  * centred on them, and may overlap them but nothing else. Neither goes over
- * a Buried Habitat, which needs them no more.
+ * a Buried Habitat, which needs them no more. A vault cistern is a water wall
+ * that goes round a commissioned Buried Habitat and nothing else.
  */
 export function checkPlacement(
   site: Site,
@@ -283,12 +285,17 @@ function checkWaterWallPlacement(
         footprintRadius(structure.structureTypeId),
   );
   const name = inSentence(type.label);
-  if (
+  const overBuried =
     habitat !== undefined &&
-    findStructureType(habitat.structureTypeId)?.buried === true
-  ) {
-    return refuseOverBuried(habitat, name);
+    findStructureType(habitat.structureTypeId)?.buried === true;
+  if (type.waterWall?.overBuriedHabitat === true) {
+    return checkVaultCisternPlacement(
+      site,
+      type,
+      overBuried ? habitat : undefined,
+    );
   }
+  if (overBuried) return refuseOverBuried(habitat, name);
   const shielding =
     habitat === undefined
       ? undefined
@@ -320,6 +327,31 @@ function checkWaterWallPlacement(
     );
   }
   return checkFooting(site, type, habitat.position, [habitat.id, shielding.id]);
+}
+
+/** Checks a vault cistern's placement, round the Buried Habitat given, if any (see `checkPlacement`). */
+function checkVaultCisternPlacement(
+  site: Site,
+  type: StructureType,
+  habitat: Footing | undefined,
+): PlacementCheck {
+  const name = inSentence(type.label);
+  if (
+    habitat === undefined ||
+    site.dismantlings.some((planned) => planned.id === habitat.id)
+  ) {
+    return refuse(
+      "not-on-buried-habitat",
+      `The ${name} can only be built round a commissioned Buried Habitat.`,
+    );
+  }
+  if (waterWallOver(site, habitat) !== undefined) {
+    return refuse(
+      "already-water-walled",
+      `The Buried Habitat already has a ${name}.`,
+    );
+  }
+  return checkFooting(site, type, habitat.position, [habitat.id]);
 }
 
 /** Refuses to put something over a Buried Habitat, saying that it needs none. */

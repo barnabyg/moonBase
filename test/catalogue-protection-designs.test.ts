@@ -17,7 +17,9 @@ describe("the data catalogue", () => {
     const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
 
     it("is a Protection Design beyond the starting ones, needing Regolith shielding first, for the one water wall", () => {
-      expect(walls).toHaveLength(1);
+      expect(
+        walls.filter(({ waterWall }) => waterWall?.overBuriedHabitat !== true),
+      ).toHaveLength(1);
       expect(
         catalogue.designs.find((design) => design.id === wall?.designId),
       ).toMatchObject({

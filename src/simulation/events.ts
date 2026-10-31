@@ -350,6 +350,8 @@ export type GameEvent =
       readonly kind: "greenhouse-round-completed";
       readonly atMinute: number;
       readonly structureId: string;
+      /** Which type it is, a Greenhouse or a growing hall, for its name. */
+      readonly structureTypeId: string;
       /** The Science it earned. */
       readonly science: number;
     }
@@ -362,6 +364,8 @@ export type GameEvent =
       readonly kind: "greenhouse-round-lost";
       readonly atMinute: number;
       readonly structureId: string;
+      /** Which type it is, a Greenhouse or a growing hall, for its name. */
+      readonly structureTypeId: string;
       readonly reason: GreenhouseRoundLoss;
     }
   | {

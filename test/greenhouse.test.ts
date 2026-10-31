@@ -252,6 +252,7 @@ describe("a Greenhouse", () => {
         kind: "greenhouse-round-completed",
         atMinute: game.state.clock.elapsedMinutes,
         structureId: house?.id,
+        structureTypeId: "greenhouse",
         science: growing.science,
       },
     ]);

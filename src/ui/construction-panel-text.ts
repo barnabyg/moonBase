@@ -71,7 +71,11 @@ export function isFor(activity: RobotActivity, structureId: string): boolean {
 export function formatWaiting(waiting: ConstructionWait): string {
   if (waiting.reason === "water-reserve") {
     const stock = stockLabel(waiting.stockId).toLowerCase();
-    return `Waiting for ${formatKilograms(waiting.missingKilograms)} more ${stock}: filling it must leave the Mission Director a reserve`;
+    const room =
+      waiting.tooLittleRoomKilograms === undefined
+        ? ""
+        : `, and the base can hold only ${formatKilograms(waiting.tooLittleRoomKilograms)}: build another ${stock} tank`;
+    return `Waiting for ${formatKilograms(waiting.missingKilograms)} more ${stock}: filling it must leave the Mission Director a reserve${room}`;
   }
   if (waiting.reason !== "missing-components") {
     const machine = machineLabel(waiting.machineTypeId).toLowerCase();

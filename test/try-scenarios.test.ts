@@ -49,6 +49,44 @@ describe("what npm run try can start the game in", () => {
     ).toBeGreaterThanOrEqual(78);
   });
 
+  it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "late-game",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+    const of = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(state.missionDirector).toMatchObject({
+      residence: "habitat",
+      habitatId: of("buried-habitat")?.id,
+    });
+    expect(state.radiationDoseMillisieverts).toBeCloseTo(570, 1);
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.unlockedDesignIds).toContain("growing-halls");
+    expect(state.unlockedDesignIds).not.toContain("vault-cistern");
+    expect(of("greenhouse")?.plant).toMatchObject({ running: true });
+    expect(state.fundingMillionDollars).toBe(20000);
+
+    const unlocked = loaded.campaign.unlockDesign("vault-cistern");
+    expect(unlocked.ok).toBe(true);
+    expect(
+      loaded.campaign.planConstruction({
+        structureTypeId: "growing-hall",
+        position: { x: 90, y: 40 },
+      }).ok,
+    ).toBe(true);
+    expect(
+      loaded.campaign.planConstruction({
+        structureTypeId: "vault-cistern",
+        position: of("buried-habitat")?.position ?? { x: 0, y: 0 },
+      }).ok,
+    ).toBe(true);
+  });
+
   it("buried-habitat has the Mission Director behind a water wall at a high dose, a powered Buried Habitat to move to and a bare Habitat beside it", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "buried-habitat",

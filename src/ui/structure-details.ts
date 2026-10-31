@@ -399,7 +399,10 @@ function habitatLines(
 ): DetailLine[] {
   const shielding =
     structure?.buried === true
-      ? ["buried under the Regolith"]
+      ? [
+          "buried under the Regolith",
+          ...(structure.waterWalled ? ["a vault cistern"] : []),
+        ]
       : [
           ...(structure?.shielded === true ? ["Regolith shielding"] : []),
           ...(structure?.waterWalled === true ? ["a water wall"] : []),

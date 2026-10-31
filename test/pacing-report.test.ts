@@ -10,7 +10,12 @@ import {
   scienceEarners,
   scienceTimeline,
 } from "./pacing-report";
-import { actBalance, componentMakers, offerings } from "./pacing-report";
+import {
+  actBalance,
+  componentMakers,
+  greenhouseChainDates,
+  offerings,
+} from "./pacing-report";
 import {
   bulk,
   design,
@@ -577,12 +582,12 @@ describe("the pacing report on today's catalogue", () => {
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
     expect(report).toContain("2979 Earth Days");
-    expect(report).toContain("12525 Science");
+    expect(report).toContain("22325 Science");
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$8488M");
-    expect(report).toMatch(/Circuit boards.*57 Launches/);
+    expect(report).toContain("$9988M");
+    expect(report).toMatch(/Circuit boards.*67 Launches/);
   });
 
   it("says what limits each Export, and they differ", () => {
@@ -605,5 +610,47 @@ describe("the pacing report on today's catalogue", () => {
 
   it("says what it assumes", () => {
     expect(report).toContain("Assumes");
+  });
+});
+
+describe("the Designs Greenhouses bring forward", () => {
+  const dateOf = (greenhouses: number, halls = 0, designId = "vault-cistern") =>
+    greenhouseChainDates(catalogue, { greenhouses, halls }).find(
+      (date) => date.designId === designId,
+    )?.earthDay ?? Infinity;
+
+  it("reaches them sooner with more Greenhouses", () => {
+    for (const designId of ["growing-halls", "vault-cistern"]) {
+      expect(dateOf(1, 0, designId)).toBeLessThan(dateOf(0, 0, designId));
+      expect(dateOf(2, 0, designId)).toBeLessThan(dateOf(1, 0, designId));
+      expect(dateOf(3, 0, designId)).toBeLessThan(dateOf(2, 0, designId));
+    }
+  });
+
+  it("reaches the last of them only with a Greenhouse's Science, and within the Campaign only with more than one", () => {
+    expect(dateOf(0)).toBe(Infinity);
+    expect(dateOf(1)).toBeGreaterThan(3000);
+    expect(dateOf(1, 1)).toBeLessThan(3000);
+    expect(dateOf(3)).toBeLessThan(3000);
+  });
+
+  it("leaves the Designs before them where research alone has them", () => {
+    const timeline = scienceTimeline(catalogue);
+    const grinding = timeline.steps.find((step) =>
+      step.unlockedDesignIds.includes("optics-grinding-line"),
+    );
+    expect(dateOf(0, 0, "optics-grinding-line")).toBeCloseTo(
+      (grinding?.earthDay ?? 0) + 16,
+      5,
+    );
+  });
+
+  it("are in the report, with what they cost in Funding", () => {
+    const report = formatPacingReport(catalogue).join("\n");
+
+    expect(report).toContain("The Designs Greenhouses bring forward");
+    expect(report).toContain("What they ask in Funding");
+    expect(report).toContain("Growing hall");
+    expect(report).toContain("Vault cistern");
   });
 });

@@ -264,9 +264,18 @@ export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "grinding-line-yield-survey",
     label: "Grinding line yield survey",
-    lengthHours: 14400,
-    science: 2000,
+    lengthHours: 13680,
+    science: 1900,
     requiresDesignId: "optics-grinding-line",
+  },
+  // The Greenhouse chain's. Research already fills the Campaign to Earth Day 3,000,
+  // so that this takes its 30 Earth Days from the Grinding line yield survey above.
+  {
+    id: "hall-yield-trial",
+    label: "Hall yield trial",
+    lengthHours: 720,
+    science: 207,
+    requiresDesignId: "growing-halls",
   },
   // Pays for most of the Lunar greenhouses Design, at the rate of a short Research
   // Task: with no more than this, the whole tree stays payable, and the guide still
@@ -576,6 +585,23 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 400,
     prerequisiteDesignIds: ["water-wall-shielding"],
   },
+  // The Greenhouse chain's last Design, far more than Research Tasks pay: what they
+  // leave comes from Greenhouses and growing halls, so that more of them, and the water
+  // they drink, are the way to it. See docs/balancing.md.
+  {
+    id: "vault-cistern",
+    label: "Vault cistern",
+    description:
+      "Cells of water sunk all round a Buried Habitat's vault, which cut the Radiation Dose inside to a fifth, and must be filled all at once from what the base holds in its tanks.",
+    category: "protection",
+    starting: false,
+    scienceCost: 9000,
+    prerequisiteDesignIds: [
+      "growing-halls",
+      "buried-habitat",
+      "bulk-supply-tanks",
+    ],
+  },
   {
     id: "water-wall-shielding",
     label: "Water-wall shielding",
@@ -672,6 +698,20 @@ export const designs: Catalogue["designs"] = [
     starting: false,
     scienceCost: 200,
     prerequisiteDesignIds: ["cold-trap-mining"],
+  },
+  // The Greenhouse chain, for Science to buy once Act 4's Designs are all had. Past the
+  // Optics grinding line, whose mirrors its light pipes are figured on, so that no date
+  // before it can move: the guide unlocks the cheapest Design it can, and at this
+  // price it would otherwise come before Large propellant production.
+  {
+    id: "growing-halls",
+    label: "Growing halls",
+    description:
+      "A long pressure vault of growing racks lit by light pipes, dearer than any number of domes and drinking twice what one does, that earns more Science for its water, on a round too long to get through a Night short of water.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 800,
+    prerequisiteDesignIds: ["lunar-greenhouses", "optics-grinding-line"],
   },
   {
     id: "regolith-extraction",

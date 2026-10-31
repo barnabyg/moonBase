@@ -149,7 +149,9 @@ export function describeStructure(type: StructureType): string {
     ...(type.waterWall === undefined
       ? []
       : [
-          `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
+          type.waterWall.overBuriedHabitat === true
+            ? `goes round a commissioned Buried Habitat, filled all at once with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()} from the base's tanks, cutting the Radiation Dose inside to ${catalogue.radiation.doseRateMillisievertsPerEarthDay.cisternedBuriedHabitat} mSv an Earth Day`
+            : `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
         ]),
     ...(type.landingPad
       ? ["the Lander lands on it without blasting Plume Ejecta"]
@@ -195,7 +197,7 @@ export function describeStructure(type: StructureType): string {
       : [
           type.growing === undefined
             ? plantsAtNight(batchHoursOf(type.recipes[0]))
-            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More Greenhouses earn more, each with its own round.",
+            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
         ]),
     ...(type.storageTank === undefined
       ? []

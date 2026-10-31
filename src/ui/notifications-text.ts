@@ -165,9 +165,9 @@ export function formatEvent(
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
     case "greenhouse-round-completed":
-      return `${structureLabel("greenhouse")}: a round of growing complete, earning ${formatScience(event.science)}`;
+      return `${structureLabel(event.structureTypeId)}: a round of growing complete, earning ${formatScience(event.science)}`;
     case "greenhouse-round-lost":
-      return `${structureLabel("greenhouse")}: ${GREENHOUSE_ROUND_LOST[event.reason]}. It starts a new one by itself`;
+      return `${structureLabel(event.structureTypeId)}: ${GREENHOUSE_ROUND_LOST[event.reason]}. It starts a new one by itself`;
     case "observing-round-completed":
       return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":

@@ -433,6 +433,32 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 300,
       priceMillionDollars: 100,
     },
+    // A growing hall's worth comes to 2000 kg and $5000M, one Launch: about what
+    // the water it saves against two and a half Greenhouses would cost in ice lines.
+    // See the Greenhouse chain in docs/balancing.md.
+    {
+      id: "hall-vault-section",
+      designId: "growing-halls",
+      brings: { kind: "component", componentId: "hall-vault-section" },
+      massKilograms: 320,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "light-pipe",
+      designId: "growing-halls",
+      brings: { kind: "component", componentId: "light-pipe" },
+      massKilograms: 120,
+      priceMillionDollars: 500,
+    },
+    // A vault cistern's worth comes to 1920 kg and $8000M, one Launch. Each cell
+    // costs what a vault section does, the most any Launch item can.
+    {
+      id: "cistern-cell",
+      designId: "vault-cistern",
+      brings: { kind: "component", componentId: "cistern-cell" },
+      massKilograms: 120,
+      priceMillionDollars: 500,
+    },
     // A cold-trap ice line's worth comes to 2000 kg and $3000M.
     {
       id: "cold-trap-head",

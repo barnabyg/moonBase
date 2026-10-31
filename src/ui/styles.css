@@ -245,8 +245,13 @@ body {
   scrollbar-width: thin;
 }
 
+/* With every Design unlocked it is taller than the window has room for, so it
+   scrolls rather than push its last Structures off the bottom. */
 .build-menu {
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
   margin-top: auto;
   padding: 10px 12px;
 }

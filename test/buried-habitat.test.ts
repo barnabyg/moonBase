@@ -201,10 +201,10 @@ describe("the Buried Habitat's place in the data catalogue", () => {
       (sum, task) => sum + task.science,
       0,
     );
-    const cost = catalogue.designs.reduce(
-      (sum, each) => sum + each.scienceCost,
-      0,
-    );
+    // The last of the Greenhouse chain takes more than Research Tasks pay.
+    const cost = catalogue.designs
+      .filter(({ id }) => id !== "vault-cistern")
+      .reduce((sum, each) => sum + each.scienceCost, 0);
     const lastOwnTask = catalogue.researchTasks
       .filter((task) => task.requiresDesignId === "integrated-fabrication")
       .reduce((sum, task) => sum + task.science, 0);

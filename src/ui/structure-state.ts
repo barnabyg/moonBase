@@ -183,7 +183,11 @@ export function structureNotes(
           ? "shielded"
           : "unshielded"
       : undefined,
-    waterWall: structure.waterWalled ? "water-walled" : undefined,
+    waterWall: structure.waterWalled
+      ? structure.buried
+        ? "with a vault cistern"
+        : "water-walled"
+      : undefined,
     home: isHome(snapshot, structure.id)
       ? "the Mission Director's home"
       : undefined,

@@ -47,7 +47,7 @@ The standing Research Task the base's telescopes carry out at Night, a round at 
 _Avoid_: passive science, science income
 
 **Science**:
-The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and a Greenhouse's rounds of growing.
+The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and the rounds of growing of Greenhouses and growing halls.
 _Avoid_: research points, RP, knowledge
 
 **Tech Tree**:
@@ -158,8 +158,12 @@ _Avoid_: factory, panel plant
 A lit dome of growing racks: a Plant that takes water from the base's stock an hour's worth at a time and draws power day and night, and earns Science by rounds of growing. A shortage of either loses what it has grown of its round, and it starts a new one by itself once it is supplied. It never takes water below the reserve, and gives up its lamps before anything else goes without power.
 _Avoid_: farm, hydroponics bay, crop module
 
+**Growing hall**:
+A long pressure vault of growing racks, a kind of Greenhouse, far dearer than the domes that earn as much, that takes less water for each Science, on a round longer than a Night.
+_Avoid_: farm, large Greenhouse
+
 **Round of growing**:
-What a Greenhouse grows towards, a set time of having its water and power, which earns its Science as it is complete. Each Greenhouse grows its own.
+What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.
 _Avoid_: harvest, crop cycle
 
 **Cold-trap ice line**:
@@ -243,6 +247,10 @@ _Avoid_: bunker, underground base, deep Habitat
 **Water wall**:
 Bladders of water laid over a Habitat's Regolith shielding, filled from the base's water, which cut the Radiation Dose inside further than Regolith alone.
 _Avoid_: water shield, water jacket, tank
+
+**Vault cistern**:
+Cells of water sunk round a Buried Habitat, filled all at once from the base's water, which cut the Radiation Dose inside further than the Buried Habitat alone.
+_Avoid_: water jacket, water wall, tank
 
 ## Condition
 
