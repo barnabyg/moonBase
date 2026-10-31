@@ -75,8 +75,8 @@ describe("the data catalogue", () => {
       }
     });
 
-    it("has five beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(industry).toHaveLength(5);
+    it("has nine beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(9);
       expect(
         industry.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),

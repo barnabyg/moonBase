@@ -48,6 +48,10 @@ const newStructures = [
   ["array-works", "Array works"],
   ["thermal-store", "Thermal store"],
   ["cold-trap-ice-line", "Cold-trap ice line"],
+  ["propellant-plant", "Propellant plant"],
+  ["large-propellant-plant", "Large propellant plant"],
+  ["optics-works", "Optics works"],
+  ["grinding-line", "Grinding line"],
 ] as const;
 
 describe.each(newStructures)("the %s's model", (id, name) => {

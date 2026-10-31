@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import {
   act2TargetsMissed,
+  laterActTargetsMissed,
   designsNotUsed,
   designsTheLongGameUses,
   formatLongGame,
@@ -35,6 +36,9 @@ function timeline(
     milestones: [
       { milestoneId: "workshop-running", atMinute: 400 * earthDay },
       { milestoneId: "metals-sold", atMinute: 400 * earthDay },
+      { milestoneId: "first-propellant", atMinute: 1000 * earthDay },
+      { milestoneId: "return-mass-tripled", atMinute: 1200 * earthDay },
+      { milestoneId: "precision-optics-sold", atMinute: 1700 * earthDay },
       {
         milestoneId: "spare-components-self-sufficient",
         atMinute: 500 * earthDay,
@@ -42,6 +46,11 @@ function timeline(
     ],
     researchTasksCompleted: [
       { researchTaskId: "long-stay-health-study", atMinute: 890 * earthDay },
+      { researchTaskId: "ascent-load-survey", atMinute: 1400 * earthDay },
+      {
+        researchTaskId: "grinding-line-yield-survey",
+        atMinute: 2990 * earthDay,
+      },
     ],
     designsUnlocked: [
       { designId: "cold-trap-mining", atMinute: 800 * earthDay },
@@ -236,6 +245,27 @@ describe("the long-game play guide", () => {
       expect(longGameSucceeded(timeline(overrides))).toBe(false);
     }
   });
+
+  it.each([
+    ["propellant", "first-propellant", 1051, "propellant made by"],
+    ["a tripled Return Mass", "return-mass-tripled", 1251, "tripled by"],
+    ["optics", "precision-optics-sold", 2001, "optics sold by"],
+  ])(
+    "fails if %s come too late for Act 3's and Act 4's targets",
+    (_what, milestoneId, earthDays, says) => {
+      const late = timeline();
+      const missed = laterActTargetsMissed({
+        ...late,
+        milestones: late.milestones.map((milestone) =>
+          milestone.milestoneId === milestoneId
+            ? { milestoneId, atMinute: earthDays * earthDay }
+            : milestone,
+        ),
+      });
+      expect(missed.join()).toContain(says);
+      expect(laterActTargetsMissed(late)).toEqual([]);
+    },
+  );
 
   it("has one of every Launch item take at least the profit of 20 Launches", () => {
     expect(act2TargetsMissed(timeline()).join()).not.toContain(

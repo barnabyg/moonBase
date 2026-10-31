@@ -5,6 +5,7 @@ import {
   type Milestone,
   type MilestoneCondition,
 } from "../catalogue";
+import { bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import { findStructureType, isShielded } from "./construction";
 import type { GameEvent } from "./events";
@@ -182,5 +183,25 @@ function holds(
         (judged) =>
           judged.stockId === condition.stockId && judged.selfSufficient,
       );
+    case "bulk-resource-in-stock":
+      return bulkInStock(state, condition.resourceId) > 0;
+    case "exports-carried":
+      return events.some(
+        (event) =>
+          event.kind === "lander-took-off" &&
+          event.exports.reduce((mass, line) => mass + line.kilograms, 0) >=
+            condition.kilograms,
+      );
+    case "mission-director-lives-in": {
+      const { missionDirector } = state;
+      return (
+        missionDirector.residence === "habitat" &&
+        state.structures.some(
+          (structure) =>
+            structure.id === missionDirector.habitatId &&
+            structure.structureTypeId === condition.structureTypeId,
+        )
+      );
+    }
   }
 }

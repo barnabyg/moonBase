@@ -21,6 +21,13 @@ export interface ExportsSnapshot {
   /** The mass of the Exports to load, against the Lander's Return Mass. */
   readonly massKilograms: number;
   /**
+   * The Return Mass as things stand: what the Lander carries on what Earth
+   * gives it, and more for the propellant in stock that isn't to be sold.
+   */
+  readonly returnMassKilograms: number;
+  /** The propellant the Lander will burn as it takes off, for what is aboard and to load. */
+  readonly propellantToBurnKilograms: number;
+  /**
    * What the Exports to load will sell for: as much of each as the base
    * still has in stock, or, once the Robot has loaded them, what it
    * carries.
@@ -101,13 +108,13 @@ export function loadExports(
   const toLoad = inCatalogueOrder(lines);
   const aboard = massOf(state.lander.exports);
   const mass = massOf(toLoad) + aboard;
-  const limit = catalogue.lander.returnMassKilograms;
+  const limit = returnMassWith(state, toLoad);
   if (mass > limit) {
     const already =
       aboard === 0 ? "" : ` with the ${kilogramsInWords(aboard)} kg aboard`;
     return refuse(
       "over-return-mass",
-      `That would bring the Exports to ${kilogramsInWords(mass)} kg${already}, over the Lander's Return Mass of ${limit} kg.`,
+      `That would bring the Exports to ${kilogramsInWords(mass)} kg${already}, over the Lander's Return Mass of ${kilogramsInWords(limit)} kg.`,
     );
   }
   for (const { resourceId, kilograms } of toLoad) {
@@ -155,6 +162,52 @@ export function putExportsAboard(state: CampaignState): ExportLine[] {
   state.exportsToLoad = [];
   state.lander.exports = inCatalogueOrder([...state.lander.exports, ...aboard]);
   return aboard;
+}
+
+/**
+ * The Return Mass, were these the Exports to load: what the Lander carries on
+ * what Earth gives it, and a kilogram more for each share of the propellant in
+ * stock, leaving out any still to come out of the stock to be sold. It goes no
+ * higher than the Lander can lift.
+ */
+function returnMassWith(
+  state: CampaignState,
+  toLoad: readonly ExportLine[],
+): number {
+  const { returnMassKilograms, propellant } = catalogue.lander;
+  const toSell =
+    state.exportLoading?.collected === true
+      ? 0
+      : massOf(
+          toLoad.filter((line) => line.resourceId === propellant.resourceId),
+        );
+  const toBurn = Math.max(
+    0,
+    bulkInStock(state, propellant.resourceId) - toSell,
+  );
+  return Math.min(
+    propellant.mostReturnMassKilograms,
+    returnMassKilograms + toBurn / propellant.kilogramsPerReturnKilogram,
+  );
+}
+
+/** The propellant it takes to lift this mass of Exports. */
+function propellantToLift(massKilograms: number): number {
+  const { returnMassKilograms, propellant } = catalogue.lander;
+  return (
+    Math.max(0, massKilograms - returnMassKilograms) *
+    propellant.kilogramsPerReturnKilogram
+  );
+}
+
+/** Burns the propellant it takes to lift what is aboard, as the Lander takes off. */
+export function burnPropellant(state: CampaignState): void {
+  const { resourceId } = catalogue.lander.propellant;
+  const burned = Math.min(
+    propellantToLift(massOf(state.lander.exports)),
+    bulkInStock(state, resourceId),
+  );
+  if (burned > 0) addBulk(state, resourceId, -burned);
 }
 
 /**
@@ -236,9 +289,20 @@ function toLoadInStock(state: CampaignState): ExportLine[] {
 }
 
 export function readExports(state: CampaignState): ExportsSnapshot {
+  // Once it has left, it has burned what it took to lift what is aboard.
+  const flying = state.lander.trip !== undefined;
   return {
     toLoad: state.exportsToLoad.map((line) => ({ ...line })),
     massKilograms: massOf(state.exportsToLoad),
+    returnMassKilograms: Math.max(
+      returnMassWith(state, state.exportsToLoad),
+      flying ? massOf(state.lander.exports) : 0,
+    ),
+    propellantToBurnKilograms: flying
+      ? 0
+      : propellantToLift(
+          massOf(state.exportsToLoad) + massOf(state.lander.exports),
+        ),
     valueMillionDollars: valueToLoad(state),
     aboard: state.lander.exports.map((line) => ({ ...line })),
     valueAboardMillionDollars: valueAboard(state),

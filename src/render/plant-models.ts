@@ -158,6 +158,53 @@ const ARRAY_WORKS: PlantShape = {
   feederAt: 1.7,
 };
 
+/** A propellant plant: two lagged tanks of liquid oxygen, and the liquefier. */
+const PROPELLANT_PLANT: PlantShape = {
+  name: "Propellant plant",
+  plinth: [5.2, 3.2],
+  vessels: [
+    { kind: "tank", at: [-1.5, 0], scale: 0.62 },
+    { kind: "tank", at: [0, 0], scale: 0.62 },
+  ],
+  feederAt: 1.7,
+};
+
+/** A large propellant plant: a row of three tanks, and the reactor behind them. */
+const LARGE_PROPELLANT_PLANT: PlantShape = {
+  name: "Large propellant plant",
+  plinth: [6.6, 4],
+  vessels: [
+    { kind: "tank", at: [-2.1, 0.7], scale: 0.62 },
+    { kind: "tank", at: [-0.5, 0.7], scale: 0.62 },
+    { kind: "tank", at: [1.1, 0.7], scale: 0.62 },
+    { kind: "chamber", at: [-0.5, -1], scale: 0.6 },
+  ],
+  feederAt: 2.5,
+};
+
+/** An optics works: a grinding mill with a small belt of finished optics. */
+const OPTICS_WORKS: PlantShape = {
+  name: "Optics works",
+  plinth: [4.8, 3],
+  vessels: [
+    { kind: "mill", at: [-1, 0], scale: 0.8 },
+    { kind: "conveyor", at: [0.9, 0], scale: 0.5 },
+  ],
+  feederAt: 1.8,
+};
+
+/** A grinding line: two mills side by side, feeding one long belt. */
+const GRINDING_LINE: PlantShape = {
+  name: "Grinding line",
+  plinth: [6, 4.2],
+  vessels: [
+    { kind: "mill", at: [-1.5, 0.9], scale: 0.8 },
+    { kind: "mill", at: [0.6, 0.9], scale: 0.8 },
+    { kind: "conveyor", at: [-0.4, -1.1], scale: 0.9 },
+  ],
+  feederAt: 2.3,
+};
+
 /** The Plants, by Structure type. */
 export const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "extraction-plant": EXTRACTION_PLANT,
@@ -170,6 +217,10 @@ export const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   workshop: WORKSHOP,
   "cold-trap-ice-line": COLD_TRAP_ICE_LINE,
   "array-works": ARRAY_WORKS,
+  "propellant-plant": PROPELLANT_PLANT,
+  "large-propellant-plant": LARGE_PROPELLANT_PLANT,
+  "optics-works": OPTICS_WORKS,
+  "grinding-line": GRINDING_LINE,
 };
 
 /**

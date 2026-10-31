@@ -10,6 +10,8 @@ export const bulkResources: Catalogue["bulkResources"] = [
   { id: "wafers", label: "Wafers" },
   { id: "circuit-boards", label: "Circuit boards" },
   { id: "water-ice", label: "Water ice" },
+  { id: "propellant", label: "Propellant" },
+  { id: "precision-optics", label: "Precision optics" },
 ];
 
 // About as long as an Expedition takes to bring more water ice. Regolith
@@ -39,10 +41,20 @@ export const bulkResourceWarningEarthDaysLeft: Catalogue["bulkResourceWarningEar
 // extraction plant alone would earn more than a vacuum fabrication plant does,
 // and Act 1 would have no reason to make wafers. The Workshop wants the same
 // metals, at 3.6 kg a spare Component.
+//
+// Propellant is liquid oxygen, sold for what it saves lifting oxygen from Earth.
+// It is dearer than metals, so that it takes their place in what circuit boards
+// leave of the Return Mass, and it is the same stock the Lander burns to carry
+// more: at $1.20M a kilogram, 2 kg burned must carry more than $2.40M of Exports.
 export const exports: Catalogue["exports"] = [
   { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
   { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
   { resourceId: "metals", priceMillionDollarsPerKilogram: 1 },
+  { resourceId: "propellant", priceMillionDollarsPerKilogram: 1.2 },
+  // Twice a circuit board by the kilogram, so that a base with a raised Return
+  // Mass has a reason to fill it: a Plant, not the Lander, is the limit. At three
+  // times, the long game ended with $118,875M, far past anything it could buy.
+  { resourceId: "precision-optics", priceMillionDollarsPerKilogram: 6 },
 ];
 
 // Digging from one level to the other is about a day's work, wearing the
@@ -104,6 +116,11 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "thermal-exchanger", label: "Thermal exchanger" },
   { id: "cold-trap-head", label: "Cold-trap head" },
   { id: "ice-haul-line", label: "Ice haul line" },
+  { id: "oxygen-liquefier", label: "Oxygen liquefier" },
+  { id: "cryogenic-tank", label: "Cryogenic tank" },
+  { id: "propellant-reactor", label: "Propellant reactor" },
+  { id: "optical-grinder", label: "Optical grinder" },
+  { id: "metrology-bench", label: "Metrology bench" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },

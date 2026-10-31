@@ -16,6 +16,14 @@ export const lander: Catalogue["lander"] = {
   // Lunation's Daylight, so that a base making more than one plant's
   // wafers, or keeping them back, runs up against it.
   returnMassKilograms: 100,
+  // Carrying a kilogram more takes 2 kg of propellant, so that a tripled Return
+  // Mass burns 400 kg a trip. 2 kg sold would bring $2.40M, so it pays to burn
+  // it for circuit boards at $3M a kilogram, but not for metals at $1M.
+  propellant: {
+    resourceId: "propellant",
+    kilogramsPerReturnKilogram: 2,
+    mostReturnMassKilograms: 400,
+  },
 };
 
 // A full stock of Regolith really makes a cone about 1.2 m in radius and

@@ -17,7 +17,7 @@ A named achievement that marks progress through the Campaign, such as the Lander
 _Avoid_: goal, objective, achievement
 
 **Act**:
-A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. The current Act is the one holding the earliest Milestone not yet reached, or the last Act once every Milestone is reached. There are to be four: the first, then Independence, which is in the game, then Scale and Permanence.
+A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. The current Act is the one holding the earliest Milestone not yet reached, or the last Act once every Milestone is reached. There are four: the first, then Independence, Scale and Permanence.
 _Avoid_: chapter, level, stage, era
 
 **Mechanic**:
@@ -85,15 +85,15 @@ The Components aboard the Lander after it lands on a landing pad, and on a Robot
 _Avoid_: payload, load
 
 **Return Mass**:
-The mass of Exports the Lander can carry off the Moon when it leaves. It is fixed for now: producing propellant locally is planned to increase it.
+The mass of Exports the Lander can carry off the Moon when it leaves: 100 kg on what it brings from Earth, and up to 400 kg as it burns propellant made at the base.
 _Avoid_: downmass, return cargo
 
 **Precision optics**:
-An Export planned for the last Act: optical parts made in the Moon's vacuum, worth far more for their mass than circuit boards.
+The last Act's Export: optical parts made in the Moon's vacuum, worth far more for their mass than circuit boards.
 _Avoid_: lenses, mirrors
 
 **Propellant**:
-What the Lander burns to leave the Moon. Planned for the third Act: making it at the base raises the Return Mass, and oxygen can be sold as propellant.
+Liquid oxygen made at the base, a bulk resource apart from the Mission Director's oxygen. The Lander burns 2 kg of it to carry each kilogram above 100 kg of Exports, and it can be sold as an Export instead.
 _Avoid_: fuel
 
 **Lander**:
@@ -141,6 +141,14 @@ _Avoid_: factory, facility, Machine
 **Workshop**:
 A Plant that makes spare Components from metals at the base, so that they no longer need a Launch.
 _Avoid_: factory, fabricator, printer
+
+**Propellant plant**:
+A Plant that makes propellant from Regolith. A large one makes three times as much.
+_Avoid_: refinery, fuel plant
+
+**Optics works**:
+A Plant that makes precision optics from silicon and metals. A grinding line makes them two and a half times as fast.
+_Avoid_: lens factory
 
 **Array works**:
 A Plant that makes what a solar array is built from at the base, from silicon and metals, so that more power needs no Launch.

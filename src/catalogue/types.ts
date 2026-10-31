@@ -36,10 +36,19 @@ export interface Catalogue {
     readonly exportHandlingHours: number;
     /**
      * The most mass of Exports the Lander can carry off the Moon each time
-     * it leaves. It is fixed for now: making propellant at the base, which
-     * will raise it, isn't in the game yet.
+     * it leaves on what it brings from Earth. Propellant made at the base
+     * raises it: see `propellant`.
      */
     readonly returnMassKilograms: number;
+    /** How propellant made at the base raises the Return Mass. */
+    readonly propellant: {
+      /** The bulk resource the Lander burns. */
+      readonly resourceId: string;
+      /** How much it burns taking off for each kilogram carried above `returnMassKilograms`. */
+      readonly kilogramsPerReturnKilogram: number;
+      /** The most the Return Mass can come to, however much is in stock: what the Lander's frame can lift. */
+      readonly mostReturnMassKilograms: number;
+    };
   };
   /**
    * The base's stock of Components, kept on the ground beside the landing
@@ -325,7 +334,16 @@ export type MilestoneCondition =
    * The base is self-sufficient in a life support stock, as the status
    * panel judges it.
    */
-  | { readonly kind: "self-sufficient"; readonly stockId: string };
+  | { readonly kind: "self-sufficient"; readonly stockId: string }
+  /** The base has some of this bulk resource in stock. */
+  | { readonly kind: "bulk-resource-in-stock"; readonly resourceId: string }
+  /** The Lander has taken off with at least this mass of Exports aboard. */
+  | { readonly kind: "exports-carried"; readonly kilograms: number }
+  /** The Mission Director lives in a Habitat of this type. */
+  | {
+      readonly kind: "mission-director-lives-in";
+      readonly structureTypeId: string;
+    };
 
 /**
  * Micrometeorite strikes, which the Campaign's seeded generator schedules

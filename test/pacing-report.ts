@@ -527,6 +527,8 @@ export function exportEconomics(
 /** The stretch of game time an Act is meant to last, and what it brings to spend Funding on. */
 export interface ActPlan {
   readonly label: string;
+  /** Which Act it is, to leave out what the Acts after it add. */
+  readonly act: number;
   readonly fromEarthDay: number;
   readonly toEarthDay: number;
   /** The Earth Day it wants Designs still to buy at. */
@@ -535,8 +537,72 @@ export interface ActPlan {
   readonly designIds: readonly string[];
 }
 
+/** What each Act after the second adds to the catalogue, to look at the Acts before it alone. */
+const ACT_ADDITIONS: readonly {
+  readonly act: number;
+  readonly designIds: readonly string[];
+  readonly researchTaskIds: readonly string[];
+  readonly exportIds: readonly string[];
+}[] = [
+  {
+    act: 3,
+    designIds: ["propellant-production", "large-propellant-production"],
+    researchTaskIds: [
+      "ascent-margin-study",
+      "liquefier-boil-off-trial",
+      "propellant-purity-audit",
+      "ascent-load-survey",
+    ],
+    exportIds: ["propellant"],
+  },
+  {
+    act: 4,
+    designIds: ["precision-optics", "optics-grinding-line"],
+    researchTaskIds: [
+      "vacuum-figuring-study",
+      "optical-coating-trial",
+      "long-term-figure-audit",
+      "grinding-line-yield-survey",
+    ],
+    exportIds: ["precision-optics"],
+  },
+];
+
+/** The catalogue as it stands up to an Act, without what the later Acts add. */
+export function catalogueUpToAct<C extends PacedCatalogue>(
+  catalogue: C,
+  act: number,
+): C {
+  const later = ACT_ADDITIONS.filter((additions) => additions.act > act);
+  const designIds = later.flatMap(({ designIds }) => designIds);
+  const researchTaskIds = later.flatMap(
+    ({ researchTaskIds }) => researchTaskIds,
+  );
+  const exportIds = later.flatMap(({ exportIds }) => exportIds);
+  return {
+    ...catalogue,
+    designs: catalogue.designs.filter(({ id }) => !designIds.includes(id)),
+    researchTasks: catalogue.researchTasks.filter(
+      ({ id }) => !researchTaskIds.includes(id),
+    ),
+    exports: catalogue.exports.filter(
+      ({ resourceId }) => !exportIds.includes(resourceId),
+    ),
+    structureTypes: catalogue.structureTypes.filter(
+      ({ designId }) => !designIds.includes(designId),
+    ),
+    launch: {
+      ...catalogue.launch,
+      items: catalogue.launch.items.filter(
+        ({ designId }) => !designIds.includes(designId),
+      ),
+    },
+  };
+}
+
 /** Act 2's plan, as docs/balancing.md has it. */
 export const act2Plan: ActPlan = {
+  act: 2,
   label: "Act 2",
   fromEarthDay: 350,
   toEarthDay: 900,
@@ -587,9 +653,10 @@ export interface ActBalance {
  * Export as fast as its first Plant makes it, and no Launch fees.
  */
 export function actBalance(
-  catalogue: PacedCatalogue,
+  wholeCatalogue: PacedCatalogue,
   plan: ActPlan = act2Plan,
 ): ActBalance {
+  const catalogue = catalogueUpToAct(wholeCatalogue, plan.act);
   const { steps } = scienceTimeline(catalogue);
   const onClock = (step: ScienceStep) =>
     step.earthDay + FIRST_RESEARCH_EARTH_DAY;

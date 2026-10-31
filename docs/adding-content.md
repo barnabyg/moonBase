@@ -88,7 +88,7 @@ Tests and docs:
 
 `version` in `src/catalogue/catalogue.ts` is a label, with no written rule behind it until now. No game code reads it. The reference Campaign's timeline and the pacing report print it, and a catalogue test checks that it is a whole number from 1 up, so nothing fails if you forget. It isn't in a save, whose format has its own version.
 
-What the history shows, with version 65 reached one step at a time:
+What the history shows, with version 66 reached one step at a time:
 
 - Each ticket that adds content raises it by one in the commit that changes the catalogue, as all three above did.
 - So do changes to numbers or to the words alone: `b5ca87a` changed one Milestone's hint, and `79fe87b` was for descriptions.

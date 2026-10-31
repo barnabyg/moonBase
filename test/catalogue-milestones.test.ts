@@ -69,6 +69,11 @@ describe("the Milestones", () => {
       "workshop-running",
       "spare-components-self-sufficient",
       "metals-sold",
+      "first-propellant",
+      "propellant-sold",
+      "return-mass-tripled",
+      "moved-into-buried-habitat",
+      "precision-optics-sold",
     ]);
     expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
       milestones.length,
