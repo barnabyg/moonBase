@@ -19,6 +19,7 @@ export interface SavedState {
     stockId: string;
     records: { producedKilograms: number; usedKilograms: number }[];
   }[];
+  spareComponentSufficiency: { records: { made: number; used: number }[] };
   fundingMillionDollars: number;
   launchFeePaidMillionDollars: number | null;
   science: number;
