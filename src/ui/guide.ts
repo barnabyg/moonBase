@@ -10,7 +10,7 @@ import {
 } from "./describe";
 import { setText } from "./dom";
 import { formatMillionDollars, formatScience, listInWords } from "./format";
-import { stockLabel } from "./labels";
+import { inSentence, stockLabel } from "./labels";
 import { formatLaunchItem } from "./launch-manifest-text";
 import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
@@ -318,7 +318,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
             growing === undefined
               ? []
               : [
-                  `A ${label} (the ${designLabel(designId)} Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
+                  `A ${inSentence(label)} (the ${designLabel(designId)} Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
                 ],
         ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",
