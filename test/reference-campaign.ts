@@ -354,11 +354,12 @@ function unlockWaterWall(play: Play): void {
   succeed(play.campaign.unlockDesign(design.id), `Unlocking ${design.label}`);
 }
 
-/** Plans the water wall over the Habitat once its bladders are in stock. */
+/** Plans the water wall over the Habitat once its bladders are in stock, unless the Habitat has gone, as it does in the long game. */
 function buildWaterWall(play: Play): void {
   const { state } = play;
   if (
     waterWall === undefined ||
+    habitatOf(state) === undefined ||
     isPlannedOrBuilt(state, waterWall.id) ||
     !hasInStock(state, waterWallBladders)
   ) {
@@ -379,6 +380,7 @@ function wantedFromEarth(state: Snapshot): (readonly ManifestLine[])[] {
   }
   if (
     waterWall !== undefined &&
+    habitatOf(state) !== undefined &&
     state.unlockedDesignIds.includes(waterWall.designId) &&
     !isPlannedOrBuilt(state, waterWall.id) &&
     !hasInStock(state, waterWallBladders)
@@ -717,6 +719,22 @@ export interface ReferenceTimeline {
   }[];
   /** Each Launch item ever put on the Launch manifest. */
   readonly launchItemsManifested: readonly string[];
+  /** What each round trip's Launch manifest brought, by the game-minute it left. */
+  readonly launchManifests: readonly {
+    readonly atMinute: number;
+    readonly items: readonly ManifestLine[];
+  }[];
+  /** Each time the Mission Director moved into a Habitat, of what type, by the game-minute they did. */
+  readonly moves: readonly {
+    readonly atMinute: number;
+    readonly structureTypeId: string;
+  }[];
+  /** The Radiation Dose and Funding at each look at the game. */
+  readonly looks: readonly {
+    readonly atMinute: number;
+    readonly radiationDoseMillisieverts: number;
+    readonly fundingMillionDollars: number;
+  }[];
   /** Each Structure type commissioned at least once, the first time it was. */
   readonly structureTypesBuilt: readonly {
     readonly structureTypeId: string;
@@ -855,6 +873,14 @@ function recorder(campaign: Campaign) {
   }[] = [];
   let fewestSpares = Infinity;
   const sparesShipped = new Map<number, number>();
+  const launchManifests = new Map<number, readonly ManifestLine[]>();
+  const moves: { atMinute: number; structureTypeId: string }[] = [];
+  let lastHome: string | undefined;
+  const looks: {
+    atMinute: number;
+    radiationDoseMillisieverts: number;
+    fundingMillionDollars: number;
+  }[] = [];
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
   return {
@@ -934,6 +960,14 @@ function recorder(campaign: Campaign) {
       ) {
         sparesShipped.set(trip, shipped.count);
       }
+      if (trip !== undefined && state.lander.state === "travelling-to-earth") {
+        launchManifests.set(trip, state.launchManifest.items);
+      }
+      looks.push({
+        atMinute,
+        radiationDoseMillisieverts: state.radiationDoseMillisieverts,
+        fundingMillionDollars: state.fundingMillionDollars,
+      });
       // Unlocking is a command, which brings no event from advancing the game.
       for (const designId of state.unlockedDesignIds) {
         if (
@@ -950,6 +984,14 @@ function recorder(campaign: Campaign) {
       doses.push({ value: state.radiationDoseMillisieverts, atMinute });
       const { missionDirector } = state;
       if (missionDirector.residence !== "habitat") return;
+      if (missionDirector.habitatId !== lastHome) {
+        lastHome = missionDirector.habitatId;
+        const home = state.structures.find(({ id }) => id === lastHome);
+        moves.push({
+          atMinute: missionDirector.movedInAtMinute,
+          structureTypeId: home?.structureTypeId ?? "",
+        });
+      }
       const forecasts = campaign.forecasts();
       for (const stock of state.lifeSupport) {
         const kept = lifeSupport.get(stock.stockId);
@@ -1038,6 +1080,12 @@ function recorder(campaign: Campaign) {
           count,
         })),
         launchItemsManifested: [...launchItemsManifested],
+        launchManifests: [...launchManifests].map(([atMinute, items]) => ({
+          atMinute,
+          items,
+        })),
+        moves,
+        looks,
         structureTypesBuilt,
         minutesUntilDoseLimit:
           campaign.forecasts().radiationDose.minutesUntilLimit,

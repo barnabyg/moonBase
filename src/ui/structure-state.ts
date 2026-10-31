@@ -97,7 +97,7 @@ export interface StructureNotes {
   readonly observing: string | undefined;
   /** Whether its light is on, or its Night load off to save power. */
   readonly light: string | undefined;
-  /** Whether a Habitat is shielded. */
+  /** Whether a Habitat is buried, shielded or neither. */
   readonly shielding: string | undefined;
   readonly waterWall: string | undefined;
   /** Whether the Mission Director lives in it. */
@@ -124,9 +124,11 @@ export function structureNotes(
           : "light off to save power"
         : undefined,
     shielding: isHabitat(structure.structureTypeId)
-      ? structure.shielded
-        ? "shielded"
-        : "unshielded"
+      ? structure.buried
+        ? "buried"
+        : structure.shielded
+          ? "shielded"
+          : "unshielded"
       : undefined,
     waterWall: structure.waterWalled ? "water-walled" : undefined,
     home: isHome(snapshot, structure.id)

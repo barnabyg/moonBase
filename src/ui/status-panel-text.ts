@@ -509,7 +509,8 @@ export function formatRadiationDose(
   if (forecast.minutesUntilLimit !== undefined) {
     return {
       value,
-      note: `+${forecast.millisievertsPerEarthDay.toFixed(1)} a day, limit in ${formatShortDuration(forecast.minutesUntilLimit)}`,
+      // Fine enough to show what a Buried Habitat cuts it to.
+      note: `+${forecast.millisievertsPerEarthDay.toFixed(forecast.millisievertsPerEarthDay < 0.1 ? 3 : 1)} a day, limit in ${formatShortDuration(forecast.minutesUntilLimit)}`,
     };
   }
   return missionDirector.residence === "lander"

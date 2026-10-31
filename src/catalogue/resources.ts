@@ -84,6 +84,8 @@ export const componentTypes: Catalogue["componentTypes"] = [
   // Labelled a pad light because the Glossary avoids "floodlight", but
   // saves from version 32 on name it by this id, so the id stays.
   { id: "landing-floodlight", label: "Pad light" },
+  { id: "vault-section", label: "Vault section" },
+  { id: "deep-life-support-core", label: "Deep life support core" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },

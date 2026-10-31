@@ -21,7 +21,7 @@ These hold throughout, so the sections below don't repeat them:
 - **Lines hold still, even at 20x.** Rows keep their order, and a line keeps the tallest height it has taken while shown, so that when its text gets shorter, however quickly or slowly, the lines below it never move back up; it gives the room back when its section is folded, a Campaign is loaded or the window changes size. Work that is done (a Construction commissioned, a Structure dismantled, Maintenance finished, a Machine or the Rover parked and plugged in, the Lander unloaded or loaded) stays in the Work panel, marked "Done", for a few real seconds before its row goes, while work that stops for any other reason, such as a cancelled Construction, goes at once; the Work panel stays in place saying "No work under way" while there is none, and the Solar Particle Event line keeps its place in the Mission Director section, saying "none announced" between events, and the next Milestone's line keeps its place, saying "none left" after the last. A bulk resource's line, once it has shown, stays until a Campaign is loaded, even with none left.
 - **Guide:** explains, without leaving the game, how the base works (power and Night, repairs, keeping the Mission Director alive, Launches and Funding, Science), what every Structure does, with its figures, Components and the Design it needs, what every Component is for, what the Robot, Machines and Rover do, and what each technology unlocks. Every figure and list in it comes from the data catalogue.
 - **What things are for, where you choose them:** hovering over a Structure in the build menu says what it does and what it is built from; each item on the Launch manifest says what it is for (the Structures built from a Component and how many each takes, what spare Components do, how long oxygen or water lasts the Mission Director); each Tech Tree card says what unlocking it brings, with what each of its Structures does; and the Research Tasks screen lists what Science buys next, and on each task the Designs its Science would bring within reach or, if it pays too little for any, the cheapest it builds towards and how far short it leaves you. These say the same as the Guide.
-- **Structure pop-up:** click a Structure on the map, commissioned, under Construction or being dismantled, to open a pop-up beside it saying what it is, what it does and what state it is in: its stage of Construction or dismantling and how far it has got, its Condition and any Maintenance, what it is rated to generate, store and draw and what its power network makes and uses now, a battery bank's charge, a Plant's recipe and what it makes, a Habitat's residents, shielding and Radiation Dose rate, a light's state, whether a telescope is observing and how the observing programme is going, how many of a parking area's bays are taken, and a solar array's Dust coating. It updates live, and once the Structure is commissioned it offers the same choices as its entry in the Base panel (recipe, switch off or on, Move in, Dismantle). Clicking another Structure switches to it; clicking empty ground, pressing Esc or its close button closes it, and so does the Structure going once dismantled. A drag moves the camera rather than counting as a click, and while a Structure is being placed, a click places it instead. Regolith shielding and a water wall cover the Habitat, so clicking any of them opens the Habitat's pop-up, with a button to switch to each of them, and one back from theirs.
+- **Structure pop-up:** click a Structure on the map, commissioned, under Construction or being dismantled, to open a pop-up beside it saying what it is, what it does and what state it is in: its stage of Construction or dismantling and how far it has got, its Condition and any Maintenance, what it is rated to generate, store and draw and what its power network makes and uses now, a battery bank's charge, a Plant's recipe and what it makes, a Habitat's residents, shielding and Radiation Dose rate, a light's state, whether a telescope is observing and how the observing programme is going, how many of a parking area's bays are taken, and a solar array's Dust coating. It updates live, and once the Structure is commissioned it offers the same choices as its entry in the Base panel (recipe, switch off or on, Move in or Move here, Dismantle). Clicking another Structure switches to it; clicking empty ground, pressing Esc or its close button closes it, and so does the Structure going once dismantled. A drag moves the camera rather than counting as a click, and while a Structure is being placed, a click places it instead. Regolith shielding and a water wall cover the Habitat, so clicking any of them opens the Habitat's pop-up, with a button to switch to each of them, and one back from theirs.
 - **Camera:** drag with the left mouse button to pan, drag with the right button to rotate, and use the wheel to zoom from the whole map down to a single Robot.
 
 ## Milestones
@@ -31,7 +31,7 @@ Milestones guide a new player through the Campaign. They carry no rewards and ne
 1. **Power storage before the first Night:** a Structure that stores power is commissioned (even if the first Night has already fallen).
 2. **Habitat commissioned, Mission Director moved in.**
 3. **Lander departs:** the Lander takes off for Earth for the first time.
-4. **Habitat shielded:** Regolith shielding is commissioned over the Habitat the Mission Director lives in.
+4. **Habitat shielded:** Regolith shielding is commissioned over the Habitat the Mission Director lives in, or they live in a Buried Habitat, which needs none.
 5. **Landing pad:** a landing pad is commissioned.
 6. **First Research Task:** a Research Task is completed.
 7. **First Export:** an Export is sold as the Lander reaches Earth.
@@ -79,7 +79,9 @@ One battery bank can't carry the Habitat through a Night; the starting stock hol
 
 ## The Mission Director
 
-The Mission Director starts aboard the Lander, with an inflatable Habitat kit in the starting stock. Once the Habitat is commissioned and powered, "Move in" beside it moves them in at once and for good. The Lander is then free to fly.
+The Mission Director starts aboard the Lander, with an inflatable Habitat kit in the starting stock. Once the Habitat is commissioned and powered, "Move in" beside it moves them in at once, and they can't go back aboard. The Lander is then free to fly.
+
+Later they can move again: "Move here" beside any other Habitat, in the Base panel and its pop-up, moves them there at once. It has to be commissioned, powered, not Broken and not to be dismantled, or the move is refused and the game says why. Nothing stops a move into an unshielded Habitat: the dose rate there is what it is, the pop-up warns that moving there would raise it and how soon the limit would then come, and once they are there the forecast and warnings follow. The Radiation Dose they have taken goes with them. Only the Habitat they live in now can kill them by losing power, and it can't be dismantled until they leave it. The Habitat they left can then be dismantled, its water wall and shielding first; until then it draws its power as before, so a base keeping both has to carry both through the Night. Should the Habitat they live in have drawn its power by way of a Structure being dismantled, its cables are joined up as that Structure goes, so that it stays on the network.
 
 - **Oxygen and water.** The base starts with enough for about a month. Aboard the Lander they are safe indefinitely; once the Mission Director lives in the Habitat they use some every Earth Day.
 - **Habitat power.** Once they live in it, the Habitat must stay powered. An empty, unpowered Habitat harms nobody.
@@ -91,9 +93,10 @@ If oxygen or water runs out, the Habitat they live in loses power, or the Radiat
 
 - **Regolith shielding:** pick it in the build menu and place it on a commissioned Habitat. The excavator grades the ground round it and digs the Regolith for it there, then the Robot drives the regolith printer over and activates it, and the printer builds the shielding up layer by layer: no Components and no cable. It cuts the dose rate sharply.
 - **Water wall** (the Water-wall shielding Design): its bladders come by Launch and go over a Habitat's Regolith shielding (either kind). They are filled from the base's water stock as Assembly starts, which must leave the Mission Director a reserve of drinking water; until there is enough, the Construction waits, and the Work panel says how much more water it needs. The water stays in the wall even if the Construction is cancelled or the wall dismantled. It cuts the dose rate much further again.
-- **Solar Particle Events** come at random, with a few hours' warning, and multiply the dose rate while they last. Aboard the Lander it stays zero and shielding keeps it low, but in an unshielded Habitat one can take half the dose limit. The forecasts and warnings account for them.
+- **Buried Habitat** (the Buried Habitat Design, past Water-wall shielding): a Habitat of its own, sunk in a trench and heaped over with Regolith, and the only way to live out a long Campaign. Its vault sections and deep life support core come by Launch, too heavy for one, and cost more than anything else on the Launch manifest, so it takes planning for. The excavator takes Earth Days to dig it in. It takes no Regolith shielding or water wall: placing either over it is refused, as it needs neither. Move the Mission Director in with "Move here"; the dose rate falls to a tenth of a water wall's, but the Radiation Dose already taken never falls, so the sooner the first Habitat was shielded, the longer the Campaign can run.
+- **Solar Particle Events** come at random, with a few hours' warning, and multiply the dose rate while they last. Aboard the Lander it stays zero and shielding keeps it low, but in an unshielded Habitat one can take half the dose limit. They multiply a Buried Habitat's rate like any other. The forecasts and warnings account for them.
 
-Shielding and the water wall are the only Structures that may overlap another, and only the Habitat they cover (and, for the water wall, its shielding). The Base panel shows a Habitat as shielded or water-walled; a Broken water wall or shielding stops protecting it.
+Shielding and the water wall are the only Structures that may overlap another, and only the Habitat they cover (and, for the water wall, its shielding). The Base panel shows a Habitat as buried, shielded or water-walled; a Broken water wall or shielding stops protecting it, and a Broken Buried Habitat protects nobody either, though like any Broken Habitat it has already killed anyone living in it.
 
 ## Launches and the Lander
 
@@ -209,27 +212,28 @@ Unlocking a Design is permission, not the thing itself: its items appear on the 
 
 The Designs beyond the starting ones:
 
-| Category     | Design                       | Unlocks                                                                                         |
-| ------------ | ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                       |
-| Power        | Thin-film solar cells        | A thin-film solar array: more power from a lighter array                                        |
-| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                 |
-| Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning   |
-| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build           |
-| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                |
-| Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                         |
-| Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                        |
-| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                          |
-| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                      |
-| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                    |
-| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                   |
-| Life Support | Bulk supply tanks            | Larger, cheaper-for-each-kilogram oxygen and water tanks for the Launch manifest                |
-| Industry     | Molten regolith electrolysis | A large extraction plant                                                                        |
-| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                 |
-| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                    |
-| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                    |
-| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                     |
-| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded |
+| Category     | Design                       | Unlocks                                                                                               |
+| ------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                             |
+| Power        | Thin-film solar cells        | A thin-film solar array: more power from a lighter array                                              |
+| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                       |
+| Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning         |
+| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                 |
+| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                      |
+| Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                               |
+| Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                              |
+| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                |
+| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                            |
+| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                          |
+| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation)) |
+| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                         |
+| Life Support | Bulk supply tanks            | Larger, cheaper-for-each-kilogram oxygen and water tanks for the Launch manifest                      |
+| Industry     | Molten regolith electrolysis | A large extraction plant                                                                              |
+| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                       |
+| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                          |
+| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                          |
+| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                           |
+| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded       |
 
 A hardened Structure does the same job as the one it is based on, on the same footprint, but wears down more slowly, and the Mission Director can move into a hardened Habitat and shield it as usual. Unlocking some Designs also offers new Research Tasks.
 

@@ -181,11 +181,11 @@ The humans living at the base other than the Mission Director.
 _Avoid_: colonists, astronauts, settlers
 
 **Habitat**:
-A Structure in which people live, which provides life support and, once shielded, protection from radiation.
+A Structure in which people live, which provides life support and, once shielded or if it is a Buried Habitat, protection from radiation. The Mission Director lives in one at a time, and can move from one to another.
 _Avoid_: accommodation module, hab, living quarters
 
 **Buried Habitat**:
-A Habitat built under the Regolith, planned for the last Act, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
+A Habitat built under the Regolith, with neither Regolith shielding nor a water wall over it, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
 _Avoid_: bunker, underground base, deep Habitat
 
 **Water wall**:
@@ -239,7 +239,7 @@ A burst of solar radiation, announced a few hours in advance, during which Crew 
 _Avoid_: solar flare, radiation storm
 
 **Radiation Dose**:
-The total radiation a person has absorbed. It rises faster the less shielding they have, and beyond a limit they die.
+The total radiation a person has absorbed. It rises faster the less shielding they have, never falls, and beyond a limit they die.
 _Avoid_: exposure, rads
 
 **Micrometeorite**:

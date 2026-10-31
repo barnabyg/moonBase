@@ -86,6 +86,11 @@ export function describeStructure(type: StructureType): string {
         ]
       : []),
     ...(type.habitat ? ["the Mission Director can move into it"] : []),
+    ...(type.buried === true
+      ? [
+          `already under the Regolith, so that it takes neither shielding nor a water wall, with a Radiation Dose of ${catalogue.radiation.doseRateMillisievertsPerEarthDay.buriedHabitat} mSv an Earth Day inside`,
+        ]
+      : []),
     ...(type.shieldsHabitat
       ? ["goes over a commissioned Habitat, cutting the Radiation Dose inside"]
       : []),

@@ -13,6 +13,7 @@ import {
 } from "./construction";
 import { padUnderLander } from "./lander";
 import { livesIn } from "./mission-director";
+import { hasPowerSource, structureNetworks, type CableState } from "./power";
 
 /**
  * The stages of dismantling a Structure: the Robot takes it apart, then
@@ -72,7 +73,8 @@ export function dismantleStructure(
   if (livesIn(state, structureId)) {
     return {
       ok: false,
-      message: "The Mission Director lives in it, and can't move out.",
+      message:
+        "The Mission Director lives in it. Move them to another Habitat first.",
     };
   }
   if (
@@ -134,9 +136,19 @@ export function dismantlingStageMinutes(dismantling: DismantlingState): number {
 
 /**
  * Takes a Structure off the base as the Robot starts taking it apart: it
- * leaves its power network, and any cable to or from it goes with it.
+ * leaves its power network, and any cable to or from it goes with it. Except
+ * that the Habitat the Mission Director lives in may have drawn its power
+ * through it, as a Buried Habitat does when it was cabled from the Habitat they
+ * left. A cable then can't be laid before that Habitat's power fails, so the
+ * cables it joined stay joined.
  */
 export function takeOffBase(state: CampaignState, structureId: string): void {
+  const joined = state.cables.filter(
+    (cable) =>
+      cable.complete &&
+      (cable.fromStructureId === structureId ||
+        cable.toStructureId === structureId),
+  );
   state.structures = state.structures.filter(
     (structure) => structure.id !== structureId,
   );
@@ -145,6 +157,57 @@ export function takeOffBase(state: CampaignState, structureId: string): void {
       cable.fromStructureId !== structureId &&
       cable.toStructureId !== structureId,
   );
+  if (homeIsCutOff(state)) joinUpCables(state, structureId, joined);
+}
+
+/** Whether the Habitat the Mission Director lives in has no power source on its network. */
+function homeIsCutOff(state: CampaignState): boolean {
+  const { missionDirector } = state;
+  if (missionDirector.residence !== "habitat") return false;
+  const network = structureNetworks(state).find(({ structures }) =>
+    structures.some(({ id }) => id === missionDirector.habitatId),
+  );
+  return network !== undefined && !hasPowerSource(network);
+}
+
+/**
+ * Joins what a Structure's cables joined, now that it has gone: everything it
+ * fed takes its power from whatever fed it, or if nothing did, from the first
+ * of them, along the cables already lying there.
+ */
+function joinUpCables(
+  state: CampaignState,
+  structureId: string,
+  joined: readonly CableState[],
+): void {
+  const incoming = joined.find((cable) => cable.toStructureId === structureId);
+  const outgoing = joined.filter(
+    (cable) => cable.fromStructureId === structureId,
+  );
+  const [first, ...rest] = outgoing;
+  if (first === undefined) return;
+  const feeds = incoming === undefined ? rest : outgoing;
+  for (const cable of feeds) {
+    state.cables.push(
+      incoming === undefined
+        ? {
+            fromStructureId: first.toStructureId,
+            toStructureId: cable.toStructureId,
+            start: first.end,
+            end: cable.end,
+            route: [...[...first.route].reverse(), ...cable.route],
+            complete: true,
+          }
+        : {
+            fromStructureId: incoming.fromStructureId,
+            toStructureId: cable.toStructureId,
+            start: incoming.start,
+            end: cable.end,
+            route: [...incoming.route, ...cable.route],
+            complete: true,
+          },
+    );
+  }
 }
 
 /**

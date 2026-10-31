@@ -269,6 +269,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       paragraphs: [
         `The Mission Director starts safe aboard the Lander. Once they move into a Habitat, they use ${listInWords(catalogue.lifeSupportStocks.map((stock) => stockLabel(stock.id).toLowerCase()))} every Earth Day and absorb a Radiation Dose. Running out of either, the Habitat losing power or the dose reaching ${radiation.doseLimitMillisieverts} mSv kills them at once.`,
         "Regolith shielding over the Habitat, and later a water wall over that, cuts the dose. Launches bring oxygen and water until the base's Plants and Expeditions make enough.",
+        `The dose never falls, and even behind a water wall it reaches the limit in time. A Buried Habitat cuts its rate to ${radiation.doseRateMillisievertsPerEarthDay.buriedHabitat} mSv an Earth Day, a tenth of a water wall's: its kit takes several Launches and a great deal of Funding, so plan for it long before the limit, and the sooner the Habitat over it was shielded, the more of the dose is left. Press "Move here" beside any other commissioned Habitat with power to move the Mission Director, at once. You can then have the old Habitat dismantled, its shielding first, to get its power back. A Broken Buried Habitat protects nobody, and any Habitat they live in that Breaks or loses power kills them.`,
       ],
     },
     {

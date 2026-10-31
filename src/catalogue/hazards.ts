@@ -17,14 +17,22 @@ export const nightReserveHours: Catalogue["nightReserveHours"] = 24;
 // Habitat is urgent. Regolith shielding cuts it to a twentieth, so that
 // with Solar Particle Events the limit still comes in about nine
 // Lunations; a water wall over the shielding cuts it to a tenth of that
-// again, so that it comes only after many years and an open-ended
-// Campaign can go on.
+// again, so that it comes only after many years, about Earth Day 1,790 in
+// the long game. A Buried Habitat cuts it to a tenth of that again, the
+// last of the Campaign's cuts: Act 4 opens at about 530 mSv and asks the
+// player to move in by Earth Day 1,600 at about 570, leaving 30 mSv for
+// 1,400 Earth Days, at most 0.02 mSv an Earth Day with Solar Particle Events
+// counted. They multiply a dose rate by 1.31 on average, measured over the
+// 1,400 Earth Days of the long game (each lasts 18 hours on average at 10
+// times the rate, 20 Earth Days apart, which works out at 1.33), so that
+// 0.015 comes to 0.0196.
 export const radiation: Catalogue["radiation"] = {
   doseRateMillisievertsPerEarthDay: {
     lander: 0,
     habitat: 30,
     shieldedHabitat: 1.5,
     waterWalledHabitat: 0.15,
+    buriedHabitat: 0.015,
   },
   doseLimitMillisieverts: 600,
   warningEarthDaysLeft: [7, 3, 1],
@@ -32,7 +40,8 @@ export const radiation: Catalogue["radiation"] = {
 
 // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
 // Day or so takes half the dose limit in an unshielded Habitat, a
-// fortieth in a shielded one and a four-hundredth in a water-walled one.
+// fortieth in a shielded one, a four-hundredth in a water-walled one and a
+// four-thousandth in a Buried one.
 export const solarParticleEvents: Catalogue["solarParticleEvents"] = {
   earthDaysBetween: { min: 10, max: 30 },
   durationHours: { min: 6, max: 30 },

@@ -564,6 +564,8 @@ export interface RadiationRules {
      * Regolith shielding, none of them Broken.
      */
     readonly waterWalledHabitat: number;
+    /** In a Buried Habitat that isn't Broken, which needs nothing over it. */
+    readonly buriedHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -907,6 +909,13 @@ export interface StructureType {
    * Broken, the Habitat is water-walled.
    */
   readonly waterWall?: WaterWallRules;
+  /**
+   * Whether it is a Buried Habitat: a Habitat already under the Regolith, so
+   * that neither Regolith shielding nor a water wall goes over it, and unless
+   * it is Broken its dose rate is the data catalogue's rate for one. Leaving
+   * it out is the same as false.
+   */
+  readonly buried?: boolean;
   /**
    * If it is a parking area: the bays on it where the Robot parks Machines
    * and Rovers, each with a power socket.

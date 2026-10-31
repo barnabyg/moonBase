@@ -357,6 +357,24 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 60,
       priceMillionDollars: 5,
     },
+    // With the airlock, a Buried Habitat's worth comes to 5300 kg, three
+    // Launches' Payload Mass, and $4510M: see the Buried Habitat in
+    // structures.ts for why. A section costs what no other Launch item does,
+    // the most that a Launch can carry on the Programme Grant alone.
+    {
+      id: "vault-section",
+      designId: "buried-habitat",
+      brings: { kind: "component", componentId: "vault-section" },
+      massKilograms: 500,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "deep-life-support-core",
+      designId: "buried-habitat",
+      brings: { kind: "component", componentId: "deep-life-support-core" },
+      massKilograms: 900,
+      priceMillionDollars: 450,
+    },
     // A humanoid Robot built for the Moon, crated with its spares and
     // tools. With the Launch fee, one costs half the Programme Grant, so
     // a second Robot is a real choice against Components and supplies.

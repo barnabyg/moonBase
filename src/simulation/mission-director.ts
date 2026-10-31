@@ -32,17 +32,19 @@ export type MoveInResult =
     };
 
 /**
- * Moves the Mission Director from the Lander into a commissioned Habitat
- * that has power, at once and for good. Losing its power would kill them.
+ * Moves the Mission Director, at once, into a commissioned Habitat that has
+ * power: from the Lander, which they can't then go back to, or from the
+ * Habitat they live in. Losing the new one's power would kill them. The
+ * Radiation Dose they have taken goes with them.
  */
 export function moveMissionDirectorIn(
   state: CampaignState,
   habitatId: string,
 ): MoveInResult {
-  if (state.missionDirector.residence === "habitat") {
+  if (livesIn(state, habitatId)) {
     return refuse(
       "already-moved-in",
-      "The Mission Director has already moved into a Habitat.",
+      "The Mission Director already lives in this Habitat.",
     );
   }
   const construction = state.constructions.find(

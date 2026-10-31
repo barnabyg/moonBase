@@ -8,27 +8,47 @@ import {
 } from "../simulation";
 import { facingAngle, toScene } from "./interpolation";
 import { landerLadderFoot } from "./lander-model";
-import { HABITAT_HATCH_OUT } from "./models";
+import { BURIED_HABITAT_HATCH_OUT, HABITAT_HATCH_OUT } from "./models";
 
-/** Where the Mission Director stands at the end of the walk, out from the Habitat's centre along +x by its airlock's hatch. */
-const HATCH_STAND_OUT = HABITAT_HATCH_OUT + 0.8;
+/** A Habitat, by what the way to its hatch depends on. */
+export interface WalkEnd {
+  readonly structureTypeId: string;
+  readonly position: GroundPosition;
+}
+
+/** How far out along +x from its centre a type of Habitat's airlock hatch stands. */
+function hatchOut(structureTypeId: string): number {
+  return catalogue.structureTypes.find((type) => type.id === structureTypeId)
+    ?.buried === true
+    ? BURIED_HABITAT_HATCH_OUT
+    : HABITAT_HATCH_OUT;
+}
+
+/** Where someone stands outside a Habitat's airlock hatch, on the ground. */
+function outsideHatch({ structureTypeId, position }: WalkEnd): GroundPosition {
+  return { x: position.x + hatchOut(structureTypeId) + 0.8, y: position.y };
+}
 
 /**
- * The way the Mission Director walks from the foot of the Lander's ladder to
- * the airlock hatch of the Habitat at the given position, as the points it
- * turns at in the scene: round the Lander, the Habitat and everything else
- * a Robot walks round, keeping as far clear of them as a Robot does.
+ * The way the Mission Director walks to the airlock hatch of a Habitat, as
+ * the points it turns at in the scene: from the foot of the Lander's ladder,
+ * or from the hatch of the Habitat they are leaving, round the Lander, both
+ * Habitats and everything else a Robot walks round, keeping as far clear of
+ * them as a Robot does.
  */
 export function routeToHatch(
   grounds: Grounds,
-  habitat: GroundPosition,
+  habitat: WalkEnd,
+  leaving?: WalkEnd,
 ): THREE.Vector3[] {
   const lander = grounds.lander.position;
   // From the scene (z south) back onto the ground (y north).
   const ladderFoot = landerLadderFoot(catalogue.lander.footprintRadiusMetres);
   return routeBetween(
-    { x: lander.x + ladderFoot.x, y: lander.y - ladderFoot.z },
-    { x: habitat.x + HATCH_STAND_OUT, y: habitat.y },
+    leaving === undefined
+      ? { x: lander.x + ladderFoot.x, y: lander.y - ladderFoot.z }
+      : outsideHatch(leaving),
+    outsideHatch(habitat),
     obstaclesFor(grounds),
   ).map((point) => toScene(point));
 }

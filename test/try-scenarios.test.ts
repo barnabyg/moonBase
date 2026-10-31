@@ -11,6 +11,29 @@ describe("what npm run try can start the game in", () => {
     },
   );
 
+  it("buried-habitat has the Mission Director behind a water wall at a high dose, a powered Buried Habitat to move to and a bare Habitat beside it", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "buried-habitat",
+    );
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const habitats = state.structures.filter(({ structureTypeId }) =>
+      ["habitat", "buried-habitat"].includes(structureTypeId),
+    );
+
+    expect(state.radiationDoseMillisieverts).toBeCloseTo(568, 2);
+    expect(state.lunation.part).toBe("daylight");
+    expect(
+      loaded.campaign.forecasts().radiationDose.millisievertsPerEarthDay,
+    ).toBe(
+      catalogue.radiation.doseRateMillisievertsPerEarthDay.waterWalledHabitat,
+    );
+    expect(habitats.map(({ powered }) => powered)).toEqual([true, true, true]);
+    expect(habitats.filter(({ buried }) => buried)).toHaveLength(1);
+    expect(habitats.filter(({ waterWalled }) => waterWalled)).toHaveLength(1);
+  });
+
   it("everything-unlocked has every Design unlocked", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",

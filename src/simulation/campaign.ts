@@ -47,6 +47,7 @@ import {
   checkPlacement,
   chooseWorkSpot,
   findStructureType,
+  isBuried,
   isShielded,
   isWaterWalled,
   stageMinutes,
@@ -131,6 +132,7 @@ import {
 import {
   absorbRadiationDose,
   forecastRadiationDose,
+  minutesUntilLimitAsMinuteStarts,
   type RadiationDoseForecast,
 } from "./radiation";
 import {
@@ -363,7 +365,7 @@ export interface StructureSnapshot {
   readonly storedKilowattHours: number;
   /**
    * Whether it is a Habitat with commissioned Regolith shielding over it,
-   * neither of them Broken.
+   * neither of them Broken, or a Buried Habitat, not Broken, which needs none.
    */
   readonly shielded: boolean;
   /**
@@ -371,6 +373,8 @@ export interface StructureSnapshot {
    * its shielding, none of them Broken.
    */
   readonly waterWalled: boolean;
+  /** Whether it is a Buried Habitat that isn't Broken. */
+  readonly buried: boolean;
   /**
    * How intact it is, from 100% down to 0%, when it is Broken and does
    * nothing until it is repaired.
@@ -662,8 +666,9 @@ export interface Campaign {
    */
   dismantleStructure(structureId: string): DismantleResult;
   /**
-   * Moves the Mission Director from the Lander into a commissioned Habitat,
-   * at once and for good, freeing the Lander.
+   * Moves the Mission Director into a commissioned Habitat that has power,
+   * at once: from the Lander, freeing it for good, or from the Habitat they
+   * live in.
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
   /**
@@ -1174,6 +1179,7 @@ function campaignFrom(state: CampaignState): Campaign {
             savingPower: savingPower.includes(structure),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
+            buried: isBuried(structure),
             performance,
             plant: readPlant(state, structure),
             observing: observes(structure),
@@ -1246,8 +1252,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       (load) => load.id,
     ),
   );
-  const minutesUntilLimitBefore =
-    forecastRadiationDose(state).minutesUntilLimit;
+  const minutesUntilLimitBefore = minutesUntilLimitAsMinuteStarts(state);
   const sparesBefore = forecastSpareComponents(state);
   const selfSufficiencyBefore = readSelfSufficiency(state);
   state.elapsedMinutes += 1;

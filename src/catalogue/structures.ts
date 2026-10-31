@@ -568,6 +568,58 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // drinking water kept back for the Mission Director.
     waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
   },
+  // A pressure vault sunk in a trench and heaped over with Regolith, so that
+  // nothing goes over it and the Mission Director's dose rate falls to a
+  // tenth of a water wall's. It is the way past the Radiation Dose limit, and
+  // priced as the Campaign's biggest single purchase: $4510M, and $450M for the
+  // three Launch fees it takes. That is about what 17 Launches of circuit
+  // boards sell for, 255 Earth Days of everything a base earns at a trip every
+  // 15.4 Earth Days by the pacing report, and a good fifth of the $22,400M the
+  // long-game base holds by Earth Day 1,530 with nothing else to buy, before
+  // Acts 2 and 3 bring more. A base that skips the water wall reaches the
+  // limit around Earth Day 260, and could afford it around Earth Day 335 at
+  // the soonest. The excavator takes 5 Earth Days to dig it in, at about half
+  // its Condition in Dust's wear on its bucket: much more would have it wear
+  // out and stop part-way. It draws what any Habitat draws, so that a base
+  // keeping its old Habitat as well has to carry both through the Night.
+  {
+    id: "buried-habitat",
+    label: "Buried Habitat",
+    designId: "buried-habitat",
+    footprintRadiusMetres: 6,
+    components: [
+      { componentId: "vault-section", count: 8 },
+      { componentId: "deep-life-support-core", count: 1 },
+      { componentId: "airlock", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 120,
+      componentDelivery: 8,
+      assembly: 48,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.01,
+    // Only the airlock stands in the open: a Micrometeorite or a blast of
+    // Plume Ejecta takes a tenth of what it takes off the Habitat above ground.
+    hazardMultipliers: {
+      dustCoating: 1,
+      micrometeorites: 0.1,
+      plumeEjecta: 0.1,
+    },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 1.2,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: true,
+    shieldsHabitat: false,
+    landingPad: false,
+    buried: true,
+  },
   {
     id: "landing-pad",
     label: "Landing pad",

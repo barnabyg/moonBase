@@ -93,7 +93,7 @@ describe("The Mission Director's walk from the Lander to their Habitat", () => {
     const habitat = habitatAt(24, -3);
     const site = base({ lander: { x: 4, y: -3 }, structures: [habitat] });
 
-    const route = walking.routeToHatch(site, habitat.position);
+    const route = walking.routeToHatch(site, habitat);
 
     const start = route[0] ?? new THREE.Vector3(NaN);
     const ladderFoot = toScene(site.lander.position).add(
@@ -121,7 +121,7 @@ describe("The Mission Director's walk from the Lander to their Habitat", () => {
       ],
     });
 
-    const route = walking.routeToHatch(site, { x: 30, y: 0 });
+    const route = walking.routeToHatch(site, habitatAt(30, 0));
 
     expectRoundEverything(route, site);
   });
@@ -138,8 +138,31 @@ describe("The Mission Director's walk from the Lander to their Habitat", () => {
       ],
     });
 
-    const route = walking.routeToHatch(site, { x: -6, y: 24 });
+    const route = walking.routeToHatch(site, habitatAt(-6, 24));
 
+    expectRoundEverything(route, site);
+  });
+
+  it("goes from the hatch of the Habitat they are leaving to the hatch of a Buried Habitat, which stands further out", () => {
+    const leaving = habitatAt(0, 30);
+    const buried = {
+      id: "buried",
+      structureTypeId: "buried-habitat",
+      position: { x: 30, y: 30 },
+    };
+    const site = base({ structures: [leaving, buried] });
+
+    const route = walking.routeToHatch(site, buried, leaving);
+
+    const start = route[0] ?? new THREE.Vector3(NaN);
+    const from = toScene(leaving.position);
+    expect(start.z).toBeCloseTo(from.z);
+    expect(start.x - from.x).toBeGreaterThan(models.HABITAT_HATCH_OUT);
+    expect(start.x - from.x).toBeLessThan(models.HABITAT_HATCH_OUT + 1);
+    const end = route.at(-1) ?? new THREE.Vector3(NaN);
+    const to = toScene(buried.position);
+    expect(end.x - to.x).toBeGreaterThan(models.BURIED_HABITAT_HATCH_OUT);
+    expect(end.x - to.x).toBeLessThan(models.BURIED_HABITAT_HATCH_OUT + 1);
     expectRoundEverything(route, site);
   });
 });

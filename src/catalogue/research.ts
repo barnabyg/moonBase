@@ -6,8 +6,8 @@ import type { Catalogue } from "./types";
 // hour, but the player has to come back to start the next; the long ones
 // run unattended, through a Night, a round trip of the Lander or longer.
 // Some are offered only once the Design they study is unlocked. Run back to
-// back, they take about ten Lunations, so research carries on long after
-// the base is self-sufficient.
+// back, they take about thirteen Lunations, so research carries on long
+// after the base is self-sufficient.
 export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "regolith-sample-analysis",
@@ -225,6 +225,15 @@ export const researchTasks: Catalogue["researchTasks"] = [
   },
   // Two Lunations.
   {
+    id: "buried-vault-dose-survey",
+    label: "Buried vault dose survey",
+    // Pays for the Buried Habitat's Design, so that the whole Tech Tree stays
+    // payable with the same margin as before it.
+    lengthHours: 1440,
+    science: 400,
+    requiresDesignId: "water-wall-shielding",
+  },
+  {
     id: "long-stay-health-study",
     label: "Long-stay health study",
     lengthHours: 1416,
@@ -399,6 +408,19 @@ export const designs: Catalogue["designs"] = [
     starting: false,
     scienceCost: 60,
     prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
+  },
+  // The dearest Design of all, past the water wall, as the end of what can
+  // be done about the Radiation Dose. Its Science comes from a Research Task
+  // of its own, the Buried vault dose survey.
+  {
+    id: "buried-habitat",
+    label: "Buried Habitat",
+    description:
+      "A pressure vault sunk in a trench and heaped over with metres of Regolith, which cuts the Radiation Dose inside to a tenth of a water wall's.",
+    category: "protection",
+    starting: false,
+    scienceCost: 400,
+    prerequisiteDesignIds: ["water-wall-shielding"],
   },
   {
     id: "water-wall-shielding",

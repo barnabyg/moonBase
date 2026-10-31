@@ -596,6 +596,7 @@ export function offerings(
           light: type.lightRadiusMetres,
           draw: -type.power.drawKilowatts,
           nightDraw: -type.power.nightDrawKilowatts,
+          buried: type.buried === true ? 1 : 0,
         },
       });
     }

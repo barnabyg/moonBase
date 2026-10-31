@@ -529,7 +529,7 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass", () => {
+  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass, but for a Buried Habitat, which is meant to take several", () => {
     for (const type of catalogue.structureTypes) {
       const unlocked = designsUnlockedWith(type.designId);
       let mass = 0;
@@ -543,6 +543,7 @@ describe("the data catalogue", () => {
         expect(unlocked).toContain(item?.designId);
         mass += (item?.massKilograms ?? Infinity) * need.count;
       }
+      if (type.buried === true) continue;
       expect(mass).toBeLessThanOrEqual(
         catalogue.launch.payloadMassLimitKilograms,
       );
@@ -779,7 +780,10 @@ describe("the data catalogue", () => {
     const shielding = catalogue.structureTypes.filter(
       (type) => type.shieldsHabitat,
     );
-    const habitats = catalogue.structureTypes.filter((type) => type.habitat);
+    // A Buried Habitat takes no shielding over it.
+    const habitats = catalogue.structureTypes.filter(
+      (type) => type.habitat && type.buried !== true,
+    );
 
     expect(shielding[0]?.id).toBe("regolith-shielding");
     for (const type of shielding) {
@@ -1760,9 +1764,9 @@ describe("the data catalogue", () => {
     });
   });
 
-  it("has about 25 Designs in the Tech Tree, and no more than 32", () => {
+  it("has about 25 Designs in the Tech Tree, and no more than 33", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(32);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(33);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {
@@ -2319,13 +2323,16 @@ describe("the data catalogue", () => {
       ["hardened-habitat", "habitat", ["micrometeorites", "plumeEjecta"]],
     ];
     // Water-wall shielding hardens nothing: it goes over a Habitat's
-    // Regolith shielding, and has tests of its own (below).
+    // Regolith shielding, and has tests of its own (below). Nor does a Buried
+    // Habitat, in buried-habitat.test.ts: it is a Habitat of its own.
     const protection = catalogue.designs.filter(
       (design) =>
         design.category === "protection" &&
         !design.starting &&
         !catalogue.structureTypes.some(
-          (type) => type.designId === design.id && type.waterWall !== undefined,
+          (type) =>
+            type.designId === design.id &&
+            (type.waterWall !== undefined || type.buried === true),
         ),
     );
 
@@ -2449,12 +2456,12 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
-  it("has Habitats the Mission Director can move into: the inflatable Habitat and the hardened one", () => {
+  it("has Habitats the Mission Director can move into: the inflatable Habitat, the hardened one and the Buried one", () => {
     expect(
       catalogue.structureTypes
         .filter((type) => type.habitat)
         .map((type) => type.id),
-    ).toEqual(["habitat", "hardened-habitat"]);
+    ).toEqual(["habitat", "hardened-habitat", "buried-habitat"]);
   });
 
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {

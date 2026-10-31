@@ -2,7 +2,8 @@ import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot, StructureSnapshot } from "../simulation";
 import { structureLabel } from "./labels";
 import type { ChoiceResult } from "./refusal";
-import { isHabitat, isToBeDismantled } from "./structure-state";
+import { formatDoseRate } from "./format";
+import { isHabitat, isHome, isToBeDismantled } from "./structure-state";
 
 /** The choices the player can make about a commissioned Structure, which the Campaign decides on. */
 export type StructureChoices = Pick<
@@ -24,8 +25,8 @@ export interface StructureControls {
  * The controls for a commissioned Structure, as the Base panel's entry
  * for it and its pop-up on the map both show them: a recipe list for a
  * Plant with more than one recipe, a switch for every Plant, "Move in"
- * for a Habitat while the Mission Director lives aboard the Lander, and
- * "Dismantle". Each sends the choice to the Campaign, which decides
+ * for a Habitat while the Mission Director lives aboard the Lander, "Move
+ * here" for any Habitat but the one they live in, and "Dismantle". Each sends the choice to the Campaign, which decides
  * whether it is allowed, and passes the result on to say why not.
  */
 export function createStructureControls(
@@ -82,8 +83,6 @@ export function createStructureControls(
   moveIn.type = "button";
   moveIn.className = "panel-button panel-button--primary";
   moveIn.textContent = "Move in";
-  moveIn.title =
-    "Move the Mission Director from the Lander into this Habitat, which needs power. It happens at once and can't be undone.";
   moveIn.hidden = true;
   moveIn.addEventListener("click", () => {
     showResult(campaign.moveMissionDirectorIn(structureId));
@@ -123,8 +122,17 @@ export function createStructureControls(
       dismantle.hidden = toBeDismantled;
       moveIn.hidden =
         toBeDismantled ||
-        snapshot.missionDirector.residence !== "lander" ||
-        !isHabitat(current.structureTypeId);
+        !isHabitat(current.structureTypeId) ||
+        isHome(snapshot, current.id);
+      if (!moveIn.hidden) {
+        const aboard = snapshot.missionDirector.residence === "lander";
+        const text = aboard ? "Move in" : "Move here";
+        if (moveIn.textContent !== text) moveIn.textContent = text;
+        const title = aboard
+          ? "Move the Mission Director from the Lander into this Habitat, which needs power. It happens at once, and they can't go back aboard."
+          : `Move the Mission Director from the Habitat they live in to this one, which needs power. It happens at once. The dose rate here is ${formatDoseRate(current)} a day; the Radiation Dose they have taken stays.`;
+        if (moveIn.title !== title) moveIn.title = title;
+      }
     },
   };
 }

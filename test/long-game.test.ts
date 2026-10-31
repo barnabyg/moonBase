@@ -27,6 +27,7 @@ function timeline(
     ...playLongGame([]),
     structureTypesBuilt: everythingBuilt,
     launchItemsManifested: catalogue.launch.items.map(({ id }) => id),
+    moves: [{ atMinute: 1500 * 24 * 60, structureTypeId: "buried-habitat" }],
     ...overrides,
   };
 }
@@ -83,6 +84,83 @@ describe("the long-game play guide", () => {
       "Launches bringing spare Components: 2, with 20, before a Workshop; 1, with 3, after it.",
     );
     expect(lines).toContain("     140  25 (22)");
+  });
+
+  it("plays to the length the Campaign's content is meant to last", () => {
+    expect(LONG_GAME_END_EARTH_DAY).toBe(3000);
+  });
+
+  it("fails if the Mission Director didn't move into a Buried Habitat by the Act's target", () => {
+    expect(longGameSucceeded(timeline())).toBe(true);
+    expect(longGameSucceeded(timeline({ moves: [] }))).toBe(false);
+    expect(
+      longGameSucceeded(
+        timeline({
+          moves: [
+            { atMinute: 1601 * 24 * 60, structureTypeId: "buried-habitat" },
+          ],
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("says when the Buried Habitat was sent for, commissioned and moved into, with the Radiation Dose at each, and how fast it rose after", () => {
+    const earthDay = 24 * 60;
+    const lines = formatLongGame(
+      timeline({
+        endMinute: 3000 * earthDay,
+        waterWallAtMinute: 100 * earthDay,
+        launchManifests: [
+          {
+            atMinute: 1400 * earthDay,
+            items: [{ itemId: "spare-component", count: 3 }],
+          },
+          {
+            atMinute: 1500 * earthDay,
+            items: [
+              { itemId: "vault-section", count: 4 },
+              { itemId: "oxygen", count: 1 },
+            ],
+          },
+        ],
+        structureTypesBuilt: [
+          ...everythingBuilt.filter(
+            ({ structureTypeId }) => structureTypeId !== "buried-habitat",
+          ),
+          { structureTypeId: "buried-habitat", atMinute: 1550 * earthDay },
+        ],
+        moves: [
+          { atMinute: 3 * earthDay, structureTypeId: "habitat" },
+          { atMinute: 1560 * earthDay, structureTypeId: "buried-habitat" },
+        ],
+        looks: [
+          [100, 250, 100],
+          [1500, 550, 20000],
+          [1550, 557.5, 15000],
+          [1560, 559, 15000],
+          [3000, 588, 40000],
+        ].map(([day, dose, funding]) => ({
+          atMinute: (day ?? 0) * earthDay,
+          radiationDoseMillisieverts: dose ?? 0,
+          fundingMillionDollars: funding ?? 0,
+        })),
+      }),
+    );
+
+    expect(lines).toContain(
+      "  Earth Day 1500.0, at 550.0 mSv: the Lander left for Earth to bring 4 vault-section.",
+    );
+    expect(lines).toContain("  Funding as it was first sent for: $20000M.");
+    expect(lines).toContain("  Earth Day 1550.0, at 557.5 mSv: commissioned.");
+    expect(lines).toContain(
+      "  Earth Day 1560.0, at 559.0 mSv: the Mission Director moved in.",
+    );
+    expect(lines).toContain(
+      "  Earth Day 3000.0, at 588.0 mSv: the end, the Radiation Dose having risen 0.0201 mSv an Earth Day since they moved in (1.34 times the usual rate, for Solar Particle Events).",
+    );
+    expect(lines).toContain(
+      "  Behind the water wall it rose 0.212 mSv an Earth Day (1.41 times the usual rate).",
+    );
   });
 
   it("names only Designs the Tech Tree has as those it uses", () => {

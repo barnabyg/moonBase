@@ -567,6 +567,9 @@ export function createStructureModel(
     );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
+  if (structureTypeId === "buried-habitat") {
+    return createBuriedHabitatModel(groundMaterial);
+  }
   if (structureTypeId === "landing-pad") {
     return createLandingPadModel(LANDING_PAD);
   }
@@ -1427,6 +1430,156 @@ const SINTERED_REGOLITH_SHIELDING: ShieldingShape = {
   seams: true,
   printed: false,
 };
+
+/** How far a Buried Habitat's airlock hatch stands out from its centre, along +x. */
+export const BURIED_HABITAT_HATCH_OUT = 6.44;
+/** The radius of a Buried Habitat's mound where it meets the ground, just inside its footprint. */
+const BURIED_MOUND_RADIUS = 5.9;
+/** How high a Buried Habitat's mound rises at its crown: low, as most of it lies below the ground. */
+const BURIED_MOUND_HEIGHT = 1.5;
+
+/**
+ * A Buried Habitat: a low mound of the ground's own Regolith, with no dome
+ * or Structure showing but a squat concrete-grey airlock block let into its
+ * +x side, and a pair of vent stacks through its crown. During Assembly the
+ * ground rises into the mound over the vault, and the airlock and vents are
+ * fitted last.
+ */
+function createBuriedHabitatModel(
+  groundMaterial: THREE.Material | undefined,
+): StructureModel {
+  const habitat = new THREE.Group();
+  habitat.name = "Buried Habitat";
+
+  // The mound, a smooth cap with a slight skirt where it meets the ground.
+  const profile = Array.from({ length: 13 }, (_, index) => {
+    const share = index / 12;
+    return new THREE.Vector2(
+      BURIED_MOUND_RADIUS * share,
+      BURIED_MOUND_HEIGHT * (1 - share * share) ** 1.3,
+    );
+  });
+  const mound = part(
+    new THREE.LatheGeometry(profile, 48),
+    groundMaterial ?? materials.sinteredGlaze,
+    [0, 0, 0],
+  );
+  mound.name = "Mound";
+  habitat.add(mound);
+
+  const airlock = new THREE.Group();
+  airlock.name = "Airlock";
+  const collarX = BURIED_HABITAT_HATCH_OUT - 0.11;
+  const inner = 3.8;
+  const sill = 0.12;
+  const hatchHeight = 1.9;
+  airlock.add(
+    // The block the hatch is set in, running back into the mound.
+    part(roundedBox(collarX - inner, 2.3, 2.1, 0.12), materials.darkMetal, [
+      (inner + collarX) / 2,
+      1.15,
+      0,
+    ]),
+    part(roundedBox(0.14, 2.45, 2.3, 0.08), materials.hull, [
+      collarX,
+      1.225,
+      0,
+    ]),
+    part(roundedBox(0.08, hatchHeight, 0.92, 0.12), materials.hull, [
+      BURIED_HABITAT_HATCH_OUT - 0.04,
+      sill + hatchHeight / 2,
+      0,
+    ]),
+    part(roundedBox(0.05, 0.34, 0.06, 0.02), materials.darkMetal, [
+      BURIED_HABITAT_HATCH_OUT + 0.0,
+      sill + 0.85,
+      -0.32,
+    ]),
+    // Two vent stacks through the mound's crown, for its air plant.
+    ...[-1, 1].map((side) =>
+      part(
+        new THREE.CylinderGeometry(0.14, 0.18, 0.9, 12),
+        materials.aluminium,
+        [-1.4, BURIED_MOUND_HEIGHT + 0.25, side * 1.1],
+      ),
+    ),
+  );
+  habitat.add(airlock);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  airlock.add(
+    part(new THREE.SphereGeometry(0.07, 8, 6), statusLightMaterial, [
+      collarX + 0.08,
+      sill + 0.7,
+      -0.8,
+    ]),
+  );
+
+  // The window in the hatch, the only one it has, with a lamp over it, and
+  // the mission flag on the airlock's roof while the Mission Director lives
+  // inside.
+  const glass = windowGlass.clone();
+  const hatchWindow = part(new THREE.CircleGeometry(0.14, 20), glass, [
+    BURIED_HABITAT_HATCH_OUT + 0.005,
+    sill + 1.4,
+    0,
+  ]);
+  hatchWindow.rotation.y = Math.PI / 2;
+  const hatchLamp = materials.statusOff.clone();
+  airlock.add(
+    hatchWindow,
+    part(new THREE.BoxGeometry(0.08, 0.08, 0.36), hatchLamp, [
+      collarX + 0.1,
+      sill + hatchHeight + 0.15,
+      0,
+    ]),
+  );
+  const flag = new THREE.Group();
+  const poleTop = 3.6;
+  flag.add(
+    part(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), materials.aluminium, [
+      4.2,
+      poleTop - 0.65,
+      0,
+    ]),
+    part(new THREE.PlaneGeometry(1.0, 0.62), flagCloth, [
+      4.73,
+      poleTop - 0.34,
+      0,
+    ]),
+  );
+  flag.visible = false;
+  habitat.add(flag);
+
+  return {
+    group: habitat,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      // The mound builds up over the vault for most of Assembly.
+      const heaped = Math.max(Math.min(f / INFLATED_SHARE, 1), 0.02);
+      mound.scale.set(0.85 + heaped * 0.15, heaped, 0.85 + heaped * 0.15);
+      airlock.visible = f >= INFLATED_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
+    setOccupied(occupied) {
+      lightWindow(glass, occupied);
+      hatchLamp.color.set(occupied ? 0xfff4dc : 0x222222);
+      hatchLamp.emissive.set(occupied ? 0xfff0d0 : 0x000000);
+      flag.visible = occupied;
+    },
+  };
+}
 
 /**
  * Regolith shielding: a thick dome of printed Regolith over the Habitat,

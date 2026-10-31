@@ -43,6 +43,8 @@ export type PlacementRefusal =
   | "not-on-shielded-habitat"
   /** The Habitat has a water wall over it already, or planned. */
   | "already-water-walled"
+  /** A Buried Habitat is under the Regolith already, and neither goes over it. */
+  | "habitat-buried"
   | "campaign-ended";
 
 export type PlacementCheck =
@@ -207,7 +209,8 @@ export function hazardShare(
  * isn't shielded yet, standing centred on it, and may overlap that Habitat
  * but nothing else. A water wall goes over a commissioned Habitat with
  * commissioned Regolith shielding over it and no water wall yet, standing
- * centred on them, and may overlap them but nothing else.
+ * centred on them, and may overlap them but nothing else. Neither goes over
+ * a Buried Habitat, which needs them no more.
  */
 export function checkPlacement(
   site: Site,
@@ -235,6 +238,9 @@ export function checkPlacement(
       "not-on-habitat",
       `${type.label} can only be printed over a commissioned Habitat.`,
     );
+  }
+  if (findStructureType(habitat.structureTypeId)?.buried === true) {
+    return refuseOverBuried(habitat, "shielding");
   }
   if (site.dismantlings.some((planned) => planned.id === habitat.id)) {
     return refuse(
@@ -269,13 +275,19 @@ function checkWaterWallPlacement(
       distance(position, structure.position) <
         footprintRadius(structure.structureTypeId),
   );
+  const name = type.label.toLowerCase();
+  if (
+    habitat !== undefined &&
+    findStructureType(habitat.structureTypeId)?.buried === true
+  ) {
+    return refuseOverBuried(habitat, name);
+  }
   const shielding =
     habitat === undefined
       ? undefined
       : site.structures.find((structure) =>
           isShieldingOver(structure, habitat),
         );
-  const name = type.label.toLowerCase();
   if (
     habitat === undefined ||
     shielding === undefined ||
@@ -301,6 +313,16 @@ function checkWaterWallPlacement(
     );
   }
   return checkFooting(site, type, habitat.position, [habitat.id, shielding.id]);
+}
+
+/** Refuses to put something over a Buried Habitat, saying that it needs none. */
+function refuseOverBuried(habitat: Footing, what: string): PlacementCheck {
+  const label =
+    findStructureType(habitat.structureTypeId)?.label ?? "Buried Habitat";
+  return refuse(
+    "habitat-buried",
+    `A ${label} is already under the Regolith, and needs no ${what} over it.`,
+  );
 }
 
 /**
@@ -367,8 +389,22 @@ export function habitatUnder(
 }
 
 /**
+ * Whether a Structure is a Buried Habitat that still protects whoever lives
+ * in it: once Broken, it does no more than any other Broken shielding.
+ */
+export function isBuried(
+  structure: Pick<StructureState, "structureTypeId" | "conditionPercent">,
+): boolean {
+  return (
+    findStructureType(structure.structureTypeId)?.buried === true &&
+    !isBroken(structure)
+  );
+}
+
+/**
  * Whether a Structure is a Habitat with commissioned Regolith shielding over
- * it, neither of them Broken.
+ * it, neither of them Broken, or a Buried Habitat, not Broken, which needs
+ * none.
  */
 export function isShielded(
   site: Pick<Site, "structures">,
@@ -377,9 +413,10 @@ export function isShielded(
   return (
     findStructureType(structure.structureTypeId)?.habitat === true &&
     !isBroken(structure) &&
-    site.structures.some(
-      (footing) => isShieldingOver(footing, structure) && !isBroken(footing),
-    )
+    (isBuried(structure) ||
+      site.structures.some(
+        (footing) => isShieldingOver(footing, structure) && !isBroken(footing),
+      ))
   );
 }
 
