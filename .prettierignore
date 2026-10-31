@@ -3,4 +3,5 @@ coverage/
 playwright-report/
 test-results/
 .try/
+.claude/worktrees/
 package-lock.json

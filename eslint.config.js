@@ -13,6 +13,7 @@ export default tseslint.config(
       "playwright-report/",
       "test-results/",
       "node_modules/",
+      ".claude/worktrees/",
     ],
   },
   js.configs.recommended,
