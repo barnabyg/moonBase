@@ -33,6 +33,7 @@ function structure(
     lit: false,
     savingPower: false,
     storedKilowattHours: 0,
+    tank: undefined,
     shielded: false,
     waterWalled: false,
     buried: false,

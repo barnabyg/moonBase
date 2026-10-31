@@ -42,6 +42,8 @@ const drawsAtNight = ({ power, telescope }: StructureType) =>
   telescope === true
     ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
     : `draws ${power.nightDrawKilowatts} kW while its light is on`;
+const drawsThroughNight = (kilowatts: number) =>
+  `draws ${kilowatts} kW all through the Night, and nothing in Daylight`;
 const drawsWhileRunning = (kilowatts: number) =>
   `draws ${kilowatts} kW while it runs`;
 const drawsAllTheTime = (kilowatts: number) =>
@@ -66,6 +68,9 @@ export function powerRatings(
       ? [stores(power.storageKilowattHours)]
       : []),
     ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
+    ...((power.nightUpkeepKilowatts ?? 0) > 0
+      ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
+      : []),
     ...(recipe === undefined ? [] : [drawsWhileRunning(recipe.drawKilowatts)]),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
@@ -156,7 +161,15 @@ export function describeStructure(type: StructureType): string {
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
+    ...(type.storageTank === undefined
+      ? []
+      : [
+          `adds ${type.storageTank.kilograms} kg to what the base can hold of ${resourceRefLabel(type.storageTank.resource).toLowerCase()}`,
+        ]),
     ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
+    ...((power.nightUpkeepKilowatts ?? 0) > 0
+      ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
+      : []),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
@@ -165,10 +178,15 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
+    ...(type.storageTank === undefined
+      ? []
+      : [
+          `It comes empty, and holds its share of the stock. With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day. A Broken one loses its share at once, and one taken apart whatever no longer fits. None of that takes the stock below the Mission Director's reserve.`,
+        ]),
     ...stocksMade(type).map(({ stock, only }) =>
       only
-        ? `The base holds ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: with no room for a batch, it waits for tank space, using nothing.`
-        : `The base holds ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: once that is full, it keeps running for what else it makes, and what doesn't fit is lost.`,
+        ? `The base's own tanks hold ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: with no room for a batch, it waits for tank space, using nothing.`
+        : `The base's own tanks hold ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: once what the base can hold is full, it keeps running for what else it makes, and what doesn't fit is lost.`,
     ),
     ...stocksTaken(type).map(
       (stock) =>

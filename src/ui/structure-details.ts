@@ -19,12 +19,13 @@ import {
 import {
   formatCharge,
   formatCondition,
+  formatKilogramAmount,
   formatMillisieverts,
   formatShortDuration,
   formatStageProgress,
   listInWords,
 } from "./format";
-import { structureLabel } from "./labels";
+import { resourceRefLabel, structureLabel } from "./labels";
 import type { Stat } from "./stat";
 import { formatObservingProgramme, formatPower } from "./status-panel-text";
 import {
@@ -202,6 +203,7 @@ export function structureDetails(
       ...(type.power.storageKilowattHours > 0
         ? [batteryLine(type, structure)]
         : []),
+      ...(type.storageTank === undefined ? [] : [tankLine(structure)]),
       ...(type.recipes === undefined
         ? []
         : plantLines(snapshot, type, structure)),
@@ -343,6 +345,21 @@ function batteryLine(
     label,
     stat: { value: formatCharge(structure.storedKilowattHours, capacity) },
     fraction: capacity > 0 ? structure.storedKilowattHours / capacity : 0,
+  };
+}
+
+/** How much of the stock a storage tank holds, and whether it is losing it. */
+function tankLine(structure: StructureSnapshot | undefined): DetailLine {
+  const label = "Tank";
+  const tank = structure?.tank;
+  if (tank === undefined) return { label, stat: NOT_YET };
+  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.capacityKilograms} kg of ${resourceRefLabel(tank.resource).toLowerCase()}`;
+  return {
+    label,
+    stat: tank.losing
+      ? { value, note: "no power, so losing what it holds" }
+      : { value },
+    fraction: Math.min(tank.heldKilograms / tank.capacityKilograms, 1),
   };
 }
 

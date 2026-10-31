@@ -625,11 +625,13 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 60,
     prerequisiteDesignIds: ["water-processing"],
   },
+  // Costs what it did as Launch items, and needs what it did: see the storage
+  // tanks in docs/balancing.md.
   {
     id: "bulk-supply-tanks",
     label: "Bulk supply tanks",
     description:
-      "Oxygen shipped as a cold liquid, and water, in large light tanks that bring far more for the mass they take up on a Launch, built on what Water electrolysis taught about storing oxygen.",
+      "A water tank and an insulated oxygen sphere with a cooler, shipped empty and cabled to the base, which hold far more than its own tanks and stop what they hold from freezing or boiling off through the Night, built on what Water electrolysis taught about storing oxygen.",
     category: "life-support",
     starting: false,
     scienceCost: 180,

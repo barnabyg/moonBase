@@ -70,6 +70,38 @@ describe("what npm run try can start the game in", () => {
     expect(state.lunation.part).toBe("daylight");
   });
 
+  it("storage-tanks has each tank commissioned and half full, a few hours before Night, with a second water tank's Components in stock", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "storage-tanks",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+
+    expect(
+      state.lifeSupport.map(({ stockId, kilograms, limitKilograms }) => [
+        stockId,
+        kilograms,
+        limitKilograms,
+      ]),
+    ).toEqual([
+      ["oxygen", 200, 400],
+      ["water", 700, 1400],
+    ]);
+    expect(
+      state.structures.find(
+        ({ structureTypeId }) => structureTypeId === "water-tank",
+      )?.tank?.heldKilograms,
+    ).toBe(500);
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    expect(
+      state.stockpile.components.find(
+        ({ componentId }) => componentId === "water-tank-shell",
+      )?.count,
+    ).toBe(1);
+  });
+
   it("full-store has a water-processing plant running three batches below the limit, with the optics works switched off", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "full-store",

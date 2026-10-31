@@ -1,4 +1,4 @@
-import type { ComponentCount } from "../catalogue";
+import type { ComponentCount, ResourceRef } from "../catalogue";
 import type { ExportLine } from "./exports";
 import type { ManifestLine } from "./launch-manifest";
 import type { MaintenanceSubject } from "./maintenance";
@@ -135,6 +135,29 @@ export type GameEvent =
       readonly atMinute: number;
       readonly stockId: string;
       readonly kilograms: number;
+    }
+  | {
+      /**
+       * A storage tank stopped holding its share of a stock: it went Broken, and
+       * its share was lost, or the Robot started taking it apart, and what no
+       * longer fitted was lost.
+       */
+      readonly kind: "storage-tank-lost";
+      readonly atMinute: number;
+      readonly structureTypeId: string;
+      readonly resource: ResourceRef;
+      readonly cause: "broken" | "dismantled";
+      readonly kilograms: number;
+    }
+  | {
+      /**
+       * A storage tank had no power at Night, with power the game-minute before,
+       * so that what it holds has started to go.
+       */
+      readonly kind: "storage-tank-without-power";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
     }
   | {
       /** The Robot has carried the cargo of the Lander, landed on a landing pad, to the stockpile. */

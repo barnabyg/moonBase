@@ -28,6 +28,7 @@ import {
   machineLabel,
   researchTaskLabel,
   resourceLabel,
+  resourceRefLabel,
   robotLabel,
   stockLabel,
   structureLabel,
@@ -94,6 +95,12 @@ export function formatEvent(
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
     case "lost-on-landing":
       return `The base had no room for ${formatKilogramAmount(event.kilograms)} kg of the ${stockLabel(event.stockId).toLowerCase()} the Lander brought, and it was lost`;
+    case "storage-tank-lost":
+      return event.cause === "broken"
+        ? `${structureLabel(event.structureTypeId)} is Broken, and the ${formatKilogramAmount(event.kilograms)} kg of ${resourceRefLabel(event.resource).toLowerCase()} it held was lost`
+        : `${structureLabel(event.structureTypeId)} is being taken apart, and the ${formatKilogramAmount(event.kilograms)} kg of ${resourceRefLabel(event.resource).toLowerCase()} with no room left was lost`;
+    case "storage-tank-without-power":
+      return `${structureLabel(event.structureTypeId)} has no power, and loses what it holds until it has or Daylight comes`;
     case "lander-unloaded":
       return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
     case "lander-loaded":

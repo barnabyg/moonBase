@@ -42,6 +42,8 @@ export function createNotificationList(
         if (
           event.kind === "life-support-warning" ||
           event.kind === "lost-on-landing" ||
+          event.kind === "storage-tank-lost" ||
+          event.kind === "storage-tank-without-power" ||
           event.kind === "habitat-power-warning" ||
           event.kind === "radiation-dose-warning" ||
           event.kind === "solar-particle-event-warning" ||

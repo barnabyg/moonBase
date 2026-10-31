@@ -37,14 +37,8 @@ describe("how the Imports tab groups the Launch items", () => {
     ]);
   });
 
-  it("has oxygen, water and spare Components as Supplies, whichever tanks they come in", () => {
-    for (const id of [
-      "oxygen",
-      "water",
-      "liquid-oxygen-tank",
-      "bulk-water-tank",
-      "spare-component",
-    ]) {
+  it("has oxygen, water and spare Components as Supplies", () => {
+    for (const id of ["oxygen", "water", "spare-component"]) {
       expect(groupOf(id)).toBe("Supplies");
     }
   });
@@ -52,6 +46,7 @@ describe("how the Imports tab groups the Launch items", () => {
   it("has anything else under the category of its Design, as the Tech Tree does", () => {
     expect(groupOf("solar-panel")).toBe("Power");
     expect(groupOf("habitat-core")).toBe("Life Support");
+    expect(groupOf("water-tank-shell")).toBe("Life Support");
     expect(groupOf("robot")).toBe("Mobility");
   });
 

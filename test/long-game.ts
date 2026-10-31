@@ -49,6 +49,7 @@ export const designsTheLongGameUses: readonly string[] = [
   "circuit-board-fabrication",
   "water-processing",
   "life-support-resupply",
+  "bulk-supply-tanks",
   "maintenance-spares",
   "molten-regolith-electrolysis",
   "parts-machining",
@@ -97,6 +98,9 @@ export const laterActTargets = {
 
 /** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
 const SPARES_HELD = 40;
+
+/** The Earth Day the guide sends for storage tanks: once it is selling precision optics. */
+const TANKS_EARTH_DAY = 1750;
 
 /**
  * The Earth Day the guide sends for a Buried Habitat, in good time to move in by
@@ -246,6 +250,8 @@ function moveIntoBuriedHabitat(play: Play): void {
 const PURCHASES: readonly {
   readonly structureTypeId: string;
   readonly site: GroundPosition;
+  /** The Earth Day it waits for, if its Design comes well before it is any use. */
+  readonly fromEarthDay?: number;
 }[] = [
   { structureTypeId: "workshop", site: { x: 66, y: -33 } },
   // The Workshop and what makes its metals want more than two solar arrays.
@@ -266,6 +272,19 @@ const PURCHASES: readonly {
   { structureTypeId: "large-propellant-plant", site: { x: 104, y: -33 } },
   { structureTypeId: "optics-works", site: { x: 54, y: -56 } },
   { structureTypeId: "grinding-line", site: { x: 44, y: -56 } },
+  // Their Design comes in Act 1, but nothing here needs more than the base's own
+  // tanks hold until the optics take water. So they wait until those have sold,
+  // which also keeps them out of Act 2's and Act 3's dates.
+  {
+    structureTypeId: "water-tank",
+    site: { x: 66, y: -56 },
+    fromEarthDay: TANKS_EARTH_DAY,
+  },
+  {
+    structureTypeId: "oxygen-tank",
+    site: { x: 76, y: -56 },
+    fromEarthDay: TANKS_EARTH_DAY,
+  },
 ];
 
 /** What the array works makes the guide before it switches it off, and where those arrays go. */
@@ -354,13 +373,15 @@ function buyInTurn(play: Play): void {
   ) {
     return;
   }
-  const next = PURCHASES.find(({ structureTypeId, site }) => {
+  const next = PURCHASES.find(({ structureTypeId, site, fromEarthDay }) => {
     const type = catalogue.structureTypes.find(
       ({ id }) => id === structureTypeId,
     );
     return (
       type !== undefined &&
       state.unlockedDesignIds.includes(type.designId) &&
+      state.clock.elapsedMinutes >=
+        toGameMinutes({ earthDays: fromEarthDay ?? 0 }) &&
       ![...state.constructions, ...state.structures].some(
         ({ position }) => position.x === site.x && position.y === site.y,
       )
@@ -603,7 +624,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
       play.keepUp(buyInTurn);

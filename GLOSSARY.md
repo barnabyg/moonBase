@@ -265,8 +265,12 @@ Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
 
 **Storage limit**:
-How much of a life support stock the base can hold, in its own tanks, as the data catalogue sets: what doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full.
+How much of a life support stock the base can hold, in its own tanks and its storage tanks, as the data catalogue sets: what doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full.
 _Avoid_: capacity, cap, maximum
+
+**Storage tank**:
+A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, or an oxygen tank, the large insulated sphere with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night.
+_Avoid_: silo, reservoir, water wall
 
 **Reserve**:
 The part of a life support stock kept for the Mission Director, set in the data catalogue in Earth Days of what they use. Nothing else that takes from the stock, such as a Plant using water as coolant, may take it below that, so that nothing else can kill them.

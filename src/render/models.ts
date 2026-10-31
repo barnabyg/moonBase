@@ -32,6 +32,10 @@ import {
   THERMAL_STORE,
   WHIPPLE_SHIELDED_BATTERY_BANK,
 } from "./battery-bank-models";
+import {
+  createStorageTankModel,
+  STORAGE_TANK_SHAPES,
+} from "./storage-tank-models";
 import { createConcentratorTowerModel } from "./concentrator-tower-model";
 import {
   createLandingPadModel,
@@ -124,6 +128,8 @@ export function createStructureModel(
     );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
+  const tank = STORAGE_TANK_SHAPES[structureTypeId];
+  if (tank !== undefined) return createStorageTankModel(tank);
   if (structureTypeId === "buried-habitat") {
     return createBuriedHabitatModel(groundMaterial);
   }

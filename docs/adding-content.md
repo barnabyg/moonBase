@@ -16,6 +16,7 @@ Data catalogue:
 
 Rules and model:
 
+- A storage tank needs no code: `storageTank` and `power.nightUpkeepKilowatts` on its Structure type say what it holds and draws, and `STORAGE_TANK_SHAPES` in `src/render/storage-tank-models.ts` gives it a shape in place of a case in `createStructureModel`. `src/simulation/storage-limits.ts` raises the limit of whatever `ResourceRef` it names, so long as that resource has a limit to raise.
 - `src/simulation/`: anything it does that no Structure did before, such as a Buried Habitat's dose rate in `radiation.ts`. Nothing catches it but the tests you write.
 - `src/render/`: a model, in a file of its own or beside its kind, and a case for it in `createStructureModel` in `models.ts`. Nothing catches it: an id it doesn't know is drawn as a solar array. `test/buried-habitat-model.test.ts` shows how to test one.
 

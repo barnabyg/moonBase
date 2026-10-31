@@ -904,6 +904,13 @@ export interface StructureType {
      */
     readonly nightDrawKilowatts: number;
     /**
+     * The power it draws all through the Night and not at all in Daylight, as a
+     * storage tank does to keep what it holds. Unlike a Night load it is
+     * supplied with the rest of what it draws, and it never switches itself
+     * off to save power. Leaving it out is the same as 0.
+     */
+    readonly nightUpkeepKilowatts?: number;
+    /**
      * Whether the Robot lays it a power cable though it generates, stores
      * and draws nothing itself, as for a parking area's bay sockets, which
      * supply the heaters plugged in to them. Anything that generates,
@@ -965,6 +972,28 @@ export interface StructureType {
    * `ObservingProgramme`). Leaving it out is the same as false.
    */
   readonly telescope?: boolean;
+  /**
+   * If it is a storage tank: once it is commissioned, and until it is Broken or
+   * taken apart, it adds to what the base can hold of a resource.
+   */
+  readonly storageTank?: StorageTank;
+}
+
+/**
+ * What a storage tank holds. Its power has `nightUpkeepKilowatts`, for keeping
+ * that from boiling off or freezing. It holds a share of the base's stock, as a
+ * battery bank does of its network's energy: a Broken one loses that share, one
+ * taken apart loses whatever no longer fits, and one with no power at Night
+ * loses its share little by little, none of them taking a life support stock
+ * below the Mission Director's reserve.
+ */
+export interface StorageTank {
+  /** A resource the base has a limit to, as a tank adds to that limit. */
+  readonly resource: ResourceRef;
+  /** How much it adds to what the base can hold. */
+  readonly kilograms: number;
+  /** The share, from 0 to 1, of what it holds that it loses each Earth Day with no power at Night. */
+  readonly shareLostPerEarthDayWithoutPower: number;
 }
 
 /**

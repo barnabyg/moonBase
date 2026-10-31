@@ -430,23 +430,36 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 60,
       priceMillionDollars: 2,
     },
-    // Oxygen shipped as a cold liquid in one large insulated tank, and
-    // water in a large light tank: six times as much as a resupply tank
-    // each, a third more oxygen and an eighth more water for each
-    // kilogram shipped, at half the price for each kilogram.
+    // A storage tank is shipped empty, so that what it holds comes from the
+    // base's Plants or a resupply: a water tank's comes to 220 kg and $15M, and
+    // an oxygen tank's to 400 kg and $35M, one Launch for both with room to spare.
     {
-      id: "liquid-oxygen-tank",
+      id: "water-tank-shell",
       designId: "bulk-supply-tanks",
-      brings: { kind: "life-support", stockId: "oxygen", kilograms: 150 },
-      massKilograms: 180,
-      priceMillionDollars: 6,
+      brings: { kind: "component", componentId: "water-tank-shell" },
+      massKilograms: 200,
+      priceMillionDollars: 12,
     },
     {
-      id: "bulk-water-tank",
+      id: "tank-heater",
       designId: "bulk-supply-tanks",
-      brings: { kind: "life-support", stockId: "water", kilograms: 300 },
+      brings: { kind: "component", componentId: "tank-heater" },
+      massKilograms: 20,
+      priceMillionDollars: 3,
+    },
+    {
+      id: "oxygen-sphere",
+      designId: "bulk-supply-tanks",
+      brings: { kind: "component", componentId: "oxygen-sphere" },
       massKilograms: 320,
-      priceMillionDollars: 6,
+      priceMillionDollars: 25,
+    },
+    {
+      id: "tank-cooler",
+      designId: "bulk-supply-tanks",
+      brings: { kind: "component", componentId: "tank-cooler" },
+      massKilograms: 80,
+      priceMillionDollars: 10,
     },
     // Shipped empty and folded; a water wall's worth comes to 240 kg.
     {

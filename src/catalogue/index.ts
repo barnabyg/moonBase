@@ -38,6 +38,7 @@ export type {
   RoverType,
   SelfSufficiencyRules,
   SolarParticleEventRules,
+  StorageTank,
   StructureType,
   WaterWallRules,
 } from "./types";

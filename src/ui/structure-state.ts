@@ -15,7 +15,12 @@ import {
 } from "../simulation";
 import { maintenanceState } from "./base-panel-text";
 import { formatComponentsMade, formatHours } from "./describe";
-import { formatPerformance, formatShortDuration, listInWords } from "./format";
+import {
+  formatKilogramAmount,
+  formatPerformance,
+  formatShortDuration,
+  listInWords,
+} from "./format";
 import { resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
@@ -95,6 +100,8 @@ export interface StructureNotes {
   readonly plantRates: string | undefined;
   /** Whether a telescope is observing. */
   readonly observing: string | undefined;
+  /** What a storage tank holds and draws. */
+  readonly tank: string | undefined;
   /** Whether its light is on, or its Night load off to save power. */
   readonly light: string | undefined;
   /** Whether a Habitat is buried, shielded or neither. */
@@ -116,6 +123,7 @@ export function structureNotes(
   return {
     plantRates: formatPlantRates(structure),
     observing: structure.observing ? "observing" : undefined,
+    tank: formatTank(structure, snapshot.lunation.part === "night"),
     light: structure.lit
       ? "lit"
       : structure.savingPower
@@ -156,6 +164,7 @@ export function describeStructureEntry(
   const {
     plantRates,
     observing,
+    tank,
     light,
     shielding,
     waterWall,
@@ -167,6 +176,7 @@ export function describeStructureEntry(
   const notes = [
     plantRates,
     observing,
+    tank,
     light,
     shielding,
     waterWall,
@@ -178,6 +188,29 @@ export function describeStructureEntry(
   return notes.length === 0
     ? { value: state }
     : { value: state, note: notes.join(", ") };
+}
+
+/**
+ * Says what a storage tank holds of the stock, out of what it adds to the limit,
+ * and what it draws to keep it, for example "holds 150 of 300 kg of oxygen, draws
+ * 0.15 kW at Night", or that it is losing it for want of power; undefined for
+ * anything else, and for a Broken one, which holds nothing and draws nothing.
+ */
+export function formatTank(
+  structure: Pick<
+    StructureSnapshot,
+    "structureTypeId" | "tank" | "conditionPercent"
+  >,
+  night: boolean,
+): string | undefined {
+  const { tank } = structure;
+  if (tank === undefined || structure.conditionPercent <= 0) return undefined;
+  const stock = resourceRefLabel(tank.resource).toLowerCase();
+  if (tank.losing) return `no power: losing ${stock}`;
+  const kilowatts =
+    catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
+      ?.power.nightUpkeepKilowatts ?? 0;
+  return `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.capacityKilograms} kg of ${stock}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
 }
 
 /**

@@ -522,15 +522,70 @@ export function fullStoreSave(batches: number): string {
   });
 }
 
+/** Where `storageTanksSave` puts what it builds. */
+const TANKS_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["battery-bank", { x: 40, y: 35 }],
+  ["water-tank", { x: 52, y: 25 }],
+  ["oxygen-tank", { x: 52, y: 37 }],
+] as const;
+
+/**
+ * A base with a commissioned water tank and oxygen tank on a solar array and a
+ * battery bank, each half full, and a second water tank's Components in stock.
+ * It plays only as far as the Robot's building takes, and stops a few hours
+ * before Night, so that a player sees the draw come and go.
+ */
+export function storageTanksSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("water-electrolysis", "bulk-supply-tanks");
+      addComponents(state, [
+        ...TANKS_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("water-tank"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of TANKS_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    for (const stock of state.lifeSupport) {
+      stock.kilograms = stock.stockId === "water" ? 700 : 200;
+    }
+  });
+}
+
 export const tryScenarios: readonly TryScenario[] = [
   {
     id: "everything-unlocked",
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
       "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
-      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 53 items".',
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 55 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
-      "Press Clear: all 53 come back, in the same order.",
+      "Press Clear: all 55 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -631,6 +686,19 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Launch manifest and add a Water, 50 kg: it warns how much there is room for, and that what doesn't fit is lost on landing. Hover over Water beside Self-sufficient once a whole Lunation has passed: holding full hasn't cost it the title.",
     ],
     save: () => fullStoreSave(3),
+  },
+  {
+    id: "storage-tanks",
+    title:
+      "A base with a water tank and an oxygen tank half full on a solar array and a battery bank, a few hours before Night, and a second water tank's Components in stock",
+    steps: [
+      'Pause the game. The status panel says "Water 700.0 of 1400 kg" and "Oxygen 200.0 of 400 kg". In the Base panel the Water tank says "holds 500 of 1000 kg of water, draws 0.05 kW at Night". Find the two tanks on the map: a long capsule on saddles and a gold sphere on legs with a white radiator on top, each with half the lights lit on the post beside it.',
+      'Set the game to 5x until Night falls: the tanks say "drawing 0.05 kW" and "drawing 0.15 kW", and the power line uses that much more.',
+      "Pick the Water tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 2400 kg, and no water has appeared, as a tank comes empty.",
+      "Press Dismantle beside the Oxygen tank. When the Robot starts on it the limit falls to 100 kg, and a notification says 100 kg of oxygen with no room left was lost.",
+      "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
+    ],
+    save: storageTanksSave,
   },
   {
     id: "crowded",
