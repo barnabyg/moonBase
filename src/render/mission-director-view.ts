@@ -4,7 +4,7 @@ import { materials, part, roundedBox } from "./materials";
 import { alongRoute, routeLength, routeToHatch } from "./mission-director-walk";
 import { joint, limb } from "./robot-model";
 
-/** How fast the Mission Director walks across to their new Habitat, in metres per real second. */
+/** How fast the Mission Director walks across to a new Habitat, in metres per real second. */
 const WALK_METRES_PER_SECOND = 2.5;
 /** The shortest and longest the walk takes, in real seconds, however far the Habitat is. */
 const SHORTEST_WALK_SECONDS = 3;
@@ -14,7 +14,7 @@ const STRIDE_METRES = 1.3;
 
 interface Walk {
   readonly habitatId: string;
-  /** The points the walk turns at, from the foot of the Lander's ladder to the hatch. */
+  /** The points the walk turns at, from the foot of the Lander's ladder or the old Habitat's hatch to the new one's. */
   readonly route: readonly THREE.Vector3[];
   readonly length: number;
   readonly startedAt: number;
@@ -23,9 +23,10 @@ interface Walk {
 
 /**
  * Shows the Mission Director moving into a Habitat: when the move is seen
- * to happen, a suited figure climbs down from the Lander and walks across
- * to the Habitat's airlock, round everything a Robot would walk round. The
- * move itself happens at once; this is only how it looks.
+ * to happen, a suited figure climbs down from the Lander, or comes out of
+ * the Habitat they are leaving, and walks across to the new Habitat's
+ * airlock, round everything a Robot would walk round. The move itself
+ * happens at once; this is only how it looks.
  */
 export function createMissionDirectorView(scene: THREE.Scene) {
   const figure = createAstronautModel();
@@ -53,14 +54,18 @@ export function createMissionDirectorView(scene: THREE.Scene) {
           : "lander";
       // Only a move seen happening, not one already made in a loaded Campaign.
       if (
-        lastResidence === "lander" &&
+        lastResidence !== undefined &&
+        lastResidence !== residence &&
         missionDirector.residence === "habitat"
       ) {
         const habitat = structures.find(
           (structure) => structure.id === missionDirector.habitatId,
         );
+        const leaving = structures.find(
+          (structure) => structure.id === lastResidence,
+        );
         if (habitat !== undefined) {
-          const route = routeToHatch(frame.current, habitat.position);
+          const route = routeToHatch(frame.current, habitat, leaving);
           const length = routeLength(route);
           walk = {
             habitatId: habitat.id,

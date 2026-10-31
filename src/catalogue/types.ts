@@ -245,11 +245,35 @@ export interface Catalogue {
    */
   readonly spareComponentWarningEarthDaysLeft: readonly number[];
   /**
-   * The Milestones, in the order the status panel offers them.
+   * The status panel marks a falling bulk resource as needing attention once
+   * it will run out within this many Earth Days. It only changes what the
+   * panel shows: no notification comes, and nothing in the game depends on it.
+   */
+  readonly bulkResourceWarningEarthDaysLeft: number;
+  /**
+   * The Acts, in the order the Campaign comes to them. Like the Milestones,
+   * they are guidance only.
+   */
+  readonly acts: readonly Act[];
+  /**
+   * The Milestones, in the order the status panel offers them, an Act's
+   * together and in the order of the Acts.
    * They are guidance only: they carry no rewards and never end the
    * Campaign.
    */
   readonly milestones: readonly Milestone[];
+}
+
+/**
+ * A stretch of the Campaign. It starts when the earliest Milestone not yet
+ * reached is one of its own, so nothing needs saving to know which is current.
+ */
+export interface Act {
+  readonly id: string;
+  /** Its name, for example "Act 1" or "Act 2: Independence". */
+  readonly label: string;
+  /** One sentence telling the player what the Act asks of them. */
+  readonly asks: string;
 }
 
 /**
@@ -259,6 +283,8 @@ export interface Catalogue {
  */
 export interface Milestone {
   readonly id: string;
+  /** The Act it belongs to. */
+  readonly actId: string;
   readonly label: string;
   /** One line telling a new player what to do next to reach it. */
   readonly hint: string;
@@ -283,8 +309,18 @@ export type MilestoneCondition =
   | { readonly kind: "landing-pad-commissioned" }
   /** A Research Task has been completed. */
   | { readonly kind: "research-task-completed" }
-  /** Exports are sold, as the Lander reaches Earth with some aboard. */
-  | { readonly kind: "export-sold" }
+  /**
+   * Exports are sold, as the Lander reaches Earth with some aboard: any
+   * Export, or just the one named.
+   */
+  | { readonly kind: "export-sold"; readonly resourceId?: string }
+  /** A Plant has started a batch of a recipe that makes this Component. */
+  | { readonly kind: "component-being-made"; readonly componentId: string }
+  /**
+   * The base is self-sufficient in spare Components: over the data catalogue's
+   * window its Plants made at least as many as were used.
+   */
+  | { readonly kind: "self-sufficient-in-spare-components" }
   /**
    * The base is self-sufficient in a life support stock, as the status
    * panel judges it.
@@ -538,6 +574,8 @@ export interface RadiationRules {
      * Regolith shielding, none of them Broken.
      */
     readonly waterWalledHabitat: number;
+    /** In a Buried Habitat that isn't Broken, which needs nothing over it. */
+    readonly buriedHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -882,6 +920,13 @@ export interface StructureType {
    */
   readonly waterWall?: WaterWallRules;
   /**
+   * Whether it is a Buried Habitat: a Habitat already under the Regolith, so
+   * that neither Regolith shielding nor a water wall goes over it, and unless
+   * it is Broken its dose rate is the data catalogue's rate for one. Leaving
+   * it out is the same as false.
+   */
+  readonly buried?: boolean;
+  /**
    * If it is a parking area: the bays on it where the Robot parks Machines
    * and Rovers, each with a power socket.
    */
@@ -939,10 +984,10 @@ export interface WaterWallRules {
 
 /**
  * What a Plant takes in and puts out for each game-hour it runs at full
- * performance, and the power it draws while it runs. It works in batches of
- * a game-hour of the recipe: it starts one only with an hour's worth of
- * every input in stock, which it takes as it starts, and the outputs come
- * as it finishes. It runs only while it isn't Broken and has power; on its
+ * performance, and the power it draws while it runs. It works in batches, of
+ * a game-hour of the recipe unless the recipe says longer: it starts one only
+ * with a batch's worth of every input in stock, which it takes as it starts,
+ * and the outputs come as it finishes. It runs only while it isn't Broken and has power; on its
  * network it is supplied last, only from power that nothing else uses and
  * no battery bank can store, so it never takes power from anything else,
  * and a batch it has started waits through the Night for the next Daylight.
@@ -952,8 +997,16 @@ export interface PlantRecipe {
   readonly id: string;
   /** How the player sees it, for example "Metals and silicon". */
   readonly label: string;
+  /**
+   * How many game-hours of work at full performance one of its batches takes,
+   * and so how much of each input it takes and output it makes at a time. A
+   * whole number of game-minutes; leaving it out is the same as 1. A recipe
+   * makes at least one Component in a batch, so one that should make fewer
+   * than one an hour has a longer batch.
+   */
+  readonly batchHours?: number;
   readonly inputs: readonly ResourceFlow[];
-  readonly outputs: readonly ResourceFlow[];
+  readonly outputs: readonly RecipeOutput[];
   readonly drawKilowatts: number;
 }
 
@@ -962,6 +1015,9 @@ export interface ResourceFlow {
   readonly resource: ResourceRef;
   readonly kilogramsPerHour: number;
 }
+
+/** What a recipe makes: an amount of a resource, or a whole number of a Component for each batch. */
+export type RecipeOutput = ResourceFlow | ComponentCount;
 
 /** A bulk resource, or a life support stock such as oxygen. */
 export type ResourceRef =

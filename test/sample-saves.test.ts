@@ -2258,6 +2258,7 @@ describe("the sample save of format version 33", () => {
     expect(state.milestones).toMatchObject({
       reachedIds: ["power-storage", "moved-in"],
       currentId: "lander-departs",
+      currentActId: "act-1",
     });
   });
 
@@ -2708,6 +2709,40 @@ describe("the sample save of format version 39", () => {
   });
 });
 
+describe("the sample save of format version 41", () => {
+  // The `workshop` scenario of `npm run try`, at catalogue version 64, saved 30
+  // game-hours on: a Workshop running on two solar arrays and a battery bank,
+  // part of the way through a Lunation's records of spare Components.
+  it("loads with its records of spare Components, and Workshop running reached", () => {
+    const state = loadSample("version-41.moonbase").snapshot();
+
+    expect(state.structures.map((s) => s.structureTypeId)).toContain(
+      "workshop",
+    );
+    expect(state.milestones.reachedIds).toContain("workshop-running");
+    expect(state.spareComponentSufficiency).toMatchObject({
+      stockId: "spare-component",
+      selfSufficient: false,
+      windowComplete: false,
+    });
+  });
+
+  it("plays on from where it was saved, the Workshop's spare Components counting towards it", () => {
+    const campaign = loadSample("version-41.moonbase");
+    const spares = () =>
+      campaign
+        .snapshot()
+        .stockpile.components.find(
+          ({ componentId }) => componentId === "spare-component",
+        )?.count ?? 0;
+    const before = spares();
+
+    campaign.advance(2 * 24 * 60);
+
+    expect(spares()).toBeGreaterThan(before);
+  });
+});
+
 describe("the sample save of format version 40", () => {
   // A fresh Campaign, seed 20261030: a solar array, a battery bank and a
   // Habitat planned east of the landing site, and saved 36 game-hours in,
@@ -2736,5 +2771,15 @@ describe("the sample save of format version 40", () => {
     expect(
       campaign.snapshot().structures.map((s) => s.structureTypeId),
     ).toContain("habitat");
+  });
+
+  it("gains an empty record of spare Components, so that a whole Lunation has to pass before the base can be self-sufficient in them", () => {
+    expect(
+      loadSample("version-40.moonbase").snapshot().spareComponentSufficiency,
+    ).toMatchObject({
+      selfSufficient: false,
+      coveredShare: undefined,
+      windowComplete: false,
+    });
   });
 });

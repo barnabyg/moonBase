@@ -1,10 +1,12 @@
-import { catalogue } from "../src/catalogue";
+import { catalogue, componentOutputs } from "../src/catalogue";
 import {
   createCampaign,
   lunationMinutes,
   milestoneLabel,
+  recipeOf,
   type Campaign,
   type GameEvent,
+  type ExportLine,
   type GroundPosition,
   type ManifestLine,
   type Snapshot,
@@ -353,11 +355,12 @@ function unlockWaterWall(play: Play): void {
   succeed(play.campaign.unlockDesign(design.id), `Unlocking ${design.label}`);
 }
 
-/** Plans the water wall over the Habitat once its bladders are in stock. */
+/** Plans the water wall over the Habitat once its bladders are in stock, unless the Habitat has gone, as it does in the long game. */
 function buildWaterWall(play: Play): void {
   const { state } = play;
   if (
     waterWall === undefined ||
+    habitatOf(state) === undefined ||
     isPlannedOrBuilt(state, waterWall.id) ||
     !hasInStock(state, waterWallBladders)
   ) {
@@ -378,6 +381,7 @@ function wantedFromEarth(state: Snapshot): (readonly ManifestLine[])[] {
   }
   if (
     waterWall !== undefined &&
+    habitatOf(state) !== undefined &&
     state.unlockedDesignIds.includes(waterWall.designId) &&
     !isPlannedOrBuilt(state, waterWall.id) &&
     !hasInStock(state, waterWallBladders)
@@ -507,10 +511,23 @@ function fetchWaterIce(play: Play): void {
 const SPARES_KEPT = 30;
 
 /**
+ * Whether a commissioned Plant makes spare Components, so that they no longer
+ * need a Launch. The reference Campaign builds none; the long game does.
+ */
+function makesSpares(state: Snapshot): boolean {
+  return state.structures.some((structure) =>
+    componentOutputs(recipeOf(structure)).some(
+      (made) => made.componentId === catalogue.maintenance.spareComponentId,
+    ),
+  );
+}
+
+/**
  * Sends the Lander with a full Return Mass of the most valuable Export the
  * base makes, and once it is away sets the Launch manifest: oxygen and water
- * if they are low, spare Components up to the number kept, and a circuit
- * board plant if the base has none and the Funding runs to it.
+ * if they are low, spare Components up to the number kept unless the base
+ * makes its own, and a circuit board plant if the base has none and the
+ * Funding runs to it.
  */
 function tradeWithEarth(): (play: Play) => void {
   let manifestSetOnTrip: number | undefined;
@@ -556,7 +573,7 @@ function tradeWithEarth(): (play: Play) => void {
       state.stockpile.components.find(
         (stock) => stock.componentId === catalogue.maintenance.spareComponentId,
       )?.count ?? 0;
-    if (spares < SPARES_KEPT) {
+    if (spares < SPARES_KEPT && !makesSpares(state)) {
       needed.push({
         itemId: catalogue.maintenance.spareComponentId,
         count: SPARES_KEPT - spares,
@@ -635,6 +652,8 @@ export interface ReferenceTimeline {
   readonly sales: readonly {
     readonly atMinute: number;
     readonly earnedMillionDollars: number;
+    /** What was sold, and how much of it. */
+    readonly sold: readonly ExportLine[];
   }[];
   readonly margins: {
     /**
@@ -690,8 +709,35 @@ export interface ReferenceTimeline {
     readonly designId: string;
     readonly atMinute: number;
   }[];
+  /** The spare Components in stock at each look, once a Lunation, and the fewest there were since the last. */
+  readonly sparesInStock: readonly {
+    readonly atMinute: number;
+    readonly inStock: number;
+    readonly fewest: number;
+  }[];
+  /** Each round trip whose Launch manifest brought spare Components, and how many, by the game-minute it left. */
+  readonly sparesShipped: readonly {
+    readonly atMinute: number;
+    readonly count: number;
+  }[];
   /** Each Launch item ever put on the Launch manifest. */
   readonly launchItemsManifested: readonly string[];
+  /** What each round trip's Launch manifest brought, by the game-minute it left. */
+  readonly launchManifests: readonly {
+    readonly atMinute: number;
+    readonly items: readonly ManifestLine[];
+  }[];
+  /** Each time the Mission Director moved into a Habitat, of what type, by the game-minute they did. */
+  readonly moves: readonly {
+    readonly atMinute: number;
+    readonly structureTypeId: string;
+  }[];
+  /** The Radiation Dose and Funding at each look at the game. */
+  readonly looks: readonly {
+    readonly atMinute: number;
+    readonly radiationDoseMillisieverts: number;
+    readonly fundingMillionDollars: number;
+  }[];
   /** Each Structure type commissioned at least once, the first time it was. */
   readonly structureTypesBuilt: readonly {
     readonly structureTypeId: string;
@@ -789,7 +835,11 @@ const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });
 function recorder(campaign: Campaign) {
   const milestones: { milestoneId: string; atMinute: number }[] = [];
   const launches: { atMinute: number; chargedMillionDollars: number }[] = [];
-  const sales: { atMinute: number; earnedMillionDollars: number }[] = [];
+  const sales: {
+    atMinute: number;
+    earnedMillionDollars: number;
+    sold: readonly ExportLine[];
+  }[] = [];
   const lowest = (
     current: Extreme | undefined,
     value: number,
@@ -823,6 +873,21 @@ function recorder(campaign: Campaign) {
   }[] = [];
   const designsUnlocked: { designId: string; atMinute: number }[] = [];
   const launchItemsManifested = new Set<string>();
+  const sparesInStock: {
+    atMinute: number;
+    inStock: number;
+    fewest: number;
+  }[] = [];
+  let fewestSpares = Infinity;
+  const sparesShipped = new Map<number, number>();
+  const launchManifests = new Map<number, readonly ManifestLine[]>();
+  const moves: { atMinute: number; structureTypeId: string }[] = [];
+  let lastHome: string | undefined;
+  const looks: {
+    atMinute: number;
+    radiationDoseMillisieverts: number;
+    fundingMillionDollars: number;
+  }[] = [];
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
   return {
@@ -867,6 +932,7 @@ function recorder(campaign: Campaign) {
           sales.push({
             atMinute: event.atMinute,
             earnedMillionDollars: event.earnedMillionDollars,
+            sold: event.sold,
           });
         }
       }
@@ -876,6 +942,40 @@ function recorder(campaign: Campaign) {
       for (const { itemId } of state.launchManifest.items) {
         launchItemsManifested.add(itemId);
       }
+      const spares =
+        state.stockpile.components.find(
+          (stock) =>
+            stock.componentId === catalogue.maintenance.spareComponentId,
+        )?.count ?? 0;
+      fewestSpares = Math.min(fewestSpares, spares);
+      const lastLook = sparesInStock.at(-1)?.atMinute ?? 0;
+      if (atMinute - lastLook >= lunationMinutes(catalogue.lunation).lunation) {
+        sparesInStock.push({
+          atMinute,
+          inStock: spares,
+          fewest: fewestSpares,
+        });
+        fewestSpares = Infinity;
+      }
+      const shipped = state.launchManifest.items.find(
+        ({ itemId }) => itemId === catalogue.maintenance.spareComponentId,
+      );
+      const trip = state.lander.legStartedAtMinute;
+      if (
+        shipped !== undefined &&
+        trip !== undefined &&
+        state.lander.state === "travelling-to-earth"
+      ) {
+        sparesShipped.set(trip, shipped.count);
+      }
+      if (trip !== undefined && state.lander.state === "travelling-to-earth") {
+        launchManifests.set(trip, state.launchManifest.items);
+      }
+      looks.push({
+        atMinute,
+        radiationDoseMillisieverts: state.radiationDoseMillisieverts,
+        fundingMillionDollars: state.fundingMillionDollars,
+      });
       // Unlocking is a command, which brings no event from advancing the game.
       for (const designId of state.unlockedDesignIds) {
         if (
@@ -892,6 +992,14 @@ function recorder(campaign: Campaign) {
       doses.push({ value: state.radiationDoseMillisieverts, atMinute });
       const { missionDirector } = state;
       if (missionDirector.residence !== "habitat") return;
+      if (missionDirector.habitatId !== lastHome) {
+        lastHome = missionDirector.habitatId;
+        const home = state.structures.find(({ id }) => id === lastHome);
+        moves.push({
+          atMinute: missionDirector.movedInAtMinute,
+          structureTypeId: home?.structureTypeId ?? "",
+        });
+      }
       const forecasts = campaign.forecasts();
       for (const stock of state.lifeSupport) {
         const kept = lifeSupport.get(stock.stockId);
@@ -974,7 +1082,18 @@ function recorder(campaign: Campaign) {
         fundingAtEndMillionDollars: state.fundingMillionDollars,
         researchTasksCompleted,
         designsUnlocked,
+        sparesInStock,
+        sparesShipped: [...sparesShipped].map(([atMinute, count]) => ({
+          atMinute,
+          count,
+        })),
         launchItemsManifested: [...launchItemsManifested],
+        launchManifests: [...launchManifests].map(([atMinute, items]) => ({
+          atMinute,
+          items,
+        })),
+        moves,
+        looks,
         structureTypesBuilt,
         minutesUntilDoseLimit:
           campaign.forecasts().radiationDose.minutesUntilLimit,
@@ -1006,10 +1125,15 @@ export function formatTimeline(
     `${title}: seed ${timeline.seed}, data catalogue version ${catalogue.version}`,
     "",
     "Milestones, by the Earth Day they were reached (game time since the landing):",
-    ...catalogue.milestones.map((milestone) => {
+    // A later Act's Milestones show only once reached, so that a play guide
+    // that stops short of them says nothing of them.
+    ...catalogue.milestones.flatMap((milestone) => {
       const reached = timeline.milestones.find(
         (candidate) => candidate.milestoneId === milestone.id,
       );
+      if (reached === undefined && milestone.actId !== catalogue.acts[0]?.id) {
+        return [];
+      }
       return reached === undefined
         ? `  ${"-".padStart(5)}  ${milestone.label} (not reached)`
         : `  ${day(reached.atMinute)}  ${milestone.label}`;

@@ -1,5 +1,8 @@
 export { catalogue } from "./catalogue";
+export { inSentence } from "./labels";
+export { batchHoursOf, componentOutputs, resourceOutputs } from "./recipes";
 export type {
+  Act,
   BulkResource,
   Catalogue,
   ColdRules,
@@ -28,6 +31,7 @@ export type {
   PerformanceCurve,
   PlantRecipe,
   RadiationRules,
+  RecipeOutput,
   ResearchTask,
   ResourceFlow,
   ResourceRef,

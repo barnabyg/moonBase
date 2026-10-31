@@ -69,6 +69,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   loop.startAfresh();
   holds.startAfresh();
   notifications.startAfresh();
+  statusPanel.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
   structurePopUp?.startAfresh();
@@ -153,6 +154,18 @@ const structurePopUp =
     : createStructurePopUp(container, campaign, showResult, renderer, () =>
         buildMenu.isPlacing(),
       );
+
+// `npm run try` starts the development server with a save to begin from (see
+// docs/trying-things.md). The production build leaves this out.
+if (import.meta.env.DEV) {
+  const tried = new URLSearchParams(window.location.search).get("try");
+  if (tried !== null) {
+    void fetch(`/.try/${tried}.moonbase`)
+      .then((response) => response.text())
+      .then((text) => saveFiles.load(new File([text], `${tried}.moonbase`)))
+      .then(showResult);
+  }
+}
 
 let lastFrameTime: number | undefined;
 function frame(time: number): void {

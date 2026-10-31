@@ -5,11 +5,16 @@ import { isOperating } from "./condition";
 import { isAway, isRoverOnExpedition } from "./expeditions";
 import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
-import { readLunation } from "./lunation";
+import { minutesUntilEmptyThroughLunations, readLunation } from "./lunation";
 import { findMachineType, isMachineBroken } from "./machines";
 import { isRoverBroken } from "./rovers";
 import { findWorn, spareComponentsFor, visitFor } from "./maintenance";
 import { averageStrikeShare } from "./micrometeorites";
+import {
+  componentsPerHour,
+  componentsToCountOn,
+  isComponentMadeByPlants,
+} from "./plants";
 import { inStock } from "./stockpile";
 
 /** How long the base's stock of spare Components will last, as things stand. */
@@ -29,8 +34,23 @@ export interface SpareComponentsForecast {
    */
   readonly perEarthDay: number;
   /**
-   * Game-minutes until the stock runs out at that rate, once the pending
-   * repairs have taken theirs; undefined while nothing is wearing down.
+   * How many an Earth Day the base's Plants are making now, if it were to go
+   * on: none from one switched off, short of an input or without power.
+   */
+  readonly madePerEarthDay: number;
+  /**
+   * How many of those in stock the forecast counts on, once what the Plants
+   * still have to make of their batches is set aside, as it comes only as
+   * each finishes (see `componentsToCountOn`), and before the pending repairs
+   * have theirs.
+   */
+  readonly countedOn: number;
+  /**
+   * Game-minutes until the stock runs out, once the pending repairs have
+   * taken theirs: at that rate of wear or, while a Plant makes them, through
+   * the Lunations ahead, counting on no Plant at Night. Undefined while
+   * nothing is wearing down, or the stock doesn't run out as far as the
+   * forecast looks.
    */
   readonly minutesUntilEmpty: number | undefined;
 }
@@ -39,7 +59,8 @@ export interface SpareComponentsForecast {
 export function forecastSpareComponents(
   state: CampaignState,
 ): SpareComponentsForecast {
-  const stock = inStock(state, catalogue.maintenance.spareComponentId);
+  const { spareComponentId } = catalogue.maintenance;
+  const stock = inStock(state, spareComponentId);
   const pending =
     state.maintenance
       .filter((maintenance) => maintenance.visit === undefined)
@@ -61,13 +82,52 @@ export function forecastSpareComponents(
     60 /
     catalogue.maintenance.conditionPercentPerSpareComponent;
   const left = Math.max(stock - pending, 0);
+  const made = componentsPerHour(state, spareComponentId) / 60;
+  const countedOn = componentsToCountOn(state, spareComponentId);
   return {
     inStock: stock,
     forPendingRepairs: pending,
     perEarthDay: perMinute * MINUTES_PER_EARTH_DAY,
-    minutesUntilEmpty:
-      perMinute === 0 ? undefined : Math.floor(left / perMinute),
+    madePerEarthDay: made * MINUTES_PER_EARTH_DAY,
+    countedOn,
+    minutesUntilEmpty: isComponentMadeByPlants(state, spareComponentId)
+      ? minutesThroughLunations(
+          state,
+          left,
+          countedOn - pending,
+          made,
+          perMinute,
+        )
+      : perMinute === 0
+        ? undefined
+        : Math.floor(left / perMinute),
   };
+}
+
+/**
+ * Game-minutes until the spare Components run out with a Plant making them, or
+ * undefined if they don't. Too few to last until its batch makes more, they
+ * fall at the rate of wear until they run out or it finishes.
+ */
+function minutesThroughLunations(
+  state: CampaignState,
+  left: number,
+  countedOn: number,
+  madePerMinute: number,
+  wornPerMinute: number,
+): number | undefined {
+  if (countedOn <= 0) {
+    return wornPerMinute === 0 ? undefined : Math.floor(left / wornPerMinute);
+  }
+  const minutes = minutesUntilEmptyThroughLunations(
+    state.elapsedMinutes,
+    countedOn,
+    madePerMinute - wornPerMinute,
+    wornPerMinute,
+    (amount, perMinute) =>
+      perMinute >= 0 ? Infinity : Math.floor(amount / -perMinute),
+  );
+  return Number.isFinite(minutes) ? minutes : undefined;
 }
 
 /**
@@ -75,8 +135,9 @@ export function forecastSpareComponents(
  * falls to each of the data catalogue's warning levels. The rate of wear
  * changes from one game-minute to the next as the Robot and the Machines
  * start and stop work, so each level is given only once, until spare
- * Components arrive in the base's stock, as when a Launch brings more, or
- * the forecast is back above twice the highest level. `before` is the
+ * Components arrive in the base's stock, as when a Launch brings more or a
+ * Workshop finishes a batch, or the forecast is back above twice the highest
+ * level. `before` is the
  * forecast as the game-minute started.
  */
 export function watchSpareComponents(

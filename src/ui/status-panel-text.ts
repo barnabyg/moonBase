@@ -1,5 +1,13 @@
-import { catalogue } from "../catalogue";
 import {
+  catalogue,
+  componentOutputs,
+  resourceOutputs,
+  type PlantRecipe,
+} from "../catalogue";
+import {
+  actAsks,
+  actLabel,
+  milestoneActId,
   milestoneLabel,
   recipeOf,
   type BulkResourceForecast,
@@ -37,6 +45,7 @@ import {
 } from "./format";
 import {
   formatComponents,
+  inSentence,
   formatExportLines,
   researchTaskLabel,
   resourceLabel,
@@ -393,7 +402,10 @@ function summariseLifeSupport(
 
 /**
  * Says how many spare Components the base has and how long they will last
- * at the current rate of wear, for example "6 in stock" and "last 9d 4h".
+ * at the current rate of wear, for example "6 in stock" and "last 9d 4h", or,
+ * while the base's Plants make more than is used, how fast they are rising,
+ * and when they will run out even so, if the Plants standing idle at Night
+ * leave too few to last it.
  */
 export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const pending =
@@ -401,8 +413,27 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
       ? ""
       : `, ${forecast.forPendingRepairs} needed for repairs waiting`;
   const value = `${forecast.inStock} in stock${pending}`;
+  const net = forecast.madePerEarthDay - forecast.perEarthDay;
+  if (net > 0) {
+    const rising = `rising ${net.toFixed(1)} a day`;
+    return {
+      value,
+      note:
+        forecast.minutesUntilEmpty === undefined
+          ? rising
+          : forecast.minutesUntilEmpty === 0
+            ? `${rising}, but too few for the wear until a batch finishes`
+            : `${rising}, but last only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
+    };
+  }
   if (forecast.minutesUntilEmpty === undefined) {
-    return { value, note: "nothing wearing down" };
+    return {
+      value,
+      note:
+        forecast.perEarthDay === 0
+          ? "nothing wearing down"
+          : "enough until Daylight",
+    };
   }
   return {
     value,
@@ -415,27 +446,51 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
 
 /**
  * Sums up the base's stock for its folded section: how many spare
- * Components it has and how long they last, which is what keeps it
- * running, and how much Regolith it has to build with, for example
- * "6 spares, last 9d · Regolith 1250 kg".
+ * Components it has and how long they last, which is what keeps it running,
+ * for example "6 spares, last 9d".
  */
-export function summariseStock(
-  bulkResources: Snapshot["bulkResources"],
-  spares: SpareComponentsForecast,
-): string {
+export function summariseStock(spares: SpareComponentsForecast): string {
   const count = plural(spares.inStock, "spare");
-  const lasting =
-    spares.minutesUntilEmpty === undefined
-      ? count
-      : spares.minutesUntilEmpty === 0
-        ? `${count}, too few`
-        : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
-  const regolith = bulkResources.find(
-    (stock) => stock.resourceId === "regolith",
+  if (spares.madePerEarthDay > spares.perEarthDay) return `${count}, rising`;
+  return spares.minutesUntilEmpty === undefined
+    ? count
+    : spares.minutesUntilEmpty === 0
+      ? `${count}, too few`
+      : `${count}, last ${formatShortDuration(spares.minutesUntilEmpty, true)}`;
+}
+
+/**
+ * Sums up the base's bulk resources for their folded section: how long the
+ * one that will run out soonest lasts, then how much there is of the first
+ * other in stock, which is Regolith to build with once the base has any, for
+ * example "Silicon 2d · Regolith 1250 kg", or that there is none in stock.
+ */
+export function summariseBulkResources(
+  bulkResources: Snapshot["bulkResources"],
+  forecasts: readonly BulkResourceForecast[],
+): string {
+  const held = bulkResources.filter((stock) => stock.kilograms > 0);
+  if (held.length === 0) return "none in stock";
+  const left = (resourceId: string): number =>
+    forecasts.find((forecast) => forecast.resourceId === resourceId)
+      ?.minutesUntilEmpty ?? Infinity;
+  const soonest = held.reduce((first, stock) =>
+    left(stock.resourceId) < left(first.resourceId) ? stock : first,
   );
-  return regolith === undefined
-    ? lasting
-    : `${lasting} · ${resourceLabel(regolith.resourceId)} ${formatKilograms(regolith.kilograms)}`;
+  const falling = left(soonest.resourceId) !== Infinity;
+  const other = held.find((stock) => !falling || stock !== soonest);
+  return [
+    ...(falling
+      ? [
+          `${resourceLabel(soonest.resourceId)} ${formatShortDuration(left(soonest.resourceId), true)}`,
+        ]
+      : []),
+    ...(other === undefined
+      ? []
+      : [
+          `${resourceLabel(other.resourceId)} ${formatKilograms(other.kilograms)}`,
+        ]),
+  ].join(" · ");
 }
 
 /**
@@ -454,7 +509,8 @@ export function formatRadiationDose(
   if (forecast.minutesUntilLimit !== undefined) {
     return {
       value,
-      note: `+${forecast.millisievertsPerEarthDay.toFixed(1)} a day, limit in ${formatShortDuration(forecast.minutesUntilLimit)}`,
+      // Fine enough to show what a Buried Habitat cuts it to.
+      note: `+${forecast.millisievertsPerEarthDay.toFixed(forecast.millisievertsPerEarthDay < 0.1 ? 3 : 1)} a day, limit in ${formatShortDuration(forecast.minutesUntilLimit)}`,
     };
   }
   return missionDirector.residence === "lander"
@@ -506,19 +562,60 @@ export function withSwitchedOffPlants(
     "structureTypeId" | "recipeId" | "switchedOff"
   >[],
 ): Stat {
-  const off = structures.filter((structure) => {
-    if (!structure.switchedOff) return false;
-    return (recipeOf(structure)?.outputs ?? []).some(
+  return withPlantsOff(stat, structures, (recipe) =>
+    resourceOutputs(recipe).some(
       (flow) =>
         flow.resource.kind === "life-support" &&
         flow.resource.stockId === stockId,
-    );
+    ),
+  );
+}
+
+/** Whether a Structure is a Plant set to make spare Components. */
+export function makesSpareComponents(
+  structure: Pick<StructureSnapshot, "structureTypeId" | "recipeId">,
+): boolean {
+  return componentOutputs(recipeOf(structure)).some(
+    (made) => made.componentId === catalogue.maintenance.spareComponentId,
+  );
+}
+
+/**
+ * Adds to what the spare Components' line says which of the Plants that would
+ * make them are switched off, for example "last 9d 4h, Workshop switched off".
+ */
+export function withSwitchedOffSpareMakers(
+  stat: Stat,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff"
+  >[],
+): Stat {
+  return withPlantsOff(stat, structures, (recipe) =>
+    componentOutputs(recipe).some(
+      (made) => made.componentId === catalogue.maintenance.spareComponentId,
+    ),
+  );
+}
+
+/** Adds to a line which of the switched-off Plants' recipes make what it is about. */
+function withPlantsOff(
+  stat: Stat,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff"
+  >[],
+  makes: (recipe: PlantRecipe) => boolean,
+): Stat {
+  const off = structures.filter((structure) => {
+    const recipe = recipeOf(structure);
+    return structure.switchedOff && recipe !== undefined && makes(recipe);
   });
   if (off.length === 0) return stat;
   const labels = [
     ...new Set(
       off.map((structure) =>
-        structureLabel(structure.structureTypeId).toLowerCase(),
+        inSentence(structureLabel(structure.structureTypeId)),
       ),
     ),
   ];
@@ -532,12 +629,20 @@ export function withSwitchedOffPlants(
 /**
  * Lists the base's stock of bulk resources, each with its amount and,
  * if it is falling, roughly how long it will last at the current rate, for
- * example "Water ice", "190 kg" and "~7d 22h".
+ * example "Water ice", "190 kg" and "~7d 22h". Each says whether it is a
+ * warning, as one falling with little time left is, and whether it is in
+ * play, with any in stock or being made or used.
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
   forecasts: readonly BulkResourceForecast[],
-): (Stat & { readonly label: string; readonly empty: boolean })[] {
+): (Stat & {
+  readonly label: string;
+  readonly empty: boolean;
+  readonly warning: boolean;
+  readonly inPlay: boolean;
+})[] {
+  const warnFrom = catalogue.bulkResourceWarningEarthDaysLeft * 24 * 60;
   return bulkResources.map((stock) => {
     const label = resourceLabel(stock.resourceId);
     const value = formatKilograms(stock.kilograms);
@@ -555,11 +660,18 @@ export function formatBulkResources(
     const lasts =
       minutes === undefined || stock.kilograms === 0
         ? undefined
-        : `~${formatShortDuration(minutes)}`;
+        : `~${formatShortDuration(minutes, true)}`;
     const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
-    return note === ""
-      ? { label, value, empty }
-      : { label, value, note, empty };
+    const shown = {
+      label,
+      value,
+      empty,
+      // With none left, it may be that nothing wants any.
+      warning:
+        stock.kilograms > 0 && minutes !== undefined && minutes <= warnFrom,
+      inPlay: stock.kilograms > 0 || note !== "",
+    };
+    return note === "" ? shown : { ...shown, note };
   });
 }
 
@@ -644,6 +756,40 @@ export function summariseResearch(
   return programme.telescopes === 0
     ? task
     : `${task}, ${catalogue.observingProgramme.label} · ${Math.floor(programme.progress * 100)}%`;
+}
+
+/**
+ * Names the current Act and says what it asks of the player, or that it has
+ * all been done once every Milestone is reached.
+ */
+export function formatAct(milestones: Snapshot["milestones"]): {
+  readonly label: string;
+  readonly asks: string;
+} {
+  return {
+    label: actLabel(milestones.currentActId),
+    asks:
+      milestones.currentId === undefined
+        ? "Everything this Act asks of you is done."
+        : actAsks(milestones.currentActId),
+  };
+}
+
+/**
+ * Names the Milestone after the current one, with its Act if that is a later
+ * one, for example "Lander departs" or "Workshop running, in Act 2:
+ * Independence", or says that none is left. The line stays when there is
+ * none, so that the lines below it don't move up.
+ */
+export function formatNextMilestone(
+  milestones: Snapshot["milestones"],
+): string {
+  const { nextId, currentActId } = milestones;
+  if (nextId === undefined) return "none left";
+  const actId = milestoneActId(nextId);
+  return actId === currentActId
+    ? milestoneLabel(nextId)
+    : `${milestoneLabel(nextId)}, in ${actLabel(actId)}`;
 }
 
 /** Sums up the Milestones for their folded section: the one to aim for now. */

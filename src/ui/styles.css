@@ -99,7 +99,7 @@ body {
 
 .left-column {
   left: var(--gutter);
-  width: 320px;
+  width: 340px;
 }
 
 .right-column {
@@ -419,6 +419,19 @@ body {
   background: var(--warning);
 }
 
+.milestone-act {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.milestone-act-asks {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
 .milestone-hint {
   margin: 0 0 2px;
   /* Under the figure, past the label column of the stat lines (6.2em of their 0.85rem). */
@@ -463,12 +476,11 @@ body {
   border-radius: 2px;
 }
 
-/* Bulk resources, two to a row. */
+/* Bulk resources, a line each, in columns of a set width that don't shift
+   sideways as the figures change. */
 
 .resources {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px 10px;
   margin: 2px 0;
   line-height: 1.3;
   font-size: 0.8rem;
@@ -476,15 +488,19 @@ body {
 }
 
 .resources__cell {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  justify-content: space-between;
-  gap: 0 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.1em 9.4em;
+  column-gap: 4px;
+  align-content: start;
+  align-items: baseline;
+}
+
+.resources__amount {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .resources__note {
-  flex-basis: 100%;
   font-size: 0.72rem;
   text-align: right;
   color: var(--text-muted);
@@ -494,8 +510,14 @@ body {
   color: var(--text-muted);
 }
 
-.resources__cell--empty {
+.resources__cell--empty:not(.stat--warning) {
   opacity: 0.45;
+}
+
+.stat--warning .resources__name,
+.stat--warning .resources__amount,
+.stat--warning .resources__note {
+  color: var(--warning);
 }
 
 .panel-actions {
@@ -1415,6 +1437,75 @@ body {
   padding: 14px 22px;
   background: rgb(14 17 23 / 97%);
   border-bottom: 1px solid var(--panel-border);
+}
+
+/* Stays in sight with the bars, on a line of its own. */
+.launch-manifest__find {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.launch-manifest__find[hidden] {
+  display: none;
+}
+
+.launch-manifest__find-box {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: rgb(0 0 0 / 25%);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+}
+
+.launch-manifest__find-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.launch-manifest__find .screen__button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* Wide enough for its longest, so that the box beside it keeps its width. */
+.launch-manifest__shown {
+  width: 11rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+/* The same columns in every group, whatever the counts in them, so that no
+   count can squeeze the words beside it onto another line. */
+.launch-manifest__items {
+  table-layout: fixed;
+}
+
+.launch-manifest__items thead th:nth-child(2) {
+  width: 8rem;
+}
+
+.launch-manifest__items thead th:nth-child(3) {
+  width: 4rem;
+}
+
+.launch-manifest__items thead th:nth-child(4) {
+  width: 5rem;
+}
+
+.launch-manifest__items thead th:first-child {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .launch-manifest__intro {

@@ -955,6 +955,24 @@ export const migrations: readonly Migration[] = [
   // have a count for, so that adding one to the data catalogue no longer needs
   // a migration.
   (document) => ({ ...document }),
+  // 40 to 41: the base is self-sufficient in spare Components once, over a
+  // trailing window, its Plants have made as many as repairs used, judged on
+  // records of both. None was kept before, so a whole window has to pass after
+  // loading before it can be.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return {
+      ...document,
+      state: {
+        ...state,
+        spareComponentSufficiency: {
+          current: { made: 0, used: 0 },
+          records: [],
+        },
+      },
+    };
+  },
 ];
 
 /**
@@ -1692,6 +1710,8 @@ const lifeSupportRecord = object({
   usedKilograms: amount,
 });
 
+const spareComponentRecord = object({ made: amount, used: amount });
+
 /** The Campaign state apart from the random generator's. */
 const simulationState = object({
   elapsedMinutes: wholeNumber,
@@ -1727,6 +1747,10 @@ const simulationState = object({
       records: list(lifeSupportRecord),
     }),
   ),
+  spareComponentSufficiency: object({
+    current: spareComponentRecord,
+    records: list(spareComponentRecord),
+  }),
   radiationDoseMillisieverts: finiteNumber,
   solarParticleEvent: object({
     warnsAtMinute: wholeNumber,

@@ -12,11 +12,13 @@ import { stockLabel } from "./labels";
 import {
   describeExpedition,
   explainObservingProgramme,
+  formatAct,
   formatBulkResources,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatMissionDirector,
+  formatNextMilestone,
   formatObservingProgramme,
   formatPower,
   formatRadiationDose,
@@ -30,24 +32,44 @@ import {
   summariseMissionDirector,
   summarisePower,
   summariseResearch,
+  summariseBulkResources,
   summariseStock,
   summariseTravel,
   withSwitchedOffPlants,
+  withSwitchedOffSpareMakers,
+  makesSpareComponents,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine } from "./stat";
 
+/**
+ * A line of words in the Milestones section, a status like any other line of
+ * the panel, that keeps its height when its words get shorter.
+ */
+function createMilestoneText(className: string, name: string): HTMLElement {
+  const line = document.createElement("p");
+  line.className = className;
+  line.setAttribute("role", "status");
+  line.setAttribute("aria-label", name);
+  line.setAttribute("aria-live", "off");
+  line.dataset["row"] = name;
+  holdHeight(line);
+  return line;
+}
+
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
+  /** Forgets which bulk resources have shown, for a Campaign loaded in place of the last. */
+  startAfresh(): void;
 }
 
 /**
- * The HTML status panel, in sections the player can fold away: the
- * Milestone to aim for now and the one after it, how the Mission Director
- * is keeping, the base's power, its stock, the Lander and
- * Expeditions, and the Research Task running, with the observing
+ * The HTML status panel, in sections the player can fold away: the current
+ * Act, the Milestone to aim for now and the one after it, how the Mission
+ * Director is keeping, the base's power, its stock, its bulk resources, the Lander
+ * and Expeditions, and the Research Task running, with the observing
  * programme once the base has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
@@ -63,18 +85,20 @@ export function createStatusPanel(
   panel.className = "status-panel";
   panel.setAttribute("aria-label", "Status panel");
 
-  // The Milestone to aim for now, what to do to reach it, and the one after.
+  // The Act the Campaign is in and what it asks, the Milestone to aim for now,
+  // what to do to reach it, and the one after.
   const milestonesSection = createPanelSection("milestones", "Milestones");
+  const actLine = createMilestoneText("milestone-act", "Current Act");
+  const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
   const currentMilestone = createStatLine("Now", "Current Milestone");
-  const milestoneHintLine = document.createElement("p");
-  milestoneHintLine.className = "milestone-hint";
-  milestoneHintLine.setAttribute("role", "status");
-  milestoneHintLine.setAttribute("aria-label", "Milestone hint");
-  milestoneHintLine.setAttribute("aria-live", "off");
-  milestoneHintLine.dataset["row"] = "Milestone hint";
-  holdHeight(milestoneHintLine);
+  const milestoneHintLine = createMilestoneText(
+    "milestone-hint",
+    "Milestone hint",
+  );
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
+    actLine,
+    actAsksLine,
     currentMilestone.element,
     milestoneHintLine,
     nextMilestone.element,
@@ -116,6 +140,17 @@ export function createStatusPanel(
     selfSufficiencyBody.append(chip, " ");
     return { type, chip };
   });
+  const spareSufficiencyChip = document.createElement("span");
+  spareSufficiencyChip.className = "stat-chip";
+  spareSufficiencyChip.setAttribute("role", "status");
+  spareSufficiencyChip.setAttribute(
+    "aria-label",
+    "Self-sufficiency in spare Components",
+  );
+  spareSufficiencyChip.setAttribute("aria-live", "off");
+  // Until the base has a Plant that makes them, there is nothing to judge.
+  spareSufficiencyChip.hidden = true;
+  selfSufficiencyBody.append(spareSufficiencyChip, " ");
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = createStatLine("Radiation", "Radiation Dose");
   // A Solar Particle Event that is coming or under way, as a warning, or
@@ -137,25 +172,31 @@ export function createStatusPanel(
   const storedPower = createStatLine("Stored", "Stored power");
   powerSection.body.append(power.element, storedPower.element);
 
-  // The base's stock: Components at the stockpile, bulk resources such as
-  // Regolith, and spare Components and how long they will last.
+  // The base's stock: Components at the stockpile, and spare Components and
+  // how long they will last.
   const stockSection = createPanelSection("stock", "Stock");
   const components = createStatLine("Components", "Base's stock");
+  const spareComponents = createStatLine("Spares", "Spare Components");
+
+  // The bulk resources the base has had, such as Regolith, a line each. One
+  // never in play has no line, and one that has stays, so that none comes and
+  // goes as its stock does.
+  const bulkSection = createPanelSection("bulk-resources", "Bulk resources");
   const bulkResources = document.createElement("div");
   bulkResources.className = "resources";
   bulkResources.setAttribute("role", "status");
   bulkResources.setAttribute("aria-label", "Bulk resources");
   bulkResources.setAttribute("aria-live", "off");
+  const noneInStock = document.createElement("span");
+  noneInStock.className = "resources__name";
+  noneInStock.textContent = "none in stock";
+  bulkResources.append(noneInStock);
   const resourceCells = new Map<
     string,
     { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
-  const spareComponents = createStatLine("Spares", "Spare Components");
-  stockSection.body.append(
-    components.element,
-    bulkResources,
-    spareComponents.element,
-  );
+  stockSection.body.append(components.element, spareComponents.element);
+  bulkSection.body.append(bulkResources);
 
   // The Lander and any Expedition under way, each beside the button that
   // acts on it.
@@ -197,6 +238,7 @@ export function createStatusPanel(
     missionDirectorSection,
     powerSection,
     stockSection,
+    bulkSection,
     travelSection,
     researchSection,
   ];
@@ -205,7 +247,10 @@ export function createStatusPanel(
 
   return {
     update(snapshot, forecasts) {
-      const { currentId, nextId } = snapshot.milestones;
+      const { currentId } = snapshot.milestones;
+      const act = formatAct(snapshot.milestones);
+      setText(actLine, act.label);
+      setText(actAsksLine, act.asks);
       currentMilestone.show({
         value:
           currentId === undefined
@@ -218,10 +263,7 @@ export function createStatusPanel(
           ? "The Campaign carries on: keep the base running and growing."
           : milestoneHint(currentId),
       );
-      nextMilestone.element.hidden = nextId === undefined;
-      if (nextId !== undefined) {
-        nextMilestone.show({ value: milestoneLabel(nextId) });
-      }
+      nextMilestone.show({ value: formatNextMilestone(snapshot.milestones) });
 
       const { missionDirector } = snapshot;
       residence.show({
@@ -285,6 +327,28 @@ export function createStatusPanel(
         if (chip.title !== explanation) chip.title = explanation;
         chip.classList.toggle("stat-chip--good", value === "yes");
       }
+      // Once it has shown, it stays, so that nothing beside it moves.
+      if (
+        !spareSufficiencyChip.hidden ||
+        snapshot.structures.some(makesSpareComponents)
+      ) {
+        spareSufficiencyChip.hidden = false;
+        const { value, share, explanation } = formatSelfSufficiency(
+          snapshot.spareComponentSufficiency,
+          missionDirector,
+        );
+        setText(
+          spareSufficiencyChip,
+          `Spares ${value}${share === undefined ? "" : ` ${share}`}`,
+        );
+        if (spareSufficiencyChip.title !== explanation) {
+          spareSufficiencyChip.title = explanation;
+        }
+        spareSufficiencyChip.classList.toggle(
+          "stat-chip--good",
+          value === "yes",
+        );
+      }
       selfSufficiencyLine.hidden = selfSufficiency.every(
         ({ chip }) => chip.hidden,
       );
@@ -325,12 +389,15 @@ export function createStatusPanel(
       storedPower.fill(stored.fraction);
 
       components.show({ value: formatStock(snapshot.stockpile) });
+      // The line before each, so that a new one goes in its place in the list.
+      let above: HTMLElement | undefined;
       for (const resource of formatBulkResources(
         snapshot.bulkResources,
         forecasts.bulkResources,
       )) {
         let entry = resourceCells.get(resource.label);
         if (entry === undefined) {
+          if (!resource.inPlay) continue;
           const cell = document.createElement("span");
           cell.className = "resources__cell";
           const name = document.createElement("span");
@@ -338,22 +405,31 @@ export function createStatusPanel(
           name.textContent = resource.label;
           const amount = document.createElement("span");
           amount.className = "resources__amount";
-          // How fast it is changing, on a line of its own.
+          // How fast it is changing, and how long it lasts if falling.
           const note = document.createElement("span");
           note.className = "resources__note";
           cell.append(name, " ", amount, " ", note);
           cell.dataset["row"] = resource.label;
           holdHeight(cell);
-          bulkResources.append(cell);
+          noneInStock.remove();
+          if (above === undefined) bulkResources.prepend(cell);
+          else above.after(cell);
           entry = { cell, amount, note };
           resourceCells.set(resource.label, entry);
         }
+        above = entry.cell;
         setText(entry.amount, resource.value);
         setText(entry.note, resource.note ?? "");
         entry.note.hidden = resource.note === undefined;
         entry.cell.classList.toggle("resources__cell--empty", resource.empty);
+        entry.cell.classList.toggle("stat--warning", resource.warning);
       }
-      spareComponents.show(formatSpareComponents(forecasts.spareComponents));
+      spareComponents.show(
+        withSwitchedOffSpareMakers(
+          formatSpareComponents(forecasts.spareComponents),
+          snapshot.structures,
+        ),
+      );
       // Shown as a warning from the first warning on.
       const sparesWarnFrom =
         Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;
@@ -403,8 +479,9 @@ export function createStatusPanel(
         ),
       );
       powerSection.summarise(summarisePower(snapshot.power));
-      stockSection.summarise(
-        summariseStock(snapshot.bulkResources, forecasts.spareComponents),
+      stockSection.summarise(summariseStock(forecasts.spareComponents));
+      bulkSection.summarise(
+        summariseBulkResources(snapshot.bulkResources, forecasts.bulkResources),
       );
       travelSection.summarise(
         summariseTravel(
@@ -418,6 +495,10 @@ export function createStatusPanel(
       );
 
       for (const section of sections) section.refreshWarning();
+    },
+    startAfresh() {
+      bulkResources.replaceChildren(noneInStock);
+      resourceCells.clear();
     },
   };
 }

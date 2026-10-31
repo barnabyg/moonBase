@@ -7,13 +7,15 @@ import { changed } from "./worn";
 /**
  * The hardened Structures of the Protection Designs. The water wall, which
  * hardens nothing but goes over a Habitat's Regolith shielding, has tests
- * of its own (water-wall.test.ts).
+ * of its own (water-wall.test.ts), and so does the Buried Habitat, far dearer
+ * than the Programme Grant (buried-habitat.test.ts).
  */
 const hardened = catalogue.structureTypes.filter(
   (type) =>
     findDesign(type.designId).category === "protection" &&
     !findDesign(type.designId).starting &&
-    type.waterWall === undefined,
+    type.waterWall === undefined &&
+    type.buried !== true,
 );
 const site = { x: 30, y: 25 };
 

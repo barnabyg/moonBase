@@ -299,6 +299,84 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 400,
       priceMillionDollars: 45,
     },
+    // A Workshop's worth comes to 600 kg, as much as 30 spare Components, which
+    // the long-game base uses in about two Lunations, and $1000M. It is Act 2's
+    // first big purchase, and by the spares alone it would never pay: what it
+    // saves is the Launch that brings them, as a Launch that brings nothing pays
+    // no fee, so about $170M a Lunation, back in six Lunations.
+    {
+      id: "machine-tool",
+      designId: "parts-machining",
+      brings: { kind: "component", componentId: "machine-tool" },
+      massKilograms: 350,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "casting-furnace",
+      designId: "parts-machining",
+      brings: { kind: "component", componentId: "casting-furnace" },
+      massKilograms: 250,
+      priceMillionDollars: 500,
+    },
+    // Act 2's dear choices: see "The long Campaign's Acts" in
+    // docs/reference-campaign.md. Everything the reference Campaign buys has to
+    // stay as cheap as it is, so a base's Funding can only come to matter in what
+    // it buys later. None costs more than a vault section, the most a Launch can
+    // carry on the Programme Grant alone.
+    //
+    // A concentrator tower's worth comes to 1900 kg and $2000M.
+    {
+      id: "heliostat-panel",
+      designId: "concentrator-towers",
+      brings: { kind: "component", componentId: "heliostat-panel" },
+      massKilograms: 200,
+      priceMillionDollars: 250,
+    },
+    {
+      id: "receiver-tower",
+      designId: "concentrator-towers",
+      brings: { kind: "component", componentId: "receiver-tower" },
+      massKilograms: 700,
+      priceMillionDollars: 500,
+    },
+    // With a casting furnace, an array works' worth comes to 950 kg and $1500M.
+    {
+      id: "panel-line",
+      designId: "array-fabrication",
+      brings: { kind: "component", componentId: "panel-line" },
+      massKilograms: 350,
+      priceMillionDollars: 500,
+    },
+    // A thermal store's worth comes to 2000 kg and $2000M.
+    {
+      id: "heat-store-core",
+      designId: "thermal-storage",
+      brings: { kind: "component", componentId: "heat-store-core" },
+      massKilograms: 600,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "thermal-exchanger",
+      designId: "thermal-storage",
+      brings: { kind: "component", componentId: "thermal-exchanger" },
+      massKilograms: 200,
+      priceMillionDollars: 500,
+    },
+    // A cold-trap ice line's worth comes to 2000 kg and $3000M.
+    {
+      id: "cold-trap-head",
+      designId: "cold-trap-mining",
+      brings: { kind: "component", componentId: "cold-trap-head" },
+      massKilograms: 800,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "ice-haul-line",
+      designId: "cold-trap-mining",
+      brings: { kind: "component", componentId: "ice-haul-line" },
+      massKilograms: 240,
+      priceMillionDollars: 500,
+    },
     // In pressurised tanks, which make up the rest of the mass.
     {
       id: "oxygen",
@@ -339,6 +417,24 @@ export const launch: Catalogue["launch"] = {
       brings: { kind: "component", componentId: "water-wall-bladder" },
       massKilograms: 60,
       priceMillionDollars: 5,
+    },
+    // With the airlock, a Buried Habitat's worth comes to 5300 kg, three
+    // Launches' Payload Mass, and $4510M: see the Buried Habitat in
+    // structures.ts for why. A section costs what no other Launch item does,
+    // the most that a Launch can carry on the Programme Grant alone.
+    {
+      id: "vault-section",
+      designId: "buried-habitat",
+      brings: { kind: "component", componentId: "vault-section" },
+      massKilograms: 500,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "deep-life-support-core",
+      designId: "buried-habitat",
+      brings: { kind: "component", componentId: "deep-life-support-core" },
+      massKilograms: 900,
+      priceMillionDollars: 450,
     },
     // A humanoid Robot built for the Moon, crated with its spares and
     // tools. With the Launch fee, one costs half the Programme Grant, so

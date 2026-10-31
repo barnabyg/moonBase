@@ -1,3 +1,4 @@
+import { resourceOutputs } from "../src/catalogue";
 import { beatenDesigns, offerings, type PacedCatalogue } from "./pacing-report";
 
 // Rules that keep the data catalogue's content consistent as it grows, so that
@@ -110,7 +111,7 @@ function exportsThatCantBeSold(catalogue: PacedCatalogue): Breach[] {
     ({ resourceId, priceMillionDollarsPerKilogram }) => {
       const made = catalogue.structureTypes.some((type) =>
         type.recipes?.some((recipe) =>
-          recipe.outputs.some(
+          resourceOutputs(recipe).some(
             (output) =>
               output.resource.kind === "bulk-resource" &&
               output.resource.resourceId === resourceId,

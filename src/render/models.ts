@@ -550,6 +550,12 @@ export function createStructureModel(
   if (structureTypeId === "tall-light-mast") {
     return createLightMastModel(TALL_LIGHT_MAST);
   }
+  if (structureTypeId === "concentrator-tower") {
+    return createConcentratorTowerModel();
+  }
+  if (structureTypeId === "thermal-store") {
+    return createBatteryBankModel(THERMAL_STORE);
+  }
   if (structureTypeId === "whipple-shielded-battery-bank") {
     return createBatteryBankModel(WHIPPLE_SHIELDED_BATTERY_BANK);
   }
@@ -567,6 +573,9 @@ export function createStructureModel(
     );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
+  if (structureTypeId === "buried-habitat") {
+    return createBuriedHabitatModel(groundMaterial);
+  }
   if (structureTypeId === "landing-pad") {
     return createLandingPadModel(LANDING_PAD);
   }
@@ -1428,6 +1437,156 @@ const SINTERED_REGOLITH_SHIELDING: ShieldingShape = {
   printed: false,
 };
 
+/** How far a Buried Habitat's airlock hatch stands out from its centre, along +x. */
+export const BURIED_HABITAT_HATCH_OUT = 6.44;
+/** The radius of a Buried Habitat's mound where it meets the ground, just inside its footprint. */
+const BURIED_MOUND_RADIUS = 5.9;
+/** How high a Buried Habitat's mound rises at its crown: low, as most of it lies below the ground. */
+const BURIED_MOUND_HEIGHT = 1.5;
+
+/**
+ * A Buried Habitat: a low mound of the ground's own Regolith, with no dome
+ * or Structure showing but a squat concrete-grey airlock block let into its
+ * +x side, and a pair of vent stacks through its crown. During Assembly the
+ * ground rises into the mound over the vault, and the airlock and vents are
+ * fitted last.
+ */
+function createBuriedHabitatModel(
+  groundMaterial: THREE.Material | undefined,
+): StructureModel {
+  const habitat = new THREE.Group();
+  habitat.name = "Buried Habitat";
+
+  // The mound, a smooth cap with a slight skirt where it meets the ground.
+  const profile = Array.from({ length: 13 }, (_, index) => {
+    const share = index / 12;
+    return new THREE.Vector2(
+      BURIED_MOUND_RADIUS * share,
+      BURIED_MOUND_HEIGHT * (1 - share * share) ** 1.3,
+    );
+  });
+  const mound = part(
+    new THREE.LatheGeometry(profile, 48),
+    groundMaterial ?? materials.sinteredGlaze,
+    [0, 0, 0],
+  );
+  mound.name = "Mound";
+  habitat.add(mound);
+
+  const airlock = new THREE.Group();
+  airlock.name = "Airlock";
+  const collarX = BURIED_HABITAT_HATCH_OUT - 0.11;
+  const inner = 3.8;
+  const sill = 0.12;
+  const hatchHeight = 1.9;
+  airlock.add(
+    // The block the hatch is set in, running back into the mound.
+    part(roundedBox(collarX - inner, 2.3, 2.1, 0.12), materials.darkMetal, [
+      (inner + collarX) / 2,
+      1.15,
+      0,
+    ]),
+    part(roundedBox(0.14, 2.45, 2.3, 0.08), materials.hull, [
+      collarX,
+      1.225,
+      0,
+    ]),
+    part(roundedBox(0.08, hatchHeight, 0.92, 0.12), materials.hull, [
+      BURIED_HABITAT_HATCH_OUT - 0.04,
+      sill + hatchHeight / 2,
+      0,
+    ]),
+    part(roundedBox(0.05, 0.34, 0.06, 0.02), materials.darkMetal, [
+      BURIED_HABITAT_HATCH_OUT + 0.0,
+      sill + 0.85,
+      -0.32,
+    ]),
+    // Two vent stacks through the mound's crown, for its air plant.
+    ...[-1, 1].map((side) =>
+      part(
+        new THREE.CylinderGeometry(0.14, 0.18, 0.9, 12),
+        materials.aluminium,
+        [-1.4, BURIED_MOUND_HEIGHT + 0.25, side * 1.1],
+      ),
+    ),
+  );
+  habitat.add(airlock);
+
+  const statusLightMaterial = materials.statusOff.clone();
+  airlock.add(
+    part(new THREE.SphereGeometry(0.07, 8, 6), statusLightMaterial, [
+      collarX + 0.08,
+      sill + 0.7,
+      -0.8,
+    ]),
+  );
+
+  // The window in the hatch, the only one it has, with a lamp over it, and
+  // the mission flag on the airlock's roof while the Mission Director lives
+  // inside.
+  const glass = windowGlass.clone();
+  const hatchWindow = part(new THREE.CircleGeometry(0.14, 20), glass, [
+    BURIED_HABITAT_HATCH_OUT + 0.005,
+    sill + 1.4,
+    0,
+  ]);
+  hatchWindow.rotation.y = Math.PI / 2;
+  const hatchLamp = materials.statusOff.clone();
+  airlock.add(
+    hatchWindow,
+    part(new THREE.BoxGeometry(0.08, 0.08, 0.36), hatchLamp, [
+      collarX + 0.1,
+      sill + hatchHeight + 0.15,
+      0,
+    ]),
+  );
+  const flag = new THREE.Group();
+  const poleTop = 3.6;
+  flag.add(
+    part(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), materials.aluminium, [
+      4.2,
+      poleTop - 0.65,
+      0,
+    ]),
+    part(new THREE.PlaneGeometry(1.0, 0.62), flagCloth, [
+      4.73,
+      poleTop - 0.34,
+      0,
+    ]),
+  );
+  flag.visible = false;
+  habitat.add(flag);
+
+  return {
+    group: habitat,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      // The mound builds up over the vault for most of Assembly.
+      const heaped = Math.max(Math.min(f / INFLATED_SHARE, 1), 0.02);
+      mound.scale.set(0.85 + heaped * 0.15, heaped, 0.85 + heaped * 0.15);
+      airlock.visible = f >= INFLATED_SHARE;
+    },
+    setFacing: () => undefined,
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
+    setOccupied(occupied) {
+      lightWindow(glass, occupied);
+      hatchLamp.color.set(occupied ? 0xfff4dc : 0x222222);
+      hatchLamp.emissive.set(occupied ? 0xfff0d0 : 0x000000);
+      flag.visible = occupied;
+    },
+  };
+}
+
 /**
  * Regolith shielding: a thick dome of printed Regolith over the Habitat,
  * with the airlock's hatch left showing. During Assembly it builds up layer
@@ -1647,6 +1806,124 @@ const LARGE_BATTERY_BANK: BatteryBankShape = {
   finHeight: 0.35,
   chargeSegments: 8,
   chargeHeight: 1.7,
+  endRadiators: true,
+  bumperGap: undefined,
+};
+
+/** How many mirrors stand round a concentrator tower, and how far out. */
+const TOWER_MIRRORS = 8;
+const TOWER_MIRROR_RING_METRES = 3;
+const TOWER_HEIGHT_METRES = 7;
+
+/**
+ * A concentrator tower: a ring of mirrors on short posts, each turned towards
+ * the sun as a solar array's panel is, and a lattice mast in the middle with a
+ * receiver at the top that shines once it is commissioned. During Assembly the
+ * mast and the mirrors rise from the ground.
+ */
+function createConcentratorTowerModel(): StructureModel {
+  const tower = new THREE.Group();
+  tower.name = "Concentrator tower";
+  const statusLightMaterial = materials.statusOff.clone();
+  const receiverGlow = materials.statusOff.clone();
+  tower.add(
+    part(
+      new THREE.CylinderGeometry(1.1, 1.3, 0.3, 12),
+      materials.darkMetal,
+      [0, 0.15, 0],
+    ),
+    part(
+      new THREE.SphereGeometry(0.08, 8, 6),
+      statusLightMaterial,
+      [1, 0.38, 0],
+    ),
+  );
+  const upper = new THREE.Group();
+  upper.add(
+    part(
+      new THREE.CylinderGeometry(0.22, 0.42, TOWER_HEIGHT_METRES, 8),
+      materials.aluminium,
+      [0, 0.3 + TOWER_HEIGHT_METRES / 2, 0],
+    ),
+    part(new THREE.CylinderGeometry(0.6, 0.6, 0.9, 12), materials.darkMetal, [
+      0,
+      0.3 + TOWER_HEIGHT_METRES + 0.2,
+      0,
+    ]),
+    part(new THREE.CylinderGeometry(0.64, 0.64, 0.35, 12), receiverGlow, [
+      0,
+      0.3 + TOWER_HEIGHT_METRES + 0.2,
+      0,
+    ]),
+  );
+  const mirrors = Array.from({ length: TOWER_MIRRORS }, (_, index) => {
+    const angle = (index / TOWER_MIRRORS) * Math.PI * 2;
+    const x = Math.cos(angle) * TOWER_MIRROR_RING_METRES;
+    const z = Math.sin(angle) * TOWER_MIRROR_RING_METRES;
+    upper.add(
+      part(
+        new THREE.CylinderGeometry(0.06, 0.08, 0.9, 6),
+        materials.darkMetal,
+        [x, 0.45, z],
+      ),
+    );
+    const mirror = new THREE.Group();
+    mirror.position.set(x, 1, z);
+    const face = part(
+      new THREE.BoxGeometry(1.5, 1.1, 0.05),
+      materials.aluminium,
+      [0, 0, 0],
+    );
+    face.rotation.x = -0.5;
+    mirror.add(face);
+    upper.add(mirror);
+    return mirror;
+  });
+  tower.add(upper);
+  return {
+    group: tower,
+    setAssembled(fraction) {
+      const f = THREE.MathUtils.clamp(fraction, 0, 1);
+      upper.visible = f > 0;
+      upper.scale.y = Math.max(f, 0.01);
+    },
+    setFacing(angle) {
+      for (const mirror of mirrors) mirror.rotation.y = angle;
+    },
+    setStatusLight(state) {
+      const source = {
+        off: materials.statusOff,
+        testing: materials.statusTesting,
+        on: materials.statusOn,
+      }[state];
+      statusLightMaterial.color.copy(source.color);
+      statusLightMaterial.emissive.copy(source.emissive);
+      const receiver =
+        state === "on" ? materials.statusTesting : materials.statusOff;
+      receiverGlow.color.copy(receiver.color);
+      receiverGlow.emissive.copy(receiver.emissive);
+    },
+    setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}
+
+/**
+ * A thermal store: a low, wide block of sintered Regolith in three cores, with
+ * a long row of charge lights and radiator panels at both ends for its
+ * exchanger.
+ */
+const THERMAL_STORE: BatteryBankShape = {
+  name: "Thermal store",
+  modules: 3,
+  moduleSize: [1.5, 1.5, 2.6],
+  modulePitch: 1.7,
+  plinthSize: [6, 0.3, 3.6],
+  cabinetSize: [5.6, 1.8, 3],
+  fins: 26,
+  finHeight: 0.25,
+  chargeSegments: 12,
+  chargeHeight: 1.6,
   endRadiators: true,
   bumperGap: undefined,
 };
@@ -3107,10 +3384,20 @@ const PLINTH_TOP = 0.25;
  * A vessel standing on a Plant's plinth. A reactor is tall and narrow, a
  * tank squat and wide, a chamber a drum lying on its side, an oven a low
  * tunnel with a conveyor running through it, a stack a block of cell
- * plates, and a hopper a funnel on legs that Regolith is tipped into.
+ * plates, a hopper a funnel on legs that Regolith is tipped into, a mill a
+ * machine tool, with a spindle hanging from a gantry over its bed, and a
+ * conveyor a long sloping belt.
  */
 interface PlantVessel {
-  readonly kind: "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper";
+  readonly kind:
+    | "reactor"
+    | "tank"
+    | "chamber"
+    | "oven"
+    | "stack"
+    | "hopper"
+    | "mill"
+    | "conveyor";
   /** Where its centre stands on the plinth, across and front to back. */
   readonly at: readonly [number, number];
   /** How much bigger it is than the plain vessel of its kind; 1 if not given. */
@@ -3200,6 +3487,48 @@ const INTEGRATED_FABRICATION_PLANT: PlantShape = {
   feederAt: 1.5,
 };
 
+/**
+ * A Workshop: a machine tool's gantry over its bed, the one thing on any Plant
+ * you can see through, with a small casting furnace behind it.
+ */
+const WORKSHOP: PlantShape = {
+  name: "Workshop",
+  plinth: [4.6, 3.8],
+  vessels: [
+    { kind: "mill", at: [-0.9, 0.45] },
+    { kind: "tank", at: [-1.4, -1.15], scale: 0.42 },
+  ],
+  feederAt: 1.3,
+};
+
+/**
+ * A cold-trap ice line: a lagged tank for the ice, and the sloping belt where
+ * the line from the crater comes in.
+ */
+const COLD_TRAP_ICE_LINE: PlantShape = {
+  name: "Cold-trap ice line",
+  plinth: [5, 3],
+  vessels: [
+    { kind: "tank", at: [-1.5, 0], scale: 0.7 },
+    { kind: "conveyor", at: [0.05, 0], scale: 0.7 },
+  ],
+  feederAt: 1.6,
+};
+
+/**
+ * An array works: a long belt the panels come off, with a small casting furnace
+ * behind it.
+ */
+const ARRAY_WORKS: PlantShape = {
+  name: "Array works",
+  plinth: [5.4, 4],
+  vessels: [
+    { kind: "conveyor", at: [-0.8, 0.8] },
+    { kind: "tank", at: [-1.5, -1.05], scale: 0.42 },
+  ],
+  feederAt: 1.7,
+};
+
 /** The Plants, by Structure type. */
 const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "extraction-plant": EXTRACTION_PLANT,
@@ -3209,6 +3538,9 @@ const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "vacuum-fabrication-plant": VACUUM_FABRICATION_PLANT,
   "circuit-board-plant": CIRCUIT_BOARD_PLANT,
   "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
+  workshop: WORKSHOP,
+  "cold-trap-ice-line": COLD_TRAP_ICE_LINE,
+  "array-works": ARRAY_WORKS,
 };
 
 /**
@@ -3315,6 +3647,74 @@ function plantVesselParts(
           ]),
         ),
       ];
+    case "mill":
+      // A bed from side to side, two posts carrying a beam over it, and a
+      // spindle hanging from the beam, whose tip glows while it cuts.
+      return [
+        part(
+          new THREE.BoxGeometry(2.3, 0.35, 1.3),
+          materials.machinePaint,
+          [0, 0.42, 0],
+        ),
+        part(new THREE.BoxGeometry(1, 0.1, 0.9), materials.hull, [0, 0.65, 0]),
+        ...[-1, 1].map((x) =>
+          part(new THREE.BoxGeometry(0.22, 1.9, 0.3), materials.darkMetal, [
+            x,
+            1.3,
+            0,
+          ]),
+        ),
+        part(
+          new THREE.BoxGeometry(2.3, 0.28, 0.34),
+          materials.machinePaint,
+          [0, 2.3, 0],
+        ),
+        part(
+          new THREE.BoxGeometry(0.36, 0.55, 0.42),
+          materials.hull,
+          [0.2, 1.95, 0],
+        ),
+        part(
+          new THREE.CylinderGeometry(0.07, 0.07, 0.65, 8),
+          materials.darkMetal,
+          [0.2, 1.35, 0],
+        ),
+        part(
+          new THREE.CylinderGeometry(0.11, 0.03, 0.2, 8),
+          glow,
+          [0.2, 0.95, 0],
+        ),
+      ];
+    case "conveyor": {
+      // A long belt on two legs, sloping up from side to side, with a light
+      // along it that glows while it runs.
+      const belt = part(
+        new THREE.BoxGeometry(3, 0.12, 0.9),
+        materials.darkMetal,
+        [0, 1.05, 0],
+      );
+      belt.rotation.z = 0.25;
+      const light = part(
+        new THREE.BoxGeometry(2.6, 0.05, 0.2),
+        glow,
+        [0, 1.14, 0],
+      );
+      light.rotation.z = 0.25;
+      return [
+        belt,
+        light,
+        part(
+          new THREE.BoxGeometry(0.2, 0.6, 0.7),
+          materials.machinePaint,
+          [-1, 0.55, 0],
+        ),
+        part(
+          new THREE.BoxGeometry(0.2, 1.2, 0.7),
+          materials.machinePaint,
+          [1, 0.85, 0],
+        ),
+      ];
+    }
     case "reactor":
     case "tank": {
       const [radius, height] = kind === "reactor" ? [0.9, 3.2] : [1.3, 1.6];

@@ -70,7 +70,7 @@ function plugState(driven: {
  */
 export function describeRepair(kind: "maintained" | "robot"): string {
   return kind === "maintained"
-    ? `Repairs are automatic: the Robot repairs anything below ${catalogue.maintenance.thresholdPercent}% Condition, or Broken, using spare Components from the base's stock. Ship more on the Launch manifest.`
+    ? `Repairs are automatic: the Robot repairs anything below ${catalogue.maintenance.thresholdPercent}% Condition, or Broken, using spare Components from the base's stock. Ship more on the Launch manifest, or make them in a Workshop.`
     : `A Robot below ${catalogue.robot.selfRepairThresholdPercent}% repairs itself, using spare Components too.`;
 }
 

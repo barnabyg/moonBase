@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   type Campaign,
   type GroundPosition,
@@ -43,7 +48,8 @@ function recipeOf(structureTypeId: string, recipeId?: string): PlantRecipe {
 
 const recipe = recipeOf("vacuum-fabrication-plant");
 const siliconPerHour = recipe.inputs[0]?.kilogramsPerHour ?? Number.NaN;
-const wafersPerHour = recipe.outputs[0]?.kilogramsPerHour ?? Number.NaN;
+const wafersPerHour =
+  resourceOutputs(recipe)[0]?.kilogramsPerHour ?? Number.NaN;
 const arraySite: GroundPosition = { x: 20, y: 12 };
 const plantSite: GroundPosition = { x: 30, y: 22 };
 const secondArraySite: GroundPosition = { x: 18, y: 26 };
@@ -373,7 +379,7 @@ describe("an extraction plant running for oxygen, and a vacuum fabrication plant
 describe("an extraction plant running for metals and silicon, and a vacuum fabrication plant", () => {
   const extraction = recipeOf("extraction-plant", "metals-and-silicon");
   const siliconMadePerHour =
-    extraction.outputs.find(
+    resourceOutputs(extraction).find(
       (flow) =>
         flow.resource.kind === "bulk-resource" &&
         flow.resource.resourceId === "silicon",

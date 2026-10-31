@@ -172,6 +172,46 @@ export const structureTypes: Catalogue["structureTypes"] = [
     shieldsHabitat: false,
     landingPad: false,
   },
+  // A ring of mirrors on the ground throwing the sun onto one receiver on a
+  // tower, which makes as much as ten solar arrays. They would cost $110M and
+  // two Launches, or $250M dust-screened, against $2000M, so this isn't for
+  // saving money: ten arrays are ten cables, ten footprints, and ten visits a
+  // Lunation from a Robot with a Dust coating to clean, and between them they
+  // take over 15 spare Components a Lunation at a plain array's wear, against
+  // about 1 here. So it is what a base buys that has come to count its Robot's hours and its
+  // metals rather than its Funding: the other way to the same power is an array
+  // works, which spends the metals and silicon instead.
+  {
+    id: "concentrator-tower",
+    label: "Concentrator tower",
+    designId: "concentrator-towers",
+    footprintRadiusMetres: 5.5,
+    components: [
+      { componentId: "heliostat-panel", count: 6 },
+      { componentId: "receiver-tower", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 6,
+      componentDelivery: 3,
+      assembly: 14,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // The drives that keep the mirrors on the receiver.
+    power: {
+      generationKilowatts: 100,
+      storageKilowattHours: 0,
+      drawKilowatts: 0.2,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+  },
   {
     id: "battery-bank",
     label: "Battery bank",
@@ -567,6 +607,58 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // of what an Expedition's water ice gives, on top of a fortnight's
     // drinking water kept back for the Mission Director.
     waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
+  },
+  // A pressure vault sunk in a trench and heaped over with Regolith, so that
+  // nothing goes over it and the Mission Director's dose rate falls to a
+  // tenth of a water wall's. It is the way past the Radiation Dose limit, and
+  // priced as the Campaign's biggest single purchase: $4510M, and $450M for the
+  // three Launch fees it takes. That is about what 17 Launches of circuit
+  // boards sell for, 255 Earth Days of everything a base earns at a trip every
+  // 15.4 Earth Days by the pacing report, and about a quarter of the $18,000M the
+  // long-game base holds by Earth Day 1,530 with nothing else to buy, after Act 2
+  // and before Act 3 brings more. A base that skips the water wall reaches the
+  // limit around Earth Day 260, and could afford it around Earth Day 335 at
+  // the soonest. The excavator takes 5 Earth Days to dig it in, at about half
+  // its Condition in Dust's wear on its bucket: much more would have it wear
+  // out and stop part-way. It draws what any Habitat draws, so that a base
+  // keeping its old Habitat as well has to carry both through the Night.
+  {
+    id: "buried-habitat",
+    label: "Buried Habitat",
+    designId: "buried-habitat",
+    footprintRadiusMetres: 6,
+    components: [
+      { componentId: "vault-section", count: 8 },
+      { componentId: "deep-life-support-core", count: 1 },
+      { componentId: "airlock", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 120,
+      componentDelivery: 8,
+      assembly: 48,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.01,
+    // Only the airlock stands in the open: a Micrometeorite or a blast of
+    // Plume Ejecta takes a tenth of what it takes off the Habitat above ground.
+    hazardMultipliers: {
+      dustCoating: 1,
+      micrometeorites: 0.1,
+      plumeEjecta: 0.1,
+    },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 1.2,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: true,
+    shieldsHabitat: false,
+    landingPad: false,
+    buried: true,
   },
   {
     id: "landing-pad",
@@ -1237,6 +1329,228 @@ export const structureTypes: Catalogue["structureTypes"] = [
           },
         ],
         drawKilowatts: 8,
+      },
+    ],
+  },
+  // A block of sintered Regolith, heated through by day, that gives the heat
+  // back through an exchanger by night: 6000 kWh, enough to run a circuit board
+  // chain's 13 kW through a whole Night and more, which makes half as many
+  // circuit boards again from the same Plants. Seven and a half large battery
+  // banks store as much for $340M, but take four Launches, $600M of fees, and
+  // with their 1.5 kW of heaters and all that wear ask for 5 more spare
+  // Components a Lunation, against this one's 0.3 kW and single Launch. So it is
+  // for a base that means to run its Plants at Night, and would rather pay once.
+  {
+    id: "thermal-store",
+    label: "Thermal store",
+    designId: "thermal-storage",
+    footprintRadiusMetres: 4.5,
+    components: [
+      { componentId: "heat-store-core", count: 3 },
+      { componentId: "thermal-exchanger", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 6,
+      componentDelivery: 3,
+      assembly: 12,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.01,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 6000,
+      drawKilowatts: 0.3,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+  },
+  // A heated line out to the shadowed crater, whose head scrapes up water ice
+  // and sends it back along it: 192 kg in a Daylight, about what an Expedition
+  // brings, so that a Robot and the Rover need never go again. An Expedition
+  // costs no Funding, but takes a Robot off the map for three Earth Days every
+  // seven weeks or so, with its Maintenance waiting, and stops if the Rover is
+  // Broken, which is what makes the Mission Director's water hang on it. This
+  // costs $3000M to stop that, the dearest thing in Act 2, and it draws 5 kW.
+  {
+    id: "cold-trap-ice-line",
+    label: "Cold-trap ice line",
+    designId: "cold-trap-mining",
+    footprintRadiusMetres: 3,
+    components: [
+      { componentId: "cold-trap-head", count: 1 },
+      { componentId: "ice-haul-line", count: 5 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 3,
+      assembly: 12,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.04,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "water-ice",
+        label: "Water ice",
+        inputs: [],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "water-ice" },
+            kilogramsPerHour: 0.4,
+          },
+        ],
+        drawKilowatts: 5,
+      },
+    ],
+  },
+  // A panel line and a casting furnace, which make what a solar array is built
+  // from at the base, so that power no longer needs a Launch: a Launch's fee is
+  // the dear part of a $22M pair of arrays. A panel takes 2.4 kg of silicon and
+  // as much of metals, a mast 6 kg of metals, a batch an Earth Day each, so an
+  // array's worth is 3 Earth Days, 4.8 kg of silicon that would have been
+  // wafers, and 10.8 kg of metals that could have been sold or made into spare
+  // Components. So it turns Exports into power, where a concentrator tower
+  // turns Funding into it, and it can make more than the base can use: switch
+  // it off once there are enough.
+  {
+    id: "array-works",
+    label: "Array works",
+    designId: "array-fabrication",
+    footprintRadiusMetres: 3.5,
+    components: [
+      { componentId: "panel-line", count: 2 },
+      { componentId: "casting-furnace", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 2,
+      componentDelivery: 1,
+      assembly: 7,
+      commissioning: 2,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.04,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "solar-panels",
+        label: "Solar panels",
+        batchHours: 24,
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 0.1,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.1,
+          },
+        ],
+        outputs: [{ componentId: "solar-panel", count: 1 }],
+        drawKilowatts: 4,
+      },
+      {
+        id: "array-masts",
+        label: "Array masts",
+        batchHours: 24,
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.25,
+          },
+        ],
+        outputs: [{ componentId: "array-mast", count: 1 }],
+        drawKilowatts: 4,
+      },
+    ],
+  },
+  // A casting furnace and a machine tool, which turn what Maintenance brings
+  // back, with a little fresh metal, into spare Components, so that a growing
+  // base can stop spending Payload Mass on them. The long-game base uses about
+  // 16 of them a Lunation (from 8 to 25) and keeps 30 in stock. A Plant's
+  // Components come in whole numbers, and a game-hour's batch would make at
+  // least one an hour, 480 in a Lunation's 480 hours of Daylight, about thirty
+  // times what is needed. So a batch here is a whole Earth Day, and a Workshop
+  // running through Daylight makes 20 a Lunation: what the base uses with a
+  // little over, for its own wear and the worse Lunations. It takes 3.6 kg of
+  // metals for each, 72 kg a Lunation. That is most of the 78 kg a Lunation
+  // the long-game base has to spare beside its circuit board plant, so a base
+  // running one has little left over to sell. It draws 2 kW, well within what
+  // two solar arrays spare beside an extraction plant, a vacuum fabrication
+  // plant and a circuit board plant.
+  {
+    id: "workshop",
+    label: "Workshop",
+    designId: "parts-machining",
+    footprintRadiusMetres: 3,
+    components: [
+      { componentId: "machine-tool", count: 1 },
+      { componentId: "casting-furnace", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 2,
+      componentDelivery: 1,
+      assembly: 5,
+      commissioning: 2,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    // Grit in its slides and spindle, about a spare Component's worth of wear
+    // for each Lunation it runs through the Daylight.
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipes).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "spare-components",
+        label: "Spare Components",
+        batchHours: 24,
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.15,
+          },
+        ],
+        outputs: [{ componentId: "spare-component", count: 1 }],
+        drawKilowatts: 2,
       },
     ],
   },

@@ -50,7 +50,7 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
     .getByRole("button", { name: "Dismantle" })
     .click();
   await expect(page.getByRole("alert")).toHaveText(
-    "The Mission Director lives in it, and can't move out.",
+    "The Mission Director lives in it. Move them to another Habitat first.",
   );
   await expect(page.getByRole("complementary", { name: "Work" })).toHaveText(
     "WorkNo work under way",

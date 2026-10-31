@@ -6,8 +6,8 @@ import type { Catalogue } from "./types";
 // hour, but the player has to come back to start the next; the long ones
 // run unattended, through a Night, a round trip of the Lander or longer.
 // Some are offered only once the Design they study is unlocked. Run back to
-// back, they take about ten Lunations, so research carries on long after
-// the base is self-sufficient.
+// back, they take about thirty Lunations, so research carries on long
+// after the base is self-sufficient.
 export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "regolith-sample-analysis",
@@ -173,6 +173,16 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 94,
     requiresDesignId: "microwave-sintering",
   },
+  // Pays for most of Parts machining, as the Tech Tree is otherwise left a
+  // few dozen Science short. Offered only once it is unlocked, and at the rate
+  // of the other long tasks.
+  {
+    id: "machined-part-wear-trial",
+    label: "Machined part wear trial",
+    lengthHours: 336,
+    science: 108,
+    requiresDesignId: "parts-machining",
+  },
   {
     id: "dust-screen-efficiency-trial",
     label: "Dust screen efficiency trial",
@@ -200,6 +210,69 @@ export const researchTasks: Catalogue["researchTasks"] = [
     lengthHours: 576,
     science: 172,
   },
+  // Act 2's. So that the reference Campaign's research doesn't change, none is
+  // offered sooner than the longest of Act 1's, which it never gets past: each
+  // is offered only by a Design it never unlocks, or runs longer. The longest
+  // pay about 0.25 Science an hour, less than any before them, and they carry
+  // research on to about Earth Day 900.
+  {
+    id: "panel-line-yield-trial",
+    label: "Panel line yield trial",
+    lengthHours: 504,
+    science: 150,
+    requiresDesignId: "array-fabrication",
+  },
+  {
+    id: "heliostat-tracking-trial",
+    label: "Heliostat tracking trial",
+    lengthHours: 744,
+    science: 210,
+    requiresDesignId: "concentrator-towers",
+  },
+  {
+    id: "heat-store-cycling-trial",
+    label: "Heat store cycling trial",
+    lengthHours: 816,
+    science: 225,
+    requiresDesignId: "thermal-storage",
+  },
+  {
+    id: "cold-trap-core-survey",
+    label: "Cold-trap core survey",
+    lengthHours: 888,
+    science: 245,
+    requiresDesignId: "cold-trap-mining",
+  },
+  {
+    id: "polar-volatiles-mapping",
+    label: "Polar volatiles mapping",
+    lengthHours: 1560,
+    science: 410,
+  },
+  {
+    id: "deep-crust-heat-probe",
+    label: "Deep crust heat probe",
+    lengthHours: 1680,
+    science: 430,
+  },
+  {
+    id: "solar-cycle-dosimetry",
+    label: "Solar cycle dosimetry",
+    lengthHours: 1800,
+    science: 455,
+  },
+  {
+    id: "native-metal-census",
+    label: "Native metal census",
+    lengthHours: 1920,
+    science: 480,
+  },
+  {
+    id: "long-baseline-seismology",
+    label: "Long-baseline seismology",
+    lengthHours: 1980,
+    science: 490,
+  },
   // A whole Lunation.
   {
     id: "lunar-laser-ranging",
@@ -214,6 +287,15 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 270,
   },
   // Two Lunations.
+  {
+    id: "buried-vault-dose-survey",
+    label: "Buried vault dose survey",
+    // Pays for the Buried Habitat's Design, so that the whole Tech Tree stays
+    // payable with the same margin as before it.
+    lengthHours: 1440,
+    science: 400,
+    requiresDesignId: "water-wall-shielding",
+  },
   {
     id: "long-stay-health-study",
     label: "Long-stay health study",
@@ -299,6 +381,29 @@ export const designs: Catalogue["designs"] = [
     starting: false,
     scienceCost: 150,
     prerequisiteDesignIds: ["light-masts", "large-battery-banks"],
+  },
+  {
+    id: "concentrator-towers",
+    label: "Concentrator towers",
+    description:
+      "A ring of mirrors throwing the sun onto one receiver on a tower, for as much power as a field of solar arrays with far less to clean and repair, and at a far higher price.",
+    category: "power",
+    starting: false,
+    scienceCost: 600,
+    prerequisiteDesignIds: [
+      "thin-film-solar-cells",
+      "dust-sealed-solar-arrays",
+    ],
+  },
+  {
+    id: "thermal-storage",
+    label: "Thermal storage",
+    description:
+      "A block of sintered Regolith that takes in heat by day and gives it back by night, storing as much as a row of large battery banks in one Launch, with far less to keep warm and to repair.",
+    category: "power",
+    starting: false,
+    scienceCost: 800,
+    prerequisiteDesignIds: ["large-battery-banks", "regolith-sintering"],
   },
   {
     id: "light-masts",
@@ -390,6 +495,19 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 60,
     prerequisiteDesignIds: ["regolith-shielding", "battery-banks"],
   },
+  // Dear, past the water wall, as the end of what can be done about the
+  // Radiation Dose. Its Science comes from a Research Task
+  // of its own, the Buried vault dose survey.
+  {
+    id: "buried-habitat",
+    label: "Buried Habitat",
+    description:
+      "A pressure vault sunk in a trench and heaped over with metres of Regolith, which cuts the Radiation Dose inside to a tenth of a water wall's.",
+    category: "protection",
+    starting: false,
+    scienceCost: 400,
+    prerequisiteDesignIds: ["water-wall-shielding"],
+  },
   {
     id: "water-wall-shielding",
     label: "Water-wall shielding",
@@ -459,6 +577,18 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 180,
     prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
   },
+  // The last of what ties the base to Expeditions, and the dearest Design there
+  // is: what it brings is a convenience a base can get by without.
+  {
+    id: "cold-trap-mining",
+    label: "Cold-trap mining",
+    description:
+      "A heated line out to the shadowed crater, which brings water ice in all through the Daylight, so that a Robot no longer has to go off the map for it.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 1050,
+    prerequisiteDesignIds: ["water-electrolysis", "parts-machining"],
+  },
   {
     id: "regolith-extraction",
     label: "Regolith extraction",
@@ -509,6 +639,31 @@ export const designs: Catalogue["designs"] = [
       "molten-regolith-electrolysis",
       "circuit-board-fabrication",
     ],
+  },
+  // Act 2's Mechanic: the Workshop, so that a growing base can stop spending
+  // Payload Mass on spare Components. Casting metal parts follows on from
+  // melting Regolith, so it is past Molten regolith electrolysis, in the
+  // second rank, at the low end of what that rank costs, as a base that has
+  // come this far already feels the pull of spares on every Launch.
+  {
+    id: "parts-machining",
+    label: "Parts machining",
+    description:
+      "Casting and machining worn parts back into spare Components at the base, from metals the base makes, so that they no longer need a Launch.",
+    category: "industry",
+    starting: false,
+    scienceCost: 150,
+    prerequisiteDesignIds: ["molten-regolith-electrolysis"],
+  },
+  {
+    id: "array-fabrication",
+    label: "Array fabrication",
+    description:
+      "A line that lays solar cells on backing and a furnace that casts masts, which make what a solar array is built from at the base, from silicon and metals, so that more power no longer needs a Launch.",
+    category: "industry",
+    starting: false,
+    scienceCost: 500,
+    prerequisiteDesignIds: ["parts-machining", "vacuum-fabrication"],
   },
   // An Industry Design, as the Plants' are: a Structure that, once
   // commissioned, makes something by itself, here Science from the

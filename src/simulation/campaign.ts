@@ -3,6 +3,7 @@ import {
   type ComponentCount,
   type GroundPosition,
   type MapSize,
+  inSentence,
 } from "../catalogue";
 import {
   cancelConstruction,
@@ -47,6 +48,7 @@ import {
   checkPlacement,
   chooseWorkSpot,
   findStructureType,
+  isBuried,
   isShielded,
   isWaterWalled,
   stageMinutes,
@@ -131,6 +133,7 @@ import {
 import {
   absorbRadiationDose,
   forecastRadiationDose,
+  minutesUntilLimitAsMinuteStarts,
   type RadiationDoseForecast,
 } from "./radiation";
 import {
@@ -204,6 +207,9 @@ import {
   watchSelfSufficiency,
   type SelfSufficiencySnapshot,
   type SelfSufficiencyState,
+  readSpareComponentSufficiency,
+  startingSpareComponentSufficiency,
+  type SpareComponentSufficiencyState,
 } from "./self-sufficiency";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
@@ -363,7 +369,7 @@ export interface StructureSnapshot {
   readonly storedKilowattHours: number;
   /**
    * Whether it is a Habitat with commissioned Regolith shielding over it,
-   * neither of them Broken.
+   * neither of them Broken, or a Buried Habitat, not Broken, which needs none.
    */
   readonly shielded: boolean;
   /**
@@ -371,6 +377,8 @@ export interface StructureSnapshot {
    * its shielding, none of them Broken.
    */
   readonly waterWalled: boolean;
+  /** Whether it is a Buried Habitat that isn't Broken. */
+  readonly buried: boolean;
   /**
    * How intact it is, from 100% down to 0%, when it is Broken and does
    * nothing until it is repaired.
@@ -528,6 +536,11 @@ export interface Snapshot {
    */
   readonly selfSufficiency: readonly SelfSufficiencySnapshot[];
   /**
+   * The same for spare Components: how many of those used over the window the
+   * base's Plants made.
+   */
+  readonly spareComponentSufficiency: SelfSufficiencySnapshot;
+  /**
    * The total radiation the Mission Director has absorbed. The data
    * catalogue sets the limit.
    */
@@ -662,8 +675,9 @@ export interface Campaign {
    */
   dismantleStructure(structureId: string): DismantleResult;
   /**
-   * Moves the Mission Director from the Lander into a commissioned Habitat,
-   * at once and for good, freeing the Lander.
+   * Moves the Mission Director into a commissioned Habitat that has power,
+   * at once: from the Lander, freeing it for good, or from the Habitat they
+   * live in.
    */
   moveMissionDirectorIn(habitatId: string): MoveInResult;
   /**
@@ -755,6 +769,8 @@ export interface CampaignState {
   lifeSupport: LifeSupportState[];
   /** What the base's Plants made of each life support stock, and the Mission Director used, lately. */
   selfSufficiency: SelfSufficiencyState[];
+  /** What the base's Plants made of spare Components, and repairs used, lately. */
+  spareComponentSufficiency: SpareComponentSufficiencyState;
   radiationDoseMillisieverts: number;
   /** The next Solar Particle Event, or the one under way. */
   solarParticleEvent: SolarParticleEventState;
@@ -843,6 +859,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     missionDirector: { residence: "lander" },
     lifeSupport: startingLifeSupport(),
     selfSufficiency: startingSelfSufficiency(),
+    spareComponentSufficiency: startingSpareComponentSufficiency(),
     radiationDoseMillisieverts: 0,
     solarParticleEvent: scheduleSolarParticleEvent(random, 0),
     micrometeorite: scheduleMicrometeorite(random, 0),
@@ -1106,6 +1123,7 @@ function campaignFrom(state: CampaignState): Campaign {
         missionDirector: copy(state.missionDirector),
         lifeSupport: readLifeSupport(state),
         selfSufficiency: readSelfSufficiency(state),
+        spareComponentSufficiency: readSpareComponentSufficiency(state),
         radiationDoseMillisieverts: state.radiationDoseMillisieverts,
         solarParticleEvent: readSolarParticleEvent(state),
         fundingMillionDollars: state.fundingMillionDollars,
@@ -1174,6 +1192,7 @@ function campaignFrom(state: CampaignState): Campaign {
             savingPower: savingPower.includes(structure),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
+            buried: isBuried(structure),
             performance,
             plant: readPlant(state, structure),
             observing: observes(structure),
@@ -1246,10 +1265,12 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       (load) => load.id,
     ),
   );
-  const minutesUntilLimitBefore =
-    forecastRadiationDose(state).minutesUntilLimit;
+  const minutesUntilLimitBefore = minutesUntilLimitAsMinuteStarts(state);
   const sparesBefore = forecastSpareComponents(state);
-  const selfSufficiencyBefore = readSelfSufficiency(state);
+  const selfSufficiencyBefore = [
+    ...readSelfSufficiency(state),
+    readSpareComponentSufficiency(state),
+  ];
   state.elapsedMinutes += 1;
   // First, before anything changes whether they operate.
   events.push(...wearStructures(state));
@@ -1315,7 +1336,7 @@ function checkCampaignPlacement(
     return {
       ok: false,
       reason: "design-locked",
-      message: `The ${type.label.toLowerCase()} needs the ${designLabel(type.designId)} Design unlocked first.`,
+      message: `The ${inSentence(type.label)} needs the ${designLabel(type.designId)} Design unlocked first.`,
     };
   }
   return checkPlacement(state, plan);

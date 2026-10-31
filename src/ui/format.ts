@@ -1,4 +1,5 @@
 import {
+  habitatDoseRate,
   readClock,
   type ClockSnapshot,
   type LunationSnapshot,
@@ -36,6 +37,24 @@ export const plural = (count: number, unit: string): string =>
 export function formatLunation(lunation: LunationSnapshot): string {
   const part = lunation.part === "daylight" ? "Daylight" : "Night";
   return `${part} · ${formatShortDuration(lunation.minutesRemaining)} left`;
+}
+
+/**
+ * Says what the Radiation Dose rate is in a Habitat with no Solar Particle
+ * Event under way, in millisieverts, for example "0.15 mSv".
+ */
+export function formatDoseRate(
+  habitat: Parameters<typeof habitatDoseRate>[0],
+): string {
+  return `${formatMillisieverts(habitatDoseRate(habitat, 1))} mSv`;
+}
+
+/**
+ * A dose rate to as many places as it takes to show one a Buried Habitat cuts
+ * it to: three below a tenth of a millisievert, and two above.
+ */
+export function formatMillisieverts(millisieverts: number): string {
+  return millisieverts.toFixed(millisieverts < 0.1 ? 3 : 2);
 }
 
 /**

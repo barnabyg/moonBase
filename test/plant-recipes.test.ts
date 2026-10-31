@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   createCampaign,
   loadCampaign,
@@ -53,7 +58,7 @@ function recipe(structureTypeId: string, recipeId: string): PlantRecipe {
 
 /** The kilograms an hour a recipe makes of a bulk resource or life support stock. */
 function made(recipe: PlantRecipe, id: string): number {
-  return recipe.outputs
+  return resourceOutputs(recipe)
     .filter((flow) =>
       flow.resource.kind === "bulk-resource"
         ? flow.resource.resourceId === id

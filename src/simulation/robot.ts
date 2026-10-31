@@ -71,6 +71,7 @@ import {
   wearRobot,
   type SelfRepairState,
 } from "./self-repair";
+import { recordSpareComponents } from "./self-sufficiency";
 import {
   addCounts,
   addToStock,
@@ -895,6 +896,7 @@ function maintain(
       }
     }
     maintenance.visit = visit;
+    recordSpareComponents(state, { used: visit.spareComponents });
     robot.carrying = spares(visit.spareComponents);
   }
   const current = currentStep(maintenance.visit, maintenance.workedMinutes);
@@ -1127,6 +1129,7 @@ function repairItself(
     selfRepair.spareComponents = takeFromStock(state, spares(needed))
       ? needed
       : 0;
+    recordSpareComponents(state, { used: selfRepair.spareComponents });
     addCounts(robot.carrying, spares(selfRepair.spareComponents));
   }
   const { loading, total } = selfRepairMinutes(selfRepair.spareComponents);

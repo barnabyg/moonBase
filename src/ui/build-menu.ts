@@ -4,6 +4,7 @@ import type { Campaign, GroundPosition, Snapshot } from "../simulation";
 import { describeBuild, describeStructure, designOf } from "./describe";
 import { onClick } from "./click";
 import { setText } from "./dom";
+import { inSentence } from "./labels";
 
 export interface BuildMenu {
   update(snapshot: Snapshot): void;
@@ -83,7 +84,7 @@ export function createBuildMenu(
     showPlacing();
     setText(
       hint,
-      `Click the map to place the ${type.label.toLowerCase()}. Right-click or press Esc to cancel.${stockWarning(type)}`,
+      `Click the map to place the ${inSentence(type.label)}. Right-click or press Esc to cancel.${stockWarning(type)}`,
     );
   }
 
@@ -138,7 +139,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${placing.label.toLowerCase()} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };

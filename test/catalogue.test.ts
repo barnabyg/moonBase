@@ -4,6 +4,8 @@ import {
   type GroundPosition,
   type ResourceFlow,
   type StructureType,
+  componentOutputs,
+  resourceOutputs,
 } from "../src/catalogue";
 
 const halfWidth = catalogue.map.widthMetres / 2;
@@ -527,7 +529,7 @@ describe("the data catalogue", () => {
     );
   });
 
-  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass", () => {
+  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass, but for a Buried Habitat, which is meant to take several", () => {
     for (const type of catalogue.structureTypes) {
       const unlocked = designsUnlockedWith(type.designId);
       let mass = 0;
@@ -541,6 +543,7 @@ describe("the data catalogue", () => {
         expect(unlocked).toContain(item?.designId);
         mass += (item?.massKilograms ?? Infinity) * need.count;
       }
+      if (type.buried === true) continue;
       expect(mass).toBeLessThanOrEqual(
         catalogue.launch.payloadMassLimitKilograms,
       );
@@ -777,7 +780,10 @@ describe("the data catalogue", () => {
     const shielding = catalogue.structureTypes.filter(
       (type) => type.shieldsHabitat,
     );
-    const habitats = catalogue.structureTypes.filter((type) => type.habitat);
+    // A Buried Habitat takes no shielding over it.
+    const habitats = catalogue.structureTypes.filter(
+      (type) => type.habitat && type.buried !== true,
+    );
 
     expect(shielding[0]?.id).toBe("regolith-shielding");
     for (const type of shielding) {
@@ -987,7 +993,7 @@ describe("the data catalogue", () => {
         ?.recipes ?? [];
     const recipeOf = (id: string) => recipes.find((recipe) => recipe.id === id);
     const rateOf = (id: string, resource: string) =>
-      recipeOf(id)?.outputs.find((flow) =>
+      resourceOutputs(recipeOf(id)).find((flow) =>
         flow.resource.kind === "bulk-resource"
           ? flow.resource.resourceId === resource
           : flow.resource.stockId === resource,
@@ -1014,7 +1020,7 @@ describe("the data catalogue", () => {
         expect(recipe.inputs.map((flow) => flow.resource)).toEqual([
           { kind: "bulk-resource", resourceId: "regolith" },
         ]);
-        expect(recipe.outputs.map((flow) => flow.resource)).toEqual([
+        expect(resourceOutputs(recipe).map((flow) => flow.resource)).toEqual([
           { kind: "life-support", stockId: "oxygen" },
           { kind: "bulk-resource", resourceId: "metals" },
           { kind: "bulk-resource", resourceId: "silicon" },
@@ -1070,7 +1076,7 @@ describe("the data catalogue", () => {
     expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
       { kind: "bulk-resource", resourceId: "water-ice" },
     ]);
-    expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+    expect(resourceOutputs(plant).map((flow) => flow.resource)).toEqual([
       { kind: "life-support", stockId: "water" },
     ]);
   });
@@ -1087,7 +1093,7 @@ describe("the data catalogue", () => {
       expect(plant?.inputs.map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "silicon" },
       ]);
-      expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      expect(resourceOutputs(plant).map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "wafers" },
       ]);
       const ids = catalogue.bulkResources.map((resource) => resource.id);
@@ -1096,7 +1102,7 @@ describe("the data catalogue", () => {
 
     it("keeps up with roughly one extraction plant's silicon, running for metals and silicon", () => {
       const made =
-        extraction?.outputs.find(
+        resourceOutputs(extraction).find(
           (flow) =>
             flow.resource.kind === "bulk-resource" &&
             flow.resource.resourceId === "silicon",
@@ -1146,7 +1152,7 @@ describe("the data catalogue", () => {
         { kind: "bulk-resource", resourceId: "wafers" },
         { kind: "bulk-resource", resourceId: "metals" },
       ]);
-      expect(plant?.outputs.map((flow) => flow.resource)).toEqual([
+      expect(resourceOutputs(plant).map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "circuit-boards" },
       ]);
       const ids = catalogue.bulkResources.map((resource) => resource.id);
@@ -1155,7 +1161,7 @@ describe("the data catalogue", () => {
 
     it("keeps up with roughly one vacuum fabrication plant's wafers, and takes less metals than an extraction plant makes running for metals and silicon", () => {
       const wafersMade = rateOf(
-        typeOf("vacuum-fabrication-plant")?.recipes?.[0]?.outputs,
+        resourceOutputs(typeOf("vacuum-fabrication-plant")?.recipes?.[0]),
         "wafers",
       );
       const wafersTaken = rateOf(plant?.inputs, "wafers");
@@ -1164,9 +1170,11 @@ describe("the data catalogue", () => {
       expect(wafersTaken).toBeGreaterThanOrEqual(wafersMade * 0.75);
       expect(rateOf(plant?.inputs, "metals")).toBeLessThanOrEqual(
         rateOf(
-          typeOf("extraction-plant")?.recipes?.find(
-            (recipe) => recipe.id === "metals-and-silicon",
-          )?.outputs,
+          resourceOutputs(
+            typeOf("extraction-plant")?.recipes?.find(
+              (recipe) => recipe.id === "metals-and-silicon",
+            ),
+          ),
           "metals",
         ),
       );
@@ -1207,7 +1215,8 @@ describe("the data catalogue", () => {
 
     it("earns more from the wafers it takes in, as circuit boards, than they would sell for as wafers", () => {
       expect(
-        priceOf("circuit-boards") * rateOf(plant?.outputs, "circuit-boards"),
+        priceOf("circuit-boards") *
+          rateOf(resourceOutputs(plant), "circuit-boards"),
       ).toBeGreaterThan(priceOf("wafers") * rateOf(plant?.inputs, "wafers"));
     });
   });
@@ -1248,15 +1257,22 @@ describe("the data catalogue", () => {
                   flow.resource.kind === "life-support" &&
                   stock.id === flow.resource.stockId,
               );
-        expect(plant.inputs.length).toBeGreaterThan(0);
+        // Only what comes straight from the ground takes nothing in.
+        if (plant.id !== "water-ice") {
+          expect(plant.inputs.length).toBeGreaterThan(0);
+        }
         expect(plant.outputs.length).toBeGreaterThan(0);
-        for (const flow of [...plant.inputs, ...plant.outputs]) {
+        for (const flow of [...plant.inputs, ...resourceOutputs(plant)]) {
           expect(known(flow)).toBe(true);
           expect(flow.kilogramsPerHour).toBeGreaterThan(0);
         }
         const total = (flows: typeof plant.inputs) =>
           flows.reduce((sum, flow) => sum + flow.kilogramsPerHour, 0);
-        expect(total(plant.outputs)).toBeLessThanOrEqual(total(plant.inputs));
+        if (plant.inputs.length > 0) {
+          expect(total(resourceOutputs(plant))).toBeLessThanOrEqual(
+            total(plant.inputs),
+          );
+        }
         expect(plant.drawKilowatts).toBeGreaterThan(0);
       },
     );
@@ -1475,9 +1491,9 @@ describe("the data catalogue", () => {
       (design) => design.category === "power" && !design.starting,
     );
 
-    it("has about three beyond the starting ones, some needing another that isn't a starting one first", () => {
+    it("has about five beyond the starting ones, some needing another that isn't a starting one first", () => {
       expect(power.length).toBeGreaterThanOrEqual(3);
-      expect(power.length).toBeLessThanOrEqual(4);
+      expect(power.length).toBeLessThanOrEqual(6);
       expect(
         power.some((design) =>
           design.prerequisiteDesignIds.some(
@@ -1753,9 +1769,9 @@ describe("the data catalogue", () => {
     });
   });
 
-  it("has about 25 Designs in the Tech Tree, and no more than 32", () => {
+  it("has enough Designs in the Tech Tree for the Acts so far, and no more than 50", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(32);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(50);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {
@@ -1810,8 +1826,41 @@ describe("the data catalogue", () => {
       (design) => design.category === "industry" && !design.starting,
     );
 
-    it("has three beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(industry).toHaveLength(3);
+    it("has a Workshop behind Parts machining, which needs Molten regolith electrolysis first, making about what the long-game base uses of spare Components, running through Daylight", () => {
+      const workshop = structureType("workshop");
+      expect(designOf(workshop.designId)).toMatchObject({
+        id: "parts-machining",
+        category: "industry",
+        starting: false,
+        prerequisiteDesignIds: ["molten-regolith-electrolysis"],
+      });
+      const [recipe] = workshop.recipes ?? [];
+      if (recipe === undefined) throw new Error("expected a recipe");
+      const batches =
+        (catalogue.lunation.daylightEarthDays * 24) / (recipe.batchHours ?? 1);
+      expect(componentOutputs(recipe)).toEqual([
+        { componentId: catalogue.maintenance.spareComponentId, count: 1 },
+      ]);
+      // It uses about 16 a Lunation, with a little over for the Workshop's own
+      // wear and the worse Lunations.
+      expect(batches).toBeGreaterThanOrEqual(16);
+      expect(batches).toBeLessThanOrEqual(24);
+      // Most of what the base has to spare in metals, which it would otherwise
+      // sell: about 78 kg a Lunation beside its circuit board plant.
+      const metals = (recipe.inputs[0]?.kilogramsPerHour ?? 0) * batches * 24;
+      expect(metals).toBeGreaterThan(50);
+      expect(metals).toBeLessThanOrEqual(78);
+      expect(Number.isInteger((recipe.batchHours ?? 1) * 60)).toBe(true);
+      for (const item of workshop.components) {
+        expect(
+          catalogue.launch.items.find(({ id }) => id === item.componentId)
+            ?.designId,
+        ).toBe("parts-machining");
+      }
+    });
+
+    it("has five beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(5);
       expect(
         industry.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
@@ -1839,14 +1888,14 @@ describe("the data catalogue", () => {
           recipe.id,
           recipe.label,
           recipe.inputs.map((flow) => flow.resource),
-          recipe.outputs.map((flow) => flow.resource),
+          resourceOutputs(recipe).map((flow) => flow.resource),
         ]),
       ).toEqual(
         original.map((recipe) => [
           recipe.id,
           recipe.label,
           recipe.inputs.map((flow) => flow.resource),
-          recipe.outputs.map((flow) => flow.resource),
+          resourceOutputs(recipe).map((flow) => flow.resource),
         ]),
       );
       for (const recipe of large) {
@@ -1855,8 +1904,8 @@ describe("the data catalogue", () => {
           2 * rateOf(before.inputs, "regolith"),
         );
         for (const resource of ["oxygen", "metals", "silicon"]) {
-          const made = rateOf(recipe.outputs, resource);
-          const madeBefore = rateOf(before.outputs, resource);
+          const made = rateOf(resourceOutputs(recipe), resource);
+          const madeBefore = rateOf(resourceOutputs(before), resource);
           expect(made).toBeGreaterThan(madeBefore);
           expect(made / recipe.drawKilowatts).toBeGreaterThan(
             madeBefore / before.drawKilowatts,
@@ -1869,7 +1918,10 @@ describe("the data catalogue", () => {
       const large = structureType("large-extraction-plant");
       const original = structureType("extraction-plant");
       const silicon = (typeId: string) =>
-        rateOf(recipeOf(typeId, "metals-and-silicon").outputs, "silicon");
+        rateOf(
+          resourceOutputs(recipeOf(typeId, "metals-and-silicon")),
+          "silicon",
+        );
 
       expect(large.components).toEqual([
         { componentId: "molten-regolith-cell", count: 1 },
@@ -1911,20 +1963,20 @@ describe("the data catalogue", () => {
         { kind: "bulk-resource", resourceId: "silicon" },
         { kind: "bulk-resource", resourceId: "metals" },
       ]);
-      expect(boards.outputs.map((flow) => flow.resource)).toEqual([
+      expect(resourceOutputs(boards).map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "circuit-boards" },
       ]);
       expect(wafers.inputs.map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "silicon" },
       ]);
-      expect(wafers.outputs.map((flow) => flow.resource)).toEqual([
+      expect(resourceOutputs(wafers).map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "wafers" },
       ]);
-      expect(rateOf(boards.outputs, "circuit-boards")).toBeGreaterThan(
-        rateOf(circuits.outputs, "circuit-boards"),
+      expect(rateOf(resourceOutputs(boards), "circuit-boards")).toBeGreaterThan(
+        rateOf(resourceOutputs(circuits), "circuit-boards"),
       );
-      expect(rateOf(wafers.outputs, "wafers")).toBeGreaterThan(
-        rateOf(fabrication.outputs, "wafers"),
+      expect(rateOf(resourceOutputs(wafers), "wafers")).toBeGreaterThan(
+        rateOf(resourceOutputs(fabrication), "wafers"),
       );
       for (const recipe of [boards, wafers]) {
         expect(recipe.drawKilowatts).toBeLessThanOrEqual(
@@ -1940,7 +1992,10 @@ describe("the data catalogue", () => {
         ),
       );
       const made = (typeId: string) =>
-        rateOf(recipeOf(typeId, "metals-and-silicon").outputs, "silicon");
+        rateOf(
+          resourceOutputs(recipeOf(typeId, "metals-and-silicon")),
+          "silicon",
+        );
 
       expect(taken).toBeGreaterThan(made("extraction-plant"));
       expect(taken).toBeLessThanOrEqual(made("large-extraction-plant"));
@@ -2113,8 +2168,8 @@ describe("the data catalogue", () => {
       if (recipe === undefined || extraction === undefined) {
         throw new Error("expected the recipes");
       }
-      const oxygen = rateOf(recipe.outputs, "oxygen");
-      const extracted = rateOf(extraction.outputs, "oxygen");
+      const oxygen = rateOf(resourceOutputs(recipe), "oxygen");
+      const extracted = rateOf(resourceOutputs(extraction), "oxygen");
       const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
       const used =
         (catalogue.lifeSupportStocks.find((stock) => stock.id === "oxygen")
@@ -2125,7 +2180,7 @@ describe("the data catalogue", () => {
       expect(recipe.inputs.map((flow) => flow.resource)).toEqual([
         { kind: "bulk-resource", resourceId: "water-ice" },
       ]);
-      expect(recipe.outputs.map((flow) => flow.resource)).toEqual([
+      expect(resourceOutputs(recipe).map((flow) => flow.resource)).toEqual([
         { kind: "life-support", stockId: "oxygen" },
       ]);
       expect(oxygen).toBeGreaterThan(2 * extracted);
@@ -2273,13 +2328,16 @@ describe("the data catalogue", () => {
       ["hardened-habitat", "habitat", ["micrometeorites", "plumeEjecta"]],
     ];
     // Water-wall shielding hardens nothing: it goes over a Habitat's
-    // Regolith shielding, and has tests of its own (below).
+    // Regolith shielding, and has tests of its own (below). Nor does a Buried
+    // Habitat, in buried-habitat.test.ts: it is a Habitat of its own.
     const protection = catalogue.designs.filter(
       (design) =>
         design.category === "protection" &&
         !design.starting &&
         !catalogue.structureTypes.some(
-          (type) => type.designId === design.id && type.waterWall !== undefined,
+          (type) =>
+            type.designId === design.id &&
+            (type.waterWall !== undefined || type.buried === true),
         ),
     );
 
@@ -2403,12 +2461,12 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
   });
 
-  it("has Habitats the Mission Director can move into: the inflatable Habitat and the hardened one", () => {
+  it("has Habitats the Mission Director can move into: the inflatable Habitat, the hardened one and the Buried one", () => {
     expect(
       catalogue.structureTypes
         .filter((type) => type.habitat)
         .map((type) => type.id),
-    ).toEqual(["habitat", "hardened-habitat"]);
+    ).toEqual(["habitat", "hardened-habitat", "buried-habitat"]);
   });
 
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {
@@ -2530,6 +2588,55 @@ describe("the data catalogue", () => {
   );
 });
 
+describe("the Acts", () => {
+  it("are listed in order, each with a unique id and label and a one-line sentence saying what it asks", () => {
+    const { acts } = catalogue;
+
+    expect(acts[0]?.label).toBe("Act 1");
+    expect(new Set(acts.map((act) => act.id)).size).toBe(acts.length);
+    expect(new Set(acts.map((act) => act.label)).size).toBe(acts.length);
+    for (const { label, asks } of acts) {
+      expect(label.trim()).not.toBe("");
+      expect(asks.trim()).toMatch(/^[A-Z].*\.$/);
+      expect(asks).not.toContain("\n");
+    }
+  });
+
+  it("start with today's nine Milestones in Act 1", () => {
+    const firstAct = catalogue.acts[0]?.id;
+
+    expect(
+      catalogue.milestones
+        .filter((milestone) => milestone.actId === firstAct)
+        .map((milestone) => milestone.id),
+    ).toEqual([
+      "power-storage",
+      "moved-in",
+      "lander-departs",
+      "habitat-shielded",
+      "landing-pad",
+      "first-research-task",
+      "first-export",
+      "oxygen-self-sufficient",
+      "water-self-sufficient",
+    ]);
+  });
+
+  it("each hold at least one Milestone, with every Milestone in an Act and the Milestones in the Acts' order, so that the current Act only ever moves on", () => {
+    const actIdsInMilestoneOrder = catalogue.milestones
+      .map((milestone) => milestone.actId)
+      .filter((actId, index, actIds) => actId !== actIds[index - 1]);
+
+    expect(actIdsInMilestoneOrder).toEqual(catalogue.acts.map((act) => act.id));
+  });
+
+  it("carry no reward, only words", () => {
+    for (const act of catalogue.acts) {
+      expect(Object.keys(act).sort()).toEqual(["asks", "id", "label"]);
+    }
+  });
+});
+
 describe("the Milestones", () => {
   it("are listed in order, each with a unique id and label and a one-line hint", () => {
     const { milestones } = catalogue;
@@ -2544,6 +2651,9 @@ describe("the Milestones", () => {
       "first-export",
       "oxygen-self-sufficient",
       "water-self-sufficient",
+      "workshop-running",
+      "spare-components-self-sufficient",
+      "metals-sold",
     ]);
     expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
       milestones.length,
@@ -2570,6 +2680,7 @@ describe("the Milestones", () => {
   it("carry no reward, only a condition", () => {
     for (const milestone of catalogue.milestones) {
       expect(Object.keys(milestone).sort()).toEqual([
+        "actId",
         "condition",
         "hint",
         "id",

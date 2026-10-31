@@ -36,6 +36,8 @@ test("a folded status section shows its headline figures beside its title, and R
   await expect(summary("Mission Director")).toHaveText("aboard the Lander");
   await toggle("Stock");
   await expect(summary("Stock")).toContainText("6 spares");
+  await toggle("Bulk resources");
+  await expect(summary("Bulk resources")).toHaveText("none in stock");
   await toggle("Lander & Expeditions");
   await expect(summary("Lander & Expeditions")).toHaveText("landed");
 

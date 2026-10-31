@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { crowdedSave, useCrowdedCatalogue, type SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
 
 // The smallest screen the panels are laid out for.
@@ -93,7 +94,7 @@ const samePlace = (a: Place | undefined, b: Place): boolean =>
  */
 async function watchRows(
   page: Page,
-  save: string | undefined,
+  save: string | SaveFile | undefined,
   watched: (page: Page) => Locator,
   /**
    * What the player does once the game runs, before leaving the base to
@@ -110,7 +111,9 @@ async function watchRows(
     await (
       await chooser
     ).setFiles(
-      fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url)),
+      typeof save === "string"
+        ? fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url))
+        : save,
     );
   }
   await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
@@ -238,6 +241,77 @@ test("at the fastest game speed, the panels' rows keep their place while a teles
   );
 
   // How long its round has left changed while it was watched.
+  expect(texts.size).toBeGreaterThan(2);
+});
+
+test("at the fastest game speed, on a catalogue of 80 Launch items, the Launch manifest's rows keep their place while the player changes what it carries", async ({
+  page,
+}) => {
+  await useCrowdedCatalogue(page);
+  const screen = (on: Page) =>
+    on.getByRole("dialog", { name: "Launch manifest" });
+  const cost = (on: Page) =>
+    screen(on).getByRole("status", { name: "Launch cost" });
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: /^\d+x$/ })
+    .last()
+    .click();
+  await page.getByRole("button", { name: "Launch manifest" }).click();
+  const find = screen(page).getByRole("searchbox", { name: "Find an item" });
+  await find.fill("made-up part 1");
+  await expect(cost(page)).toBeVisible();
+  const tops = await rowTops(page);
+  const rows = [...tops.keys()].filter((key) =>
+    key.startsWith("Screen › made-up-part-"),
+  );
+  expect(rows.length).toBeGreaterThan(5);
+
+  // Adding many of an item, then taking them off again, which turns its row
+  // chosen and back, changes its count from one digit to two and the cost's
+  // words as it goes from nothing to something and back.
+  const add = screen(page).getByRole("button", {
+    name: "Add one Made-up part 1",
+    exact: true,
+  });
+  const remove = screen(page).getByRole("button", {
+    name: "Remove one Made-up part 1",
+    exact: true,
+  });
+  const start = await gameHours(page);
+  const clicks: Locator[] = [
+    ...Array<Locator>(12).fill(add),
+    ...Array<Locator>(12).fill(remove),
+  ];
+  for (const button of clicks) {
+    await button.click();
+    await nextFrame(page);
+    const now = await rowTops(page);
+    for (const row of rows) {
+      expect(
+        samePlace(now.get(row), tops.get(row) ?? "gone"),
+        `${row} moved from ${tops.get(row)} to ${now.get(row)}`,
+      ).toBe(true);
+    }
+    await expect(find).toHaveValue("made-up part 1");
+  }
+  // The game ran on all the while.
+  expect(await gameHours(page)).toBeGreaterThan(start);
+  await expect(cost(page)).toContainText("nothing");
+});
+
+test("at the fastest game speed, the status panel's rows keep their place with 15 bulk resources while silicon runs out and wafers are made", async ({
+  page,
+}) => {
+  await useCrowdedCatalogue(page);
+  const texts = await watchRows(page, crowdedSave(), (on) =>
+    on
+      .getByRole("complementary", { name: "Status panel" })
+      .getByRole("status", { name: "Bulk resources", exact: true }),
+  );
+
+  // Their figures changed while they were watched.
   expect(texts.size).toBeGreaterThan(2);
 });
 

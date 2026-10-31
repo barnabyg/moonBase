@@ -19,6 +19,8 @@ import {
 import {
   formatCharge,
   formatCondition,
+  formatMillisieverts,
+  formatShortDuration,
   formatStageProgress,
   listInWords,
 } from "./format";
@@ -376,10 +378,13 @@ function habitatLines(
   structureId: string,
   structure: StructureSnapshot | undefined,
 ): DetailLine[] {
-  const shielding = [
-    ...(structure?.shielded === true ? ["Regolith shielding"] : []),
-    ...(structure?.waterWalled === true ? ["a water wall"] : []),
-  ];
+  const shielding =
+    structure?.buried === true
+      ? ["buried under the Regolith"]
+      : [
+          ...(structure?.shielded === true ? ["Regolith shielding"] : []),
+          ...(structure?.waterWalled === true ? ["a water wall"] : []),
+        ];
   const event = snapshot.solarParticleEvent;
   const multiplier =
     event?.state === "under-way" ? event.doseRateMultiplier : 1;
@@ -387,10 +392,12 @@ function habitatLines(
     {
       shielded: structure?.shielded === true,
       waterWalled: structure?.waterWalled === true,
+      buried: structure?.buried === true,
     },
     multiplier,
   );
-  const value = `${rate.toFixed(2)} mSv a day`;
+  const value = `${formatMillisieverts(rate)} mSv a day`;
+  const warning = moveWarning(snapshot, structureId, rate, multiplier);
   return [
     {
       label: "Residents",
@@ -408,15 +415,49 @@ function habitatLines(
     },
     {
       label: "Dose rate",
-      stat:
-        multiplier === 1
-          ? { value }
-          : {
-              value,
-              note: `${multiplier}× during the Solar Particle Event`,
-            },
+      stat: withNotes(value, [
+        ...(multiplier === 1
+          ? []
+          : [`${multiplier}× during the Solar Particle Event`]),
+        ...(warning === undefined ? [] : [warning]),
+      ]),
     },
   ];
+}
+
+/** A value with any notes it has, joined up. */
+function withNotes(
+  value: string,
+  notes: readonly string[],
+): DetailLine["stat"] {
+  return notes.length === 0 ? { value } : { value, note: notes.join("; ") };
+}
+
+/**
+ * Warns that moving to a Habitat would raise the Mission Director's dose rate
+ * from what it is where they live now, and how soon the limit would then come;
+ * undefined if they live in it, aboard the Lander, or it wouldn't raise it.
+ */
+function moveWarning(
+  snapshot: Snapshot,
+  structureId: string,
+  rateThere: number,
+  multiplier: number,
+): string | undefined {
+  const { missionDirector } = snapshot;
+  if (missionDirector.residence === "lander") return undefined;
+  if (isHome(snapshot, structureId)) return undefined;
+  const home = snapshot.structures.find(
+    (structure) => structure.id === missionDirector.habitatId,
+  );
+  if (home === undefined) return undefined;
+  const rateHome = habitatDoseRate(home, multiplier);
+  if (rateThere <= rateHome) return undefined;
+  const left =
+    catalogue.radiation.doseLimitMillisieverts -
+    snapshot.radiationDoseMillisieverts;
+  const minutes = (Math.max(left, 0) / rateThere) * 24 * 60;
+  return `moving here raises it from ${formatMillisieverts(rateHome)}, and the limit would come in ${formatShortDuration(Math.round(minutes))}`;
 }
 
 /** Whether its light is on, or off to save power, as the Base panel says it. */

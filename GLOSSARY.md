@@ -13,11 +13,11 @@ A single open-ended playthrough, advanced by reaching Milestones and lost by hit
 _Avoid_: run, scenario, game
 
 **Milestone**:
-A named achievement that marks progress through the Campaign, such as the first crew landing.
+A named achievement that marks progress through the Campaign, such as the first crew landing. Each belongs to an Act.
 _Avoid_: goal, objective, achievement
 
 **Act**:
-A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. There are four: the first as the game stands, then Independence, Scale and Permanence.
+A stretch of the Campaign with its own bottleneck, Mechanic, Export, Milestones and pacing target. The current Act is the one holding the earliest Milestone not yet reached, or the last Act once every Milestone is reached. There are to be four: the first, then Independence, which is in the game, then Scale and Permanence.
 _Avoid_: chapter, level, stage, era
 
 **Mechanic**:
@@ -57,7 +57,7 @@ The fixed lump of Funding the Mission Director starts the Campaign with, and the
 _Avoid_: starting money, seed funding, budget
 
 **Export**:
-A product manufactured at the base and sold off the Moon for Funding. It is carried away within the Lander's Return Mass.
+A product manufactured at the base and sold off the Moon for Funding, such as circuit boards or metals. It is carried away within the Lander's Return Mass.
 _Avoid_: trade good, sale item
 
 **Import**:
@@ -119,11 +119,19 @@ A Structure that runs a recipe, turning resources into products by itself once i
 _Avoid_: factory, facility, Machine
 
 **Workshop**:
-A Plant, planned for the second Act, that makes spare Components at the base, so that they no longer need a Launch.
+A Plant that makes spare Components from metals at the base, so that they no longer need a Launch.
 _Avoid_: factory, fabricator, printer
 
+**Array works**:
+A Plant that makes what a solar array is built from at the base, from silicon and metals, so that more power needs no Launch.
+_Avoid_: factory, panel plant
+
+**Cold-trap ice line**:
+A Plant that brings water ice in from a shadowed crater by a heated line, so that no Robot has to go on an Expedition for it.
+_Avoid_: pipeline, ice mine
+
 **Batch**:
-A game-hour of a Plant's recipe, the unit a Plant works in: it takes the inputs as it starts and puts out the outputs as it finishes.
+A game-hour of a Plant's recipe, or longer if its recipe says so, as a Workshop's and an array works' do: the unit a Plant works in. It takes the inputs as it starts and puts out the outputs as it finishes.
 _Avoid_: job, run, cycle
 
 **Construction**:
@@ -133,6 +141,14 @@ _Avoid_: building (as a verb), placement
 **Light Mast**:
 A cheap Structure that lights up the area around it at Night, so the player can see what's happening. Darkness never stops work. It switches itself off to save power once its network's battery banks hold only enough for everything else through the rest of the Night and a reserve, so it never leaves the Habitat without power.
 _Avoid_: lamp, floodlight
+
+**Concentrator tower**:
+A Structure of many mirrors throwing the sun onto one receiver on a tower, which generates in Daylight as much as a field of solar arrays, with far less to clean and repair.
+_Avoid_: solar tower, power tower
+
+**Thermal store**:
+A Structure of sintered Regolith that takes in heat by day and gives it back by night, storing as much as a row of large battery banks.
+_Avoid_: heat battery, thermal battery
 
 **Parking area**:
 A cheap Structure of graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and Rovers together before Night, so that they plug in and keep warm. A bay holds one Machine or Rover.
@@ -181,11 +197,11 @@ The humans living at the base other than the Mission Director.
 _Avoid_: colonists, astronauts, settlers
 
 **Habitat**:
-A Structure in which people live, which provides life support and, once shielded, protection from radiation.
+A Structure in which people live, which provides life support and, once shielded or if it is a Buried Habitat, protection from radiation. The Mission Director lives in one at a time, and can move from one to another.
 _Avoid_: accommodation module, hab, living quarters
 
 **Buried Habitat**:
-A Habitat built under the Regolith, planned for the last Act, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
+A Habitat built under the Regolith, with neither Regolith shielding nor a water wall over it, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
 _Avoid_: bunker, underground base, deep Habitat
 
 **Water wall**:
@@ -239,7 +255,7 @@ A burst of solar radiation, announced a few hours in advance, during which Crew 
 _Avoid_: solar flare, radiation storm
 
 **Radiation Dose**:
-The total radiation a person has absorbed. It rises faster the less shielding they have, and beyond a limit they die.
+The total radiation a person has absorbed. It rises faster the less shielding they have, never falls, and beyond a limit they die.
 _Avoid_: exposure, rads
 
 **Micrometeorite**:

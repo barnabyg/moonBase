@@ -1,7 +1,13 @@
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { designLabel } from "./tech-tree";
-export { milestoneHint, milestoneLabel } from "./milestones";
+export {
+  actAsks,
+  actLabel,
+  milestoneActId,
+  milestoneHint,
+  milestoneLabel,
+} from "./milestones";
 export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";

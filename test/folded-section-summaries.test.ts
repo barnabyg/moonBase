@@ -6,6 +6,7 @@ import type {
   PowerNetworkSnapshot,
 } from "../src/simulation";
 import {
+  summariseBulkResources,
   summariseMilestones,
   summariseMissionDirector,
   summarisePower,
@@ -130,18 +131,17 @@ describe("a folded Mission Director section", () => {
 });
 
 describe("a folded Stock section", () => {
-  const regolith = { resourceId: "regolith", kilograms: 1250.7 };
-  const silicon = { resourceId: "silicon", kilograms: 30 };
-
-  it("shows how many spare Components there are, how long they last, and the Regolith", () => {
+  it("shows how many spare Components there are and how long they last", () => {
     expect(
-      summariseStock([silicon, regolith], {
+      summariseStock({
         inStock: 6,
         forPendingRepairs: 0,
         perEarthDay: 0.6,
+        madePerEarthDay: 0,
+        countedOn: 6,
         minutesUntilEmpty: toGameMinutes({ earthDays: 9, hours: 4 }),
       }),
-    ).toBe("6 spares, last 9d · Regolith 1250 kg");
+    ).toBe("6 spares, last 9d");
   });
 
   it("leaves out how long spares last while nothing wears down, and says when they are too few", () => {
@@ -149,18 +149,71 @@ describe("a folded Stock section", () => {
       inStock: 1,
       forPendingRepairs: 0,
       perEarthDay: 0,
+      madePerEarthDay: 0,
+      countedOn: 1,
       minutesUntilEmpty: undefined,
     };
-    expect(summariseStock([regolith], spares)).toBe(
-      "1 spare · Regolith 1250 kg",
-    );
+    expect(summariseStock(spares)).toBe("1 spare");
     expect(
-      summariseStock([], {
+      summariseStock({
         ...spares,
         forPendingRepairs: 2,
         minutesUntilEmpty: 0,
       }),
     ).toBe("1 spare, too few");
+  });
+});
+
+describe("a folded Bulk resources section", () => {
+  const stock = (resourceId: string, kilograms: number) => ({
+    resourceId,
+    kilograms,
+  });
+  const falling = (resourceId: string, earthDays: number) => ({
+    resourceId,
+    kilogramsPerHour: -1,
+    minutesUntilEmpty: toGameMinutes({ earthDays }),
+  });
+
+  it("shows what will run out soonest, then the first other in stock", () => {
+    expect(
+      summariseBulkResources(
+        [
+          stock("regolith", 1250.7),
+          stock("metals", 30),
+          stock("silicon", 10),
+          stock("wafers", 5),
+        ],
+        [falling("metals", 9), falling("silicon", 2), falling("regolith", 20)],
+      ),
+    ).toBe("Silicon 2d · Regolith 1250 kg");
+  });
+
+  it("shows the first in stock while none is falling", () => {
+    expect(
+      summariseBulkResources(
+        [stock("regolith", 0), stock("metals", 30), stock("silicon", 10)],
+        [
+          {
+            resourceId: "metals",
+            kilogramsPerHour: 1,
+            minutesUntilEmpty: undefined,
+          },
+        ],
+      ),
+    ).toBe("Metals 30 kg");
+  });
+
+  it("shows only what is falling when nothing else is in stock", () => {
+    expect(
+      summariseBulkResources([stock("silicon", 2)], [falling("silicon", 1)]),
+    ).toBe("Silicon 1d");
+  });
+
+  it("says when there is none in stock, even with something still falling on paper", () => {
+    expect(
+      summariseBulkResources([stock("silicon", 0)], [falling("silicon", 0)]),
+    ).toBe("none in stock");
   });
 });
 
@@ -268,6 +321,7 @@ describe("a folded Milestones section", () => {
         reachedIds: ["power-storage"],
         currentId: "moved-in",
         nextId: "lander-departs",
+        currentActId: "act-1",
       }),
     ).toBe("Habitat commissioned, Mission Director moved in");
     expect(
@@ -275,6 +329,7 @@ describe("a folded Milestones section", () => {
         reachedIds: [],
         currentId: undefined,
         nextId: undefined,
+        currentActId: "act-1",
       }),
     ).toBe("every Milestone reached");
   });

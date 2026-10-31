@@ -12,6 +12,10 @@ export const bulkResources: Catalogue["bulkResources"] = [
   { id: "water-ice", label: "Water ice" },
 ];
 
+// About as long as an Expedition takes to bring more water ice. Regolith
+// never shows it while the excavator is free, as digging starts well before.
+export const bulkResourceWarningEarthDaysLeft: Catalogue["bulkResourceWarningEarthDaysLeft"] = 3;
+
 // A full Return Mass of wafers sells for $150M, the Launch fee. A vacuum
 // fabrication plant, running through the Daylight, makes about that much
 // in a Lunation, so it earns back its $65M of Components, the $11M second
@@ -24,10 +28,21 @@ export const bulkResources: Catalogue["bulkResources"] = [
 // circuit board plant makes 0.4 kg of them an hour, worth $1.2M, from
 // 0.25 kg of wafers that would sell for under $0.4M, so the wafers earn
 // over three times as much made into circuit boards, for the power and
-// time it takes.
+// time it takes. What limits them is that Plant's rate: 192 kg in a Daylight,
+// against the 295 kg three round trips can carry away in a Lunation.
+//
+// Metals sell for a third of that by the kilogram, so that a full Return Mass,
+// at $100M, doesn't pay the Launch fee, and they only fill what the circuit
+// boards leave of it. An extraction plant makes 288 kg in a Daylight, with
+// metals to spare in any Plant that has the Regolith, so what limits them is
+// the Return Mass, a limit no Plant can lift until Act 3. Any dearer and an
+// extraction plant alone would earn more than a vacuum fabrication plant does,
+// and Act 1 would have no reason to make wafers. The Workshop wants the same
+// metals, at 3.6 kg a spare Component.
 export const exports: Catalogue["exports"] = [
   { resourceId: "wafers", priceMillionDollarsPerKilogram: 1.5 },
   { resourceId: "circuit-boards", priceMillionDollarsPerKilogram: 3 },
+  { resourceId: "metals", priceMillionDollarsPerKilogram: 1 },
 ];
 
 // Digging from one level to the other is about a day's work, wearing the
@@ -75,9 +90,20 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "electrolyser-stack", label: "Electrolyser stack" },
   { id: "molten-regolith-cell", label: "Molten regolith cell" },
   { id: "board-assembly-line", label: "Board assembly line" },
+  { id: "machine-tool", label: "Machine tool" },
+  { id: "casting-furnace", label: "Casting furnace" },
   // Labelled a pad light because the Glossary avoids "floodlight", but
   // saves from version 32 on name it by this id, so the id stays.
   { id: "landing-floodlight", label: "Pad light" },
+  { id: "vault-section", label: "Vault section" },
+  { id: "deep-life-support-core", label: "Deep life support core" },
+  { id: "heliostat-panel", label: "Heliostat panel" },
+  { id: "receiver-tower", label: "Receiver tower" },
+  { id: "panel-line", label: "Panel line" },
+  { id: "heat-store-core", label: "Heat store core" },
+  { id: "thermal-exchanger", label: "Thermal exchanger" },
+  { id: "cold-trap-head", label: "Cold-trap head" },
+  { id: "ice-haul-line", label: "Ice haul line" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },

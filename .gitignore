@@ -8,6 +8,9 @@ out/
 coverage/
 *.tsbuildinfo
 
+# Prepared by npm run try
+.try/
+
 # Logs
 *.log
 npm-debug.log*

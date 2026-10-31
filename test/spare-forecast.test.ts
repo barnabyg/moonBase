@@ -64,6 +64,8 @@ describe("the forecast of spare Components", () => {
       inStock: 6,
       forPendingRepairs: 0,
       perEarthDay: 0,
+      madePerEarthDay: 0,
+      countedOn: 6,
       minutesUntilEmpty: undefined,
     });
   });

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   loadCampaign,
   type Campaign,
@@ -150,12 +155,12 @@ describe("the extraction plant", () => {
       6,
     );
     expect(change((state) => lifeSupport(state, "oxygen"))).toBeCloseTo(
-      perHour(recipe.outputs, "life-support", "oxygen"),
+      perHour(resourceOutputs(recipe), "life-support", "oxygen"),
       6,
     );
     for (const resourceId of ["metals", "silicon"]) {
       expect(change((state) => bulk(state, resourceId))).toBeCloseTo(
-        perHour(recipe.outputs, "bulk-resource", resourceId),
+        perHour(resourceOutputs(recipe), "bulk-resource", resourceId),
         6,
       );
     }
@@ -255,7 +260,10 @@ describe("the extraction plant", () => {
     expect(
       lifeSupport(campaign.snapshot(), "oxygen") -
         lifeSupport(before, "oxygen"),
-    ).toBeCloseTo(perHour(recipe.outputs, "life-support", "oxygen"), 6);
+    ).toBeCloseTo(
+      perHour(resourceOutputs(recipe), "life-support", "oxygen"),
+      6,
+    );
   });
 
   it("wears down by Dust for each hour it runs", () => {

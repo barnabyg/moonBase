@@ -35,6 +35,7 @@ function structure(
     storedKilowattHours: 0,
     shielded: false,
     waterWalled: false,
+    buried: false,
     conditionPercent: 100,
     performance: 1,
     lightRadiusMetres: 0,

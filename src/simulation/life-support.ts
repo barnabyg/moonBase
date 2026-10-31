@@ -3,7 +3,7 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
-import { lunationMinutes, partsAhead, readLunation } from "./lunation";
+import { minutesUntilEmptyThroughLunations } from "./lunation";
 import {
   isMadeByPlants,
   kilogramsToCountOn,
@@ -148,20 +148,10 @@ function netPerMinute(state: CampaignState, stock: LifeSupportState): number {
 }
 
 /**
- * How many parts of a Lunation the life support forecast looks ahead: far
- * enough to see a stock that rises in Daylight run out in the Night after.
- */
-const FORECAST_LUNATION_PARTS = 6;
-
-/**
  * The whole game-minutes until a stock runs out, or Infinity if it doesn't
  * within the forecast's look-ahead. With no Plant making it, it falls at
- * its current rate. A Plant that makes it may stand idle at Night, as
- * Plants then run only on what the battery banks hold to spare, so the
- * forecast counts on none and follows the Lunation ahead: the rest of a Daylight at the current rate, then each
- * Night at what the Mission Director uses, and each Daylight after again at
- * the current rate. At Night, when what the Plants make in Daylight isn't
- * known, it looks only as far as the next Daylight. It starts from what
+ * its current rate. With one, it follows the Lunation ahead, counting on no
+ * Plant at Night (see `minutesUntilEmptyThroughLunations`). It starts from what
  * the base can count on of the stock as the Plants' batches go, which is
  * never more than it will have (see `kilogramsToCountOn`).
  */
@@ -179,36 +169,13 @@ function minutesUntilEmpty(
   // Too little to last until the batches running now make more, it falls
   // at what the Mission Director uses until it runs out, or they finish.
   if (counted.kilograms <= 0) return minutesLeft(stock, -used);
-  const daylightRate =
-    readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight"
-      ? perMinute
-      : undefined;
-  // Each whole Lunation from the next one on changes the stock the same way.
-  const { daylight, lunation } = lunationMinutes(catalogue.lunation);
-  const perLunation =
-    (daylightRate ?? 0) * daylight - used * (lunation - daylight);
-  let kilograms = counted.kilograms;
-  let skipped = 0;
-  let parts = 0;
-  for (const part of partsAhead(state.elapsedMinutes, Infinity)) {
-    if (part.daylight && daylightRate === undefined) return Infinity;
-    parts += 1;
-    // Skipping leaves a Lunation or two to run out in, at most.
-    if (parts > 2 * FORECAST_LUNATION_PARTS) return Infinity;
-    if (parts === FORECAST_LUNATION_PARTS + 1) {
-      // Past the look-ahead, it only ever runs out if each Lunation leaves
-      // less: skip all but the last of the whole Lunations it lasts.
-      if (perLunation >= 0) return Infinity;
-      const lunations = Math.max(Math.floor(kilograms / -perLunation) - 1, 0);
-      skipped = lunations * lunation;
-      kilograms += lunations * perLunation;
-    }
-    const rate = part.daylight ? (daylightRate ?? 0) : -used;
-    const left = minutesLeft({ ...stock, kilograms }, rate);
-    if (left <= part.minutes) return skipped + part.start + left;
-    kilograms += rate * part.minutes;
-  }
-  return Infinity;
+  return minutesUntilEmptyThroughLunations(
+    state.elapsedMinutes,
+    counted.kilograms,
+    perMinute,
+    used,
+    (kilograms, rate) => minutesLeft({ ...stock, kilograms }, rate),
+  );
 }
 
 /**

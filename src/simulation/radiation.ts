@@ -1,7 +1,7 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
-import { isShielded, isWaterWalled } from "./construction";
+import { isBuried, isShielded, isWaterWalled } from "./construction";
 import type { GameEvent } from "./events";
 import { fellToWarningLevel, killMissionDirector } from "./mission-director";
 import {
@@ -41,6 +41,26 @@ export function forecastRadiationDose(
     millisievertsPerEarthDay: doseRate(state, state.elapsedMinutes),
     minutesUntilLimit: minutesUntilLimit(state),
   };
+}
+
+/**
+ * The forecast to compare with at the end of the game-minute about to start,
+ * for `absorbRadiationDose`: the time until the Radiation Dose reaches the
+ * limit as things stand. If they have moved since the last game-minute, they
+ * had no forecast where they are now, so there is none, and the warning for
+ * a move that brings the limit near comes at once.
+ */
+export function minutesUntilLimitAsMinuteStarts(
+  state: CampaignState,
+): number | undefined {
+  const { missionDirector } = state;
+  if (
+    missionDirector.residence === "habitat" &&
+    missionDirector.movedInAtMinute === state.elapsedMinutes
+  ) {
+    return undefined;
+  }
+  return minutesUntilLimit(state);
 }
 
 /**
@@ -112,6 +132,7 @@ function doseRate(state: CampaignState, minute: number): number {
     {
       shielded: habitat !== undefined && isShielded(state, habitat),
       waterWalled: habitat !== undefined && isWaterWalled(state, habitat),
+      buried: habitat !== undefined && isBuried(habitat),
     },
     multiplier,
   );
@@ -119,19 +140,26 @@ function doseRate(state: CampaignState, minute: number): number {
 
 /**
  * The dose rate inside a Habitat, in millisieverts an Earth Day: less once
- * it is shielded, less again once it is water-walled, and multiplied
- * during a Solar Particle Event by the given multiplier.
+ * it is shielded, less again once it is water-walled, and least of all if it
+ * is buried, and multiplied during a Solar Particle Event by the given
+ * multiplier.
  */
 export function habitatDoseRate(
-  habitat: { readonly shielded: boolean; readonly waterWalled: boolean },
+  habitat: {
+    readonly shielded: boolean;
+    readonly waterWalled: boolean;
+    readonly buried: boolean;
+  },
   solarParticleEventMultiplier: number,
 ): number {
   const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
-  const usual = habitat.waterWalled
-    ? rates.waterWalledHabitat
-    : habitat.shielded
-      ? rates.shieldedHabitat
-      : rates.habitat;
+  const usual = habitat.buried
+    ? rates.buriedHabitat
+    : habitat.waterWalled
+      ? rates.waterWalledHabitat
+      : habitat.shielded
+        ? rates.shieldedHabitat
+        : rates.habitat;
   return usual * solarParticleEventMultiplier;
 }
 

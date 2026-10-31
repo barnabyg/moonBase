@@ -9,6 +9,7 @@ import {
 import { robot, machineTypes, rover, expeditions } from "./workers";
 import {
   bulkResources,
+  bulkResourceWarningEarthDaysLeft,
   exports,
   digging,
   componentTypes,
@@ -38,7 +39,7 @@ import {
   micrometeorites,
   spareComponentWarningEarthDaysLeft,
 } from "./hazards";
-import { milestones } from "./milestones";
+import { acts, milestones } from "./milestones";
 import type { Catalogue } from "./types";
 
 /**
@@ -46,7 +47,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 60,
+  version: 65,
   map,
   lander,
   stockpile,
@@ -84,5 +85,7 @@ export const catalogue: Catalogue = {
   cold,
   micrometeorites,
   spareComponentWarningEarthDaysLeft,
+  bulkResourceWarningEarthDaysLeft,
+  acts,
   milestones,
 };

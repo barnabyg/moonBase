@@ -1,4 +1,5 @@
 import { setText } from "./dom";
+import { holdHeight } from "./hold";
 import { createMeter } from "./stat";
 
 /**
@@ -52,6 +53,9 @@ export interface Gauge {
 export function createGauge(name: string): Gauge {
   const element = document.createElement("div");
   element.className = "gauge";
+  // Its words can take another line, which mustn't move what is below.
+  element.dataset["row"] = name;
+  holdHeight(element);
   const text = document.createElement("p");
   text.className = "gauge__text";
   text.setAttribute("role", "status");

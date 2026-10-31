@@ -20,6 +20,23 @@ export interface SelfSufficiencyState {
   records: LifeSupportRecord[];
 }
 
+/** What the base's Plants made of spare Components, and repairs used, over a span of time. */
+export interface SpareComponentRecord {
+  made: number;
+  used: number;
+}
+
+/**
+ * The history of spare Components that self-sufficiency in them is judged on,
+ * kept as a life support stock's is: the record under way, and the finished
+ * ones, oldest first, as far back as the data catalogue's window. What a Launch
+ * brings counts for nothing.
+ */
+export interface SpareComponentSufficiencyState {
+  current: SpareComponentRecord;
+  records: SpareComponentRecord[];
+}
+
 /** Whether the base is self-sufficient in a life support stock, as of the latest finished record. */
 export interface SelfSufficiencySnapshot {
   readonly stockId: string;
@@ -54,6 +71,26 @@ export function startingSelfSufficiency(): SelfSufficiencyState[] {
     current: { producedKilograms: 0, usedKilograms: 0 },
     records: [],
   }));
+}
+
+/** No history yet of spare Components. */
+export function startingSpareComponentSufficiency(): SpareComponentSufficiencyState {
+  return { current: { made: 0, used: 0 }, records: [] };
+}
+
+/**
+ * Adds to the record under way the spare Components the Plants made, and
+ * Maintenance and the Robots' repairs of themselves took. A repair given up
+ * before it starts hands back what it took, as a negative use, and a record
+ * never falls below none.
+ */
+export function recordSpareComponents(
+  state: CampaignState,
+  change: { readonly made?: number; readonly used?: number },
+): void {
+  const { current } = state.spareComponentSufficiency;
+  current.made += change.made ?? 0;
+  current.used = Math.max(current.used + (change.used ?? 0), 0);
 }
 
 /** Adds to the record under way what the Plants made of a stock, and the Mission Director used. */
@@ -108,11 +145,35 @@ export function readSelfSufficiency(
 }
 
 /**
+ * Whether the base is self-sufficient in spare Components: over the whole
+ * window, its Plants made at least as many as were used, judged as a life
+ * support stock is (see `judge`).
+ */
+export function readSpareComponentSufficiency(
+  state: CampaignState,
+): SelfSufficiencySnapshot {
+  const { records } = state.spareComponentSufficiency;
+  const made = records.reduce((sum, record) => sum + record.made, 0);
+  const used = records.reduce((sum, record) => sum + record.used, 0);
+  const windowComplete = records.length >= windowRecords();
+  return {
+    stockId: catalogue.maintenance.spareComponentId,
+    selfSufficient:
+      windowComplete &&
+      state.missionDirector.residence === "habitat" &&
+      used > 0 &&
+      made >= used,
+    coveredShare: used > 0 ? made / used : undefined,
+    windowComplete,
+  };
+}
+
+/**
  * Ends the record under way as the game-minute that has just passed
  * reaches the end of one, dropping any that has fallen out of the window,
  * and gives a notification for each stock the base has become, or ceased
- * to be, self-sufficient in. `before` is whether it was, by stock, as the
- * game-minute started.
+ * to be, self-sufficient in, spare Components among them. `before` is whether
+ * it was, by stock, as the game-minute started.
  */
 export function watchSelfSufficiency(
   state: CampaignState,
@@ -124,8 +185,15 @@ export function watchSelfSufficiency(
       history.records = history.records.slice(-windowRecords());
       history.current = { producedKilograms: 0, usedKilograms: 0 };
     }
+    const spares = state.spareComponentSufficiency;
+    spares.records.push(spares.current);
+    spares.records = spares.records.slice(-windowRecords());
+    spares.current = { made: 0, used: 0 };
   }
-  return readSelfSufficiency(state).flatMap((now) => {
+  return [
+    ...readSelfSufficiency(state),
+    readSpareComponentSufficiency(state),
+  ].flatMap((now) => {
     const was = before.find((other) => other.stockId === now.stockId);
     if (was === undefined || was.selfSufficient === now.selfSufficient) {
       return [];

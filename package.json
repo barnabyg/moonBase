@@ -21,6 +21,7 @@
     "reference-campaign": "node scripts/reference-campaign.mjs",
     "pacing-report": "node scripts/pacing-report.mjs",
     "long-game": "node scripts/long-game.mjs",
+    "try": "node scripts/try.mjs",
     "audit": "npm audit",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"
@@ -42,5 +43,8 @@
     "typescript-eslint": "8.71.1",
     "vite": "8.3.4",
     "vitest": "5.0.3"
+  },
+  "overrides": {
+    "minimatch": "11.0.3"
   }
 }

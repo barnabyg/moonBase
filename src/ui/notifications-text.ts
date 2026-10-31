@@ -1,5 +1,7 @@
 import { catalogue } from "../catalogue";
 import {
+  actAsks,
+  actLabel,
   designLabel,
   launchItemLabel,
   milestoneLabel,
@@ -29,6 +31,7 @@ import {
   stockLabel,
   structureLabel,
   subjectLabel,
+  inSentence,
 } from "./labels";
 
 // What happened in each event, in words, for the notification list.
@@ -70,6 +73,8 @@ export function formatEvent(
       return "Solar Particle Event over";
     case "milestone-reached":
       return `Milestone reached: ${milestoneLabel(event.milestoneId)}`;
+    case "act-started":
+      return `${actLabel(event.actId)} begins. ${actAsks(event.actId)}`;
     case "lander-took-off":
       return event.exports.length === 0
         ? "Lander took off for Earth"
@@ -94,7 +99,7 @@ export function formatEvent(
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
           (damage) =>
-            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${formatCondition(damage.conditionPercent)}`,
+            `the ${inSentence(structureLabel(damage.structureTypeId))} to ${formatCondition(damage.conditionPercent)}`,
         ),
       )}`;
     case "structure-broken":
@@ -147,9 +152,9 @@ export function formatEvent(
     case "design-unlocked":
       return `${designLabel(event.designId)} unlocked, for ${formatScience(event.science)}`;
     case "self-sufficiency-gained":
-      return `The base is now self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+      return `The base is now self-sufficient in ${selfSufficiencySubject(event.stockId)}`;
     case "self-sufficiency-lost":
-      return `The base is no longer self-sufficient in ${stockLabel(event.stockId).toLowerCase()}`;
+      return `The base is no longer self-sufficient in ${selfSufficiencySubject(event.stockId)}`;
     case "spare-components-warning":
       return `Spare Components will run out in ${formatDuration(event.minutesUntilEmpty)}, with ${event.inStock} in stock`;
     case "micrometeorite-strike":
@@ -174,6 +179,13 @@ export function formatManifestLines(lines: readonly ManifestLine[]): string {
   );
 }
 
+/** What the base is or isn't self-sufficient in, for a sentence. */
+function selfSufficiencySubject(stockId: string): string {
+  return stockId === catalogue.maintenance.spareComponentId
+    ? "spare Components"
+    : stockLabel(stockId).toLowerCase();
+}
+
 /**
  * Names what a Micrometeorite struck, for example "the solar array", "the
  * Robot", or "Robot 2" when there are several.
@@ -184,7 +196,7 @@ function strikeTargetLabel(
 ): string {
   switch (target.kind) {
     case "structure":
-      return `the ${structureLabel(target.structureTypeId).toLowerCase()}`;
+      return `the ${inSentence(structureLabel(target.structureTypeId))}`;
     case "machine":
       return `the ${machineLabel(target.machineTypeId).toLowerCase()}`;
     case "rover":
