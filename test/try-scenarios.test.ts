@@ -64,7 +64,7 @@ describe("what npm run try can start the game in", () => {
 
   it("act-3 starts with Act 2 done and enough propellant to fly a tripled Return Mass", () => {
     const scenario = tryScenarios.find((candidate) => candidate.id === "act-3");
-    const loaded = loadCampaign(scenario?.save() ?? "");
+    const loaded = loadCampaign(saveOf(scenario));
     if (!loaded.ok) throw new Error(loaded.message);
     const { campaign } = loaded;
     const state = campaign.snapshot();
