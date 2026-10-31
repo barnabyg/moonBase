@@ -49,15 +49,15 @@ A timeout is there to stop a test that hangs, not to check how fast it runs. Eac
 
 The test figures are from the CI run of pull request #139 (30 October 2026), the first after the slow tests were sped up. The job figures are the slowest of the 20 green runs up to and including it.
 
-| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                                 | Margin    |
-| ------------------------------------- | ---------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------ | --------- |
-| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 12.0 s (`plant-recipes.test.ts`, "switched to metals and silicon, loses the base its self-sufficiency in oxygen")  | 10×       |
-| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 47 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its 5 tests)         | about 6×  |
-| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 26.0 s (`dust-wear.spec.ts`, Dust wearing a solar array down until a Maintenance Work Order is raised, one worker) | about 11× |
-| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                 | 7.5×      |
-| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)               | over 30×  |
-| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 5.9 min                                                                                                            | about 5×  |
-| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | 15.8 min for all 77 tests on one runner, before they were shared out                                               | about 2×  |
+| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                                 | Margin     |
+| ------------------------------------- | ---------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------ | ---------- |
+| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 12.0 s (`plant-recipes.test.ts`, "switched to metals and silicon, loses the base its self-sufficiency in oxygen")  | 10×        |
+| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 47 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its 5 tests)         | about 6×   |
+| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 26.0 s (`dust-wear.spec.ts`, Dust wearing a solar array down until a Maintenance Work Order is raised, one worker) | about 11×  |
+| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                 | 7.5×       |
+| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)               | over 30×   |
+| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 5.9 min                                                                                                            | about 5×   |
+| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | 19.7 min for all 77 tests on one runner, before they were shared out                                               | about 1.5× |
 
 The runners' speed varies a lot from one run to the next: the same end-to-end tests have taken from 5.6 to 12.8 minutes in those 20 runs, so the job limits are set against the slowest run, not a typical one. The end-to-end limit would cover every test landing on one runner; a share of a quarter of them has more margin than that.
 
