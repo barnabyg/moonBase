@@ -555,3 +555,20 @@ export function setStatusLight(
   material.color.copy(source.color);
   material.emissive.copy(source.emissive);
 }
+
+/** A box of the given size, with its centre at the given point. */
+export function boxAt(
+  width: number,
+  height: number,
+  depth: number,
+  [x, y, z]: readonly [number, number, number],
+): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(width, height, depth).translate(x, y, z);
+}
+
+/** One geometry of the given pieces, which are disposed of. */
+export function merged(pieces: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const geometry = mergeGeometries(pieces);
+  for (const piece of pieces) piece.dispose();
+  return geometry;
+}
