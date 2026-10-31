@@ -11,6 +11,7 @@ export {
 export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";
+export { isGreenhouse } from "./greenhouses";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";

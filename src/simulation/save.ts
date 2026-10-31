@@ -1020,6 +1020,23 @@ export const migrations: readonly Migration[] = [
     }
     return { ...document, state: { ...state, launchManifest: lines } };
   },
+  // 43 to 44: the Greenhouse, whose current round is kept on its Structure. There
+  // were none, so nothing has grown on any.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure) ? { ...structure, growingMinutes: 0 } : structure,
+        ),
+      },
+    };
+  },
 ];
 
 /**
@@ -1464,6 +1481,7 @@ const structure: Decoder<StructureState> = (() => {
     batch: optional(object({ recipeId: text, minutesWorked: amount })),
     plantStop: optional(plantStop),
     switchedOff: boolean,
+    growingMinutes: amount,
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -1504,6 +1522,17 @@ const structure: Decoder<StructureState> = (() => {
       throw refuse(
         at(path, "switchedOff"),
         "is true, though the Structure isn't a Plant",
+      );
+    }
+    if (
+      decoded.growingMinutes > 0 &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.growing === undefined
+    ) {
+      throw refuse(
+        at(path, "growingMinutes"),
+        "isn't 0, though the Structure isn't a Greenhouse",
       );
     }
     return decoded;

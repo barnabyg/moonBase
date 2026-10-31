@@ -268,6 +268,16 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 2000,
     requiresDesignId: "optics-grinding-line",
   },
+  // Pays for most of the Lunar greenhouses Design, at the rate of a short Research
+  // Task: with no more than this, the whole tree stays payable, and the guide still
+  // finishes research by Earth Day 3,000.
+  {
+    id: "closed-loop-crop-trial",
+    label: "Closed-loop crop trial",
+    lengthHours: 336,
+    science: 130,
+    requiresDesignId: "lunar-greenhouses",
+  },
   // Act 2's. So that the reference Campaign's research doesn't change, none is
   // offered sooner than the longest of Act 1's, which it never gets past: each
   // is offered only by a Design it never unlocks, or runs longer. The longest
@@ -648,6 +658,20 @@ export const designs: Catalogue["designs"] = [
     starting: false,
     scienceCost: 1050,
     prerequisiteDesignIds: ["water-electrolysis", "parts-machining"],
+  },
+  // Act 3's way to spend water for Science. Past Cold-trap mining, as it wants more
+  // ice than a base has any other reason to find. It costs what a Greenhouse earns
+  // in about two Lunations, as a telescope's Design does, and its own Research Task
+  // pays most of that: see the Greenhouse in docs/balancing.md.
+  {
+    id: "lunar-greenhouses",
+    label: "Lunar greenhouses",
+    description:
+      "A lit dome of growing racks that drinks the base's water and draws its power day and night, and earns Science with every round of growing it completes.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 200,
+    prerequisiteDesignIds: ["cold-trap-mining"],
   },
   {
     id: "regolith-extraction",

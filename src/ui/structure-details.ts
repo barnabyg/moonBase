@@ -10,7 +10,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
-import { designOf, powerRatings } from "./describe";
+import { designOf, formatHours, powerRatings } from "./describe";
 import {
   formatDismantlingStage,
   formatStage,
@@ -21,6 +21,7 @@ import {
   formatCondition,
   formatKilogramAmount,
   formatMillisieverts,
+  formatScience,
   formatShortDuration,
   formatStageProgress,
   listInWords,
@@ -208,6 +209,7 @@ export function structureDetails(
         ? []
         : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
+      ...(type.growing === undefined ? [] : [roundLine(type, structure)]),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -487,6 +489,27 @@ function lightLine(
   return {
     label,
     stat: { value: structureNotes(snapshot, structure).light ?? "off" },
+  };
+}
+
+/** How far a Greenhouse's round has got, and what it pays. */
+function roundLine(
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Round";
+  if (structure === undefined || type.growing === undefined) {
+    return { label, stat: NOT_YET };
+  }
+  const { lengthHours, science } = type.growing;
+  const fraction = Math.min(structure.growingMinutes / (lengthHours * 60), 1);
+  return {
+    label,
+    stat: {
+      value: `${Math.floor(fraction * 100)}% of ${formatHours(lengthHours)}`,
+      note: `pays ${formatScience(science)}; a shortage of water or power loses it`,
+    },
+    fraction,
   };
 }
 

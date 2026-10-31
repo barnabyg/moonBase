@@ -722,6 +722,13 @@ export interface ReferenceTimeline {
   }[];
   /** Each Launch item ever put on the Launch manifest. */
   readonly launchItemsManifested: readonly string[];
+  /** Each round a Greenhouse completed or lost, by the game-minute it did. */
+  readonly greenhouseRounds: readonly {
+    readonly atMinute: number;
+    /** The Science it earned; none for a round lost. */
+    readonly science: number;
+    readonly lostFor?: string;
+  }[];
   /** What each round trip's Launch manifest brought, by the game-minute it left. */
   readonly launchManifests: readonly {
     readonly atMinute: number;
@@ -890,9 +897,27 @@ function recorder(campaign: Campaign) {
   }[] = [];
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
+  const greenhouseRounds: {
+    atMinute: number;
+    science: number;
+    lostFor?: string;
+  }[] = [];
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
+        if (event.kind === "greenhouse-round-completed") {
+          greenhouseRounds.push({
+            atMinute: event.atMinute,
+            science: event.science,
+          });
+        }
+        if (event.kind === "greenhouse-round-lost") {
+          greenhouseRounds.push({
+            atMinute: event.atMinute,
+            science: 0,
+            lostFor: event.reason,
+          });
+        }
         if (event.kind === "research-task-completed") {
           researchTasksCompleted.push({
             researchTaskId: event.researchTaskId,
@@ -1088,6 +1113,7 @@ function recorder(campaign: Campaign) {
           count,
         })),
         launchItemsManifested: [...launchItemsManifested],
+        greenhouseRounds,
         launchManifests: [...launchManifests].map(([atMinute, items]) => ({
           atMinute,
           items,

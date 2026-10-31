@@ -121,6 +121,8 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "propellant-reactor", label: "Propellant reactor" },
   { id: "optical-grinder", label: "Optical grinder" },
   { id: "metrology-bench", label: "Metrology bench" },
+  { id: "greenhouse-dome", label: "Greenhouse dome" },
+  { id: "growing-rack", label: "Growing rack" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
   { id: "water-tank-shell", label: "Water tank shell" },
   { id: "tank-heater", label: "Tank heater" },

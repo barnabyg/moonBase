@@ -1439,6 +1439,62 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
   },
+  // Act 3: a dome of growing racks, the one Plant that goes on through the Night,
+  // so what makes water standing idle then is what makes storing it matter. 1 kg
+  // of water an hour is 708 kg a Lunation, and 228 kg of it in a Night, which the
+  // 351 kg the base's own tanks hold above the reserve can carry for one and not for
+  // two. It takes that water a batch at a time, so a lost round has really cost it.
+  // Its pumps draw 0.5 kW by day, and its lamps 1.5 kW at Night, 342 kWh through
+  // one, about half a large battery bank; as a Night load, it gives them up
+  // before anything else goes without. A round is 5 Earth Days for 20 Science, so
+  // one earns about 118 Science a Lunation, what Research Tasks pay by then.
+  {
+    id: "greenhouse",
+    label: "Greenhouse",
+    designId: "lunar-greenhouses",
+    footprintRadiusMetres: 5,
+    components: [
+      { componentId: "greenhouse-dome", count: 1 },
+      { componentId: "growing-rack", count: 2 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 12,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.15,
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 1.5,
+      daylightDrawKilowatts: 0.5,
+    },
+    lightRadiusMetres: 14,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    // It draws its power as a Structure does (above), not as a recipe does.
+    recipes: [
+      {
+        id: "growing",
+        label: "Growing",
+        inputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 1,
+          },
+        ],
+        outputs: [],
+        drawKilowatts: 0,
+      },
+    ],
+    growing: { lengthHours: 120, science: 20 },
+  },
   // Act 4: the dearest thing the base can sell for its mass, for space telescopes
   // that can't be made in a gravity well. 96 kg in a Daylight.
   {

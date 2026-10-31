@@ -576,13 +576,13 @@ describe("the pacing report on today's catalogue", () => {
   const report = formatPacingReport(catalogue).join("\n");
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
-    expect(report).toContain("2965 Earth Days");
-    expect(report).toContain("12325 Science");
+    expect(report).toContain("2979 Earth Days");
+    expect(report).toContain("12525 Science");
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$8158M");
-    expect(report).toMatch(/Circuit boards.*55 Launches/);
+    expect(report).toContain("$8408M");
+    expect(report).toMatch(/Circuit boards.*57 Launches/);
   });
 
   it("says what limits each Export, and they differ", () => {

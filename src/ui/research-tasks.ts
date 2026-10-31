@@ -40,7 +40,7 @@ export function createResearchTasksScreen(
     title: "Research Tasks",
   });
   screen.lead.textContent =
-    "Science is earned only by Research Tasks, and spent on the Tech Tree.";
+    "Science is earned by Research Tasks, and by a Greenhouse's rounds of growing, and spent on the Tech Tree.";
 
   // The one running, or how research works while none is.
   const now = document.createElement("section");

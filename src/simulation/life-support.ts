@@ -8,7 +8,7 @@ import { minutesUntilEmptyThroughLunations } from "./lunation";
 import {
   consumptionPerHour,
   isHeldFull,
-  isMadeByPlants,
+  isMadeByPlantsWithInputs,
   kilogramsToCountOn,
   productionPerHour,
   waitingForSpacePerHour,
@@ -58,6 +58,12 @@ export interface LifeSupportForecast {
    * is used, rather than its rising or running out (see `isHeldFull`).
    */
   readonly holdingFull: boolean;
+  /**
+   * Game-minutes until what the Plants take brings it down to the Mission
+   * Director's reserve, when they stop, Night included; undefined while none is
+   * taking any, or won't within the forecast's look-ahead.
+   */
+  readonly minutesUntilReserve: number | undefined;
 }
 
 export function startingLifeSupport(): LifeSupportState[] {
@@ -87,14 +93,17 @@ export function forecastLifeSupport(
         kilogramsPerEarthDay: 0,
         minutesUntilEmpty: undefined,
         holdingFull: true,
+        minutesUntilReserve: undefined,
       };
     }
     const minutes = minutesUntilEmpty(state, stock);
+    const toReserve = minutesUntilReserve(state, stock);
     return {
       stockId: stock.stockId,
       kilogramsPerEarthDay: netPerMinute(state, stock) * MINUTES_PER_EARTH_DAY,
       minutesUntilEmpty: Number.isFinite(minutes) ? minutes : undefined,
       holdingFull: false,
+      minutesUntilReserve: Number.isFinite(toReserve) ? toReserve : undefined,
     };
   });
 }
@@ -219,17 +228,7 @@ function minutesUntilEmpty(
     return minutesFalling(state, stock, 0, kilograms, alone, used);
   }
   const reserve = reserveKilograms(stock.stockId);
-  const toReserve =
-    kilograms <= reserve
-      ? 0
-      : minutesFalling(
-          state,
-          stock,
-          0,
-          kilograms - reserve,
-          alone - plantUse,
-          used + plantUse,
-        );
+  const toReserve = minutesUntilReserve(state, stock);
   if (!Number.isFinite(toReserve)) return Infinity;
   return (
     toReserve +
@@ -245,11 +244,38 @@ function minutesUntilEmpty(
 }
 
 /**
+ * The whole game-minutes until what the Plants take brings a stock down to the
+ * Mission Director's reserve, through a Night too, or Infinity if it won't within
+ * the forecast's look-ahead, or none is taking any.
+ */
+function minutesUntilReserve(
+  state: CampaignState,
+  stock: LifeSupportState,
+): number {
+  const plantUse = plantUsePerMinute(state, stock);
+  if (plantUse === 0) return Infinity;
+  const kilograms = kilogramsToCountOn(state, resourceOf(stock));
+  const reserve = reserveKilograms(stock.stockId);
+  return kilograms <= reserve
+    ? 0
+    : minutesFalling(
+        state,
+        stock,
+        0,
+        kilograms - reserve,
+        netOfPlantUsePerMinute(state, stock) - plantUse,
+        usePerMinute(findStock(stock.stockId)) + plantUse,
+      );
+}
+
+/**
  * The whole game-minutes until an amount of a stock is gone, from so many
  * game-minutes from now, or Infinity if it isn't within the forecast's
  * look-ahead. With no Plant making the stock, it falls at its current rate. With
  * one, it follows the Lunation ahead, counting on no Plant making it at Night
- * (see `minutesUntilEmptyThroughLunations`).
+ * (see `minutesUntilEmptyThroughLunations`). One short of its inputs is no Plant
+ * making it, by Night as by day, so that the warnings come while there is time to
+ * send for more, rather than only as Daylight shows it making none.
  */
 function minutesFalling(
   state: CampaignState,
@@ -260,7 +286,7 @@ function minutesFalling(
   usedPerMinute: number,
 ): number {
   const counted = { ...stock, kilograms };
-  if (!isInUse(state) || !isMadeByPlants(state, resourceOf(stock))) {
+  if (!isInUse(state) || !isMadeByPlantsWithInputs(state, resourceOf(stock))) {
     return minutesLeft(counted, perMinute);
   }
   // Too little to last until the batches running now make more, it falls

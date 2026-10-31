@@ -6,6 +6,7 @@ describe("names in a sentence", () => {
   it("lowercases a name, but not one the glossary always capitalises", () => {
     expect(inSentence("Solar array")).toBe("solar array");
     expect(inSentence("Workshop")).toBe("Workshop");
+    expect(inSentence("Greenhouse")).toBe("Greenhouse");
     expect(inSentence("Buried Habitat")).toBe("Buried Habitat");
   });
 

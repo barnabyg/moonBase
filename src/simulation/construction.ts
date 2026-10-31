@@ -115,6 +115,12 @@ export interface StructureState {
    * starts no new batch. Always false for any other Structure.
    */
   switchedOff: boolean;
+  /**
+   * The game-minutes grown on its current round, if it is a Greenhouse, at full
+   * performance: less for each game-minute at a lower Condition. Always 0 for
+   * any other Structure.
+   */
+  growingMinutes: number;
 }
 
 /**

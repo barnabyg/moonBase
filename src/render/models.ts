@@ -37,6 +37,7 @@ import {
   STORAGE_TANK_SHAPES,
 } from "./storage-tank-models";
 import { createConcentratorTowerModel } from "./concentrator-tower-model";
+import { createGreenhouseModel } from "./greenhouse-model";
 import {
   createLandingPadModel,
   createParkingAreaModel,
@@ -143,6 +144,7 @@ export function createStructureModel(
     return createSinteredLandingPadModel();
   }
   if (structureTypeId === "telescope") return createTelescopeModel();
+  if (structureTypeId === "greenhouse") return createGreenhouseModel();
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );

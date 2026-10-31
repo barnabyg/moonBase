@@ -305,6 +305,7 @@ export function createStatusPanel(
             ),
             type.id,
             snapshot.structures,
+            forecast?.minutesUntilReserve,
           ),
         );
         // Shown as a warning from the first warning on, and once it has run out.

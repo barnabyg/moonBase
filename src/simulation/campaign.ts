@@ -187,6 +187,7 @@ import {
   runObservingProgramme,
   type ObservingProgrammeSnapshot,
 } from "./observing";
+import { runGreenhouses } from "./greenhouses";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   designLabel,
@@ -429,6 +430,11 @@ export interface StructureSnapshot {
    * starts no new batch. Always false for any other Structure.
    */
   readonly switchedOff: boolean;
+  /**
+   * The game-minutes grown on its current round, if it is a Greenhouse, at full
+   * performance. Always 0 for any other Structure.
+   */
+  readonly growingMinutes: number;
 }
 
 /**
@@ -1311,6 +1317,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     ),
   );
   runPlants(state);
+  events.push(...runGreenhouses(state));
   events.push(...runResearch(state));
   events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;

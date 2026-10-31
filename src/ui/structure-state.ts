@@ -3,9 +3,11 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type GrowingRounds,
   type ResourceFlow,
 } from "../catalogue";
 import {
+  isGreenhouse,
   recipeOf,
   workingRecipeOf,
   type MaintenanceSnapshot,
@@ -18,6 +20,7 @@ import { formatComponentsMade, formatHours } from "./describe";
 import {
   formatKilogramAmount,
   formatPerformance,
+  formatScience,
   formatShortDuration,
   listInWords,
 } from "./format";
@@ -88,7 +91,49 @@ export function structureStatus(
   if (structure.plant === undefined) {
     return structure.powered ? "commissioned" : "no power";
   }
+  if (isGreenhouse(structure)) return formatGreenhouse(structure);
   return formatPlant(structure.plant, structure.switchedOff) ?? "commissioned";
+}
+
+/** The rounds of growing a type of Structure has, if it is a Greenhouse. */
+export function growingRoundsOf(
+  structureTypeId: string,
+): GrowingRounds | undefined {
+  return catalogue.structureTypes.find((type) => type.id === structureTypeId)
+    ?.growing;
+}
+
+/**
+ * Says what a Greenhouse is doing, for example "growing, 2d 4h left of this
+ * round", or why it isn't. Its batches of water are its own business: it is the
+ * round that the player has at stake.
+ */
+export function formatGreenhouse(
+  structure: Pick<
+    StructureSnapshot,
+    | "structureTypeId"
+    | "plant"
+    | "growingMinutes"
+    | "performance"
+    | "switchedOff"
+  >,
+): string {
+  const { plant } = structure;
+  if (plant?.running === true) {
+    if (structure.switchedOff) return "growing to the end of its last batch";
+    const rounds = growingRoundsOf(structure.structureTypeId);
+    const left =
+      ((rounds?.lengthHours ?? 0) * 60 - structure.growingMinutes) /
+      structure.performance;
+    return `growing, ${formatShortDuration(Math.max(Math.ceil(left), 0))} left of this round`;
+  }
+  const stop = plant?.stoppedFor?.reason;
+  if (stop === "no-power" || stop === "night") {
+    return "no power: starts a new round once it has some";
+  }
+  return plant === undefined
+    ? "commissioned"
+    : (formatPlant(plant, structure.switchedOff) ?? "commissioned");
 }
 
 /**
@@ -245,6 +290,10 @@ export function formatPlantRates(
     chosen === undefined || chosen === recipe || structure.switchedOff
       ? ""
       : `; ${chosen.label} from the next batch`;
+  const rounds = growingRoundsOf(structure.structureTypeId);
+  if (rounds !== undefined) {
+    return `using ${flows(recipe.inputs, structure.performance)} an hour, for ${formatScience(rounds.science)} a round`;
+  }
   const components = componentOutputs(recipe);
   if (components.length > 0) {
     const hours = batchHoursOf(recipe);

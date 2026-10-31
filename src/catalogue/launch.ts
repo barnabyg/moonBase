@@ -400,6 +400,22 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 200,
       priceMillionDollars: 500,
     },
+    // A Greenhouse's worth comes to 1200 kg and $350M: what it asks for after that
+    // is water, ice and a Night's power, rather than money.
+    {
+      id: "greenhouse-dome",
+      designId: "lunar-greenhouses",
+      brings: { kind: "component", componentId: "greenhouse-dome" },
+      massKilograms: 600,
+      priceMillionDollars: 150,
+    },
+    {
+      id: "growing-rack",
+      designId: "lunar-greenhouses",
+      brings: { kind: "component", componentId: "growing-rack" },
+      massKilograms: 300,
+      priceMillionDollars: 100,
+    },
     // A cold-trap ice line's worth comes to 2000 kg and $3000M.
     {
       id: "cold-trap-head",

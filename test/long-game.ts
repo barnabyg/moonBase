@@ -50,6 +50,9 @@ export const designsTheLongGameUses: readonly string[] = [
   "water-processing",
   "life-support-resupply",
   "bulk-supply-tanks",
+  "lunar-greenhouses",
+  "large-battery-banks",
+  "robots",
   "maintenance-spares",
   "molten-regolith-electrolysis",
   "parts-machining",
@@ -101,6 +104,25 @@ const SPARES_HELD = 40;
 
 /** The Earth Day the guide sends for storage tanks: once it is selling precision optics. */
 const TANKS_EARTH_DAY = 1750;
+
+/**
+ * The Earth Day the guide turns to its Greenhouse and the water it drinks: once
+ * the Mission Director has moved into a Buried Habitat, which Funding goes to first.
+ */
+const GREENHOUSE_EARTH_DAY = 1600;
+
+/** The water ice the guide wants in stock for its Plants, below which the Rover goes for more. */
+const ICE_HELD_KILOGRAMS = 600;
+
+/**
+ * The water below which the guide holds its optics back, so that a Greenhouse has
+ * a Night's water at dusk: 228 kg for it, 33 kg for the Mission Director and their
+ * reserve of 49 kg, with a little over.
+ */
+const WATER_FOR_THE_NIGHT_KILOGRAMS = 320;
+
+/** The water above which it lets them run again. */
+const WATER_TO_SPARE_KILOGRAMS = 360;
 
 /**
  * The Earth Day the guide sends for a Buried Habitat, in good time to move in by
@@ -272,6 +294,28 @@ const PURCHASES: readonly {
   { structureTypeId: "large-propellant-plant", site: { x: 104, y: -33 } },
   { structureTypeId: "optics-works", site: { x: 54, y: -56 } },
   { structureTypeId: "grinding-line", site: { x: 44, y: -56 } },
+  // A Greenhouse drinks more than one water-processing plant makes, and its lamps
+  // want about half a large battery bank through a Night, on top of all else.
+  {
+    structureTypeId: "large-battery-bank",
+    site: { x: 54, y: -70 },
+    fromEarthDay: GREENHOUSE_EARTH_DAY,
+  },
+  {
+    structureTypeId: "water-processing-plant",
+    site: { x: 86, y: -56 },
+    fromEarthDay: GREENHOUSE_EARTH_DAY,
+  },
+  {
+    structureTypeId: "water-processing-plant",
+    site: { x: 96, y: -56 },
+    fromEarthDay: GREENHOUSE_EARTH_DAY,
+  },
+  {
+    structureTypeId: "greenhouse",
+    site: { x: 68, y: -72 },
+    fromEarthDay: GREENHOUSE_EARTH_DAY,
+  },
   // Their Design comes in Act 1, but nothing here needs more than the base's own
   // tanks hold until the optics take water. So they wait until those have sold,
   // which also keeps them out of Act 2's and Act 3's dates.
@@ -581,6 +625,72 @@ function runWorkshops(play: Play): void {
   }
 }
 
+/**
+ * Sends for a second Robot, so that one can be off on an Expedition with
+ * Maintenance still seen to.
+ */
+function shipASecondRobot(play: Play): void {
+  const { state } = play;
+  if (
+    state.clock.elapsedMinutes <
+      toGameMinutes({ earthDays: GREENHOUSE_EARTH_DAY }) ||
+    state.robots.length > 1 ||
+    !state.unlockedDesignIds.includes("robots")
+  ) {
+    return;
+  }
+  sendForAsFundingAllows(play, [{ itemId: "robot", count: 1 }], "a Robot");
+}
+
+/**
+ * Once there is a Greenhouse: keeps the Rover going for water ice whenever it is
+ * free and there is too little in stock, and holds the optics back, which would
+ * otherwise drink what it needs to last the Night.
+ */
+function waterTheGreenhouse(play: Play): void {
+  const { state } = play;
+  if (
+    !state.structures.some(
+      ({ structureTypeId }) => structureTypeId === "greenhouse",
+    )
+  ) {
+    return;
+  }
+  const ice =
+    state.bulkResources.find(({ resourceId }) => resourceId === "water-ice")
+      ?.kilograms ?? 0;
+  if (
+    state.expedition === undefined &&
+    ice < ICE_HELD_KILOGRAMS &&
+    state.rovers.some(({ conditionPercent }) => conditionPercent > 0)
+  ) {
+    // It may be refused for now, if no Robot is free: it tries again.
+    play.campaign.startExpedition();
+  }
+  const water =
+    state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms ??
+    0;
+  const setting =
+    water < WATER_FOR_THE_NIGHT_KILOGRAMS
+      ? "off"
+      : water > WATER_TO_SPARE_KILOGRAMS
+        ? "on"
+        : undefined;
+  if (setting === undefined) return;
+  for (const plant of state.structures) {
+    if (
+      (plant.structureTypeId === "optics-works" ||
+        plant.structureTypeId === "grinding-line") &&
+      (setting === "off") !== plant.switchedOff
+    ) {
+      succeed(
+        play.campaign.switchPlant(plant.id, setting),
+        "Switching the optics",
+      );
+    }
+  }
+}
+
 /** Unlocks the cheapest Design it can, once the Science is there. */
 function unlockEveryDesign(play: Play): void {
   const { state } = play;
@@ -624,7 +734,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
       play.keepUp(buyInTurn);
@@ -635,6 +745,8 @@ export const longGameSteps: readonly PlayStep[] = [
       play.keepUp(runPropellantPlants);
       play.keepUp(shipBuriedHabitat);
       play.keepUp(moveIntoBuriedHabitat);
+      play.keepUp(shipASecondRobot);
+      play.keepUp(waterTheGreenhouse);
       const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
       play.waitUntil(
         `Earth Day ${LONG_GAME_END_EARTH_DAY}`,
@@ -773,6 +885,28 @@ function formatBuriedHabitat(timeline: ReferenceTimeline): string[] {
   ];
 }
 
+/** When the Greenhouse was commissioned, what it earned and what rounds it lost, as lines of text. */
+function formatGreenhouse(timeline: ReferenceTimeline): string[] {
+  const built = timeline.structureTypesBuilt.find(
+    ({ structureTypeId }) => structureTypeId === "greenhouse",
+  )?.atMinute;
+  if (built === undefined) return ["No Greenhouse was commissioned."];
+  const earned = timeline.greenhouseRounds.filter(
+    ({ lostFor }) => lostFor === undefined,
+  );
+  const lost = (reason: string) =>
+    timeline.greenhouseRounds.filter(({ lostFor }) => lostFor === reason)
+      .length;
+  const science = earned.reduce((total, round) => total + round.science, 0);
+  const years = (timeline.endMinute - built) / MINUTES_PER_EARTH_DAY;
+  const lunations =
+    years /
+    (catalogue.lunation.daylightEarthDays + catalogue.lunation.nightEarthDays);
+  return [
+    `A Greenhouse was commissioned on Earth Day ${(built / MINUTES_PER_EARTH_DAY).toFixed(1)}. It earned ${science} Science in ${earned.length} rounds, ${(science / lunations).toFixed(0)} a Lunation, and lost ${lost("water")} rounds for want of water, ${lost("power")} for want of power and ${lost("switched-off")} by being switched off.`,
+  ];
+}
+
 /** The timeline as lines of text, for `npm run long-game`. */
 export function formatLongGame(timeline: ReferenceTimeline): string[] {
   const day = (minute: number) =>
@@ -807,6 +941,8 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     ...formatAct4Exports(timeline),
     "",
     ...formatBuriedHabitat(timeline),
+    "",
+    ...formatGreenhouse(timeline),
     "",
     limitAt === undefined
       ? "Forecast: the Radiation Dose isn't rising, so it never reaches the limit."

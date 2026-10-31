@@ -500,6 +500,22 @@ export interface ResearchTask {
 }
 
 /**
+ * A Greenhouse's rounds of growing. Each Greenhouse grows its own: every
+ * game-minute it has its water and power adds its performance's share of a
+ * game-minute, and the round's Science comes once it has its length, so two earn
+ * twice what one does. A shortage of either loses what the round has grown.
+ */
+export interface GrowingRounds {
+  /**
+   * How long a round takes at full performance, in game-hours, Daylight and Night
+   * alike. Must come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete. */
+  readonly science: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -904,6 +920,12 @@ export interface StructureType {
      */
     readonly nightDrawKilowatts: number;
     /**
+     * The power it draws in Daylight only, all through it: what a Greenhouse's
+     * pumps and fans take while the sun does the lamps' work. It is supplied with
+     * the other Structures, in its turn. Leaving it out is the same as none.
+     */
+    readonly daylightDrawKilowatts?: number;
+    /**
      * The power it draws all through the Night and not at all in Daylight, as a
      * storage tank does to keep what it holds. Unlike a Night load it is
      * supplied with the rest of what it draws, and it never switches itself
@@ -972,6 +994,12 @@ export interface StructureType {
    * `ObservingProgramme`). Leaving it out is the same as false.
    */
   readonly telescope?: boolean;
+  /**
+   * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
+   * crop grows a round at a time while it has water and power, day and night, and
+   * earns Science as each round is complete (see `GrowingRounds`).
+   */
+  readonly growing?: GrowingRounds;
   /**
    * If it is a storage tank: once it is commissioned, and until it is Broken or
    * taken apart, it adds to what the base can hold of a resource.

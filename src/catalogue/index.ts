@@ -24,6 +24,7 @@ export type {
   MachineType,
   MapSize,
   MicrometeoriteRules,
+  GrowingRounds,
   Milestone,
   MilestoneCondition,
   ObservingProgramme,

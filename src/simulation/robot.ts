@@ -631,6 +631,7 @@ function finishCommissioning(
     batch: undefined,
     plantStop: undefined,
     switchedOff: false,
+    growingMinutes: 0,
   });
   return [
     {

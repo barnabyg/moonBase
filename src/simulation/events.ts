@@ -9,6 +9,9 @@ import type { PlumeEjectaDamage } from "./plume-ejecta";
  * A notable event in the Campaign. "Advance to next event" runs the
  * simulation until one of these happens.
  */
+/** What cost a Greenhouse its round. */
+export type GreenhouseRoundLoss = "water" | "power" | "switched-off";
+
 export type GameEvent =
   | { readonly kind: "night-started"; readonly atMinute: number }
   | { readonly kind: "daylight-started"; readonly atMinute: number }
@@ -338,6 +341,28 @@ export type GameEvent =
       readonly atMinute: number;
       /** The Science it earned. */
       readonly science: number;
+    }
+  | {
+      /**
+       * A Greenhouse has grown a whole round: the Science it pays has been added
+       * to the base's, and its next round has begun.
+       */
+      readonly kind: "greenhouse-round-completed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
+       * A Greenhouse has lost what it had grown of its round, for want of water
+       * or power, or as the player switched it off. It says nothing of a round
+       * only just begun, so that a base short of water isn't told so every hour.
+       */
+      readonly kind: "greenhouse-round-lost";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly reason: GreenhouseRoundLoss;
     }
   | {
       /**

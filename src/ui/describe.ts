@@ -46,6 +46,8 @@ const drawsThroughNight = (kilowatts: number) =>
   `draws ${kilowatts} kW all through the Night, and nothing in Daylight`;
 const drawsWhileRunning = (kilowatts: number) =>
   `draws ${kilowatts} kW while it runs`;
+const drawsInDaylight = (kilowatts: number) =>
+  `draws ${kilowatts} kW all through Daylight`;
 const drawsAllTheTime = (kilowatts: number) =>
   `draws ${kilowatts} kW all the time`;
 
@@ -71,7 +73,12 @@ export function powerRatings(
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
-    ...(recipe === undefined ? [] : [drawsWhileRunning(recipe.drawKilowatts)]),
+    ...((power.daylightDrawKilowatts ?? 0) > 0
+      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
+      : []),
+    ...(recipe === undefined || recipe.drawKilowatts === 0
+      ? []
+      : [drawsWhileRunning(recipe.drawKilowatts)]),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
 }
@@ -152,10 +159,15 @@ export function describeStructure(type: StructureType): string {
       : [
           `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover together before Night rather than beside other Structures, once it is cabled to battery banks that will keep them warm through the Night`,
         ]),
-    ...(type.recipes ?? []).map(
-      (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
-    ),
+    ...(type.growing === undefined
+      ? (type.recipes ?? []).map(
+          (recipe) =>
+            `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+        )
+      : (type.recipes ?? []).map(
+          (recipe) =>
+            `grows a crop day and night, using ${flows(recipe.inputs)} an hour, and completes a round for ${formatScience(type.growing?.science ?? 0)} every ${formatHours(type.growing?.lengthHours ?? 0)} it grows`,
+        )),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
@@ -170,6 +182,9 @@ export function describeStructure(type: StructureType): string {
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0
+      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
+      : []),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
@@ -177,7 +192,11 @@ export function describeStructure(type: StructureType): string {
     facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`,
     ...(type.recipes?.[0] === undefined
       ? []
-      : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
+      : [
+          type.growing === undefined
+            ? plantsAtNight(batchHoursOf(type.recipes[0]))
+            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More Greenhouses earn more, each with its own round.",
+        ]),
     ...(type.storageTank === undefined
       ? []
       : [

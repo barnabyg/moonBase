@@ -28,6 +28,27 @@ describe("what npm run try can start the game in", () => {
     },
   );
 
+  it("greenhouse has a Greenhouse growing a few hours before Night, on a day's water above the reserve, with a water-processing plant switched off", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "greenhouse",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    const of = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+    expect(of("greenhouse")?.plant).toMatchObject({ running: true });
+    expect(of("greenhouse")?.growingMinutes).toBeGreaterThan(60);
+    expect(of("water-processing-plant")?.switchedOff).toBe(true);
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeGreaterThanOrEqual(78);
+  });
+
   it("buried-habitat has the Mission Director behind a water wall at a high dose, a powered Buried Habitat to move to and a bare Habitat beside it", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "buried-habitat",

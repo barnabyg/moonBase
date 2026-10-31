@@ -47,7 +47,7 @@ The standing Research Task the base's telescopes carry out at Night, a round at 
 _Avoid_: passive science, science income
 
 **Science**:
-The currency spent to unlock Designs in the Tech Tree, earned only through Research Tasks.
+The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and a Greenhouse's rounds of growing.
 _Avoid_: research points, RP, knowledge
 
 **Tech Tree**:
@@ -153,6 +153,14 @@ _Avoid_: lens factory
 **Array works**:
 A Plant that makes what a solar array is built from at the base, from silicon and metals, so that more power needs no Launch.
 _Avoid_: factory, panel plant
+
+**Greenhouse**:
+A lit dome of growing racks: a Plant that takes water from the base's stock an hour's worth at a time and draws power day and night, and earns Science by rounds of growing. A shortage of either loses what it has grown of its round, and it starts a new one by itself once it is supplied. It never takes water below the reserve, and gives up its lamps before anything else goes without power.
+_Avoid_: farm, hydroponics bay, crop module
+
+**Round of growing**:
+What a Greenhouse grows towards, a set time of having its water and power, which earns its Science as it is complete. Each Greenhouse grows its own.
+_Avoid_: harvest, crop cycle
 
 **Cold-trap ice line**:
 A Plant that brings water ice in from a shadowed crater by a heated line, so that no Robot has to go on an Expedition for it.

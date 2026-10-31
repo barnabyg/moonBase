@@ -590,8 +590,10 @@ export function withSwitchedOffPlants(
 /**
  * Adds to what a life support stock's line says which Plants are using it and
  * how much, and which are waiting at the Mission Director's reserve, for example
- * "lasts 14d 6h, optics works using 24 kg a day", so that the player sees why it
- * is falling, and why it has stopped falling so fast.
+ * "lasts 14d 6h, optics works using 24 kg a day", and given it, how soon they will
+ * have taken it down to the reserve, Night included, so that the player sees why it
+ * is falling, why it has stopped falling so fast, and whether a Greenhouse will last
+ * the Night.
  */
 export function withPlantsTaking(
   stat: Stat,
@@ -600,6 +602,7 @@ export function withPlantsTaking(
     StructureSnapshot,
     "structureTypeId" | "recipeId" | "switchedOff" | "performance" | "plant"
   >[],
+  minutesUntilReserve?: number,
 ): Stat {
   const isThisStock = (resource: ResourceRef) =>
     resource.kind === "life-support" && resource.stockId === stockId;
@@ -639,6 +642,11 @@ export function withPlantsTaking(
       ? []
       : [
           `${labelsOf(using)} using ${Number(perEarthDay.toFixed(1))} kg a day`,
+          ...(minutesUntilReserve === undefined
+            ? []
+            : [
+                `down to the reserve in ${formatShortDuration(minutesUntilReserve)}`,
+              ]),
         ]),
     ...(waiting.length === 0
       ? []

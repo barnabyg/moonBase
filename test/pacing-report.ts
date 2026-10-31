@@ -352,7 +352,7 @@ export interface ScienceEarner {
   readonly scienceCost: number;
   /** What the Research Tasks it offers pay, once each. */
   readonly taskScience: number;
-  /** What one telescope of its earns in a Lunation. */
+  /** What one telescope or Greenhouse of its earns in a Lunation. */
   readonly sciencePerLunation: number;
   /** How soon that pays for it: undefined if it never does. */
   readonly paybackEarthDays: number | undefined;
@@ -360,7 +360,8 @@ export interface ScienceEarner {
 
 /**
  * Every Design that earns Science: by the Research Tasks it offers, run back
- * to back, and by one telescope observing through every Night.
+ * to back, by one telescope observing through every Night, and by one Greenhouse
+ * growing all through every Lunation.
  */
 export function scienceEarners(
   catalogue: Pick<
@@ -385,11 +386,17 @@ export function scienceEarners(
     const taskEarthDays =
       tasks.reduce((total, task) => total + task.lengthHours, 0) /
       HOURS_PER_EARTH_DAY;
-    const sciencePerLunation = catalogue.structureTypes.some(
-      (type) => type.designId === design.id && type.telescope === true,
-    )
-      ? roundsPerLunation * science
-      : 0;
+    const sciencePerLunation = catalogue.structureTypes
+      .filter((type) => type.designId === design.id)
+      .reduce((most, { telescope, growing }) => {
+        const telescopes = telescope === true ? roundsPerLunation * science : 0;
+        const greenhouses =
+          growing === undefined
+            ? 0
+            : (lunationEarthDays * HOURS_PER_EARTH_DAY * growing.science) /
+              growing.lengthHours;
+        return Math.max(most, telescopes, greenhouses);
+      }, 0);
     if (taskScience === 0 && sciencePerLunation === 0) return [];
     const perEarthDay =
       (taskEarthDays > 0 ? taskScience / taskEarthDays : 0) +
@@ -546,8 +553,13 @@ const ACT_ADDITIONS: readonly {
 }[] = [
   {
     act: 3,
-    designIds: ["propellant-production", "large-propellant-production"],
+    designIds: [
+      "lunar-greenhouses",
+      "propellant-production",
+      "large-propellant-production",
+    ],
     researchTaskIds: [
+      "closed-loop-crop-trial",
       "ascent-margin-study",
       "liquefier-boil-off-trial",
       "propellant-purity-audit",
@@ -827,6 +839,8 @@ export function offerings(
           perHour: output.count / batchHoursOf(recipe),
         })),
       ];
+      // A Greenhouse's recipe makes nothing to weigh: it earns Science by rounds.
+      if (made.length === 0) continue;
       const madePerHour = made.reduce(
         (total, output) => total + output.perHour,
         0,
@@ -1013,7 +1027,7 @@ export function formatPacingReport(
     ),
     "",
     "Payback of each Design that earns Science",
-    "  Assumes its own Research Tasks run back to back, and one telescope, if it brings one, through every Night.",
+    "  Assumes its own Research Tasks run back to back, and one telescope, if it brings one, through every Night, or one Greenhouse all through every Lunation.",
     ...earners.map((earner) => {
       const label = labelOf(catalogue.designs, earner.designId);
       const earns = [
@@ -1021,9 +1035,7 @@ export function formatPacingReport(
           ? [`its Research Tasks pay ${earner.taskScience}`]
           : []),
         ...(earner.sciencePerLunation > 0
-          ? [
-              `a telescope earns ${earner.sciencePerLunation.toFixed(1)} a Lunation`,
-            ]
+          ? [`one earns ${earner.sciencePerLunation.toFixed(1)} a Lunation`]
           : []),
       ].join(", ");
       return `  ${label}: costs ${earner.scienceCost} Science, ${earns}; ${

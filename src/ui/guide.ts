@@ -297,6 +297,14 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       paragraphs: [
         "Research Tasks run by themselves and earn Science, which unlocks Designs on the Tech Tree. Unlocking a Design only permits what it covers: its Structures still have to be built, and their Components shipped.",
         `A telescope works on the ${observingProgramme.label}, a standing Research Task that runs alongside the one you start and never ends. It observes only at Night, while it has power and isn't Broken, and every ${formatHours(observingProgramme.lengthHours)} of observing completes a round for ${formatScience(observingProgramme.science)}; more telescopes get through a round faster. It draws power only while it observes, and, like a Light Mast, stops to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more, so build battery banks enough for it. The Research section of the status panel shows how the ${observingProgramme.label} is going.`,
+        ...catalogue.structureTypes.flatMap(
+          ({ growing, label, power, recipes }) =>
+            growing === undefined
+              ? []
+              : [
+                  `A ${label} (the Lunar greenhouses Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
+                ],
+        ),
         "The Technologies tab lists every Design and what unlocking it brings.",
       ],
     },

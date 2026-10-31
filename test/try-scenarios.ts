@@ -522,6 +522,94 @@ export function fullStoreSave(batches: number): string {
   });
 }
 
+/** Where `greenhouseSave` puts what it builds. */
+const GREENHOUSE_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["large-battery-bank", { x: 40, y: 36 }],
+  ["water-processing-plant", { x: 52, y: 36 }],
+  ["greenhouse", { x: 54, y: 22 }],
+] as const;
+
+/** The water above the Mission Director's reserve in `greenhouseSave`: a day's and a bit, into the Night. */
+const GREENHOUSE_WATER_ABOVE_RESERVE_KILOGRAMS = 30;
+
+/**
+ * A base with a Greenhouse growing on a solar array and a large battery bank, a few
+ * hours before Night, with a day's water above the reserve and a water-processing
+ * plant switched off with water ice to use. The Habitat is left out, so that the
+ * Mission Director's stay aboard the Lander lets a player watch it for as long as
+ * they like.
+ */
+export function greenhouseSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "water-electrolysis",
+        "molten-regolith-electrolysis",
+        "parts-machining",
+        "cold-trap-mining",
+        "large-battery-banks",
+        "lunar-greenhouses",
+      );
+      addComponents(state, [
+        ...GREENHOUSE_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("greenhouse"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+      stockOf(state, "water-ice", 800);
+      // So that it grows from the day it is commissioned, up to the scenario's start.
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") stock.kilograms = 400;
+      }
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of GREENHOUSE_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  const plant = campaign
+    .snapshot()
+    .structures.find(
+      ({ structureTypeId }) => structureTypeId === "water-processing-plant",
+    );
+  const off = campaign.switchPlant(plant?.id ?? "", "off");
+  if (!off.ok) throw new Error(off.message);
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  const watered = loadCampaign(
+    saveWith(campaign, (state) => {
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") {
+          stock.kilograms =
+            reserveKilograms("water") +
+            GREENHOUSE_WATER_ABOVE_RESERVE_KILOGRAMS;
+        }
+      }
+    }),
+  );
+  if (!watered.ok) throw new Error(watered.message);
+  // A game-minute, so that it says it is growing again from the moment it loads.
+  watered.campaign.advance(1);
+  return watered.campaign.save();
+}
+
 /** Where `storageTanksSave` puts what it builds. */
 const TANKS_BASE_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -699,6 +787,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
     ],
     save: storageTanksSave,
+  },
+  {
+    id: "greenhouse",
+    title:
+      "A base with a Greenhouse growing on a solar array and a large battery bank, a few hours before Night, on a day's water above the reserve, with a water-processing plant switched off and a second Greenhouse's Components in stock",
+    steps: [
+      'Pause the game. In the Base panel the Greenhouse says "growing" and how long is left of this round, and "using 1 kg of water an hour, for 20 Science a round". The status panel\'s Water says "Greenhouse using 24 kg a day" and when it will be down to the reserve. Click it on the map: a glass dome over green racks. Its pop-up has a Round line, with how far the round has got.',
+      "Set the game to 5x until Night falls: the dome lights up from inside and lights the ground round it, and the Greenhouse goes on drinking. The power line uses 1.5 kW more for its lamps, against 0.5 kW by day.",
+      'Set the game to 20x. About a day into the Night, a notification says the round of growing was lost for want of water, the Greenhouse says "waiting for Water" and that this is to leave the Mission Director\'s reserve of 49 kg, and Water stops falling, as they are still aboard the Lander.',
+      'Press "Switch on" beside the Water-processing plant. It has water ice, but it runs only on power to spare: in the next Daylight, once the large battery bank is full, Water rises, and as soon as there is a batch\'s worth above the reserve the Greenhouse starts a new round by itself. Leave it for 5 Earth Days: a notification says a round is complete, and Science in the top bar is 20 higher.',
+      'Press "Switch off" beside the Greenhouse: within the hour a notification says its round was given up, and its lamps and power stop.',
+      "Open the Guide: Structures has the Greenhouse's card, and Science and technologies says what it earns and asks for. The Launch manifest has its dome and racks, under Life Support.",
+    ],
+    save: greenhouseSave,
   },
   {
     id: "crowded",

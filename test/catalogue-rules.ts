@@ -52,12 +52,6 @@ export const exemptions: readonly Exemption[] = [
     reason:
       "Keeps idle Machines and Rovers tidy and off the Habitat's network at Night. It is a convenience the long game doesn't need, as the Robot otherwise parks them beside the nearest powered Structure.",
   },
-  {
-    rule: "design-has-a-purpose",
-    item: "robots",
-    reason:
-      "A second Robot speeds up every Work Order rather than doing a job of its own. The long game gets by with the one it lands with, to keep its play the same as the reference Campaign's.",
-  },
 ];
 
 function breach(rule: RuleId, item: string, problem: string): Breach {

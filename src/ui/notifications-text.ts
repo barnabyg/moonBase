@@ -38,6 +38,13 @@ import {
 
 // What happened in each event, in words, for the notification list.
 
+/** What cost a Greenhouse its round. */
+const GREENHOUSE_ROUND_LOST = {
+  water: "its round of growing lost for want of water",
+  power: "its round of growing lost for want of power",
+  "switched-off": "its round of growing given up, as it was switched off",
+} as const;
+
 /**
  * Says what happened in an event, for the notification list, for example
  * "Night has fallen". Given the base's Robots, it says which Robot an
@@ -157,6 +164,10 @@ export function formatEvent(
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "greenhouse-round-completed":
+      return `${structureLabel("greenhouse")}: a round of growing complete, earning ${formatScience(event.science)}`;
+    case "greenhouse-round-lost":
+      return `${structureLabel("greenhouse")}: ${GREENHOUSE_ROUND_LOST[event.reason]}. It starts a new one by itself`;
     case "observing-round-completed":
       return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":

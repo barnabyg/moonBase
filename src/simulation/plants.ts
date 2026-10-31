@@ -726,7 +726,7 @@ export function isHeldFull(
  * the latest game-minute.
  */
 export function isMadeByPlants(
-  state: CampaignState,
+  state: Pick<CampaignState, "structures">,
   resource: ResourceRef,
 ): boolean {
   return state.structures.some(
@@ -736,6 +736,22 @@ export function isMadeByPlants(
       resourceOutputs(recipeOf(structure)).some((flow) =>
         isSameResource(flow.resource, resource),
       ),
+  );
+}
+
+/**
+ * Whether any of the base's Plants makes a resource (see `isMadeByPlants`) and isn't
+ * short of what it makes it from, whether or not it had the power to run during
+ * the latest game-minute.
+ */
+export function isMadeByPlantsWithInputs(
+  state: CampaignState,
+  resource: ResourceRef,
+): boolean {
+  return state.structures.some(
+    (structure) =>
+      structure.plantStop?.reason !== "no-input" &&
+      isMadeByPlants({ structures: [structure] }, resource),
   );
 }
 
