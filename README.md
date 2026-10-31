@@ -23,7 +23,8 @@ The Milestones in the status panel guide you through the Campaign, each with a h
 - [`docs/rules.md`](docs/rules.md): how the game works, system by system.
 - [`GLOSSARY.md`](GLOSSARY.md): the game's language.
 - [`docs/adr/`](docs/adr/): the design decisions.
-- [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthrough the tests play, and how the data catalogue is balanced against it (`npm.cmd run reference-campaign` prints its timeline, `npm.cmd run pacing-report` how the numbers fit together, and `npm.cmd run long-game` how a longer Campaign holds up).
+- [`docs/balancing.md`](docs/balancing.md): how the data catalogue is balanced, with the targets, the Acts, the decisions behind them and the catalogue's consistency rules.
+- [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthroughs and how to run them (`npm.cmd run reference-campaign` prints the timeline of the one the tests play, `npm.cmd run pacing-report` how the numbers fit together, and `npm.cmd run long-game` how a longer Campaign holds up).
 - [`docs/save-format.md`](docs/save-format.md): the `.moonbase` format and the rules for changing it.
 - [`docs/verification.md`](docs/verification.md): the checks, test timeouts and exceptions.
 - [`docs/trying-things.md`](docs/trying-things.md): starting the game in a prepared state to try a change by hand (`npm.cmd run try`).

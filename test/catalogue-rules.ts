@@ -4,7 +4,7 @@ import { beatenDesigns, offerings, type PacedCatalogue } from "./pacing-report";
 // Rules that keep the data catalogue's content consistent as it grows, so that
 // a bad addition fails with a clear reason and nobody has to replay the game
 // to find it. `catalogue-rules.test.ts` holds the real catalogue to them. See
-// docs/reference-campaign.md.
+// docs/balancing.md.
 
 /** Something in the catalogue that breaks a rule. */
 export interface Breach {
@@ -44,7 +44,7 @@ export const exemptions: readonly Exemption[] = [
     rule: "design-has-a-purpose",
     item: "optical-telescopes",
     reason:
-      "Earns a little Science at Night, on top of the Research Tasks, for a player who keeps power in hand. The long game gets through the Tech Tree without one; docs/reference-campaign.md explains why it adds to research rather than replacing it.",
+      "Earns a little Science at Night, on top of the Research Tasks, for a player who keeps power in hand. The long game gets through the Tech Tree without one; docs/balancing.md explains why it adds to research rather than replacing it.",
   },
   {
     rule: "design-has-a-purpose",

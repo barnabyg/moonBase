@@ -535,7 +535,7 @@ export interface ActPlan {
   readonly designIds: readonly string[];
 }
 
-/** Act 2's plan, as docs/reference-campaign.md has it. */
+/** Act 2's plan, as docs/balancing.md has it. */
 export const act2Plan: ActPlan = {
   label: "Act 2",
   fromEarthDay: 350,
