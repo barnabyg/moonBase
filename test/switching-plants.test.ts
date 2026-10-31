@@ -307,6 +307,7 @@ describe("the forecasts, with a Plant switched off", () => {
       resourceId: "water-ice",
       kilogramsPerHour: 0,
       minutesUntilEmpty: undefined,
+      holdingFull: false,
     });
   });
 

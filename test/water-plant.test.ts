@@ -173,6 +173,7 @@ describe("the water-processing plant", () => {
         (50 / icePerHour) * 60 - 2,
         -1,
       ) as number,
+      holdingFull: false,
     });
   });
 });

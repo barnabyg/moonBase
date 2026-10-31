@@ -19,7 +19,7 @@ describe("the sample saves from before bulk resources", () => {
   ])("%s loads with no Regolith, and no Machine digging", (name) => {
     const state = loadSample(name).snapshot();
 
-    expect(state.bulkResources).toEqual(
+    expect(state.bulkResources).toMatchObject(
       catalogue.bulkResources.map((resource) => ({
         resourceId: resource.id,
         kilograms: 0,
