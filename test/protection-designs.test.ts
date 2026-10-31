@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { findDesign, unlock } from "./designs";
+import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed } from "./worn";
 
@@ -46,7 +46,7 @@ describe.each(hardened)("the $label", (type) => {
   });
 
   it("can be planned, and its Components shipped, once its Design is unlocked", () => {
-    const { campaign } = scenario();
+    const { campaign } = scenarioWithScience();
     unlock(campaign, design.id);
 
     expect(

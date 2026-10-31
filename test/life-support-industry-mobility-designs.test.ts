@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { findDesign, unlock } from "./designs";
+import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario } from "./scenario";
 
 const categories = ["life-support", "industry", "mobility"];
@@ -36,7 +36,7 @@ describe.each(structures)("the $label", (type) => {
   });
 
   it("can be planned once its Design is unlocked, with every Component it needs shippable", () => {
-    const { campaign } = scenario();
+    const { campaign } = scenarioWithScience();
     unlock(campaign, design.id);
 
     // Each on its own: a dear Structure's whole kit needs more than the
@@ -56,7 +56,7 @@ describe.each(items)("the Launch item $id", (item) => {
   const design = findDesign(item.designId);
 
   it("is refused on the Launch manifest until its Design is unlocked, naming the Design, and accepted after", () => {
-    const { campaign } = scenario();
+    const { campaign } = scenarioWithScience();
 
     const refused = campaign.setLaunchManifest([{ itemId: item.id, count: 1 }]);
     expect(refused).toMatchObject({ ok: false, reason: "design-locked" });

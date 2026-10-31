@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { findDesign, unlock } from "./designs";
+import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario } from "./scenario";
 
 /** The Structures of the Power and Construction Designs beyond the starting ones. */
@@ -38,7 +38,7 @@ describe.each(unlockable)("the $label", (type) => {
   });
 
   it("can be planned, and any Components of its own shipped, once its Design is unlocked", () => {
-    const game = scenario();
+    const game = scenarioWithScience();
     const { campaign } = game;
     unlock(campaign, design.id);
     // Shielding goes over a commissioned Habitat.
