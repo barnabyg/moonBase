@@ -40,13 +40,6 @@ export function formatLunation(lunation: LunationSnapshot): string {
 }
 
 /**
- * Formats a span of game time in Earth Days and hours for the status panel,
- * where space is short, for example "7d 23h", rounded up to the hour. In
- * whole Earth Days only, it leaves out the hours past them, for a folded
- * section's title, where there is only room for one unit: "7d", or "5h"
- * under an Earth Day.
- */
-/**
  * Says what the Radiation Dose rate is in a Habitat with no Solar Particle
  * Event under way, in millisieverts, for example "0.15 mSv".
  */
@@ -64,6 +57,13 @@ export function formatMillisieverts(millisieverts: number): string {
   return millisieverts.toFixed(millisieverts < 0.1 ? 3 : 2);
 }
 
+/**
+ * Formats a span of game time in Earth Days and hours for the status panel,
+ * where space is short, for example "7d 23h", rounded up to the hour. In
+ * whole Earth Days only, it leaves out the hours past them, for a folded
+ * section's title, where there is only room for one unit: "7d", or "5h"
+ * under an Earth Day.
+ */
 export function formatShortDuration(
   minutes: number,
   wholeEarthDays = false,
