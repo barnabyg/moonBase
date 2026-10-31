@@ -210,6 +210,64 @@ export const researchTasks: Catalogue["researchTasks"] = [
     lengthHours: 576,
     science: 172,
   },
+  // Act 3's, offered only once Act 2's last Design is unlocked, and Act 4's after
+  // them, so that neither shortens the Act before. Each is long and pays little.
+  {
+    id: "ascent-margin-study",
+    label: "Ascent margin study",
+    lengthHours: 1920,
+    science: 500,
+    requiresDesignId: "cold-trap-mining",
+  },
+  {
+    id: "liquefier-boil-off-trial",
+    label: "Liquefier boil-off trial",
+    lengthHours: 2640,
+    science: 650,
+    requiresDesignId: "propellant-production",
+  },
+  {
+    id: "propellant-purity-audit",
+    label: "Propellant purity audit",
+    lengthHours: 3120,
+    science: 760,
+    requiresDesignId: "propellant-production",
+  },
+  {
+    id: "ascent-load-survey",
+    label: "Ascent load survey",
+    lengthHours: 4320,
+    science: 900,
+    requiresDesignId: "large-propellant-production",
+  },
+  {
+    id: "vacuum-figuring-study",
+    label: "Vacuum figuring study",
+    lengthHours: 6240,
+    science: 1050,
+    requiresDesignId: "large-propellant-production",
+  },
+  {
+    id: "optical-coating-trial",
+    label: "Optical coating trial",
+    lengthHours: 7680,
+    science: 1150,
+    requiresDesignId: "precision-optics",
+  },
+  {
+    id: "long-term-figure-audit",
+    label: "Long-term figure audit",
+    lengthHours: 9600,
+    science: 1350,
+    requiresDesignId: "precision-optics",
+  },
+  {
+    id: "grinding-line-yield-survey",
+    label: "Grinding line yield survey",
+    lengthHours: 14400,
+    science: 2000,
+    requiresDesignId: "optics-grinding-line",
+  },
   // Act 2's. So that the reference Campaign's research doesn't change, none is
   // offered sooner than the longest of Act 1's, which it never gets past: each
   // is offered only by a Design it never unlocks, or runs longer. The longest
@@ -639,6 +697,48 @@ export const designs: Catalogue["designs"] = [
       "molten-regolith-electrolysis",
       "circuit-board-fabrication",
     ],
+  },
+  // Act 3's Mechanic and Act 4's Export. Each is dear enough to come after what
+  // the Act before needs, and is paid for by the Act's own Research Tasks.
+  {
+    id: "propellant-production",
+    label: "Propellant production",
+    description:
+      "A Plant that makes liquid oxygen from Regolith, for the Lander to burn and carry more, or to sell.",
+    category: "industry",
+    starting: false,
+    scienceCost: 500,
+    prerequisiteDesignIds: ["molten-regolith-electrolysis", "cold-trap-mining"],
+  },
+  {
+    id: "large-propellant-production",
+    label: "Large propellant production",
+    description:
+      "A bigger propellant plant, for a base that means to fill a tripled Return Mass on every trip.",
+    category: "industry",
+    starting: false,
+    scienceCost: 1200,
+    prerequisiteDesignIds: ["propellant-production"],
+  },
+  {
+    id: "precision-optics",
+    label: "Precision optics",
+    description:
+      "A works that figures optical parts in hard vacuum, the most valuable Export the base can make.",
+    category: "industry",
+    starting: false,
+    scienceCost: 1800,
+    prerequisiteDesignIds: ["large-propellant-production"],
+  },
+  {
+    id: "optics-grinding-line",
+    label: "Optics grinding line",
+    description:
+      "A longer line that makes precision optics two and a half times as fast.",
+    category: "industry",
+    starting: false,
+    scienceCost: 3100,
+    prerequisiteDesignIds: ["precision-optics"],
   },
   // Act 2's Mechanic: the Workshop, so that a growing base can stop spending
   // Payload Mass on spare Components. Casting metal parts follows on from

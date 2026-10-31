@@ -97,6 +97,11 @@ export function madeUp(
       ...catalogue.lander,
       roundTripEarthDays: { toEarth: 3, turnaround: 4, toMoon: 3 },
       returnMassKilograms: 100,
+      propellant: {
+        resourceId: "propellant",
+        kilogramsPerReturnKilogram: 2,
+        mostReturnMassKilograms: 400,
+      },
     },
     lunation: {
       ...catalogue.lunation,

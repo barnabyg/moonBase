@@ -8,7 +8,7 @@ import {
   type PlayStep,
   type ReferenceTimeline,
 } from "./reference-campaign";
-import { exportEconomics, labelOf } from "./pacing-report";
+import { catalogueUpToAct, exportEconomics, labelOf } from "./pacing-report";
 import { toGameMinutes } from "./scenario";
 import type { GroundPosition, ManifestLine, Snapshot } from "../src/simulation";
 
@@ -56,6 +56,10 @@ export const designsTheLongGameUses: readonly string[] = [
   "concentrator-towers",
   "cold-trap-mining",
   "buried-habitat",
+  "propellant-production",
+  "large-propellant-production",
+  "precision-optics",
+  "optics-grinding-line",
 ];
 
 /** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
@@ -75,6 +79,17 @@ export const act2Targets = {
   /** How many Launches' profit one of every Launch item takes, at least. */
   launchesToBuyEverything: 20,
   metalsSoldBy: ACT_2_END_EARTH_DAY,
+} as const;
+
+/** Act 3's and Act 4's pacing targets, in Earth Days (docs/reference-campaign.md). */
+export const laterActTargets = {
+  propellantMadeBy: 1050,
+  returnMassTripledBy: 1250,
+  /** When research lasts until, for each of the two Acts. */
+  act3ResearchUntilAbout: 1400,
+  act4ResearchUntilAbout: LONG_GAME_END_EARTH_DAY,
+  researchWithin: 50,
+  opticsSoldBy: 2000,
 } as const;
 
 /** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
@@ -221,11 +236,11 @@ function moveIntoBuriedHabitat(play: Play): void {
 }
 
 /**
- * What Funding buys in Act 2, in the order the guide wants it, each once its
+ * What Funding buys from Act 2 on, in the order the guide wants it, each once its
  * Design is unlocked and its Components have come. It holds a good deal more
  * than a base can buy at once, so that it waits for Funding as well as Science.
  */
-const ACT_2_PURCHASES: readonly {
+const PURCHASES: readonly {
   readonly structureTypeId: string;
   readonly site: GroundPosition;
 }[] = [
@@ -241,6 +256,13 @@ const ACT_2_PURCHASES: readonly {
   { structureTypeId: "array-works", site: { x: 54, y: -44 } },
   { structureTypeId: "concentrator-tower", site: { x: 66, y: -14 } },
   { structureTypeId: "cold-trap-ice-line", site: { x: 82, y: -33 } },
+  // Act 3's and Act 4's Plants need no more power: the one tower's 100 kW covers
+  // them all. A second and third tower drew 0.2 kW each through the Night, which
+  // this base's battery banks couldn't carry: the Mission Director died on 1,255.
+  { structureTypeId: "propellant-plant", site: { x: 92, y: -33 } },
+  { structureTypeId: "large-propellant-plant", site: { x: 104, y: -33 } },
+  { structureTypeId: "optics-works", site: { x: 54, y: -56 } },
+  { structureTypeId: "grinding-line", site: { x: 44, y: -56 } },
 ];
 
 /** What the array works makes the guide before it switches it off, and where those arrays go. */
@@ -254,6 +276,15 @@ const FUNDING_KEPT_MILLION_DOLLARS = 300;
 
 /** The metals the guide keeps from what it sells, for the Workshop and the circuit boards. */
 const METALS_KEPT_KILOGRAMS = 40;
+
+/** What a tripled Return Mass comes to. */
+const TRIPLED_RETURN_MASS_KILOGRAMS = 300;
+
+/** The propellant the guide keeps from what it sells, to burn. */
+const PROPELLANT_KEPT_KILOGRAMS = 400;
+
+/** The propellant it wants in stock, above which the Plants stop making it. */
+const PROPELLANT_HELD_KILOGRAMS = 1200;
 
 /** The fewest circuit boards it is worth sending the Lander with. */
 const BOARDS_WORTH_A_TRIP_KILOGRAMS = 30;
@@ -312,15 +343,15 @@ function sendForAsFundingAllows(
   );
 }
 
-/** Sees to the next of Act 2's purchases coming, and builds it once it has. */
-function buyForAct2(play: Play): void {
+/** Sees to the next of the purchases coming, and builds it once it has. */
+function buyInTurn(play: Play): void {
   const { state } = play;
   if (
     state.clock.elapsedMinutes < toGameMinutes({ earthDays: ACT_2_EARTH_DAY })
   ) {
     return;
   }
-  const next = ACT_2_PURCHASES.find(({ structureTypeId, site }) => {
+  const next = PURCHASES.find(({ structureTypeId, site }) => {
     const type = catalogue.structureTypes.find(
       ({ id }) => id === structureTypeId,
     );
@@ -405,13 +436,13 @@ function runArrayWorks(play: Play): void {
 }
 
 /**
- * Fills what the circuit boards leave of the Return Mass with metals, whenever
- * the Lander is free and there are circuit boards worth a trip and metals to
- * spare, so that it no longer waits for a full Return Mass of circuit boards.
- * It leaves a full load of them to the reference Campaign's habit, which sends
- * the Lander once anything is loaded.
+ * Loads the Lander whenever it is free and there is something worth a trip: all
+ * the precision optics and circuit boards that its Return Mass will take, as they
+ * are worth the propellant to lift them, then propellant if there is plenty and
+ * metals if not, up to the 100 kg it can carry for nothing. Once, it loads metals
+ * as well to make up a tripled Return Mass, to see that it can be done.
  */
-function sellMetals(play: Play): void {
+function loadTheLander(play: Play): void {
   const { state } = play;
   if (
     state.clock.elapsedMinutes <
@@ -425,23 +456,79 @@ function sellMetals(play: Play): void {
   const amount = (resourceId: string) =>
     state.bulkResources.find((stock) => stock.resourceId === resourceId)
       ?.kilograms ?? 0;
-  const returnMass = catalogue.lander.returnMassKilograms;
+  const freeMass = catalogue.lander.returnMassKilograms;
+  const limit = Math.floor(state.exports.returnMassKilograms);
+  const optics = Math.floor(amount("precision-optics"));
   const boards = Math.floor(amount("circuit-boards"));
-  const metals = returnMass - boards;
+  if (optics + boards < BOARDS_WORTH_A_TRIP_KILOGRAMS) return;
+  const opticsLoaded = Math.min(optics, limit);
+  const boardsLoaded = Math.min(boards, limit - opticsLoaded);
+  let loaded = opticsLoaded + boardsLoaded;
+  const metalsSpare = Math.max(
+    0,
+    Math.floor(amount("metals") - METALS_KEPT_KILOGRAMS),
+  );
+  const tripling =
+    limit >= TRIPLED_RETURN_MASS_KILOGRAMS &&
+    !state.milestones.reachedIds.includes("return-mass-tripled") &&
+    metalsSpare >= TRIPLED_RETURN_MASS_KILOGRAMS - loaded;
+  let metals = 0;
+  let propellant = 0;
+  if (tripling) {
+    metals = TRIPLED_RETURN_MASS_KILOGRAMS - loaded;
+  } else if (loaded < freeMass) {
+    // Selling it leaves less to burn, so only what the Lander won't need.
+    const propellantSpare = Math.floor(
+      amount("propellant") - PROPELLANT_KEPT_KILOGRAMS,
+    );
+    propellant = Math.min(freeMass - loaded, Math.max(0, propellantSpare));
+    loaded += propellant;
+    metals = Math.min(freeMass - loaded, metalsSpare);
+  }
+  const lines = [
+    { resourceId: "precision-optics", kilograms: opticsLoaded },
+    { resourceId: "circuit-boards", kilograms: boardsLoaded },
+    { resourceId: "metals", kilograms: metals },
+    { resourceId: "propellant", kilograms: propellant },
+  ].filter(({ kilograms }) => kilograms > 0);
+  // It waits for a Plant rather than send a Lander with no propellant or metals to fill it.
   if (
-    boards < BOARDS_WORTH_A_TRIP_KILOGRAMS ||
-    metals <= 0 ||
-    amount("metals") - METALS_KEPT_KILOGRAMS < metals
+    lines.reduce((total, { kilograms }) => total + kilograms, 0) < freeMass &&
+    boards < freeMass
   ) {
     return;
   }
-  succeed(
-    play.campaign.loadExports([
-      { resourceId: "circuit-boards", kilograms: boards },
-      { resourceId: "metals", kilograms: metals },
-    ]),
-    "Loading circuit boards and metals",
-  );
+  succeed(play.campaign.loadExports(lines), "Loading the Exports");
+}
+
+/**
+ * Keeps the propellant plants running only while the stock is short of a few
+ * trips' worth, so that they don't take all the Regolith.
+ */
+function runPropellantPlants(play: Play): void {
+  const { state } = play;
+  const inStock =
+    state.bulkResources.find(({ resourceId }) => resourceId === "propellant")
+      ?.kilograms ?? 0;
+  const setting =
+    inStock > PROPELLANT_HELD_KILOGRAMS
+      ? "off"
+      : inStock < PROPELLANT_HELD_KILOGRAMS / 2
+        ? "on"
+        : undefined;
+  if (setting === undefined) return;
+  for (const plant of state.structures) {
+    if (
+      (plant.structureTypeId === "propellant-plant" ||
+        plant.structureTypeId === "large-propellant-plant") &&
+      (setting === "off") !== plant.switchedOff
+    ) {
+      succeed(
+        play.campaign.switchPlant(plant.id, setting),
+        "Switching a propellant plant",
+      );
+    }
+  }
 }
 
 /**
@@ -513,14 +600,15 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
-      play.keepUp(buyForAct2);
+      play.keepUp(buyInTurn);
       play.keepUp(runWorkshops);
       play.keepUp(runLargeExtractionPlant);
       play.keepUp(runArrayWorks);
-      play.keepUp(sellMetals);
+      play.keepUp(loadTheLander);
+      play.keepUp(runPropellantPlants);
       play.keepUp(shipBuriedHabitat);
       play.keepUp(moveIntoBuriedHabitat);
       const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
@@ -768,26 +856,37 @@ function formatFunding(timeline: ReferenceTimeline): string[] {
   ];
 }
 
+const ACT_2_STRUCTURE_TYPE_IDS: readonly string[] = [
+  "workshop",
+  "large-extraction-plant",
+  "array-works",
+  "concentrator-tower",
+  "cold-trap-ice-line",
+];
+
 /** When each of the Structures Act 2 brings first came. */
 function formatAct2(timeline: ReferenceTimeline): string[] {
   const dates = timeline.structureTypesBuilt
     .filter(({ structureTypeId }) =>
-      ACT_2_PURCHASES.some(
-        (entry) => entry.structureTypeId === structureTypeId,
-      ),
+      ACT_2_STRUCTURE_TYPE_IDS.includes(structureTypeId),
     )
-    .filter(({ structureTypeId }) => structureTypeId !== "solar-array")
     .map(
       ({ structureTypeId, atMinute }) =>
         `  ${(atMinute / MINUTES_PER_EARTH_DAY).toFixed(1).padStart(6)}  ${labelOf(catalogue.structureTypes, structureTypeId)}`,
     );
   const missed = act2TargetsMissed(timeline);
+  const laterMissed = laterActTargetsMissed(timeline);
   return [
     "Act 2's Structures, by the Earth Day the first of each was commissioned:",
     ...dates,
     ...(missed.length === 0
       ? ["Act 2's pacing targets were all met."]
       : missed.map((target) => `Act 2's pacing target missed: ${target}`)),
+    ...(laterMissed.length === 0
+      ? ["Act 3's and Act 4's pacing targets were all met."]
+      : laterMissed.map(
+          (target) => `Later Act's pacing target missed: ${target}`,
+        )),
   ];
 }
 
@@ -814,14 +913,25 @@ export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
     0,
     ...timeline.sparesShipped.map(({ atMinute }) => atMinute),
   );
+  const upToAct2 = catalogueUpToAct(catalogue, 2);
   const lastResearch =
     Math.max(
       0,
-      ...timeline.researchTasksCompleted.map(({ atMinute }) => atMinute),
+      ...timeline.researchTasksCompleted
+        .filter(({ researchTaskId }) =>
+          upToAct2.researchTasks.some(({ id }) => id === researchTaskId),
+        )
+        .map(({ atMinute }) => atMinute),
     ) / MINUTES_PER_EARTH_DAY;
   const lastDesign =
-    Math.max(0, ...timeline.designsUnlocked.map(({ atMinute }) => atMinute)) /
-    MINUTES_PER_EARTH_DAY;
+    Math.max(
+      0,
+      ...timeline.designsUnlocked
+        .filter(({ designId }) =>
+          upToAct2.designs.some(({ id }) => id === designId),
+        )
+        .map(({ atMinute }) => atMinute),
+    ) / MINUTES_PER_EARTH_DAY;
   const built = timeline.structureTypesBuilt.find(
     ({ structureTypeId }) => structureTypeId === "workshop",
   )?.atMinute;
@@ -862,9 +972,63 @@ export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
   ];
 }
 
+/** Which of Act 3's and Act 4's pacing targets the guide missed, in words. */
+export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
+  const reachedOn = (milestoneId: string) => {
+    const reached = timeline.milestones.find(
+      (milestone) => milestone.milestoneId === milestoneId,
+    );
+    return reached === undefined
+      ? Infinity
+      : reached.atMinute / MINUTES_PER_EARTH_DAY;
+  };
+  const researchEnded = (act: number) =>
+    Math.max(
+      0,
+      ...timeline.researchTasksCompleted
+        .filter(({ researchTaskId }) =>
+          catalogueUpToAct(catalogue, act).researchTasks.some(
+            ({ id }) => id === researchTaskId,
+          ),
+        )
+        .map(({ atMinute }) => atMinute),
+    ) / MINUTES_PER_EARTH_DAY;
+  const {
+    propellantMadeBy,
+    returnMassTripledBy,
+    act3ResearchUntilAbout,
+    act4ResearchUntilAbout,
+    researchWithin,
+    opticsSoldBy,
+  } = laterActTargets;
+  const near = (earthDay: number, target: number) =>
+    Math.abs(earthDay - target) <= researchWithin;
+  return [
+    ...(reachedOn("first-propellant") <= propellantMadeBy
+      ? []
+      : [`propellant made by Earth Day ${propellantMadeBy}.`]),
+    ...(reachedOn("return-mass-tripled") <= returnMassTripledBy
+      ? []
+      : [`Return Mass tripled by Earth Day ${returnMassTripledBy}.`]),
+    ...(reachedOn("precision-optics-sold") <= opticsSoldBy
+      ? []
+      : [`precision optics sold by Earth Day ${opticsSoldBy}.`]),
+    ...(near(researchEnded(3), act3ResearchUntilAbout)
+      ? []
+      : [
+          `Act 3's research lasting until about Earth Day ${act3ResearchUntilAbout} (it ended on ${researchEnded(3).toFixed(0)}).`,
+        ]),
+    ...(near(researchEnded(4), act4ResearchUntilAbout)
+      ? []
+      : [
+          `Act 4's research lasting until about Earth Day ${act4ResearchUntilAbout} (it ended on ${researchEnded(4).toFixed(0)}).`,
+        ]),
+  ];
+}
+
 /** How many Launches' profit, of the Export that makes the most, one of every Launch item takes. */
 function launchesToBuyOneOfEverything(): number | undefined {
-  const { exports: sold } = exportEconomics(catalogue);
+  const { exports: sold } = exportEconomics(catalogueUpToAct(catalogue, 2));
   return [...sold].sort(
     (a, b) => b.profitMillionDollars - a.profitMillionDollars,
   )[0]?.launchesToBuyEverything;
@@ -892,6 +1056,7 @@ export function longGameSucceeded(timeline: ReferenceTimeline): boolean {
     timeline.ended === undefined &&
     designsNotUsed(timeline).length === 0 &&
     movedInByTheTarget(timeline) &&
-    act2TargetsMissed(timeline).length === 0
+    act2TargetsMissed(timeline).length === 0 &&
+    laterActTargetsMissed(timeline).length === 0
   );
 }

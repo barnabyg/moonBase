@@ -299,6 +299,44 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 400,
       priceMillionDollars: 45,
     },
+    // Act 3's and Act 4's. A propellant plant's worth comes to 1400 kg and $1200M,
+    // a large one's to 1900 kg and $1700M, an optics works' to 1100 kg and $1200M
+    // and a grinding line's to 1500 kg and $1600M.
+    {
+      id: "oxygen-liquefier",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "oxygen-liquefier" },
+      massKilograms: 400,
+      priceMillionDollars: 300,
+    },
+    {
+      id: "cryogenic-tank",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "cryogenic-tank" },
+      massKilograms: 300,
+      priceMillionDollars: 300,
+    },
+    {
+      id: "propellant-reactor",
+      designId: "large-propellant-production",
+      brings: { kind: "component", componentId: "propellant-reactor" },
+      massKilograms: 500,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "optical-grinder",
+      designId: "precision-optics",
+      brings: { kind: "component", componentId: "optical-grinder" },
+      massKilograms: 400,
+      priceMillionDollars: 400,
+    },
+    {
+      id: "metrology-bench",
+      designId: "precision-optics",
+      brings: { kind: "component", componentId: "metrology-bench" },
+      massKilograms: 300,
+      priceMillionDollars: 400,
+    },
     // A Workshop's worth comes to 600 kg, as much as 30 spare Components, which
     // the long-game base uses in about two Lunations, and $1000M. It is Act 2's
     // first big purchase, and by the spares alone it would never pay: what it

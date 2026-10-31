@@ -1291,6 +1291,8 @@ describe("the sample saves from before Exports", () => {
       expect(loadSample(name).snapshot().exports).toEqual({
         toLoad: [],
         massKilograms: 0,
+        returnMassKilograms: 100,
+        propellantToBurnKilograms: 0,
         valueMillionDollars: 0,
         aboard: [],
         valueAboardMillionDollars: 0,
@@ -1316,6 +1318,8 @@ describe("the sample save of format version 22", () => {
     expect(state.exports).toEqual({
       toLoad: [{ resourceId: "wafers", kilograms: 30 }],
       massKilograms: 30,
+      returnMassKilograms: 100,
+      propellantToBurnKilograms: 0,
       valueMillionDollars: 30 * waferPrice,
       aboard: [],
       valueAboardMillionDollars: 0,

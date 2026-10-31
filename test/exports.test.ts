@@ -120,6 +120,8 @@ describe("the Exports to load", () => {
     expect(scenario().state.exports).toEqual({
       toLoad: [],
       massKilograms: 0,
+      returnMassKilograms: 100,
+      propellantToBurnKilograms: 0,
       valueMillionDollars: 0,
       aboard: [],
       valueAboardMillionDollars: 0,
@@ -136,6 +138,8 @@ describe("the Exports to load", () => {
     expect(state.exports).toEqual({
       toLoad: wafers(40),
       massKilograms: 40,
+      returnMassKilograms: 100,
+      propellantToBurnKilograms: 0,
       valueMillionDollars: 40 * waferPrice,
       aboard: [],
       valueAboardMillionDollars: 0,
@@ -262,6 +266,8 @@ describe("the Lander taking off", () => {
     expect(state.exports).toEqual({
       toLoad: [],
       massKilograms: 0,
+      returnMassKilograms: 100,
+      propellantToBurnKilograms: 0,
       valueMillionDollars: 0,
       aboard: wafers(40),
       valueAboardMillionDollars: 40 * waferPrice,

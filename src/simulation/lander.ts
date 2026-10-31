@@ -14,6 +14,7 @@ import {
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
 import {
+  burnPropellant,
   isShortOfExportsToLoad,
   sellExports,
   takeExportsAboard,
@@ -166,7 +167,9 @@ export function sendLander(state: CampaignState): SendLanderResult {
  * pad, the Robot has put them aboard already. It sells them as it reaches
  * Earth. It pays for the Launch manifest as it leaves Earth, after the
  * sale, and delivers it as it lands. Taking off or landing anywhere but on a working landing
- * pad blasts Plume Ejecta over the Structures round it.
+ * pad blasts Plume Ejecta over the Structures round it. Taking off, it burns
+ * the propellant it takes to lift whatever it carries over the Return Mass it
+ * has from Earth.
  */
 export function flyLander(state: CampaignState): GameEvent[] {
   const { trip } = state.lander;
@@ -178,6 +181,7 @@ export function flyLander(state: CampaignState): GameEvent[] {
   ) {
     const fromPad = padAt(state, state.lander.position) !== undefined;
     if (!fromPad) takeExportsAboard(state);
+    burnPropellant(state);
     const exports = state.lander.exports.map((line) => ({ ...line }));
     return [
       { kind: "lander-took-off", atMinute, exports },

@@ -64,6 +64,8 @@ export function crowdedSave(): SaveFile {
       wafers: 46,
       "circuit-boards": 7,
       "water-ice": 200,
+      propellant: 150,
+      "precision-optics": 20,
     };
     const known = Object.keys(kilograms);
     const madeUp = Array.from(

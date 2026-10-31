@@ -211,6 +211,46 @@ function act2Save(): string {
   return JSON.stringify(opened, undefined, 2);
 }
 
+/**
+ * Act 2's base with all of Act 2's Milestones reached, so that Act 3 is current,
+ * with a propellant plant's Components, the Design for it and enough propellant
+ * and Exports to fly a tripled Return Mass.
+ */
+function act3Save(): string {
+  const opened = JSON.parse(act2Save()) as {
+    state: EditableSaveState & {
+      reachedMilestoneIds: string[];
+      unlockedDesignIds: string[];
+    };
+  };
+  opened.state.reachedMilestoneIds.push(
+    ...catalogue.milestones
+      .filter(
+        ({ actId, id }) =>
+          actId === "act-2" && !opened.state.reachedMilestoneIds.includes(id),
+      )
+      .map(({ id }) => id),
+  );
+  for (const id of [
+    "molten-regolith-electrolysis",
+    "cold-trap-mining",
+    "propellant-production",
+  ]) {
+    if (!opened.state.unlockedDesignIds.includes(id)) {
+      opened.state.unlockedDesignIds.push(id);
+    }
+  }
+  addComponents(opened.state, [
+    { componentId: "oxygen-liquefier", count: 2 },
+    { componentId: "cryogenic-tank", count: 2 },
+  ]);
+  opened.state.fundingMillionDollars = 5000;
+  stockOf(opened.state, "propellant", 500);
+  stockOf(opened.state, "metals", 400);
+  stockOf(opened.state, "circuit-boards", 150);
+  return JSON.stringify(opened, undefined, 2);
+}
+
 /** Where `buriedHabitatBase` puts what can be lived in, in view north of the Lander. */
 export const buriedHabitatSites = {
   waterWalledHabitat: { x: -14, y: 30 },
@@ -340,8 +380,8 @@ export const tryScenarios: readonly TryScenario[] = [
     steps: [
       'Look at the status panel\'s Milestones: it says "Act 1" and what the Act asks, then "Now" with Power storage before the first Night and its hint, then "Next" with "none left".',
       "Pick the Battery bank in the build menu, place it on clear ground beside the Lander, and set the game to 20x. In a few real seconds the Robot has built it.",
-      'A notification says "Milestone reached: Power storage before the first Night", and another that Act 2: Independence begins, the last Act there is so far.',
-      'The panel now says "Act 2: Independence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
+      'A notification says "Milestone reached: Power storage before the first Night", and another that Act 4: Permanence begins, the last Act there is.',
+      'The panel now says "Act 4: Permanence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
       "Leave the game running: it carries on, and nothing ends.",
       'Click the Milestones title to fold it: beside the title it says "every Milestone reached".',
     ],
@@ -360,10 +400,24 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Launch manifest. Under Industry, add a machine tool and a casting furnace: the cost bar shows $1,150M with the Launch fee, of $2,500M. Open the Exports tab: Metals are there at $1 a kilogram. Set 60 kg of circuit boards and 40 kg of metals: Return Mass says 100 of 100 kg, and it won't take more.",
       'Press Send the Lander and set the game to 20x. As the Lander reaches Earth a notification says the Exports sold, and "Milestone reached: Metals sold", though the Milestones section still has Workshop running as "Now": Milestones can be reached in any order.',
       'When the Lander is back and unloaded, pick the Workshop in the build menu and place it near the other Plants. Once it is running, a notification says "Milestone reached: Workshop running", "Now" moves on to Self-sufficiency in spare Components, and Self-sufficient has a new chip, Spares.',
-      "Leave it running on 20x for about 3 real minutes, a whole Lunation: the Spares chip says whether the Workshop has made as many as repairs have used. If it has, the Milestone is reached and the Milestones section says every Milestone is reached.",
+      "Leave it running on 20x for about 3 real minutes, a whole Lunation: the Spares chip says whether the Workshop has made as many as repairs have used. If it has, the Milestone is reached and, with the others reached, the Milestones section moves on to Act 3.",
       "Open the Guide: the Structures tab has the Concentrator tower under Power and the Array works under Industry, and Launches and Funding says metals are an Export.",
     ],
     save: act2Save,
+  },
+  {
+    id: "act-3",
+    title:
+      "The start of Act 3, with a propellant plant's Components in stock, 500 kg of propellant, 150 kg of circuit boards, 400 kg of metals and $5,000M",
+    steps: [
+      'Look at the status panel\'s Milestones: it says "Act 3: Scale" and what it asks, then "Now" with First propellant made.',
+      'Set the game to 5x. Within a game-minute the Milestone is reached, as propellant is in stock, and "Now" moves on to Oxygen sold as propellant.',
+      "Press Launch manifest and open the Exports tab. Return Mass says 0 of 350 kg, as 500 kg of propellant adds 250 kg. Set 150 kg of circuit boards and 150 kg of metals: it says 300 of 350 kg, burning 400 kg of propellant. Try 250 kg of metals: it is refused, naming the Return Mass.",
+      'Press Send the Lander. A notification says "Milestone reached: Return Mass tripled", and the status panel shows 100 kg of propellant left.',
+      "When the Lander reaches Earth the Funding rises by $600M. When it is back, load the last of the propellant on the Exports tab, and send it again: Oxygen sold as propellant is reached as it reaches Earth, and the Milestones section moves on to Act 4.",
+      "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel rises by about a kilogram a game-hour.",
+    ],
+    save: act3Save,
   },
   {
     id: "workshop",

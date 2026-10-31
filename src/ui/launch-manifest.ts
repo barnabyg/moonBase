@@ -339,7 +339,7 @@ export function createLaunchManifestScreen(
       returnMass.show(
         formatReturnMass(snapshot.exports),
         (snapshot.exports.massKilograms + massAboard) /
-          catalogue.lander.returnMassKilograms,
+          snapshot.exports.returnMassKilograms,
       );
       exportsValue.show(formatExportsValue(snapshot.exports), undefined);
     },
