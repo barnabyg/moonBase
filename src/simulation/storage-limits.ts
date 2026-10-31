@@ -21,7 +21,7 @@ export function storageLimitKilograms(
   if (own === undefined) return undefined;
   return workingTanks(state).reduce((limit, structure) => {
     const tank = storageTankOf(structure);
-    return tank !== undefined && sameResource(tank.resource, resource)
+    return tank !== undefined && isSameResource(tank.resource, resource)
       ? limit + tank.kilograms
       : limit;
   }, own);
@@ -58,7 +58,7 @@ function ownStorageKilograms(
   return state.structures.reduce((sum, structure) => {
     const own = findStructureType(structure.structureTypeId)?.ownStorage;
     return own !== undefined &&
-      sameResource(own.resource, resource) &&
+      isSameResource(own.resource, resource) &&
       !isBroken(structure)
       ? sum + own.kilograms
       : sum;
@@ -83,7 +83,7 @@ export function workingTanks(state: CampaignState): StructureState[] {
   );
 }
 
-export function sameResource(a: ResourceRef, b: ResourceRef): boolean {
+export function isSameResource(a: ResourceRef, b: ResourceRef): boolean {
   return a.kind === "bulk-resource"
     ? b.kind === "bulk-resource" && a.resourceId === b.resourceId
     : b.kind === "life-support" && a.stockId === b.stockId;

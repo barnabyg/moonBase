@@ -1,18 +1,17 @@
 import type { ResourceRef } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isBroken, type StructureState } from "./construction";
 import type { GameEvent } from "./events";
 import { kilogramsAboveReserve } from "./life-support-reserve";
 import {
   addWithinLimit,
   amountOf,
-  sameResource,
+  isSameResource,
   storageLimitKilograms,
   storageTankOf,
   workingTanks,
 } from "./storage-limits";
-
-const MINUTES_PER_EARTH_DAY = 24 * 60;
 
 /** A storage tank as it stands, for the Base panel and the model. */
 export interface TankSnapshot {
@@ -93,7 +92,7 @@ export function watchTanks(
       stillToGo.reduce((sum, other) => {
         const theirs = storageTankOf(other);
         return theirs !== undefined &&
-          sameResource(theirs.resource, tank.resource)
+          isSameResource(theirs.resource, tank.resource)
           ? sum + theirs.kilograms
           : sum;
       }, 0);

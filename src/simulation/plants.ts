@@ -25,6 +25,7 @@ import { addToStock, inStock } from "./stockpile";
 import {
   addWithinLimit,
   amountOf,
+  isSameResource,
   spaceKilograms,
   storageLimitKilograms,
 } from "./storage-limits";
@@ -753,12 +754,6 @@ export function isMadeByPlantsWithInputs(
       structure.plantStop?.reason !== "no-input" &&
       isMadeByPlants({ structures: [structure] }, resource),
   );
-}
-
-export function isSameResource(a: ResourceRef, b: ResourceRef): boolean {
-  return a.kind === "bulk-resource"
-    ? b.kind === "bulk-resource" && a.resourceId === b.resourceId
-    : b.kind === "life-support" && a.stockId === b.stockId;
 }
 
 /**
