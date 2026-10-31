@@ -660,7 +660,7 @@ export function formatBulkResources(
     const lasts =
       minutes === undefined || stock.kilograms === 0
         ? undefined
-        : `~${formatShortDuration(minutes)}`;
+        : `~${formatShortDuration(minutes, true)}`;
     const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
     const shown = {
       label,

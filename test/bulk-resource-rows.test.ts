@@ -24,7 +24,7 @@ describe("a bulk resource's row in the status panel", () => {
     expect(row(30, -0.5, toGameMinutes({ earthDays: 2, hours: 12 }))).toEqual({
       label: "Silicon",
       value: "30 kg",
-      note: "−12.0 kg/day, ~2d 12h",
+      note: "−12.0 kg/day, ~2d",
       empty: false,
       warning: true,
       inPlay: true,
