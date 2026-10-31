@@ -259,7 +259,7 @@ export function formatTank(
   const kilowatts =
     catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
       ?.power.nightUpkeepKilowatts ?? 0;
-  return `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.capacityKilograms} kg of ${stock}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
+  return `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${stock}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
 }
 
 /**

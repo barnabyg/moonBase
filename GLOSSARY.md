@@ -249,8 +249,8 @@ Bladders of water laid over a Habitat's Regolith shielding, filled from the base
 _Avoid_: water shield, water jacket, tank
 
 **Vault cistern**:
-Cells of water sunk round a Buried Habitat, filled all at once from the base's water, which cut the Radiation Dose inside further than the Buried Habitat alone.
-_Avoid_: water jacket, water wall, tank
+Cells of water sunk round a Buried Habitat, filled all at once from the base's water, which cut the Radiation Dose inside further than the Buried Habitat alone. It is filled by a water wall's rules, and the code models it as one.
+_Avoid_: water jacket, tank
 
 ## Condition
 

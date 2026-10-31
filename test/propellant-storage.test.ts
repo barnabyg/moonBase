@@ -139,7 +139,7 @@ describe("the propellant limit", () => {
     expect(limitOf(game.state, "propellant")).toBe(PLANT_HOLDS + TANK_HOLDS);
     expect(typed(game.state, "propellant-tank").tank).toMatchObject({
       resource: { kind: "bulk-resource", resourceId: "propellant" },
-      capacityKilograms: TANK_HOLDS,
+      addsKilograms: TANK_HOLDS,
     });
   });
 

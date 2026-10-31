@@ -158,7 +158,7 @@ export function createConstructionViews(
         showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(
           structure.tank !== undefined
-            ? structure.tank.heldKilograms / structure.tank.capacityKilograms
+            ? structure.tank.heldKilograms / structure.tank.addsKilograms
             : view.storageKilowattHours === 0
               ? 0
               : structure.storedKilowattHours / view.storageKilowattHours,

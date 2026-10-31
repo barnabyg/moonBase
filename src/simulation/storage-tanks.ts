@@ -17,7 +17,7 @@ import {
 export interface TankSnapshot {
   readonly resource: ResourceRef;
   /** What it adds to the base's limit, whether or not it is Broken. */
-  readonly capacityKilograms: number;
+  readonly addsKilograms: number;
   /** Its share of the stock, in proportion to what it holds of the limit, up to all it can hold; none if it is Broken. */
   readonly heldKilograms: number;
   /** Whether it had no power during the latest game-minute of Night, so is losing what it holds. */
@@ -33,7 +33,7 @@ export function readTank(
   if (tank === undefined) return undefined;
   return {
     resource: tank.resource,
-    capacityKilograms: tank.kilograms,
+    addsKilograms: tank.kilograms,
     heldKilograms: isBroken(structure)
       ? 0
       : shareOf(state, tank.resource, tank.kilograms),

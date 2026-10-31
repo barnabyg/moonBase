@@ -225,12 +225,12 @@ describe("a commissioned storage tank", () => {
 
     expect(typed(game.state, "water-tank").tank).toMatchObject({
       resource: { kind: "life-support", stockId: "water" },
-      capacityKilograms: WATER_TANK_KILOGRAMS,
+      addsKilograms: WATER_TANK_KILOGRAMS,
       heldKilograms: 500,
     });
     expect(typed(game.state, "oxygen-tank").tank).toMatchObject({
       resource: { kind: "life-support", stockId: "oxygen" },
-      capacityKilograms: OXYGEN_TANK_KILOGRAMS,
+      addsKilograms: OXYGEN_TANK_KILOGRAMS,
       heldKilograms: 150,
     });
     expect(typed(game.state, "solar-array").tank).toBeUndefined();
@@ -497,7 +497,7 @@ describe("a tank that is another entry in the data catalogue", () => {
 
     expect(stock(game.state, "oxygen").limitKilograms).toBe(OXYGEN_LIMIT + 50);
     expect(typed(game.state, "made-up-tank").tank).toMatchObject({
-      capacityKilograms: 50,
+      addsKilograms: 50,
     });
     game.advance({ minutes: 1 });
     const rest = game.state.power.networks[0]?.consumptionKilowatts ?? 0;

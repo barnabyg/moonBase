@@ -355,13 +355,13 @@ function tankLine(structure: StructureSnapshot | undefined): DetailLine {
   const label = "Tank";
   const tank = structure?.tank;
   if (tank === undefined) return { label, stat: NOT_YET };
-  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.capacityKilograms} kg of ${resourceRefLabel(tank.resource).toLowerCase()}`;
+  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${resourceRefLabel(tank.resource).toLowerCase()}`;
   return {
     label,
     stat: tank.losing
       ? { value, note: "no power, so losing what it holds" }
       : { value },
-    fraction: Math.min(tank.heldKilograms / tank.capacityKilograms, 1),
+    fraction: Math.min(tank.heldKilograms / tank.addsKilograms, 1),
   };
 }
 
