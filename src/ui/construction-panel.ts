@@ -264,7 +264,7 @@ export function createConstructionPanel(
         let row = rowFor(key);
         if (row === undefined) {
           row = createRow(
-            `Dismantling the ${structureLabel(dismantling.structureTypeId).toLowerCase()}`,
+            `Dismantling the ${inSentence(structureLabel(dismantling.structureTypeId))}`,
             undefined,
           );
           keepRow(key, row);

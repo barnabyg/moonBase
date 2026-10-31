@@ -1,4 +1,9 @@
-import { catalogue } from "../catalogue";
+import {
+  catalogue,
+  componentOutputs,
+  resourceOutputs,
+  type PlantRecipe,
+} from "../catalogue";
 import {
   actAsks,
   actLabel,
@@ -40,6 +45,7 @@ import {
 } from "./format";
 import {
   formatComponents,
+  inSentence,
   formatExportLines,
   researchTaskLabel,
   resourceLabel,
@@ -396,7 +402,10 @@ function summariseLifeSupport(
 
 /**
  * Says how many spare Components the base has and how long they will last
- * at the current rate of wear, for example "6 in stock" and "last 9d 4h".
+ * at the current rate of wear, for example "6 in stock" and "last 9d 4h", or,
+ * while the base's Plants make more than is used, how fast they are rising,
+ * and when they will run out even so, if the Plants standing idle at Night
+ * leave too few to last it.
  */
 export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const pending =
@@ -404,8 +413,27 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
       ? ""
       : `, ${forecast.forPendingRepairs} needed for repairs waiting`;
   const value = `${forecast.inStock} in stock${pending}`;
+  const net = forecast.madePerEarthDay - forecast.perEarthDay;
+  if (net > 0) {
+    const rising = `rising ${net.toFixed(1)} a day`;
+    return {
+      value,
+      note:
+        forecast.minutesUntilEmpty === undefined
+          ? rising
+          : forecast.minutesUntilEmpty === 0
+            ? `${rising}, but too few for the wear until a batch finishes`
+            : `${rising}, but last only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
+    };
+  }
   if (forecast.minutesUntilEmpty === undefined) {
-    return { value, note: "nothing wearing down" };
+    return {
+      value,
+      note:
+        forecast.perEarthDay === 0
+          ? "nothing wearing down"
+          : "enough until Daylight",
+    };
   }
   return {
     value,
@@ -423,6 +451,7 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
  */
 export function summariseStock(spares: SpareComponentsForecast): string {
   const count = plural(spares.inStock, "spare");
+  if (spares.madePerEarthDay > spares.perEarthDay) return `${count}, rising`;
   return spares.minutesUntilEmpty === undefined
     ? count
     : spares.minutesUntilEmpty === 0
@@ -532,19 +561,51 @@ export function withSwitchedOffPlants(
     "structureTypeId" | "recipeId" | "switchedOff"
   >[],
 ): Stat {
-  const off = structures.filter((structure) => {
-    if (!structure.switchedOff) return false;
-    return (recipeOf(structure)?.outputs ?? []).some(
+  return withPlantsOff(stat, structures, (recipe) =>
+    resourceOutputs(recipe).some(
       (flow) =>
         flow.resource.kind === "life-support" &&
         flow.resource.stockId === stockId,
-    );
+    ),
+  );
+}
+
+/**
+ * Adds to what the spare Components' line says which of the Plants that would
+ * make them are switched off, for example "last 9d 4h, Workshop switched off".
+ */
+export function withSwitchedOffSpareMakers(
+  stat: Stat,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff"
+  >[],
+): Stat {
+  return withPlantsOff(stat, structures, (recipe) =>
+    componentOutputs(recipe).some(
+      (made) => made.componentId === catalogue.maintenance.spareComponentId,
+    ),
+  );
+}
+
+/** Adds to a line which of the switched-off Plants' recipes make what it is about. */
+function withPlantsOff(
+  stat: Stat,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff"
+  >[],
+  makes: (recipe: PlantRecipe) => boolean,
+): Stat {
+  const off = structures.filter((structure) => {
+    const recipe = recipeOf(structure);
+    return structure.switchedOff && recipe !== undefined && makes(recipe);
   });
   if (off.length === 0) return stat;
   const labels = [
     ...new Set(
       off.map((structure) =>
-        structureLabel(structure.structureTypeId).toLowerCase(),
+        inSentence(structureLabel(structure.structureTypeId)),
       ),
     ),
   ];

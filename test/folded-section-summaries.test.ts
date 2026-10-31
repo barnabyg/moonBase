@@ -137,6 +137,8 @@ describe("a folded Stock section", () => {
         inStock: 6,
         forPendingRepairs: 0,
         perEarthDay: 0.6,
+        madePerEarthDay: 0,
+        countedOn: 6,
         minutesUntilEmpty: toGameMinutes({ earthDays: 9, hours: 4 }),
       }),
     ).toBe("6 spares, last 9d");
@@ -147,6 +149,8 @@ describe("a folded Stock section", () => {
       inStock: 1,
       forPendingRepairs: 0,
       perEarthDay: 0,
+      madePerEarthDay: 0,
+      countedOn: 1,
       minutesUntilEmpty: undefined,
     };
     expect(summariseStock(spares)).toBe("1 spare");

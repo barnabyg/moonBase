@@ -128,7 +128,7 @@ export function describeWork(
 function machineWork(construction: ConstructionSnapshot): string {
   return construction.stage === "site-preparation"
     ? "grading the ground"
-    : `building the ${structureLabel(construction.structureTypeId).toLowerCase()}`;
+    : `building the ${inSentence(structureLabel(construction.structureTypeId))}`;
 }
 
 function describeRobotWork(
@@ -193,7 +193,7 @@ function describeRobotWork(
     case "unloading-components":
       return "Robot unloading the Components at the site";
     case "assembling":
-      return `Robot assembling the ${structureLabel(construction.structureTypeId).toLowerCase()}`;
+      return `Robot assembling the ${inSentence(structureLabel(construction.structureTypeId))}`;
     case "commissioning":
       return construction.failedCommissionings === 0
         ? "Robot testing it before it goes live"
@@ -251,7 +251,7 @@ export function describeDismantling(
         ? "Robot walking to the site"
         : `Robot walking to the site for ${recovered}`;
     case "dismantling":
-      return `Robot taking the ${structureLabel(dismantling.structureTypeId).toLowerCase()} apart`;
+      return `Robot taking the ${inSentence(structureLabel(dismantling.structureTypeId))} apart`;
     case "returning-components":
       return `Robot unloading ${recovered} at the stockpile`;
     default:
@@ -329,7 +329,7 @@ export function describeExportLoading(
 export function formatParkingPlace(
   parking: Pick<ParkingSnapshot, "structureTypeId" | "inBay">,
 ): string {
-  const structure = structureLabel(parking.structureTypeId).toLowerCase();
+  const structure = inSentence(structureLabel(parking.structureTypeId));
   return parking.inBay
     ? `in a bay of the ${structure}`
     : `beside the ${structure}`;
@@ -345,7 +345,7 @@ export function describeParking(
   snapshot: Pick<Snapshot, "robots">,
 ): string {
   const machine = inSentence(drivenLabel(parking.subject));
-  const beside = structureLabel(parking.structureTypeId).toLowerCase();
+  const beside = inSentence(structureLabel(parking.structureTypeId));
   const place = formatParkingPlace(parking);
   const robot = parking.underWay
     ? snapshot.robots.find(({ activity }) =>
@@ -367,7 +367,7 @@ export function describeParking(
 export function formatMaintenanceWait(waiting: MaintenanceWait): string {
   return waiting.reason === "machine-at-work"
     ? "Waiting for the Machine to finish its work on a site"
-    : `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock. Put spare Components on the Launch manifest`;
+    : `Waiting: ${plural(waiting.missing, "more spare Component")} needed in the base's stock. Put spare Components on the Launch manifest, or make them in a Workshop`;
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   type Catalogue,
   type PlantRecipe,
   type ResourceRef,
+  resourceOutputs,
 } from "../src/catalogue";
 import {
   type Campaign,
@@ -132,7 +133,7 @@ describe.each(cases)("the %s running for %s", (_, __, typeId, recipe) => {
         amountOf(before, flow.resource) - amountOf(after, flow.resource),
       ).toBeCloseTo(flow.kilogramsPerHour);
     }
-    for (const flow of recipe.outputs) {
+    for (const flow of resourceOutputs(recipe)) {
       expect(
         amountOf(after, flow.resource) - amountOf(before, flow.resource),
       ).toBeCloseTo(flow.kilogramsPerHour);

@@ -119,11 +119,11 @@ A Structure that runs a recipe, turning resources into products by itself once i
 _Avoid_: factory, facility, Machine
 
 **Workshop**:
-A Plant, planned for the second Act, that makes spare Components at the base, so that they no longer need a Launch.
+A Plant that makes spare Components from metals at the base, so that they no longer need a Launch.
 _Avoid_: factory, fabricator, printer
 
 **Batch**:
-A game-hour of a Plant's recipe, the unit a Plant works in: it takes the inputs as it starts and puts out the outputs as it finishes.
+A game-hour of a Plant's recipe, or longer if its recipe says so, as a Workshop's does: the unit a Plant works in. It takes the inputs as it starts and puts out the outputs as it finishes.
 _Avoid_: job, run, cycle
 
 **Construction**:

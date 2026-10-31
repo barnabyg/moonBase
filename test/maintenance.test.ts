@@ -377,7 +377,7 @@ describe("what the player is told about repairs", () => {
         missing: 3,
       }),
     ).toBe(
-      "Waiting: 3 more spare Components needed in the base's stock. Put spare Components on the Launch manifest",
+      "Waiting: 3 more spare Components needed in the base's stock. Put spare Components on the Launch manifest, or make them in a Workshop",
     );
   });
 });

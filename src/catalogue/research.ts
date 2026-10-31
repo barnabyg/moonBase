@@ -173,6 +173,16 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 94,
     requiresDesignId: "microwave-sintering",
   },
+  // Pays for most of Parts machining, as the Tech Tree is otherwise left a
+  // few dozen Science short. Offered only once it is unlocked, and at the rate
+  // of the other long tasks.
+  {
+    id: "machined-part-wear-trial",
+    label: "Machined part wear trial",
+    lengthHours: 336,
+    science: 108,
+    requiresDesignId: "parts-machining",
+  },
   {
     id: "dust-screen-efficiency-trial",
     label: "Dust screen efficiency trial",
@@ -509,6 +519,21 @@ export const designs: Catalogue["designs"] = [
       "molten-regolith-electrolysis",
       "circuit-board-fabrication",
     ],
+  },
+  // Act 2's Mechanic: the Workshop, so that a growing base can stop spending
+  // Payload Mass on spare Components. Casting metal parts follows on from
+  // melting Regolith, so it is past Molten regolith electrolysis, in the
+  // second rank, at the low end of what that rank costs, as a base that has
+  // come this far already feels the pull of spares on every Launch.
+  {
+    id: "parts-machining",
+    label: "Parts machining",
+    description:
+      "Casting and machining worn parts back into spare Components at the base, from metals the base makes, so that they no longer need a Launch.",
+    category: "industry",
+    starting: false,
+    scienceCost: 150,
+    prerequisiteDesignIds: ["molten-regolith-electrolysis"],
   },
   // An Industry Design, as the Plants' are: a Structure that, once
   // commissioned, makes something by itself, here Science from the

@@ -52,6 +52,31 @@ describe("what npm run try can start the game in", () => {
     expect(ended).toBeUndefined();
   });
 
+  it("workshop starts with a Workshop running on metals, and makes a spare Component", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "workshop",
+    );
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { campaign } = loaded;
+    const spares = () =>
+      campaign
+        .snapshot()
+        .stockpile.components.find(
+          (stock) =>
+            stock.componentId === catalogue.maintenance.spareComponentId,
+        )?.count ?? 0;
+    const before = spares();
+    const workshop = campaign
+      .snapshot()
+      .structures.find((structure) => structure.structureTypeId === "workshop");
+
+    expect(workshop?.plant?.running).toBe(true);
+    expect(campaign.snapshot().lunation.part).toBe("daylight");
+    campaign.advance(workshop?.plant?.batch?.minutesLeft ?? 0);
+    expect(spares()).toBe(before + 1);
+  });
+
   it("crowded has some of every bulk resource, and silicon about to run out", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "crowded",

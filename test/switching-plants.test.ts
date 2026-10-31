@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   createCampaign,
   loadCampaign,
@@ -44,7 +49,8 @@ function recipeOf(structureTypeId: string): PlantRecipe {
 
 const waterRecipe = recipeOf("water-processing-plant");
 const icePerHour = waterRecipe.inputs[0]?.kilogramsPerHour ?? Number.NaN;
-const waterPerHour = waterRecipe.outputs[0]?.kilogramsPerHour ?? Number.NaN;
+const waterPerHour =
+  resourceOutputs(waterRecipe)[0]?.kilogramsPerHour ?? Number.NaN;
 const waterUsePerHour =
   (catalogue.lifeSupportStocks.find((stock) => stock.id === "water")
     ?.usePerEarthDayKilograms ?? Number.NaN) / 24;

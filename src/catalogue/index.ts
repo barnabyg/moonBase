@@ -1,4 +1,5 @@
 export { catalogue } from "./catalogue";
+export { batchHoursOf, componentOutputs, resourceOutputs } from "./recipes";
 export type {
   Act,
   BulkResource,
@@ -29,6 +30,7 @@ export type {
   PerformanceCurve,
   PlantRecipe,
   RadiationRules,
+  RecipeOutput,
   ResearchTask,
   ResourceFlow,
   ResourceRef,

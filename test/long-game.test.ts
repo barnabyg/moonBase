@@ -57,6 +57,34 @@ describe("the long-game play guide", () => {
     );
   });
 
+  it("says when a Workshop came, what the spare Components did, and what Launches brought of them before and after it", () => {
+    const lines = formatLongGame(
+      timeline({
+        structureTypesBuilt: [
+          { structureTypeId: "workshop", atMinute: 100 * 24 * 60 },
+        ],
+        sparesInStock: [
+          { atMinute: 50 * 24 * 60, inStock: 20, fewest: 12 },
+          { atMinute: 110 * 24 * 60, inStock: 30, fewest: 9 },
+          { atMinute: 140 * 24 * 60, inStock: 25, fewest: 22 },
+        ],
+        sparesShipped: [
+          { atMinute: 60 * 24 * 60, count: 15 },
+          { atMinute: 80 * 24 * 60, count: 5 },
+          { atMinute: 120 * 24 * 60, count: 3 },
+        ],
+      }),
+    );
+
+    expect(lines).toContain(
+      "A Workshop was commissioned on Earth Day 100.0. After it the stock was never below 9.",
+    );
+    expect(lines).toContain(
+      "Launches bringing spare Components: 2, with 20, before a Workshop; 1, with 3, after it.",
+    );
+    expect(lines).toContain("     140  25 (22)");
+  });
+
   it("names only Designs the Tech Tree has as those it uses", () => {
     const ids = catalogue.designs.map((design) => design.id);
 

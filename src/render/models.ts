@@ -3107,10 +3107,12 @@ const PLINTH_TOP = 0.25;
  * A vessel standing on a Plant's plinth. A reactor is tall and narrow, a
  * tank squat and wide, a chamber a drum lying on its side, an oven a low
  * tunnel with a conveyor running through it, a stack a block of cell
- * plates, and a hopper a funnel on legs that Regolith is tipped into.
+ * plates, a hopper a funnel on legs that Regolith is tipped into, and a mill
+ * a machine tool, with a spindle hanging from a gantry over its bed.
  */
 interface PlantVessel {
-  readonly kind: "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper";
+  readonly kind:
+    "reactor" | "tank" | "chamber" | "oven" | "stack" | "hopper" | "mill";
   /** Where its centre stands on the plinth, across and front to back. */
   readonly at: readonly [number, number];
   /** How much bigger it is than the plain vessel of its kind; 1 if not given. */
@@ -3200,6 +3202,20 @@ const INTEGRATED_FABRICATION_PLANT: PlantShape = {
   feederAt: 1.5,
 };
 
+/**
+ * A Workshop: a machine tool's gantry over its bed, the one thing on any Plant
+ * you can see through, with a small casting furnace behind it.
+ */
+const WORKSHOP: PlantShape = {
+  name: "Workshop",
+  plinth: [4.6, 3.8],
+  vessels: [
+    { kind: "mill", at: [-0.9, 0.45] },
+    { kind: "tank", at: [-1.4, -1.15], scale: 0.42 },
+  ],
+  feederAt: 1.3,
+};
+
 /** The Plants, by Structure type. */
 const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "extraction-plant": EXTRACTION_PLANT,
@@ -3209,6 +3225,7 @@ const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "vacuum-fabrication-plant": VACUUM_FABRICATION_PLANT,
   "circuit-board-plant": CIRCUIT_BOARD_PLANT,
   "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
+  workshop: WORKSHOP,
 };
 
 /**
@@ -3313,6 +3330,44 @@ function plantVesselParts(
             0.9,
             z,
           ]),
+        ),
+      ];
+    case "mill":
+      // A bed from side to side, two posts carrying a beam over it, and a
+      // spindle hanging from the beam, whose tip glows while it cuts.
+      return [
+        part(
+          new THREE.BoxGeometry(2.3, 0.35, 1.3),
+          materials.machinePaint,
+          [0, 0.42, 0],
+        ),
+        part(new THREE.BoxGeometry(1, 0.1, 0.9), materials.hull, [0, 0.65, 0]),
+        ...[-1, 1].map((x) =>
+          part(new THREE.BoxGeometry(0.22, 1.9, 0.3), materials.darkMetal, [
+            x,
+            1.3,
+            0,
+          ]),
+        ),
+        part(
+          new THREE.BoxGeometry(2.3, 0.28, 0.34),
+          materials.machinePaint,
+          [0, 2.3, 0],
+        ),
+        part(
+          new THREE.BoxGeometry(0.36, 0.55, 0.42),
+          materials.hull,
+          [0.2, 1.95, 0],
+        ),
+        part(
+          new THREE.CylinderGeometry(0.07, 0.07, 0.65, 8),
+          materials.darkMetal,
+          [0.2, 1.35, 0],
+        ),
+        part(
+          new THREE.CylinderGeometry(0.11, 0.03, 0.2, 8),
+          glow,
+          [0.2, 0.95, 0],
         ),
       ];
     case "reactor":

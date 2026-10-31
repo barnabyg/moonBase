@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   type Campaign,
   type GameEvent,
@@ -54,7 +59,7 @@ function rateOf(flows: PlantRecipe["inputs"], resourceId: string): number {
 
 const wafersPerHour = rateOf(recipe.inputs, "wafers");
 const metalsPerHour = rateOf(recipe.inputs, "metals");
-const boardsPerHour = rateOf(recipe.outputs, "circuit-boards");
+const boardsPerHour = rateOf(resourceOutputs(recipe), "circuit-boards");
 const boardPrice =
   catalogue.exports.find((sold) => sold.resourceId === "circuit-boards")
     ?.priceMillionDollarsPerKilogram ?? Number.NaN;

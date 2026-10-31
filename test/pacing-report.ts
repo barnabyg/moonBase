@@ -1,4 +1,11 @@
-import type { Catalogue, ResourceRef, StructureType } from "../src/catalogue";
+import {
+  batchHoursOf,
+  componentOutputs,
+  resourceOutputs,
+  type Catalogue,
+  type ResourceRef,
+  type StructureType,
+} from "../src/catalogue";
 
 // The pacing report: how the Campaign's numbers fit together, worked out from
 // the data catalogue alone, so that a balancing change can be judged without
@@ -256,7 +263,7 @@ export function plantEarnings(
     for (const recipe of type.recipes ?? []) {
       let kilogramsPerHour = 0;
       let valuePerHour = 0;
-      for (const output of recipe.outputs) {
+      for (const output of resourceOutputs(recipe)) {
         const price = priceOf(output.resource);
         if (price === undefined) continue;
         kilogramsPerHour += output.kilogramsPerHour;
@@ -284,6 +291,59 @@ export function plantEarnings(
     }
   }
   return earnings;
+}
+
+/** A Plant's recipe that makes Components, and what running it saves on Launches. */
+export interface ComponentMaker {
+  readonly structureTypeId: string;
+  readonly recipeId: string;
+  readonly componentId: string;
+  /** How many it makes in a Lunation, running through Daylight with its inputs always there. */
+  readonly madePerLunation: number;
+  /** How many kilograms of inputs that takes. */
+  readonly inputKilogramsPerLunation: number;
+  /** What bringing as many by Launch would take of the Payload Mass and cost, with no Launch fee. */
+  readonly savesKilogramsPerLunation: number;
+  readonly savesMillionDollarsPerLunation: number;
+  /** How many Lunations' Payload Mass saved its own Components' mass comes to. */
+  readonly paybackLunations: number;
+}
+
+/** Every Plant recipe that makes Components, against bringing them by Launch. */
+export function componentMakers(
+  catalogue: Pick<PacedCatalogue, "structureTypes" | "launch" | "lunation">,
+): ComponentMaker[] {
+  const daylightHours =
+    catalogue.lunation.daylightEarthDays * HOURS_PER_EARTH_DAY;
+  return catalogue.structureTypes.flatMap((type) =>
+    (type.recipes ?? []).flatMap((recipe) => {
+      const batches = daylightHours / batchHoursOf(recipe);
+      return componentOutputs(recipe).map(({ componentId, count }) => {
+        const item = catalogue.launch.items.find(
+          ({ brings }) =>
+            brings.kind === "component" && brings.componentId === componentId,
+        );
+        const madePerLunation = batches * count;
+        const savesKilogramsPerLunation =
+          madePerLunation * (item?.massKilograms ?? 0);
+        return {
+          structureTypeId: type.id,
+          recipeId: recipe.id,
+          componentId,
+          madePerLunation,
+          inputKilogramsPerLunation: recipe.inputs.reduce(
+            (total, input) => total + input.kilogramsPerHour * daylightHours,
+            0,
+          ),
+          savesKilogramsPerLunation,
+          savesMillionDollarsPerLunation:
+            madePerLunation * (item?.priceMillionDollars ?? 0),
+          paybackLunations:
+            importCost(catalogue, type).kilograms / savesKilogramsPerLunation,
+        };
+      });
+    }),
+  );
 }
 
 /** A Design that earns Science, and whether and how soon that pays for it. */
@@ -356,7 +416,7 @@ function earthDaysToFillReturnMass(
 ): number {
   for (const type of catalogue.structureTypes) {
     for (const recipe of type.recipes ?? []) {
-      const output = recipe.outputs.find(
+      const output = resourceOutputs(recipe).find(
         ({ resource }) =>
           resource.kind === "bulk-resource" &&
           resource.resourceId === resourceId,
@@ -540,8 +600,20 @@ export function offerings(
       });
     }
     for (const recipe of type.recipes ?? []) {
-      const madePerHour = recipe.outputs.reduce(
-        (total, output) => total + output.kilogramsPerHour,
+      // What a recipe makes an hour, whether kilograms of a resource or a
+      // number of a Component, each by the id it goes by.
+      const made = [
+        ...resourceOutputs(recipe).map((output) => ({
+          id: outputId(output.resource),
+          perHour: output.kilogramsPerHour,
+        })),
+        ...componentOutputs(recipe).map((output) => ({
+          id: output.componentId,
+          perHour: output.count / batchHoursOf(recipe),
+        })),
+      ];
+      const madePerHour = made.reduce(
+        (total, output) => total + output.perHour,
         0,
       );
       const worth: Record<string, number> = {
@@ -549,8 +621,8 @@ export function offerings(
         draw: -type.power.drawKilowatts,
         recipeDrawPerKilogram: -recipe.drawKilowatts / madePerHour,
       };
-      for (const output of recipe.outputs) {
-        worth[`makes ${outputId(output.resource)}`] = output.kilogramsPerHour;
+      for (const output of made) {
+        worth[`makes ${output.id}`] = output.perHour;
       }
       for (const input of recipe.inputs) {
         worth[`uses ${outputId(input.resource)} per kilogram`] =
@@ -559,8 +631,8 @@ export function offerings(
       found.push({
         thing: `${type.id}: ${recipe.id}`,
         designId: type.designId,
-        job: `making ${recipe.outputs
-          .map((output) => outputId(output.resource))
+        job: `making ${made
+          .map((output) => output.id)
           .sort()
           .join(", ")}`,
         costs,
@@ -673,6 +745,7 @@ export function formatPacingReport(
   const economics = exportEconomics(catalogue);
   const earnings = plantEarnings(catalogue);
   const earners = scienceEarners(catalogue);
+  const makers = componentMakers(catalogue);
   const beaten = beatenDesigns(catalogue);
   const best = [...economics.exports].sort(
     (a, b) => b.profitMillionDollars - a.profitMillionDollars,
@@ -714,6 +787,13 @@ export function formatPacingReport(
     ...earnings.map(
       (earning) =>
         `  ${labelOf(catalogue.structureTypes, earning.structureTypeId)}, ${earning.recipeId}: costs ${money(earning.costMillionDollars)}, sells ${earning.exportKilogramsPerEarthDay.toFixed(2)} kg an Earth Day${earning.returnMassLimited ? " (all the Lander can carry)" : ""}, earns ${money(earning.millionDollarsPerEarthDay)} an Earth Day; pays back in ${days(earning.paybackEarthDays)} (${atEachSpeed(catalogue, earning.paybackEarthDays)}).`,
+    ),
+    "",
+    "Each Plant that makes Components, against bringing them by Launch",
+    "  Assumes it runs only through Daylight, with its inputs always there. Its payback is its own Components' mass against the Payload Mass it saves.",
+    ...makers.map(
+      (maker) =>
+        `  ${labelOf(catalogue.structureTypes, maker.structureTypeId)}, ${maker.recipeId}: makes ${Number(maker.madePerLunation.toFixed(1))} ${maker.componentId} a Lunation from ${Number(maker.inputKilogramsPerLunation.toFixed(1))} kg of inputs; saves ${Number(maker.savesKilogramsPerLunation.toFixed(1))} kg of Payload Mass and ${money(maker.savesMillionDollarsPerLunation)} a Lunation; pays back its mass in ${Number(maker.paybackLunations.toFixed(1))} Lunations if all it makes is used.`,
     ),
     "",
     "Payback of each Design that earns Science",

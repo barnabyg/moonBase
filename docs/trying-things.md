@@ -8,11 +8,12 @@ npm.cmd run try -- crowded
 
 It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox with that Campaign loaded, and prints what to do and what should happen. Press `Ctrl+C` in the window that ran it to stop the game. Run `npm.cmd run try` with no scenario to list them. Some scenarios play a long way through a Campaign first, which can take a minute or more.
 
-| Scenario              | What it starts in                                                                                                                |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `everything-unlocked` | An hour into a Campaign with every Design unlocked and $5,000M                                                                   |
-| `last-milestone`      | An hour into a Campaign with every Milestone reached but power storage, the quickest to reach                                    |
-| `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out |
+| Scenario              | What it starts in                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `everything-unlocked` | An hour into a Campaign with every Design unlocked and $5,000M                                                                                  |
+| `last-milestone`      | An hour into a Campaign with every Milestone reached but power storage, the quickest to reach                                                   |
+| `workshop`            | A base with a Workshop running on two solar arrays and a battery bank, its metals about to run out, and a second Workshop's Components in stock |
+| `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                |
 
 No scenario shows a second Act yet: that needs Act 2's content, and the ticket that adds it (#157) will add one.
 

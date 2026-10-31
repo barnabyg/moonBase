@@ -299,6 +299,23 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 400,
       priceMillionDollars: 45,
     },
+    // A Workshop's worth comes to 600 kg and $40M: as much mass as 30 spare
+    // Components, which the long-game base uses in about two Lunations, and
+    // as much money as 40, so it soon earns its place on a Launch.
+    {
+      id: "machine-tool",
+      designId: "parts-machining",
+      brings: { kind: "component", componentId: "machine-tool" },
+      massKilograms: 350,
+      priceMillionDollars: 25,
+    },
+    {
+      id: "casting-furnace",
+      designId: "parts-machining",
+      brings: { kind: "component", componentId: "casting-furnace" },
+      massKilograms: 250,
+      priceMillionDollars: 15,
+    },
     // In pressurised tanks, which make up the rest of the mass.
     {
       id: "oxygen",

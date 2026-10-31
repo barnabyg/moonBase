@@ -1,8 +1,9 @@
-import { catalogue } from "../src/catalogue";
+import { catalogue, componentOutputs } from "../src/catalogue";
 import {
   createCampaign,
   lunationMinutes,
   milestoneLabel,
+  recipeOf,
   type Campaign,
   type GameEvent,
   type GroundPosition,
@@ -507,10 +508,23 @@ function fetchWaterIce(play: Play): void {
 const SPARES_KEPT = 30;
 
 /**
+ * Whether a commissioned Plant makes spare Components, so that they no longer
+ * need a Launch. The reference Campaign builds none; the long game does.
+ */
+function makesSpares(state: Snapshot): boolean {
+  return state.structures.some((structure) =>
+    componentOutputs(recipeOf(structure)).some(
+      (made) => made.componentId === catalogue.maintenance.spareComponentId,
+    ),
+  );
+}
+
+/**
  * Sends the Lander with a full Return Mass of the most valuable Export the
  * base makes, and once it is away sets the Launch manifest: oxygen and water
- * if they are low, spare Components up to the number kept, and a circuit
- * board plant if the base has none and the Funding runs to it.
+ * if they are low, spare Components up to the number kept unless the base
+ * makes its own, and a circuit board plant if the base has none and the
+ * Funding runs to it.
  */
 function tradeWithEarth(): (play: Play) => void {
   let manifestSetOnTrip: number | undefined;
@@ -556,7 +570,7 @@ function tradeWithEarth(): (play: Play) => void {
       state.stockpile.components.find(
         (stock) => stock.componentId === catalogue.maintenance.spareComponentId,
       )?.count ?? 0;
-    if (spares < SPARES_KEPT) {
+    if (spares < SPARES_KEPT && !makesSpares(state)) {
       needed.push({
         itemId: catalogue.maintenance.spareComponentId,
         count: SPARES_KEPT - spares,
@@ -689,6 +703,17 @@ export interface ReferenceTimeline {
   readonly designsUnlocked: readonly {
     readonly designId: string;
     readonly atMinute: number;
+  }[];
+  /** The spare Components in stock at each look, once a Lunation, and the fewest there were since the last. */
+  readonly sparesInStock: readonly {
+    readonly atMinute: number;
+    readonly inStock: number;
+    readonly fewest: number;
+  }[];
+  /** Each round trip whose Launch manifest brought spare Components, and how many, by the game-minute it left. */
+  readonly sparesShipped: readonly {
+    readonly atMinute: number;
+    readonly count: number;
   }[];
   /** Each Launch item ever put on the Launch manifest. */
   readonly launchItemsManifested: readonly string[];
@@ -823,6 +848,13 @@ function recorder(campaign: Campaign) {
   }[] = [];
   const designsUnlocked: { designId: string; atMinute: number }[] = [];
   const launchItemsManifested = new Set<string>();
+  const sparesInStock: {
+    atMinute: number;
+    inStock: number;
+    fewest: number;
+  }[] = [];
+  let fewestSpares = Infinity;
+  const sparesShipped = new Map<number, number>();
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
   return {
@@ -875,6 +907,32 @@ function recorder(campaign: Campaign) {
       const atMinute = state.clock.elapsedMinutes;
       for (const { itemId } of state.launchManifest.items) {
         launchItemsManifested.add(itemId);
+      }
+      const spares =
+        state.stockpile.components.find(
+          (stock) =>
+            stock.componentId === catalogue.maintenance.spareComponentId,
+        )?.count ?? 0;
+      fewestSpares = Math.min(fewestSpares, spares);
+      const lastLook = sparesInStock.at(-1)?.atMinute ?? 0;
+      if (atMinute - lastLook >= lunationMinutes(catalogue.lunation).lunation) {
+        sparesInStock.push({
+          atMinute,
+          inStock: spares,
+          fewest: fewestSpares,
+        });
+        fewestSpares = Infinity;
+      }
+      const shipped = state.launchManifest.items.find(
+        ({ itemId }) => itemId === catalogue.maintenance.spareComponentId,
+      );
+      const trip = state.lander.legStartedAtMinute;
+      if (
+        shipped !== undefined &&
+        trip !== undefined &&
+        state.lander.state === "travelling-to-earth"
+      ) {
+        sparesShipped.set(trip, shipped.count);
       }
       // Unlocking is a command, which brings no event from advancing the game.
       for (const designId of state.unlockedDesignIds) {
@@ -974,6 +1032,11 @@ function recorder(campaign: Campaign) {
         fundingAtEndMillionDollars: state.fundingMillionDollars,
         researchTasksCompleted,
         designsUnlocked,
+        sparesInStock,
+        sparesShipped: [...sparesShipped].map(([atMinute, count]) => ({
+          atMinute,
+          count,
+        })),
         launchItemsManifested: [...launchItemsManifested],
         structureTypesBuilt,
         minutesUntilDoseLimit:

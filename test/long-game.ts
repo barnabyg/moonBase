@@ -48,7 +48,93 @@ export const designsTheLongGameUses: readonly string[] = [
   "water-processing",
   "life-support-resupply",
   "maintenance-spares",
+  "parts-machining",
 ];
+
+/** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
+const ACT_2_EARTH_DAY = 350;
+
+/** Where the Workshop stands: at the east end of the row of Plants. */
+const WORKSHOP_SITE = { x: 66, y: -33 } as const;
+
+/** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
+const SPARES_HELD = 40;
+
+/** Sees to the Workshop's Components coming, and builds it once they have. */
+function shipWorkshop(play: Play): void {
+  const { state } = play;
+  const workshop = catalogue.structureTypes.find(({ id }) => id === "workshop");
+  if (
+    workshop === undefined ||
+    state.clock.elapsedMinutes <
+      toGameMinutes({ earthDays: ACT_2_EARTH_DAY }) ||
+    !state.unlockedDesignIds.includes(workshop.designId) ||
+    [...state.constructions, ...state.structures].some(
+      (structure) => structure.structureTypeId === workshop.id,
+    )
+  ) {
+    return;
+  }
+  const missing = workshop.components.filter(
+    ({ componentId, count }) =>
+      (state.stockpile.components.find(
+        (stock) => stock.componentId === componentId,
+      )?.count ?? 0) < count,
+  );
+  if (missing.length === 0) {
+    play.plan(workshop.id, WORKSHOP_SITE);
+    return;
+  }
+  // Once the Lander is away and the guide has set its manifest, these go on
+  // it, as they can until it leaves Earth.
+  if (state.lander.state !== "travelling-to-earth") return;
+  const manifest = state.launchManifest.items;
+  if (
+    missing.every(({ componentId }) =>
+      manifest.some(({ itemId }) => itemId === componentId),
+    )
+  ) {
+    return;
+  }
+  succeed(
+    play.campaign.setLaunchManifest([
+      ...manifest.filter(
+        ({ itemId }) =>
+          !missing.some(({ componentId }) => componentId === itemId),
+      ),
+      ...missing.map(({ componentId, count }) => ({
+        itemId: componentId,
+        count,
+      })),
+    ]),
+    "Putting the Workshop on the Launch manifest",
+  );
+}
+
+/**
+ * Runs the Workshop only as far as the spare Components need it, so that it
+ * doesn't spend metals on more than the base will use for a long time.
+ */
+function runWorkshop(play: Play): void {
+  const { state } = play;
+  const workshop = state.structures.find(
+    (structure) => structure.structureTypeId === "workshop",
+  );
+  if (workshop === undefined) return;
+  const spares =
+    state.stockpile.components.find(
+      (stock) => stock.componentId === catalogue.maintenance.spareComponentId,
+    )?.count ?? 0;
+  const setting =
+    spares > SPARES_HELD ? "off" : spares < SPARES_HELD ? "on" : undefined;
+  if (setting === undefined || (setting === "off") === workshop.switchedOff) {
+    return;
+  }
+  succeed(
+    play.campaign.switchPlant(workshop.id, setting),
+    "Switching the Workshop",
+  );
+}
 
 /** Unlocks the cheapest Design it can, once the Science is there. */
 function unlockEveryDesign(play: Play): void {
@@ -93,9 +179,11 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build a Workshop east of the other Plants, and once it runs stop bringing spare Components by Launch, switching it off while more than ${SPARES_HELD} are in stock.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
+      play.keepUp(shipWorkshop);
+      play.keepUp(runWorkshop);
       const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
       play.waitUntil(
         `Earth Day ${LONG_GAME_END_EARTH_DAY}`,
@@ -133,6 +221,46 @@ export function designsNotUsed(timeline: ReferenceTimeline): string[] {
   return designsTheLongGameUses.filter((designId) => !used.has(designId));
 }
 
+/**
+ * What a Workshop did for the spare Components: when it was commissioned, how
+ * many were in stock Lunation by Lunation, and what Launches brought before and
+ * after it, as lines of text.
+ */
+function formatSpares(timeline: ReferenceTimeline): string[] {
+  const day = (minute: number) => (minute / MINUTES_PER_EARTH_DAY).toFixed(0);
+  const built = timeline.structureTypesBuilt.find(
+    ({ structureTypeId }) => structureTypeId === "workshop",
+  )?.atMinute;
+  const shipped = (
+    from: number,
+    to: number,
+  ): { launches: number; spares: number } => {
+    const trips = timeline.sparesShipped.filter(
+      ({ atMinute }) => atMinute >= from && atMinute < to,
+    );
+    return {
+      launches: trips.length,
+      spares: trips.reduce((total, { count }) => total + count, 0),
+    };
+  };
+  const before = shipped(0, built ?? Infinity);
+  const after = shipped(built ?? Infinity, Infinity);
+  const since = timeline.sparesInStock.filter(
+    ({ atMinute }) => built !== undefined && atMinute > built,
+  );
+  return [
+    "Spare Components, Lunation by Lunation: Earth Day, then in stock (the fewest since the last line):",
+    ...timeline.sparesInStock.map(
+      ({ atMinute, inStock, fewest }) =>
+        `  ${day(atMinute).padStart(6)}  ${inStock} (${fewest})`,
+    ),
+    built === undefined
+      ? "No Workshop was commissioned."
+      : `A Workshop was commissioned on Earth Day ${(built / MINUTES_PER_EARTH_DAY).toFixed(1)}. After it the stock was never below ${Math.min(...since.map(({ fewest }) => fewest))}.`,
+    `Launches bringing spare Components: ${before.launches}, with ${before.spares}, before a Workshop; ${after.launches}, with ${after.spares}, after it.`,
+  ];
+}
+
 /** The timeline as lines of text, for `npm run long-game`. */
 export function formatLongGame(timeline: ReferenceTimeline): string[] {
   const day = (minute: number) =>
@@ -157,6 +285,8 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
       ({ designId, atMinute }) =>
         `  ${day(atMinute)}  ${labelOf(catalogue.designs, designId)}`,
     ),
+    "",
+    ...formatSpares(timeline),
     "",
     limitAt === undefined
       ? "Forecast: the Radiation Dose isn't rising, so it never reaches the limit."

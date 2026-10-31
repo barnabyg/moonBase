@@ -59,6 +59,61 @@ export function* partsAhead(
   }
 }
 
+/**
+ * How many parts of a Lunation a stock's forecast looks ahead: far enough to
+ * see a stock that rises in Daylight run out in the Night after.
+ */
+const FORECAST_LUNATION_PARTS = 6;
+
+/**
+ * The game-minutes until a stock runs out, or Infinity if it doesn't within
+ * the look-ahead, when what makes it may stand idle at Night, as Plants then
+ * run only on what the battery banks hold to spare. So it counts on none
+ * through a Night: the rest of a Daylight at the rate it is changing now, then
+ * each Night at what is used, and each Daylight after again at that rate. At
+ * Night, when what the Plants make in Daylight isn't known, it looks only as
+ * far as the next Daylight. `minutesLeft` is how long an amount lasts at a
+ * rate of change.
+ */
+export function minutesUntilEmptyThroughLunations(
+  elapsedMinutes: number,
+  amount: number,
+  netPerMinute: number,
+  usedPerMinute: number,
+  minutesLeft: (amount: number, perMinute: number) => number,
+): number {
+  const daylightRate =
+    readLunation(elapsedMinutes, catalogue.lunation).part === "daylight"
+      ? netPerMinute
+      : undefined;
+  // Each whole Lunation from the next one on changes the stock the same way.
+  const { daylight, lunation } = lunationMinutes(catalogue.lunation);
+  const perLunation =
+    (daylightRate ?? 0) * daylight - usedPerMinute * (lunation - daylight);
+  let left = amount;
+  let skipped = 0;
+  let parts = 0;
+  for (const part of partsAhead(elapsedMinutes, Infinity)) {
+    if (part.daylight && daylightRate === undefined) return Infinity;
+    parts += 1;
+    // Skipping leaves a Lunation or two to run out in, at most.
+    if (parts > 2 * FORECAST_LUNATION_PARTS) return Infinity;
+    if (parts === FORECAST_LUNATION_PARTS + 1) {
+      // Past the look-ahead, it only ever runs out if each Lunation leaves
+      // less: skip all but the last of the whole Lunations it lasts.
+      if (perLunation >= 0) return Infinity;
+      const lunations = Math.max(Math.floor(left / -perLunation) - 1, 0);
+      skipped = lunations * lunation;
+      left += lunations * perLunation;
+    }
+    const rate = part.daylight ? (daylightRate ?? 0) : -usedPerMinute;
+    const lasts = minutesLeft(left, rate);
+    if (lasts <= part.minutes) return skipped + part.start + lasts;
+    left += rate * part.minutes;
+  }
+  return Infinity;
+}
+
 function toMinutes(earthDays: number): number {
   return Math.round(earthDays * MINUTES_PER_EARTH_DAY);
 }

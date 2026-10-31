@@ -1,5 +1,9 @@
 import {
+  batchHoursOf,
   catalogue,
+  componentOutputs,
+  resourceOutputs,
+  type ComponentCount,
   type Design,
   type LaunchItem,
   type PlantRecipe,
@@ -9,6 +13,7 @@ import {
 import type { Snapshot } from "../simulation";
 import { formatScience, listInWords } from "./format";
 import {
+  componentInSentence,
   componentLabel,
   formatComponents,
   machineLabel,
@@ -20,8 +25,13 @@ import {
 // What things in the game are for, in words built from the data catalogue,
 // for the screens where the player chooses them and for the Guide.
 
-/** How every Plant gets its power, which the player has to plan around. */
-const PLANTS_AT_NIGHT = `Like every Plant, it works in batches of an hour: it starts one once it has an hour's worth of each input, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle: keep enough of what it makes to last the Night.`;
+/** How a Plant works, and how it gets its power, which the player has to plan around. */
+const plantsAtNight = (batchHours: number) =>
+  `Like every Plant, it works in batches${
+    batchHours === 1
+      ? " of an hour: it starts one once it has an hour's worth of each input"
+      : `, here of ${formatHours(batchHours)}: it starts one once it has a batch's worth of each input`
+  }, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle: keep enough of what it makes to last the Night.`;
 
 const generates = (kilowatts: number) =>
   `generates ${kilowatts} kW in Daylight`;
@@ -94,7 +104,7 @@ export function describeStructure(type: StructureType): string {
         ]),
     ...(type.recipes ?? []).map(
       (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, turning ${flows(recipe.inputs)} into ${flows(recipe.outputs)} an hour, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+        `runs for ${recipe.label.toLowerCase()}, turning ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
     ),
     ...(type.telescope === true
       ? [
@@ -107,7 +117,9 @@ export function describeStructure(type: StructureType): string {
   const stage = type.stageMachines.assembly;
   return [
     facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`,
-    ...(type.recipes === undefined ? [] : [PLANTS_AT_NIGHT]),
+    ...(type.recipes?.[0] === undefined
+      ? []
+      : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
     ...(stage === undefined
       ? []
       : [`The ${machineLabel(stage).toLowerCase()} builds it.`]),
@@ -168,7 +180,18 @@ export function describeUnlocks(design: Design): string[] {
 /** Says what a Component is for: the Structures built from it, or Maintenance. */
 export function describeComponentUse(componentId: string): string {
   if (componentId === catalogue.maintenance.spareComponentId) {
-    return `Used up by Maintenance: each restores ${catalogue.maintenance.conditionPercentPerSpareComponent} percentage points of Condition.`;
+    const makers = catalogue.structureTypes.filter((type) =>
+      type.recipes?.some((recipe) =>
+        componentOutputs(recipe).some(
+          (made) => made.componentId === componentId,
+        ),
+      ),
+    );
+    return `Used up by Maintenance: each restores ${catalogue.maintenance.conditionPercentPerSpareComponent} percentage points of Condition.${
+      makers.length === 0
+        ? ""
+        : ` A ${listInWords(makers.map((type) => type.label))} makes them at the base.`
+    }`;
   }
   const uses = catalogue.structureTypes.flatMap((type) =>
     type.components
@@ -265,11 +288,37 @@ export function formatHours(hours: number): string {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
-function flows(resources: readonly ResourceFlow[]): string {
+function flows(resources: readonly ResourceFlow[], hours: number = 1): string {
   return listInWords(
     resources.map(
       (flow) =>
-        `${flow.kilogramsPerHour} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+        `${Number((flow.kilogramsPerHour * hours).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+    ),
+  );
+}
+
+/**
+ * Says what a recipe takes in and puts out, for example "4 kg of regolith into
+ * 0.15 kg of oxygen an hour", or, for one that makes Components, what a batch
+ * does, for example "3.6 kg of metals into 1 spare Component every 24 hours".
+ */
+function describeRecipeFlows(recipe: PlantRecipe): string {
+  const components = componentOutputs(recipe);
+  if (components.length === 0) {
+    return `${flows(recipe.inputs)} into ${flows(resourceOutputs(recipe))} an hour`;
+  }
+  const hours = batchHoursOf(recipe);
+  return `${flows(recipe.inputs, hours)} into ${formatComponentsMade(components)} every ${formatHours(hours)}`;
+}
+
+/** Lists the Components a batch makes, for example "1 spare Component". */
+export function formatComponentsMade(
+  components: readonly ComponentCount[],
+): string {
+  return listInWords(
+    components.map(
+      ({ componentId, count }) =>
+        `${count} ${componentInSentence(componentId)}${count === 1 ? "" : "s"}`,
     ),
   );
 }

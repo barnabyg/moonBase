@@ -31,6 +31,7 @@ import {
   stockLabel,
   structureLabel,
   subjectLabel,
+  inSentence,
 } from "./labels";
 
 // What happened in each event, in words, for the notification list.
@@ -98,7 +99,7 @@ export function formatEvent(
       return `Plume Ejecta wore down ${listInWords(
         event.damaged.map(
           (damage) =>
-            `the ${structureLabel(damage.structureTypeId).toLowerCase()} to ${formatCondition(damage.conditionPercent)}`,
+            `the ${inSentence(structureLabel(damage.structureTypeId))} to ${formatCondition(damage.conditionPercent)}`,
         ),
       )}`;
     case "structure-broken":
@@ -188,7 +189,7 @@ function strikeTargetLabel(
 ): string {
   switch (target.kind) {
     case "structure":
-      return `the ${structureLabel(target.structureTypeId).toLowerCase()}`;
+      return `the ${inSentence(structureLabel(target.structureTypeId))}`;
     case "machine":
       return `the ${machineLabel(target.machineTypeId).toLowerCase()}`;
     case "rover":

@@ -1,4 +1,10 @@
-import { catalogue, type PlantRecipe } from "../catalogue";
+import {
+  batchHoursOf,
+  catalogue,
+  componentOutputs,
+  resourceOutputs,
+  type ResourceFlow,
+} from "../catalogue";
 import {
   recipeOf,
   workingRecipeOf,
@@ -8,7 +14,8 @@ import {
   type StructureSnapshot,
 } from "../simulation";
 import { maintenanceState } from "./base-panel-text";
-import { formatPerformance, listInWords } from "./format";
+import { formatComponentsMade, formatHours } from "./describe";
+import { formatPerformance, formatShortDuration, listInWords } from "./format";
 import { resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
@@ -174,9 +181,11 @@ export function describeStructureEntry(
 /**
  * Says what a running Plant makes and uses an hour, as fast as its
  * Condition allows, for example "making 0.3 kg of wafers an hour from
- * 0.35 kg of silicon", and the recipe it switches to from its next batch if
- * it was switched during this one and will start another; undefined for
- * one that isn't running.
+ * 0.35 kg of silicon", or, for one that makes Components, what a batch
+ * does, for example "making 1 spare Component every 24 hours from 3.6 kg of
+ * metals", and the recipe it switches to from its next batch if it was
+ * switched during this one and will start another; undefined for one that
+ * isn't running.
  */
 export function formatPlantRates(
   structure: Pick<
@@ -190,18 +199,26 @@ export function formatPlantRates(
   // A batch it has started goes on with the recipe it was started with.
   const recipe = workingRecipeOf({ ...structure, batch: plant.batch });
   if (recipe === undefined) return undefined;
-  const flows = (resources: PlantRecipe["outputs"]) =>
+  const flows = (resources: readonly ResourceFlow[], rate: number) =>
     listInWords(
       resources.map(
         (flow) =>
-          `${plantKilograms(flow.kilogramsPerHour * structure.performance)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+          `${plantKilograms(flow.kilogramsPerHour * rate)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
       ),
     );
   const next =
     chosen === undefined || chosen === recipe || structure.switchedOff
       ? ""
       : `; ${chosen.label} from the next batch`;
-  return `making ${flows(recipe.outputs)} an hour from ${flows(recipe.inputs)}${next}`;
+  const components = componentOutputs(recipe);
+  if (components.length > 0) {
+    const hours = batchHoursOf(recipe);
+    // As fast as its Condition allows, a batch still takes the same inputs.
+    const every = formatHours(Math.ceil(hours / structure.performance));
+    return `making ${formatComponentsMade(components)} every ${every} from ${flows(recipe.inputs, hours)}${next}`;
+  }
+  const { performance } = structure;
+  return `making ${flows(resourceOutputs(recipe), performance)} an hour from ${flows(recipe.inputs, performance)}${next}`;
 }
 
 /** Kilograms a Plant takes in or puts out, to the hundredth of one, for example "0.35". */
@@ -226,7 +243,7 @@ export function formatPlant(
   const left =
     plant.batch === undefined
       ? ""
-      : `, ${plant.batch.minutesLeft} min left of ${batch}`;
+      : `, ${formatBatchLeft(plant.batch.minutesLeft)} left of ${batch}`;
   const stop = plant.stoppedFor;
   switch (stop?.reason) {
     case undefined:
@@ -244,6 +261,11 @@ export function formatPlant(
     case "switched-on":
       return "switched on: starts a batch as soon as it can";
   }
+}
+
+/** How long a batch has left: in minutes up to an hour, as most batches are, and otherwise in hours. */
+function formatBatchLeft(minutes: number): string {
+  return minutes <= 60 ? `${minutes} min` : formatShortDuration(minutes);
 }
 
 /** Says how thickly Dust coats a solar array, for example "Dust coating 12%"; undefined for anything else. */

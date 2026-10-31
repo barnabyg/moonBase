@@ -351,10 +351,10 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
   }
 
   // By what it is called, in any case.
-  await find.fill("MADE-UP PART 37");
+  await find.fill("MADE-UP PART 30");
   await expect(shown).toHaveText(`Showing 1 of ${CROWDED_LAUNCH_ITEMS} items`);
   await expect(
-    screen.getByRole("row", { name: /^Made-up part 37\b/ }),
+    screen.getByRole("row", { name: /^Made-up part 30\b/ }),
   ).toBeVisible();
 
   // By what it is for: an array mast doesn't say "solar" in its name, only

@@ -1240,6 +1240,68 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
   },
+  // A casting furnace and a machine tool, which turn what Maintenance brings
+  // back, with a little fresh metal, into spare Components, so that a growing
+  // base can stop spending Payload Mass on them. The long-game base uses about
+  // 16 of them a Lunation (from 8 to 25) and keeps 30 in stock. A Plant's
+  // Components come in whole numbers, and a game-hour's batch would make at
+  // least one an hour, 480 in a Lunation's 480 hours of Daylight, about thirty
+  // times what is needed. So a batch here is a whole Earth Day, and a Workshop
+  // running through Daylight makes 20 a Lunation: what the base uses with a
+  // little over, for its own wear and the worse Lunations. It takes 3.6 kg of
+  // metals for each, 72 kg a Lunation. That is most of the 78 kg a Lunation
+  // the long-game base has to spare beside its circuit board plant, so a base
+  // running one has little left over to sell. It draws 2 kW, well within what
+  // two solar arrays spare beside an extraction plant, a vacuum fabrication
+  // plant and a circuit board plant.
+  {
+    id: "workshop",
+    label: "Workshop",
+    designId: "parts-machining",
+    footprintRadiusMetres: 3,
+    components: [
+      { componentId: "machine-tool", count: 1 },
+      { componentId: "casting-furnace", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 2,
+      componentDelivery: 1,
+      assembly: 5,
+      commissioning: 2,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    // Grit in its slides and spindle, about a spare Component's worth of wear
+    // for each Lunation it runs through the Daylight.
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipes).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "spare-components",
+        label: "Spare Components",
+        batchHours: 24,
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.15,
+          },
+        ],
+        outputs: [{ componentId: "spare-component", count: 1 }],
+        drawKilowatts: 2,
+      },
+    ],
+  },
 ];
 
 export const dismantlingLossShare: Catalogue["dismantlingLossShare"] = 0.2;

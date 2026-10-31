@@ -68,6 +68,15 @@ export function componentLabel(componentId: string): string {
   );
 }
 
+/**
+ * A Component's name in the middle of a sentence, keeping any term the
+ * Glossary capitalises, for example "machine tool" or "spare Component".
+ */
+export function componentInSentence(componentId: string): string {
+  const label = componentLabel(componentId);
+  return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
+}
+
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
   return listInWords(
@@ -116,7 +125,9 @@ export function subjectLabel(subject: MaintenanceSubject): string {
     : drivenLabel(subject);
 }
 
-/** Lowercases a name, except one, such as the Rover, that the glossary always capitalises. */
+/** Lowercases a name, except one, such as the Rover or a Workshop, that the glossary always capitalises. */
 export function inSentence(label: string): string {
-  return label === catalogue.rover.label ? label : label.toLowerCase();
+  return label === catalogue.rover.label || label === "Workshop"
+    ? label
+    : label.toLowerCase();
 }

@@ -1,5 +1,8 @@
 import {
+  batchHoursOf,
   catalogue,
+  componentOutputs,
+  resourceOutputs,
   type PlantRecipe,
   type ResourceFlow,
   type ResourceRef,
@@ -14,12 +17,15 @@ import {
 } from "./construction";
 import { readLunation } from "./lunation";
 import { recordLifeSupport } from "./self-sufficiency";
+import { addToStock, inStock } from "./stockpile";
 
 /**
- * How many game-minutes of work at full performance a Plant's batch takes:
- * a batch is a game-hour of its recipe.
+ * How many game-minutes of work at full performance a batch of a recipe
+ * takes: a game-hour of it, unless it says longer.
  */
-export const BATCH_MINUTES = 60;
+function batchMinutes(recipe: PlantRecipe): number {
+  return batchHoursOf(recipe) * 60;
+}
 
 /** A batch a Plant has started and not yet finished. */
 export interface PlantBatch {
@@ -278,9 +284,9 @@ function addTo(
   }
 }
 
-/** How many kilograms of a resource a batch takes in or puts out. */
-function batchKilograms(flow: ResourceFlow): number {
-  return (flow.kilogramsPerHour * BATCH_MINUTES) / 60;
+/** How many kilograms of a resource a batch of a recipe takes in or puts out. */
+function batchKilograms(recipe: PlantRecipe, flow: ResourceFlow): number {
+  return flow.kilogramsPerHour * batchHoursOf(recipe);
 }
 
 /** Kilograms too few to count, from rounding in adding up a stock. */
@@ -315,7 +321,7 @@ function shortInput(
     (flow) =>
       amountOf(state, flow.resource) -
         (claims.get(claimKey(flow.resource)) ?? 0) <
-      batchKilograms(flow) - AMOUNT_TOLERANCE,
+      batchKilograms(recipe, flow) - AMOUNT_TOLERANCE,
   )?.resource;
 }
 
@@ -350,9 +356,11 @@ export function claimBatchInputs(
   claims: BatchClaims,
 ): void {
   if (structure.batch !== undefined) return;
-  for (const flow of recipeOf(structure)?.inputs ?? []) {
+  const recipe = recipeOf(structure);
+  if (recipe === undefined) return;
+  for (const flow of recipe.inputs) {
     const key = claimKey(flow.resource);
-    claims.set(key, (claims.get(key) ?? 0) + batchKilograms(flow));
+    claims.set(key, (claims.get(key) ?? 0) + batchKilograms(recipe, flow));
   }
 }
 
@@ -368,10 +376,10 @@ export function plantDrawKilowatts(
  * fast as its Condition allows. One with no batch started starts one with
  * the recipe it is set to, taking a batch's inputs from the base's stocks,
  * which it claimed as it was given power (see `supplyPower`). A batch is
- * done after
- * `BATCH_MINUTES` of work at full performance, when its outputs are added
- * to the base's stocks. A batch keeps the work done on it while its Plant
- * has no power, as at Night, or is Broken.
+ * done after its recipe's length of work at full performance, when its
+ * outputs are added to the base's stocks, any Components among them. A batch
+ * keeps the work done on it while its Plant has no power, as at Night, or is
+ * Broken.
  */
 export function runPlants(state: CampaignState): void {
   for (const structure of state.structures) {
@@ -380,21 +388,26 @@ export function runPlants(state: CampaignState): void {
       const recipe = recipeOf(structure);
       if (recipe === undefined) continue;
       for (const flow of recipe.inputs) {
-        addTo(state, flow.resource, -batchKilograms(flow));
+        addTo(state, flow.resource, -batchKilograms(recipe, flow));
       }
       structure.batch = { recipeId: recipe.id, minutesWorked: 0 };
     }
     structure.batch.minutesWorked += structurePerformance(structure);
-    if (structure.batch.minutesWorked < BATCH_MINUTES - MINUTE_TOLERANCE) {
+    const working = workingRecipeOf(structure);
+    if (
+      working === undefined ||
+      structure.batch.minutesWorked < batchMinutes(working) - MINUTE_TOLERANCE
+    ) {
       continue;
     }
-    for (const flow of workingRecipeOf(structure)?.outputs ?? []) {
-      const made = batchKilograms(flow);
+    for (const flow of resourceOutputs(working)) {
+      const made = batchKilograms(working, flow);
       addTo(state, flow.resource, made);
       if (flow.resource.kind === "life-support") {
         recordLifeSupport(state, flow.resource.stockId, { produced: made });
       }
     }
+    addToStock(state, componentOutputs(working));
     structure.batch = undefined;
   }
 }
@@ -409,7 +422,7 @@ export function productionPerHour(
   state: CampaignState,
   resource: ResourceRef,
 ): number {
-  return flowPerHour(state, resource, (recipe) => recipe.outputs);
+  return flowPerHour(state, resource, resourceOutputs);
 }
 
 /**
@@ -443,24 +456,99 @@ export function kilogramsToCountOn(
     (sum, structure) => {
       const recipe = workingRecipeOf(structure);
       if (!countsOnPlant(structure) || recipe === undefined) return sum;
-      // Just finished, it has no batch: the next one's is still to come.
-      const done =
-        structure.batch === undefined
-          ? 0
-          : Math.min(structure.batch.minutesWorked / BATCH_MINUTES, 1);
-      const kilograms = (flows: PlantRecipe["inputs"]) =>
+      const done = batchDone(structure, recipe);
+      const kilograms = (flows: readonly ResourceFlow[]) =>
         flows
           .filter((flow) => isSameResource(flow.resource, resource))
-          .reduce((total, flow) => total + batchKilograms(flow), 0);
+          .reduce((total, flow) => total + batchKilograms(recipe, flow), 0);
       const held = structure.batch === undefined ? 0 : 1 - done;
       return (
         sum +
         kilograms(recipe.inputs) * held -
-        kilograms(recipe.outputs) * (1 - done)
+        kilograms(resourceOutputs(recipe)) * (1 - done)
       );
     },
     amountOf(state, resource),
   );
+}
+
+/**
+ * How much of a Plant's batch is done, from 0 to 1. Just finished, it has no
+ * batch: the next one's is still to come.
+ */
+function batchDone(structure: StructureState, recipe: PlantRecipe): number {
+  return structure.batch === undefined
+    ? 0
+    : Math.min(structure.batch.minutesWorked / batchMinutes(recipe), 1);
+}
+
+/**
+ * How many of a Component a forecast counts on, as `kilogramsToCountOn` does
+ * for a resource: what is in stock, less what the Plants counted on have yet
+ * to make of their batches, which come only as each finishes. It needn't be a
+ * whole number.
+ */
+export function componentsToCountOn(
+  state: CampaignState,
+  componentId: string,
+): number {
+  return state.structures.reduce(
+    (sum, structure) => {
+      const recipe = workingRecipeOf(structure);
+      if (!countsOnPlant(structure) || recipe === undefined) return sum;
+      return (
+        sum -
+        madeInABatch(recipe, componentId) * (1 - batchDone(structure, recipe))
+      );
+    },
+    inStock(state, componentId),
+  );
+}
+
+/**
+ * How many of a Component an hour the base's Plants are making now, as
+ * `productionPerHour` says for a resource.
+ */
+export function componentsPerHour(
+  state: CampaignState,
+  componentId: string,
+): number {
+  return state.structures.reduce((sum, structure) => {
+    const recipe = workingRecipeOf(structure);
+    if (!countsOnPlant(structure) || recipe === undefined) return sum;
+    return (
+      sum +
+      (madeInABatch(recipe, componentId) / batchHoursOf(recipe)) *
+        structurePerformance(structure)
+    );
+  }, 0);
+}
+
+function madeInABatch(recipe: PlantRecipe, componentId: string): number {
+  return componentOutputs(recipe)
+    .filter((output) => output.componentId === componentId)
+    .reduce((total, output) => total + output.count, 0);
+}
+
+/**
+ * Whether any of the base's Plants will make a Component in the next Daylight:
+ * one set to, and neither Broken, switched off nor short of an input. Unlike
+ * `isMadeByPlants`, one waiting for an input doesn't count, as how soon it
+ * will get some isn't known.
+ */
+export function isComponentMadeByPlants(
+  state: CampaignState,
+  componentId: string,
+): boolean {
+  return state.structures.some((structure) => {
+    const recipe = recipeOf(structure);
+    return (
+      recipe !== undefined &&
+      madeInABatch(recipe, componentId) > 0 &&
+      !structure.switchedOff &&
+      plantCantRun(state, structure, new Map()) === undefined
+    );
+  });
 }
 
 /**
@@ -477,7 +565,7 @@ function countsOnPlant(structure: StructureState): boolean {
 function flowPerHour(
   state: CampaignState,
   resource: ResourceRef,
-  flows: (recipe: PlantRecipe) => PlantRecipe["inputs"],
+  flows: (recipe: PlantRecipe) => readonly ResourceFlow[],
 ): number {
   return state.structures.reduce((sum, structure) => {
     const recipe = workingRecipeOf(structure);
@@ -502,7 +590,7 @@ export function isMadeByPlants(
     (structure) =>
       !isBroken(structure) &&
       !structure.switchedOff &&
-      (recipeOf(structure)?.outputs ?? []).some((flow) =>
+      resourceOutputs(recipeOf(structure)).some((flow) =>
         isSameResource(flow.resource, resource),
       ),
   );
@@ -549,7 +637,9 @@ function readBatch(structure: StructureState): PlantSnapshot["batch"] {
   const { batch } = structure;
   if (batch === undefined) return undefined;
   const performance = structurePerformance(structure);
-  const left = BATCH_MINUTES - batch.minutesWorked;
+  const recipe = workingRecipeOf(structure);
+  const left =
+    (recipe === undefined ? 0 : batchMinutes(recipe)) - batch.minutesWorked;
   // Broken, it works at no pace: say what is left at full performance.
   const minutes = performance > 0 ? left / performance : left;
   return {
@@ -579,7 +669,7 @@ function readStop(
   const flow = recipe.inputs.find((input) =>
     isSameResource(input.resource, stop.resource),
   );
-  const needed = flow === undefined ? 0 : batchKilograms(flow);
+  const needed = flow === undefined ? 0 : batchKilograms(recipe, flow);
   return {
     reason: "no-input",
     resource: { ...stop.resource },

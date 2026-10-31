@@ -965,10 +965,10 @@ export interface WaterWallRules {
 
 /**
  * What a Plant takes in and puts out for each game-hour it runs at full
- * performance, and the power it draws while it runs. It works in batches of
- * a game-hour of the recipe: it starts one only with an hour's worth of
- * every input in stock, which it takes as it starts, and the outputs come
- * as it finishes. It runs only while it isn't Broken and has power; on its
+ * performance, and the power it draws while it runs. It works in batches, of
+ * a game-hour of the recipe unless the recipe says longer: it starts one only
+ * with a batch's worth of every input in stock, which it takes as it starts,
+ * and the outputs come as it finishes. It runs only while it isn't Broken and has power; on its
  * network it is supplied last, only from power that nothing else uses and
  * no battery bank can store, so it never takes power from anything else,
  * and a batch it has started waits through the Night for the next Daylight.
@@ -978,8 +978,16 @@ export interface PlantRecipe {
   readonly id: string;
   /** How the player sees it, for example "Metals and silicon". */
   readonly label: string;
+  /**
+   * How many game-hours of work at full performance one of its batches takes,
+   * and so how much of each input it takes and output it makes at a time. A
+   * whole number of game-minutes; leaving it out is the same as 1. A recipe
+   * makes at least one Component in a batch, so one that should make fewer
+   * than one an hour has a longer batch.
+   */
+  readonly batchHours?: number;
   readonly inputs: readonly ResourceFlow[];
-  readonly outputs: readonly ResourceFlow[];
+  readonly outputs: readonly RecipeOutput[];
   readonly drawKilowatts: number;
 }
 
@@ -988,6 +996,9 @@ export interface ResourceFlow {
   readonly resource: ResourceRef;
   readonly kilogramsPerHour: number;
 }
+
+/** What a recipe makes: an amount of a resource, or a whole number of a Component for each batch. */
+export type RecipeOutput = ResourceFlow | ComponentCount;
 
 /** A bulk resource, or a life support stock such as oxygen. */
 export type ResourceRef =

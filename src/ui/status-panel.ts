@@ -36,6 +36,7 @@ import {
   summariseStock,
   summariseTravel,
   withSwitchedOffPlants,
+  withSwitchedOffSpareMakers,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
@@ -389,7 +390,12 @@ export function createStatusPanel(
         entry.cell.classList.toggle("resources__cell--empty", resource.empty);
         entry.cell.classList.toggle("stat--warning", resource.warning);
       }
-      spareComponents.show(formatSpareComponents(forecasts.spareComponents));
+      spareComponents.show(
+        withSwitchedOffSpareMakers(
+          formatSpareComponents(forecasts.spareComponents),
+          snapshot.structures,
+        ),
+      );
       // Shown as a warning from the first warning on.
       const sparesWarnFrom =
         Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;

@@ -10,6 +10,7 @@ import {
   scienceEarners,
   scienceTimeline,
 } from "./pacing-report";
+import { componentMakers, offerings } from "./pacing-report";
 import {
   bulk,
   design,
@@ -213,6 +214,78 @@ describe("what a Plant earns", () => {
     expect(earning?.returnMassLimited).toBe(true);
     expect(earning?.exportKilogramsPerEarthDay).toBeCloseTo(10, 6);
     expect(earning?.millionDollarsPerEarthDay).toBeCloseTo(15, 6);
+  });
+});
+
+describe("what a Plant that makes Components saves", () => {
+  it("is what running through Daylight makes, in whole batches' worth, against bringing them by Launch", () => {
+    const [maker] = componentMakers(
+      madeUp({
+        launch: {
+          payloadMassLimitKilograms: 1000,
+          feeMillionDollars: 50,
+          items: [
+            launchItem("widget", "x", 2, 20),
+            launchItem("press", "x", 10, 100),
+          ],
+        },
+        structureTypes: [
+          structure("press-shop", "x", {
+            components: [{ componentId: "press", count: 3 }],
+            recipes: [
+              {
+                id: "widgets",
+                label: "Widgets",
+                batchHours: 48,
+                inputs: [{ resource: bulk("ore"), kilogramsPerHour: 0.5 }],
+                outputs: [{ componentId: "widget", count: 2 }],
+                drawKilowatts: 1,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    // 20 Earth Days of Daylight are 10 batches of 2 Earth Days.
+    expect(maker).toEqual({
+      structureTypeId: "press-shop",
+      recipeId: "widgets",
+      componentId: "widget",
+      madePerLunation: 20,
+      inputKilogramsPerLunation: 240,
+      savesKilogramsPerLunation: 400,
+      savesMillionDollarsPerLunation: 40,
+      paybackLunations: 0.75,
+    });
+  });
+
+  it("is weighed only against something else that makes the same Component", () => {
+    const offered = offerings(
+      madeUp({
+        structureTypes: [
+          structure("press-shop", "x", {
+            recipes: [
+              {
+                id: "widgets",
+                label: "Widgets",
+                batchHours: 2,
+                inputs: [],
+                outputs: [{ componentId: "widget", count: 1 }],
+                drawKilowatts: 1,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(offered).toMatchObject([
+      {
+        job: "making widget",
+        worth: { "makes widget": 0.5, recipeDrawPerKilogram: -2 },
+      },
+    ]);
   });
 });
 
@@ -501,13 +574,13 @@ describe("the pacing report on today's catalogue", () => {
   const report = formatPacingReport(catalogue).join("\n");
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
-    expect(report).toContain("315.5 Earth Days");
-    expect(report).toContain("2225 Science");
+    expect(report).toContain("329.5 Earth Days");
+    expect(report).toContain("2375 Science");
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$1020M");
-    expect(report).toMatch(/Circuit boards.*7 Launches/);
+    expect(report).toContain("$1060M");
+    expect(report).toMatch(/Circuit boards.*8 Launches/);
   });
 
   it("says what it assumes", () => {

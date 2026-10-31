@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { catalogue, type Catalogue, type PlantRecipe } from "../src/catalogue";
+import {
+  catalogue,
+  type Catalogue,
+  type PlantRecipe,
+  resourceOutputs,
+} from "../src/catalogue";
 import {
   type Campaign,
   type GameEvent,
@@ -38,7 +43,7 @@ if (plantType === undefined || recipe === undefined) {
   throw new Error("expected a water-processing plant");
 }
 const icePerHour = recipe.inputs[0]?.kilogramsPerHour ?? Number.NaN;
-const waterPerHour = recipe.outputs[0]?.kilogramsPerHour ?? Number.NaN;
+const waterPerHour = resourceOutputs(recipe)[0]?.kilogramsPerHour ?? Number.NaN;
 const arraySite: GroundPosition = { x: 20, y: 12 };
 const plantSite: GroundPosition = { x: 30, y: 22 };
 const habitatSite: GroundPosition = { x: 30, y: -30 };

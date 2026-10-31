@@ -32,6 +32,7 @@ export interface EditableSaveState {
   fundingMillionDollars: number;
   bulkResources: { resourceId: string; kilograms: number }[];
   reachedMilestoneIds: string[];
+  stockpile: { components: { componentId: string; count: number }[] };
 }
 
 /** The Campaign as a save's text, with its state changed as the edit says. */
@@ -100,15 +101,81 @@ function reachEveryMilestoneBut(
     .filter((id) => id !== milestoneId);
 }
 
+/** Adds Components to the base's stock, as a Launch would have brought. */
+function addComponents(
+  state: EditableSaveState,
+  counts: readonly { componentId: string; count: number }[],
+): void {
+  for (const { componentId, count } of counts) {
+    for (const stock of state.stockpile.components) {
+      if (stock.componentId === componentId) stock.count += count;
+    }
+  }
+}
+
+/**
+ * Early in a Campaign with a Workshop running, on a second solar array and a
+ * battery bank full of charge, a few batches' metals in stock, the Workshop's
+ * Design unlocked and the Components of a second in stock. It plays only as
+ * far as the Robot's building takes, on a save edited to have what it needs.
+ */
+function workshopBaseSave(): string {
+  const workshop = catalogue.structureTypes.find(({ id }) => id === "workshop");
+  const array = catalogue.structureTypes.find(({ id }) => id === "solar-array");
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "molten-regolith-electrolysis",
+        workshop?.designId ?? "",
+      );
+      addComponents(state, [
+        ...(array?.components ?? []),
+        ...(workshop?.components ?? []),
+        ...(workshop?.components ?? []),
+      ]);
+      stockOf(state, "metals", 12);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of [
+    ["solar-array", { x: 40, y: 25 }],
+    ["battery-bank", { x: 40, y: 35 }],
+    ["solar-array", { x: 50, y: 35 }],
+    ["workshop", { x: 50, y: 25 }],
+  ] as const) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  const isReady = () => {
+    const { constructions, structures } = campaign.snapshot();
+    return (
+      constructions.length === 0 &&
+      structures.some(
+        (structure) =>
+          structure.structureTypeId === "workshop" &&
+          structure.plant?.running === true,
+      )
+    );
+  };
+  for (let minutes = 0; !isReady(); minutes += 10) {
+    if (minutes > toGameMinutes({ earthDays: 6 })) {
+      throw new Error("The Workshop never started.");
+    }
+    campaign.advance(10);
+  }
+  return campaign.save();
+}
+
 export const tryScenarios: readonly TryScenario[] = [
   {
     id: "everything-unlocked",
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
       "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
-      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 42 items".',
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 44 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
-      "Press Clear: all 42 come back, in the same order.",
+      "Press Clear: all 44 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -128,6 +195,19 @@ export const tryScenarios: readonly TryScenario[] = [
       freshSaveWith((state) => {
         reachEveryMilestoneBut(state, "power-storage");
       }),
+  },
+  {
+    id: "workshop",
+    title:
+      "Early in a Campaign with a Workshop running on two solar arrays and a battery bank, with metals for two more batches and the Components of a second Workshop in stock",
+    steps: [
+      'Look at the Base panel\'s Structures: the Workshop says "running", how long this batch has left, and "making 1 spare Component every 24 hours from 3.6 kg of metals". Look at the status panel\'s Stock: Spares says how many are in stock and "rising" so many a day.',
+      "Click the Workshop on the map, to the north-east of the Lander: the pop-up says the same, with its recipe. Close it.",
+      'Press "Switch off" beside it: it says this is its last batch, and Spares now says how long they last and that the Workshop is switched off. Press "Switch on": it says "rising" again.',
+      'Set the game to 20x. About every 12 real seconds a batch finishes: Spares goes up by one, and Metals in Bulk resources down by 3.6 kg as the next starts. After two more, there is too little: the Workshop says "waiting for Metals" with how much there is, and Spares says how long they last.',
+      "Open the Guide: the Structures tab has the Workshop, with its figures, and Repairs and Maintenance says it can make spares. Open the Launch manifest: a machine tool and a casting furnace are under Industry, and spare Components say a Workshop makes them.",
+    ],
+    save: workshopBaseSave,
   },
   {
     id: "crowded",

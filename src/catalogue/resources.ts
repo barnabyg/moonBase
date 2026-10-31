@@ -79,6 +79,8 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "electrolyser-stack", label: "Electrolyser stack" },
   { id: "molten-regolith-cell", label: "Molten regolith cell" },
   { id: "board-assembly-line", label: "Board assembly line" },
+  { id: "machine-tool", label: "Machine tool" },
+  { id: "casting-furnace", label: "Casting furnace" },
   // Labelled a pad light because the Glossary avoids "floodlight", but
   // saves from version 32 on name it by this id, so the id stays.
   { id: "landing-floodlight", label: "Pad light" },

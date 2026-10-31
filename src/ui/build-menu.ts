@@ -4,6 +4,7 @@ import type { Campaign, GroundPosition, Snapshot } from "../simulation";
 import { describeBuild, describeStructure, designOf } from "./describe";
 import { onClick } from "./click";
 import { setText } from "./dom";
+import { inSentence } from "./labels";
 
 export interface BuildMenu {
   update(snapshot: Snapshot): void;
@@ -83,7 +84,7 @@ export function createBuildMenu(
     showPlacing();
     setText(
       hint,
-      `Click the map to place the ${type.label.toLowerCase()}. Right-click or press Esc to cancel.${stockWarning(type)}`,
+      `Click the map to place the ${inSentence(type.label)}. Right-click or press Esc to cancel.${stockWarning(type)}`,
     );
   }
 
