@@ -141,16 +141,17 @@ function structureOf(
 }
 
 /**
- * The base with a window's history behind it, but for the record under way:
- * what the Plants made only just covering what the Mission Director used, and
- * water closer still, so that it stays self-sufficient only if the
- * water-processing plant carries on. A stand-in for playing a whole Lunation
- * first, and for the surplus of one that the window would take as long to
- * move past.
+ * The base with a window's history behind it, but for the record under way. A
+ * stand-in for playing a whole Lunation first, and for the surplus of one that
+ * the window would take as long to move past. All the oxygen surplus is in the
+ * oldest record, three times what the whole window used, and the rest fall just
+ * short, so that only the window moving on can lose it. What the Plants made
+ * of water only just covers what the Mission Director used, so that it stays
+ * self-sufficient only if the water-processing plant carries on.
  */
 function aRecordShortOfAWindow(): Campaign {
   const { recordHours } = catalogue.selfSufficiency;
-  const records = windowMinutes / (recordHours * 60);
+  const recordCount = windowMinutes / (recordHours * 60) - 1;
   return changed(base(), (state) => {
     for (const history of state.selfSufficiency) {
       const usePerEarthDay =
@@ -158,9 +159,13 @@ function aRecordShortOfAWindow(): Campaign {
           (stock) => stock.id === history.stockId,
         )?.usePerEarthDayKilograms ?? Number.NaN;
       const usedKilograms = (usePerEarthDay / 24) * recordHours;
-      history.records = Array.from({ length: records - 1 }, () => ({
-        producedKilograms:
-          (history.stockId === "oxygen" ? 1.02 : 1.001) * usedKilograms,
+      const isOxygen = history.stockId === "oxygen";
+      history.records = Array.from({ length: recordCount }, (_, index) => ({
+        producedKilograms: !isOxygen
+          ? 1.001 * usedKilograms
+          : index === 0
+            ? 3 * recordCount * usedKilograms
+            : 0.99 * usedKilograms,
         usedKilograms,
       }));
     }

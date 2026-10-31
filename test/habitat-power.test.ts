@@ -51,7 +51,7 @@ function structureOf(
 }
 
 /**
- * The saved text of a game played once, by name, and loaded afresh for each
+ * The saved text of a Campaign played once, by name, and loaded afresh for each
  * test: saved as first played, however many tests go on from there.
  */
 const saves = new Map<string, string>();

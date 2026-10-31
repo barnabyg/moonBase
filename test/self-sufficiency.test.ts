@@ -89,9 +89,7 @@ function base(movedIn = true): Campaign {
     text = withStocks(campaign, { regolith: 20_000, ice: 5_000 }).save();
     bases.set(movedIn, text);
   }
-  const loaded = loadCampaign(text);
-  if (!loaded.ok) throw new Error(loaded.message);
-  return loaded.campaign;
+  return loaded(text);
 }
 
 function withStocks(
@@ -194,25 +192,39 @@ function gainedIn(stockId: string): { campaign: Campaign; gained: GameEvent } {
 
 /**
  * The base just after it has become self-sufficient in oxygen, out of
- * Regolith so that the extraction plant stops for good, with its window's
- * records of what the Plants made scaled down until they only just cover
- * what was used: a stand-in for the Lunation of surplus the window would
- * otherwise take to move past. Water's are scaled closer still, so that it
- * stays self-sufficient only if the water plant carries on.
+ * Regolith so that the extraction plant stops for good. All its oxygen surplus
+ * is in the window's oldest record, three times what the whole window used,
+ * and the rest fall just short: a stand-in for the Lunation of surplus the
+ * window would otherwise take to move past. So only the window moving on can
+ * lose it, as what is used up to then can't come near that record. Water's are
+ * scaled until they only just cover what was used, so that it stays
+ * self-sufficient only if the water-processing plant carries on.
  */
-function runningOutOfOxygen(): Campaign {
+function oxygenPlantStopped(): Campaign {
   return changed(gainedIn("oxygen").campaign, (state) => {
     for (const stock of state.bulkResources) {
       if (stock.resourceId === "regolith") stock.kilograms = 0;
     }
     for (const { stockId, records } of state.selfSufficiency) {
-      const sum = (read: (record: (typeof records)[number]) => number) =>
-        records.reduce((total, record) => total + read(record), 0);
-      const scale =
-        ((stockId === "oxygen" ? 1.02 : 1.001) *
-          sum((record) => record.usedKilograms)) /
-        sum((record) => record.producedKilograms);
-      for (const record of records) record.producedKilograms *= scale;
+      const used = records.reduce(
+        (total, record) => total + record.usedKilograms,
+        0,
+      );
+      if (stockId === "oxygen") {
+        for (const record of records) {
+          record.producedKilograms = 0.99 * record.usedKilograms;
+        }
+        const oldest = records[0];
+        if (oldest !== undefined) oldest.producedKilograms = 3 * used;
+      } else {
+        const produced = records.reduce(
+          (total, record) => total + record.producedKilograms,
+          0,
+        );
+        for (const record of records) {
+          record.producedKilograms *= (1.001 * used) / produced;
+        }
+      }
     }
   });
 }
@@ -267,6 +279,7 @@ describe("self-sufficiency", () => {
     ).toEqual([]);
     expect(judged(campaign, "oxygen")).toMatchObject({
       selfSufficient: false,
+      windowComplete: true,
       coveredShare: undefined,
     });
   });
@@ -291,7 +304,7 @@ describe("self-sufficiency", () => {
   });
 
   it("is lost once the Plants stop making it, as the window moves on", () => {
-    const campaign = runningOutOfOxygen();
+    const campaign = oxygenPlantStopped();
 
     let lost: GameEvent | undefined;
     for (
@@ -320,7 +333,7 @@ describe("self-sufficiency", () => {
     expect(gainedBase.snapshot().milestones.reachedIds).toContain(
       "oxygen-self-sufficient",
     );
-    const campaign = runningOutOfOxygen();
+    const campaign = oxygenPlantStopped();
 
     const events: GameEvent[] = [];
     for (let hours = 0; judged(campaign, "oxygen").selfSufficient; hours++) {
