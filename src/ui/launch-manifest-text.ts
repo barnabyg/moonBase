@@ -134,14 +134,19 @@ export function formatExportPrice(sold: Export): string {
 
 /**
  * Says the mass of the Exports aboard the Lander and to load against its
- * Return Mass, for example "Return Mass: 40 of 100 kg".
+ * Return Mass, for example "Return Mass: 40 of 100 kg", with the propellant it
+ * will burn if it is to burn any.
  */
 export function formatReturnMass(exports: ExportsSnapshot): string {
   const aboard = exports.aboard.reduce(
     (total, line) => total + line.kilograms,
     0,
   );
-  return `Return Mass: ${formatKilogramAmount(exports.massKilograms + aboard)} of ${catalogue.lander.returnMassKilograms} kg`;
+  const burning =
+    exports.propellantToBurnKilograms > 0
+      ? `, burning ${formatKilogramAmount(exports.propellantToBurnKilograms)} kg of propellant`
+      : "";
+  return `Return Mass: ${formatKilogramAmount(exports.massKilograms + aboard)} of ${formatKilogramAmount(exports.returnMassKilograms)} kg${burning}`;
 }
 
 /**

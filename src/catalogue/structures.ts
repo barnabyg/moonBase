@@ -1332,6 +1332,226 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
   },
+  // Act 3: liquid oxygen for the Lander, or to sell. 480 kg in a Daylight lifts
+  // 240 kg more of Exports a Lunation, so one is enough to raise the Return Mass
+  // but not to triple it every trip.
+  {
+    id: "propellant-plant",
+    label: "Propellant plant",
+    designId: "propellant-production",
+    footprintRadiusMetres: 4,
+    components: [
+      { componentId: "oxygen-liquefier", count: 2 },
+      { componentId: "cryogenic-tank", count: 2 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 10,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.05,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipe).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "propellant",
+        label: "Propellant",
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "regolith" },
+            kilogramsPerHour: 15,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "propellant" },
+            kilogramsPerHour: 1,
+          },
+        ],
+        drawKilowatts: 8,
+      },
+    ],
+  },
+  // Three times the rate for under one and a half times the price, and enough Regolith to keep an
+  // excavator busy, which is what a base pays for every trip at a tripled Return
+  // Mass.
+  {
+    id: "large-propellant-plant",
+    label: "Large propellant plant",
+    designId: "large-propellant-production",
+    footprintRadiusMetres: 5,
+    components: [
+      { componentId: "oxygen-liquefier", count: 2 },
+      { componentId: "cryogenic-tank", count: 2 },
+      { componentId: "propellant-reactor", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 10,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.08,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipe).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "propellant",
+        label: "Propellant",
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "regolith" },
+            kilogramsPerHour: 35,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "propellant" },
+            kilogramsPerHour: 3,
+          },
+        ],
+        drawKilowatts: 20,
+      },
+    ],
+  },
+  // Act 4: the dearest thing the base can sell for its mass, for space telescopes
+  // that can't be made in a gravity well. 96 kg in a Daylight.
+  {
+    id: "optics-works",
+    label: "Optics works",
+    designId: "precision-optics",
+    footprintRadiusMetres: 3.5,
+    components: [
+      { componentId: "optical-grinder", count: 2 },
+      { componentId: "metrology-bench", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 10,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipe).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "precision-optics",
+        label: "Precision optics",
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 0.8,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.2,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "precision-optics" },
+            kilogramsPerHour: 0.2,
+          },
+        ],
+        drawKilowatts: 12,
+      },
+    ],
+  },
+  // Two and a half times an optics works' rate, the last big purchase there is.
+  // With a tripled Return Mass, it makes the Plant rather than the Lander the limit
+  // to the very end.
+  {
+    id: "grinding-line",
+    label: "Grinding line",
+    designId: "optics-grinding-line",
+    footprintRadiusMetres: 4.5,
+    components: [
+      { componentId: "optical-grinder", count: 3 },
+      { componentId: "metrology-bench", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 10,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.05,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    // It draws power only while it runs (see its recipe).
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    recipes: [
+      {
+        id: "precision-optics",
+        label: "Precision optics",
+        inputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "silicon" },
+            kilogramsPerHour: 2,
+          },
+          {
+            resource: { kind: "bulk-resource", resourceId: "metals" },
+            kilogramsPerHour: 0.5,
+          },
+        ],
+        outputs: [
+          {
+            resource: { kind: "bulk-resource", resourceId: "precision-optics" },
+            kilogramsPerHour: 0.5,
+          },
+        ],
+        drawKilowatts: 28,
+      },
+    ],
+  },
   // A block of sintered Regolith, heated through by day, that gives the heat
   // back through an exchanger by night: 6000 kWh, enough to run a circuit board
   // chain's 13 kW through a whole Night and more, which makes half as many

@@ -13,6 +13,7 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `everything-unlocked` | An hour into a Campaign with every Design unlocked and $5,000M                                                                                  |
 | `last-milestone`      | An hour into a Campaign with every Milestone reached but power storage, the quickest to reach, which opens the last Act                         |
 | `act-2`               | The start of Act 2, at the reference Campaign's base with $2,500M, 400 Science, 150 kg of metals and 60 kg of circuit boards                    |
+| `act-3`               | The start of Act 3, with a propellant plant's Components in stock, 500 kg of propellant, 150 kg of circuit boards, 400 kg of metals and $5,000M |
 | `workshop`            | A base with a Workshop running on two solar arrays and a battery bank, its metals about to run out, and a second Workshop's Components in stock |
 | `buried-habitat`      | A base with the Mission Director behind a water wall at 568 mSv, a Buried Habitat commissioned to move to, and a bare Habitat beside it         |
 | `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                |

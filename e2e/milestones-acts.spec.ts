@@ -100,9 +100,9 @@ test("with the last Milestone reached, the panel shows the last Act, and says so
     "Milestone reached: Power storage before the first Night",
   );
   await expect(section.notifications).toContainText(
-    "Act 2: Independence begins.",
+    "Act 4: Permanence begins.",
   );
-  await expect(section.act).toHaveText("Act 2: Independence");
+  await expect(section.act).toHaveText("Act 4: Permanence");
   await expect(section.asks).toHaveText(
     "Everything this Act asks of you is done.",
   );

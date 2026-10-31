@@ -276,7 +276,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       title: "Launches and Funding",
       paragraphs: [
         `The Lander can fly to Earth and back once the Mission Director has moved into a Habitat. Each Launch costs a ${formatMillionDollars(launch.feeMillionDollars)} fee plus the price of what it brings, up to ${launch.payloadMassLimitKilograms} kg; choose it on the Launch manifest.`,
-        `Funding starts with the ${formatMillionDollars(catalogue.programmeGrantMillionDollars)} Programme Grant. Exports, such as wafers, circuit boards and metals, earn more: load them on the Launch manifest's Exports tab, and they sell as the Lander reaches Earth, before the next Launch is paid for. What the Exports aboard and to load will sell for counts towards what it can cost, so the Lander can't leave if they fall short of it. A landing pad stops it blasting Plume Ejecta over the base.`,
+        `Funding starts with the ${formatMillionDollars(catalogue.programmeGrantMillionDollars)} Programme Grant. Exports, such as wafers, circuit boards, metals, propellant and precision optics, earn more: load them on the Launch manifest's Exports tab, and they sell as the Lander reaches Earth, before the next Launch is paid for. What the Exports aboard and to load will sell for counts towards what it can cost, so the Lander can't leave if they fall short of it. A landing pad stops it blasting Plume Ejecta over the base.`,
       ],
     },
     {

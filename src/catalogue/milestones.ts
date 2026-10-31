@@ -13,6 +13,16 @@ export const acts: Catalogue["acts"] = [
     label: "Act 2: Independence",
     asks: "Stop relying on Earth: make your own spare Components and sell metals as well as circuit boards, and choose what Funding buys, as it no longer buys everything.",
   },
+  {
+    id: "act-3",
+    label: "Act 3: Scale",
+    asks: "Break the Return Mass: make propellant at the base, burn it to carry three times as much off the Moon, and sell what you don't burn.",
+  },
+  {
+    id: "act-4",
+    label: "Act 4: Permanence",
+    asks: "Stay for good: move the Mission Director underground before the Radiation Dose limit, and sell the most valuable thing the Moon can make.",
+  },
 ];
 
 export const milestones: Catalogue["milestones"] = [
@@ -99,5 +109,43 @@ export const milestones: Catalogue["milestones"] = [
     label: "Metals sold",
     hint: "Metals sell for less than circuit boards, so use them to fill what the circuit boards leave of the Return Mass: on the Launch manifest's Exports tab, load all the circuit boards there are, then metals, keeping enough for the Workshop. To have metals to spare, ship a second extraction plant, or a large one, and set it to metals and silicon.",
     condition: { kind: "export-sold", resourceId: "metals" },
+  },
+  {
+    id: "first-propellant",
+    actId: "act-3",
+    label: "First propellant made",
+    hint: "Unlock Propellant production on the Tech Tree, ship a propellant plant's oxygen liquefiers and cryogenic tanks, and build it on the power network. It takes a lot of Regolith, so keep the excavator working.",
+    condition: { kind: "bulk-resource-in-stock", resourceId: "propellant" },
+  },
+  {
+    id: "propellant-sold",
+    actId: "act-3",
+    label: "Oxygen sold as propellant",
+    hint: "Propellant is also an Export: on the Launch manifest's Exports tab, load some in what the circuit boards leave of the Return Mass. It sells for more than metals.",
+    condition: { kind: "export-sold", resourceId: "propellant" },
+  },
+  {
+    id: "return-mass-tripled",
+    actId: "act-3",
+    label: "Return Mass tripled",
+    hint: "The Lander burns 2 kg of propellant for each kilogram it carries over 100 kg. Save up 400 kg of propellant and load 300 kg of Exports: the Launch manifest shows the Return Mass and what it will burn. Worth it for circuit boards, not for metals.",
+    condition: { kind: "exports-carried", kilograms: 300 },
+  },
+  {
+    id: "moved-into-buried-habitat",
+    actId: "act-4",
+    label: "Moved into a Buried Habitat",
+    hint: "Unlock Buried Habitat on the Tech Tree, ship its eight vault sections, life support core and airlock over several Launches, and build it early in a Daylight. Move in once it has power, and dismantle the old Habitat before Night falls if the batteries can't carry both.",
+    condition: {
+      kind: "mission-director-lives-in",
+      structureTypeId: "buried-habitat",
+    },
+  },
+  {
+    id: "precision-optics-sold",
+    actId: "act-4",
+    label: "First precision optics sold",
+    hint: "Unlock Precision optics on the Tech Tree, ship an optics works, and keep silicon and metals coming to it. Load the optics first on the Launch manifest's Exports tab: nothing the base makes sells for more.",
+    condition: { kind: "export-sold", resourceId: "precision-optics" },
   },
 ];

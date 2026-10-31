@@ -2,13 +2,18 @@ import { catalogue, type Design } from "../src/catalogue";
 import type { Campaign } from "../src/simulation";
 
 /**
- * Completes the Research Tasks on offer from the start, one after another,
- * until the base has at least this much Science.
+ * Completes the Research Tasks on offer, one after another, until the base has
+ * at least this much Science.
  */
 export function earnScience(campaign: Campaign, science: number): void {
   for (const task of catalogue.researchTasks) {
     if (campaign.snapshot().science >= science) return;
-    if (task.requiresDesignId !== undefined) continue;
+    if (
+      task.requiresDesignId !== undefined &&
+      !campaign.snapshot().unlockedDesignIds.includes(task.requiresDesignId)
+    ) {
+      continue;
+    }
     if (campaign.snapshot().completedResearchTaskIds.includes(task.id)) {
       continue;
     }

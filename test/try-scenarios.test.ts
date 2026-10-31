@@ -45,6 +45,26 @@ describe("what npm run try can start the game in", () => {
     );
   });
 
+  it("act-3 starts with Act 2 done and enough propellant to fly a tripled Return Mass", () => {
+    const scenario = tryScenarios.find((candidate) => candidate.id === "act-3");
+    const loaded = loadCampaign(scenario?.save() ?? "");
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { campaign } = loaded;
+    const state = campaign.snapshot();
+
+    expect(state.milestones).toMatchObject({
+      currentActId: "act-3",
+      currentId: "first-propellant",
+    });
+    expect(state.exports.returnMassKilograms).toBe(350);
+    expect(
+      campaign.loadExports([
+        { resourceId: "circuit-boards", kilograms: 150 },
+        { resourceId: "metals", kilograms: 150 },
+      ]).ok,
+    ).toBe(true);
+  });
+
   it("act-2 starts with Act 1 done, Act 2 current, its first Milestone next to reach, and the means to reach it", () => {
     const scenario = tryScenarios.find((candidate) => candidate.id === "act-2");
     const loaded = loadCampaign(scenario?.save() ?? "");
