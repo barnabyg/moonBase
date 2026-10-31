@@ -99,7 +99,7 @@ body {
 
 .left-column {
   left: var(--gutter);
-  width: 320px;
+  width: 340px;
 }
 
 .right-column {
