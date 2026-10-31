@@ -14,10 +14,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# The jobs run side by side and together cover every check in
-# `npm run verify`. Only the end-to-end jobs need a browser, so a lint, type
-# or unit test failure reports without waiting for browser setup, and
-# "Re-run failed jobs" repeats only the jobs that failed.
+# This job and those in end-to-end.yml run side by side and together cover
+# every check in `npm run verify`. Only the end-to-end jobs need a browser, so
+# a lint, type or unit test failure reports without waiting for browser setup,
+# and "Re-run failed jobs" repeats only the jobs that failed.
 jobs:
   checks:
     name: Checks (all but end-to-end)
@@ -36,60 +36,3 @@ jobs:
       - run: npm ci
         timeout-minutes: 3
       - run: npm run verify -- --skip-e2e
-
-  e2e:
-    name: End-to-end tests (${{ matrix.shard }}/4)
-    runs-on: ubuntu-24.04
-    # Each runner has a virtual display and CPUs of its own, so unlike two
-    # workers on one runner they can't starve each other's animation frames. A
-    # failure on one leaves the others running, to report their failures too.
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    # All the tests on one runner have taken up to about 16 minutes, and they
-    # grow with each new test; see docs/verification.md.
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-        timeout-minutes: 3
-      # Playwright's Firefox is kept in GitHub's cache, keyed on the pinned
-      # Playwright version, so most runs download nothing. The runner image
-      # already has every library Firefox needs; Playwright's --with-deps would
-      # also fetch fonts and video codecs the tests never use from Ubuntu's
-      # mirrors, which have stalled CI runs for up to 24 minutes.
-      - name: Read the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright's Firefox
-        id: firefox-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-firefox-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: steps.firefox-cache.outputs.cache-hit != 'true'
-        run: npx playwright install firefox
-        timeout-minutes: 3
-      # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
-      # the WebGL2 context the renderer needs, but only with a display, so the
-      # end-to-end tests run Firefox with a window in a virtual X display.
-      # Mesa's GLX libraries and Xvfb come with the runner image, and
-      # playwright.config.ts has Firefox use GLX, so nothing is installed.
-      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
-        env:
-          PLAYWRIGHT_HEADED: "1"
-          E2E_SHARD: ${{ matrix.shard }}/4
-      # A failing end-to-end test leaves the page as it was, as an
-      # accessibility snapshot and a screenshot, in test-results. CI can't
-      # be run locally with its software renderer, so keep them to diagnose.
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: playwright-test-results-${{ matrix.shard }}
-          path: test-results/
-          retention-days: 14

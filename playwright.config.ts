@@ -5,7 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env["E2E_PORT"] ?? 4173);
 // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
 // context, so CI runs Firefox with a window inside a virtual X display
-// (see .github/workflows/verify.yml).
+// (see .github/workflows/end-to-end.yml).
 const headed = process.env["PLAYWRIGHT_HEADED"] === "1";
 // E2E_SHARD, such as "2/4", runs that share of the tests, so CI can spread them
 // over several runners (see docs/verification.md).
