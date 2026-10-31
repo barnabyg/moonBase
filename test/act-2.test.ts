@@ -259,20 +259,34 @@ describe("self-sufficiency in spare Components", () => {
     const campaign = baseWith(HOME);
     build(campaign, HOME);
     moveIn(campaign);
+    const spares = catalogue.launch.items.find(
+      ({ brings }) =>
+        brings.kind === "component" &&
+        brings.componentId === catalogue.maintenance.spareComponentId,
+    );
+    const manifest = campaign.setLaunchManifest([
+      { itemId: spares?.id ?? "", count: 50 },
+    ]);
+    if (!manifest.ok) throw new Error(manifest.message);
+    const sent = campaign.sendLander();
+    if (!sent.ok) throw new Error(sent.message);
 
-    // As soon as there is a whole window to judge, with repairs having used
-    // some and no Plant having made any.
+    // As soon as there is a whole window to judge, with the Launch in it,
+    // repairs having used some and no Plant having made any.
+    const events: GameEvent[] = [];
     for (
       let days = 0;
       days < 45 &&
       !campaign.snapshot().spareComponentSufficiency.windowComplete;
       days++
     ) {
-      campaign.advance(EARTH_DAY);
+      events.push(...campaign.advance(EARTH_DAY));
     }
 
+    expect(events.map(({ kind }) => kind)).toContain("lander-landed");
     const judged = campaign.snapshot().spareComponentSufficiency;
     expect(judged.windowComplete).toBe(true);
+    expect(judged.coveredShare).toBe(0);
     expect(judged.selfSufficient).toBe(false);
   });
 });
