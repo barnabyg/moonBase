@@ -463,6 +463,13 @@ export interface LaunchItem {
   readonly id: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /** Any other Designs it needs before it is on sale. */
+  readonly alsoNeedsDesignIds?: readonly string[];
+  /**
+   * The Designs that take it off sale, in favour of a better one. What has
+   * already been bought stays as it is.
+   */
+  readonly retiredByDesignIds?: readonly string[];
   /**
    * What one of it brings: a Component, a set amount of oxygen or water, or
    * a Robot, which climbs down from the Lander as it lands and joins the
@@ -852,6 +859,16 @@ export interface StructureType {
   readonly label: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /**
+   * What its parts make it, if it is a kind of solar array. The player only
+   * plans the plain one; its parts decide which kind it turns out to be.
+   */
+  readonly solarArray?: {
+    readonly sealed: boolean;
+    readonly screened: boolean;
+    readonly thinFilm: boolean;
+    readonly prefabricated: boolean;
+  };
   /** Radius of the ground the Structure stands on; no two footprints may overlap. */
   readonly footprintRadiusMetres: number;
   /**

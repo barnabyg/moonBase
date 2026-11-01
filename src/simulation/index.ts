@@ -1,3 +1,9 @@
+export {
+  isOnSale,
+  nextSolarArray,
+  SOLAR_ARRAY_ID,
+  solarArraysInStock,
+} from "./solar-arrays";
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { designLabel } from "./tech-tree";

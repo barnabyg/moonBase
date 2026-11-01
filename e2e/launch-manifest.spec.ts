@@ -368,10 +368,14 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
     screen.getByRole("row", { name: /^Made-up part 13\b/ }),
   ).toBeVisible();
 
-  // By what it is for: an array mast doesn't say "solar" in its name, only
-  // in the Structures it goes into.
+  // By what it is for: an array pack doesn't say "solar" in its name, only
+  // in the Structure it goes into.
   await find.fill("solar array");
-  await expect(screen.getByRole("row", { name: /^Array mast/ })).toBeVisible();
+  await expect(
+    screen.getByRole("row", {
+      name: /^Prefabricated dust-screened thin-film array pack/,
+    }),
+  ).toBeVisible();
   await expect(screen.getByRole("row", { name: /^Oxygen/ })).toBeHidden();
 
   // With its mass and price, and a group with nothing to show goes.
@@ -494,7 +498,10 @@ test("a Design unlocked adds its group in its place, with every other row in the
     screen.getByRole("region", { name: "Protection" }),
   ).toBeVisible();
   const after = await rowsShown(screen);
-  expect(after.filter((row) => before.includes(row))).toEqual(before);
+  // The sealed mast has taken the plain one's place on sale.
+  const stayed = before.filter((row) => row !== "array-mast");
+  expect(after).not.toContain("array-mast");
+  expect(after.filter((row) => before.includes(row))).toEqual(stayed);
   // After Construction and before Life Support, as in the Tech Tree, not at
   // the end.
   const sealed = after.indexOf("sealed-array-mast");

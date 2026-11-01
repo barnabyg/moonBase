@@ -10,8 +10,9 @@ import {
   type PlantRecipe,
   type ResourceFlow,
   type StructureType,
+  solarArrayPartEffects,
 } from "../catalogue";
-import { reserveKilograms, type Snapshot } from "../simulation";
+import { reserveKilograms, SOLAR_ARRAY_ID, type Snapshot } from "../simulation";
 import { formatScience, listInWords } from "./format";
 import {
   componentInSentence,
@@ -238,13 +239,20 @@ export function describeBuild(type: StructureType): string {
  * cuts and its Research Tasks.
  */
 export function describeUnlocks(design: Design): string[] {
+  // A solar array is planned as one, so its kinds aren't things to unlock.
   const structures = catalogue.structureTypes.filter(
-    (type) => type.designId === design.id,
+    (type) =>
+      type.designId === design.id &&
+      (type.solarArray === undefined || type.id === SOLAR_ARRAY_ID),
   );
   const items = [
     ...new Set(
       catalogue.launch.items
-        .filter((item) => item.designId === design.id)
+        .filter(
+          (item) =>
+            item.designId === design.id &&
+            (item.alsoNeedsDesignIds ?? []).length === 0,
+        )
         .map(({ brings }) => {
           switch (brings.kind) {
             case "component":
@@ -291,12 +299,22 @@ export function describeComponentUse(componentId: string): string {
         : ` A ${listInWords(makers.map((type) => type.label))} makes them at the base.`
     }`;
   }
-  const uses = catalogue.structureTypes.flatMap((type) =>
-    type.components
-      .filter((need) => need.componentId === componentId)
-      .map((need) => `${need.count} for each ${type.label}`),
-  );
-  return uses.length === 0 ? "" : `Used to build: ${listInWords(uses)}.`;
+  const uses = [
+    ...new Set(
+      catalogue.structureTypes.flatMap((type) =>
+        type.components
+          .filter((need) => need.componentId === componentId)
+          .map(
+            (need) =>
+              `${need.count} for each ${type.solarArray === undefined ? type.label : "Solar array"}`,
+          ),
+      ),
+    ),
+  ];
+  const effect = solarArrayPartEffects[componentId];
+  return uses.length === 0
+    ? ""
+    : `Used to build: ${listInWords(uses)}.${effect === undefined ? "" : ` ${effect}`}`;
 }
 
 /** Says what a Launch item is for, beside it on the Launch manifest. */

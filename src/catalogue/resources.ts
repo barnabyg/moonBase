@@ -1,3 +1,4 @@
+import { solarArrayPartTypes } from "./solar-arrays";
 import type { Catalogue } from "./types";
 
 // What the base keeps and uses up: bulk resources, Exports, Components, its
@@ -136,6 +137,7 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },
   { id: "telescope-mount", label: "Telescope mount" },
+  ...solarArrayPartTypes,
 ];
 
 export const startingStock: Catalogue["startingStock"] = [

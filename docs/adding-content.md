@@ -20,6 +20,8 @@ Rules and model:
 - `src/simulation/`: anything it does that no Structure did before, such as a Buried Habitat's dose rate in `radiation.ts`. Nothing catches it but the tests you write.
 - `src/render/`: a model, in a file of its own or beside its kind, and a case for it in `createStructureModel` in `models.ts`. Nothing catches it: an id it doesn't know is drawn as a solar array. `test/buried-habitat-model.test.ts` shows how to test one.
 
+A new upgrade to solar arrays goes in the tables of `src/catalogue/solar-arrays.ts`, not in a Structure of its own: its kinds are made from its parts, and each kind, part and Launch item comes from there. An upgrade changes nothing that exists, only what is on sale (`retiredByDesignIds`).
+
 Words for the player:
 
 - `src/ui/describe.ts`: a line in `describeStructure` for any new field. The Guide's cards for Structures and Components are built from this and the catalogue. Nothing catches it.

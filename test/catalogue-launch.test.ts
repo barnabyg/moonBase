@@ -88,7 +88,10 @@ describe("the data catalogue", () => {
             candidate.brings.componentId === need.componentId,
         );
         expect(item).toBeDefined();
-        expect(unlocked).toContain(item?.designId);
+        // A kind of solar array can mix parts from Designs on separate branches.
+        if (type.solarArray === undefined) {
+          expect(unlocked).toContain(item?.designId);
+        }
         mass += (item?.massKilograms ?? Infinity) * need.count;
       }
       if (type.buried === true) continue;

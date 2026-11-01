@@ -221,6 +221,11 @@ import {
   startingSpareComponentSufficiency,
   type SpareComponentSufficiencyState,
 } from "./self-sufficiency";
+import {
+  nextSolarArray,
+  rechooseSolarArrays,
+  SOLAR_ARRAY_ID,
+} from "./solar-arrays";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import {
@@ -990,11 +995,17 @@ function campaignFrom(state: CampaignState): Campaign {
       const check = checkCampaignPlacement(state, plan);
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
+      // A solar array is whatever kind its parts make it.
+      const structureTypeId =
+        plan.structureTypeId === SOLAR_ARRAY_ID
+          ? (nextSolarArray(state, state.launchManifest)?.id ??
+            plan.structureTypeId)
+          : plan.structureTypeId;
       state.nextStructureNumber += 1;
       const placed = { ...plan, position: check.position };
       state.constructions.push({
         id,
-        structureTypeId: plan.structureTypeId,
+        structureTypeId,
         position: { ...check.position },
         planNumber: state.nextPlanNumber,
         workSpot: chooseWorkSpot(state, placed),
@@ -1329,6 +1340,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
+  rechooseSolarArrays(state);
   events.push(...workMachines(state));
   idleRovers(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));

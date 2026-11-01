@@ -73,7 +73,7 @@ describe("the data catalogue", () => {
     expect(exponent).toBeGreaterThan(0);
   });
 
-  it("gives every Structure type a share, from 0 to 1, of the Hazards the rules set the same for all, the whole of each but for the hardened Structures of the Protection Designs", () => {
+  it("gives every Structure type a share, from 0 to 1, of the Hazards the rules set the same for all, the whole of each but for the hardened Structures of the Protection Designs and solar arrays with their screened panels", () => {
     for (const type of catalogue.structureTypes) {
       const category = catalogue.designs.find(
         (design) => design.id === type.designId,
@@ -81,7 +81,9 @@ describe("the data catalogue", () => {
       for (const share of Object.values(type.hazardMultipliers)) {
         expect(share).toBeGreaterThan(0);
         expect(share).toBeLessThanOrEqual(1);
-        if (category !== "protection") expect(share).toBe(1);
+        if (category !== "protection" && type.solarArray?.screened !== true) {
+          expect(share).toBe(1);
+        }
       }
     }
   });

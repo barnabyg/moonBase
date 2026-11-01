@@ -1,3 +1,4 @@
+import { catalogue } from "../catalogue";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { boxAt, materials, part, rod } from "./materials";
@@ -65,24 +66,11 @@ export const SOLAR_ARRAY: SolarArrayShape = {
   edgeBooms: false,
   skid: false,
 };
-const DUST_SEALED_SOLAR_ARRAY: SolarArrayShape = {
-  ...SOLAR_ARRAY,
-  name: "Dust-sealed solar array",
-  sealed: true,
-};
-const DUST_SCREENED_SOLAR_ARRAY: SolarArrayShape = {
-  ...SOLAR_ARRAY,
-  name: "Dust-screened solar array",
-  sealed: true,
-  dustScreen: true,
-};
 /**
- * A thin-film solar array: a wider, thinner panel of dull bronze-violet
- * cells on a flexible backing, held taut by a boom up each edge.
+ * A thin-film panel: wider and thinner, of dull bronze-violet cells on a
+ * flexible backing, held taut by a boom up each edge.
  */
-const THIN_FILM_SOLAR_ARRAY: SolarArrayShape = {
-  ...SOLAR_ARRAY,
-  name: "Thin-film solar array",
+const THIN_FILM_PANEL = {
   panelWidth: 3.4,
   panelThickness: 0.015,
   cells: materials.thinFilmCell,
@@ -90,15 +78,7 @@ const THIN_FILM_SOLAR_ARRAY: SolarArrayShape = {
   edges: materials.filmBacking,
   edgeBooms: true,
 };
-/**
- * A prefabricated solar array: a solar array standing on the yellow steel
- * skid it was shipped and lifted on.
- */
-const PREFABRICATED_SOLAR_ARRAY: SolarArrayShape = {
-  ...SOLAR_ARRAY,
-  name: "Prefabricated solar array",
-  skid: true,
-};
+
 /** The length and width of a prefabricated solar array's skid. */
 const SKID_SIZE = [2.8, 1.8] as const;
 /** Across each fold of a dust screen's panel, how far up each electrode runs, as a share of the fold. */
@@ -382,10 +362,29 @@ function createSkid(): THREE.Object3D[] {
   return [...runners, ...beams, ...eyes];
 }
 
-/** The solar arrays that look different from a plain one, by Structure type. */
-export const SOLAR_ARRAY_SHAPES: Readonly<Record<string, SolarArrayShape>> = {
-  "dust-sealed-solar-array": DUST_SEALED_SOLAR_ARRAY,
-  "dust-screened-solar-array": DUST_SCREENED_SOLAR_ARRAY,
-  "thin-film-solar-array": THIN_FILM_SOLAR_ARRAY,
-  "prefabricated-solar-array": PREFABRICATED_SOLAR_ARRAY,
-};
+/**
+ * The solar arrays that look different from a plain one, by Structure type:
+ * each shows what its parts are, a black seal on its mast and hinges, electrodes
+ * on its panels, a thin-film panel, and the yellow steel skid a prefabricated
+ * one was shipped and lifted on.
+ */
+export const SOLAR_ARRAY_SHAPES: Readonly<Record<string, SolarArrayShape>> =
+  Object.fromEntries(
+    catalogue.structureTypes.flatMap(({ id, label, solarArray }) =>
+      solarArray === undefined
+        ? []
+        : [
+            [
+              id,
+              {
+                ...SOLAR_ARRAY,
+                ...(solarArray.thinFilm ? THIN_FILM_PANEL : {}),
+                name: label,
+                sealed: solarArray.sealed,
+                dustScreen: solarArray.screened,
+                skid: solarArray.prefabricated,
+              },
+            ],
+          ],
+    ),
+  );

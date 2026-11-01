@@ -270,39 +270,41 @@ Once the base has a Plant that makes spare Components, it shows the same for the
 
 Unlocking a Design is permission, not the thing itself: its items appear on the Launch manifest and in the build menu, but still have to be shipped and built. Nothing already in stock, on its way or planned is affected, and Structures already built keep their old behaviour.
 
+**Solar array upgrades add up.** The build menu has one solar array. What it turns out to be comes from the parts it is built from: a sealed mast wears down more slowly, screened panels gather Dust coating more slowly, thin-film panels generate 15 kW rather than 10, and a prefabricated pack, with whatever mast and panels were on sale when it was made, goes up in under half the hours and fails Commissioning less often. There is no magic: a technology changes nothing that already exists. Arrays already built stay as they were built, and so do parts at the base, or on a Lander. Instead the Launch manifest takes the old part off sale, leaving one mast and one panel, or once arrays are prefabricated one pack, the best the unlocked Designs allow. A part already on a manifest stays and can come off, but no more can go on. A new array is built from the parts the base has, the best of them first, and whatever else it needs is bought new, so the array works' plain parts still go into plain arrays. Until the Robot takes its parts, a planned array can change kind, so it never waits for a part no longer made. The build menu says what the next one will be.
+
 The Designs beyond the starting ones:
 
-| Category     | Design                       | Unlocks                                                                                                    |
-| ------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                                  |
-| Power        | Thin-film solar cells        | A thin-film solar array: more power from a lighter array                                                   |
-| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                            |
-| Power        | Concentrator towers          | A concentrator tower: as much power as ten solar arrays, with far less to clean and repair, far dearer     |
-| Power        | Thermal storage              | A thermal store: as much as a row of large battery banks in one Launch, with less to keep warm, far dearer |
-| Construction | Prefabricated solar arrays   | A prefabricated solar array: one pack, quicker to build and less likely to fail Commissioning              |
-| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                      |
-| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                           |
-| Protection   | Dust-sealed solar arrays     | A dust-sealed solar array, which wears down more slowly                                                    |
-| Protection   | Electrodynamic dust screens  | A dust-screened solar array, which also gathers Dust coating more slowly                                   |
-| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                     |
-| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                                 |
-| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                               |
-| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation))      |
-| Protection   | Vault cistern                | A vault cistern, which cuts a Buried Habitat's dose rate to a fifth (see [Radiation](#radiation))          |
-| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                              |
-| Life Support | Bulk supply tanks            | A water tank and an oxygen tank, which raise the storage limits (see [Plants](#plants))                    |
-| Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))         |
-| Life Support | Lunar greenhouses            | A Greenhouse, which earns Science day and night for water and power (see [Plants](#plants))                |
-| Life Support | Growing halls                | A growing hall, which earns more Science for its water, far dearer (see [Plants](#plants))                 |
-| Industry     | Molten regolith electrolysis | A large extraction plant                                                                                   |
-| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                            |
-| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                               |
-| Industry     | Array fabrication            | An array works, which makes solar panels and array masts at the base (see [Plants](#plants))               |
-| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                               |
-| Industry     | Propellant production        | A propellant plant and a propellant tank, which raises what the base can hold (see [Plants](#plants))      |
-| Industry     | Large propellant production  | A large propellant plant, which makes three times as much (see [Plants](#plants))                          |
-| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                                |
-| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded            |
+| Category     | Design                       | Unlocks                                                                                                                       |
+| ------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                                                     |
+| Power        | Thin-film solar cells        | Thin-film panels on every solar array ordered from now on: more power from a lighter array                                    |
+| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                                               |
+| Power        | Concentrator towers          | A concentrator tower: as much power as ten solar arrays, with far less to clean and repair, far dearer                        |
+| Power        | Thermal storage              | A thermal store: as much as a row of large battery banks in one Launch, with less to keep warm, far dearer                    |
+| Construction | Prefabricated solar arrays   | Solar arrays ordered from now on come as one pack with the best parts: quicker to build and less likely to fail Commissioning |
+| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                                         |
+| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                                              |
+| Protection   | Dust-sealed solar arrays     | Sealed masts on solar arrays ordered from now on, which wear down more slowly                                                 |
+| Protection   | Electrodynamic dust screens  | Screened panels on solar arrays ordered from now on, which gather Dust coating more slowly                                    |
+| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                                        |
+| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                                                    |
+| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                                                  |
+| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation))                         |
+| Protection   | Vault cistern                | A vault cistern, which cuts a Buried Habitat's dose rate to a fifth (see [Radiation](#radiation))                             |
+| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                                                 |
+| Life Support | Bulk supply tanks            | A water tank and an oxygen tank, which raise the storage limits (see [Plants](#plants))                                       |
+| Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))                            |
+| Life Support | Lunar greenhouses            | A Greenhouse, which earns Science day and night for water and power (see [Plants](#plants))                                   |
+| Life Support | Growing halls                | A growing hall, which earns more Science for its water, far dearer (see [Plants](#plants))                                    |
+| Industry     | Molten regolith electrolysis | A large extraction plant                                                                                                      |
+| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                                               |
+| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                                                  |
+| Industry     | Array fabrication            | An array works, which makes solar panels and array masts at the base (see [Plants](#plants))                                  |
+| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                                                  |
+| Industry     | Propellant production        | A propellant plant and a propellant tank, which raises what the base can hold (see [Plants](#plants))                         |
+| Industry     | Large propellant production  | A large propellant plant, which makes three times as much (see [Plants](#plants))                                             |
+| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                                                   |
+| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded                               |
 
 A hardened Structure does the same job as the one it is based on, on the same footprint, but wears down more slowly, and the Mission Director can move into a hardened Habitat and shield it as usual. Unlocking some Designs also offers new Research Tasks.
 

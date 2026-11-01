@@ -1,5 +1,6 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import {
+  isOnSale,
   launchItemLabel,
   type Campaign,
   type ExportLine,
@@ -180,12 +181,18 @@ export function createLaunchManifestScreen(
   /** The Designs unlocked as of the latest snapshot. */
   let unlocked: readonly string[] = [];
   /**
+   * Whether an item has a row: on sale, or no longer made but still on the
+   * manifest, so that the player can take it off.
+   */
+  const isListed = (item: LaunchItem): boolean =>
+    isOnSale(item, unlocked) || countOf(item.id) > 0;
+  /**
    * Shows the rows of the items whose Design is unlocked and that match what
    * is typed, in the groups that have any. They keep their order throughout,
    * being only ever hidden or shown.
    */
   const showRows = (): void => {
-    const listed = rows.filter(({ item }) => unlocked.includes(item.designId));
+    const listed = rows.filter(({ item }) => isListed(item));
     const offered = offersItemFilter(listed.length);
     find.element.hidden = !offered;
     // A shorter list, from another Campaign loaded, has no box to clear it with.
@@ -193,8 +200,7 @@ export function createLaunchManifestScreen(
     let shown = 0;
     for (const { item, about, row } of rows) {
       const match =
-        unlocked.includes(item.designId) &&
-        matchesItemFilter(find.input.value, about);
+        isListed(item) && matchesItemFilter(find.input.value, about);
       row.hidden = !match;
       if (match) shown++;
     }
@@ -318,7 +324,7 @@ export function createLaunchManifestScreen(
         setText(count, String(onManifest));
         row.classList.toggle("launch-manifest__row--chosen", onManifest > 0);
         remove.disabled = locked || onManifest === 0;
-        add.disabled = locked;
+        add.disabled = locked || !isOnSale(item, unlocked);
       }
       payloadMass.show(
         formatPayloadMass(snapshot.launchManifest),

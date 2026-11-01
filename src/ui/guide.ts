@@ -1,5 +1,10 @@
 import { catalogue } from "../catalogue";
-import { designLabel, reserveKilograms, type Snapshot } from "../simulation";
+import {
+  designLabel,
+  reserveKilograms,
+  SOLAR_ARRAY_ID,
+  type Snapshot,
+} from "../simulation";
 import {
   describeBuild,
   describeComponentUse,
@@ -77,8 +82,11 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
 
   // Each Structure under the category of its Design, as the Tech Tree has it.
   const structureCards = catalogue.designCategories.flatMap((category) => {
+    // A solar array's kinds come from its parts, so it has the one card.
     const types = catalogue.structureTypes.filter(
-      (type) => designOf(type.designId)?.category === category.id,
+      (type) =>
+        designOf(type.designId)?.category === category.id &&
+        (type.solarArray === undefined || type.id === SOLAR_ARRAY_ID),
     );
     if (types.length === 0) return [];
     const grid = createGrid(structures.panel, category.label);

@@ -2,6 +2,7 @@ import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { valueAboard, valueToLoad, valueToSell } from "./exports";
+import { isOnSale } from "./solar-arrays";
 import { addCounts, addToStock } from "./stockpile";
 import { addWithinLimit, spaceKilograms } from "./storage-limits";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
@@ -82,6 +83,8 @@ export type ExportsCounted =
 
 export type ManifestRefusal =
   | "unknown-item"
+  /** A better item has replaced it since its Design was unlocked. */
+  | "no-longer-made"
   /** The Design the item belongs to isn't unlocked. */
   | "design-locked"
   | "invalid-count"
@@ -138,6 +141,24 @@ export function setLaunchManifest(
       return refuse(
         "invalid-count",
         "How many of an item a Launch brings must be a whole number from 0 up.",
+      );
+    }
+    const missing = (item.alsoNeedsDesignIds ?? []).find(
+      (id) => !isDesignUnlocked(state, id),
+    );
+    if (missing !== undefined) {
+      return refuse(
+        "design-locked",
+        `${launchItemLabel(item)} needs the ${designLabel(missing)} Design unlocked first.`,
+      );
+    }
+    // What is on the manifest already can stay or come off, but no more can go on.
+    const already =
+      state.launchManifest.find((line) => line.itemId === itemId)?.count ?? 0;
+    if (count > already && !isOnSale(item, state.unlockedDesignIds)) {
+      return refuse(
+        "no-longer-made",
+        `${launchItemLabel(item)} is no longer made: a better one has replaced it on the Launch manifest.`,
       );
     }
     const line = lines.find((other) => other.itemId === itemId);
