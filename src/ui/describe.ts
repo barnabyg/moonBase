@@ -38,7 +38,7 @@ const plantsAtNight = (batchHours: number) =>
     batchHours === 1
       ? " of an hour: it starts one once it has an hour's worth of each input"
       : `, here of ${formatHours(batchHours)}: it starts one once it has a batch's worth of each input`
-  }, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle: keep enough of what it makes to last the Night.`;
+  }, and the outputs come as it finishes. It runs only on power nothing else needs: in Daylight once the battery banks are full, and at Night while they hold more than everything else needs through the Night and ${formatHours(catalogue.nightReserveHours)} more. Once they have none to spare it stands idle, or runs on and off on the little that is freed: keep enough of what it makes to last the Night.`;
 
 const generates = (kilowatts: number) =>
   `generates ${kilowatts} kW in Daylight`;

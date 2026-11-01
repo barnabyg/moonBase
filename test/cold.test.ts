@@ -6,10 +6,12 @@ import {
   type GameEvent,
   type GroundPosition,
   type MachineSnapshot,
+  type PlantSnapshot,
   type RobotActivity,
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { scenario, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 
@@ -376,19 +378,22 @@ describe("Plants at Night", () => {
    * the Night and the reserve after it, and an hour of the Plant's draw to
    * spare.
    */
-  function atNight(excavatorAway: boolean): Campaign {
+  function atNight(
+    excavatorAway: boolean,
+    plantSites: readonly GroundPosition[] = [plantSite],
+  ): Campaign {
     const withComponents = changed(scenario().campaign, (state) => {
       for (const need of plantType?.components ?? []) {
         const stock = state.stockpile.components.find(
           (candidate) => candidate.componentId === need.componentId,
         );
-        if (stock !== undefined) stock.count += need.count;
+        if (stock !== undefined) stock.count += need.count * plantSites.length;
       }
     });
     for (const [structureTypeId, position] of [
       ["solar-array", arraySite],
       ["battery-bank", bankSite],
-      ["extraction-plant", plantSite],
+      ...plantSites.map((site) => ["extraction-plant", site] as const),
     ] as const) {
       const planned = withComponents.planConstruction({
         structureTypeId,
@@ -419,7 +424,13 @@ describe("Plants at Night", () => {
     // What everything plugged in draws, which leaves out the Plant's draw.
     const plugged =
       (power.networks[0]?.consumptionKilowatts ?? Number.NaN) -
-      (structure(away.snapshot(), "extraction-plant").powered ? plantDraw : 0);
+      plantDraw *
+        away
+          .snapshot()
+          .structures.filter(
+            ({ structureTypeId, powered }) =>
+              structureTypeId === "extraction-plant" && powered,
+          ).length;
     return changed(away, (state) => {
       for (const saved of state.structures) {
         if (saved.storedKilowattHours > 0) {
@@ -449,6 +460,137 @@ describe("Plants at Night", () => {
     expect(plantOf(away)).toMatchObject({
       running: false,
       stoppedFor: { reason: "night" },
+    });
+  });
+
+  describe("near the reserve", () => {
+    const plantDraw = plantType?.recipes?.[0]?.drawKilowatts ?? Number.NaN;
+    const excavatorHeater = machineType("excavator").heaterKilowatts;
+
+    /** The Campaign with the given kWh more in the battery bank. */
+    function withStored(campaign: Campaign, kilowattHours: number): Campaign {
+      return changed(campaign, (state) => {
+        for (const saved of state.structures) {
+          if (saved.storedKilowattHours > 0) {
+            saved.storedKilowattHours += kilowattHours;
+          }
+        }
+      });
+    }
+
+    /**
+     * The excavator is out of reach of power with no Robot to park it, and
+     * the battery bank holds what the Plants must leave and the given kWh
+     * more. What is to spare grows by the heater's draw, as it is kept for
+     * but not drawn, and that is far less than a Plant's.
+     */
+    function heaterAway(spare: number, plantSites?: GroundPosition[]) {
+      const away = atNight(true, plantSites);
+      const { minutesRemaining } = away.snapshot().lunation;
+      return withStored(
+        changed(away, (state) => {
+          state.robots.length = 0;
+        }),
+        excavatorHeater *
+          (minutesRemaining / 60 + catalogue.nightReserveHours) -
+          plantDraw +
+          spare,
+      );
+    }
+
+    const statusOf = (plant: PlantSnapshot | undefined) =>
+      plant === undefined ? "" : formatPlant(plant);
+
+    /** Plays the given game-minutes, saying what the first Plant did in each. */
+    function play(campaign: Campaign, minutes: number) {
+      return Array.from({ length: minutes }, () => {
+        campaign.advance(1);
+        const plant = plantOf(campaign);
+        return {
+          running: plant?.running,
+          status: statusOf(plant),
+          rates: formatPlantRates(
+            structure(campaign.snapshot(), "extraction-plant"),
+          ),
+        };
+      });
+    }
+
+    it("say steadily that they run on and off, while what a heater not plugged in frees runs them a game-minute at a time", () => {
+      const campaign = heaterAway(0);
+
+      const minutes = play(campaign, 60);
+
+      expect(machines(campaign)[0]?.pluggedIn).toBe(false);
+      // The heater frees a game-minute of the Plant's draw every 20 or so.
+      const ran = minutes.filter(({ running }) => running === true).length;
+      expect(ran).toBeGreaterThanOrEqual(2);
+      expect(ran).toBeLessThanOrEqual(6);
+      for (const { status, rates } of minutes) {
+        expect(status).toMatch(
+          /^running on and off: little stored power to spare/,
+        );
+        expect(rates).toBeUndefined();
+      }
+    });
+
+    it("say they are running while there is plenty to spare, and only then on and off", () => {
+      const campaign = heaterAway(plantDraw);
+
+      campaign.advance(1);
+
+      expect(statusOf(plantOf(campaign))).toMatch(/^running/);
+      expect(statusOf(plantOf(campaign))).not.toMatch(/on and off/);
+    });
+
+    it("say steadily that they are idle when nothing frees any power", () => {
+      const campaign = withStored(atNight(false), -plantDraw);
+
+      const minutes = play(campaign, 60);
+
+      for (const { running, status } of minutes) {
+        expect(running).toBe(false);
+        expect(status).toMatch(/^idle at Night: no stored power to spare/);
+      }
+    });
+
+    it("say at once that they are switched off, not running on and off", () => {
+      const campaign = changed(heaterAway(0), (state) => {
+        // A batch it has started it would go on with.
+        const saved = state as unknown as {
+          structures: { batch?: unknown }[];
+        };
+        for (const plant of saved.structures) {
+          if (plant.batch !== undefined) plant.batch = null;
+        }
+      });
+      campaign.advance(1);
+      expect(statusOf(plantOf(campaign))).toMatch(/^running on and off/);
+
+      const switched = campaign.switchPlant(
+        structure(campaign.snapshot(), "extraction-plant").id,
+        "off",
+      );
+
+      expect(switched.ok).toBe(true);
+      expect(statusOf(plantOf(campaign))).toBe("switched off");
+    });
+
+    it("say so of the one Plant that gets what is freed, and that any other is idle", () => {
+      const campaign = heaterAway(0, [plantSite, { x: 30, y: 40 }]);
+
+      for (let minute = 0; minute < 30; minute++) {
+        campaign.advance(1);
+        const plants = campaign
+          .snapshot()
+          .structures.filter(
+            ({ structureTypeId }) => structureTypeId === "extraction-plant",
+          );
+        expect(plants.map(({ plant }) => statusOf(plant))).toEqual([
+          expect.stringMatching(/^running on and off/),
+          expect.stringMatching(/^idle at Night: no stored power to spare/),
+        ]);
+      }
     });
   });
 });

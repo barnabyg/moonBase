@@ -134,6 +134,7 @@ import {
   plantConsumptionKilowatts,
   minutesUntilEmpty,
   pluggedIn,
+  plantsRunningOnAndOff,
   powerNetworks,
   supplyPower,
   watchLights,
@@ -1172,6 +1173,7 @@ function campaignFrom(state: CampaignState): Campaign {
         readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
           "night";
       const savingPower = nightLoadsSavingPower(state, suppliedAtNight);
+      const runningOnAndOff = plantsRunningOnAndOff(state, suppliedAtNight);
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
         lunation,
@@ -1239,6 +1241,7 @@ function campaignFrom(state: CampaignState): Campaign {
         })),
         structures: state.structures.map((structure) => {
           const performance = structurePerformance(structure);
+          const plant = readPlant(state, structure);
           const lightRadiusMetres =
             findStructureType(structure.structureTypeId)?.lightRadiusMetres ??
             0;
@@ -1253,7 +1256,10 @@ function campaignFrom(state: CampaignState): Campaign {
             waterWalled: isWaterWalled(state, structure),
             buried: isBuried(structure),
             performance,
-            plant: readPlant(state, structure),
+            plant:
+              plant !== undefined && runningOnAndOff.has(structure)
+                ? { ...plant, runningOnAndOff: true as const }
+                : plant,
             observing: observes(structure),
             lightRadiusMetres: lightRadiusMetres * performance,
           };

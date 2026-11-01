@@ -269,7 +269,7 @@ export function formatTank(
  * does, for example "making 1 spare Component every 24 hours from 3.6 kg of
  * metals", and the recipe it switches to from its next batch if it was
  * switched during this one and will start another; undefined for one that
- * isn't running.
+ * isn't running, or is running on and off.
  */
 export function formatPlantRates(
   structure: Pick<
@@ -278,7 +278,10 @@ export function formatPlantRates(
   >,
 ): string | undefined {
   const { plant } = structure;
-  if (plant?.running !== true) return undefined;
+  // Running a game-minute at a time, it makes and uses nothing like its rates.
+  if (plant?.running !== true || plant.runningOnAndOff === true) {
+    return undefined;
+  }
   const chosen = recipeOf(structure);
   // A batch it has started goes on with the recipe it was started with.
   const recipe = workingRecipeOf({ ...structure, batch: plant.batch });
@@ -323,7 +326,8 @@ function plantKilograms(kilograms: number): string {
  * left, for its line in the status panel, for example "running, 40 min
  * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg", "waiting for
  * Water: 49.5 of 50 kg, to leave the Mission Director's reserve of 49 kg",
- * "waiting for tank space: Water is 399.5 of 400 kg" or "switched off"; undefined once it is Broken, which the line says already. Given
+ * "waiting for tank space: Water is 399.5 of 400 kg", "running on and off:
+ * little stored power to spare" or "switched off"; undefined once it is Broken, which the line says already. Given
  * that it is switched off, a batch it has started is its last.
  */
 export function formatPlant(
@@ -337,6 +341,9 @@ export function formatPlant(
     plant.batch === undefined
       ? ""
       : `, ${formatBatchLeft(plant.batch.minutesLeft)} left of ${batch}`;
+  if (plant.runningOnAndOff === true) {
+    return `running on and off: little stored power to spare${left}`;
+  }
   const stop = plant.stoppedFor;
   switch (stop?.reason) {
     case undefined:
