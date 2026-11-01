@@ -63,7 +63,9 @@ The test figures are from the CI run of the merge of pull request #206 into `mai
 | CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                    | about 3×   |
 | CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | 8.6 min for one share                                                                                      | about 3.5× |
 | Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | not yet played in CI; about 10 min on a developer's PC                                                     | about 6×   |
-| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | as above; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
+| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | as above; 15 min above the hard limit, so that the script reports being stopped                            | 7.5×       |
+
+The long game's rows have no CI figure yet. Replace them with the slowest seen once it has played there, and raise the limits if the margin is thin.
 
 The runners' speed varies a lot from one run to the next, so the job limits are set against the slowest run, not a typical one. In the run above the four shares took 24.5 minutes between them, so the end-to-end limit would only just cover every test landing on one runner; a share of a quarter of them has more margin than that.
 

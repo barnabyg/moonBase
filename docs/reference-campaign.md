@@ -76,15 +76,17 @@ It takes about 10 minutes of one full core, reporting on stderr every 100 Earth 
 
 You don't need to play it by hand before handing a change over. `.github/workflows/long-game.yml` plays it on a runner of its own:
 
-- **On a pull request** that changes what the play imports: `src/simulation/`, `src/catalogue/`, the play guide's files in `test/`, or the workflow and script themselves. A change to the interface, the models or the words doesn't trigger it. A new push cancels the play still going and starts again.
-- **On `main`**, after every merge except one only to `docs/` or Markdown files, so that a merge whose result plays differently from its pull request, or a play guide that has come to import something else, is still played. A failure there is reported to whoever merged it.
+- **On a pull request** that changes what the play imports: `src/simulation/`, `src/catalogue/`, the play guide's files in `test/`, or the workflow and script themselves. A change only to the interface, the models or the Guide's words doesn't trigger it. A new push cancels the play still going and starts again.
+- **On `main`**, after a merge of anything but `docs/` or Markdown files, so that a merge whose result plays differently from its pull request, or a play guide that has come to import something else, is still played. GitHub tells whoever merged it if the play fails. A merge while a play is going waits for it, and a later merge takes its place in the queue, so the newest code is always played.
 - **By hand**, for any branch, once the workflow is on `main`:
 
 ```powershell
 gh workflow run long-game.yml --ref my-branch
 ```
 
-A failed play turns the run red. The run's summary says whether it passed and, at the top, why it failed, then gives the whole timeline. A play can pass and still have moved the balance, so read the timeline against the last played figures in [`docs/balancing.md`](balancing.md) and record what changed there. A commit that does so plays again on the pull request, which costs nothing but the wait.
+A failed play turns the run red. The run's summary says whether it passed and, at the top, why it failed, then gives the whole timeline. On a pull request it ends by comparing the timeline with `main`'s last play: the same, or a diff and a notice on the run, which stays green, as moving the balance may be what the change is for.
+
+Merge a pull request only once its play has finished. If it played differently, check that was meant, and record what changed in [`docs/balancing.md`](balancing.md). A commit that only records it plays again, as the filter looks at the whole pull request, but it can't change the play, so there's no need to wait for that one.
 
 ### Before CI plays it
 

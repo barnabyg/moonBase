@@ -26,6 +26,8 @@ on:
 
 permissions:
   contents: read
+  # To download main's last play, to compare with.
+  actions: read
 
 # A new push to a pull request cancels its play that is still going, which
 # played code that has since changed. Plays on main always finish.
@@ -48,4 +50,31 @@ jobs:
           cache: npm
       - run: npm ci
         timeout-minutes: 3
-      - run: npm run long-game
+      # Naming the shell adds pipefail, so a failed play still fails the step.
+      - name: Play
+        shell: bash
+        run: node scripts/long-game.mjs | tee long-game-timeline.txt
+      # A play can meet every target and still have moved the balance, so say
+      # if it played differently from main. That isn't a failure, as moving the
+      # balance may be the point. The time a play took differs on every run.
+      - name: Compare with main's last play
+        if: github.event_name != 'push' && !cancelled()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list --workflow long-game.yml --branch main --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ] || ! gh run download "$run" --name long-game-timeline --dir main-play; then
+            echo "## Compared with main: main has no play to compare with" >> "$GITHUB_STEP_SUMMARY"
+          elif diff -u -I '^(Played in ' main-play/long-game-timeline.txt long-game-timeline.txt > long-game.diff; then
+            echo "## Compared with main: it played the same" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::notice::The long game played differently from main. The run's summary shows how."
+            { echo "## Compared with main: it played differently"; echo; echo '```diff'; cat long-game.diff; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: long-game-timeline
+          path: long-game-timeline.txt
+          retention-days: 90
