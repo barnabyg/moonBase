@@ -641,10 +641,12 @@ describe("what a Greenhouse asks of a base", () => {
   }
 
   it("is more than one Water-processing plant can feed: the second makes it earn far more", () => {
-    const one = scienceOver([plantSite], 4);
-    const two = scienceOver([plantSite, secondPlantSite], 4);
+    // One Lunation holds a Daylight and a Night, which is all this needs. One
+    // Plant makes less than the Greenhouse drinks even by day, so it starves
+    // from the first.
+    const one = scienceOver([plantSite], 1);
+    const two = scienceOver([plantSite, secondPlantSite], 1);
 
-    // The starting water carries one for a while; after that it starves.
     expect(two.science).toBeGreaterThan(one.science * 1.5);
     expect(two.lost).toBeLessThan(one.lost + 1);
   });
