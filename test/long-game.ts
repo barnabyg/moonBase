@@ -23,7 +23,7 @@ import {
 // Campaign, through the simulation interface alone, with the same seed and
 // every Hazard, real Solar Particle Events and all, as far as the Campaign's
 // content is meant to last, so that the late game's balance can be seen. It takes minutes,
-// so no test plays it: `npm run long-game` does, on demand (see
+// so no test plays it: CI does, with `npm run long-game` (see
 // docs/reference-campaign.md).
 //
 // A later Act adds its steps to `longGameSteps`, and whatever Designs they use
@@ -1212,7 +1212,6 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     minutesUntilDoseLimit === undefined
       ? undefined
       : endMinute + minutesUntilDoseLimit;
-  const notUsed = designsNotUsed(timeline);
   return [
     ...formatTimeline(timeline, "Long-game play guide"),
     "",
@@ -1246,12 +1245,18 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     limitAt === undefined
       ? "Forecast: the Radiation Dose isn't rising, so it never reaches the limit."
       : `Forecast: at the rate it was rising as the play guide ended, the Radiation Dose reaches the limit on Earth Day ${(limitAt / MINUTES_PER_EARTH_DAY).toFixed(0)}.`,
-    ...(notUsed.length > 0
-      ? [
-          `The play guide says it uses these Designs, but built and sent for nothing of them: ${notUsed.join(", ")}.`,
-        ]
-      : []),
+    ...designsNotUsedLines(timeline),
   ];
+}
+
+/** What it says of any Designs it never used. */
+function designsNotUsedLines(timeline: ReferenceTimeline): string[] {
+  const notUsed = designsNotUsed(timeline);
+  return notUsed.length > 0
+    ? [
+        `The play guide says it uses these Designs, but built and sent for nothing of them: ${notUsed.join(", ")}.`,
+      ]
+    : [];
 }
 
 /** What the guide's Exports came to in each Act's stretch of game time, by Export. */
@@ -1654,7 +1659,6 @@ function movedInByTheTarget(timeline: ReferenceTimeline): boolean {
  * met Act 2's. Alive at the end, their Radiation Dose's limit is still ahead.
  */
 export function longGameFailures(timeline: ReferenceTimeline): string[] {
-  const notUsed = designsNotUsed(timeline);
   return [
     ...(timeline.failure === undefined
       ? []
@@ -1662,11 +1666,7 @@ export function longGameFailures(timeline: ReferenceTimeline): string[] {
     ...(timeline.ended === undefined
       ? []
       : [`The Mission Director died: ${timeline.ended.cause.kind}.`]),
-    ...(notUsed.length === 0
-      ? []
-      : [
-          `The play guide says it uses these Designs, but built and sent for nothing of them: ${notUsed.join(", ")}.`,
-        ]),
+    ...designsNotUsedLines(timeline),
     ...(movedInByTheTarget(timeline)
       ? []
       : [
