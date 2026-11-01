@@ -101,8 +101,14 @@ export function forecastLifeSupport(
         minutesUntilReserve: undefined,
       };
     }
-    const minutes = minutesUntilEmpty(state, stock);
-    const toReserve = minutesUntilReserve(state, stock);
+    const rates = readRates(state, stock);
+    const minutes = minutesUntilEmpty(state, stock, rates);
+    const toReserve = minutesUntilReserve(
+      state,
+      stock,
+      rates,
+      kilogramsToCountOn(state, resourceOf(stock)),
+    );
     return {
       stockId: stock.stockId,
       kilogramsPerEarthDay: netPerMinute(state, stock) * MINUTES_PER_EARTH_DAY,
@@ -130,8 +136,9 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
   let ranOut: LifeSupportState | undefined;
   for (const stock of state.lifeSupport) {
     const type = findStock(stock.stockId);
-    const perMinute = netOfPlantUsePerMinute(state, stock);
-    const before = minutesUntilEmpty(state, stock);
+    // Using up the stock changes none of these, only how long it lasts.
+    const rates = readRates(state, stock);
+    const before = minutesUntilEmpty(state, stock, rates);
     const used = Math.min(usePerMinute(type), stock.kilograms);
     stock.kilograms -= used;
     recordLifeSupport(state, stock.stockId, {
@@ -141,8 +148,11 @@ export function useLifeSupport(state: CampaignState): GameEvent[] {
         waitingForSpacePerHour(state, resourceOf(stock)) / 60,
       ),
     });
-    const after = minutesUntilEmpty(state, stock);
-    if (stock.kilograms === 0 || minutesLeft(stock, perMinute) === 0) {
+    const after = minutesUntilEmpty(state, stock, rates);
+    if (
+      stock.kilograms === 0 ||
+      minutesLeft(stock.kilograms, rates.alone) === 0
+    ) {
       stock.kilograms = 0;
       ranOut ??= stock;
     } else if (
@@ -213,6 +223,28 @@ function resourceOf(stock: LifeSupportState) {
   return { kind: "life-support" as const, stockId: stock.stockId };
 }
 
+/** How fast a stock is changing, which every forecast of it starts from. */
+interface StockRates {
+  /** What the Plants take in a game-minute. */
+  readonly plantUse: number;
+  /** What it changes by in a game-minute apart from that (see `netOfPlantUsePerMinute`). */
+  readonly alone: number;
+  /** What is used in a game-minute through a Night. */
+  readonly used: number;
+  /** Whether it follows the Lunation ahead (see `minutesFalling`). */
+  readonly followsLunation: boolean;
+}
+
+function readRates(state: CampaignState, stock: LifeSupportState): StockRates {
+  return {
+    plantUse: plantUsePerMinute(state, stock),
+    alone: netOfPlantUsePerMinute(state, stock),
+    used: usePerMinute(findStock(stock.stockId)),
+    followsLunation:
+      isInUse(state) && isMadeByPlantsWithInputs(state, resourceOf(stock)),
+  };
+}
+
 /**
  * The whole game-minutes until a stock runs out, or Infinity if it doesn't
  * within the forecast's look-ahead. It starts from what the base can count on
@@ -224,26 +256,24 @@ function resourceOf(stock: LifeSupportState) {
 function minutesUntilEmpty(
   state: CampaignState,
   stock: LifeSupportState,
+  rates: StockRates,
 ): number {
   const kilograms = kilogramsToCountOn(state, resourceOf(stock));
-  const plantUse = plantUsePerMinute(state, stock);
-  const alone = netOfPlantUsePerMinute(state, stock);
-  const used = usePerMinute(findStock(stock.stockId));
-  if (plantUse === 0) {
-    return minutesFalling(state, stock, 0, kilograms, alone, used);
+  if (rates.plantUse === 0) {
+    return minutesFalling(state, stock, rates, 0, kilograms, rates.alone);
   }
   const reserve = reserveKilograms(stock.stockId);
-  const toReserve = minutesUntilReserve(state, stock);
+  const toReserve = minutesUntilReserve(state, stock, rates, kilograms);
   if (!Number.isFinite(toReserve)) return Infinity;
   return (
     toReserve +
     minutesFalling(
       state,
       stock,
+      rates,
       toReserve,
       Math.min(kilograms, reserve),
-      alone,
-      used,
+      rates.alone,
     )
   );
 }
@@ -251,25 +281,26 @@ function minutesUntilEmpty(
 /**
  * The whole game-minutes until what the Plants take brings a stock down to the
  * Mission Director's reserve, through a Night too, or Infinity if it won't within
- * the forecast's look-ahead, or none is taking any.
+ * the forecast's look-ahead, or none is taking any. It starts from what the base
+ * can count on of the stock.
  */
 function minutesUntilReserve(
   state: CampaignState,
   stock: LifeSupportState,
+  rates: StockRates,
+  kilograms: number,
 ): number {
-  const plantUse = plantUsePerMinute(state, stock);
-  if (plantUse === 0) return Infinity;
-  const kilograms = kilogramsToCountOn(state, resourceOf(stock));
+  if (rates.plantUse === 0) return Infinity;
   const reserve = reserveKilograms(stock.stockId);
   return kilograms <= reserve
     ? 0
     : minutesFalling(
         state,
         stock,
+        { ...rates, used: rates.used + rates.plantUse },
         0,
         kilograms - reserve,
-        netOfPlantUsePerMinute(state, stock) - plantUse,
-        usePerMinute(findStock(stock.stockId)) + plantUse,
+        rates.alone - rates.plantUse,
       );
 }
 
@@ -285,34 +316,31 @@ function minutesUntilReserve(
 function minutesFalling(
   state: CampaignState,
   stock: LifeSupportState,
+  rates: StockRates,
   fromMinutes: number,
   kilograms: number,
   perMinute: number,
-  usedPerMinute: number,
 ): number {
-  const counted = { ...stock, kilograms };
-  if (!isInUse(state) || !isMadeByPlantsWithInputs(state, resourceOf(stock))) {
-    return minutesLeft(counted, perMinute);
-  }
+  if (!rates.followsLunation) return minutesLeft(kilograms, perMinute);
   // Too little to last until the batches running now make more, it falls
   // at what the Mission Director uses until it runs out, or they finish.
-  if (kilograms <= 0) return minutesLeft(stock, -usedPerMinute);
+  if (kilograms <= 0) return minutesLeft(stock.kilograms, -rates.used);
   return minutesUntilEmptyThroughLunations(
     state.elapsedMinutes + fromMinutes,
     kilograms,
     perMinute,
-    usedPerMinute,
-    (amount, rate) => minutesLeft({ ...stock, kilograms: amount }, rate),
+    rates.used,
+    minutesLeft,
   );
 }
 
 /**
- * The whole game-minutes left in a stock at a rate of change, or Infinity
- * while it isn't falling.
+ * The whole game-minutes left in an amount of a stock at a rate of change, or
+ * Infinity while it isn't falling.
  */
-function minutesLeft(stock: LifeSupportState, perMinute: number): number {
+function minutesLeft(kilograms: number, perMinute: number): number {
   if (perMinute >= 0) return Infinity;
-  const minutes = stock.kilograms / -perMinute - MINUTE_TOLERANCE;
+  const minutes = kilograms / -perMinute - MINUTE_TOLERANCE;
   return Math.max(Math.ceil(minutes), 0);
 }
 
