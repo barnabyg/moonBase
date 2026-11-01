@@ -1,12 +1,12 @@
 # Save format
 
-A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field. Saves are files the player manages; nothing is kept in the browser (ADR-0006).
+A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field, and `src/simulation/save-migrations.ts` holds the migrations. Saves are files the player manages; nothing is kept in the browser (ADR-0006).
 
 ## Changing the format
 
 Each released format version is a compatibility contract:
 
-- To change the format, raise the version and add a migration from the one before to `migrations` in `save.ts`. Never edit a released migration.
+- To change the format, raise the version and add a migration from the one before to `migrations` in `save-migrations.ts`. Never edit a released migration.
 - Check in a sample save of the new version beside the old ones in `test/saves/`, where every file must go on loading. Never edit or regenerate a sample.
 - New Components and bulk resources don't change the format. A save has one count for each Component and bulk resource it knew of, and from version 40 reading gives a count of none to any that a save doesn't have a count for, whatever the save's version, and puts the counts in catalogue order, so adding one needs no migration. It may go anywhere in its list.
 - A count naming something the data catalogue doesn't have is refused as damaged, as any other unknown id is, so removing or renaming a Component or bulk resource still changes the format and needs a migration. Every other check stays as strict: a whole number or amount is still needed where a count is given, and a stock that isn't a list is refused. Structures built without Components, and Launch items that aren't Components (such as oxygen and water), have no counts at all.

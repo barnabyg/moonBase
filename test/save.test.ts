@@ -6,7 +6,8 @@ import {
   type GameEvent,
   type GroundPosition,
 } from "../src/simulation";
-import { readSaveDocument, type Migration } from "../src/simulation/save";
+import { readSaveDocument } from "../src/simulation/save";
+import type { Migration } from "../src/simulation/save-migrations";
 import { scenario, type Scenario } from "./scenario";
 
 // The Habitat needs no power and its oxygen and water last, so that the
