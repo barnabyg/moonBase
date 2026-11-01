@@ -790,6 +790,22 @@ export function formatResearchTask(
 }
 
 /**
+ * Says what is queued behind the Research Task running, in the order they will
+ * start, for the status panel, for example "1. Seismic monitoring, 2. Ice
+ * volatiles assay", or that none is.
+ */
+export function formatResearchQueue(queue: readonly string[]): Stat {
+  return {
+    value:
+      queue.length === 0
+        ? "none"
+        : queue
+            .map((id, index) => `${index + 1}. ${researchTaskLabel(id)}`)
+            .join(", "),
+  };
+}
+
+/**
  * Says how the observing programme is going, for the status panel's
  * Research section: the standing Research Task the base's telescopes work
  * on at Night, with how long its round has left while they observe, for

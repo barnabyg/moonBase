@@ -20,6 +20,7 @@ import {
 import { structureTypes, dismantlingLossShare } from "./structures";
 import { programmeGrantMillionDollars, launch } from "./launch";
 import {
+  researchQueueLimit,
   researchTasks,
   observingProgramme,
   designCategories,
@@ -47,7 +48,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 72,
+  version: 73,
   map,
   lander,
   stockpile,
@@ -73,6 +74,7 @@ export const catalogue: Catalogue = {
   solarParticleEvents,
   programmeGrantMillionDollars,
   launch,
+  researchQueueLimit,
   researchTasks,
   observingProgramme,
   designCategories,

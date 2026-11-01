@@ -5,9 +5,19 @@ import { loadCampaign, type Campaign, type GameEvent } from "../src/simulation";
 import { formatEvent } from "../src/ui/notifications-text";
 import { scenario } from "./scenario";
 
-const [shortTask, otherTask] = catalogue.researchTasks;
-if (shortTask === undefined || otherTask === undefined) {
-  throw new Error("The data catalogue needs at least two Research Tasks.");
+// Those a new Campaign can run, so that any of them can be queued.
+const [shortTask, otherTask, thirdTask, fourthTask, fifthTask] =
+  catalogue.researchTasks.filter((task) => task.requiresDesignId === undefined);
+if (
+  shortTask === undefined ||
+  otherTask === undefined ||
+  thirdTask === undefined ||
+  fourthTask === undefined ||
+  fifthTask === undefined
+) {
+  throw new Error(
+    "The data catalogue needs at least five Research Tasks with no Design.",
+  );
 }
 
 function lengthMinutes(task: ResearchTask): number {
@@ -15,7 +25,7 @@ function lengthMinutes(task: ResearchTask): number {
 }
 
 function start(campaign: Campaign, task: ResearchTask): void {
-  const result = campaign.startResearchTask(task.id);
+  const result = campaign.queueResearchTask(task.id);
   if (!result.ok) throw new Error(result.message);
 }
 
@@ -59,25 +69,73 @@ describe("a Research Task", () => {
   });
 });
 
-describe("starting a Research Task", () => {
-  it("is refused while another one is running, which runs on as before", () => {
+describe("queueing a Research Task", () => {
+  it("starts it at once when none is running", () => {
+    const { campaign } = scenario();
+
+    expect(campaign.queueResearchTask(shortTask.id)).toEqual({ ok: true });
+
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: { researchTaskId: shortTask.id },
+      researchQueue: [],
+    });
+  });
+
+  it("puts up to three behind the one running, in order, and refuses a fourth with the reason", () => {
     const { campaign } = scenario();
     start(campaign, shortTask);
     campaign.advance(60);
 
-    expect(campaign.startResearchTask(otherTask.id)).toEqual({
+    start(campaign, otherTask);
+    start(campaign, thirdTask);
+    start(campaign, fourthTask);
+    const refused = campaign.queueResearchTask(fifthTask.id);
+
+    expect(refused).toEqual({
       ok: false,
-      reason: "research-task-running",
-      message: `${shortTask.label} is running, and only one Research Task runs at a time.`,
+      reason: "queue-full",
+      message: "The queue is full: 3 Research Tasks are waiting already.",
     });
-    expect(campaign.startResearchTask(shortTask.id)).toMatchObject({
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: {
+        researchTaskId: shortTask.id,
+        minutesLeft: lengthMinutes(shortTask) - 60,
+      },
+      researchQueue: [otherTask.id, thirdTask.id, fourthTask.id],
+    });
+  });
+
+  it("is refused for the one running, and for one queued already", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+    start(campaign, otherTask);
+
+    expect(campaign.queueResearchTask(shortTask.id)).toEqual({
       ok: false,
-      reason: "research-task-running",
+      reason: "already-running",
+      message: `${shortTask.label} is running already.`,
     });
-    expect(campaign.snapshot().researchTask).toMatchObject({
-      researchTaskId: shortTask.id,
-      minutesLeft: lengthMinutes(shortTask) - 60,
+    expect(campaign.queueResearchTask(otherTask.id)).toEqual({
+      ok: false,
+      reason: "already-queued",
+      message: `${otherTask.label} is queued already.`,
     });
+    expect(campaign.snapshot().researchQueue).toEqual([otherTask.id]);
+  });
+
+  it("is refused for one whose Design is locked, even with another running", () => {
+    const gated = catalogue.researchTasks.find(
+      (task) => task.requiresDesignId !== undefined,
+    );
+    if (gated === undefined) throw new Error("expected a gated Research Task");
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+
+    expect(campaign.queueResearchTask(gated.id)).toMatchObject({
+      ok: false,
+      reason: "design-locked",
+    });
+    expect(campaign.snapshot().researchQueue).toEqual([]);
   });
 
   it("is refused for one already completed, but not for another", () => {
@@ -85,19 +143,19 @@ describe("starting a Research Task", () => {
     start(campaign, shortTask);
     campaign.advance(lengthMinutes(shortTask));
 
-    expect(campaign.startResearchTask(shortTask.id)).toEqual({
+    expect(campaign.queueResearchTask(shortTask.id)).toEqual({
       ok: false,
       reason: "already-completed",
       message: `${shortTask.label} has already been completed, and can't be carried out again.`,
     });
     expect(campaign.snapshot().researchTask).toBeUndefined();
-    expect(campaign.startResearchTask(otherTask.id)).toEqual({ ok: true });
+    expect(campaign.queueResearchTask(otherTask.id)).toEqual({ ok: true });
   });
 
   it("is refused for a Research Task the data catalogue doesn't have", () => {
     const { campaign } = scenario();
 
-    expect(campaign.startResearchTask("perpetual-motion")).toEqual({
+    expect(campaign.queueResearchTask("perpetual-motion")).toEqual({
       ok: false,
       reason: "unknown-research-task",
       message: `There is no Research Task called "perpetual-motion".`,
@@ -114,7 +172,117 @@ describe("starting a Research Task", () => {
     );
     if (!loaded.ok) throw new Error(loaded.message);
 
-    expect(loaded.campaign.startResearchTask(shortTask.id)).toEqual({
+    expect(loaded.campaign.queueResearchTask(shortTask.id)).toEqual({
+      ok: false,
+      reason: "campaign-ended",
+      message: "The Campaign is over: the Mission Director has died.",
+    });
+  });
+});
+
+describe("the queue of Research Tasks", () => {
+  it("starts each by itself as the one before completes, saying so after the completion", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+    start(campaign, otherTask);
+    start(campaign, thirdTask);
+
+    const events = campaign.advance(lengthMinutes(shortTask));
+
+    const research = events.filter(({ kind }) => kind.startsWith("research-"));
+    expect(research).toEqual([
+      {
+        kind: "research-task-completed",
+        atMinute: lengthMinutes(shortTask),
+        researchTaskId: shortTask.id,
+        science: shortTask.science,
+      },
+      {
+        kind: "research-task-started",
+        atMinute: lengthMinutes(shortTask),
+        researchTaskId: otherTask.id,
+      },
+    ]);
+    const started = research[1];
+    if (started === undefined) throw new Error("expected an event");
+    expect(formatEvent(started)).toBe(
+      `${otherTask.label} started from the queue`,
+    );
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: {
+        researchTaskId: otherTask.id,
+        minutesLeft: lengthMinutes(otherTask),
+      },
+      researchQueue: [thirdTask.id],
+      completedResearchTaskIds: [shortTask.id],
+    });
+
+    campaign.advance(lengthMinutes(otherTask));
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: { researchTaskId: thirdTask.id },
+      researchQueue: [],
+      completedResearchTaskIds: [shortTask.id, otherTask.id],
+    });
+
+    campaign.advance(lengthMinutes(thirdTask));
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: undefined,
+      science: shortTask.science + otherTask.science + thirdTask.science,
+    });
+  });
+
+  it("gives up a queued one when it is removed, keeping the others in order and the one running as it was", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+    start(campaign, otherTask);
+    start(campaign, thirdTask);
+    start(campaign, fourthTask);
+    campaign.advance(60);
+
+    expect(campaign.removeQueuedResearchTask(thirdTask.id)).toEqual({
+      ok: true,
+    });
+
+    expect(campaign.snapshot()).toMatchObject({
+      researchTask: {
+        researchTaskId: shortTask.id,
+        minutesLeft: lengthMinutes(shortTask) - 60,
+      },
+      researchQueue: [otherTask.id, fourthTask.id],
+    });
+    // There is room for it again.
+    expect(campaign.queueResearchTask(thirdTask.id)).toEqual({ ok: true });
+  });
+
+  it("refuses to remove the one running, or one not queued", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+
+    expect(campaign.removeQueuedResearchTask(shortTask.id)).toEqual({
+      ok: false,
+      reason: "running",
+      message: `${shortTask.label} is running, and a Research Task that has started can't be cancelled.`,
+    });
+    expect(campaign.removeQueuedResearchTask(otherTask.id)).toEqual({
+      ok: false,
+      reason: "not-queued",
+      message: `${otherTask.label} isn't queued.`,
+    });
+    expect(campaign.snapshot().researchTask).toMatchObject({
+      researchTaskId: shortTask.id,
+    });
+  });
+
+  it("can't be changed once the Campaign has ended", () => {
+    const loaded = loadCampaign(
+      readFileSync(
+        new URL("./saves/version-1-ended.moonbase", import.meta.url),
+        "utf8",
+      ),
+    );
+    if (!loaded.ok) throw new Error(loaded.message);
+
+    expect(loaded.campaign.removeQueuedResearchTask(shortTask.id)).toEqual({
       ok: false,
       reason: "campaign-ended",
       message: "The Campaign is over: the Mission Director has died.",
@@ -192,6 +360,26 @@ describe("skipping to the next event", () => {
     ]);
     expect(campaign.snapshot().clock.elapsedMinutes).toBe(endsAt);
   });
+
+  it("stops at the completion when the next in the queue starts, with both events", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+    start(campaign, otherTask);
+    const endsAt = lengthMinutes(shortTask);
+
+    let stop: readonly GameEvent[] = [];
+    for (let skips = 0; completions(stop).length === 0; skips++) {
+      if (skips > 40) throw new Error("The Research Task never completed.");
+      stop = campaign.advanceToNextEvent();
+    }
+
+    expect(
+      stop
+        .map(({ kind }) => kind)
+        .filter((kind) => kind.startsWith("research-")),
+    ).toEqual(["research-task-completed", "research-task-started"]);
+    expect(campaign.snapshot().clock.elapsedMinutes).toBe(endsAt);
+  });
 });
 
 describe("saving and loading", () => {
@@ -214,6 +402,80 @@ describe("saving and loading", () => {
       completedResearchTaskIds: [shortTask.id],
     });
     expect(loaded.campaign.snapshot()).toEqual(campaign.snapshot());
+  });
+
+  it("keeps the queue, which goes on in order after loading", () => {
+    const { campaign } = scenario();
+    start(campaign, shortTask);
+    start(campaign, otherTask);
+    start(campaign, thirdTask);
+    campaign.advance(60);
+
+    const loaded = loadCampaign(campaign.save());
+    if (!loaded.ok) throw new Error(loaded.message);
+
+    expect(loaded.campaign.snapshot().researchQueue).toEqual([
+      otherTask.id,
+      thirdTask.id,
+    ]);
+    const reloaded = loaded.campaign.advance(lengthMinutes(shortTask) - 60);
+    expect(reloaded).toEqual(campaign.advance(lengthMinutes(shortTask) - 60));
+    expect(loaded.campaign.snapshot().researchTask).toMatchObject({
+      researchTaskId: otherTask.id,
+    });
+  });
+
+  it.each([
+    [
+      "one twice",
+      {
+        researchTask: { researchTaskId: "regolith-sample-analysis" },
+        researchQueue: ["ice-volatiles-assay", "ice-volatiles-assay"],
+      },
+      'state.researchQueue names "ice-volatiles-assay" twice',
+    ],
+    [
+      "the one running",
+      {
+        researchTask: { researchTaskId: "regolith-sample-analysis" },
+        researchQueue: ["regolith-sample-analysis"],
+      },
+      'state.researchQueue names "regolith-sample-analysis", which is running',
+    ],
+    [
+      "one already completed",
+      {
+        researchTask: { researchTaskId: "regolith-sample-analysis" },
+        researchQueue: ["ice-volatiles-assay"],
+        completedResearchTaskIds: ["ice-volatiles-assay"],
+      },
+      'state.researchQueue names "ice-volatiles-assay", which is completed',
+    ],
+    [
+      "any with none running",
+      { researchTask: null, researchQueue: ["ice-volatiles-assay"] },
+      "state.researchQueue isn't empty, though no Research Task is running",
+    ],
+  ])("refuses a save whose queue holds %s", (_case, edits, problem) => {
+    const { campaign } = scenario();
+    const document = JSON.parse(campaign.save()) as {
+      state: Record<string, unknown>;
+    };
+    const { researchTask, ...rest } = edits;
+    document.state = {
+      ...document.state,
+      ...rest,
+      researchTask:
+        researchTask === null ? null : { ...researchTask, workedMinutes: 0 },
+    };
+
+    const loaded = loadCampaign(JSON.stringify(document));
+
+    expect(loaded).toMatchObject({
+      ok: false,
+      reason: "damaged",
+      message: `The save file is damaged: ${problem}.`,
+    });
   });
 
   it("goes on exactly as an uninterrupted run would, with a Research Task in progress", () => {

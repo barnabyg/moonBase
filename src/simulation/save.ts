@@ -1037,6 +1037,13 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 44 to 45: Research Tasks can wait in a queue behind the one running. None
+  // could before, so the queue is empty.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return { ...document, state: { ...state, researchQueue: [] } };
+  },
 ];
 
 /**
@@ -1792,8 +1799,7 @@ const lifeSupportRecord = object({
 
 const spareComponentRecord = object({ made: amount, used: amount });
 
-/** The Campaign state apart from the random generator's. */
-const simulationState = object({
+const simulationFields = object({
   elapsedMinutes: wholeNumber,
   nextStructureNumber: wholeNumber,
   nextPlanNumber: wholeNumber,
@@ -1852,6 +1858,7 @@ const simulationState = object({
   researchTask: optional(
     object({ researchTaskId, workedMinutes: wholeNumber }),
   ),
+  researchQueue: list(researchTaskId),
   completedResearchTaskIds: list(researchTaskId),
   observingMinutes: amount,
   unlockedDesignIds: list(designId),
@@ -2020,6 +2027,37 @@ const simulationState = object({
     }),
   ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;
+
+/**
+ * The Campaign state apart from the random generator's. Its queue is refused
+ * if it holds one twice, the one running or one completed, any of which would
+ * pay its Science again, or anything with nothing running ahead of it, which
+ * would never start. Its length and what its Research Tasks need are left to
+ * the data catalogue, whose changes mustn't make a released save unreadable.
+ */
+const simulationState: Decoder<Omit<CampaignState, "random">> = (
+  value,
+  path,
+) => {
+  const state = simulationFields(value, path);
+  const field = at(path, "researchQueue");
+  const queue = state.researchQueue;
+  if (queue.length > 0 && state.researchTask === undefined) {
+    throw refuse(field, "isn't empty, though no Research Task is running");
+  }
+  for (const [index, id] of queue.entries()) {
+    if (queue.indexOf(id) !== index) {
+      throw refuse(field, `names "${id}" twice`);
+    }
+    if (id === state.researchTask?.researchTaskId) {
+      throw refuse(field, `names "${id}", which is running`);
+    }
+    if (state.completedResearchTaskIds.includes(id)) {
+      throw refuse(field, `names "${id}", which is completed`);
+    }
+  }
+  return state;
+};
 
 const saveDocument = object({
   format: exactly(SAVE_FORMAT),

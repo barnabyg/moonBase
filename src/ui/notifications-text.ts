@@ -164,6 +164,8 @@ export function formatEvent(
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "research-task-started":
+      return `${researchTaskLabel(event.researchTaskId)} started from the queue`;
     case "greenhouse-round-completed":
       return `${structureLabel(event.structureTypeId)}: a round of growing complete, earning ${formatScience(event.science)}`;
     case "greenhouse-round-lost":

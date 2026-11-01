@@ -607,7 +607,7 @@ function keepResearching(play: Play): void {
     .sort((a, b) => a.lengthHours - b.lengthHours)[0];
   if (next === undefined) return;
   succeed(
-    play.campaign.startResearchTask(next.id),
+    play.campaign.queueResearchTask(next.id),
     `Starting the ${next.label}`,
   );
 }

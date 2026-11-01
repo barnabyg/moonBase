@@ -19,31 +19,46 @@ export interface ResearchTaskSnapshot {
   readonly minutesLeft: number;
 }
 
-export type StartResearchTaskRefusal =
+export type QueueResearchTaskRefusal =
   | "unknown-research-task"
   | "already-completed"
   | "design-locked"
-  | "research-task-running"
+  | "already-running"
+  | "already-queued"
+  | "queue-full"
   | "campaign-ended";
 
-export type StartResearchTaskResult =
+export type QueueResearchTaskResult =
   | { readonly ok: true }
   | {
       readonly ok: false;
-      readonly reason: StartResearchTaskRefusal;
+      readonly reason: QueueResearchTaskRefusal;
+      /** The reason in words the player can read. */
+      readonly message: string;
+    };
+
+export type RemoveQueuedResearchTaskRefusal =
+  "running" | "not-queued" | "campaign-ended";
+
+export type RemoveQueuedResearchTaskResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: RemoveQueuedResearchTaskRefusal;
       /** The reason in words the player can read. */
       readonly message: string;
     };
 
 /**
- * Starts a Research Task, which runs by itself from the next game-minute,
- * unless it has already been completed, the Design it needs isn't unlocked
- * yet, or one is running already.
+ * Starts a Research Task, which runs by itself from the next game-minute, or,
+ * if one is running, puts it at the end of the queue behind that one. Refused
+ * if it has already been completed, the Design it needs isn't unlocked yet, it
+ * is running or queued already, or the queue is full.
  */
-export function startResearchTask(
+export function queueResearchTask(
   state: CampaignState,
   researchTaskId: string,
-): StartResearchTaskResult {
+): QueueResearchTaskResult {
   const task = findResearchTask(researchTaskId);
   if (task === undefined) {
     return refuse(
@@ -65,22 +80,56 @@ export function startResearchTask(
     );
   }
   const running = state.researchTask;
-  if (running !== undefined) {
-    const label =
-      findResearchTask(running.researchTaskId)?.label ?? running.researchTaskId;
+  if (running === undefined) {
+    state.researchTask = { researchTaskId: task.id, workedMinutes: 0 };
+    return { ok: true };
+  }
+  if (running.researchTaskId === task.id) {
+    return refuse("already-running", `${task.label} is running already.`);
+  }
+  if (state.researchQueue.includes(task.id)) {
+    return refuse("already-queued", `${task.label} is queued already.`);
+  }
+  const limit = catalogue.researchQueueLimit;
+  if (state.researchQueue.length >= limit) {
     return refuse(
-      "research-task-running",
-      `${label} is running, and only one Research Task runs at a time.`,
+      "queue-full",
+      `The queue is full: ${limit} Research Tasks are waiting already.`,
     );
   }
-  state.researchTask = { researchTaskId: task.id, workedMinutes: 0 };
+  state.researchQueue.push(task.id);
+  return { ok: true };
+}
+
+/**
+ * Takes a Research Task out of the queue, leaving the others in order. Nothing
+ * is lost, as a queued one has done no work. One that has started can't be
+ * cancelled.
+ */
+export function removeQueuedResearchTask(
+  state: CampaignState,
+  researchTaskId: string,
+): RemoveQueuedResearchTaskResult {
+  const label = findResearchTask(researchTaskId)?.label ?? researchTaskId;
+  if (state.researchTask?.researchTaskId === researchTaskId) {
+    return refuse(
+      "running",
+      `${label} is running, and a Research Task that has started can't be cancelled.`,
+    );
+  }
+  const index = state.researchQueue.indexOf(researchTaskId);
+  if (index === -1) {
+    return refuse("not-queued", `${label} isn't queued.`);
+  }
+  state.researchQueue.splice(index, 1);
   return { ok: true };
 }
 
 /**
  * Runs the Research Task for a game-minute. It needs no Robot, power or
  * Components, so nothing else holds it up. Once it has run its length, it is
- * complete: its Science is added to the base's, and it can't run again.
+ * complete: its Science is added to the base's, it can't run again, and the
+ * first in the queue starts, to run from the next game-minute.
  */
 export function runResearch(state: CampaignState): GameEvent[] {
   const running = state.researchTask;
@@ -93,7 +142,7 @@ export function runResearch(state: CampaignState): GameEvent[] {
   state.researchTask = undefined;
   state.completedResearchTaskIds.push(task.id);
   state.science += task.science;
-  return [
+  const events: GameEvent[] = [
     {
       kind: "research-task-completed",
       atMinute: state.elapsedMinutes,
@@ -101,6 +150,16 @@ export function runResearch(state: CampaignState): GameEvent[] {
       science: task.science,
     },
   ];
+  const next = state.researchQueue.shift();
+  if (next !== undefined) {
+    state.researchTask = { researchTaskId: next, workedMinutes: 0 };
+    events.push({
+      kind: "research-task-started",
+      atMinute: state.elapsedMinutes,
+      researchTaskId: next,
+    });
+  }
+  return events;
 }
 
 export function readResearchTask(
@@ -127,9 +186,9 @@ function findResearchTask(id: string): ResearchTask | undefined {
   return catalogue.researchTasks.find((task) => task.id === id);
 }
 
-function refuse(
-  reason: StartResearchTaskRefusal,
+function refuse<Reason extends string>(
+  reason: Reason,
   message: string,
-): StartResearchTaskResult {
+): { readonly ok: false; readonly reason: Reason; readonly message: string } {
   return { ok: false, reason, message };
 }

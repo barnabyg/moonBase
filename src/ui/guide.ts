@@ -312,6 +312,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       title: "Science and technologies",
       paragraphs: [
         "Research Tasks run by themselves and earn Science, which unlocks Designs on the Tech Tree. Unlocking a Design only permits what it covers: its Structures still have to be built, and their Components shipped.",
+        `One Research Task runs at a time, and up to ${catalogue.researchQueueLimit} more can wait in the queue on the Research Tasks screen. Each starts by itself as the one before it completes. You can remove a queued one and lose nothing, but one that has started can't be cancelled.`,
         `A telescope works on the ${observingProgramme.label}, a standing Research Task that runs alongside the one you start and never ends. It observes only at Night, while it has power and isn't Broken, and every ${formatHours(observingProgramme.lengthHours)} of observing completes a round for ${formatScience(observingProgramme.science)}; more telescopes get through a round faster. It draws power only while it observes, and, like a Light Mast, stops to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more, so build battery banks enough for it. The Research section of the status panel shows how the ${observingProgramme.label} is going.`,
         ...catalogue.structureTypes.flatMap(
           ({ designId, growing, label, power, recipes }) =>

@@ -1180,8 +1180,27 @@ body {
   margin-top: 20px;
 }
 
+.research-tasks__queue,
 .research-tasks__buys {
   margin-bottom: 16px;
+}
+
+.research-tasks__queue-list {
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+
+.research-tasks__queue-item {
+  min-height: 30px;
+  margin-top: 6px;
+}
+
+.research-tasks__queue-item--empty {
+  color: var(--text-muted);
+}
+
+.research-tasks__queue-name {
+  margin-right: 10px;
 }
 
 .research-tasks__buys-list {

@@ -215,6 +215,8 @@ export interface Catalogue {
    * the Research Tasks screen lists them. Each can be completed only once.
    */
   readonly researchTasks: readonly ResearchTask[];
+  /** How many Research Tasks can wait in the queue behind the one running. */
+  readonly researchQueueLimit: number;
   /**
    * The standing Research Task the base's telescopes work on together, a
    * round at a time, for as long as the base has one.

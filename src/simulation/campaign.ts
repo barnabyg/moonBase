@@ -174,12 +174,14 @@ import {
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import { seedRandom, type RandomState } from "./random";
 import {
+  queueResearchTask,
   readResearchTask,
+  removeQueuedResearchTask,
   runResearch,
-  startResearchTask,
   type ResearchTaskSnapshot,
   type ResearchTaskState,
-  type StartResearchTaskResult,
+  type QueueResearchTaskResult,
+  type RemoveQueuedResearchTaskResult,
 } from "./research";
 import {
   observes,
@@ -573,6 +575,8 @@ export interface Snapshot {
   readonly science: number;
   /** The Research Task running, or undefined if there is none. */
   readonly researchTask: ResearchTaskSnapshot | undefined;
+  /** The ids of the Research Tasks waiting behind it, the next to start first. */
+  readonly researchQueue: readonly string[];
   /** The ids of the Research Tasks completed, in the order they were. */
   readonly completedResearchTaskIds: readonly string[];
   /** The observing programme, the standing Research Task the base's telescopes work on at Night. */
@@ -747,9 +751,18 @@ export interface Campaign {
    * Starts a Research Task, which runs by itself for its length and then
    * pays its Science. It needs no Robot, power or Components, and carries on
    * through Night, while the Lander is away and while the Robot is busy.
-   * Only one runs at a time, and each can be completed only once.
+   * Only one runs at a time, and each can be completed only once: while one
+   * runs, more can wait in a queue, up to the data catalogue's limit, and each
+   * starts by itself as the one before it completes.
    */
-  startResearchTask(researchTaskId: string): StartResearchTaskResult;
+  queueResearchTask(researchTaskId: string): QueueResearchTaskResult;
+  /**
+   * Takes a Research Task out of the queue, leaving the others in order. The
+   * one running can't be cancelled.
+   */
+  removeQueuedResearchTask(
+    researchTaskId: string,
+  ): RemoveQueuedResearchTaskResult;
   /**
    * Unlocks a Design in the Tech Tree at once, taking its cost off the
    * base's Science, once every Design it needs first is unlocked. It adds
@@ -817,6 +830,8 @@ export interface CampaignState {
   science: number;
   /** The Research Task running, if any. */
   researchTask: ResearchTaskState | undefined;
+  /** The ids of the Research Tasks waiting behind it, the next to start first. */
+  researchQueue: string[];
   /** The ids of the Research Tasks completed, in the order they were. */
   completedResearchTaskIds: string[];
   /**
@@ -885,6 +900,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     exportsToLoad: [],
     science: 0,
     researchTask: undefined,
+    researchQueue: [],
     completedResearchTaskIds: [],
     observingMinutes: 0,
     unlockedDesignIds: startingDesignIds(),
@@ -1074,7 +1090,7 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(startExpedition(state));
     },
-    startResearchTask(researchTaskId) {
+    queueResearchTask(researchTaskId) {
       if (state.ended !== undefined) {
         return deepFreeze({
           ok: false,
@@ -1082,7 +1098,17 @@ function campaignFrom(state: CampaignState): Campaign {
           message: CAMPAIGN_OVER,
         });
       }
-      return deepFreeze(startResearchTask(state, researchTaskId));
+      return deepFreeze(queueResearchTask(state, researchTaskId));
+    },
+    removeQueuedResearchTask(researchTaskId) {
+      if (state.ended !== undefined) {
+        return deepFreeze({
+          ok: false,
+          reason: "campaign-ended",
+          message: CAMPAIGN_OVER,
+        });
+      }
+      return deepFreeze(removeQueuedResearchTask(state, researchTaskId));
     },
     unlockDesign(designId) {
       if (state.ended !== undefined) {
@@ -1144,6 +1170,7 @@ function campaignFrom(state: CampaignState): Campaign {
         launchManifest: readLaunchManifest(state),
         science: state.science,
         researchTask: readResearchTask(state),
+        researchQueue: [...state.researchQueue],
         completedResearchTaskIds: [...state.completedResearchTaskIds],
         observingProgramme: readObservingProgramme(state),
         unlockedDesignIds: [...state.unlockedDesignIds],
