@@ -71,7 +71,7 @@ const LONGEST_PLAY_ON_LUNATIONS = 8;
 const LONGEST_WAIT: Duration = { earthDays: 60 };
 
 /** The game-minutes the play guide lets the game run between looks at it. */
-const LOOK_EVERY_MINUTES = 60;
+export const LOOK_EVERY_MINUTES = 60;
 
 /**
  * Where the base stands: east of the landing site, beyond the reach of the

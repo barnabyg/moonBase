@@ -12,6 +12,8 @@ import {
   longGameSucceeded,
   playLongGame,
   buyInTurn,
+  giveUpOnMissedTargets,
+  laterActTargets,
   purchaseStallWatch,
   PURCHASE_STALL_EARTH_DAYS,
   type Purchase,
@@ -23,6 +25,7 @@ import {
   type Play,
   type ReferenceTimeline,
 } from "./reference-campaign";
+import { catalogueUpToAct } from "./pacing-report";
 import { createCampaign, type Snapshot } from "../src/simulation";
 
 // The long game itself takes minutes, so nothing here plays it through: `npm
@@ -548,6 +551,217 @@ describe("the limit on a purchase that makes no progress", () => {
     expect(() => {
       watch(21 * earthDay, waiting("second"));
     }).toThrow("since Earth Day 10.0: second waits");
+  });
+});
+
+describe("giving up on a dated pacing target", () => {
+  const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
+  const allMilestones = {
+    ...fresh.milestones,
+    reachedIds: [
+      "workshop-running",
+      "spare-components-self-sufficient",
+      "metals-sold",
+      "first-propellant",
+      "return-mass-tripled",
+      "precision-optics-sold",
+    ],
+  };
+  const researchUpToAct = (act: number) =>
+    catalogueUpToAct(catalogue, act).researchTasks.map(({ id }) => id);
+
+  /** One look at a base on an Earth Day, with no campaign to send a command to, as the check sends none. */
+  function lookOn(day: number, base: Partial<Snapshot> = {}): void {
+    giveUpOnMissedTargets()({
+      state: {
+        ...fresh,
+        clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+        milestones: allMilestones,
+        ...base,
+      },
+    } as unknown as Play);
+  }
+
+  it.each([
+    [
+      "workshop-running",
+      act2Targets.workshopRunningBy,
+      "a Workshop running by Earth Day 500.",
+    ],
+    [
+      "spare-components-self-sufficient",
+      act2Targets.sparesNeedNoLaunchBy,
+      "spare Components needing no Launch by Earth Day 800.",
+    ],
+    ["metals-sold", act2Targets.metalsSoldBy, "metals sold by Earth Day 900."],
+    [
+      "first-propellant",
+      laterActTargets.propellantMadeBy,
+      "propellant made by Earth Day 1050.",
+    ],
+    [
+      "return-mass-tripled",
+      laterActTargets.returnMassTripledBy,
+      "Return Mass tripled by Earth Day 1250.",
+    ],
+    [
+      "precision-optics-sold",
+      laterActTargets.opticsSoldBy,
+      "precision optics sold by Earth Day 2000.",
+    ],
+  ])(
+    "gives up just after %s's date, not on it, in the words the end would use",
+    (milestoneId, by, words) => {
+      const unmet = {
+        milestones: {
+          ...allMilestones,
+          reachedIds: allMilestones.reachedIds.filter(
+            (id) => id !== milestoneId,
+          ),
+        },
+      };
+      expect(() => {
+        lookOn(by, unmet);
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(by + 0.1, unmet);
+      }).toThrow(
+        `On Earth Day ${(by + 0.1).toFixed(1)} a pacing target can no longer be met: ${words}`,
+      );
+
+      const neverReached = timeline({
+        milestones: timeline().milestones.filter(
+          (milestone) => milestone.milestoneId !== milestoneId,
+        ),
+      });
+      expect([
+        ...act2TargetsMissed(neverReached),
+        ...laterActTargetsMissed(neverReached),
+      ]).toContain(words);
+    },
+  );
+
+  it("gives up if a Launch leaves with spare Components after their date, not before", () => {
+    const leaving = (legStartedAtMinute: number) => ({
+      lander: {
+        ...fresh.lander,
+        state: "travelling-to-earth",
+        legStartedAtMinute,
+      } as Snapshot["lander"],
+      launchManifest: {
+        ...fresh.launchManifest,
+        items: [{ itemId: "spare-component", count: 5 }],
+      },
+    });
+    expect(() => {
+      lookOn(801, leaving(800 * earthDay));
+    }).not.toThrow();
+    expect(() => {
+      lookOn(801, leaving(800 * earthDay + 1));
+    }).toThrow("spare Components needing no Launch by Earth Day 800.");
+  });
+
+  it("gives up once every Design of Act 2 is unlocked before Earth Day 700", () => {
+    const allDesigns = {
+      unlockedDesignIds: catalogueUpToAct(catalogue, 2).designs.map(
+        ({ id }) => id,
+      ),
+    };
+    expect(() => {
+      lookOn(700 - 1 / 24, allDesigns);
+    }).toThrow("Designs still to buy at Earth Day 700.");
+    // Unlocked at this look, the timeline dates it to the next, past the target.
+    expect(() => {
+      lookOn(700, allDesigns);
+    }).not.toThrow();
+    expect(() => {
+      lookOn(699);
+    }).not.toThrow();
+  });
+
+  it.each([
+    [2, 850, 950, "research lasting until about Earth Day 900"],
+    [3, 1350, 1450, "Act 3's research lasting until about Earth Day 1400"],
+  ])(
+    "gives up on Act %i's research ending too soon or still going too late",
+    (act, soonest, latest, words) => {
+      const done = { completedResearchTaskIds: researchUpToAct(act) };
+      expect(() => {
+        lookOn(soonest - 1, done);
+      }).toThrow(`${words} (it has ended already).`);
+      expect(() => {
+        lookOn(soonest, done);
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(latest, { completedResearchTaskIds: [] });
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(latest + 1, { completedResearchTaskIds: [] });
+      }).toThrow(`${words} (it hasn't ended).`);
+    },
+  );
+
+  it("gives up on Act 4's research ending too soon, and leaves whether it lasts to the end", () => {
+    const done = { completedResearchTaskIds: researchUpToAct(4) };
+    expect(() => {
+      lookOn(2949, done);
+    }).toThrow("Act 4's research lasting until about Earth Day 3000");
+    expect(() => {
+      lookOn(2950, done);
+    }).not.toThrow();
+    expect(() => {
+      lookOn(3000, { completedResearchTaskIds: researchUpToAct(3) });
+    }).not.toThrow();
+  });
+
+  it("says nothing while every target is still on course", () => {
+    expect(() => {
+      lookOn(100, { milestones: { ...allMilestones, reachedIds: [] } });
+    }).not.toThrow();
+  });
+
+  it("makes the play give up, saying why", () => {
+    const given = playLongGame([
+      {
+        milestoneId: undefined,
+        description: "Look once, on an Earth Day past a target.",
+        play(play) {
+          giveUpOnMissedTargets()({
+            ...play,
+            state: {
+              ...play.state,
+              clock: { ...play.state.clock, elapsedMinutes: 501 * earthDay },
+            },
+          });
+        },
+      },
+    ]);
+
+    expect(given.failure).toBe(
+      "On Earth Day 501.0 a pacing target can no longer be met: a Workshop running by Earth Day 500.",
+    );
+    expect(longGameSucceeded(given)).toBe(false);
+  });
+
+  it("is what the guide's last step keeps up last, seeing what the others did", () => {
+    const habits: ((play: Play) => void)[] = [];
+    longGameSteps.at(-1)?.play({
+      keepUp: (habit: (play: Play) => void) => habits.push(habit),
+      waitUntil: () => undefined,
+      state: {
+        completedResearchTaskIds: catalogue.researchTasks.map(({ id }) => id),
+        unlockedDesignIds: catalogue.designs.map(({ id }) => id),
+      },
+    } as unknown as Play);
+
+    expect(() => {
+      habits.at(-1)?.({
+        state: {
+          ...fresh,
+          clock: { ...fresh.clock, elapsedMinutes: 501 * earthDay },
+        },
+      } as unknown as Play);
+    }).toThrow("a Workshop running by Earth Day 500.");
   });
 });
 
