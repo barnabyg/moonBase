@@ -59,6 +59,13 @@ Everything for a Structure, and:
 - The forecasts, if it makes or uses something they count: `src/simulation/spare-forecast.ts`, `bulk-forecast.ts`, `life-support.ts` or `self-sufficiency.ts`, and what `src/ui/status-panel-text.ts` says of them. A recipe that takes a life support stock leaves the reserve, and is counted by the forecast, with no more code; anything else that takes one, which isn't a Plant's recipe, should ask `life-support-reserve.ts` what it may take. A recipe that makes a stock with a limit waits or discards with no more code, and anything else that adds to one, or adds to how much it holds, goes through `storage-limits.ts`. Nothing catches it: the forecast just goes on ignoring the Plant.
 - `describeRecipeFlows` in `src/ui/describe.ts` and `formatPlantRates` in `src/ui/structure-state.ts`, if its recipe has a new shape. The type check only catches a change to a type they read.
 
+## A type of Expedition
+
+- `types` in `expeditions` in `src/catalogue/workers.ts`, with the Design that offers it, if any. Its reward needs no more code if it is a bulk resource or Science.
+- `src/catalogue/research.ts`: the Design. `describeUnlocks` says what it offers.
+- `test/catalogue-rules.ts`: an exemption with its reason, unless the long game sends it.
+- `docs/balancing.md`: how it pays against what the base can make for itself.
+
 ## A Milestone or an Act
 
 Data catalogue:

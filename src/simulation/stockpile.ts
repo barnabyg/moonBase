@@ -138,7 +138,7 @@ export function uncoveredRegolithHeap(
 export function uncoveredIceStore(base: BaseGround): IceStore | undefined {
   const store = iceStore(
     base.stockpile.position,
-    kilogramsOf(base, catalogue.expeditions.resourceId),
+    kilogramsOf(base, catalogue.expeditions.types[0].resourceId),
   );
   return store === undefined || isCovered(base, store) ? undefined : store;
 }

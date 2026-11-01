@@ -119,7 +119,7 @@ describe("the water-processing plant", () => {
     expect(events.map((event) => event.kind)).toContain("expedition-returned");
     // The plant has taken a batch's ice at most since it was unloaded.
     expect(ice(campaign.snapshot())).toBeGreaterThanOrEqual(
-      catalogue.expeditions.kilograms - icePerHour - 1e-9,
+      catalogue.expeditions.types[0].kilograms - icePerHour - 1e-9,
     );
     // Into the next Daylight, if it came back at Night.
     if (campaign.snapshot().lunation.part === "night") {

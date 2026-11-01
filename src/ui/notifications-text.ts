@@ -160,6 +160,8 @@ export function formatEvent(
       return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
     case "expedition-returned":
       return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
+    case "survey-returned":
+      return `Survey back, earning ${event.science} Science`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":

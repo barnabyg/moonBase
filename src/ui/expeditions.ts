@@ -1,9 +1,11 @@
-import { catalogue } from "../catalogue";
-import type { Campaign, Snapshot } from "../simulation";
+import { catalogue, type ExpeditionType } from "../catalogue";
+import { designLabel, type Campaign, type Snapshot } from "../simulation";
 import { setText } from "./dom";
 import { formatDuration } from "./format";
-import { resourceLabel } from "./labels";
-import { describeExpedition } from "./status-panel-text";
+import {
+  describeExpedition,
+  describeExpeditionReward,
+} from "./status-panel-text";
 import { createScreen } from "./screen";
 
 export interface ExpeditionsScreen {
@@ -26,8 +28,8 @@ export function createExpeditionsScreen(
     className: "expeditions",
     title: "Expeditions",
   });
-  const { expeditions } = catalogue;
-  screen.lead.textContent = `A Robot finishes the Work Order it holds, then drives the Rover off the map. It is away for ${formatDuration(expeditions.awayEarthDays * 24 * 60)}, and comes back with ${expeditions.kilograms} kg of ${resourceLabel(expeditions.resourceId).toLowerCase()}.`;
+  screen.lead.textContent =
+    "Choose what to go for. A Robot finishes the Work Order it holds, then drives the Rover off the map, and one Expedition can be under way at a time.";
 
   // The one under way, or that none is.
   const card = document.createElement("section");
@@ -40,23 +42,37 @@ export function createExpeditionsScreen(
   status.setAttribute("aria-label", "Expedition under way");
   card.append(heading, status);
 
-  const start = document.createElement("button");
-  start.type = "button";
-  start.className = "screen__button";
-  start.textContent = "Start an Expedition";
-  start.addEventListener("click", () => {
-    const result = campaign.startExpedition();
-    screen.refuse(result.ok ? undefined : result.message);
+  // Each type, with how long it takes and what it brings back. Its button stays
+  // while another is under way, so that starting it says why it can't.
+  const types = catalogue.expeditions.types.map((type: ExpeditionType) => {
+    const row = document.createElement("section");
+    row.className = "expeditions__type";
+    row.setAttribute("aria-label", type.label);
+    const about = document.createElement("p");
+    about.textContent = `${type.label}: ${type.description} Away for ${formatDuration(type.awayEarthDays * 24 * 60)}, back with ${describeExpeditionReward(type)}.`;
+    const start = document.createElement("button");
+    start.type = "button";
+    start.className = "screen__button";
+    start.textContent = `Start: ${type.label}`;
+    start.addEventListener("click", () => {
+      const result = campaign.startExpedition(type.id);
+      screen.refuse(result.ok ? undefined : result.message);
+    });
+    row.append(about, start);
+    return { type, row, start };
   });
+  // What the Tech Tree could add, so that the player knows there is more.
+  const toCome = document.createElement("p");
+  toCome.className = "expeditions__note";
   const note = document.createElement("p");
   note.className = "expeditions__note";
   note.textContent =
     "With only one Robot, every Work Order waits while it is away.";
   const actions = document.createElement("div");
   actions.className = "expeditions__actions";
-  actions.append(start, note);
+  actions.append(note, toCome);
 
-  screen.body.append(card, actions);
+  screen.body.append(card, ...types.map(({ row }) => row), actions);
 
   return {
     open() {
@@ -64,7 +80,12 @@ export function createExpeditionsScreen(
     },
     update(snapshot) {
       const underWay = snapshot.expedition !== undefined;
-      setText(heading, underWay ? "Under way" : "None under way");
+      setText(
+        heading,
+        snapshot.expedition === undefined
+          ? "None under way"
+          : `Under way: ${snapshot.expedition.label}`,
+      );
       const described =
         snapshot.expedition === undefined
           ? "A Robot and the Rover are ready to go."
@@ -74,8 +95,26 @@ export function createExpeditionsScreen(
             );
       setText(status, described.charAt(0).toUpperCase() + described.slice(1));
       card.classList.toggle("screen__card--idle", !underWay);
-      // Its button stays, so that starting another says why it can't.
-      start.classList.toggle("screen__button--primary", !underWay);
+      const offered = (type: ExpeditionType): boolean =>
+        type.designId === undefined ||
+        snapshot.unlockedDesignIds.includes(type.designId);
+      for (const { type, row, start } of types) {
+        row.hidden = !offered(type);
+        start.classList.toggle("screen__button--primary", !underWay);
+      }
+      const designs = [
+        ...new Set(
+          catalogue.expeditions.types.flatMap((type) =>
+            type.designId === undefined || offered(type) ? [] : [type.designId],
+          ),
+        ),
+      ];
+      setText(
+        toCome,
+        designs.length === 0
+          ? ""
+          : `More types come with ${designs.map(designLabel).join(" and ")} on the Tech Tree.`,
+      );
       note.hidden = snapshot.robots.length > 1;
     },
   };

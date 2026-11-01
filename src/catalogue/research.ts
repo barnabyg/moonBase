@@ -148,6 +148,22 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 66,
     requiresDesignId: "large-battery-banks",
   },
+  // These two pay back what their Designs cost, as the Tech Tree's Science is
+  // tight: 120 more with nothing to pay for it put its last Designs out of reach.
+  {
+    id: "rover-instrument-trial",
+    label: "Rover instrument trial",
+    lengthHours: 120,
+    science: 40,
+    requiresDesignId: "survey-expeditions",
+  },
+  {
+    id: "deposit-assay-survey",
+    label: "Deposit assay survey",
+    lengthHours: 240,
+    science: 80,
+    requiresDesignId: "prospecting-expeditions",
+  },
   {
     id: "deployment-hinge-fatigue-study",
     label: "Deployment hinge fatigue study",
@@ -884,6 +900,26 @@ export const designs: Catalogue["designs"] = [
   // Planned as a Rover with a cabin, but the base has the one Rover and
   // no rule for another, so this Mobility Design lights a landing pad
   // instead.
+  {
+    id: "survey-expeditions",
+    label: "Survey Expeditions",
+    description:
+      "Instruments for the Rover, so that an Expedition can study a distant site for Science rather than bring anything back.",
+    category: "mobility",
+    starting: false,
+    scienceCost: 40,
+    prerequisiteDesignIds: [],
+  },
+  {
+    id: "prospecting-expeditions",
+    label: "Prospecting Expeditions",
+    description:
+      "Assay tools for the Rover, so that an Expedition can bring back metals or silicon from a richer deposit than the base's own Regolith.",
+    category: "mobility",
+    starting: false,
+    scienceCost: 80,
+    prerequisiteDesignIds: ["regolith-extraction"],
+  },
   {
     id: "landing-pad-lights",
     label: "Landing pad lights",

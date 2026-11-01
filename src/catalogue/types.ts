@@ -767,21 +767,48 @@ export interface RoverType {
  * each game-hour it is driven, there and back as on the map.
  */
 export interface ExpeditionRules {
-  /**
-   * How long the Robot and the Rover are away, from driving off the map to
-   * driving back onto it. Must come to a whole number of game-minutes.
-   */
-  readonly awayEarthDays: number;
-  /** The bulk resource an Expedition brings back. */
-  readonly resourceId: string;
-  /** How much of it an Expedition brings back. */
-  readonly kilograms: number;
+  /** The types the player can choose from: water ice, always there, first. */
+  readonly types: readonly [
+    BulkResourceExpedition,
+    ...(BulkResourceExpedition | ScienceExpedition)[],
+  ];
   /**
    * The Robot's working time to unload it at the stockpile, in game-hours.
    * Must come to a whole number of game-minutes.
    */
   readonly unloadingHours: number;
 }
+
+/** What every type of Expedition has. */
+interface ExpeditionBasics {
+  readonly id: string;
+  readonly label: string;
+  /** What it goes for, in a sentence. */
+  readonly description: string;
+  /** The Design that offers it; with none, it is offered from the start. */
+  readonly designId?: string;
+  /**
+   * How long the Robot and the Rover are away, from driving off the map to
+   * driving back onto it. Must come to a whole number of game-minutes.
+   */
+  readonly awayEarthDays: number;
+}
+
+/** An Expedition that brings back a bulk resource, unloaded into the base's stock. */
+export interface BulkResourceExpedition extends ExpeditionBasics {
+  readonly kind: "bulk-resource";
+  readonly resourceId: string;
+  /** How much of it an Expedition brings back. */
+  readonly kilograms: number;
+}
+
+/** An Expedition that earns Science as the Robot hands over what it found. */
+export interface ScienceExpedition extends ExpeditionBasics {
+  readonly kind: "science";
+  readonly science: number;
+}
+
+export type ExpeditionType = BulkResourceExpedition | ScienceExpedition;
 
 /** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
 export interface BulkResource {

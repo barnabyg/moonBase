@@ -751,7 +751,7 @@ export interface Campaign {
    * map, and comes back some time later with water ice. It is refused
    * while one is under way or the Rover is Broken.
    */
-  startExpedition(): StartExpeditionResult;
+  startExpedition(typeId?: string): StartExpeditionResult;
   /**
    * Starts a Research Task, which runs by itself for its length and then
    * pays its Science. It needs no Robot, power or Components, and carries on
@@ -1091,7 +1091,7 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(switchPlant(state, structureId, setting));
     },
-    startExpedition() {
+    startExpedition(typeId) {
       if (state.ended !== undefined) {
         return deepFreeze({
           ok: false,
@@ -1099,7 +1099,7 @@ function campaignFrom(state: CampaignState): Campaign {
           message: CAMPAIGN_OVER,
         });
       }
-      return deepFreeze(startExpedition(state));
+      return deepFreeze(startExpedition(state, typeId));
     },
     queueResearchTask(researchTaskId) {
       if (state.ended !== undefined) {

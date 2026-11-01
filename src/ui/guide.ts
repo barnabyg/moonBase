@@ -331,6 +331,8 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
                 ],
         ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",
+        "An Expedition can go for more than water ice: Designs add Prospecting, for metals or silicon, and a Survey, for Science. Each ties up a Robot and the Rover while it is away, and Prospecting brings less than an extraction plant makes in the time, so it tops a base up rather than taking the place of its Plants.",
+        "A technology changes only what can be bought from then on: arrays already built, and parts at the base or on a Lander, stay as they are. Each solar array is as good as the parts it is built from.",
         "The Technologies tab lists every Design and what unlocking it brings.",
       ],
     },

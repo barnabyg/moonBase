@@ -316,6 +316,12 @@ export type GameEvent =
       readonly kilograms: number;
     }
   | {
+      /** A survey is over: the Robot has handed over what it found, for Science. */
+      readonly kind: "survey-returned";
+      readonly atMinute: number;
+      readonly science: number;
+    }
+  | {
       /** The Rover was Broken before the Robot could drive it off, so the Expedition is off. */
       readonly kind: "expedition-called-off";
       readonly atMinute: number;

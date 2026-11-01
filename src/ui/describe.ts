@@ -268,9 +268,16 @@ export function describeUnlocks(design: Design): string[] {
   const tasks = catalogue.researchTasks
     .filter((task) => task.requiresDesignId === design.id)
     .map((task) => researchTaskLabel(task.id));
+  const expeditionTypes = catalogue.expeditions.types.filter(
+    (type) => type.designId === design.id,
+  );
   return [
     ...structures.map(
       (type) => `Unlocks the ${type.label}. ${describeStructure(type)}`,
+    ),
+    ...expeditionTypes.map(
+      (type) =>
+        `Offers an Expedition: ${type.label}, away for ${type.awayEarthDays} Earth Days.`,
     ),
     ...(items.length === 0
       ? []

@@ -263,6 +263,12 @@ Issue #158's lessons. The maintainer played Acts 1 and 2 and confirms they are f
 - **The play guide is an expert.** It had a Workshop running on Earth Day 372 against a target of 500. A target is a limit for a slower player, so the guide meeting it early doesn't mean it is wrong.
 - **What only a person can tell.** When this was written, Acts 3 and 4 had been played only by the guide (the maintainer has since played them for the water economy, #189), which switches its propellant plants off above 1,200 kg. A large plant makes more than a base can sell, so surplus may make burning free, and the choice obvious (#176; [the propellant limit](#the-larger-changes-and-why) changes that little). The last Research Task, 600 Earth Days long, pays Science with nothing left to buy, so from Earth Day 2,381 the game asks little (#179). That a Plant rather than the Lander limits income after Act 3 is what the pacing report works out; no target checks it in play.
 
+## Types of Expedition
+
+Prospecting is held below what the base can make for itself, because a cheap source of metals or silicon would undo the Plant chain that Act 1 is built round. One extraction plant set to metals and silicon makes 0.6 and 0.4 kg an hour in Daylight, or about 7.2 and 4.8 kg an Earth Day over a Lunation. Prospecting without a pause brings 5 kg of metals or 3.3 kg of silicon an Earth Day, and the Design needs Regolith extraction first, so it can't be how a base starts. A load of metals sells for $30M, a fifth of the Launch fee, so it can't pay for a Launch. What it offers is a top-up that needs no power and goes on through a Night, for six Earth Days without a Robot. `test/expedition-types.test.ts` holds these limits.
+
+A Survey earns 2.5 Science an Earth Day, against about 6 from late Research Tasks, on top of them. Sent without a pause through 3,000 Earth Days it would bring 7,500 Science of the 22,445 the Tech Tree costs, with a Robot and the Rover gone for good. These are worked out from the numbers, not played: neither the long game nor the reference Campaign sends either type.
+
 ## Still to watch
 
 - **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain takes $28,053M of it in the guide, and leaves it idle again by the end (see [The Greenhouse chain](#the-larger-changes-and-why)).

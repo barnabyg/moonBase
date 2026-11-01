@@ -33,6 +33,7 @@ import {
   awayMinutes,
   exitPointFrom,
   expeditionOf,
+  expeditionTypeOf,
   returnSpot,
   unloadingMinutes,
   wearRoverOnExpedition,
@@ -1235,7 +1236,7 @@ function goOnExpedition(
       const exit = expedition.exitPoint ?? exitPointFrom(rover.position);
       if (!drive(exit)) return [];
       expedition.stage = "away";
-      expedition.returnsAtMinute = atMinute + awayMinutes();
+      expedition.returnsAtMinute = atMinute + awayMinutes(expedition);
       return [
         {
           kind: "expedition-left",
@@ -1259,9 +1260,14 @@ function goOnExpedition(
       robot.activity = { kind: "unloading-expedition" };
       expedition.workedMinutes += robotPerformance(robot);
       if (expedition.workedMinutes < unloadingMinutes()) return [];
-      const { resourceId, kilograms } = catalogue.expeditions;
-      addBulk(state, resourceId, kilograms);
+      const type = expeditionTypeOf(expedition);
       state.expedition = undefined;
+      if (type.kind === "science") {
+        state.science += type.science;
+        return [{ kind: "survey-returned", atMinute, science: type.science }];
+      }
+      const { resourceId, kilograms } = type;
+      addBulk(state, resourceId, kilograms);
       return [{ kind: "expedition-returned", atMinute, resourceId, kilograms }];
     }
   }

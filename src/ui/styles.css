@@ -1684,6 +1684,29 @@ body {
   font-size: 0.95rem;
 }
 
+.expeditions__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__type[hidden] {
+  display: none;
+}
+
+.expeditions__type p {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.expeditions__type .screen__button {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+
 .expeditions__actions {
   display: flex;
   flex-wrap: wrap;

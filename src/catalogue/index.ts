@@ -14,6 +14,7 @@ export type {
   DiggingRules,
   DustCoatingRules,
   ExpeditionRules,
+  ExpeditionType,
   Export,
   GameSpeed,
   GroundPosition,

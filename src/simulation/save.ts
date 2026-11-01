@@ -1044,6 +1044,20 @@ export const migrations: readonly Migration[] = [
     if (!isRecord(state)) return { ...document };
     return { ...document, state: { ...state, researchQueue: [] } };
   },
+  // 45 to 46: types of Expedition. Only water ice could be under way before.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !isRecord(state["expedition"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        expedition: { ...state["expedition"], typeId: "water-ice" },
+      },
+    };
+  },
 ];
 
 /**
@@ -1444,6 +1458,10 @@ const structureTypeId = catalogueId(catalogue.structureTypes, "Structure type");
 const researchTaskId = catalogueId(catalogue.researchTasks, "Research Task");
 
 const designId = catalogueId(catalogue.designs, "Design");
+const expeditionTypeId = catalogueId(
+  catalogue.expeditions.types,
+  "type of Expedition",
+);
 
 const resourceRef: Decoder<ResourceRef> = tagged("kind", {
   "bulk-resource": object({
@@ -2014,6 +2032,7 @@ const simulationFields = object({
     object({
       robotId: text,
       roverId: text,
+      typeId: expeditionTypeId,
       stage: oneOf<ExpeditionStage>({
         boarding: true,
         "driving-out": true,

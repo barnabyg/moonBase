@@ -86,6 +86,7 @@ export type { BulkResourceForecast } from "./bulk-forecast";
 export type { SelfSufficiencySnapshot } from "./self-sufficiency";
 export type { MilestonesSnapshot } from "./milestones";
 export type {
+  ExpeditionReward,
   ExpeditionSnapshot,
   ExpeditionStage,
   StartExpeditionRefusal,

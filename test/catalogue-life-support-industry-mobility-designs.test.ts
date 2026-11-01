@@ -252,8 +252,8 @@ describe("the data catalogue", () => {
       (design) => design.category === "mobility" && !design.starting,
     );
 
-    it("has two beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(mobility).toHaveLength(2);
+    it("has four beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(mobility).toHaveLength(4);
       expect(
         mobility.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),

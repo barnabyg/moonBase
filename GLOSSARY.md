@@ -233,7 +233,7 @@ A vehicle a Robot drives, mainly to go on Expeditions.
 _Avoid_: buggy, truck, vehicle
 
 **Expedition**:
-A trip a Robot makes in a Rover beyond the base, returning some time later with resources.
+A trip a Robot makes in a Rover beyond the base, returning some time later with resources or, on a Survey, Science.
 _Avoid_: sortie, trip, run
 
 **Crew**:

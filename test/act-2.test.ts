@@ -440,7 +440,9 @@ describe("a Plant that takes nothing in", () => {
     runToNightfall(campaign);
 
     const made = bulk(campaign, "water-ice") - ice;
-    expect(Math.abs(made - catalogue.expeditions.kilograms)).toBeLessThan(40);
+    expect(
+      Math.abs(made - catalogue.expeditions.types[0].kilograms),
+    ).toBeLessThan(40);
     expect(campaign.snapshot().expedition).toBeUndefined();
   });
 });
