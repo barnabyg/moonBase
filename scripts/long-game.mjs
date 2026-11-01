@@ -15,8 +15,8 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-/** About three times what it takes, so that it stops only a game that hangs. */
-const HARD_LIMIT_MINUTES = 60;
+/** About three times the longest it has taken, so that it stops only a game that hangs. */
+const HARD_LIMIT_MINUTES = 120;
 const PLAY = "--play";
 
 if (process.argv.includes(PLAY)) {
@@ -40,7 +40,13 @@ if (process.argv.includes(PLAY)) {
     pathToFileURL(join(outDir, "long-game.mjs")).href
   );
   const started = performance.now();
-  const timeline = module.playLongGame();
+  // To stderr, so that the timeline on stdout stays as it was.
+  const timeline = module.playLongGame(undefined, (earthDay) => {
+    const elapsed = (performance.now() - started) / 60_000;
+    console.error(
+      `Earth Day ${earthDay} of ${module.LONG_GAME_END_EARTH_DAY}, after ${elapsed.toFixed(1)} minutes`,
+    );
+  });
   const minutes = (performance.now() - started) / 60_000;
   for (const line of module.formatLongGame(timeline)) console.log(line);
   console.log(`(Played in ${minutes.toFixed(1)} minutes.)`);

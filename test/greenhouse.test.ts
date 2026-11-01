@@ -675,7 +675,9 @@ describe("what a Greenhouse asks of a base", () => {
     expect(waterPerLunation).toBeCloseTo(811, 0);
     expect(icePerLunation).toBeCloseTo(901, 0);
     expect(waterPerLunation).toBeGreaterThan(plantPerDaylight);
-    expect(icePerLunation / catalogue.expeditions.kilograms).toBeGreaterThan(4);
+    expect(
+      icePerLunation / catalogue.expeditions.types[0].kilograms,
+    ).toBeGreaterThan(4);
     expect(icePerLunation / lineIcePerDaylight).toBeGreaterThan(4);
   });
 

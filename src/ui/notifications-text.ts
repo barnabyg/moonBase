@@ -160,6 +160,17 @@ export function formatEvent(
       return `Expedition left the map, back in ${formatDuration(event.returnsAtMinute - event.atMinute)}`;
     case "expedition-returned":
       return `Expedition back with ${formatKilograms(event.kilograms)} of ${resourceLabel(event.resourceId).toLowerCase()}, now in the base's stock`;
+    case "launch-items-retired":
+      return `No longer made, so off the Launch manifest: ${event.itemIds
+        .map((id) => {
+          const item = catalogue.launch.items.find(
+            (candidate) => candidate.id === id,
+          );
+          return item === undefined ? id : launchItemLabel(item);
+        })
+        .join(", ")}. Choose their replacements on it`;
+    case "survey-returned":
+      return `Survey back, earning ${event.science} Science`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":

@@ -463,6 +463,13 @@ export interface LaunchItem {
   readonly id: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /** Any other Designs it needs before it is on sale. */
+  readonly alsoNeedsDesignIds?: readonly string[];
+  /**
+   * The Designs that take it off sale, in favour of a better one. What has
+   * already been bought stays as it is.
+   */
+  readonly retiredByDesignIds?: readonly string[];
   /**
    * What one of it brings: a Component, a set amount of oxygen or water, or
    * a Robot, which climbs down from the Lander as it lands and joins the
@@ -760,21 +767,48 @@ export interface RoverType {
  * each game-hour it is driven, there and back as on the map.
  */
 export interface ExpeditionRules {
-  /**
-   * How long the Robot and the Rover are away, from driving off the map to
-   * driving back onto it. Must come to a whole number of game-minutes.
-   */
-  readonly awayEarthDays: number;
-  /** The bulk resource an Expedition brings back. */
-  readonly resourceId: string;
-  /** How much of it an Expedition brings back. */
-  readonly kilograms: number;
+  /** The types the player can choose from: water ice, always there, first. */
+  readonly types: readonly [
+    BulkResourceExpedition,
+    ...(BulkResourceExpedition | ScienceExpedition)[],
+  ];
   /**
    * The Robot's working time to unload it at the stockpile, in game-hours.
    * Must come to a whole number of game-minutes.
    */
   readonly unloadingHours: number;
 }
+
+/** What every type of Expedition has. */
+interface ExpeditionBasics {
+  readonly id: string;
+  readonly label: string;
+  /** What it goes for, in a sentence. */
+  readonly description: string;
+  /** The Design that offers it; with none, it is offered from the start. */
+  readonly designId?: string;
+  /**
+   * How long the Robot and the Rover are away, from driving off the map to
+   * driving back onto it. Must come to a whole number of game-minutes.
+   */
+  readonly awayEarthDays: number;
+}
+
+/** An Expedition that brings back a bulk resource, unloaded into the base's stock. */
+export interface BulkResourceExpedition extends ExpeditionBasics {
+  readonly kind: "bulk-resource";
+  readonly resourceId: string;
+  /** How much of it an Expedition brings back. */
+  readonly kilograms: number;
+}
+
+/** An Expedition that earns Science as the Robot hands over what it found. */
+export interface ScienceExpedition extends ExpeditionBasics {
+  readonly kind: "science";
+  readonly science: number;
+}
+
+export type ExpeditionType = BulkResourceExpedition | ScienceExpedition;
 
 /** A bulk resource, such as Regolith, that the base keeps a stock of in kilograms. */
 export interface BulkResource {
@@ -852,6 +886,16 @@ export interface StructureType {
   readonly label: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /**
+   * What its parts make it, if it is a kind of solar array. The player only
+   * plans the plain one; its parts decide which kind it turns out to be.
+   */
+  readonly solarArray?: {
+    readonly sealed: boolean;
+    readonly screened: boolean;
+    readonly thinFilm: boolean;
+    readonly prefabricated: boolean;
+  };
   /** Radius of the ground the Structure stands on; no two footprints may overlap. */
   readonly footprintRadiusMetres: number;
   /**

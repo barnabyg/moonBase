@@ -20,6 +20,8 @@ Rules and model:
 - `src/simulation/`: anything it does that no Structure did before, such as a Buried Habitat's dose rate in `radiation.ts`. Nothing catches it but the tests you write.
 - `src/render/`: a model, in a file of its own or beside its kind, and a case for it in `createStructureModel` in `models.ts`. Nothing catches it: an id it doesn't know is drawn as a solar array. `test/buried-habitat-model.test.ts` shows how to test one.
 
+A new upgrade to solar arrays goes in the tables of `src/catalogue/solar-arrays.ts`, not in a Structure of its own: its kinds are made from its parts, and each kind, part and Launch item comes from there. An upgrade changes nothing that exists, only what is on sale (`retiredByDesignIds`).
+
 Words for the player:
 
 - `src/ui/describe.ts`: a line in `describeStructure` for any new field. The Guide's cards for Structures and Components are built from this and the catalogue. Nothing catches it.
@@ -56,6 +58,13 @@ Everything for a Structure, and:
 - `src/simulation/plants.ts`: a recipe that works differently, such as making Components (`componentsPerHour`).
 - The forecasts, if it makes or uses something they count: `src/simulation/spare-forecast.ts`, `bulk-forecast.ts`, `life-support.ts` or `self-sufficiency.ts`, and what `src/ui/status-panel-text.ts` says of them. A recipe that takes a life support stock leaves the reserve, and is counted by the forecast, with no more code; anything else that takes one, which isn't a Plant's recipe, should ask `life-support-reserve.ts` what it may take. A recipe that makes a stock with a limit waits or discards with no more code, and anything else that adds to one, or adds to how much it holds, goes through `storage-limits.ts`. Nothing catches it: the forecast just goes on ignoring the Plant.
 - `describeRecipeFlows` in `src/ui/describe.ts` and `formatPlantRates` in `src/ui/structure-state.ts`, if its recipe has a new shape. The type check only catches a change to a type they read.
+
+## A type of Expedition
+
+- `types` in `expeditions` in `src/catalogue/workers.ts`, with the Design that offers it, if any. Its reward needs no more code if it is a bulk resource or Science.
+- `src/catalogue/research.ts`: the Design. `describeUnlocks` says what it offers.
+- `test/catalogue-rules.ts`: an exemption with its reason, unless the long game sends it.
+- `docs/balancing.md`: how it pays against what the base can make for itself.
 
 ## A Milestone or an Act
 

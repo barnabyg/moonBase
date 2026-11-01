@@ -1,10 +1,15 @@
-import { catalogue, type GroundPosition } from "../catalogue";
+import {
+  catalogue,
+  type ExpeditionType,
+  type GroundPosition,
+} from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { iceStoreGround } from "./ice-store";
 import { regolithHeapGround } from "./regolith-heap";
 import { isRoverBroken, type RoverState } from "./rovers";
 import { spotClearOf } from "./stockpile";
+import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /**
  * Where an Expedition has got to: "boarding", the Robot finishing the Work
@@ -21,6 +26,8 @@ export type ExpeditionStage =
 export interface ExpeditionState {
   robotId: string;
   roverId: string;
+  /** Its type, in the data catalogue. */
+  typeId: string;
   stage: ExpeditionStage;
   /**
    * Where the Rover drives off the map and back onto it: just beyond the
@@ -39,13 +46,28 @@ export interface ExpeditionSnapshot {
   readonly stage: ExpeditionStage;
   /** The game-minute it comes back onto the map, once it has left it. */
   readonly returnsAtMinute: number | undefined;
-  /** The bulk resource it brings back, and how much. */
-  readonly resourceId: string;
-  readonly kilograms: number;
+  readonly typeId: string;
+  readonly label: string;
+  /** What it brings back, as its type says. */
+  readonly reward: ExpeditionReward;
 }
 
+/** What a type of Expedition brings back. */
+export type ExpeditionReward =
+  | {
+      readonly kind: "bulk-resource";
+      readonly resourceId: string;
+      readonly kilograms: number;
+    }
+  | { readonly kind: "science"; readonly science: number };
+
 export type StartExpeditionRefusal =
-  "under-way" | "rover-broken" | "no-rover" | "campaign-ended";
+  | "under-way"
+  | "rover-broken"
+  | "no-rover"
+  | "campaign-ended"
+  | "unknown-type"
+  | "design-locked";
 
 export type StartExpeditionResult =
   | { readonly ok: true }
@@ -64,11 +86,28 @@ const BEYOND_EDGE_METRES = 10;
  * free: holding no Work Order, not repairing itself, and not still arriving
  * from the Lander. Failing that it takes a Robot that is arriving, or else
  * the first Robot. It refuses if one is already under way or the Rover is
- * Broken. The Robot finishes the Work Order it holds before it leaves.
+ * Broken, or its type's Design isn't unlocked. With no type asked for, it goes
+ * for water ice. The Robot finishes the Work Order it holds before it leaves.
  */
-export function startExpedition(state: CampaignState): StartExpeditionResult {
+export function startExpedition(
+  state: CampaignState,
+  typeId: string = catalogue.expeditions.types[0].id,
+): StartExpeditionResult {
   if (state.expedition !== undefined) {
     return refuse("under-way", "An Expedition is already under way.");
+  }
+  const type = catalogue.expeditions.types.find(({ id }) => id === typeId);
+  if (type === undefined) {
+    return refuse(
+      "unknown-type",
+      `There is no type of Expedition called "${typeId}".`,
+    );
+  }
+  if (type.designId !== undefined && !isDesignUnlocked(state, type.designId)) {
+    return refuse(
+      "design-locked",
+      `${type.label} needs the ${designLabel(type.designId)} Design unlocked first.`,
+    );
   }
   const free = state.robots.filter(
     (candidate) =>
@@ -91,6 +130,7 @@ export function startExpedition(state: CampaignState): StartExpeditionResult {
   state.expedition = {
     robotId: robot.id,
     roverId: rover.id,
+    typeId: type.id,
     stage: "boarding",
     exitPoint: undefined,
     returnsAtMinute: undefined,
@@ -148,10 +188,27 @@ export function isRoverSpokenFor(
   return state.expedition?.roverId === roverId;
 }
 
+/** The type of an Expedition; a type gone from the catalogue is refused on loading. */
+export function expeditionTypeOf(expedition: ExpeditionState): ExpeditionType {
+  const { types } = catalogue.expeditions;
+  return types.find(({ id }) => id === expedition.typeId) ?? types[0];
+}
+
+/** What a type of Expedition brings back. */
+function rewardOf(type: ExpeditionType): ExpeditionReward {
+  return type.kind === "science"
+    ? { kind: "science", science: type.science }
+    : {
+        kind: "bulk-resource",
+        resourceId: type.resourceId,
+        kilograms: type.kilograms,
+      };
+}
+
 /** The game-minutes an Expedition is away. */
-export function awayMinutes(): number {
+export function awayMinutes(expedition: ExpeditionState): number {
   return Math.round(
-    catalogue.expeditions.awayEarthDays * MINUTES_PER_EARTH_DAY,
+    expeditionTypeOf(expedition).awayEarthDays * MINUTES_PER_EARTH_DAY,
   );
 }
 
@@ -243,13 +300,15 @@ export function readExpedition(
 ): ExpeditionSnapshot | undefined {
   const { expedition } = state;
   if (expedition === undefined) return undefined;
+  const type = expeditionTypeOf(expedition);
   return {
     robotId: expedition.robotId,
     roverId: expedition.roverId,
     stage: expedition.stage,
     returnsAtMinute: expedition.returnsAtMinute,
-    resourceId: catalogue.expeditions.resourceId,
-    kilograms: catalogue.expeditions.kilograms,
+    typeId: type.id,
+    label: type.label,
+    reward: rewardOf(type),
   };
 }
 

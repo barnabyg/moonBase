@@ -69,6 +69,7 @@ import {
 import type { DeathCause, GameEvent } from "./events";
 import {
   forecastHabitatPower,
+  type EndOfMinutePowerForecast,
   minutesUntilPowerLostAsMinuteStarts,
   watchHabitatPower,
   type HabitatPowerForecast,
@@ -91,6 +92,7 @@ import {
   type SendLanderResult,
 } from "./lander";
 import {
+  dropRetiredItems,
   readLaunchManifest,
   setLaunchManifest,
   type LaunchManifestSnapshot,
@@ -221,6 +223,11 @@ import {
   startingSpareComponentSufficiency,
   type SpareComponentSufficiencyState,
 } from "./self-sufficiency";
+import {
+  nextSolarArray,
+  rechooseSolarArrays,
+  SOLAR_ARRAY_ID,
+} from "./solar-arrays";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import {
@@ -743,10 +750,11 @@ export interface Campaign {
   /**
    * Starts an Expedition with a Robot that is free, if there is one: the
    * Robot finishes the Work Order it holds, then drives the Rover off the
-   * map, and comes back some time later with water ice. It is refused
-   * while one is under way or the Rover is Broken.
+   * map, and comes back some time later with what its type brings, by default
+   * water ice. It is refused while one is under way, the Rover is Broken or
+   * the type's Design isn't unlocked.
    */
-  startExpedition(): StartExpeditionResult;
+  startExpedition(typeId?: string): StartExpeditionResult;
   /**
    * Starts a Research Task, which runs by itself for its length and then
    * pays its Science. It needs no Robot, power or Components, and carries on
@@ -965,20 +973,23 @@ function campaignFrom(state: CampaignState): Campaign {
         );
       }
       const events: GameEvent[] = [];
+      // Kept only within this call, as a command may come after it.
+      const ticks: TickRun = {};
       for (
         let tick = 0;
         tick < gameMinutes && state.ended === undefined;
         tick++
       ) {
-        events.push(...advanceOneTick(state));
+        events.push(...advanceOneTick(state, ticks));
       }
       return deepFreeze(events);
     },
     advanceToNextEvent() {
       // Daylight or Night always starts within one Lunation, so this ends.
       const { lunation } = lunationMinutes(catalogue.lunation);
+      const ticks: TickRun = {};
       for (let tick = 0; tick < lunation && state.ended === undefined; tick++) {
-        const events = advanceOneTick(state);
+        const events = advanceOneTick(state, ticks);
         if (events.length > 0) return deepFreeze(events);
       }
       return [];
@@ -990,11 +1001,17 @@ function campaignFrom(state: CampaignState): Campaign {
       const check = checkCampaignPlacement(state, plan);
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
+      // A solar array is whatever kind its parts make it.
+      const structureTypeId =
+        plan.structureTypeId === SOLAR_ARRAY_ID
+          ? (nextSolarArray(state, state.launchManifest)?.id ??
+            plan.structureTypeId)
+          : plan.structureTypeId;
       state.nextStructureNumber += 1;
       const placed = { ...plan, position: check.position };
       state.constructions.push({
         id,
-        structureTypeId: plan.structureTypeId,
+        structureTypeId,
         position: { ...check.position },
         planNumber: state.nextPlanNumber,
         workSpot: chooseWorkSpot(state, placed),
@@ -1080,7 +1097,7 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(switchPlant(state, structureId, setting));
     },
-    startExpedition() {
+    startExpedition(typeId) {
       if (state.ended !== undefined) {
         return deepFreeze({
           ok: false,
@@ -1088,7 +1105,7 @@ function campaignFrom(state: CampaignState): Campaign {
           message: CAMPAIGN_OVER,
         });
       }
-      return deepFreeze(startExpedition(state));
+      return deepFreeze(startExpedition(state, typeId));
     },
     queueResearchTask(researchTaskId) {
       if (state.ended !== undefined) {
@@ -1289,8 +1306,13 @@ function campaignFrom(state: CampaignState): Campaign {
   };
 }
 
+/** What one tick leaves for the next, in a run of ticks with no command between them. */
+interface TickRun {
+  latestPowerForecast?: EndOfMinutePowerForecast;
+}
+
 /** Advances one 1-game-minute tick and returns the events that happened in it. */
-function advanceOneTick(state: CampaignState): GameEvent[] {
+function advanceOneTick(state: CampaignState, run: TickRun): GameEvent[] {
   const events: GameEvent[] = [];
   const partBefore = readLunation(
     state.elapsedMinutes,
@@ -1301,7 +1323,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes === 0
       ? partBefore
       : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
-  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
+  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(
+    state,
+    run.latestPowerForecast,
+  );
   const nightLoadsSavingBefore = new Set(
     nightLoadsSavingPower(state, partSupplied === "night").map(
       (load) => load.id,
@@ -1329,6 +1354,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
+  events.push(...dropRetiredItems(state));
+  rechooseSolarArrays(state);
   events.push(...workMachines(state));
   idleRovers(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));
@@ -1359,9 +1386,13 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.
+  const lifeSupportDangers = useLifeSupport(state);
+  const minutesUntilPowerLost =
+    forecastHabitatPower(state)?.minutesUntilPowerLost;
+  run.latestPowerForecast = { minutesUntilPowerLost };
   const dangers = [
-    ...useLifeSupport(state),
-    ...watchHabitatPower(state, powerLostBefore),
+    ...lifeSupportDangers,
+    ...watchHabitatPower(state, powerLostBefore, minutesUntilPowerLost),
     ...absorbRadiationDose(state, minutesUntilLimitBefore),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");

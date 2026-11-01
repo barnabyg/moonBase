@@ -166,7 +166,7 @@ describe("the electrolysis plant", () => {
       used,
     );
     expect(amountOf(before, ice) - amountOf(after, ice)).toBeLessThan(
-      catalogue.expeditions.kilograms / 5,
+      catalogue.expeditions.types[0].kilograms / 5,
     );
   });
 });

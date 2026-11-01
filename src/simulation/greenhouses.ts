@@ -29,9 +29,9 @@ export function isGreenhouseIdle(
   structure: Pick<StructureState, "structureTypeId" | "switchedOff" | "batch">,
 ): boolean {
   return (
-    isGreenhouse(structure) &&
     structure.switchedOff &&
-    structure.batch === undefined
+    structure.batch === undefined &&
+    isGreenhouse(structure)
   );
 }
 

@@ -37,13 +37,25 @@ export function forecastHabitatPower(
 }
 
 /**
+ * The time until the Habitat the Mission Director lives in loses power, as
+ * forecast at the end of a game-minute. Nothing after that in a game-minute
+ * changes it, so it holds as the next one starts, if no command comes between
+ * them, and needn't be worked out again.
+ */
+export interface EndOfMinutePowerForecast {
+  readonly minutesUntilPowerLost: number | undefined;
+}
+
+/**
  * The forecast to compare with at the end of the game-minute about to start,
  * for `watchHabitatPower`: the time until the Mission Director's Habitat
- * loses power as things stand. If they have moved in since the last
- * game-minute, they had no forecast at its end, so there is none.
+ * loses power as things stand, which is what the latest game-minute ended
+ * with, if given. If they have moved in since the last game-minute, they had
+ * no forecast at its end, so there is none.
  */
 export function minutesUntilPowerLostAsMinuteStarts(
   state: CampaignState,
+  latest: EndOfMinutePowerForecast | undefined,
 ): number | undefined {
   const { missionDirector } = state;
   if (
@@ -52,7 +64,9 @@ export function minutesUntilPowerLostAsMinuteStarts(
   ) {
     return undefined;
   }
-  return forecastHabitatPower(state)?.minutesUntilPowerLost;
+  return latest === undefined
+    ? forecastHabitatPower(state)?.minutesUntilPowerLost
+    : latest.minutesUntilPowerLost;
 }
 
 /**
@@ -62,11 +76,12 @@ export function minutesUntilPowerLostAsMinuteStarts(
  * as the time until it loses power falls to one of the warning levels set in
  * the data catalogue, given the forecast as the game-minute started. With no
  * forecast then, as on moving in, the highest warning level it is already
- * under counts as just reached.
+ * under counts as just reached. `after` is the forecast now.
  */
 export function watchHabitatPower(
   state: CampaignState,
   minutesUntilPowerLostBefore: number | undefined,
+  after: number | undefined,
 ): GameEvent[] {
   const habitat = homeHabitat(state);
   if (habitat === undefined) return [];
@@ -76,7 +91,6 @@ export function watchHabitatPower(
       habitatId: habitat.id,
     });
   }
-  const after = forecastHabitatPower(state)?.minutesUntilPowerLost;
   if (after === undefined) return [];
   const warningMinutes = catalogue.habitatPowerWarningHoursLeft.map(
     (hours) => hours * 60,

@@ -1,7 +1,9 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
+import type { GameEvent } from "./events";
 import type { CampaignState } from "./campaign";
 import { valueAboard, valueToLoad, valueToSell } from "./exports";
+import { isOnSale } from "./solar-arrays";
 import { addCounts, addToStock } from "./stockpile";
 import { addWithinLimit, spaceKilograms } from "./storage-limits";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
@@ -82,6 +84,8 @@ export type ExportsCounted =
 
 export type ManifestRefusal =
   | "unknown-item"
+  /** A better item has replaced it since its Design was unlocked. */
+  | "no-longer-made"
   /** The Design the item belongs to isn't unlocked. */
   | "design-locked"
   | "invalid-count"
@@ -138,6 +142,24 @@ export function setLaunchManifest(
       return refuse(
         "invalid-count",
         "How many of an item a Launch brings must be a whole number from 0 up.",
+      );
+    }
+    const missing = (item.alsoNeedsDesignIds ?? []).find(
+      (id) => !isDesignUnlocked(state, id),
+    );
+    if (missing !== undefined) {
+      return refuse(
+        "design-locked",
+        `${launchItemLabel(item)} needs the ${designLabel(missing)} Design unlocked first.`,
+      );
+    }
+    // What is on it already leaves in the next game-minute (see dropRetiredItems).
+    const already =
+      state.launchManifest.find((line) => line.itemId === itemId)?.count ?? 0;
+    if (count > already && !isOnSale(item, state.unlockedDesignIds)) {
+      return refuse(
+        "no-longer-made",
+        `${launchItemLabel(item)} is no longer made: a better one has replaced it on the Launch manifest.`,
       );
     }
     const line = lines.find((other) => other.itemId === itemId);
@@ -327,6 +349,33 @@ export function exportsCountedInWords(
 }
 
 /** Whether the Lander has left Earth with the manifest and not yet landed. */
+/**
+ * Takes off a manifest not yet paid for whatever a Design has since replaced,
+ * as a Launch only buys what is made now, and says so. Once the Lander has left
+ * Earth with one, it has been paid for and comes as it is.
+ */
+export function dropRetiredItems(state: CampaignState): GameEvent[] {
+  if (isLocked(state)) return [];
+  const retired = state.launchManifest.filter((line) => {
+    const item = findLaunchItem(line.itemId);
+    return (
+      item?.retiredByDesignIds !== undefined &&
+      !isOnSale(item, state.unlockedDesignIds)
+    );
+  });
+  if (retired.length === 0) return [];
+  state.launchManifest = state.launchManifest.filter(
+    (line) => !retired.includes(line),
+  );
+  return [
+    {
+      kind: "launch-items-retired",
+      atMinute: state.elapsedMinutes,
+      itemIds: retired.map((line) => line.itemId),
+    },
+  ];
+}
+
 function isLocked(state: CampaignState): boolean {
   return state.lander.trip?.leg === "travelling-to-moon";
 }

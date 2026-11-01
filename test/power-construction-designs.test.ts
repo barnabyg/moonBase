@@ -1,13 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { catalogue, type StructureType } from "../src/catalogue";
 import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario } from "./scenario";
+
+/** A kind of solar array mixes parts of several Designs, so only those of one have one to test here. */
+function isOfOneDesign(type: StructureType): boolean {
+  return (
+    type.solarArray === undefined ||
+    [
+      "solar-array",
+      "dust-sealed-solar-array",
+      "dust-screened-solar-array",
+      "thin-film-solar-array",
+      "prefabricated-solar-array",
+    ].includes(type.id)
+  );
+}
 
 /** The Structures of the Power and Construction Designs beyond the starting ones. */
 const unlockable = catalogue.structureTypes.filter((type) => {
   const design = findDesign(type.designId);
   return (
-    ["power", "construction"].includes(design.category) && !design.starting
+    ["power", "construction"].includes(design.category) &&
+    !design.starting &&
+    isOfOneDesign(type)
   );
 });
 const site = { x: 30, y: 25 };
@@ -16,7 +32,9 @@ describe.each(unlockable)("the $label", (type) => {
   const design = findDesign(type.designId);
   /** The Launch items its Design brings: any Components of its own. */
   const ownItems = catalogue.launch.items.filter(
-    (item) => item.designId === design.id,
+    (item) =>
+      item.designId === design.id &&
+      (item.alsoNeedsDesignIds ?? []).length === 0,
   );
 
   it("can't be planned, nor any Components of its own put on the Launch manifest, until its Design is unlocked, each refusal naming the Design", () => {

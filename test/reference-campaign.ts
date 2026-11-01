@@ -817,10 +817,19 @@ export function keepingLastSnapshot(campaign: Campaign): Campaign {
   });
 }
 
-/** Plays the reference Campaign from a fresh Campaign to the end of the play guide, or until it gives up. */
+/** How many Earth Days of play go by between reports of progress. */
+const EARTH_DAYS_BETWEEN_REPORTS = 100;
+
+/**
+ * Plays the reference Campaign from a fresh Campaign to the end of the play
+ * guide, or until it gives up, saying how far it has got every so often, as a
+ * long play shows nothing else until it ends.
+ */
 export function playReferenceCampaign(
   steps: readonly PlayStep[] = referenceSteps,
+  onProgress?: (earthDay: number) => void,
 ): ReferenceTimeline {
+  let reportedEarthDay = 0;
   const campaign = keepingLastSnapshot(
     createCampaign({ seed: REFERENCE_SEED }),
   );
@@ -857,6 +866,11 @@ export function playReferenceCampaign(
           );
         }
         record.margins(after);
+        const earthDay = after.clock.elapsedMinutes / MINUTES_PER_EARTH_DAY;
+        if (earthDay >= reportedEarthDay + EARTH_DAYS_BETWEEN_REPORTS) {
+          reportedEarthDay += EARTH_DAYS_BETWEEN_REPORTS;
+          onProgress?.(reportedEarthDay);
+        }
       }
     },
     waitForMilestone(milestoneId) {

@@ -10,8 +10,14 @@ import {
   type PlantRecipe,
   type ResourceFlow,
   type StructureType,
+  solarArrayComponentEffects,
 } from "../catalogue";
-import { reserveKilograms, type Snapshot } from "../simulation";
+import {
+  isPlannedAsItself,
+  reserveKilograms,
+  SOLAR_ARRAY_ID,
+  type Snapshot,
+} from "../simulation";
 import { formatScience, listInWords } from "./format";
 import {
   componentInSentence,
@@ -129,6 +135,19 @@ export function describeStructure(type: StructureType): string {
     ...(power.generationKilowatts > 0
       ? [generates(power.generationKilowatts)]
       : []),
+    ...(type.solarArray?.sealed === true
+      ? [
+          `its mast is sealed, so that Dust wears it down ${type.dustWearPercentPerHour} percentage points an hour`,
+        ]
+      : []),
+    ...(type.solarArray?.screened === true
+      ? [
+          `its panels are screened, so that Dust coats them at ${type.hazardMultipliers.dustCoating * 100}% of the usual rate`,
+        ]
+      : []),
+    ...(type.solarArray?.prefabricated === true
+      ? ["it comes in one piece, and is likelier to pass Commissioning"]
+      : []),
     ...(power.storageKilowattHours > 0
       ? [stores(power.storageKilowattHours)]
       : []),
@@ -238,13 +257,18 @@ export function describeBuild(type: StructureType): string {
  * cuts and its Research Tasks.
  */
 export function describeUnlocks(design: Design): string[] {
+  // A solar array is planned as one, so its kinds aren't things to unlock.
   const structures = catalogue.structureTypes.filter(
-    (type) => type.designId === design.id,
+    (type) => type.designId === design.id && isPlannedAsItself(type),
   );
   const items = [
     ...new Set(
       catalogue.launch.items
-        .filter((item) => item.designId === design.id)
+        .filter(
+          (item) =>
+            item.designId === design.id &&
+            (item.alsoNeedsDesignIds ?? []).length === 0,
+        )
         .map(({ brings }) => {
           switch (brings.kind) {
             case "component":
@@ -260,9 +284,16 @@ export function describeUnlocks(design: Design): string[] {
   const tasks = catalogue.researchTasks
     .filter((task) => task.requiresDesignId === design.id)
     .map((task) => researchTaskLabel(task.id));
+  const expeditionTypes = catalogue.expeditions.types.filter(
+    (type) => type.designId === design.id,
+  );
   return [
     ...structures.map(
       (type) => `Unlocks the ${type.label}. ${describeStructure(type)}`,
+    ),
+    ...expeditionTypes.map(
+      (type) =>
+        `Offers an Expedition: ${type.label}, away for ${type.awayEarthDays} Earth Days.`,
     ),
     ...(items.length === 0
       ? []
@@ -291,12 +322,25 @@ export function describeComponentUse(componentId: string): string {
         : ` A ${listInWords(makers.map((type) => type.label))} makes them at the base.`
     }`;
   }
-  const uses = catalogue.structureTypes.flatMap((type) =>
-    type.components
-      .filter((need) => need.componentId === componentId)
-      .map((need) => `${need.count} for each ${type.label}`),
-  );
-  return uses.length === 0 ? "" : `Used to build: ${listInWords(uses)}.`;
+  const solarArrayLabel =
+    catalogue.structureTypes.find(({ id }) => id === SOLAR_ARRAY_ID)?.label ??
+    "";
+  const uses = [
+    ...new Set(
+      catalogue.structureTypes.flatMap((type) =>
+        type.components
+          .filter((need) => need.componentId === componentId)
+          .map(
+            (need) =>
+              `${need.count} for each ${type.solarArray === undefined ? type.label : solarArrayLabel}`,
+          ),
+      ),
+    ),
+  ];
+  const effect = solarArrayComponentEffects[componentId];
+  return uses.length === 0
+    ? ""
+    : `Used to build: ${listInWords(uses)}.${effect === undefined ? "" : ` ${effect}`}`;
 }
 
 /** Says what a Launch item is for, beside it on the Launch manifest. */

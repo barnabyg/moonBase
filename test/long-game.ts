@@ -11,7 +11,13 @@ import {
 } from "./reference-campaign";
 import { catalogueUpToAct, exportEconomics, labelOf } from "./pacing-report";
 import { toGameMinutes } from "./scenario";
-import type { GroundPosition, ManifestLine, Snapshot } from "../src/simulation";
+import {
+  nextSolarArray,
+  SOLAR_ARRAY_ID,
+  type GroundPosition,
+  type ManifestLine,
+  type Snapshot,
+} from "../src/simulation";
 
 // The long-game play guide: plays on well past the end of the reference
 // Campaign, through the simulation interface alone, with the same seed and
@@ -171,6 +177,29 @@ function manifestLinesOf(structureTypeId: string): readonly ManifestLine[] {
     catalogue.structureTypes.find(({ id }) => id === structureTypeId)
       ?.components ?? []
   ).map(({ componentId, count }) => ({ itemId: componentId, count }));
+}
+
+/**
+ * What to order of a type of Structure as things stand: for a solar array, the
+ * parts on sale, as a Design takes the older ones off it.
+ */
+function linesToOrder(
+  state: Snapshot,
+  structureTypeId: string,
+): readonly ManifestLine[] {
+  if (structureTypeId !== SOLAR_ARRAY_ID) {
+    return manifestLinesOf(structureTypeId);
+  }
+  const kind = nextSolarArray(
+    {
+      ...state,
+      stockpile: { components: [] },
+      lander: { cargo: [] },
+      constructions: [],
+    },
+    [],
+  );
+  return manifestLinesOf(kind?.id ?? structureTypeId);
 }
 
 /** What of these Launch manifest lines the base lacks in its stock. */
@@ -542,7 +571,12 @@ export function buyInTurn(
       },
       { structureTypeId, site }: Purchase,
     ) =>
-      footing.structureTypeId === structureTypeId &&
+      // A solar array is whatever kind its parts made it.
+      (footing.structureTypeId === structureTypeId ||
+        (structureTypeId === SOLAR_ARRAY_ID &&
+          catalogue.structureTypes.find(
+            ({ id }) => id === footing.structureTypeId,
+          )?.solarArray !== undefined)) &&
       footing.position.x === site.x &&
       footing.position.y === site.y;
     const next = purchases.find((purchase) => {
@@ -591,12 +625,14 @@ function seeToPurchase(play: Play, next: Purchase): string {
   // since. So from the Greenhouse chain on it counts what is planned as well. Before
   // that it goes on as it does, so that the dates played stand.
   const lines = [
-    ...manifestLinesOf(next.structureTypeId),
+    ...linesToOrder(state, next.structureTypeId),
     ...(next.onceDesignId === undefined
       ? []
       : state.constructions
           .filter(({ componentsTaken }) => !componentsTaken)
-          .flatMap(({ structureTypeId }) => manifestLinesOf(structureTypeId))),
+          .flatMap(({ structureTypeId }) =>
+            linesToOrder(state, structureTypeId),
+          )),
   ];
   const missing = missingFromStock(state, sumOfLines(lines));
   if (missing.length === 0) {
@@ -961,8 +997,9 @@ export const longGameSteps: readonly PlayStep[] = [
 /** Plays the long-game play guide, as far as it goes. */
 export function playLongGame(
   steps: readonly PlayStep[] = longGameSteps,
+  onProgress?: (earthDay: number) => void,
 ): ReferenceTimeline {
-  return playReferenceCampaign(steps);
+  return playReferenceCampaign(steps, onProgress);
 }
 
 const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });

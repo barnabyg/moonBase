@@ -70,7 +70,7 @@ It plays the reference Campaign's play guide (`test/reference-campaign.ts`), the
 
 From data catalogue version 72, once Growing halls is unlocked it ships and builds a third Workshop, a large battery bank, what water-processing plants it lacks, four more cold-trap ice lines and a growing hall; once Vault cistern is, with nothing left for Science to buy, it switches the Greenhouse and hall off, ships and builds a second water tank and a vault cistern round the Buried Habitat, and lets the optics have the water once it is filled.
 
-It takes about 15 to 20 minutes of one full core (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it.
+It takes about 35 minutes of one full core, reporting on stderr every 100 Earth Days how far it has got, with the timeline on stdout at the end (`scripts/long-game.mjs` stops it at a hard limit of 120), so it stays out of `npm run verify`, and no test plays it.
 
 ### When to play it whole
 

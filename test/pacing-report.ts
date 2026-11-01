@@ -634,11 +634,15 @@ export function exportEconomics(
 ): ExportEconomics {
   const { items, feeMillionDollars, payloadMassLimitKilograms } =
     catalogue.launch;
-  const millionDollars = items.reduce(
+  // What is on sale with every Design unlocked: older parts are no longer made.
+  const onSale = items.filter(
+    (item) => (item.retiredByDesignIds ?? []).length === 0,
+  );
+  const millionDollars = onSale.reduce(
     (total, item) => total + item.priceMillionDollars,
     0,
   );
-  const kilograms = items.reduce(
+  const kilograms = onSale.reduce(
     (total, item) => total + item.massKilograms,
     0,
   );

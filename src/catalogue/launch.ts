@@ -1,3 +1,4 @@
+import { solarArrayLaunchItems } from "./solar-arrays";
 import type { Catalogue } from "./types";
 
 // The Programme Grant, and what a Launch can bring and costs.
@@ -21,52 +22,7 @@ export const launch: Catalogue["launch"] = {
   payloadMassLimitKilograms: 2000,
   feeMillionDollars: 150,
   items: [
-    {
-      id: "solar-panel",
-      designId: "solar-arrays",
-      brings: { kind: "component", componentId: "solar-panel" },
-      massKilograms: 60,
-      priceMillionDollars: 4,
-    },
-    {
-      id: "array-mast",
-      designId: "solar-arrays",
-      brings: { kind: "component", componentId: "array-mast" },
-      massKilograms: 80,
-      priceMillionDollars: 3,
-    },
-    // Heavier and dearer than an array mast for its seals.
-    {
-      id: "sealed-array-mast",
-      designId: "dust-sealed-solar-arrays",
-      brings: { kind: "component", componentId: "sealed-array-mast" },
-      massKilograms: 100,
-      priceMillionDollars: 6,
-    },
-    // The electrodes woven through the cells add mass and price.
-    {
-      id: "screened-solar-panel",
-      designId: "electrodynamic-dust-screens",
-      brings: { kind: "component", componentId: "screened-solar-panel" },
-      massKilograms: 70,
-      priceMillionDollars: 8,
-    },
-    // A thin-film solar array's worth, with an array mast, comes to 150 kg.
-    {
-      id: "thin-film-solar-panel",
-      designId: "thin-film-solar-cells",
-      brings: { kind: "component", componentId: "thin-film-solar-panel" },
-      massKilograms: 35,
-      priceMillionDollars: 7,
-    },
-    // A whole solar array, folded on its mast on a skid.
-    {
-      id: "prefabricated-array-pack",
-      designId: "prefabricated-solar-arrays",
-      brings: { kind: "component", componentId: "prefabricated-array-pack" },
-      massKilograms: 230,
-      priceMillionDollars: 14,
-    },
+    ...solarArrayLaunchItems,
     {
       id: "battery-module",
       designId: "battery-banks",

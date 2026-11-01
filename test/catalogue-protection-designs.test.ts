@@ -122,7 +122,13 @@ describe("the data catalogue", () => {
       expect(
         protection.map((design) =>
           catalogue.structureTypes
-            .filter((type) => type.designId === design.id)
+            // Each solar array's kinds come from its parts: one Design, one new part.
+            .filter(
+              (type) =>
+                type.designId === design.id &&
+                type.solarArray?.thinFilm !== true &&
+                (type.solarArray === undefined || type.solarArray.sealed),
+            )
             .map((type) => type.id),
         ),
       ).toEqual(hardened.map(([id]) => [id]));

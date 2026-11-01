@@ -1,3 +1,10 @@
+export {
+  isOnSale,
+  isPlannedAsItself,
+  nextSolarArray,
+  SOLAR_ARRAY_ID,
+  solarArraysInStock,
+} from "./solar-arrays";
 export { createCampaign, loadCampaign } from "./campaign";
 export { readClock } from "./clock";
 export { designLabel } from "./tech-tree";
@@ -80,6 +87,7 @@ export type { BulkResourceForecast } from "./bulk-forecast";
 export type { SelfSufficiencySnapshot } from "./self-sufficiency";
 export type { MilestonesSnapshot } from "./milestones";
 export type {
+  ExpeditionReward,
   ExpeditionSnapshot,
   ExpeditionStage,
   StartExpeditionRefusal,

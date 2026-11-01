@@ -59,7 +59,7 @@ export const machineTypes: Catalogue["machineTypes"] = [
 export const rover: Catalogue["rover"] = {
   label: "Rover",
   description:
-    "Carries a Robot off the map on Expeditions, which come back with water ice.",
+    "Carries a Robot off the map on Expeditions, for water ice and, with the Tech Tree, whatever else its Designs offer.",
   footprintRadiusMetres: 1.5,
   drivingSpeedMetresPerHour: 240,
   dustWearPercentPerDrivingHour: 0.1,
@@ -67,11 +67,58 @@ export const rover: Catalogue["rover"] = {
   coldWearPercentPerNightHour: 0.2,
 };
 
-// Three Earth Days away for enough ice to make more water than the
-// Mission Director drinks in a Lunation.
 export const expeditions: Catalogue["expeditions"] = {
-  awayEarthDays: 3,
-  resourceId: "water-ice",
-  kilograms: 200,
   unloadingHours: 1,
+  types: [
+    // Three Earth Days away for enough ice to make more water than the
+    // Mission Director drinks in a Lunation.
+    {
+      id: "water-ice",
+      label: "Water ice",
+      description: "Hauls ice from a shadowed crater.",
+      awayEarthDays: 3,
+      kind: "bulk-resource",
+      resourceId: "water-ice",
+      kilograms: 200,
+    },
+    // These two pay less each Earth Day, even sent without a pause, than the
+    // one extraction plant makes (7.2 kg of metals and
+    // 4.8 kg of silicon an Earth Day, over a Lunation), and a load of metals
+    // sells for a fifth of the Launch fee. So they top a base up, even through
+    // a Night and with no power, but can't take the place of the Plants, and
+    // they cost the base its Robot for six Earth Days.
+    {
+      id: "prospecting-metals",
+      label: "Prospecting for metals",
+      description: "Picks over a richer site than the base's own Regolith.",
+      designId: "prospecting-expeditions",
+      awayEarthDays: 6,
+      kind: "bulk-resource",
+      resourceId: "metals",
+      kilograms: 30,
+    },
+    {
+      id: "prospecting-silicon",
+      label: "Prospecting for silicon",
+      description: "Picks over a richer site than the base's own Regolith.",
+      designId: "prospecting-expeditions",
+      awayEarthDays: 6,
+      kind: "bulk-resource",
+      resourceId: "silicon",
+      kilograms: 20,
+    },
+    // 2.5 Science an Earth Day, against about 6 from Research Tasks, so that it
+    // adds to research rather than replacing it. Sent without a pause through
+    // the whole Campaign it comes to a third of the Science the Tech Tree costs,
+    // for a Robot and the Rover gone for good.
+    {
+      id: "survey",
+      label: "Survey",
+      description: "Studies a lava tube far from the base.",
+      designId: "survey-expeditions",
+      awayEarthDays: 10,
+      kind: "science",
+      science: 25,
+    },
+  ],
 };

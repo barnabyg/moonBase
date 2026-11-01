@@ -81,6 +81,29 @@ describe("the long-game play guide", () => {
     expect(longGameSteps.length).toBeGreaterThan(referenceSteps.length);
   });
 
+  it("says how far it has got every hundred Earth Days, as it shows nothing else until it ends", () => {
+    const reported: number[] = [];
+
+    playLongGame(
+      [
+        {
+          milestoneId: undefined,
+          description: "Wait.",
+          play(play) {
+            play.waitUntil(
+              "Earth Day 210",
+              (state) => state.clock.elapsedMinutes >= 210 * 24 * 60,
+              { earthDays: 220 },
+            );
+          },
+        },
+      ],
+      (earthDay) => reported.push(earthDay),
+    );
+
+    expect(reported).toEqual([100, 200]);
+  });
+
   it("says why it gave up, as the reference Campaign does", () => {
     const given = playLongGame([
       {
