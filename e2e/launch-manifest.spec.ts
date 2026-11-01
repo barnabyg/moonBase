@@ -43,6 +43,17 @@ test("the Launch manifest screen totals the items chosen against the Payload Mas
   await expect(screen.getByRole("row", { name: /Solar panel/ })).toContainText(
     "60 kg, $4M",
   );
+  // What the base already has, and plainly what it has none of.
+  await expect(
+    screen
+      .getByRole("row", { name: /Solar panel/ })
+      .locator(".launch-manifest__held"),
+  ).toHaveText("2");
+  await expect(
+    screen
+      .getByRole("row", { name: /Pad panel/ })
+      .locator(".launch-manifest__held"),
+  ).toHaveText("None");
   // An empty manifest costs nothing, so the Launch fee isn't shown yet.
   await expect(payloadMass).toHaveText(`Payload Mass: 0 of ${limit} kg`);
   await expect(cost).toHaveText(
@@ -115,12 +126,12 @@ test("the Launch manifest screen refuses an item the Funding can't pay for", asy
   await expect(screen.getByRole("alert")).toHaveText(
     `That would bring the manifest's cost to $${oneCost + core.priceMillionDollars}M, more than the Funding balance of $${savedFunding}M, with no Exports aboard or to load to sell first.`,
   );
-  // Its count, after its name and its mass and price.
+  // Its count, after its name, its mass and price and what the base has.
   await expect(
     screen
       .getByRole("row", { name: /Habitat core/ })
       .getByRole("cell")
-      .nth(1),
+      .nth(2),
   ).toHaveText("1");
 });
 

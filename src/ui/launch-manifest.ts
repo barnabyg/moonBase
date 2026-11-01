@@ -16,6 +16,7 @@ import {
 import { holdHeight } from "./hold";
 import { formatExportLines, resourceLabel } from "./labels";
 import {
+  describeItemHeld,
   formatExportPrice,
   formatExportsValue,
   formatItemsShown,
@@ -41,7 +42,7 @@ export interface LaunchManifestScreen {
  * each. On the Imports tab, the totals against the Payload Mass limit and
  * the Funding balance stay in sight over the items, in the groups of
  * {@link groupLaunchItems}, each with what it is for, its mass and price and
- * how many the manifest has. An item whose Design isn't unlocked isn't listed
+ * how much the base already has and how many the manifest has. An item whose Design isn't unlocked isn't listed
  * until it is. Once the list is long, a box that stays in sight with the
  * totals finds an item by its name, what it is for or its group; only the
  * player changes what is typed in it, so it holds still as the game runs. On
@@ -110,7 +111,13 @@ export function createLaunchManifestScreen(
     section.setAttribute("aria-label", group.label);
     // Headed by its group, in the place of a heading of its own, so that the
     // groups take no more room than the rows need.
-    const table = createTable([group.label, "Mass and price", "Count", ""]);
+    const table = createTable([
+      group.label,
+      "Mass and price",
+      "At the base",
+      "Count",
+      "",
+    ]);
     table.table.className = "launch-manifest__items";
     section.append(table.table);
     importsTab.panel.append(section);
@@ -139,6 +146,12 @@ export function createLaunchManifestScreen(
     const details = document.createElement("td");
     details.className = "launch-manifest__details";
     details.textContent = formatLaunchItem(item);
+    const held = document.createElement("td");
+    held.className = "launch-manifest__held";
+    const heldAmount = document.createElement("span");
+    const coming = document.createElement("span");
+    coming.className = "launch-manifest__coming";
+    held.append(heldAmount, coming);
     const count = document.createElement("td");
     count.className = "launch-manifest__count";
     const actions = document.createElement("td");
@@ -158,10 +171,10 @@ export function createLaunchManifestScreen(
       change(item.id, 1);
     });
     actions.append(remove, add);
-    row.append(name, details, count, actions);
+    row.append(name, details, held, count, actions);
     body.append(row);
     const about = `${label} ${purpose} ${groupLabel}`;
-    return { item, about, row, count, remove, add };
+    return { item, about, row, held, heldAmount, coming, count, remove, add };
   }
 
   /** The Designs unlocked as of the latest snapshot. */
@@ -287,7 +300,20 @@ export function createLaunchManifestScreen(
       intro.classList.toggle("launch-manifest__intro--locked", locked);
       unlocked = snapshot.unlockedDesignIds;
       showRows();
-      for (const { item, row, count, remove, add } of rows) {
+      for (const {
+        item,
+        row,
+        held,
+        heldAmount,
+        coming,
+        count,
+        remove,
+        add,
+      } of rows) {
+        const atBase = describeItemHeld(item, snapshot);
+        setText(heldAmount, atBase.held);
+        setText(coming, atBase.coming ?? "");
+        held.classList.toggle("launch-manifest__held--none", atBase.none);
         const onManifest = countOf(item.id);
         setText(count, String(onManifest));
         row.classList.toggle("launch-manifest__row--chosen", onManifest > 0);

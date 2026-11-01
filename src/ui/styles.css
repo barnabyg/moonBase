@@ -1519,10 +1519,14 @@ body {
 }
 
 .launch-manifest__items thead th:nth-child(3) {
-  width: 4rem;
+  width: 5.5rem;
 }
 
 .launch-manifest__items thead th:nth-child(4) {
+  width: 4rem;
+}
+
+.launch-manifest__items thead th:nth-child(5) {
   width: 5rem;
 }
 
@@ -1572,6 +1576,28 @@ body {
 .launch-manifest__details {
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.launch-manifest__held {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Fainter, so that what the base does have stands out on a long list. */
+.launch-manifest__held--none {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.launch-manifest__coming {
+  display: block;
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.launch-manifest__coming:empty {
+  display: none;
 }
 
 .launch-manifest__count {

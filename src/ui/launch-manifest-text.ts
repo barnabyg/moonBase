@@ -3,6 +3,7 @@ import {
   exportsCountedInWords,
   type ExportsSnapshot,
   type LaunchManifestSnapshot,
+  type Snapshot,
 } from "../simulation";
 import { formatKilogramAmount, formatMillionDollars } from "./format";
 import { stockLabel } from "./labels";
@@ -88,6 +89,70 @@ export function formatItemsShown(shown: number, listed: number): string {
 /** Says a Launch item's mass and price, for example "60 kg, $4M". */
 export function formatLaunchItem(item: LaunchItem): string {
   return `${item.massKilograms} kg, ${formatMillionDollars(item.priceMillionDollars)}`;
+}
+
+/** What a row on the Imports tab says the base already has of its item. */
+export interface ItemHeld {
+  /** How much, for example "3" or "120 kg", or "None". */
+  readonly held: string;
+  /** Whether it has none, so that what it does have stands out on a long list. */
+  readonly none: boolean;
+  /**
+   * How much more is aboard the Lander or on its way, for example "2 on the
+   * way"; undefined if there is none, as ordering it twice is the same mistake.
+   */
+  readonly coming: string | undefined;
+}
+
+/**
+ * Says what the base already has of a Launch item: what it brings, as Components in
+ * the stockpile, a life support stock or Robots, and apart from that what is
+ * on a Lander that has left Earth or is still waiting to be unloaded. What is
+ * only on a manifest that can still change isn't counted.
+ */
+export function describeItemHeld(
+  item: LaunchItem,
+  snapshot: Pick<
+    Snapshot,
+    "stockpile" | "lifeSupport" | "robots" | "lander" | "launchManifest"
+  >,
+): ItemHeld {
+  const { brings } = item;
+  const lines = snapshot.launchManifest.locked
+    ? snapshot.launchManifest.items
+    : [];
+  const onItsWay = lines.find((line) => line.itemId === item.id)?.count ?? 0;
+  if (brings.kind === "life-support") {
+    const kilograms =
+      snapshot.lifeSupport.find((stock) => stock.stockId === brings.stockId)
+        ?.kilograms ?? 0;
+    return {
+      held: kilograms > 0 ? `${formatKilogramAmount(kilograms)} kg` : "None",
+      none: kilograms <= 0,
+      coming:
+        onItsWay > 0
+          ? `${formatKilogramAmount(onItsWay * brings.kilograms)} kg on the way`
+          : undefined,
+    };
+  }
+  const count =
+    brings.kind === "robot"
+      ? snapshot.robots.length
+      : (snapshot.stockpile.components.find(
+          (stock) => stock.componentId === brings.componentId,
+        )?.count ?? 0);
+  const aboard =
+    brings.kind === "component"
+      ? (snapshot.lander.cargo.find(
+          (line) => line.componentId === brings.componentId,
+        )?.count ?? 0)
+      : 0;
+  const coming = onItsWay + aboard;
+  return {
+    held: count > 0 ? String(count) : "None",
+    none: count === 0,
+    coming: coming > 0 ? `${coming} on the way` : undefined,
+  };
 }
 
 /**
