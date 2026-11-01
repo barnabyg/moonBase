@@ -42,6 +42,10 @@ _Avoid_: config, game data, database
 A piece of scientific work carried out at the base whose successful completion earns Science.
 _Avoid_: experiment, mission, contract
 
+**Research queue**:
+The Research Tasks waiting behind the one running, up to three, each starting by itself as the one before it completes.
+_Avoid_: backlog, schedule
+
 **Observing programme**:
 The standing Research Task the base's telescopes carry out at Night, a round at a time, each round earning a little Science; unlike any other Research Task it runs alongside the one started and never ends.
 _Avoid_: passive science, science income
