@@ -11,14 +11,19 @@ import {
   longGameSteps,
   longGameSucceeded,
   playLongGame,
+  buyInTurn,
+  purchaseStallWatch,
+  PURCHASE_STALL_EARTH_DAYS,
+  type Purchase,
 } from "./long-game";
 import {
   keepingLastSnapshot,
   referenceSteps,
   REFERENCE_SEED,
+  type Play,
   type ReferenceTimeline,
 } from "./reference-campaign";
-import { createCampaign } from "../src/simulation";
+import { createCampaign, type Snapshot } from "../src/simulation";
 
 // The long game itself takes minutes, so nothing here plays it through: `npm
 // run long-game` does, on demand (see docs/reference-campaign.md).
@@ -422,6 +427,127 @@ describe("the long-game play guide", () => {
     for (const designId of designsTheLongGameUses) {
       expect(ids).toContain(designId);
     }
+  });
+});
+
+describe("the limit on a purchase that makes no progress", () => {
+  const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
+  const solarArray: Purchase = {
+    structureTypeId: "solar-array",
+    site: { x: 28, y: -33 },
+  };
+
+  /** Runs the purchases over a stretch of Earth Days, a look a day, on a base that stays as it is. */
+  function lookEachDay(
+    fromEarthDay: number,
+    toEarthDay: number,
+    base: Partial<Snapshot>,
+  ): void {
+    const buy = buyInTurn([solarArray]);
+    for (let day = fromEarthDay; day <= toEarthDay; day++) {
+      const state: Snapshot = {
+        ...fresh,
+        clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+        ...base,
+      };
+      buy({
+        state,
+        campaign: {
+          planConstruction: () => ({
+            ok: false,
+            message: "A Rover is standing there.",
+          }),
+          setLaunchManifest: () => ({ ok: true }),
+        },
+      } as unknown as Play);
+    }
+  }
+
+  const inStock = {
+    stockpile: {
+      ...fresh.stockpile,
+      components: [
+        ...fresh.stockpile.components.filter(
+          ({ componentId }) =>
+            componentId !== "solar-panel" && componentId !== "array-mast",
+        ),
+        { componentId: "solar-panel", count: 9 },
+        { componentId: "array-mast", count: 9 },
+      ],
+    },
+  };
+  const lastDay = 400 + PURCHASE_STALL_EARTH_DAYS + 1;
+
+  it("gives up on a purchase that keeps being refused, saying where and why", () => {
+    expect(() => {
+      lookEachDay(400, lastDay, inStock);
+    }).toThrow(
+      `The purchases have made no progress for ${PURCHASE_STALL_EARTH_DAYS} Earth Days, since Earth Day 400.0: a solar-array at (28, -33) can't be planned: A Rover is standing there.`,
+    );
+  });
+
+  it("gives up on a purchase whose Components never come, saying what it lacks", () => {
+    expect(() => {
+      lookEachDay(400, lastDay, {
+        stockpile: { ...fresh.stockpile, components: [] },
+        fundingMillionDollars: 12,
+      });
+    }).toThrow(/a solar-array at \(28, -33\) lacks .*with \$12M of Funding/);
+  });
+
+  it("gives up on a purchase planned and never commissioned", () => {
+    const planned = {
+      structureTypeId: solarArray.structureTypeId,
+      position: solarArray.site,
+    };
+    expect(() => {
+      lookEachDay(400, lastDay, {
+        constructions: [planned] as unknown as Snapshot["constructions"],
+      });
+    }).toThrow("is planned, and hasn't been commissioned");
+  });
+
+  it("doesn't count the time planned of a purchase known to stand stranded", () => {
+    const stranded = { ...solarArray, strandedBecause: "for this test" };
+    const buy = buyInTurn([stranded]);
+    for (let day = 400; day <= lastDay; day++) {
+      buy({
+        state: {
+          ...fresh,
+          clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+          constructions: [
+            {
+              structureTypeId: stranded.structureTypeId,
+              position: stranded.site,
+            },
+          ] as unknown as Snapshot["constructions"],
+        },
+      } as unknown as Play);
+    }
+  });
+
+  it("doesn't count the time its Design is locked, however long Science takes", () => {
+    expect(() => {
+      lookEachDay(400, 2000, { unlockedDesignIds: [] });
+    }).not.toThrow();
+  });
+
+  it("doesn't count the time before Act 2, when it isn't buying yet", () => {
+    expect(() => {
+      lookEachDay(0, 349 + PURCHASE_STALL_EARTH_DAYS, inStock);
+    }).not.toThrow();
+  });
+
+  it("starts again with each purchase", () => {
+    const watch = purchaseStallWatch(10);
+    const waiting = (what: string) => [{ what, why: "waits" }];
+
+    watch(0, waiting("first"));
+    watch(10 * earthDay, waiting("second"));
+    watch(20 * earthDay, waiting("second"));
+    expect(() => {
+      watch(21 * earthDay, waiting("second"));
+    }).toThrow("since Earth Day 10.0: second waits");
   });
 });
 
