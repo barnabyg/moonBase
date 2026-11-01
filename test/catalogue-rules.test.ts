@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { breaches, exemptions, ruleFailures } from "./catalogue-rules";
-import { designsTheLongGameUses } from "./long-game";
+import { designsTheLongGameUses, LONG_GAME_END_EARTH_DAY } from "./long-game";
+import { researchEndsOnEarthDay } from "./pacing-report";
 import {
   bulk,
   design,
@@ -21,6 +22,59 @@ describe("the data catalogue's consistency rules", () => {
     for (const { reason } of exemptions) {
       expect(reason.trim().length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("the rule that research fits the Campaign", () => {
+  const task = (earthDays: number) => ({
+    id: "task",
+    label: "Task",
+    lengthHours: earthDays * 24,
+    science: 1,
+  });
+  // The guide starts its first Research Task on about Earth Day 16.
+  const startsOn = researchEndsOnEarthDay(madeUp({ researchTasks: [] }));
+
+  it("passes Research Tasks that finish on the last day", () => {
+    expect(
+      breaches(
+        madeUp({
+          researchTasks: [task(LONG_GAME_END_EARTH_DAY - startsOn)],
+        }),
+        [],
+      ),
+    ).toEqual([]);
+  });
+
+  it("fails Research Tasks that would run past it, saying when they finish", () => {
+    expect(
+      breaches(
+        madeUp({
+          researchTasks: [task(LONG_GAME_END_EARTH_DAY - startsOn + 1)],
+        }),
+        [],
+      ),
+    ).toEqual([
+      {
+        rule: "research-fits-the-campaign",
+        item: "research-tasks",
+        message:
+          "research-fits-the-campaign: research-tasks finish on Earth Day 3001.0, back to back, past the long game's end on Earth Day 3000.",
+      },
+    ]);
+  });
+
+  it("fails today's Research Tasks with 15 Earth Days more of them, as a whole play once had to show", () => {
+    const longer = {
+      ...catalogue,
+      researchTasks: [...catalogue.researchTasks, task(15)],
+    };
+    expect(researchEndsOnEarthDay(catalogue)).toBeLessThanOrEqual(
+      LONG_GAME_END_EARTH_DAY,
+    );
+    expect(
+      breaches(longer, designsTheLongGameUses).map(({ rule }) => rule),
+    ).toContain("research-fits-the-campaign");
   });
 });
 

@@ -302,6 +302,20 @@ export function greenhouseChainDates(
   }
 }
 
+/**
+ * The Earth Day the last Research Task finishes, all of them back to back from
+ * when a base starts its first, whether or not Science alone reaches them all.
+ * That start is all the long-game play guide has ever waited: with 2,979 Earth
+ * Days of Research Tasks it finished its last on 2,994.7.
+ */
+export function researchEndsOnEarthDay(
+  catalogue: Pick<PacedCatalogue, "researchTasks" | "designs">,
+): number {
+  return (
+    FIRST_RESEARCH_EARTH_DAY + scienceTimeline(catalogue).researchEarthDays
+  );
+}
+
 /** The Designs' cost at each depth in the Tech Tree, shallowest first. */
 export function designsByDepth(
   catalogue: Pick<PacedCatalogue, "designs">,
