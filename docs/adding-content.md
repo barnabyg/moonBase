@@ -36,11 +36,7 @@ Trying and playing it:
 - `test/long-game.ts`: steps that build it, with its Design in `designsTheLongGameUses`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
-- Play the long game by hand, as `npm run verify` doesn't, and record what changes in [`docs/balancing.md`](balancing.md). It takes about 10 minutes of a full core, so do it once per branch, last, after the cheap checks, and only if the change can move the balance: [`docs/reference-campaign.md`](reference-campaign.md#when-to-play-it-whole) says which changes can, and what to run first. If it takes much longer, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs`.
-
-```powershell
-npm.cmd run long-game
-```
+- Open the pull request and let CI play the long game, as `npm run verify` doesn't, then record what changes in [`docs/balancing.md`](balancing.md) from the timeline in the run's summary. [`docs/reference-campaign.md`](reference-campaign.md#ci-plays-it) says when it plays, what to run before it, and when playing it by hand is worth it. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
 
 Tests and docs:
 
@@ -87,7 +83,7 @@ Trying and playing it:
 - `test/long-game.ts`: steps that reach it, and for a new Act its targets and a check of them, as `act2Targets` and `act2TargetsMissed` are, tested in `test/long-game.test.ts`. Nothing fails a Milestone the play guide never reaches, unless you add it.
 - `test/pacing-report.ts` and its test: the Act's Science and Funding.
 - `test/reference-campaign.ts`: only for a Milestone in Act 1. It stops there, and its timeline shows a later Act's Milestones only once reached.
-- Play the long game by hand (see above), once and last, as nothing else does.
+- Let CI play the long game (see above), and read its timeline, as nothing else plays that far.
 
 Tests and docs:
 

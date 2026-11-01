@@ -72,17 +72,33 @@ It prints the reference Campaign's timeline, then when each Research Task was co
 
 It takes about 10 minutes of one full core, reporting on stderr every 100 Earth Days how far it has got, with the timeline on stdout at the end (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it.
 
-### When to play it whole
+### CI plays it
 
-Rarely: once per branch, last, after the cheap checks, and only for a change that can move the balance. That means what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, the play guide's steps, and a new Structure, Plant or Act. A change to the interface, the models, the words or the docs can't move it, and neither can a change to code that plays the same. To compare with what came before, use the last played figures in [`docs/balancing.md`](balancing.md) rather than playing the old version too.
+You don't need to play it by hand before handing a change over. `.github/workflows/long-game.yml` plays it on a runner of its own:
 
-First, cheapest first, as each finds in seconds what a whole play would find in minutes:
+- **On a pull request** that changes what the play imports: `src/simulation/`, `src/catalogue/`, the play guide's files in `test/`, or the workflow and script themselves. A change only to the interface, the models or the Guide's words doesn't trigger it. A new push cancels the play still going and starts again.
+- **On `main`**, after a merge of anything but `docs/` or Markdown files, so that a merge whose result plays differently from its pull request, or a play guide that has come to import something else, is still played. GitHub tells whoever merged it if the play fails. A merge while a play is going waits for it, and a later merge takes its place in the queue, so the newest code is always played.
+- **By hand**, for any branch, once the workflow is on `main`:
+
+```powershell
+gh workflow run long-game.yml --ref my-branch
+```
+
+A failed play turns the run red. The run's summary says whether it passed and, at the top, why it failed, then gives the whole timeline. On a pull request it ends by comparing the timeline with `main`'s last play: the same, or a diff and a notice on the run, which stays green, as moving the balance may be what the change is for.
+
+Merge a pull request only once its play has finished. If it played differently, check that was meant, and record what changed in [`docs/balancing.md`](balancing.md). A commit that only records it plays again, as the filter looks at the whole pull request, but it can't change the play, so there's no need to wait for that one.
+
+### Before CI plays it
+
+While working on a change that can move the balance, run these, cheapest first, as each finds in seconds what a whole play would find in minutes. That means what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, the play guide's steps, and a new Structure, Plant or Act.
 
 1. `npm.cmd run pacing-report`, for what the numbers come to.
 2. `npm.cmd test -- test/catalogue-rules.test.ts test/long-game.test.ts test/pacing-report.test.ts`, whose `research-fits-the-campaign` rule fails Research Tasks that can't finish by Earth Day 3,000.
 3. `npm.cmd test -- test/reference-campaign.test.ts`, which plays Act 1.
 
-If a play fails, fix what it says, run those again, and play it again only when the fix is in: a fail, fix and retest is a whole play each time.
+### When to play it by hand
+
+Only when waiting for CI would cost more than a full core for 10 minutes: when writing steps for the play guide, or trying out a fix for a failure CI reported. A play that fails is a whole play each time, so fix what it says and run the checks above before playing it again.
 
 ### When it fails
 

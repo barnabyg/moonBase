@@ -1,6 +1,7 @@
 // Plays the long-game play guide (`npm run long-game`) and prints its timeline.
 // It exits with an error if the play guide gives up. It takes minutes, so it
-// stays out of `npm run verify`. See docs/reference-campaign.md.
+// stays out of `npm run verify`, and CI plays it in a job of its own
+// (.github/workflows/long-game.yml). See docs/reference-campaign.md.
 //
 // Playing is one long synchronous call, so a timer in the same process could
 // never stop it. So this runs itself again as a child process, and kills the
@@ -12,12 +13,19 @@
 // the file, but reaches every import through a getter, which made a play take
 // nearly twice as long.
 import { spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** About six times what it takes, so that it stops only a game that hangs. */
 const HARD_LIMIT_MINUTES = 60;
 const PLAY = "--play";
+
+/** Adds to the summary of a GitHub Actions run, which only a run there has. */
+function reportToCi(lines) {
+  const summary = process.env.GITHUB_STEP_SUMMARY;
+  if (summary) appendFileSync(summary, `${lines.join("\n")}\n`);
+}
 
 if (process.argv.includes(PLAY)) {
   const { build } = await import("vite");
@@ -50,6 +58,7 @@ if (process.argv.includes(PLAY)) {
   const minutes = (performance.now() - started) / 60_000;
   for (const line of module.formatLongGame(timeline)) console.log(line);
   console.log(`(Played in ${minutes.toFixed(1)} minutes.)`);
+  reportToCi(module.formatLongGameReport(timeline, minutes));
   if (!module.longGameSucceeded(timeline)) process.exitCode = 1;
 } else {
   const played = spawnSync(
@@ -58,9 +67,9 @@ if (process.argv.includes(PLAY)) {
     { stdio: "inherit", timeout: HARD_LIMIT_MINUTES * 60_000 },
   );
   if (played.error !== undefined) {
-    console.error(
-      `The long game was stopped at its hard limit of ${HARD_LIMIT_MINUTES} minutes: ${played.error.message}`,
-    );
+    const stopped = `The long game was stopped at its hard limit of ${HARD_LIMIT_MINUTES} minutes: ${played.error.message}`;
+    console.error(stopped);
+    reportToCi(["## The long game failed", "", stopped]);
     process.exitCode = 1;
   } else {
     process.exitCode = played.status ?? 1;
