@@ -257,12 +257,12 @@ export function powerSockets(
   state: CampaignState,
   networks: readonly Omit<PowerNetwork, "heated">[] = structureNetworks(state),
 ): StructureState[] {
-  const powered = networks
-    .filter(hasPowerSource)
-    .flatMap((network) => network.structures);
+  const powered = new Set(
+    networks.filter(hasPowerSource).flatMap((network) => network.structures),
+  );
   return state.structures.filter(
     (structure) =>
-      powered.includes(structure) &&
+      powered.has(structure) &&
       !isBroken(structure) &&
       !isDueToBeDismantled(state, structure.id),
   );
@@ -276,6 +276,97 @@ export function powerSockets(
 export function structureNetworks(
   state: CampaignState,
 ): Omit<PowerNetwork, "heated">[] {
+  return groupedStructures(state).map((structures) => {
+    let generation = 0;
+    let daylightConsumption = 0;
+    let nightConsumption = 0;
+    let nightLoad = 0;
+    let stored = 0;
+    let capacity = 0;
+    for (const structure of structures) {
+      const power = workingPower(structure);
+      generation += power.generationKilowatts;
+      daylightConsumption +=
+        power.drawKilowatts + (power.daylightDrawKilowatts ?? 0);
+      nightConsumption +=
+        power.drawKilowatts +
+        power.nightDrawKilowatts +
+        (power.nightUpkeepKilowatts ?? 0);
+      nightLoad += power.nightDrawKilowatts;
+      // A Broken battery bank's energy is lost with it.
+      if (!isBroken(structure)) stored += structure.storedKilowattHours;
+      capacity += power.storageKilowattHours;
+    }
+    return {
+      structures,
+      daylightGenerationKilowatts: generation,
+      daylightConsumptionKilowatts: daylightConsumption,
+      nightConsumptionKilowatts: nightConsumption,
+      nightLoadKilowatts: nightLoad,
+      storedKilowattHours: stored,
+      storageCapacityKilowattHours: capacity,
+    };
+  });
+}
+
+/** The latest grouping of a Campaign's Structures, and what it was worked out from. */
+interface NetworkGrouping {
+  readonly structures: readonly StructureState[];
+  readonly cables: readonly Pick<
+    CableState,
+    "fromStructureId" | "toStructureId" | "complete"
+  >[];
+  readonly groups: readonly (readonly StructureState[])[];
+}
+
+/** Outside the state, so that it can't be saved or change how the game plays. */
+const latestGroupings = new WeakMap<CampaignState, NetworkGrouping>();
+
+/**
+ * The commissioned Structures joined by complete cables, a group for each
+ * network. Networks are grouped many times a game-minute, and which Structures
+ * they join hardly ever changes, so the latest grouping is kept for as long as
+ * the Structures and cables are found to be just what it was worked out from.
+ */
+function groupedStructures(
+  state: CampaignState,
+): readonly (readonly StructureState[])[] {
+  const latest = latestGroupings.get(state);
+  if (latest !== undefined && isGroupingOf(latest, state)) return latest.groups;
+  const grouping: NetworkGrouping = {
+    structures: [...state.structures],
+    cables: state.cables.map(
+      ({ fromStructureId, toStructureId, complete }) => ({
+        fromStructureId,
+        toStructureId,
+        complete,
+      }),
+    ),
+    groups: groupStructures(state),
+  };
+  latestGroupings.set(state, grouping);
+  return grouping.groups;
+}
+
+function isGroupingOf(grouping: NetworkGrouping, state: CampaignState) {
+  const { structures, cables } = grouping;
+  return (
+    structures.length === state.structures.length &&
+    cables.length === state.cables.length &&
+    structures.every((structure, i) => structure === state.structures[i]) &&
+    cables.every((cable, i) => {
+      const now = state.cables[i];
+      return (
+        now !== undefined &&
+        cable.complete === now.complete &&
+        cable.fromStructureId === now.fromStructureId &&
+        cable.toStructureId === now.toStructureId
+      );
+    })
+  );
+}
+
+function groupStructures(state: CampaignState): StructureState[][] {
   const group = new Map(
     state.structures.map((structure) => [structure.id, structure.id]),
   );
@@ -300,36 +391,7 @@ export function structureNetworks(
     if (network === undefined) members.set(key, [structure]);
     else network.push(structure);
   }
-  return [...members.values()].map((structures) => {
-    // Worked out once for each Structure, as networks are grouped many
-    // times a game-minute.
-    const powers = structures.map(workingPower);
-    const total = (pick: (power: Power) => number) =>
-      powers.reduce((sum, power) => sum + pick(power), 0);
-    return {
-      structures,
-      daylightGenerationKilowatts: total((power) => power.generationKilowatts),
-      daylightConsumptionKilowatts: total(
-        (power) => power.drawKilowatts + (power.daylightDrawKilowatts ?? 0),
-      ),
-      nightConsumptionKilowatts: total(
-        (power) =>
-          power.drawKilowatts +
-          power.nightDrawKilowatts +
-          (power.nightUpkeepKilowatts ?? 0),
-      ),
-      nightLoadKilowatts: total((power) => power.nightDrawKilowatts),
-      // A Broken battery bank's energy is lost with it.
-      storedKilowattHours: structures.reduce(
-        (sum, structure) =>
-          sum + (isBroken(structure) ? 0 : structure.storedKilowattHours),
-        0,
-      ),
-      storageCapacityKilowattHours: total(
-        (power) => power.storageKilowattHours,
-      ),
-    };
-  });
+  return [...members.values()];
 }
 
 /** The powered Structure nearest a position (see `powerSockets`). */
@@ -806,6 +868,11 @@ function powerOf(structureTypeId: string): Power {
 function workingPower(structure: StructureState): Power {
   if (isBroken(structure) || isGreenhouseIdle(structure)) return noPower;
   const power = powerOf(structure.structureTypeId);
+  // Most Structures neither generate nor store, and this is asked of each of
+  // them many times a game-minute.
+  if (power.generationKilowatts === 0 && power.storageKilowattHours === 0) {
+    return power;
+  }
   const performance = structurePerformance(structure);
   return {
     ...power,
