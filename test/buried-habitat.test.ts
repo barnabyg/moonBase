@@ -326,6 +326,8 @@ describe("the Radiation Dose in a Buried Habitat", () => {
   it("rises by about 0.02 mSv an Earth Day over a couple of Lunations, Solar Particle Events and all", () => {
     const campaign = base();
     moveTo(campaign, sites.buriedHabitat);
+    // Slow, and kept: Solar Particle Events come about 20 Earth Days apart, so
+    // a shorter run would average over too few of them to say anything.
     const earthDays = 60;
 
     campaign.advance(earthDays * EARTH_DAY);

@@ -36,7 +36,7 @@ Trying and playing it:
 - `test/long-game.ts`: steps that build it, with its Design in `designsTheLongGameUses`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
-- Play the long game by hand, as `npm run verify` doesn't, and record what changes in [`docs/balancing.md`](balancing.md). It takes about 15 to 20 minutes of a full core, so do it once per branch, last, after the cheap checks, and only if the change can move the balance: [`docs/reference-campaign.md`](reference-campaign.md#when-to-play-it-whole) says which changes can, and what to run first. If it takes much longer, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs`.
+- Play the long game by hand, as `npm run verify` doesn't, and record what changes in [`docs/balancing.md`](balancing.md). It takes about 10 minutes of a full core, so do it once per branch, last, after the cheap checks, and only if the change can move the balance: [`docs/reference-campaign.md`](reference-campaign.md#when-to-play-it-whole) says which changes can, and what to run first. If it takes much longer, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs`.
 
 ```powershell
 npm.cmd run long-game
@@ -45,7 +45,7 @@ npm.cmd run long-game
 Tests and docs:
 
 - `test/<name>.test.ts` and `e2e/<name>.spec.ts`: its whole path, from unlocking the Design to using it. Nothing catches their absence. Existing tests that build a Snapshot by hand, or filter a category's Structures, may need it too.
-- `GLOSSARY.md`, [`docs/rules.md`](rules.md), and [`docs/reference-campaign.md`](reference-campaign.md) if a play guide changed. Nothing catches them.
+- `GLOSSARY.md`, [`docs/rules.md`](rules.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
 - [`docs/save-format.md`](save-format.md) says whether the save format changes: new Components and bulk resources don't, and new saved state does.
 
 ## A Plant
@@ -107,4 +107,4 @@ What the history shows, with version 66 reached one step at a time:
 
 So raise it by one when a change alters what the catalogue holds. That has been the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
 
-The docs quote the version a figure was measured at, so change the number there only when you measure again: `docs/reference-campaign.md` still quotes version 61 for a long-game figure.
+The docs quote the version a figure was measured at, so change the number there only when you measure again: [`docs/balancing.md`](balancing.md#targets) still quotes version 61 for a long-game figure.
