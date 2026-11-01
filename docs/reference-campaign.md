@@ -70,6 +70,22 @@ It plays the reference Campaign's play guide (`test/reference-campaign.ts`), the
 
 From data catalogue version 72, once Growing halls is unlocked it ships and builds a third Workshop, a large battery bank, what water-processing plants it lacks, four more cold-trap ice lines and a growing hall; once Vault cistern is, with nothing left for Science to buy, it switches the Greenhouse and hall off, ships and builds a second water tank and a vault cistern round the Buried Habitat, and lets the optics have the water once it is filled.
 
-It takes about 20 minutes (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it. Run it after changing what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, and before and after adding an Act.
+It takes about 15 to 20 minutes of one full core (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it.
 
-Like the reference Campaign, it says why and fails if a step can't go on. It also fails if a Research Task wasn't completed or a Design wasn't unlocked by the end, if the Mission Director died, if they hadn't moved into a Buried Habitat by Earth Day 1,600, if it missed any of the pacing targets of Acts 2, 3 and 4, or if it built and sent for nothing of a Design `designsTheLongGameUses` says it uses. A later Act adds its steps to `longGameSteps` and its Designs to that list.
+### When to play it whole
+
+Rarely: once per branch, last, after the cheap checks, and only for a change that can move the balance. That means what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, the play guide's steps, and a new Structure, Plant or Act. A change to the interface, the models, the words or the docs can't move it, and neither can a change to code that plays the same. To compare with what came before, use the last played figures in [`docs/balancing.md`](balancing.md) rather than playing the old version too.
+
+First, cheapest first, as each finds in seconds what a whole play would find in minutes:
+
+1. `npm.cmd run pacing-report`, for what the numbers come to.
+2. `npm.cmd test -- test/catalogue-rules.test.ts test/long-game.test.ts test/pacing-report.test.ts`, whose `research-fits-the-campaign` rule fails Research Tasks that can't finish by Earth Day 3,000.
+3. `npm.cmd test -- test/reference-campaign.test.ts`, which plays Act 1.
+
+If a play fails, fix what it says, run those again, and play it again only when the fix is in: a fail, fix and retest is a whole play each time.
+
+### When it fails
+
+Like the reference Campaign, it says why and fails if a step can't go on. So that a stalled purchase doesn't cost a whole play to notice, it gives up as soon as one purchase has made no progress for 300 Earth Days (`PURCHASE_STALL_EARTH_DAYS`), saying which and what it waits on: Funding, Components that never come, a site that keeps being refused, or a Construction planned and never commissioned. Waiting for Science doesn't count, as a purchase isn't waited on until its Design is unlocked and its Earth Day has come. The longest any purchase waited, as last played up to Earth Day 2,400, is 22 Earth Days, leaving aside one water-processing plant, which stands planned from Earth Day 1,626 to about 2,200 and is marked as `strandedBecause` in `PURCHASES`.
+
+It also fails if a Research Task wasn't completed or a Design wasn't unlocked by the end, if the Mission Director died, if they hadn't moved into a Buried Habitat by Earth Day 1,600, if it missed any of the pacing targets of Acts 2, 3 and 4, or if it built and sent for nothing of a Design `designsTheLongGameUses` says it uses. A later Act adds its steps to `longGameSteps` and its Designs to that list.
