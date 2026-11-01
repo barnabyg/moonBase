@@ -1,8 +1,5 @@
 import { nextFraction } from "./random";
 
-// Released migrations are a compatibility contract: add to the end of
-// `migrations`, and never edit one that has been released (docs/save-format.md).
-
 /**
  * Upgrades a save document from one format version to the next. It is given
  * the parsed JSON of the older version and returns that of the newer; the
