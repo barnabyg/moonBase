@@ -207,6 +207,47 @@ describe("laying cable", () => {
 });
 
 describe("the power network", () => {
+  it("joins and parts Structures in the very game-minute their cables and they come and go", () => {
+    /** The ids on each network, worked out from what the snapshot says of the cables. */
+    const joinedByCable = (state: Snapshot): string[][] => {
+      const groups = state.structures.map(({ id }) => new Set([id]));
+      for (const cable of state.cables.filter(({ complete }) => complete)) {
+        const from = groups.find((g) => g.has(cable.fromStructureId));
+        const to = groups.find((g) => g.has(cable.toStructureId));
+        if (from === undefined || to === undefined || from === to) continue;
+        for (const id of to) from.add(id);
+        groups.splice(groups.indexOf(to), 1);
+      }
+      return groups.map((group) => [...group].sort()).sort();
+    };
+    const networks = (state: Snapshot): string[][] =>
+      state.power.networks
+        .map(({ structureIds }) => [...structureIds].sort())
+        .sort();
+    const check = (game: Scenario) => {
+      expect(networks(game.state)).toEqual(joinedByCable(game.state));
+    };
+    const game = scenario()
+      .plan("solar-array", solarSite)
+      .plan("battery-bank", batterySite);
+    for (const state of runUntilBuilt(game)) {
+      expect(networks(state)).toEqual(joinedByCable(state));
+    }
+    const arrayId =
+      game.state.structures.find((s) => s.structureTypeId === "solar-array")
+        ?.id ?? "";
+
+    expect(game.campaign.dismantleStructure(arrayId)).toEqual({ ok: true });
+    for (let minute = 0; minute < 3 * 24 * 60; minute++) {
+      game.advance({ minutes: 1 });
+      check(game);
+      if (game.state.structures.every(({ id }) => id !== arrayId)) break;
+    }
+
+    expect(game.state.structures.map(({ id }) => id)).not.toContain(arrayId);
+    expect(game.state.power.networks).toHaveLength(1);
+  });
+
   it("connects only Structures joined by cable", () => {
     const game = poweredBase();
     const [solar, battery] = game.state.structures;

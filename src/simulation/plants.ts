@@ -168,10 +168,16 @@ export function recipesOf(structureTypeId: string): readonly PlantRecipe[] {
 export function recipeOf(
   structure: Pick<StructureState, "structureTypeId" | "recipeId">,
 ): PlantRecipe | undefined {
-  const recipes = recipesOf(structure.structureTypeId);
-  return (
-    recipes.find((recipe) => recipe.id === structure.recipeId) ?? recipes[0]
-  );
+  return findRecipe(structure.structureTypeId, structure.recipeId);
+}
+
+/** A type of Structure's recipe of the given id, or else its default. */
+function findRecipe(
+  structureTypeId: string,
+  recipeId: string | undefined,
+): PlantRecipe | undefined {
+  const recipes = recipesOf(structureTypeId);
+  return recipes.find((recipe) => recipe.id === recipeId) ?? recipes[0];
 }
 
 /** The recipe a Plant is working with: its batch's, while it has one, or else the one it is set to. */
@@ -180,10 +186,12 @@ export function workingRecipeOf(
     readonly batch: Pick<PlantBatch, "recipeId"> | undefined;
   },
 ): PlantRecipe | undefined {
-  const { batch } = structure;
-  return batch === undefined
-    ? recipeOf(structure)
-    : recipeOf({ ...structure, recipeId: batch.recipeId });
+  return findRecipe(
+    structure.structureTypeId,
+    structure.batch === undefined
+      ? structure.recipeId
+      : structure.batch.recipeId,
+  );
 }
 
 /** The recipe a newly commissioned Structure runs: its type's default, if it is a Plant. */
@@ -550,13 +558,19 @@ export function kilogramsToCountOn(
 ): number {
   return state.structures.reduce(
     (sum, structure) => {
+      if (!countsOnPlant(structure)) return sum;
       const recipe = workingRecipeOf(structure);
-      if (!countsOnPlant(structure) || recipe === undefined) return sum;
+      if (recipe === undefined) return sum;
       const done = batchDone(structure, recipe);
-      const kilograms = (flows: readonly ResourceFlow[]) =>
-        flows
-          .filter((flow) => isSameResource(flow.resource, resource))
-          .reduce((total, flow) => total + batchKilograms(recipe, flow), 0);
+      const kilograms = (flows: readonly ResourceFlow[]) => {
+        let total = 0;
+        for (const flow of flows) {
+          if (isSameResource(flow.resource, resource)) {
+            total += batchKilograms(recipe, flow);
+          }
+        }
+        return total;
+      };
       const held = structure.batch === undefined ? 0 : 1 - done;
       return (
         sum +
@@ -664,12 +678,16 @@ function flowPerHour(
   flows: (recipe: PlantRecipe) => readonly ResourceFlow[],
 ): number {
   return state.structures.reduce((sum, structure) => {
+    if (!countsOnPlant(structure)) return sum;
     const recipe = workingRecipeOf(structure);
-    if (!countsOnPlant(structure) || recipe === undefined) return sum;
-    const moved = flows(recipe)
-      .filter((flow) => isSameResource(flow.resource, resource))
-      .reduce((total, flow) => total + flow.kilogramsPerHour, 0);
-    return sum + moved * structurePerformance(structure);
+    if (recipe === undefined) return sum;
+    let moved = 0;
+    for (const flow of flows(recipe)) {
+      if (isSameResource(flow.resource, resource)) {
+        moved += flow.kilogramsPerHour;
+      }
+    }
+    return moved === 0 ? sum : sum + moved * structurePerformance(structure);
   }, 0);
 }
 
