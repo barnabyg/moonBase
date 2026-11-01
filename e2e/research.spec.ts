@@ -61,13 +61,6 @@ test("a Research Task started from the Research Tasks screen runs for its length
     "6 hours left, then it pays 5 Science",
   );
   await expect(firstTask).toContainText("Running");
-  // A second one is refused, with the reason.
-  await screen
-    .getByRole("button", { name: "Start Ice volatiles assay" })
-    .click();
-  await expect(screen.getByRole("alert")).toHaveText(
-    "Regolith sample analysis is running, and only one Research Task runs at a time.",
-  );
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(running).toHaveText("Task Regolith sample analysis · 6h left");
 
@@ -94,6 +87,107 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await expect(
     screen.getByRole("button", { name: "Start Regolith sample analysis" }),
   ).toBeHidden();
+});
+
+test("three Research Tasks queue behind the one running, start in order by themselves, and survive a save and load", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  const notifications = page.getByRole("log", { name: "Notifications" });
+  const running = panel.getByRole("status", { name: "Research Task" });
+  const panelQueue = panel.getByRole("status", { name: "Research queue" });
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  await expect(panelQueue).toHaveText("Queued none");
+
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  const screen = page.getByRole("dialog", { name: "Research Tasks" });
+  const queue = screen.getByRole("region", { name: "Research queue" });
+  await expect(queue).toContainText("0 of 3");
+  await screen
+    .getByRole("button", { name: "Start Regolith sample analysis" })
+    .click();
+  for (const label of [
+    "Ice volatiles assay",
+    "Radiation environment survey",
+    "Dust levitation study",
+  ]) {
+    await screen.getByRole("button", { name: `Queue ${label}` }).click();
+  }
+  const queued = queue.getByRole("listitem");
+  await expect(queued).toHaveText([
+    /Ice volatiles assay/,
+    /Radiation environment survey/,
+    /Dust levitation study/,
+  ]);
+  await expect(queue).toContainText("3 of 3");
+  await expect(
+    screen.getByRole("article", { name: "Radiation environment survey" }),
+  ).toContainText("Queued 2");
+  // A fourth is refused, with the reason.
+  await screen
+    .getByRole("button", { name: "Queue Lander turnaround study" })
+    .click();
+  await expect(screen.getByRole("alert")).toHaveText(
+    "The queue is full: 3 Research Tasks are waiting already.",
+  );
+
+  // Removing one keeps the others in order, and lets it be queued again.
+  await screen
+    .getByRole("button", {
+      name: "Remove Radiation environment survey from the queue",
+    })
+    .click();
+  await expect(queued).toHaveText([
+    /Ice volatiles assay/,
+    /Dust levitation study/,
+    /Empty/,
+  ]);
+  await expect(
+    screen.getByRole("button", { name: "Queue Radiation environment survey" }),
+  ).toBeVisible();
+  await screen.getByRole("button", { name: "Close" }).click();
+  await expect(panelQueue).toHaveText(
+    "Queued 1. Ice volatiles assay, 2. Dust levitation study",
+  );
+
+  // Saved and loaded, the queue is as it was.
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const saved = await (await download).path();
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  await expect(panelQueue).toHaveText("Queued none");
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(saved);
+  await expect(panelQueue).toHaveText(
+    "Queued 1. Ice volatiles assay, 2. Dust levitation study",
+  );
+
+  // Skip from event to event: the next starts as the one running completes.
+  const skip = page.getByRole("button", { name: "Skip to next event" });
+  const started = notifications.getByText(
+    "Ice volatiles assay started from the queue",
+  );
+  for (let skips = 0; skips < 20 && !(await started.isVisible()); skips++) {
+    await skip.click();
+    await nextFrame(page);
+  }
+  await expect(started).toBeVisible();
+  await expect(
+    notifications.getByText(
+      "Regolith sample analysis complete, earning 5 Science",
+    ),
+  ).toBeVisible();
+  await expect(running).toContainText("Ice volatiles assay");
+  await expect(panelQueue).toHaveText("Queued 1. Dust levitation study");
 });
 
 test("the Research section shows the observing programme a telescope works on at Night, and the Science each round earns", async ({

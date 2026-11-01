@@ -22,18 +22,19 @@ export interface ResearchTasksScreen {
 /**
  * The Research Tasks screen, where the player starts a Research Task to earn
  * Science: the one running, with how far it has got and how long it has
- * left, and the observing programme the base's telescopes work on beside it,
+ * left, those queued behind it in order, each of which can be removed, and the
+ * observing programme the base's telescopes work on beside it,
  * above a card for each of the others with its length, the Science
  * it pays and what that Science would do for the Designs that can be
  * unlocked next, and the completed ones below. Above them, what Science
  * buys next: the Designs that can be unlocked once there is enough. One
  * that needs a Design isn't shown until that Design is unlocked. It only sends the choice to
- * start one to the Campaign, which decides whether it is allowed and says
- * why not. The game runs on while it is open.
+ * start, queue or remove one to the Campaign, which decides whether it is
+ * allowed and says why not. The game runs on while it is open.
  */
 export function createResearchTasksScreen(
   container: HTMLElement,
-  campaign: Pick<Campaign, "queueResearchTask">,
+  campaign: Pick<Campaign, "queueResearchTask" | "removeQueuedResearchTask">,
 ): ResearchTasksScreen {
   const screen = createScreen(container, {
     className: "research-tasks",
@@ -64,6 +65,44 @@ export function createResearchTasksScreen(
     line.dataset["row"] = row;
     holdHeight(line);
   }
+
+  // Those waiting behind the one running, the next to start first. It keeps a
+  // row for each place, so that what is below stays put as the queue moves on.
+  const queued = document.createElement("section");
+  queued.className = "research-tasks__queue";
+  queued.setAttribute("aria-label", "Research queue");
+  const queuedHeading = document.createElement("h3");
+  queuedHeading.className = "screen__section-title";
+  const queuedCount = document.createElement("span");
+  queuedCount.className = "screen__count";
+  queuedHeading.append("Queued ", queuedCount);
+  const queuedList = document.createElement("ol");
+  queuedList.className = "research-tasks__queue-list";
+  queued.append(queuedHeading, queuedList);
+  const queuedRows = Array.from(
+    { length: catalogue.researchQueueLimit },
+    (_, place) => {
+      const item = document.createElement("li");
+      item.className = "research-tasks__queue-item";
+      const name = document.createElement("span");
+      name.className = "research-tasks__queue-name";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "screen__button";
+      remove.textContent = "Remove";
+      item.append(name, remove);
+      item.dataset["row"] = `Research queue ${place + 1}`;
+      holdHeight(item);
+      queuedList.append(item);
+      const row = { item, name, remove, id: undefined as string | undefined };
+      remove.addEventListener("click", () => {
+        if (row.id === undefined) return;
+        const result = campaign.removeQueuedResearchTask(row.id);
+        screen.refuse(result.ok ? undefined : result.message);
+      });
+      return row;
+    },
+  );
 
   // The observing programme, the standing Research Task the base's
   // telescopes work on at Night alongside the one running, so that the
@@ -110,7 +149,14 @@ export function createResearchTasksScreen(
 
   const available = createGroup("Available");
   const completed = createGroup("Completed");
-  screen.body.append(now, standing, buys, available.section, completed.section);
+  screen.body.append(
+    now,
+    queued,
+    standing,
+    buys,
+    available.section,
+    completed.section,
+  );
 
   const cards = catalogue.researchTasks.map((task) => {
     const card = document.createElement("article");
@@ -130,14 +176,12 @@ export function createResearchTasksScreen(
     chips.append(length, pays);
     const reach = document.createElement("p");
     reach.className = "task-card__reach";
-    // Running or completed, in place of the button.
+    // Running, queued or completed, in place of the button.
     const state = document.createElement("span");
     state.className = "task-card__state";
     const start = document.createElement("button");
     start.type = "button";
     start.className = "screen__button";
-    start.textContent = "Start";
-    start.setAttribute("aria-label", `Start ${task.label}`);
     start.addEventListener("click", () => {
       const result = campaign.queueResearchTask(task.id);
       screen.refuse(result.ok ? undefined : result.message);
@@ -164,7 +208,10 @@ export function createResearchTasksScreen(
           nowName,
           "Start one below. It runs by itself, with no Robot, power or Components, and pays its Science when complete.",
         );
-        setText(nowDetail, "One runs at a time, and each runs only once.");
+        setText(
+          nowDetail,
+          `One runs at a time, ${catalogue.researchQueueLimit} more can queue behind it, and each runs only once.`,
+        );
       } else {
         const task = catalogue.researchTasks.find(
           ({ id }) => id === running.researchTaskId,
@@ -178,6 +225,29 @@ export function createResearchTasksScreen(
       }
       now.classList.toggle("screen__card--idle", running === undefined);
       nowMeter.fill(running?.progress);
+
+      const queue = snapshot.researchQueue;
+      setText(
+        queuedCount,
+        `${queue.length} of ${catalogue.researchQueueLimit}`,
+      );
+      for (const [place, row] of queuedRows.entries()) {
+        const id = queue[place];
+        if (row.id === id && row.name.textContent !== "") continue;
+        row.id = id;
+        row.item.classList.toggle(
+          "research-tasks__queue-item--empty",
+          id === undefined,
+        );
+        setText(row.name, id === undefined ? "Empty" : researchTaskLabel(id));
+        row.remove.hidden = id === undefined;
+        if (id !== undefined) {
+          row.remove.setAttribute(
+            "aria-label",
+            `Remove ${researchTaskLabel(id)} from the queue`,
+          );
+        }
+      }
 
       const observing = formatObservingProgramme(snapshot.observingProgramme);
       setText(
@@ -225,7 +295,18 @@ export function createResearchTasksScreen(
           needed !== undefined && !snapshot.unlockedDesignIds.includes(needed);
         const isRunning = running?.researchTaskId === task.id;
         const done = snapshot.completedResearchTaskIds.includes(task.id);
-        setText(state, isRunning ? "Running" : done ? "✓ Completed" : "");
+        const place = queue.indexOf(task.id);
+        const isQueued = place !== -1;
+        setText(
+          state,
+          isRunning
+            ? "Running"
+            : isQueued
+              ? `Queued ${place + 1}`
+              : done
+                ? "✓ Completed"
+                : "",
+        );
         const reaches = done
           ? undefined
           : describeScienceReach(snapshot, task.science);
@@ -233,9 +314,15 @@ export function createResearchTasksScreen(
         reach.hidden = reaches === undefined;
         card.classList.toggle("task-card--running", isRunning);
         card.classList.toggle("task-card--completed", done);
-        // Another's button stays while one runs, so that starting it says
-        // why it can't; it is just less prominent.
-        start.hidden = isRunning || done;
+        // Another's button stays while one runs, to queue it, or to say why
+        // it can't be; it is just less prominent.
+        start.hidden = isRunning || isQueued || done;
+        const verb = running === undefined ? "Start" : "Queue";
+        setText(start, verb);
+        const name = `${verb} ${task.label}`;
+        if (start.getAttribute("aria-label") !== name) {
+          start.setAttribute("aria-label", name);
+        }
         start.classList.toggle(
           "screen__button--primary",
           running === undefined,

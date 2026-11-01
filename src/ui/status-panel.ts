@@ -22,6 +22,7 @@ import {
   formatObservingProgramme,
   formatPower,
   formatRadiationDose,
+  formatResearchQueue,
   formatResearchTask,
   formatSelfSufficiency,
   formatSolarParticleEvent,
@@ -226,13 +227,18 @@ export function createStatusPanel(
   travelSection.body.append(lander.element, expedition.element, actions);
 
   // The Research Task running, how long it has left and how far it has got,
-  // and, once the base has a telescope, the observing programme, the
-  // standing Research Task its telescopes work on at Night, so that the
-  // player can see where that Science comes from.
+  // those queued behind it in order, and, once the base has a telescope, the
+  // observing programme, the standing Research Task its telescopes work on at
+  // Night, so that the player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
   const researchTask = createStatLine("Task", "Research Task");
+  const researchQueue = createStatLine("Queued", "Research queue");
   const observing = createStatLine("Observing", "Observing programme");
-  researchSection.body.append(researchTask.element, observing.element);
+  researchSection.body.append(
+    researchTask.element,
+    researchQueue.element,
+    observing.element,
+  );
 
   const sections = [
     milestonesSection,
@@ -462,6 +468,7 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
+      researchQueue.show(formatResearchQueue(snapshot.researchQueue));
       const programme = formatObservingProgramme(snapshot.observingProgramme);
       observing.element.hidden = programme === undefined;
       if (programme !== undefined) {
