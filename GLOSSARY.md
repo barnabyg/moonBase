@@ -233,7 +233,7 @@ A vehicle a Robot drives, mainly to go on Expeditions.
 _Avoid_: buggy, truck, vehicle
 
 **Expedition**:
-A trip a Robot makes in a Rover beyond the base, returning some time later with resources.
+A trip a Robot makes in a Rover beyond the base, returning some time later with resources or, on a Survey, Science.
 _Avoid_: sortie, trip, run
 
 **Crew**:
@@ -276,12 +276,16 @@ _Avoid_: repair job, servicing
 The loose rock and soil covering the lunar surface, treated as a resource, such as a building material or a source of oxygen and metals.
 _Avoid_: soil, dirt, sand
 
+**Survey**:
+A type of Expedition that studies a distant site and earns Science, bringing nothing back to store.
+_Avoid_: study, scouting
+
 **Deposit**:
 Planned: a concentration of a resource at a specific place on the map, such as water ice in a shadowed crater. Its location and grade would be unknown until it has been prospected.
 _Avoid_: node, vein, resource patch
 
 **Prospecting**:
-Planned: surveying an area to find Deposits and estimate how rich they are.
+A type of Expedition that brings back metals or silicon from a site richer than the base's own Regolith. Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
 
 **Storage limit**:

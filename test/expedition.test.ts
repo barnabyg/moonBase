@@ -24,7 +24,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 const { expeditions } = catalogue;
-const awayMinutes = expeditions.awayEarthDays * 24 * 60;
+const awayMinutes = expeditions.types[0].awayEarthDays * 24 * 60;
 const halfWidth = catalogue.map.widthMetres / 2;
 const halfDepth = catalogue.map.depthMetres / 2;
 const site: GroundPosition = { x: 20, y: 12 };
@@ -32,7 +32,7 @@ const site: GroundPosition = { x: 20, y: 12 };
 function ice(state: Snapshot): number {
   return (
     state.bulkResources.find(
-      (stock) => stock.resourceId === expeditions.resourceId,
+      (stock) => stock.resourceId === expeditions.types[0].resourceId,
     )?.kilograms ?? Number.NaN
   );
 }
@@ -115,12 +115,12 @@ describe("an Expedition", () => {
       returnsAtMinute: (left?.atMinute ?? 0) + awayMinutes,
     });
     expect(returned).toMatchObject({
-      resourceId: expeditions.resourceId,
-      kilograms: expeditions.kilograms,
+      resourceId: expeditions.types[0].resourceId,
+      kilograms: expeditions.types[0].kilograms,
     });
     const last = states.at(-1);
     if (last === undefined) throw new Error("expected a state");
-    expect(ice(last)).toBe(expeditions.kilograms);
+    expect(ice(last)).toBe(expeditions.types[0].kilograms);
     // Back beside the stockpile.
     const rover = last.rovers[0]?.position ?? site;
     expect(
@@ -331,7 +331,7 @@ describe("skipping to the next event", () => {
     expect(stops).toEqual(
       expect.arrayContaining(["expedition-left", "expedition-returned"]),
     );
-    expect(ice(campaign.snapshot())).toBe(expeditions.kilograms);
+    expect(ice(campaign.snapshot())).toBe(expeditions.types[0].kilograms);
   });
 });
 

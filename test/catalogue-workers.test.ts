@@ -63,13 +63,15 @@ describe("the data catalogue", () => {
   it("sends Expeditions away for a positive, whole number of game-minutes, bringing back water ice, which the Robot unloads", () => {
     const { expeditions } = catalogue;
 
-    expect(expeditions.resourceId).toBe("water-ice");
+    expect(expeditions.types[0].resourceId).toBe("water-ice");
     expect(catalogue.bulkResources.map((resource) => resource.id)).toContain(
-      expeditions.resourceId,
+      expeditions.types[0].resourceId,
     );
-    expect(expeditions.kilograms).toBeGreaterThan(0);
-    expect(expeditions.awayEarthDays).toBeGreaterThan(0);
-    expect(Number.isInteger(expeditions.awayEarthDays * 24 * 60)).toBe(true);
+    expect(expeditions.types[0].kilograms).toBeGreaterThan(0);
+    expect(expeditions.types[0].awayEarthDays).toBeGreaterThan(0);
+    expect(Number.isInteger(expeditions.types[0].awayEarthDays * 24 * 60)).toBe(
+      true,
+    );
     expect(expeditions.unloadingHours).toBeGreaterThan(0);
     expect(Number.isInteger(expeditions.unloadingHours * 60)).toBe(true);
     expect(catalogue.rover.dustWearPercentPerDrivingHour).toBeGreaterThan(0);

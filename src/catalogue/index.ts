@@ -1,5 +1,6 @@
 export { catalogue } from "./catalogue";
 export { inSentence } from "./labels";
+export { solarArrayComponentEffects } from "./solar-arrays";
 export { batchHoursOf, componentOutputs, resourceOutputs } from "./recipes";
 export type {
   Act,
@@ -13,6 +14,7 @@ export type {
   DiggingRules,
   DustCoatingRules,
   ExpeditionRules,
+  ExpeditionType,
   Export,
   GameSpeed,
   GroundPosition,

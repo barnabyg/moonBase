@@ -1519,10 +1519,14 @@ body {
 }
 
 .launch-manifest__items thead th:nth-child(3) {
-  width: 4rem;
+  width: 5.5rem;
 }
 
 .launch-manifest__items thead th:nth-child(4) {
+  width: 4rem;
+}
+
+.launch-manifest__items thead th:nth-child(5) {
   width: 5rem;
 }
 
@@ -1572,6 +1576,43 @@ body {
 .launch-manifest__details {
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Narrow, the name keeps the room it needs to stay readable. */
+@media (width <= 640px) {
+  .launch-manifest__items thead th:nth-child(2) {
+    width: 5.5rem;
+  }
+
+  .launch-manifest__items thead th:nth-child(3) {
+    width: 4.5rem;
+  }
+
+  .launch-manifest__items thead th:nth-child(4) {
+    width: 2.5rem;
+  }
+}
+
+.launch-manifest__held {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Fainter, so that what the base does have stands out on a long list. */
+.launch-manifest__held--none {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.launch-manifest__coming {
+  display: block;
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.launch-manifest__coming:empty {
+  display: none;
 }
 
 .launch-manifest__count {
@@ -1656,6 +1697,29 @@ body {
 .expeditions__status {
   margin-top: 4px;
   font-size: 0.95rem;
+}
+
+.expeditions__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__type[hidden] {
+  display: none;
+}
+
+.expeditions__type p {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.expeditions__type .screen__button {
+  padding: 6px 14px;
+  font-size: 0.9rem;
 }
 
 .expeditions__actions {

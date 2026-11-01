@@ -130,7 +130,7 @@ describe("the sample save of format version 18", () => {
         .snapshot()
         .bulkResources.find((stock) => stock.resourceId === "water-ice")
         ?.kilograms,
-    ).toBe(catalogue.expeditions.kilograms);
+    ).toBe(catalogue.expeditions.types[0].kilograms);
   });
 });
 

@@ -36,6 +36,18 @@ export interface Exemption {
 export const exemptions: readonly Exemption[] = [
   {
     rule: "design-has-a-purpose",
+    item: "survey-expeditions",
+    reason:
+      "Offers an Expedition for Science, a real choice of what to send the Rover for, which the rule can't see as it counts only Structures and Launch items. The long game goes for water ice.",
+  },
+  {
+    rule: "design-has-a-purpose",
+    item: "prospecting-expeditions",
+    reason:
+      "Offers an Expedition for metals or silicon, a real choice of what to send the Rover for, which the rule can't see as it counts only Structures and Launch items. The long game has its Plants make them.",
+  },
+  {
+    rule: "design-has-a-purpose",
     item: "water-electrolysis",
     reason:
       "Makes oxygen from water rather than from Regolith, a real choice the rule can't see, as the extraction plant also makes metals and silicon, so the two don't count as the same job. The long game runs the extraction plant instead.",

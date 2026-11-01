@@ -219,7 +219,7 @@ export function createStatusPanel(
   expeditions.className = "panel-button";
   expeditions.textContent = "Expeditions";
   expeditions.title =
-    "Send the Robot off the map in the Rover, to come back with water ice.";
+    "Send the Robot off the map in the Rover, for water ice or whatever else its Designs offer.";
   expeditions.addEventListener("click", openExpeditions);
   const actions = document.createElement("div");
   actions.className = "panel-actions";

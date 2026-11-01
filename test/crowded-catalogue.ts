@@ -25,7 +25,10 @@ export function crowdCatalogue(catalogue: Catalogue): Catalogue {
   const startingDesignIds = catalogue.designs
     .filter((design) => design.starting)
     .map((design) => design.id);
-  for (let n = 1; items.length < CROWDED_LAUNCH_ITEMS; n++) {
+  // As many listed with every Design unlocked, when older parts are off sale.
+  const listed = (): number =>
+    items.filter((item) => (item.retiredByDesignIds ?? []).length === 0).length;
+  for (let n = 1; listed() < CROWDED_LAUNCH_ITEMS; n++) {
     const id = `made-up-part-${n}`;
     components.push({ id, label: `Made-up part ${n}` });
     items.push({

@@ -91,6 +91,7 @@ import {
   type SendLanderResult,
 } from "./lander";
 import {
+  dropRetiredItems,
   readLaunchManifest,
   setLaunchManifest,
   type LaunchManifestSnapshot,
@@ -221,6 +222,11 @@ import {
   startingSpareComponentSufficiency,
   type SpareComponentSufficiencyState,
 } from "./self-sufficiency";
+import {
+  nextSolarArray,
+  rechooseSolarArrays,
+  SOLAR_ARRAY_ID,
+} from "./solar-arrays";
 import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotActivity, type RobotState } from "./robot";
 import {
@@ -743,10 +749,11 @@ export interface Campaign {
   /**
    * Starts an Expedition with a Robot that is free, if there is one: the
    * Robot finishes the Work Order it holds, then drives the Rover off the
-   * map, and comes back some time later with water ice. It is refused
-   * while one is under way or the Rover is Broken.
+   * map, and comes back some time later with what its type brings, by default
+   * water ice. It is refused while one is under way, the Rover is Broken or
+   * the type's Design isn't unlocked.
    */
-  startExpedition(): StartExpeditionResult;
+  startExpedition(typeId?: string): StartExpeditionResult;
   /**
    * Starts a Research Task, which runs by itself for its length and then
    * pays its Science. It needs no Robot, power or Components, and carries on
@@ -990,11 +997,17 @@ function campaignFrom(state: CampaignState): Campaign {
       const check = checkCampaignPlacement(state, plan);
       if (!check.ok) return deepFreeze(check);
       const id = `structure-${state.nextStructureNumber}`;
+      // A solar array is whatever kind its parts make it.
+      const structureTypeId =
+        plan.structureTypeId === SOLAR_ARRAY_ID
+          ? (nextSolarArray(state, state.launchManifest)?.id ??
+            plan.structureTypeId)
+          : plan.structureTypeId;
       state.nextStructureNumber += 1;
       const placed = { ...plan, position: check.position };
       state.constructions.push({
         id,
-        structureTypeId: plan.structureTypeId,
+        structureTypeId,
         position: { ...check.position },
         planNumber: state.nextPlanNumber,
         workSpot: chooseWorkSpot(state, placed),
@@ -1080,7 +1093,7 @@ function campaignFrom(state: CampaignState): Campaign {
       }
       return deepFreeze(switchPlant(state, structureId, setting));
     },
-    startExpedition() {
+    startExpedition(typeId) {
       if (state.ended !== undefined) {
         return deepFreeze({
           ok: false,
@@ -1088,7 +1101,7 @@ function campaignFrom(state: CampaignState): Campaign {
           message: CAMPAIGN_OVER,
         });
       }
-      return deepFreeze(startExpedition(state));
+      return deepFreeze(startExpedition(state, typeId));
     },
     queueResearchTask(researchTaskId) {
       if (state.ended !== undefined) {
@@ -1329,6 +1342,8 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
+  events.push(...dropRetiredItems(state));
+  rechooseSolarArrays(state);
   events.push(...workMachines(state));
   idleRovers(state);
   for (const robot of state.robots) events.push(...workRobot(state, robot));

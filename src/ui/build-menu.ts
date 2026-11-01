@@ -1,6 +1,14 @@
 import { catalogue, type StructureType } from "../catalogue";
 import type { Renderer } from "../render/renderer";
-import type { Campaign, GroundPosition, Snapshot } from "../simulation";
+import {
+  isPlannedAsItself,
+  nextSolarArray,
+  SOLAR_ARRAY_ID,
+  solarArraysInStock,
+  type Campaign,
+  type GroundPosition,
+  type Snapshot,
+} from "../simulation";
 import { describeBuild, describeStructure, designOf } from "./describe";
 import { onClick } from "./click";
 import { setText } from "./dom";
@@ -43,7 +51,11 @@ export function createBuildMenu(
   let plumeEjecta: Snapshot["plumeEjecta"];
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
-  const buttons = catalogue.structureTypes.map((type) => {
+  // A solar array is planned as one, and its parts decide its kind.
+  const offered = catalogue.structureTypes.filter(isPlannedAsItself);
+  /** What the next solar array will be, as of the latest snapshot. */
+  let nextArray = "";
+  const buttons = offered.map((type) => {
     const button = document.createElement("button");
     button.type = "button";
     // What it does, on hover, so that the choice needs no other screen.
@@ -84,7 +96,7 @@ export function createBuildMenu(
     showPlacing();
     setText(
       hint,
-      `Click the map to place the ${inSentence(type.label)}. Right-click or press Esc to cancel.${stockWarning(type)}`,
+      `Click the map to place the ${inSentence(type.label)}. Right-click or press Esc to cancel.${type.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(type)}`,
     );
   }
 
@@ -139,7 +151,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };
@@ -192,7 +204,26 @@ export function createBuildMenu(
       for (const { type, button, stock, count, meaning } of buttons) {
         // Not offered until its Design is unlocked.
         button.hidden = !snapshot.unlockedDesignIds.includes(type.designId);
-        const sets = setsAvailable(type, snapshot);
+        const sets =
+          type.id === SOLAR_ARRAY_ID
+            ? solarArraysInStock(snapshot)
+            : setsAvailable(type, snapshot);
+        if (type.id === SOLAR_ARRAY_ID) {
+          const next = nextSolarArray(snapshot, snapshot.launchManifest.items);
+          nextArray =
+            next === undefined
+              ? ""
+              : ` The next one will be a ${inSentence(next.label)}, from what the base has and what is on sale.`;
+          const about = [
+            designOf(next?.designId ?? type.designId)?.description,
+            describeStructure(next ?? type),
+            describeBuild(next ?? type),
+            nextArray.trim(),
+          ]
+            .filter((text) => text !== undefined)
+            .join(" ");
+          if (button.title !== about) button.title = about;
+        }
         available.set(type.id, sets);
         // One made from Regolith alone never runs short.
         const unlimited = type.components.length === 0;

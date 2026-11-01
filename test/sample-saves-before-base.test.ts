@@ -345,7 +345,11 @@ describe("the sample saves from before Water-wall shielding", () => {
       );
       // Before the Components that came after it, the storage tanks', the
       // parking area's bay socket and the telescope's two.
-      expect(state.stockpile.components.at(-8)).toEqual({
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === "water-wall-bladder",
+        ),
+      ).toEqual({
         componentId: "water-wall-bladder",
         count: 0,
       });
@@ -415,7 +419,11 @@ describe("the sample saves from before Parking areas", () => {
         catalogue.componentTypes.map((type) => type.id),
       );
       // Before the telescope's two Components, which came after it.
-      expect(state.stockpile.components.at(-3)).toEqual({
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === "bay-socket",
+        ),
+      ).toEqual({
         componentId: "bay-socket",
         count: 0,
       });
@@ -432,7 +440,11 @@ describe("the sample saves from before Optical telescopes", () => {
       expect(state.stockpile.components.map((s) => s.componentId)).toEqual(
         catalogue.componentTypes.map((type) => type.id),
       );
-      expect(state.stockpile.components.slice(-2)).toEqual([
+      expect(
+        state.stockpile.components.filter((stock) =>
+          stock.componentId.startsWith("telescope-"),
+        ),
+      ).toEqual([
         { componentId: "telescope-optics", count: 0 },
         { componentId: "telescope-mount", count: 0 },
       ]);

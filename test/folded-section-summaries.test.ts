@@ -282,8 +282,9 @@ describe("a folded Lander & Expeditions section", () => {
       roverId: "v1",
       stage: "away",
       returnsAtMinute: now + toGameMinutes({ hours: 5 }),
-      resourceId: "water-ice",
-      kilograms: 0,
+      typeId: "water-ice",
+      label: "Water ice",
+      reward: { kind: "bulk-resource", resourceId: "water-ice", kilograms: 0 },
     };
     expect(summariseTravel(landed, expedition, now)).toBe(
       "landed · Rover back in 5h",

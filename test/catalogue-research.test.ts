@@ -257,11 +257,13 @@ describe("the data catalogue", () => {
     expect(catalogue.designs.length).toBeLessThanOrEqual(50);
   });
 
-  it("has every Design beyond the starting ones permit at least one Structure type or Launch item, so that unlocking one always gives the player something", () => {
+  it("has every Design beyond the starting ones permit at least one Structure type, Launch item or type of Expedition, so that unlocking one always gives the player something", () => {
     const permitted = new Set(
-      [...catalogue.structureTypes, ...catalogue.launch.items].map(
-        (entry) => entry.designId,
-      ),
+      [
+        ...catalogue.structureTypes,
+        ...catalogue.launch.items,
+        ...catalogue.expeditions.types,
+      ].map((entry) => entry.designId),
     );
     const empty = catalogue.designs
       .filter((design) => !design.starting && !permitted.has(design.id))

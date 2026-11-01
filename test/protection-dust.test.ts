@@ -5,7 +5,9 @@ import { scenario, type Scenario } from "./scenario";
 
 // Dust wears Structures down and coats solar arrays, and nothing else
 // wears anything; both Dust Protection Designs are unlocked from the
-// start, with their Components in the starting stock.
+// start, with their Components in the starting stock. So is Thin-film solar
+// cells, whose array, with a plain mast and uncoated panels, wears and coats
+// as a plain one: a solar array planned with better parts to hand has them.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutMicrometeorites } = await import("./without-micrometeorites");
@@ -15,7 +17,11 @@ vi.mock("../src/catalogue", async (importOriginal) => {
     ...actual,
     catalogue: withDesigns(
       withoutCold(withoutMicrometeorites(actual.catalogue)),
-      ["dust-sealed-solar-arrays", "electrodynamic-dust-screens"],
+      [
+        "dust-sealed-solar-arrays",
+        "electrodynamic-dust-screens",
+        "thin-film-solar-cells",
+      ],
     ),
   };
 });
@@ -68,7 +74,7 @@ function change(game: Scenario, types: readonly string[], hours: number) {
 
 describe("a dust-sealed solar array", () => {
   it("loses Condition to Dust at 0.02 percentage points an hour, against a solar array's 0.05 beside it, and gathers Dust coating as fast", () => {
-    const types = ["solar-array", "dust-sealed-solar-array"];
+    const types = ["thin-film-solar-array", "dust-sealed-solar-array"];
     const game = sideBySide(types);
 
     const [plain, sealed] = change(game, types, 24);
@@ -83,7 +89,7 @@ describe("a dust-sealed solar array", () => {
 
 describe("a dust-screened solar array", () => {
   it("gathers Dust coating at a quarter of a solar array's rate beside it, and loses Condition as slowly as a dust-sealed one", () => {
-    const types = ["solar-array", "dust-screened-solar-array"];
+    const types = ["thin-film-solar-array", "dust-screened-solar-array"];
     const game = sideBySide(types);
 
     const [plain, screened] = change(game, types, 24);
