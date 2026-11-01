@@ -648,6 +648,9 @@ describe("what a Greenhouse asks of a base", () => {
     const two = scienceOver([plantSite, secondPlantSite], 1);
 
     expect(two.science).toBeGreaterThan(one.science * 1.5);
+    // One earns nothing, so that alone would pass on any Science at all: two
+    // have to finish most of a Lunation's rounds of 20 Science.
+    expect(two.science).toBeGreaterThanOrEqual(60);
     expect(two.lost).toBeLessThan(one.lost + 1);
   });
 
