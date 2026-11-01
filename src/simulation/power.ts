@@ -528,15 +528,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
   // The base's stocks are shared by every network's Plants.
   const claims: BatchClaims = new Map();
   const networks = powerNetworks(state);
-  const unpluggedHeaters = everyDriven(state)
-    .filter(
-      (driven) =>
-        !isDrivenBroken(driven) &&
-        !networks.some((network) =>
-          network.heated.some((heated) => bodyOf(heated) === bodyOf(driven)),
-        ),
-    )
-    .reduce((sum, driven) => sum + drivenSpec(driven).heaterKilowatts, 0);
+  const unpluggedHeaters = unpluggedHeaterKilowatts(state, networks);
   for (const network of networks) {
     const generated = daylight ? network.daylightGenerationKilowatts : 0;
     let left = network.storedKilowattHours + generated / 60;
@@ -614,6 +606,85 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
           : (stored * capacity) / network.storageCapacityKilowattHours;
     }
   }
+}
+
+/**
+ * The heaters of the Machines and Rovers that aren't Broken or plugged in to
+ * any of the given networks, as they may be parked on one before the Night
+ * ends.
+ */
+function unpluggedHeaterKilowatts(
+  state: CampaignState,
+  networks: readonly PowerNetwork[],
+): number {
+  return everyDriven(state)
+    .filter(
+      (driven) =>
+        !isDrivenBroken(driven) &&
+        !networks.some((network) =>
+          network.heated.some((heated) => bodyOf(heated) === bodyOf(driven)),
+        ),
+    )
+    .reduce((sum, driven) => sum + drivenSpec(driven).heaterKilowatts, 0);
+}
+
+/**
+ * The Plants running on and off at Night, by the latest game-minute's power
+ * (see `supplyPower`), given whether it was Night: at most one on each network. What a network's Plants
+ * must leave stored counts heaters not plugged in and Night loads that are
+ * off, which draw nothing, so what is to spare grows, by less than a Plant
+ * draws. Once it has nearly run out, the Plant that draws least, the earlier
+ * commissioned of any that draw the same, runs each time a game-minute of its
+ * draw has built up, and stands idle in between; what it spends never builds
+ * up enough for any other. It can only say so by looking ahead, as each
+ * game-minute's power is decided with no memory of the one before.
+ */
+export function plantsRunningOnAndOff(
+  state: CampaignState,
+  night: boolean,
+): ReadonlySet<StructureState> {
+  const onAndOff = new Set<StructureState>();
+  if (!night) return onAndOff;
+  const now = readLunation(state.elapsedMinutes, catalogue.lunation);
+  const nightMinutesAfter = now.part === "night" ? now.minutesRemaining : 0;
+  const networks = powerNetworks(state);
+  const unpluggedHeaters = unpluggedHeaterKilowatts(state, networks);
+  for (const network of networks) {
+    const least = network.structures
+      .filter(
+        (plant) =>
+          isPlant(plant) &&
+          !isGreenhouse(plant) &&
+          !isBroken(plant) &&
+          (plant.powered || plant.plantStop?.reason === "night"),
+      )
+      .reduce<StructureState | undefined>(
+        (best, plant) =>
+          best === undefined ||
+          plantDrawKilowatts(plant) < plantDrawKilowatts(best)
+            ? plant
+            : best,
+        undefined,
+      );
+    if (least === undefined) continue;
+    const draw = plantDrawKilowatts(least);
+    const freed =
+      network.nightConsumptionKilowatts +
+      unpluggedHeaters -
+      consumptionKilowatts(network, false);
+    const spare =
+      network.storedKilowattHours -
+      keptFromPlants(network, unpluggedHeaters, nightMinutesAfter);
+    if (
+      freed > 0 &&
+      freed < draw &&
+      spare >= -ENERGY_TOLERANCE_KWH &&
+      spare < draw / 60
+    ) {
+      onAndOff.add(least);
+    }
+  }
+  return onAndOff;
 }
 
 /**

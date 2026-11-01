@@ -120,6 +120,12 @@ export interface PlantSnapshot {
   readonly running: boolean;
   readonly stoppedFor: PlantStopSnapshot | undefined;
   /**
+   * Set if it is running a game-minute at a time at Night on what little is
+   * freed, so that `running` and `stoppedFor` alternate from one to the next
+   * (see `plantsRunningOnAndOff`).
+   */
+  readonly runningOnAndOff?: true;
+  /**
    * The batch it has started and not finished, with the game-minutes of
    * work left on it as fast as its Condition allows; undefined between
    * batches.

@@ -604,7 +604,11 @@ export function withPlantsTaking(
   const usingPerHour = (
     structure: (typeof structures)[number],
   ): number | undefined => {
-    if (structure.plant?.running !== true || structure.switchedOff) {
+    if (
+      structure.plant?.running !== true ||
+      structure.plant.runningOnAndOff === true ||
+      structure.switchedOff
+    ) {
       return undefined;
     }
     const flow = workingRecipeOf({
