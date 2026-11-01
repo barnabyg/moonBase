@@ -304,4 +304,25 @@ describe("letting the battery run flat at Night with the Mission Director in the
       for (const event of events) expect(event.atMinute).toBe(stoppedAt);
     }
   });
+
+  it("gives the same warnings and the same death in one long advance as a game-minute at a time", () => {
+    const inOneGo = poweredBase(0);
+    moveIn(inOneGo);
+    const inMinutes = poweredBase(0);
+    moveIn(inMinutes);
+    const limit = 60 * 24 * 60;
+
+    const together = inOneGo.campaign.advance(limit);
+    const apart: GameEvent[] = [];
+    for (let minute = 0; minute < limit; minute++) {
+      apart.push(...inMinutes.campaign.advance(1));
+    }
+
+    expect(
+      together.filter((event) => event.kind === "habitat-power-warning"),
+    ).toHaveLength(catalogue.habitatPowerWarningHoursLeft.length);
+    expect(inOneGo.state.ended?.cause.kind).toBe("habitat-power-failed");
+    expect(apart).toEqual(together);
+    expect(inMinutes.campaign.save()).toBe(inOneGo.campaign.save());
+  });
 });

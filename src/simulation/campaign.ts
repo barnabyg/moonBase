@@ -69,6 +69,7 @@ import {
 import type { DeathCause, GameEvent } from "./events";
 import {
   forecastHabitatPower,
+  type EndOfMinutePowerForecast,
   minutesUntilPowerLostAsMinuteStarts,
   watchHabitatPower,
   type HabitatPowerForecast,
@@ -965,20 +966,23 @@ function campaignFrom(state: CampaignState): Campaign {
         );
       }
       const events: GameEvent[] = [];
+      // Kept only within this call, as a command may come after it.
+      const ticks: TickRun = {};
       for (
         let tick = 0;
         tick < gameMinutes && state.ended === undefined;
         tick++
       ) {
-        events.push(...advanceOneTick(state));
+        events.push(...advanceOneTick(state, ticks));
       }
       return deepFreeze(events);
     },
     advanceToNextEvent() {
       // Daylight or Night always starts within one Lunation, so this ends.
       const { lunation } = lunationMinutes(catalogue.lunation);
+      const ticks: TickRun = {};
       for (let tick = 0; tick < lunation && state.ended === undefined; tick++) {
-        const events = advanceOneTick(state);
+        const events = advanceOneTick(state, ticks);
         if (events.length > 0) return deepFreeze(events);
       }
       return [];
@@ -1289,8 +1293,13 @@ function campaignFrom(state: CampaignState): Campaign {
   };
 }
 
+/** What one tick leaves for the next, in a run of ticks with no command between them. */
+interface TickRun {
+  latestPowerForecast?: EndOfMinutePowerForecast;
+}
+
 /** Advances one 1-game-minute tick and returns the events that happened in it. */
-function advanceOneTick(state: CampaignState): GameEvent[] {
+function advanceOneTick(state: CampaignState, run: TickRun): GameEvent[] {
   const events: GameEvent[] = [];
   const partBefore = readLunation(
     state.elapsedMinutes,
@@ -1301,7 +1310,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
     state.elapsedMinutes === 0
       ? partBefore
       : readLunation(state.elapsedMinutes - 1, catalogue.lunation).part;
-  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(state);
+  const powerLostBefore = minutesUntilPowerLostAsMinuteStarts(
+    state,
+    run.latestPowerForecast,
+  );
   const nightLoadsSavingBefore = new Set(
     nightLoadsSavingPower(state, partSupplied === "night").map(
       (load) => load.id,
@@ -1359,9 +1371,13 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   // Last, so that the Mission Director's death ends the game-minute. It is
   // then the only one of these events, as any warning that minute would come
   // too late to matter.
+  const lifeSupportDangers = useLifeSupport(state);
+  const minutesUntilPowerLost =
+    forecastHabitatPower(state)?.minutesUntilPowerLost;
+  run.latestPowerForecast = { minutesUntilPowerLost };
   const dangers = [
-    ...useLifeSupport(state),
-    ...watchHabitatPower(state, powerLostBefore),
+    ...lifeSupportDangers,
+    ...watchHabitatPower(state, powerLostBefore, minutesUntilPowerLost),
     ...absorbRadiationDose(state, minutesUntilLimitBefore),
   ];
   const death = dangers.find((event) => event.kind === "mission-director-died");

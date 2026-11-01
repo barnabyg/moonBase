@@ -219,6 +219,9 @@ export function pluggedIn(
   networks: readonly Omit<PowerNetwork, "heated">[] = structureNetworks(state),
 ): Map<string, StructureState> {
   const sockets = powerSockets(state, networks);
+  const footprints = sockets.map((structure) =>
+    footprintRadius(structure.structureTypeId),
+  );
   const plugs = new Map<string, StructureState>();
   for (const driven of everyDriven(state)) {
     if (isDrivenBroken(driven) || isOutOnExpedition(state, driven)) continue;
@@ -227,10 +230,10 @@ export function pluggedIn(
     // The earlier Structure wins a tie, so the choice is always the same.
     let nearest: StructureState | undefined;
     let nearestGap = Number.POSITIVE_INFINITY;
-    for (const structure of sockets) {
+    for (const [index, structure] of sockets.entries()) {
       const gap =
         distance(body.position, structure.position) -
-        footprintRadius(structure.structureTypeId) -
+        (footprints[index] ?? 0) -
         radius;
       if (nearest === undefined || gap < nearestGap) {
         nearest = structure;
