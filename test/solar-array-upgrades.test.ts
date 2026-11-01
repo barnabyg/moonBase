@@ -105,7 +105,7 @@ describe("what the player is told of a kind of solar array", () => {
     const type = catalogue.structureTypes.find(
       (candidate) => candidate.id === id,
     );
-    if (type === undefined) throw new Error();
+    if (type === undefined) throw new Error(`expected a ${id}`);
     return describeStructure(type);
   }
 
