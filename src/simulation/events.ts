@@ -316,6 +316,12 @@ export type GameEvent =
       readonly kilograms: number;
     }
   | {
+      /** A Design has replaced these items, so they have come off the manifest. */
+      readonly kind: "launch-items-retired";
+      readonly atMinute: number;
+      readonly itemIds: readonly string[];
+    }
+  | {
       /** A survey is over: the Robot has handed over what it found, for Science. */
       readonly kind: "survey-returned";
       readonly atMinute: number;

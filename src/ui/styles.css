@@ -1578,6 +1578,21 @@ body {
   white-space: nowrap;
 }
 
+/* Narrow, the name keeps the room it needs to stay readable. */
+@media (width <= 640px) {
+  .launch-manifest__items thead th:nth-child(2) {
+    width: 5.5rem;
+  }
+
+  .launch-manifest__items thead th:nth-child(3) {
+    width: 4.5rem;
+  }
+
+  .launch-manifest__items thead th:nth-child(4) {
+    width: 2.5rem;
+  }
+}
+
 .launch-manifest__held {
   text-align: right;
   font-weight: 600;

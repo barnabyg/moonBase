@@ -522,7 +522,12 @@ function buyInTurn(play: Play): void {
           toGameMinutes({ earthDays: fromEarthDay ?? 0 }) &&
         ![...state.constructions, ...state.structures].some(
           (footing) =>
-            footing.structureTypeId === structureTypeId &&
+            // A solar array is whatever kind its parts made it.
+            (footing.structureTypeId === structureTypeId ||
+              (structureTypeId === SOLAR_ARRAY_ID &&
+                catalogue.structureTypes.find(
+                  ({ id }) => id === footing.structureTypeId,
+                )?.solarArray !== undefined)) &&
             footing.position.x === site.x &&
             footing.position.y === site.y,
         )

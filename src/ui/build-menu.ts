@@ -1,6 +1,7 @@
 import { catalogue, type StructureType } from "../catalogue";
 import type { Renderer } from "../render/renderer";
 import {
+  isPlannedAsItself,
   nextSolarArray,
   SOLAR_ARRAY_ID,
   solarArraysInStock,
@@ -51,9 +52,7 @@ export function createBuildMenu(
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
   // A solar array is planned as one, and its parts decide its kind.
-  const offered = catalogue.structureTypes.filter(
-    (type) => type.solarArray === undefined || type.id === SOLAR_ARRAY_ID,
-  );
+  const offered = catalogue.structureTypes.filter(isPlannedAsItself);
   /** What the next solar array will be, as of the latest snapshot. */
   let nextArray = "";
   const buttons = offered.map((type) => {
@@ -152,7 +151,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };
@@ -214,7 +213,7 @@ export function createBuildMenu(
           nextArray =
             next === undefined
               ? ""
-              : ` The next one will be a ${inSentence(next.label)}, as its parts make it.`;
+              : ` The next one will be a ${inSentence(next.label)}, from what the base has and what is on sale.`;
           const about = [
             designOf(next?.designId ?? type.designId)?.description,
             describeStructure(next ?? type),

@@ -920,7 +920,7 @@ export function summariseMilestones(
 export function describeExpeditionReward(reward: ExpeditionReward): string {
   return reward.kind === "science"
     ? `${reward.science} Science`
-    : `${formatKilograms(reward.kilograms)} of ${resourceLabel(reward.resourceId).toLowerCase()}`;
+    : `${formatKilograms(reward.kilograms)} of ${inSentence(resourceLabel(reward.resourceId))}`;
 }
 
 /**
@@ -941,8 +941,8 @@ export function describeExpedition(
     case "away":
       return `away, back in ${formatDuration(minutesUntil(expedition.returnsAtMinute, elapsedMinutes))}`;
     case "driving-back":
-      return `back on the map with ${cargo}, driving to the stockpile`;
+      return `back on the map for ${cargo}, driving to the stockpile`;
     case "unloading":
-      return `unloading ${cargo} at the stockpile`;
+      return `handing over what it brought at the stockpile, for ${cargo}`;
   }
 }

@@ -461,7 +461,7 @@ export const designs: Catalogue["designs"] = [
     id: "thin-film-solar-cells",
     label: "Thin-film solar cells",
     description:
-      "Thin, light solar cells on a flexible backing, so that every solar array ordered from now on generates more for the mass it ships. Arrays and panels the base already has stay as they are.",
+      "Thin, light solar cells on a flexible backing, so that every solar array shipped from now on generates more for the mass it ships. Arrays and panels the base already has stay as they are.",
     category: "power",
     starting: false,
     scienceCost: 150,
@@ -524,7 +524,7 @@ export const designs: Catalogue["designs"] = [
     id: "prefabricated-solar-arrays",
     label: "Prefabricated solar arrays",
     description:
-      "Solar arrays put together and tested on Earth, shipped folded on their mast with the best parts unlocked, so that every one ordered from now on goes up in under half the hours. Arrays and parts the base already has stay as they are.",
+      "Solar arrays put together and tested on Earth, shipped folded on their mast with the best Components unlocked, so that every one shipped from now on goes up in under half the hours. Arrays and Components the base already has stay as they are.",
     category: "construction",
     starting: false,
     scienceCost: 20,
@@ -564,7 +564,7 @@ export const designs: Catalogue["designs"] = [
     id: "dust-sealed-solar-arrays",
     label: "Dust-sealed solar arrays",
     description:
-      "Every solar array ordered from now on has its tracking drive and hinges sealed against Dust, so that it wears down more slowly. Arrays and masts the base already has stay as they are.",
+      "Every solar array shipped from now on has its tracking drive and hinges sealed against Dust, so that it wears down more slowly. Arrays and masts the base already has stay as they are.",
     category: "protection",
     starting: false,
     scienceCost: 20,
@@ -574,7 +574,7 @@ export const designs: Catalogue["designs"] = [
     id: "electrodynamic-dust-screens",
     label: "Electrodynamic dust screens",
     description:
-      "Electrodes woven through the panels of every solar array ordered from now on, which push Dust off the cells, so that it coats them far more slowly. Arrays and panels the base already has stay as they are.",
+      "Electrodes woven through the panels of every solar array shipped from now on, which push Dust off the cells, so that it coats them far more slowly. Arrays and panels the base already has stay as they are.",
     category: "protection",
     starting: false,
     scienceCost: 200,
@@ -914,11 +914,13 @@ export const designs: Catalogue["designs"] = [
     id: "prospecting-expeditions",
     label: "Prospecting Expeditions",
     description:
-      "Assay tools for the Rover, so that an Expedition can bring back metals or silicon from a richer deposit than the base's own Regolith.",
+      "Assay tools for the Rover, so that an Expedition can bring back metals or silicon from a richer site than the base's own Regolith.",
     category: "mobility",
     starting: false,
     scienceCost: 80,
-    prerequisiteDesignIds: ["regolith-extraction"],
+    // Past making parts at the base, so that it comes once the Plant chain
+    // is standing, not in place of it: Regolith extraction is a starting Design.
+    prerequisiteDesignIds: ["parts-machining"],
   },
   {
     id: "landing-pad-lights",

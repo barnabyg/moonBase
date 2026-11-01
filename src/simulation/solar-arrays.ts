@@ -17,6 +17,14 @@ import type { CampaignState } from "./campaign";
 
 export const SOLAR_ARRAY_ID = "solar-array";
 
+/**
+ * Whether the player can plan a type of Structure as it is: anything but the
+ * kinds of solar array, which come from their parts.
+ */
+export function isPlannedAsItself(type: StructureType): boolean {
+  return type.solarArray === undefined || type.id === SOLAR_ARRAY_ID;
+}
+
 /** Whether a Launch item is what the unlocked Designs make today. */
 export function isOnSale(
   item: LaunchItem,
@@ -66,6 +74,15 @@ function canBeHad(
   );
 }
 
+/** How many Components it would take buying to build a kind of solar array. */
+function toBuy(type: StructureType, free: Counts): number {
+  return type.components.reduce(
+    (total, need) =>
+      total + Math.max(need.count - (free.get(need.componentId) ?? 0), 0),
+    0,
+  );
+}
+
 /**
  * The kind of solar array these parts make: of those that can be had, the one
  * that needs the fewest bought, and the best of any equal.
@@ -78,13 +95,9 @@ function chooseKind(
   let fewest = Infinity;
   for (const type of kinds()) {
     if (!canBeHad(type, free, unlockedDesignIds)) continue;
-    const toBuy = type.components.reduce(
-      (total, need) =>
-        total + Math.max(need.count - (free.get(need.componentId) ?? 0), 0),
-      0,
-    );
-    if (toBuy <= fewest) {
-      fewest = toBuy;
+    const buying = toBuy(type, free);
+    if (buying <= fewest) {
+      fewest = buying;
       best = type;
     }
   }
@@ -186,9 +199,10 @@ export function solarArraysInStock(parts: SolarArrayParts): number {
 }
 
 /**
- * Turns any solar array still waiting for parts that can no longer be had
- * into the kind that can, earliest planned first, as each takes its parts
- * before the next can count on them.
+ * Turns any solar array still waiting for parts into another kind if its parts
+ * can no longer be had, or if the base has a whole set of another's, such as an
+ * array works has made. Earliest planned first, as each takes its parts before
+ * the next can count on them.
  */
 export function rechooseSolarArrays(state: CampaignState): void {
   const waiting = state.constructions.filter(
@@ -201,9 +215,13 @@ export function rechooseSolarArrays(state: CampaignState): void {
   for (const construction of waiting) {
     const type = typeOf(construction.structureTypeId);
     if (type === undefined) continue;
-    const kind = canBeHad(type, free, state.unlockedDesignIds)
-      ? type
-      : (chooseKind(free, state.unlockedDesignIds) ?? type);
+    const choice = chooseKind(free, state.unlockedDesignIds);
+    const changes =
+      choice !== undefined &&
+      toBuy(type, free) > 0 &&
+      (toBuy(choice, free) === 0 ||
+        !canBeHad(type, free, state.unlockedDesignIds));
+    const kind = changes ? choice : type;
     construction.structureTypeId = kind.id;
     take(free, kind.components);
   }

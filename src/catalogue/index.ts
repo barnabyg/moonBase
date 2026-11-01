@@ -1,6 +1,6 @@
 export { catalogue } from "./catalogue";
 export { inSentence } from "./labels";
-export { solarArrayPartEffects } from "./solar-arrays";
+export { solarArrayComponentEffects } from "./solar-arrays";
 export { batchHoursOf, componentOutputs, resourceOutputs } from "./recipes";
 export type {
   Act,

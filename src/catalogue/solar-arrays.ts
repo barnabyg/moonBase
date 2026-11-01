@@ -207,7 +207,7 @@ export const solarArrayTypes: readonly StructureType[] = [
 ];
 
 /** The Components of solar arrays that only their later Designs need. */
-export const solarArrayPartTypes: readonly ComponentType[] = [
+export const solarArrayComponentTypes: readonly ComponentType[] = [
   {
     id: "screened-thin-film-solar-panel",
     label: "Screened thin-film solar panel",
@@ -309,7 +309,7 @@ function sentences(...texts: readonly string[]): string {
 }
 
 /** What a part brings to the array it is built into, in words, by Component. */
-export const solarArrayPartEffects: Readonly<Record<string, string>> = {
+export const solarArrayComponentEffects: Readonly<Record<string, string>> = {
   "sealed-array-mast":
     "Sealed against Dust, so the array wears down more slowly.",
   ...Object.fromEntries(

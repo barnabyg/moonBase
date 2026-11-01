@@ -69,17 +69,33 @@ describe("what a Launch can bring of solar arrays", () => {
     ]);
   });
 
-  it("refuses more of a part no longer made, but keeps what is already on the manifest", () => {
+  it("refuses a part no longer made", () => {
+    expect(
+      baseWith([SEALED], {}).campaign.setLaunchManifest([
+        { itemId: "array-mast", count: 1 },
+      ]),
+    ).toMatchObject({ ok: false, reason: "no-longer-made" });
+  });
+
+  it("takes a replaced part off a manifest not yet paid for, and says so, leaving the rest", () => {
     const game = baseWith([], {});
-    const one = [{ itemId: "array-mast", count: 1 }];
-    expect(game.campaign.setLaunchManifest(one)).toEqual({ ok: true });
+    game.campaign.setLaunchManifest([
+      { itemId: "array-mast", count: 1 },
+      { itemId: "water", count: 1 },
+    ]);
     expect(game.campaign.unlockDesign(SEALED)).toMatchObject({ ok: true });
 
-    expect(game.campaign.setLaunchManifest(one)).toEqual({ ok: true });
-    expect(
-      game.campaign.setLaunchManifest([{ itemId: "array-mast", count: 2 }]),
-    ).toMatchObject({ ok: false, reason: "no-longer-made" });
-    expect(game.campaign.setLaunchManifest([])).toEqual({ ok: true });
+    const events = game.campaign.advance(1);
+
+    expect(game.state.launchManifest.items).toEqual([
+      { itemId: "water", count: 1 },
+    ]);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "launch-items-retired",
+        itemIds: ["array-mast"],
+      }),
+    );
   });
 });
 
@@ -139,6 +155,26 @@ describe("the kind of solar array planned", () => {
     expect(game.state.constructions[0]?.structureTypeId).toBe(
       "dust-sealed-solar-array",
     );
+  });
+
+  it("takes a whole set in stock, such as an array works has made, rather than wait for a part on sale", () => {
+    const game = baseWith([SEALED], { "solar-panel": 2 });
+    expect(planned(game)).toBe("dust-sealed-solar-array");
+
+    const save = JSON.parse(game.campaign.save()) as {
+      state: {
+        stockpile: { components: { componentId: string; count: number }[] };
+      };
+    };
+    for (const stock of save.state.stockpile.components) {
+      if (stock.componentId === "array-mast") stock.count = 1;
+    }
+    const loaded = loadCampaign(JSON.stringify(save));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const made = scenarioOf(loaded.campaign);
+    made.advance({ hours: 1 });
+
+    expect(made.state.constructions[0]?.structureTypeId).toBe("solar-array");
   });
 
   it("leaves an array already built as it was when a Design comes", () => {

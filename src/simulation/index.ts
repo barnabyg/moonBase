@@ -1,5 +1,6 @@
 export {
   isOnSale,
+  isPlannedAsItself,
   nextSolarArray,
   SOLAR_ARRAY_ID,
   solarArraysInStock,

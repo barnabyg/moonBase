@@ -1,5 +1,6 @@
 import { catalogue, type LaunchItem } from "../catalogue";
 import { deliverRobots } from "./arrival";
+import type { GameEvent } from "./events";
 import type { CampaignState } from "./campaign";
 import { valueAboard, valueToLoad, valueToSell } from "./exports";
 import { isOnSale } from "./solar-arrays";
@@ -152,7 +153,7 @@ export function setLaunchManifest(
         `${launchItemLabel(item)} needs the ${designLabel(missing)} Design unlocked first.`,
       );
     }
-    // What is on the manifest already can stay or come off, but no more can go on.
+    // What is on it already leaves in the next game-minute (see dropRetiredItems).
     const already =
       state.launchManifest.find((line) => line.itemId === itemId)?.count ?? 0;
     if (count > already && !isOnSale(item, state.unlockedDesignIds)) {
@@ -348,6 +349,33 @@ export function exportsCountedInWords(
 }
 
 /** Whether the Lander has left Earth with the manifest and not yet landed. */
+/**
+ * Takes off a manifest not yet paid for whatever a Design has since replaced,
+ * as a Launch only buys what is made now, and says so. Once the Lander has left
+ * Earth with one, it has been paid for and comes as it is.
+ */
+export function dropRetiredItems(state: CampaignState): GameEvent[] {
+  if (isLocked(state)) return [];
+  const retired = state.launchManifest.filter((line) => {
+    const item = findLaunchItem(line.itemId);
+    return (
+      item?.retiredByDesignIds !== undefined &&
+      !isOnSale(item, state.unlockedDesignIds)
+    );
+  });
+  if (retired.length === 0) return [];
+  state.launchManifest = state.launchManifest.filter(
+    (line) => !retired.includes(line),
+  );
+  return [
+    {
+      kind: "launch-items-retired",
+      atMinute: state.elapsedMinutes,
+      itemIds: retired.map((line) => line.itemId),
+    },
+  ];
+}
+
 function isLocked(state: CampaignState): boolean {
   return state.lander.trip?.leg === "travelling-to-moon";
 }

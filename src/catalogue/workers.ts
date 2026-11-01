@@ -82,7 +82,7 @@ export const expeditions: Catalogue["expeditions"] = {
       kilograms: 200,
     },
     // These two pay less each Earth Day, even sent without a pause, than the
-    // one extraction plant their Design needs makes (7.2 kg of metals and
+    // one extraction plant makes (7.2 kg of metals and
     // 4.8 kg of silicon an Earth Day, over a Lunation), and a load of metals
     // sells for a fifth of the Launch fee. So they top a base up, even through
     // a Night and with no power, but can't take the place of the Plants, and
@@ -90,7 +90,7 @@ export const expeditions: Catalogue["expeditions"] = {
     {
       id: "prospecting-metals",
       label: "Prospecting for metals",
-      description: "Picks over a richer deposit than the base's own Regolith.",
+      description: "Picks over a richer site than the base's own Regolith.",
       designId: "prospecting-expeditions",
       awayEarthDays: 6,
       kind: "bulk-resource",
@@ -100,7 +100,7 @@ export const expeditions: Catalogue["expeditions"] = {
     {
       id: "prospecting-silicon",
       label: "Prospecting for silicon",
-      description: "Picks over a richer deposit than the base's own Regolith.",
+      description: "Picks over a richer site than the base's own Regolith.",
       designId: "prospecting-expeditions",
       awayEarthDays: 6,
       kind: "bulk-resource",

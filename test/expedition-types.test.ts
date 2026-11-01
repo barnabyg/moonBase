@@ -151,11 +151,17 @@ describe("the types of Expedition", () => {
     );
   });
 
-  it("needs the base's own extraction before Prospecting, so that it can't be how a base starts", () => {
-    expect(
-      catalogue.designs.find((design) => design.id === PROSPECTING)
-        ?.prerequisiteDesignIds,
-    ).toContain("regolith-extraction");
+  it("comes only past a Design that has to be earned, so that Prospecting can't be how a base starts", () => {
+    const prerequisites = catalogue.designs.filter((design) =>
+      catalogue.designs
+        .find(({ id }) => id === PROSPECTING)
+        ?.prerequisiteDesignIds.includes(design.id),
+    );
+
+    expect(prerequisites.length).toBeGreaterThan(0);
+    for (const design of prerequisites) {
+      expect(design.starting).toBe(false);
+    }
   });
 
   it("carries on as water ice from an older save with one under way", () => {

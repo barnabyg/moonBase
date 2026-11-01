@@ -91,6 +91,7 @@ import {
   type SendLanderResult,
 } from "./lander";
 import {
+  dropRetiredItems,
   readLaunchManifest,
   setLaunchManifest,
   type LaunchManifestSnapshot,
@@ -748,8 +749,9 @@ export interface Campaign {
   /**
    * Starts an Expedition with a Robot that is free, if there is one: the
    * Robot finishes the Work Order it holds, then drives the Rover off the
-   * map, and comes back some time later with water ice. It is refused
-   * while one is under way or the Rover is Broken.
+   * map, and comes back some time later with what its type brings, by default
+   * water ice. It is refused while one is under way, the Rover is Broken or
+   * the type's Design isn't unlocked.
    */
   startExpedition(typeId?: string): StartExpeditionResult;
   /**
@@ -1340,6 +1342,7 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   planExportLoading(state);
   events.push(...planMaintenance(state));
   planParking(state);
+  events.push(...dropRetiredItems(state));
   rechooseSolarArrays(state);
   events.push(...workMachines(state));
   idleRovers(state);
