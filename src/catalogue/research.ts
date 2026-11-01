@@ -150,6 +150,8 @@ export const researchTasks: Catalogue["researchTasks"] = [
   },
   // These two pay back what their Designs cost, as the Tech Tree's Science is
   // tight: 120 more with nothing to pay for it put its last Designs out of reach.
+  // Their 15 Earth Days come from the Grinding line yield survey, as research
+  // already takes up nearly the whole Campaign.
   {
     id: "rover-instrument-trial",
     label: "Rover instrument trial",
@@ -282,7 +284,7 @@ export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "grinding-line-yield-survey",
     label: "Grinding line yield survey",
-    lengthHours: 13680,
+    lengthHours: 13320,
     science: 1900,
     requiresDesignId: "optics-grinding-line",
   },

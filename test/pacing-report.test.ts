@@ -581,7 +581,7 @@ describe("the pacing report on today's catalogue", () => {
   const report = formatPacingReport(catalogue).join("\n");
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
-    expect(report).toContain("2994 Earth Days");
+    expect(report).toContain("2979 Earth Days");
     expect(report).toContain("22445 Science");
   });
 
