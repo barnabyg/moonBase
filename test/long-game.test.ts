@@ -6,8 +6,10 @@ import {
   designsNotUsed,
   designsTheLongGameUses,
   formatLongGame,
+  formatLongGameReport,
   act2Targets,
   LONG_GAME_END_EARTH_DAY,
+  longGameFailures,
   longGameSteps,
   longGameSucceeded,
   playLongGame,
@@ -28,8 +30,8 @@ import {
 import { catalogueUpToAct } from "./pacing-report";
 import { createCampaign, type Snapshot } from "../src/simulation";
 
-// The long game itself takes minutes, so nothing here plays it through: `npm
-// run long-game` does, on demand (see docs/reference-campaign.md).
+// The long game itself takes minutes, so nothing here plays it through: CI does,
+// with `npm run long-game` (see docs/reference-campaign.md).
 
 const earthDay = 24 * 60;
 
@@ -867,5 +869,84 @@ describe("its timeline", () => {
 
   it("ends well past the reference Campaign", () => {
     expect(LONG_GAME_END_EARTH_DAY).toBeGreaterThan(171);
+  });
+});
+
+describe("why a play failed", () => {
+  it("has nothing to say of a play that went as it should", () => {
+    expect(longGameFailures(timeline())).toEqual([]);
+  });
+
+  it("says why the play guide gave up", () => {
+    expect(
+      longGameFailures(timeline({ failure: "Something never came." })),
+    ).toEqual(["It gave up: Something never came."]);
+  });
+
+  it("says the Mission Director died if they did", () => {
+    expect(
+      longGameFailures(
+        timeline({
+          ended: {
+            atMinute: 90 * earthDay,
+            cause: { kind: "radiation-dose-limit" },
+          },
+        }),
+      ),
+    ).toEqual(["The Mission Director died: radiation-dose-limit."]);
+  });
+
+  it("says they hadn't moved into a Buried Habitat by the Act's target", () => {
+    expect(longGameFailures(timeline({ moves: [] }))).toEqual([
+      "The Mission Director hadn't moved into a Buried Habitat by Earth Day 1600.",
+    ]);
+  });
+
+  it("names the Designs it never used", () => {
+    expect(
+      longGameFailures(
+        timeline({ structureTypesBuilt: [], launchItemsManifested: [] }),
+      ),
+    ).toContainEqual(
+      expect.stringMatching(
+        /built and sent for nothing of them: .*solar-arrays/,
+      ),
+    );
+  });
+
+  it("names a pacing target it missed", () => {
+    const failures = longGameFailures(
+      timeline({
+        milestones: [
+          { milestoneId: "first-propellant", atMinute: 1000 * earthDay },
+        ],
+      }),
+    );
+
+    expect(failures).toContain("Missed: a Workshop running by Earth Day 500.");
+  });
+});
+
+describe("the report for a CI run", () => {
+  it("says a play passed, how long it took, and gives its timeline", () => {
+    const report = formatLongGameReport(timeline(), 12.34).join("\n");
+
+    expect(report).toContain("## The long game passed");
+    expect(report).toContain("Played in 12.3 minutes.");
+    expect(report).toContain("Long-game play guide");
+  });
+
+  it("puts why a play failed before its timeline", () => {
+    const lines = formatLongGameReport(
+      timeline({ failure: "Something never came." }),
+      1,
+    );
+
+    expect(lines).toContain("## The long game failed");
+    expect(lines).toContain("- It gave up: Something never came.");
+    expect(lines.indexOf("- It gave up: Something never came.")).toBeLessThan(
+      lines.indexOf("```text"),
+    );
+    expect(lines.at(-1)).toBe("```");
   });
 });
