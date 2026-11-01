@@ -7,23 +7,38 @@
 // child at the hard limit.
 //
 // The play guide is the TypeScript module, whose imports leave out file
-// extensions, so plain Node can't load it; Vite's module runner, which the
-// project already depends on, compiles it on the way in.
+// extensions, so plain Node can't load it. Vite, which the project already
+// depends on, bundles it into one file first. Its module runner would do without
+// the file, but reaches every import through a getter, which made a play take
+// nearly twice as long.
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-/** About three times the longest it has taken, so that it stops only a game that hangs. */
-const HARD_LIMIT_MINUTES = 120;
+/** About six times what it takes, so that it stops only a game that hangs. */
+const HARD_LIMIT_MINUTES = 60;
 const PLAY = "--play";
 
 if (process.argv.includes(PLAY)) {
-  const { runnerImport } = await import("vite");
+  const { build } = await import("vite");
   const root = fileURLToPath(new URL("..", import.meta.url));
-  const { module } = await runnerImport("/test/long-game.ts", {
+  const outDir = join(root, "node_modules", ".cache", "long-game");
+  await build({
     root,
     configFile: false,
-    logLevel: "error",
+    logLevel: "warn",
+    build: {
+      ssr: "test/long-game.ts",
+      outDir,
+      emptyOutDir: true,
+      minify: false,
+      target: "esnext",
+      rollupOptions: { output: { entryFileNames: "long-game.mjs" } },
+    },
   });
+  const module = await import(
+    pathToFileURL(join(outDir, "long-game.mjs")).href
+  );
   const started = performance.now();
   // To stderr, so that the timeline on stdout stays as it was.
   const timeline = module.playLongGame(undefined, (earthDay) => {

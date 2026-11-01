@@ -1,5 +1,11 @@
 import { resourceOutputs } from "../src/catalogue";
-import { beatenDesigns, offerings, type PacedCatalogue } from "./pacing-report";
+import { LONG_GAME_END_EARTH_DAY } from "./long-game";
+import {
+  beatenDesigns,
+  offerings,
+  researchEndsOnEarthDay,
+  type PacedCatalogue,
+} from "./pacing-report";
 
 // Rules that keep the data catalogue's content consistent as it grows, so that
 // a bad addition fails with a clear reason and nobody has to replay the game
@@ -19,7 +25,8 @@ export type RuleId =
   | "design-has-a-purpose"
   | "design-not-beaten"
   | "export-can-be-sold"
-  | "bulk-resource-has-a-use";
+  | "bulk-resource-has-a-use"
+  | "research-fits-the-campaign";
 
 /** Something agreed to break a rule, and why. */
 export interface Exemption {
@@ -171,6 +178,23 @@ function bulkResourcesWithoutAUse(catalogue: PacedCatalogue): Breach[] {
     );
 }
 
+/**
+ * The Research Tasks, back to back from when the guide starts its first, finish
+ * by the end of the long-game play guide, which fails if any is left undone.
+ */
+function researchPastTheEnd(catalogue: PacedCatalogue): Breach[] {
+  const endsOn = researchEndsOnEarthDay(catalogue);
+  return endsOn > LONG_GAME_END_EARTH_DAY
+    ? [
+        breach(
+          "research-fits-the-campaign",
+          "research-tasks",
+          `finish on Earth Day ${endsOn.toFixed(1)}, back to back, past the long game's end on Earth Day ${LONG_GAME_END_EARTH_DAY}.`,
+        ),
+      ]
+    : [];
+}
+
 /** Everything in a catalogue that breaks a rule, exempt or not. */
 export function breaches(
   catalogue: PacedCatalogue,
@@ -181,6 +205,7 @@ export function breaches(
     ...designsBeaten(catalogue),
     ...exportsThatCantBeSold(catalogue),
     ...bulkResourcesWithoutAUse(catalogue),
+    ...researchPastTheEnd(catalogue),
   ];
 }
 

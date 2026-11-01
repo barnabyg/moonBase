@@ -1,6 +1,7 @@
 import { catalogue } from "../src/catalogue";
 import {
   formatTimeline,
+  LOOK_EVERY_MINUTES,
   playReferenceCampaign,
   referenceSteps,
   succeed,
@@ -73,6 +74,14 @@ export const designsTheLongGameUses: readonly string[] = [
   "growing-halls",
   "vault-cistern",
 ];
+
+/**
+ * How long one purchase may wait for its Funding, Components or site, or stand
+ * planned, before the guide gives up. A purchase waited at most 22 Earth Days as
+ * the guide played, up to Earth Day 2,400, and past that docs/balancing.md has a
+ * vault cistern commissioned 40 after its Design. Waiting for Science doesn't count.
+ */
+export const PURCHASE_STALL_EARTH_DAYS = 300;
 
 /** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
 const ACT_2_EARTH_DAY = 350;
@@ -304,6 +313,18 @@ function moveIntoBuriedHabitat(play: Play): void {
   }
 }
 
+/** Something Funding buys from Act 2 on. */
+export interface Purchase {
+  readonly structureTypeId: string;
+  readonly site: GroundPosition;
+  /** The Earth Day it waits for, if its Design comes well before it is any use. */
+  readonly fromEarthDay?: number;
+  /** The Design it waits for, if another's Structure is what makes it any use. */
+  readonly onceDesignId?: string;
+  /** That it can stand planned for longer than the limit on making no progress, and why. */
+  readonly strandedBecause?: string;
+}
+
 /** What a growing hall needs bought first, and the hall, once its Design is unlocked. */
 const GROWING_HALL_PURCHASES = [
   ...[
@@ -330,14 +351,7 @@ const GROWING_HALL_PURCHASES = [
  * Design is unlocked and its Components have come. It holds a good deal more
  * than a base can buy at once, so that it waits for Funding as well as Science.
  */
-const PURCHASES: readonly {
-  readonly structureTypeId: string;
-  readonly site: GroundPosition;
-  /** The Earth Day it waits for, if its Design comes well before it is any use. */
-  readonly fromEarthDay?: number;
-  /** The Design it waits for, if another's Structure is what makes it any use. */
-  readonly onceDesignId?: string;
-}[] = [
+const PURCHASES: readonly Purchase[] = [
   { structureTypeId: "workshop", site: { x: 66, y: -33 } },
   // The Workshop and what makes its metals want more than two solar arrays.
   { structureTypeId: "solar-array", site: { x: 28, y: -33 } },
@@ -375,6 +389,8 @@ const PURCHASES: readonly {
     structureTypeId: "water-processing-plant",
     site: { x: 96, y: -56 },
     fromEarthDay: GREENHOUSE_EARTH_DAY,
+    // From Earth Day 1,626 to about 2,200, as `seeToPurchase` and docs/balancing.md say.
+    strandedBecause: "planned on the first's Components",
   },
   {
     structureTypeId: "greenhouse",
@@ -500,41 +516,109 @@ function sumOfLines(lines: readonly ManifestLine[]): ManifestLine[] {
   return [...counts].map(([itemId, count]) => ({ itemId, count }));
 }
 
-/** Sees to the next of the purchases coming, and builds it once it has. */
-function buyInTurn(play: Play): void {
-  const { state } = play;
-  if (
-    state.clock.elapsedMinutes < toGameMinutes({ earthDays: ACT_2_EARTH_DAY })
-  ) {
-    return;
-  }
-  const next = PURCHASES.find(
-    ({ structureTypeId, site, fromEarthDay, onceDesignId }) => {
+/** Something the purchases wait on, and why. */
+export interface PurchaseWait {
+  readonly what: string;
+  readonly why: string;
+}
+
+/**
+ * Keeps track of how long each thing has been waited on, and gives up on the
+ * Campaign once one has been waited on for longer than the limit, as playing on
+ * to the end would take many minutes to say no more than that.
+ */
+export function purchaseStallWatch(
+  limitEarthDays = PURCHASE_STALL_EARTH_DAYS,
+): (atMinute: number, waits: readonly PurchaseWait[]) => void {
+  const limit = toGameMinutes({ earthDays: limitEarthDays });
+  const since = new Map<string, number>();
+  return (atMinute, waits) => {
+    for (const what of since.keys()) {
+      if (!waits.some((wait) => wait.what === what)) since.delete(what);
+    }
+    for (const { what, why } of waits) {
+      const from = since.get(what) ?? atMinute;
+      since.set(what, from);
+      if (atMinute - from > limit) {
+        throw new Error(
+          `The purchases have made no progress for ${limitEarthDays} Earth Days, since Earth Day ${(from / MINUTES_PER_EARTH_DAY).toFixed(1)}: ${what} ${why}`,
+        );
+      }
+    }
+  };
+}
+
+/**
+ * Sees to the next of the purchases coming, and builds it once it has, giving up
+ * on the Campaign if one stops coming. A purchase whose Design is still locked or
+ * whose Earth Day hasn't come isn't waited on, however long Science takes.
+ */
+export function buyInTurn(
+  purchases: readonly Purchase[] = PURCHASES,
+  watch = purchaseStallWatch(),
+): (play: Play) => void {
+  return (play) => {
+    const { state } = play;
+    if (
+      state.clock.elapsedMinutes < toGameMinutes({ earthDays: ACT_2_EARTH_DAY })
+    ) {
+      return;
+    }
+    const stands = (
+      footing: {
+        readonly structureTypeId: string;
+        readonly position: GroundPosition;
+      },
+      { structureTypeId, site }: Purchase,
+    ) =>
+      // A solar array is whatever kind its parts made it.
+      (footing.structureTypeId === structureTypeId ||
+        (structureTypeId === SOLAR_ARRAY_ID &&
+          catalogue.structureTypes.find(
+            ({ id }) => id === footing.structureTypeId,
+          )?.solarArray !== undefined)) &&
+      footing.position.x === site.x &&
+      footing.position.y === site.y;
+    const next = purchases.find((purchase) => {
       const type = catalogue.structureTypes.find(
-        ({ id }) => id === structureTypeId,
+        ({ id }) => id === purchase.structureTypeId,
       );
       return (
         type !== undefined &&
         state.unlockedDesignIds.includes(type.designId) &&
-        (onceDesignId === undefined ||
-          state.unlockedDesignIds.includes(onceDesignId)) &&
+        (purchase.onceDesignId === undefined ||
+          state.unlockedDesignIds.includes(purchase.onceDesignId)) &&
         state.clock.elapsedMinutes >=
-          toGameMinutes({ earthDays: fromEarthDay ?? 0 }) &&
-        ![...state.constructions, ...state.structures].some(
-          (footing) =>
-            // A solar array is whatever kind its parts made it.
-            (footing.structureTypeId === structureTypeId ||
-              (structureTypeId === SOLAR_ARRAY_ID &&
-                catalogue.structureTypes.find(
-                  ({ id }) => id === footing.structureTypeId,
-                )?.solarArray !== undefined)) &&
-            footing.position.x === site.x &&
-            footing.position.y === site.y,
+          toGameMinutes({ earthDays: purchase.fromEarthDay ?? 0 }) &&
+        ![...state.constructions, ...state.structures].some((footing) =>
+          stands(footing, purchase),
         )
       );
-    },
-  );
-  if (next === undefined) return;
+    });
+    const named = ({ structureTypeId, site }: Purchase) =>
+      `a ${structureTypeId} at (${site.x}, ${site.y})`;
+    watch(state.clock.elapsedMinutes, [
+      // What is planned and never built holds up nothing after it, so it has to be watched too.
+      ...purchases
+        .filter(
+          (purchase) =>
+            purchase.strandedBecause === undefined &&
+            state.constructions.some((footing) => stands(footing, purchase)),
+        )
+        .map((purchase) => ({
+          what: named(purchase),
+          why: "is planned, and hasn't been commissioned",
+        })),
+      ...(next === undefined
+        ? []
+        : [{ what: named(next), why: seeToPurchase(play, next) }]),
+    ]);
+  };
+}
+
+/** Orders a purchase, or plans it once it has come, and says what it waits on now. */
+function seeToPurchase(play: Play, next: Purchase): string {
+  const { state } = play;
   // What is planned stays in stock until the Robot takes it, so that something
   // planned just after it looks to have its Components already, as the guide's second
   // water-processing plant did at its Greenhouse: planned on the first's, and waiting
@@ -553,13 +637,16 @@ function buyInTurn(play: Play): void {
   const missing = missingFromStock(state, sumOfLines(lines));
   if (missing.length === 0) {
     // A Machine or Rover may be standing there for now: it tries again.
-    play.campaign.planConstruction({
+    const planned = play.campaign.planConstruction({
       structureTypeId: next.structureTypeId,
       position: next.site,
     });
-    return;
+    return planned.ok
+      ? "has only just been planned"
+      : `can't be planned: ${planned.message}`;
   }
   sendForAsFundingAllows(play, missing, `a ${next.structureTypeId}`);
+  return `lacks ${missing.map(({ itemId, count }) => `${count} ${itemId}`).join(", ")}, with $${state.fundingMillionDollars.toFixed(0)}M of Funding`;
 }
 
 /** Sets a large extraction plant to metals and silicon, as what the base has it for. */
@@ -884,7 +971,7 @@ export const longGameSteps: readonly PlayStep[] = [
     description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a third Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
     play(play) {
       play.keepUp(unlockEveryDesign);
-      play.keepUp(buyInTurn);
+      play.keepUp(buyInTurn());
       play.keepUp(runWorkshops);
       play.keepUp(runLargeExtractionPlant);
       play.keepUp(runArrayWorks);
@@ -894,6 +981,8 @@ export const longGameSteps: readonly PlayStep[] = [
       play.keepUp(moveIntoBuriedHabitat);
       play.keepUp(shipASecondRobot);
       play.keepUp(waterTheGreenhouse);
+      // Last, to see what the others have just done.
+      play.keepUp(giveUpOnMissedTargets());
       const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
       play.waitUntil(
         `Earth Day ${LONG_GAME_END_EARTH_DAY}`,
@@ -1277,6 +1366,136 @@ function formatAct2(timeline: ReferenceTimeline): string[] {
   ];
 }
 
+/** The dated pacing targets, in the words that say one was missed. */
+const TARGET_WORDS = {
+  workshopRunning: `a Workshop running by Earth Day ${act2Targets.workshopRunningBy}.`,
+  sparesNeedNoLaunch: `spare Components needing no Launch by Earth Day ${act2Targets.sparesNeedNoLaunchBy}.`,
+  metalsSold: `metals sold by Earth Day ${act2Targets.metalsSoldBy}.`,
+  designsStillToBuy: `Designs still to buy at Earth Day ${act2Targets.designsStillToBuyAt}.`,
+  propellantMade: `propellant made by Earth Day ${laterActTargets.propellantMadeBy}.`,
+  returnMassTripled: `Return Mass tripled by Earth Day ${laterActTargets.returnMassTripledBy}.`,
+  opticsSold: `precision optics sold by Earth Day ${laterActTargets.opticsSoldBy}.`,
+  act2Research: `research lasting until about Earth Day ${act2Targets.researchLastsUntilAbout}`,
+  act3Research: `Act 3's research lasting until about Earth Day ${laterActTargets.act3ResearchUntilAbout}`,
+  act4Research: `Act 4's research lasting until about Earth Day ${laterActTargets.act4ResearchUntilAbout}`,
+} as const;
+
+/**
+ * Gives up on the Campaign as soon as a dated pacing target can no longer be met,
+ * as playing on to the end would take many minutes to say no more than that. It
+ * only reads the snapshot, so the play goes as it would without it, and it gives
+ * up only on what the end would fail: `act2TargetsMissed` and
+ * `laterActTargetsMissed`, or, for an Act's research still unfinished past its
+ * date and never finished, `checkEverythingResearched`. That spare Components
+ * never run out, and what Launches' profit buys, have no date, so they wait for the end.
+ */
+export function giveUpOnMissedTargets(): (play: Play) => void {
+  const byEarthDay = (earthDays: number) => earthDays * MINUTES_PER_EARTH_DAY;
+  const milestones = [
+    {
+      milestoneId: "workshop-running",
+      by: act2Targets.workshopRunningBy,
+      words: TARGET_WORDS.workshopRunning,
+    },
+    {
+      milestoneId: "spare-components-self-sufficient",
+      by: act2Targets.sparesNeedNoLaunchBy,
+      words: TARGET_WORDS.sparesNeedNoLaunch,
+    },
+    {
+      milestoneId: "metals-sold",
+      by: act2Targets.metalsSoldBy,
+      words: TARGET_WORDS.metalsSold,
+    },
+    {
+      milestoneId: "first-propellant",
+      by: laterActTargets.propellantMadeBy,
+      words: TARGET_WORDS.propellantMade,
+    },
+    {
+      milestoneId: "return-mass-tripled",
+      by: laterActTargets.returnMassTripledBy,
+      words: TARGET_WORDS.returnMassTripled,
+    },
+    {
+      milestoneId: "precision-optics-sold",
+      by: laterActTargets.opticsSoldBy,
+      words: TARGET_WORDS.opticsSold,
+    },
+  ];
+  const research = [
+    {
+      act: 2,
+      until: act2Targets.researchLastsUntilAbout,
+      within: act2Targets.researchWithin,
+      words: TARGET_WORDS.act2Research,
+    },
+    {
+      act: 3,
+      until: laterActTargets.act3ResearchUntilAbout,
+      within: laterActTargets.researchWithin,
+      words: TARGET_WORDS.act3Research,
+    },
+    {
+      act: 4,
+      until: laterActTargets.act4ResearchUntilAbout,
+      within: laterActTargets.researchWithin,
+      words: TARGET_WORDS.act4Research,
+    },
+  ].map((target) => ({
+    ...target,
+    taskIds: catalogueUpToAct(catalogue, target.act).researchTasks.map(
+      ({ id }) => id,
+    ),
+  }));
+  const act2DesignIds = catalogueUpToAct(catalogue, 2).designs.map(
+    ({ id }) => id,
+  );
+  return ({ state }) => {
+    const now = state.clock.elapsedMinutes;
+    const { lander, launchManifest } = state;
+    const missed = [
+      ...milestones
+        .filter(
+          ({ milestoneId, by }) =>
+            now > byEarthDay(by) &&
+            !state.milestones.reachedIds.includes(milestoneId),
+        )
+        .map(({ words }) => words),
+      ...(lander.state === "travelling-to-earth" &&
+      (lander.legStartedAtMinute ?? 0) >
+        byEarthDay(act2Targets.sparesNeedNoLaunchBy) &&
+      launchManifest.items.some(
+        ({ itemId }) => itemId === catalogue.maintenance.spareComponentId,
+      )
+        ? [TARGET_WORDS.sparesNeedNoLaunch]
+        : []),
+      // The timeline dates an unlocked Design by the next look after it.
+      ...(now + LOOK_EVERY_MINUTES <=
+        byEarthDay(act2Targets.designsStillToBuyAt) &&
+      act2DesignIds.every((id) => state.unlockedDesignIds.includes(id))
+        ? [TARGET_WORDS.designsStillToBuy]
+        : []),
+      ...research.flatMap(({ taskIds, until, within, words }) => {
+        const done = taskIds.every((id) =>
+          state.completedResearchTaskIds.includes(id),
+        );
+        if (done && now < byEarthDay(until - within)) {
+          return [`${words} (it has ended already).`];
+        }
+        return !done && now > byEarthDay(until + within)
+          ? [`${words} (it hasn't ended).`]
+          : [];
+      }),
+    ];
+    if (missed.length > 0) {
+      throw new Error(
+        `On Earth Day ${(now / MINUTES_PER_EARTH_DAY).toFixed(1)} a pacing target can no longer be met: ${[...new Set(missed)].join(" ")}`,
+      );
+    }
+  };
+}
+
 /** Which of Act 2's pacing targets the guide missed, in words. */
 export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
   const reachedOn = (milestoneId: string) => {
@@ -1332,23 +1551,21 @@ export function act2TargetsMissed(timeline: ReferenceTimeline): string[] {
   return [
     ...(reachedOn("workshop-running") <= workshopRunningBy
       ? []
-      : [`a Workshop running by Earth Day ${workshopRunningBy}.`]),
+      : [TARGET_WORDS.workshopRunning]),
     ...(reachedOn("spare-components-self-sufficient") <= sparesNeedNoLaunchBy &&
     lastSpares <= sparesNeedNoLaunchBy * MINUTES_PER_EARTH_DAY
       ? []
-      : [
-          `spare Components needing no Launch by Earth Day ${sparesNeedNoLaunchBy}.`,
-        ]),
+      : [TARGET_WORDS.sparesNeedNoLaunch]),
     ...(reachedOn("metals-sold") <= metalsSoldBy
       ? []
-      : [`metals sold by Earth Day ${metalsSoldBy}.`]),
+      : [TARGET_WORDS.metalsSold]),
     ...(lastDesign > designsStillToBuyAt
       ? []
-      : [`Designs still to buy at Earth Day ${designsStillToBuyAt}.`]),
+      : [TARGET_WORDS.designsStillToBuy]),
     ...(Math.abs(lastResearch - researchLastsUntilAbout) <= researchWithin
       ? []
       : [
-          `research lasting until about Earth Day ${researchLastsUntilAbout} (it ended on ${lastResearch.toFixed(0)}).`,
+          `${TARGET_WORDS.act2Research} (it ended on ${lastResearch.toFixed(0)}).`,
         ]),
     ...(fewestSpares > 0 ? [] : ["spare Components never running out."]),
     ...(launches !== undefined && launches >= launchesToBuyEverything
@@ -1393,22 +1610,22 @@ export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
   return [
     ...(reachedOn("first-propellant") <= propellantMadeBy
       ? []
-      : [`propellant made by Earth Day ${propellantMadeBy}.`]),
+      : [TARGET_WORDS.propellantMade]),
     ...(reachedOn("return-mass-tripled") <= returnMassTripledBy
       ? []
-      : [`Return Mass tripled by Earth Day ${returnMassTripledBy}.`]),
+      : [TARGET_WORDS.returnMassTripled]),
     ...(reachedOn("precision-optics-sold") <= opticsSoldBy
       ? []
-      : [`precision optics sold by Earth Day ${opticsSoldBy}.`]),
+      : [TARGET_WORDS.opticsSold]),
     ...(near(researchEnded(3), act3ResearchUntilAbout)
       ? []
       : [
-          `Act 3's research lasting until about Earth Day ${act3ResearchUntilAbout} (it ended on ${researchEnded(3).toFixed(0)}).`,
+          `${TARGET_WORDS.act3Research} (it ended on ${researchEnded(3).toFixed(0)}).`,
         ]),
     ...(near(researchEnded(4), act4ResearchUntilAbout)
       ? []
       : [
-          `Act 4's research lasting until about Earth Day ${act4ResearchUntilAbout} (it ended on ${researchEnded(4).toFixed(0)}).`,
+          `${TARGET_WORDS.act4Research} (it ended on ${researchEnded(4).toFixed(0)}).`,
         ]),
   ];
 }

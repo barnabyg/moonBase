@@ -314,5 +314,6 @@ A Survey earns 2.5 Science an Earth Day, against about 6 from late Research Task
 - **`design-not-beaten`:** no Design is beaten outright by something at least as cheap, in Science on the way to it, money and mass, and at least as good at the same job, as the pacing report works it out.
 - **`export-can-be-sold`:** every Export can be made by some Plant, and sold within the Return Mass.
 - **`bulk-resource-has-a-use`:** every bulk resource goes into some Plant, or is an Export.
+- **`research-fits-the-campaign`:** the Research Tasks, back to back from about Earth Day 16, when the guide starts its first, finish by the long game's end on Earth Day 3,000. The guide fails if any is left undone, which only a whole play would otherwise show. `test/reference-campaign.test.ts` checks that first start.
 
 An item may break a rule only if it is on the exemption list in `test/catalogue-rules.ts`, with the reason. An exemption for something that no longer breaks the rule fails too, so the list can't go stale.

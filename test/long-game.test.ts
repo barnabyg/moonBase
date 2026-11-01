@@ -11,8 +11,22 @@ import {
   longGameSteps,
   longGameSucceeded,
   playLongGame,
+  buyInTurn,
+  giveUpOnMissedTargets,
+  laterActTargets,
+  purchaseStallWatch,
+  PURCHASE_STALL_EARTH_DAYS,
+  type Purchase,
 } from "./long-game";
-import { referenceSteps, type ReferenceTimeline } from "./reference-campaign";
+import {
+  keepingLastSnapshot,
+  referenceSteps,
+  REFERENCE_SEED,
+  type Play,
+  type ReferenceTimeline,
+} from "./reference-campaign";
+import { catalogueUpToAct } from "./pacing-report";
+import { createCampaign, type Snapshot } from "../src/simulation";
 
 // The long game itself takes minutes, so nothing here plays it through: `npm
 // run long-game` does, on demand (see docs/reference-campaign.md).
@@ -439,6 +453,375 @@ describe("the long-game play guide", () => {
     for (const designId of designsTheLongGameUses) {
       expect(ids).toContain(designId);
     }
+  });
+});
+
+describe("the limit on a purchase that makes no progress", () => {
+  const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
+  const solarArray: Purchase = {
+    structureTypeId: "solar-array",
+    site: { x: 28, y: -33 },
+  };
+
+  /** Runs the purchases over a stretch of Earth Days, a look a day, on a base that stays as it is. */
+  function lookEachDay(
+    fromEarthDay: number,
+    toEarthDay: number,
+    base: Partial<Snapshot>,
+  ): void {
+    const buy = buyInTurn([solarArray]);
+    for (let day = fromEarthDay; day <= toEarthDay; day++) {
+      const state: Snapshot = {
+        ...fresh,
+        clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+        ...base,
+      };
+      buy({
+        state,
+        campaign: {
+          planConstruction: () => ({
+            ok: false,
+            message: "A Rover is standing there.",
+          }),
+          setLaunchManifest: () => ({ ok: true }),
+        },
+      } as unknown as Play);
+    }
+  }
+
+  const inStock = {
+    stockpile: {
+      ...fresh.stockpile,
+      components: [
+        ...fresh.stockpile.components.filter(
+          ({ componentId }) =>
+            componentId !== "solar-panel" && componentId !== "array-mast",
+        ),
+        { componentId: "solar-panel", count: 9 },
+        { componentId: "array-mast", count: 9 },
+      ],
+    },
+  };
+  const lastDay = 400 + PURCHASE_STALL_EARTH_DAYS + 1;
+
+  it("gives up on a purchase that keeps being refused, saying where and why", () => {
+    expect(() => {
+      lookEachDay(400, lastDay, inStock);
+    }).toThrow(
+      `The purchases have made no progress for ${PURCHASE_STALL_EARTH_DAYS} Earth Days, since Earth Day 400.0: a solar-array at (28, -33) can't be planned: A Rover is standing there.`,
+    );
+  });
+
+  it("gives up on a purchase whose Components never come, saying what it lacks", () => {
+    expect(() => {
+      lookEachDay(400, lastDay, {
+        stockpile: { ...fresh.stockpile, components: [] },
+        fundingMillionDollars: 12,
+      });
+    }).toThrow(/a solar-array at \(28, -33\) lacks .*with \$12M of Funding/);
+  });
+
+  it("gives up on a purchase planned and never commissioned", () => {
+    const planned = {
+      structureTypeId: solarArray.structureTypeId,
+      position: solarArray.site,
+    };
+    expect(() => {
+      lookEachDay(400, lastDay, {
+        constructions: [planned] as unknown as Snapshot["constructions"],
+      });
+    }).toThrow("is planned, and hasn't been commissioned");
+  });
+
+  it("doesn't count the time planned of a purchase known to stand stranded", () => {
+    const stranded = { ...solarArray, strandedBecause: "for this test" };
+    const buy = buyInTurn([stranded]);
+    for (let day = 400; day <= lastDay; day++) {
+      buy({
+        state: {
+          ...fresh,
+          clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+          constructions: [
+            {
+              structureTypeId: stranded.structureTypeId,
+              position: stranded.site,
+            },
+          ] as unknown as Snapshot["constructions"],
+        },
+      } as unknown as Play);
+    }
+  });
+
+  it("doesn't count the time its Design is locked, however long Science takes", () => {
+    expect(() => {
+      lookEachDay(400, 2000, { unlockedDesignIds: [] });
+    }).not.toThrow();
+  });
+
+  it("doesn't count the time before Act 2, when it isn't buying yet", () => {
+    expect(() => {
+      lookEachDay(0, 349 + PURCHASE_STALL_EARTH_DAYS, inStock);
+    }).not.toThrow();
+  });
+
+  it("starts again with each purchase", () => {
+    const watch = purchaseStallWatch(10);
+    const waiting = (what: string) => [{ what, why: "waits" }];
+
+    watch(0, waiting("first"));
+    watch(10 * earthDay, waiting("second"));
+    watch(20 * earthDay, waiting("second"));
+    expect(() => {
+      watch(21 * earthDay, waiting("second"));
+    }).toThrow("since Earth Day 10.0: second waits");
+  });
+});
+
+describe("giving up on a dated pacing target", () => {
+  const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
+  const allMilestones = {
+    ...fresh.milestones,
+    reachedIds: [
+      "workshop-running",
+      "spare-components-self-sufficient",
+      "metals-sold",
+      "first-propellant",
+      "return-mass-tripled",
+      "precision-optics-sold",
+    ],
+  };
+  const researchUpToAct = (act: number) =>
+    catalogueUpToAct(catalogue, act).researchTasks.map(({ id }) => id);
+
+  /** One look at a base on an Earth Day, with no campaign to send a command to, as the check sends none. */
+  function lookOn(day: number, base: Partial<Snapshot> = {}): void {
+    giveUpOnMissedTargets()({
+      state: {
+        ...fresh,
+        clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+        milestones: allMilestones,
+        ...base,
+      },
+    } as unknown as Play);
+  }
+
+  it.each([
+    [
+      "workshop-running",
+      act2Targets.workshopRunningBy,
+      "a Workshop running by Earth Day 500.",
+    ],
+    [
+      "spare-components-self-sufficient",
+      act2Targets.sparesNeedNoLaunchBy,
+      "spare Components needing no Launch by Earth Day 800.",
+    ],
+    ["metals-sold", act2Targets.metalsSoldBy, "metals sold by Earth Day 900."],
+    [
+      "first-propellant",
+      laterActTargets.propellantMadeBy,
+      "propellant made by Earth Day 1050.",
+    ],
+    [
+      "return-mass-tripled",
+      laterActTargets.returnMassTripledBy,
+      "Return Mass tripled by Earth Day 1250.",
+    ],
+    [
+      "precision-optics-sold",
+      laterActTargets.opticsSoldBy,
+      "precision optics sold by Earth Day 2000.",
+    ],
+  ])(
+    "gives up just after %s's date, not on it, in the words the end would use",
+    (milestoneId, by, words) => {
+      const unmet = {
+        milestones: {
+          ...allMilestones,
+          reachedIds: allMilestones.reachedIds.filter(
+            (id) => id !== milestoneId,
+          ),
+        },
+      };
+      expect(() => {
+        lookOn(by, unmet);
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(by + 0.1, unmet);
+      }).toThrow(
+        `On Earth Day ${(by + 0.1).toFixed(1)} a pacing target can no longer be met: ${words}`,
+      );
+
+      const neverReached = timeline({
+        milestones: timeline().milestones.filter(
+          (milestone) => milestone.milestoneId !== milestoneId,
+        ),
+      });
+      expect([
+        ...act2TargetsMissed(neverReached),
+        ...laterActTargetsMissed(neverReached),
+      ]).toContain(words);
+    },
+  );
+
+  it("gives up if a Launch leaves with spare Components after their date, not before", () => {
+    const leaving = (legStartedAtMinute: number) => ({
+      lander: {
+        ...fresh.lander,
+        state: "travelling-to-earth",
+        legStartedAtMinute,
+      } as Snapshot["lander"],
+      launchManifest: {
+        ...fresh.launchManifest,
+        items: [{ itemId: "spare-component", count: 5 }],
+      },
+    });
+    expect(() => {
+      lookOn(801, leaving(800 * earthDay));
+    }).not.toThrow();
+    expect(() => {
+      lookOn(801, leaving(800 * earthDay + 1));
+    }).toThrow("spare Components needing no Launch by Earth Day 800.");
+  });
+
+  it("gives up once every Design of Act 2 is unlocked before Earth Day 700", () => {
+    const allDesigns = {
+      unlockedDesignIds: catalogueUpToAct(catalogue, 2).designs.map(
+        ({ id }) => id,
+      ),
+    };
+    expect(() => {
+      lookOn(700 - 1 / 24, allDesigns);
+    }).toThrow("Designs still to buy at Earth Day 700.");
+    // Unlocked at this look, the timeline dates it to the next, past the target.
+    expect(() => {
+      lookOn(700, allDesigns);
+    }).not.toThrow();
+    expect(() => {
+      lookOn(699);
+    }).not.toThrow();
+  });
+
+  it.each([
+    [2, 850, 950, "research lasting until about Earth Day 900"],
+    [3, 1350, 1450, "Act 3's research lasting until about Earth Day 1400"],
+  ])(
+    "gives up on Act %i's research ending too soon or still going too late",
+    (act, soonest, latest, words) => {
+      const done = { completedResearchTaskIds: researchUpToAct(act) };
+      expect(() => {
+        lookOn(soonest - 1, done);
+      }).toThrow(`${words} (it has ended already).`);
+      expect(() => {
+        lookOn(soonest, done);
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(latest, { completedResearchTaskIds: [] });
+      }).not.toThrow(words);
+      expect(() => {
+        lookOn(latest + 1, { completedResearchTaskIds: [] });
+      }).toThrow(`${words} (it hasn't ended).`);
+    },
+  );
+
+  it("gives up on Act 4's research ending too soon, and leaves whether it lasts to the end", () => {
+    const done = { completedResearchTaskIds: researchUpToAct(4) };
+    expect(() => {
+      lookOn(2949, done);
+    }).toThrow("Act 4's research lasting until about Earth Day 3000");
+    expect(() => {
+      lookOn(2950, done);
+    }).not.toThrow();
+    expect(() => {
+      lookOn(3000, { completedResearchTaskIds: researchUpToAct(3) });
+    }).not.toThrow();
+  });
+
+  it("says nothing while every target is still on course", () => {
+    expect(() => {
+      lookOn(100, { milestones: { ...allMilestones, reachedIds: [] } });
+    }).not.toThrow();
+  });
+
+  it("makes the play give up, saying why", () => {
+    const given = playLongGame([
+      {
+        milestoneId: undefined,
+        description: "Look once, on an Earth Day past a target.",
+        play(play) {
+          giveUpOnMissedTargets()({
+            ...play,
+            state: {
+              ...play.state,
+              clock: { ...play.state.clock, elapsedMinutes: 501 * earthDay },
+            },
+          });
+        },
+      },
+    ]);
+
+    expect(given.failure).toBe(
+      "On Earth Day 501.0 a pacing target can no longer be met: a Workshop running by Earth Day 500.",
+    );
+    expect(longGameSucceeded(given)).toBe(false);
+  });
+
+  it("is what the guide's last step keeps up last, seeing what the others did", () => {
+    const habits: ((play: Play) => void)[] = [];
+    longGameSteps.at(-1)?.play({
+      keepUp: (habit: (play: Play) => void) => habits.push(habit),
+      waitUntil: () => undefined,
+      state: {
+        completedResearchTaskIds: catalogue.researchTasks.map(({ id }) => id),
+        unlockedDesignIds: catalogue.designs.map(({ id }) => id),
+      },
+    } as unknown as Play);
+
+    expect(() => {
+      habits.at(-1)?.({
+        state: {
+          ...fresh,
+          clock: { ...fresh.clock, elapsedMinutes: 501 * earthDay },
+        },
+      } as unknown as Play);
+    }).toThrow("a Workshop running by Earth Day 500.");
+  });
+});
+
+describe("keeping the Campaign's last snapshot", () => {
+  it("shows the same snapshot until a command or game time could change it", () => {
+    const campaign = keepingLastSnapshot(
+      createCampaign({ seed: REFERENCE_SEED }),
+    );
+    const first = campaign.snapshot();
+
+    expect(campaign.snapshot()).toBe(first);
+    campaign.forecasts();
+    expect(campaign.snapshot()).toBe(first);
+
+    campaign.advance(60);
+    const later = campaign.snapshot();
+    expect(later.clock.elapsedMinutes).toBe(60);
+
+    const planned = campaign.planConstruction({
+      structureTypeId: "solar-array",
+      position: { x: 36, y: -12 },
+    });
+    expect(planned.ok).toBe(true);
+    expect(campaign.snapshot().constructions.length).toBe(
+      later.constructions.length + 1,
+    );
+  });
+
+  it("shows what a Campaign left alone shows", () => {
+    const kept = keepingLastSnapshot(createCampaign({ seed: REFERENCE_SEED }));
+    const plain = createCampaign({ seed: REFERENCE_SEED });
+    kept.snapshot();
+    kept.advance(600);
+    plain.advance(600);
+
+    expect(kept.snapshot()).toEqual(plain.snapshot());
+    expect(kept.save()).toBe(plain.save());
   });
 });
 

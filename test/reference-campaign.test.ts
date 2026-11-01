@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { lunationMinutes } from "../src/simulation";
+import { researchEndsOnEarthDay } from "./pacing-report";
 import {
   playReferenceCampaign,
   type ReferenceTimeline,
@@ -34,6 +35,18 @@ describe("the reference Campaign", () => {
       timeline.structureTypesBuilt.map((built) => built.structureTypeId),
     ).toContain("habitat");
     expect(timeline.minutesUntilDoseLimit).toBeGreaterThan(0);
+  });
+
+  it("starts its first Research Task by the Earth Day the research rule allows for", () => {
+    const [first] = timeline.researchTasksCompleted;
+    const length =
+      catalogue.researchTasks.find(({ id }) => id === first?.researchTaskId)
+        ?.lengthHours ?? 0;
+    const startedAt = (first?.atMinute ?? Infinity) - length * 60;
+
+    expect(startedAt).toBeLessThanOrEqual(
+      earthDays(researchEndsOnEarthDay({ researchTasks: [], designs: [] })),
+    );
   });
 
   const reachedAt = (milestoneId: string): number => {

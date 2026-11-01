@@ -71,7 +71,7 @@ const LONGEST_PLAY_ON_LUNATIONS = 8;
 const LONGEST_WAIT: Duration = { earthDays: 60 };
 
 /** The game-minutes the play guide lets the game run between looks at it. */
-const LOOK_EVERY_MINUTES = 60;
+export const LOOK_EVERY_MINUTES = 60;
 
 /**
  * Where the base stands: east of the landing site, beyond the reach of the
@@ -788,6 +788,35 @@ export interface DoseRate {
   readonly earthDaysUntilLimit: number | undefined;
 }
 
+/** What the Campaign can be asked without changing anything. */
+const CAMPAIGN_READS: ReadonlySet<string | symbol> = new Set<keyof Campaign>([
+  "checkPlacement",
+  "forecasts",
+  "save",
+]);
+
+/**
+ * The Campaign, keeping its last snapshot until something else is asked of it
+ * that could change it. Each habit looks at the state every game-hour, and a
+ * snapshot is a deep, frozen copy: a quarter of the time a long play took went
+ * on making the same one over again. Being frozen, one can be shared.
+ */
+export function keepingLastSnapshot(campaign: Campaign): Campaign {
+  let last: Snapshot | undefined;
+  const snapshot = () => (last ??= campaign.snapshot());
+  return new Proxy(campaign, {
+    get(target, key, receiver) {
+      if (key === "snapshot") return snapshot;
+      const value = Reflect.get(target, key, receiver) as unknown;
+      if (typeof value !== "function" || CAMPAIGN_READS.has(key)) return value;
+      return (...args: unknown[]): unknown => {
+        last = undefined;
+        return Reflect.apply(value, target, args);
+      };
+    },
+  });
+}
+
 /** How many Earth Days of play go by between reports of progress. */
 const EARTH_DAYS_BETWEEN_REPORTS = 100;
 
@@ -801,7 +830,9 @@ export function playReferenceCampaign(
   onProgress?: (earthDay: number) => void,
 ): ReferenceTimeline {
   let reportedEarthDay = 0;
-  const campaign = createCampaign({ seed: REFERENCE_SEED });
+  const campaign = keepingLastSnapshot(
+    createCampaign({ seed: REFERENCE_SEED }),
+  );
   const record = recorder(campaign);
   const habits: ((play: Play) => void)[] = [];
   const play: Play = {
