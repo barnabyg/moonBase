@@ -498,11 +498,12 @@ test("a Design unlocked adds its group in its place, with every other row in the
     screen.getByRole("region", { name: "Protection" }),
   ).toBeVisible();
   const after = await rowsShown(screen);
-  // What the next solar array will be is said where it is chosen.
+  // What the next solar array will be is said where it is chosen: still a plain
+  // one, built from the plain Components the base has.
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(
     page.getByRole("button", { name: /^Solar array/ }),
-  ).toHaveAttribute("title", /sealed/);
+  ).toHaveAttribute("title", /The next one will be a solar array/);
   await page.getByRole("button", { name: "Launch manifest" }).click();
   // The sealed mast has taken the plain one's place on sale.
   const stayed = before.filter((row) => row !== "array-mast");

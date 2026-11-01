@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { isOnSale, loadCampaign } from "../src/simulation";
+import { describeStructure } from "../src/ui/describe";
 import { scenarioOf, type Scenario } from "./scenario";
 import { freshSaveWith } from "./try-scenarios";
 
@@ -96,6 +97,29 @@ describe("what a Launch can bring of solar arrays", () => {
         itemIds: ["array-mast"],
       }),
     );
+  });
+});
+
+describe("what the player is told of a kind of solar array", () => {
+  function about(id: string): string {
+    const type = catalogue.structureTypes.find(
+      (candidate) => candidate.id === id,
+    );
+    if (type === undefined) throw new Error();
+    return describeStructure(type);
+  }
+
+  it("says what each upgrade it was built with does", () => {
+    const best = about("prefabricated-dust-screened-thin-film-solar-array");
+
+    expect(best).toContain("15 kW");
+    expect(best).toContain("its mast is sealed");
+    expect(best).toContain("its panels are screened");
+    expect(best).toContain("in one piece");
+  });
+
+  it("says none of it of a plain one", () => {
+    expect(about("solar-array")).not.toMatch(/sealed|screened|one piece/);
   });
 });
 
