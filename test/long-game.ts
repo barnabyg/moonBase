@@ -908,8 +908,9 @@ export const longGameSteps: readonly PlayStep[] = [
 /** Plays the long-game play guide, as far as it goes. */
 export function playLongGame(
   steps: readonly PlayStep[] = longGameSteps,
+  onProgress?: (earthDay: number) => void,
 ): ReferenceTimeline {
-  return playReferenceCampaign(steps);
+  return playReferenceCampaign(steps, onProgress);
 }
 
 const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });

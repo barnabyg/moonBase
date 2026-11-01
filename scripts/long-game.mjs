@@ -25,7 +25,13 @@ if (process.argv.includes(PLAY)) {
     logLevel: "error",
   });
   const started = performance.now();
-  const timeline = module.playLongGame();
+  // To stderr, so that the timeline on stdout stays as it was.
+  const timeline = module.playLongGame(undefined, (earthDay) => {
+    const elapsed = (performance.now() - started) / 60_000;
+    console.error(
+      `Earth Day ${earthDay} of ${module.LONG_GAME_END_EARTH_DAY}, after ${elapsed.toFixed(1)} minutes`,
+    );
+  });
   const minutes = (performance.now() - started) / 60_000;
   for (const line of module.formatLongGame(timeline)) console.log(line);
   console.log(`(Played in ${minutes.toFixed(1)} minutes.)`);
