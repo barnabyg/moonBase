@@ -33,6 +33,10 @@ npm.cmd run test:e2e -- e2e/habitat.spec.ts --grep "moves from the Lander"
 
 The first runs one Vitest test, the second one Playwright test. Leave out `-t` or `--grep` to run the whole file.
 
+## The long game
+
+`npm run verify` doesn't play the long game, as it takes about 10 minutes of a full core. CI plays it in a workflow of its own (`.github/workflows/long-game.yml`), on a pull request that changes what the play imports and on `main`, so a change can be handed over without playing it by hand. [`docs/reference-campaign.md`](reference-campaign.md#ci-plays-it) says when it plays and how it reports.
+
 ## Stopping at the first end-to-end failure in CI
 
 In CI (`CI` set), `playwright.config.ts` stops the end-to-end tests at the first failure, as its details only print once the run ends: one run's failure came 80 seconds in and was reported over 14 minutes later. A run therefore reports only the first failure it meets, so fixing it can reveal another. Local runs don't stop early.
@@ -58,6 +62,8 @@ The test figures are from the CI run of the merge of pull request #206 into `mai
 | Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)       | over 30×   |
 | CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                    | about 3×   |
 | CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | 8.6 min for one share                                                                                      | about 3.5× |
+| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | not yet played in CI; about 10 min on a developer's PC                                                     | about 6×   |
+| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | as above; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
 
 The runners' speed varies a lot from one run to the next, so the job limits are set against the slowest run, not a typical one. In the run above the four shares took 24.5 minutes between them, so the end-to-end limit would only just cover every test landing on one runner; a share of a quarter of them has more margin than that.
 

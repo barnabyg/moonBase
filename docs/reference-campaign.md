@@ -72,17 +72,31 @@ It prints the reference Campaign's timeline, then when each Research Task was co
 
 It takes about 10 minutes of one full core, reporting on stderr every 100 Earth Days how far it has got, with the timeline on stdout at the end (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it.
 
-### When to play it whole
+### CI plays it
 
-Rarely: once per branch, last, after the cheap checks, and only for a change that can move the balance. That means what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, the play guide's steps, and a new Structure, Plant or Act. A change to the interface, the models, the words or the docs can't move it, and neither can a change to code that plays the same. To compare with what came before, use the last played figures in [`docs/balancing.md`](balancing.md) rather than playing the old version too.
+You don't need to play it by hand before handing a change over. `.github/workflows/long-game.yml` plays it on a runner of its own:
 
-First, cheapest first, as each finds in seconds what a whole play would find in minutes:
+- **On a pull request** that changes what the play imports: `src/simulation/`, `src/catalogue/`, the play guide's files in `test/`, or the workflow and script themselves. A change to the interface, the models or the words doesn't trigger it. A new push cancels the play still going and starts again.
+- **On `main`**, after every merge except one only to `docs/` or Markdown files, so that a merge whose result plays differently from its pull request, or a play guide that has come to import something else, is still played. A failure there is reported to whoever merged it.
+- **By hand**, for any branch, once the workflow is on `main`:
+
+```powershell
+gh workflow run long-game.yml --ref my-branch
+```
+
+A failed play turns the run red. The run's summary says whether it passed and, at the top, why it failed, then gives the whole timeline. A play can pass and still have moved the balance, so read the timeline against the last played figures in [`docs/balancing.md`](balancing.md) and record what changed there. A commit that does so plays again on the pull request, which costs nothing but the wait.
+
+### Before CI plays it
+
+While working on a change that can move the balance, run these, cheapest first, as each finds in seconds what a whole play would find in minutes. That means what a long Campaign depends on: spare Components and wear, the Hazards, Plant and Export numbers, the Research Tasks and Designs' costs, the play guide's steps, and a new Structure, Plant or Act.
 
 1. `npm.cmd run pacing-report`, for what the numbers come to.
 2. `npm.cmd test -- test/catalogue-rules.test.ts test/long-game.test.ts test/pacing-report.test.ts`, whose `research-fits-the-campaign` rule fails Research Tasks that can't finish by Earth Day 3,000.
 3. `npm.cmd test -- test/reference-campaign.test.ts`, which plays Act 1.
 
-If a play fails, fix what it says, run those again, and play it again only when the fix is in: a fail, fix and retest is a whole play each time.
+### When to play it by hand
+
+Only when waiting for CI would cost more than a full core for 10 minutes: when writing steps for the play guide, or trying out a fix for a failure CI reported. A play that fails is a whole play each time, so fix what it says and run the checks above before playing it again.
 
 ### When it fails
 

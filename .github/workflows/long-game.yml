@@ -1,0 +1,51 @@
+name: Long game
+
+# Plays the long game whole, so nobody has to on their own PC, and reports its
+# timeline in the run's summary. See docs/reference-campaign.md.
+#
+# On a pull request, only for what test/long-game.ts imports, which is everything
+# that can change how it plays. On main, for anything but writing, so a play guide
+# that comes to import something else is still played. It can be started by hand
+# for any branch: gh workflow run long-game.yml --ref <branch>
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
+  pull_request:
+    paths:
+      - "src/simulation/**"
+      - "src/catalogue/**"
+      - "test/long-game.ts"
+      - "test/reference-campaign.ts"
+      - "test/scenario.ts"
+      - "test/pacing-report.ts"
+      - "scripts/long-game.mjs"
+      - ".github/workflows/long-game.yml"
+      - ".nvmrc"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its play that is still going, which
+# played code that has since changed. Plays on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  play:
+    name: Play the long game
+    runs-on: ubuntu-24.04
+    # Above the script's own hard limit of 60 minutes, so that it reports being
+    # stopped rather than the job being killed; see docs/verification.md.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        timeout-minutes: 3
+      - run: npm run long-game
