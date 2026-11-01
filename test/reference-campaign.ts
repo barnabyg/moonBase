@@ -788,11 +788,42 @@ export interface DoseRate {
   readonly earthDaysUntilLimit: number | undefined;
 }
 
+/** What the Campaign can be asked without changing anything. */
+const CAMPAIGN_READS: ReadonlySet<string | symbol> = new Set<keyof Campaign>([
+  "checkPlacement",
+  "forecasts",
+  "save",
+]);
+
+/**
+ * The Campaign, keeping its last snapshot until something else is asked of it
+ * that could change it. Each habit looks at the state every game-hour, and a
+ * snapshot is a deep, frozen copy: a quarter of the time a long play took went
+ * on making the same one over again. Being frozen, one can be shared.
+ */
+export function keepingLastSnapshot(campaign: Campaign): Campaign {
+  let last: Snapshot | undefined;
+  const snapshot = () => (last ??= campaign.snapshot());
+  return new Proxy(campaign, {
+    get(target, key, receiver) {
+      if (key === "snapshot") return snapshot;
+      const value = Reflect.get(target, key, receiver) as unknown;
+      if (typeof value !== "function" || CAMPAIGN_READS.has(key)) return value;
+      return (...args: unknown[]): unknown => {
+        last = undefined;
+        return Reflect.apply(value, target, args);
+      };
+    },
+  });
+}
+
 /** Plays the reference Campaign from a fresh Campaign to the end of the play guide, or until it gives up. */
 export function playReferenceCampaign(
   steps: readonly PlayStep[] = referenceSteps,
 ): ReferenceTimeline {
-  const campaign = createCampaign({ seed: REFERENCE_SEED });
+  const campaign = keepingLastSnapshot(
+    createCampaign({ seed: REFERENCE_SEED }),
+  );
   const record = recorder(campaign);
   const habits: ((play: Play) => void)[] = [];
   const play: Play = {

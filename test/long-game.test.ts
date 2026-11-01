@@ -12,7 +12,13 @@ import {
   longGameSucceeded,
   playLongGame,
 } from "./long-game";
-import { referenceSteps, type ReferenceTimeline } from "./reference-campaign";
+import {
+  keepingLastSnapshot,
+  referenceSteps,
+  REFERENCE_SEED,
+  type ReferenceTimeline,
+} from "./reference-campaign";
+import { createCampaign } from "../src/simulation";
 
 // The long game itself takes minutes, so nothing here plays it through: `npm
 // run long-game` does, on demand (see docs/reference-campaign.md).
@@ -416,6 +422,43 @@ describe("the long-game play guide", () => {
     for (const designId of designsTheLongGameUses) {
       expect(ids).toContain(designId);
     }
+  });
+});
+
+describe("keeping the Campaign's last snapshot", () => {
+  it("shows the same snapshot until a command or game time could change it", () => {
+    const campaign = keepingLastSnapshot(
+      createCampaign({ seed: REFERENCE_SEED }),
+    );
+    const first = campaign.snapshot();
+
+    expect(campaign.snapshot()).toBe(first);
+    campaign.forecasts();
+    expect(campaign.snapshot()).toBe(first);
+
+    campaign.advance(60);
+    const later = campaign.snapshot();
+    expect(later.clock.elapsedMinutes).toBe(60);
+
+    const planned = campaign.planConstruction({
+      structureTypeId: "solar-array",
+      position: { x: 36, y: -12 },
+    });
+    expect(planned.ok).toBe(true);
+    expect(campaign.snapshot().constructions.length).toBe(
+      later.constructions.length + 1,
+    );
+  });
+
+  it("shows what a Campaign left alone shows", () => {
+    const kept = keepingLastSnapshot(createCampaign({ seed: REFERENCE_SEED }));
+    const plain = createCampaign({ seed: REFERENCE_SEED });
+    kept.snapshot();
+    kept.advance(600);
+    plain.advance(600);
+
+    expect(kept.snapshot()).toEqual(plain.snapshot());
+    expect(kept.save()).toBe(plain.save());
   });
 });
 
