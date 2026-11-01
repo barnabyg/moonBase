@@ -89,7 +89,9 @@ export function dismantleStructure(
   }
   const type = findStructureType(structure.structureTypeId);
   const wall =
-    type?.shieldsHabitat === true ? waterWallOver(state, structure) : undefined;
+    type?.shieldsHabitat === true || type?.buried === true
+      ? waterWallOver(state, structure)
+      : undefined;
   if (wall !== undefined) {
     return {
       ok: false,

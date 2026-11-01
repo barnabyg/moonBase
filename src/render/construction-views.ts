@@ -157,9 +157,11 @@ export function createConstructionViews(
         view.model.setOccupied?.(structure.id === occupiedHabitatId);
         showLit(view, structure.lit, structure.lightRadiusMetres);
         view.model.setCharge(
-          view.storageKilowattHours === 0
-            ? 0
-            : structure.storedKilowattHours / view.storageKilowattHours,
+          structure.tank !== undefined
+            ? structure.tank.heldKilograms / structure.tank.addsKilograms
+            : view.storageKilowattHours === 0
+              ? 0
+              : structure.storedKilowattHours / view.storageKilowattHours,
         );
         if (sunFacing !== undefined) view.model.setFacing(sunFacing);
       }

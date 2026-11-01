@@ -64,12 +64,12 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
   });
   await expect(extraction).toContainText(/Condition \d+% switched off/);
   await expect(oxygen).toHaveText(
-    /^Oxygen \d+\.\d kg · lasts .*, extraction plant switched off$/,
+    /^Oxygen \d+\.\d of 100 kg · lasts .*, extraction plant switched off$/,
   );
   await expect(waterPlant).toContainText(
     /Condition \d+% running, 40 min left of this batch · making 0\.9 kg of water an hour/,
   );
-  await expect(water).toHaveText(/^Water \d+\.\d kg · rising /);
+  await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · rising /);
 
   await waterPlant.getByRole("button", { name: "Switch off" }).click();
 
@@ -78,7 +78,7 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
     /Condition \d+% running, 40 min left of its last batch before switching off/,
   );
   await expect(water).toHaveText(
-    /^Water \d+\.\d kg · lasts .*, water-processing plant switched off$/,
+    /^Water \d+\.\d of 400 kg · lasts .*, water-processing plant switched off$/,
   );
 
   // Saved and loaded, it is still switched off.
@@ -99,7 +99,7 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
   await expect(waterPlant).toContainText(
     /Condition \d+% running, 40 min left of this batch/,
   );
-  await expect(water).toHaveText(/^Water \d+\.\d kg · rising /);
+  await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · rising /);
   await expect(
     waterPlant.getByRole("button", { name: "Switch off" }),
   ).toBeVisible();

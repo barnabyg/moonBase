@@ -1,5 +1,5 @@
 import { catalogue } from "../catalogue";
-import { designLabel, type Snapshot } from "../simulation";
+import { designLabel, reserveKilograms, type Snapshot } from "../simulation";
 import {
   describeBuild,
   describeComponentUse,
@@ -10,7 +10,7 @@ import {
 } from "./describe";
 import { setText } from "./dom";
 import { formatMillionDollars, formatScience, listInWords } from "./format";
-import { stockLabel } from "./labels";
+import { inSentence, stockLabel } from "./labels";
 import { formatLaunchItem } from "./launch-manifest-text";
 import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
@@ -18,6 +18,20 @@ import { createScreen } from "./screen";
 export interface GuideScreen {
   open(): void;
   update(snapshot: Snapshot): void;
+}
+
+/** What the Guide says of the limit on propellant, from the data catalogue's figures. */
+function propellantStorage(): string[] {
+  const holds = catalogue.structureTypes.find(
+    ({ ownStorage }) => ownStorage !== undefined,
+  )?.ownStorage;
+  const tank = catalogue.structureTypes.find(
+    ({ storageTank }) => storageTank?.resource.kind === "bulk-resource",
+  )?.storageTank;
+  if (holds === undefined || tank === undefined) return [];
+  return [
+    `Propellant has a limit as well: a propellant plant of either size holds ${holds.kilograms} kg, and a propellant tank (the Propellant production Design) adds ${tank.kilograms} kg. A Plant with no room waits for tank space, and the status panel says it is holding full. Nobody depends on it, so no reserve is kept: a Broken tank's share goes at once and a tank with no power at Night goes on losing its share, however little is left. A Plant that is Broken or taken apart only lowers the limit: what the base has stays, and can be burned or sold, though no more is made until it fits.`,
+  ];
 }
 
 /**
@@ -252,6 +266,20 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `Build a parking area to keep them together: before Night falls the Robot parks them in its bays, even those already plugged in elsewhere, rather than beside the nearest powered Structure, as long as it has a bay free, is cabled to battery banks that will keep their heaters on through the Night, and is no more than ${cold.bayDetourMetres} m further off than that Structure. Put it near where the Machines work, as the Robot drives them there and back.`,
         "Plants work in batches of their recipe, most of them an hour long: each starts once there is a batch's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
         `Plants run only on power that nothing else needs: in Daylight, once the battery banks are full, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
+        ...catalogue.lifeSupportStocks
+          .filter((stock) => stock.id === "water")
+          .map(
+            (water) =>
+              `An optics works and a grinding line use water as coolant, the Mission Director's water, so it has to come from somewhere: Launches, or ice turned into water. They start no batch that would take it below a reserve kept for the Mission Director, ${water.reserveEarthDays} Earth Days of what they use (${reserveKilograms(water.id)} kg): the Base panel then says the Plant is waiting, and the status panel says what is using the water and what is waiting. So they can never drink it all, and what they use doesn't count against being self-sufficient in water, which judges only what the Mission Director uses.`,
+          ),
+        `The base's own tanks hold ${listInWords(
+          catalogue.lifeSupportStocks.map(
+            (stock) =>
+              `${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}`,
+          ),
+        )}, and the status panel shows each stock against its limit. A Plant that makes only a full stock waits for tank space, using no power or inputs, and starts again as the Mission Director uses some: the status panel says the stock is holding full, and that doesn't count against being self-sufficient in it. A Plant that makes other things as well keeps running and loses what doesn't fit, so that oxygen can't hold up metals. The Launch manifest warns if a Launch would bring more than there is room for: what doesn't fit is lost on landing.`,
+        `A storage tank (the Bulk supply tanks Design) raises a stock's limit once it is commissioned. It comes empty and takes a cable, as it draws a little power all through the Night to stop what it holds freezing or boiling off. Every tank, and the base's own, holds its share of the stock. A Broken tank loses its share at once and the limit falls until it is repaired, a tank taken apart loses whatever no longer fits, and with no power at Night a tank loses a little of its share every hour. None of that takes the stock below the Mission Director's reserve.`,
+        ...propellantStorage(),
         "Switch a Plant off in the Base panel to keep an input it would use, or to leave its power to other Plants, and switch it on again whenever you like: neither needs the Robot. A batch it has started finishes first. The forecasts count a switched-off Plant as making nothing. It wears no further by Dust while it stands idle, but Micrometeorites can still strike it and the Robot still maintains it.",
         `A Light Mast only helps you see, as work carries on in the dark. At Night it switches itself off to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more.`,
       ],
@@ -270,6 +298,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `The Mission Director starts safe aboard the Lander. Once they move into a Habitat, they use ${listInWords(catalogue.lifeSupportStocks.map((stock) => stockLabel(stock.id).toLowerCase()))} every Earth Day and absorb a Radiation Dose. Running out of either, the Habitat losing power or the dose reaching ${radiation.doseLimitMillisieverts} mSv kills them at once.`,
         "Regolith shielding over the Habitat, and later a water wall over that, cuts the dose. Launches bring oxygen and water until the base's Plants and Expeditions make enough.",
         `The dose never falls, and even behind a water wall it reaches the limit in time. A Buried Habitat cuts its rate to ${radiation.doseRateMillisievertsPerEarthDay.buriedHabitat} mSv an Earth Day, a tenth of a water wall's: its kit takes several Launches and a great deal of Funding, so plan for it long before the limit, and the sooner the Habitat over it was shielded, the more of the dose is left. Press "Move here" beside any other commissioned Habitat with power to move the Mission Director, at once. You can then have the old Habitat dismantled, its shielding first, to get its power back. A Broken Buried Habitat protects nobody, and any Habitat they live in that Breaks or loses power kills them.`,
+        `Past that, a vault cistern (the ${designLabel("vault-cistern")} Design) goes round a Buried Habitat and cuts its rate to ${radiation.doseRateMillisievertsPerEarthDay.cisternedBuriedHabitat} mSv an Earth Day. It is the dearest thing in the Tech Tree, more than Research Tasks pay for, so it takes Science from Greenhouses, and it has to be filled all at once, so build water tanks to hold what it takes.`,
       ],
     },
     {
@@ -284,6 +313,15 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
       paragraphs: [
         "Research Tasks run by themselves and earn Science, which unlocks Designs on the Tech Tree. Unlocking a Design only permits what it covers: its Structures still have to be built, and their Components shipped.",
         `A telescope works on the ${observingProgramme.label}, a standing Research Task that runs alongside the one you start and never ends. It observes only at Night, while it has power and isn't Broken, and every ${formatHours(observingProgramme.lengthHours)} of observing completes a round for ${formatScience(observingProgramme.science)}; more telescopes get through a round faster. It draws power only while it observes, and, like a Light Mast, stops to save power once the battery banks hold only enough for everything else through to Daylight and ${formatHours(nightReserveHours)} more, so build battery banks enough for it. The Research section of the status panel shows how the ${observingProgramme.label} is going.`,
+        ...catalogue.structureTypes.flatMap(
+          ({ designId, growing, label, power, recipes }) =>
+            growing === undefined
+              ? []
+              : [
+                  `A ${inSentence(label)} (the ${designLabel(designId)} Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
+                ],
+        ),
+        "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",
         "The Technologies tab lists every Design and what unlocking it brings.",
       ],
     },

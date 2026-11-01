@@ -1,3 +1,10 @@
+import { workingTanks } from "./storage-limits";
+import {
+  readTank,
+  tanksWithoutPower,
+  watchTanks,
+  type TankSnapshot,
+} from "./storage-tanks";
 import {
   catalogue,
   type ComponentCount,
@@ -180,6 +187,7 @@ import {
   runObservingProgramme,
   type ObservingProgrammeSnapshot,
 } from "./observing";
+import { runGreenhouses } from "./greenhouses";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
   designLabel,
@@ -367,6 +375,8 @@ export interface StructureSnapshot {
   readonly savingPower: boolean;
   /** The energy stored in it, if it is a battery bank. */
   readonly storedKilowattHours: number;
+  /** What it holds, if it is a storage tank; undefined for any other Structure. */
+  readonly tank: TankSnapshot | undefined;
   /**
    * Whether it is a Habitat with commissioned Regolith shielding over it,
    * neither of them Broken, or a Buried Habitat, not Broken, which needs none.
@@ -420,6 +430,11 @@ export interface StructureSnapshot {
    * starts no new batch. Always false for any other Structure.
    */
   readonly switchedOff: boolean;
+  /**
+   * The game-minutes grown on its current round, if it is a Greenhouse, at full
+   * performance. Always 0 for any other Structure.
+   */
+  readonly growingMinutes: number;
 }
 
 /**
@@ -1109,12 +1124,11 @@ function campaignFrom(state: CampaignState): Campaign {
     snapshot() {
       const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
       const plugs = pluggedIn(state);
-      const savingPower = nightLoadsSavingPower(
-        state,
+      const suppliedAtNight =
         state.elapsedMinutes > 0 &&
-          readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
-            "night",
-      );
+        readLunation(state.elapsedMinutes - 1, catalogue.lunation).part ===
+          "night";
+      const savingPower = nightLoadsSavingPower(state, suppliedAtNight);
       return deepFreeze({
         clock: readClock(state.elapsedMinutes),
         lunation,
@@ -1190,6 +1204,7 @@ function campaignFrom(state: CampaignState): Campaign {
             // is a light.
             lit: structure.lit && lightRadiusMetres > 0,
             savingPower: savingPower.includes(structure),
+            tank: readTank(state, structure, suppliedAtNight),
             shielded: isShielded(state, structure),
             waterWalled: isWaterWalled(state, structure),
             buried: isBuried(structure),
@@ -1265,6 +1280,10 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
       (load) => load.id,
     ),
   );
+  const tanksBefore = workingTanks(state);
+  const tanksWithoutPowerBefore = new Set(
+    tanksWithoutPower(state, partSupplied === "night").map((tank) => tank.id),
+  );
   const minutesUntilLimitBefore = minutesUntilLimitAsMinuteStarts(state);
   const sparesBefore = forecastSpareComponents(state);
   const selfSufficiencyBefore = [
@@ -1290,8 +1309,15 @@ function advanceOneTick(state: CampaignState): GameEvent[] {
   supplyPower(state, partBefore === "daylight");
   events.push(
     ...watchLights(state, partBefore === "night", nightLoadsSavingBefore),
+    ...watchTanks(
+      state,
+      tanksBefore,
+      tanksWithoutPowerBefore,
+      partBefore === "night",
+    ),
   );
   runPlants(state);
+  events.push(...runGreenhouses(state));
   events.push(...runResearch(state));
   events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;

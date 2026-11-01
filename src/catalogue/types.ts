@@ -500,6 +500,22 @@ export interface ResearchTask {
 }
 
 /**
+ * A Greenhouse's rounds of growing. Each Greenhouse grows its own: every
+ * game-minute it has its water and power adds its performance's share of a
+ * game-minute, and the round's Science comes once it has its length, so two earn
+ * twice what one does. A shortage of either loses what the round has grown.
+ */
+export interface GrowingRounds {
+  /**
+   * How long a round takes at full performance, in game-hours, Daylight and Night
+   * alike. Must come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete. */
+  readonly science: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -594,6 +610,8 @@ export interface RadiationRules {
     readonly waterWalledHabitat: number;
     /** In a Buried Habitat that isn't Broken, which needs nothing over it. */
     readonly buriedHabitat: number;
+    /** In a Buried Habitat with a commissioned vault cistern round it, neither Broken. */
+    readonly cisternedBuriedHabitat: number;
   };
   readonly doseLimitMillisieverts: number;
   /**
@@ -621,6 +639,16 @@ export interface LifeSupportStock {
    * use left, largest first. Each must come to a whole number of game-minutes.
    */
   readonly warningEarthDaysLeft: readonly number[];
+  /**
+   * How many Earth Days of the Mission Director's use are kept for them: a Plant
+   * that takes the stock starts no batch that would take it below this.
+   */
+  readonly reserveEarthDays: number;
+  /**
+   * How many kilograms the base's built-in storage holds. A Plant that makes
+   * nothing else waits once a batch's worth won't fit.
+   */
+  readonly storageLimitKilograms: number;
 }
 
 /**
@@ -894,6 +922,19 @@ export interface StructureType {
      */
     readonly nightDrawKilowatts: number;
     /**
+     * The power it draws in Daylight only, all through it: what a Greenhouse's
+     * pumps and fans take while the sun does the lamps' work. It is supplied with
+     * the other Structures, in its turn. Leaving it out is the same as none.
+     */
+    readonly daylightDrawKilowatts?: number;
+    /**
+     * The power it draws all through the Night and not at all in Daylight, as a
+     * storage tank does to keep what it holds. Unlike a Night load it is
+     * supplied with the rest of what it draws, and it never switches itself
+     * off to save power. Leaving it out is the same as 0.
+     */
+    readonly nightUpkeepKilowatts?: number;
+    /**
      * Whether the Robot lays it a power cable though it generates, stores
      * and draws nothing itself, as for a parking area's bay sockets, which
      * supply the heaters plugged in to them. Anything that generates,
@@ -955,6 +996,46 @@ export interface StructureType {
    * `ObservingProgramme`). Leaving it out is the same as false.
    */
   readonly telescope?: boolean;
+  /**
+   * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
+   * crop grows a round at a time while it has water and power, day and night, and
+   * earns Science as each round is complete (see `GrowingRounds`).
+   */
+  readonly growing?: GrowingRounds;
+  /**
+   * If it is a storage tank: once it is commissioned, and until it is Broken or
+   * taken apart, it adds to what the base can hold of a resource.
+   */
+  readonly storageTank?: StorageTank;
+  /**
+   * If it is a Plant that stores what it makes: once it is commissioned, and until
+   * it is Broken or taken apart, it holds this much of it. A bulk resource that some
+   * type of Structure holds has a limit, which is what they hold between them.
+   */
+  readonly ownStorage?: OwnStorage;
+}
+
+/** How much of a resource a Plant holds in its own tanks. */
+export interface OwnStorage {
+  readonly resource: ResourceRef;
+  readonly kilograms: number;
+}
+
+/**
+ * What a storage tank holds. Its power has `nightUpkeepKilowatts`, for keeping
+ * that from boiling off or freezing. It holds a share of the base's stock, as a
+ * battery bank does of its network's energy: a Broken one loses that share, one
+ * taken apart loses whatever no longer fits, and one with no power at Night
+ * loses its share little by little, none of them taking a life support stock
+ * below the Mission Director's reserve.
+ */
+export interface StorageTank {
+  /** A resource the base has a limit to, as a tank adds to that limit. */
+  readonly resource: ResourceRef;
+  /** How much it adds to what the base can hold. */
+  readonly kilograms: number;
+  /** The share, from 0 to 1, of what it holds that it loses each Earth Day with no power at Night. */
+  readonly shareLostPerEarthDayWithoutPower: number;
 }
 
 /**
@@ -998,6 +1079,11 @@ export interface WaterWallRules {
    * left once it is filled; its Construction waits until there is.
    */
   readonly reserveEarthDays: number;
+  /**
+   * Whether it goes round a Buried Habitat, as a vault cistern does, rather than
+   * over a Habitat's Regolith shielding.
+   */
+  readonly overBuriedHabitat?: boolean;
 }
 
 /**

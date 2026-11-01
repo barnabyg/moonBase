@@ -260,7 +260,7 @@ test("at the fastest game speed, on a catalogue of 80 Launch items, the Launch m
     .click();
   await page.getByRole("button", { name: "Launch manifest" }).click();
   const find = screen(page).getByRole("searchbox", { name: "Find an item" });
-  await find.fill("made-up part 1");
+  await find.fill("made-up part");
   await expect(cost(page)).toBeVisible();
   const tops = await rowTops(page);
   const rows = [...tops.keys()].filter((key) =>
@@ -294,7 +294,7 @@ test("at the fastest game speed, on a catalogue of 80 Launch items, the Launch m
         `${row} moved from ${tops.get(row)} to ${now.get(row)}`,
       ).toBe(true);
     }
-    await expect(find).toHaveValue("made-up part 1");
+    await expect(find).toHaveValue("made-up part");
   }
   // The game ran on all the while.
   expect(await gameHours(page)).toBeGreaterThan(start);

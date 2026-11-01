@@ -30,8 +30,12 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   const water = panel.getByRole("status", { name: "Water", exact: true });
   const habitatPower = panel.getByRole("status", { name: "Habitat power" });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
-  await expect(oxygen).toHaveText("Oxygen 25.0 kg · safe aboard the Lander");
-  await expect(water).toHaveText("Water 108.0 kg · safe aboard the Lander");
+  await expect(oxygen).toHaveText(
+    "Oxygen 25.0 of 100 kg · safe aboard the Lander",
+  );
+  await expect(water).toHaveText(
+    "Water 108.0 of 400 kg · safe aboard the Lander",
+  );
   await expect(habitatPower).toBeHidden();
   await expect(radiationDose).toHaveText(
     "Radiation 0.0 / 600 mSv · none aboard the Lander",
@@ -66,8 +70,8 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     .getByRole("list", { name: "Structures" })
     .getByRole("button", { name: "Move in" })
     .click();
-  await expect(oxygen).toHaveText(/^Oxygen 2\d\.\d kg · lasts 2[89]d/);
-  await expect(water).toHaveText(/^Water \d+\.\d kg · lasts (29|30)d/);
+  await expect(oxygen).toHaveText(/^Oxygen 2\d\.\d of 100 kg · lasts 2[89]d/);
+  await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · lasts (29|30)d/);
   await expect(habitatPower).toHaveText(/^Habitat power on · fails in \d+d/);
   await expect(radiationDose).toHaveText(
     /^Radiation \d+\.\d \/ 600 mSv · \+30\.0 a day, limit in (19|20)d/,
@@ -105,6 +109,8 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
 
   await expect(gameOver).toBeHidden();
   await expect(clock).toHaveText(/^Earth Day 1, /);
-  await expect(oxygen).toHaveText("Oxygen 25.0 kg · safe aboard the Lander");
+  await expect(oxygen).toHaveText(
+    "Oxygen 25.0 of 100 kg · safe aboard the Lander",
+  );
   await expect(habitatPower).toBeHidden();
 });

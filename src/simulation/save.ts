@@ -973,6 +973,70 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 41 to 42: nothing in the document changes. From this version on, a Plant
+  // may be saved as waiting for room for what it makes. A stock over its new
+  // storage limit stays as it is, and its Plants wait until it falls.
+  (document) => ({ ...document }),
+  // 42 to 43: the liquid oxygen tank and the bulk water tank are no longer Launch
+  // items, as the Bulk supply tanks Design now brings storage tanks to build. What
+  // a manifest not yet paid for asked of them is taken off it, as nothing has been
+  // spent. A Lander on its way to the Moon has been paid for them, so it brings
+  // the same oxygen and water as the resupply items, at six to the tank.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["launchManifest"])) {
+      return { ...document };
+    }
+    const resupplyOf: Readonly<Record<string, string>> = {
+      "liquid-oxygen-tank": "oxygen",
+      "bulk-water-tank": "water",
+    };
+    const lander = state["lander"];
+    const trip = isRecord(lander) ? lander["trip"] : undefined;
+    const paid = isRecord(trip) && trip["leg"] === "travelling-to-moon";
+    const lines: Record<string, unknown>[] = [];
+    const add = (itemId: string, count: number) => {
+      const line = lines.find((other) => other["itemId"] === itemId);
+      if (line === undefined) lines.push({ itemId, count });
+      else line["count"] = Number(line["count"]) + count;
+    };
+    for (const line of state["launchManifest"] as unknown[]) {
+      const resupply =
+        isRecord(line) && typeof line["itemId"] === "string"
+          ? resupplyOf[line["itemId"]]
+          : undefined;
+      if (resupply === undefined) {
+        lines.push(line as Record<string, unknown>);
+      } else if (paid && isRecord(line) && typeof line["count"] === "number") {
+        add(resupply, 6 * line["count"]);
+      }
+    }
+    // A manifest is in catalogue order, where oxygen comes before water.
+    const oxygen = lines.findIndex((line) => line["itemId"] === "oxygen");
+    const water = lines.findIndex((line) => line["itemId"] === "water");
+    if (water !== -1 && oxygen > water) {
+      const [moved] = lines.splice(oxygen, 1);
+      if (moved !== undefined) lines.splice(water, 0, moved);
+    }
+    return { ...document, state: { ...state, launchManifest: lines } };
+  },
+  // 43 to 44: the Greenhouse, whose current round is kept on its Structure. There
+  // were none, so nothing has grown on any.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure) ? { ...structure, growingMinutes: 0 } : structure,
+        ),
+      },
+    };
+  },
 ];
 
 /**
@@ -1388,6 +1452,10 @@ const resourceRef: Decoder<ResourceRef> = tagged("kind", {
 const plantStop: Decoder<PlantStop> = tagged("reason", {
   broken: object({ reason: exactly("broken") }),
   "no-input": object({ reason: exactly("no-input"), resource: resourceRef }),
+  "output-full": object({
+    reason: exactly("output-full"),
+    resource: resourceRef,
+  }),
   night: object({ reason: exactly("night") }),
   "no-power": object({ reason: exactly("no-power") }),
   "switched-off": object({ reason: exactly("switched-off") }),
@@ -1413,6 +1481,7 @@ const structure: Decoder<StructureState> = (() => {
     batch: optional(object({ recipeId: text, minutesWorked: amount })),
     plantStop: optional(plantStop),
     switchedOff: boolean,
+    growingMinutes: amount,
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -1453,6 +1522,17 @@ const structure: Decoder<StructureState> = (() => {
       throw refuse(
         at(path, "switchedOff"),
         "is true, though the Structure isn't a Plant",
+      );
+    }
+    if (
+      decoded.growingMinutes > 0 &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.growing === undefined
+    ) {
+      throw refuse(
+        at(path, "growingMinutes"),
+        "isn't 0, though the Structure isn't a Greenhouse",
       );
     }
     return decoded;

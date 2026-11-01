@@ -3,9 +3,11 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type GrowingRounds,
   type ResourceFlow,
 } from "../catalogue";
 import {
+  isGreenhouse,
   recipeOf,
   workingRecipeOf,
   type MaintenanceSnapshot,
@@ -15,7 +17,13 @@ import {
 } from "../simulation";
 import { maintenanceState } from "./base-panel-text";
 import { formatComponentsMade, formatHours } from "./describe";
-import { formatPerformance, formatShortDuration, listInWords } from "./format";
+import {
+  formatKilogramAmount,
+  formatPerformance,
+  formatScience,
+  formatShortDuration,
+  listInWords,
+} from "./format";
 import { resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
@@ -83,7 +91,49 @@ export function structureStatus(
   if (structure.plant === undefined) {
     return structure.powered ? "commissioned" : "no power";
   }
+  if (isGreenhouse(structure)) return formatGreenhouse(structure);
   return formatPlant(structure.plant, structure.switchedOff) ?? "commissioned";
+}
+
+/** The rounds of growing a type of Structure has, if it is a Greenhouse. */
+export function growingRoundsOf(
+  structureTypeId: string,
+): GrowingRounds | undefined {
+  return catalogue.structureTypes.find((type) => type.id === structureTypeId)
+    ?.growing;
+}
+
+/**
+ * Says what a Greenhouse is doing, for example "growing, 2d 4h left of this
+ * round", or why it isn't. Its batches of water are its own business: it is the
+ * round that the player has at stake.
+ */
+export function formatGreenhouse(
+  structure: Pick<
+    StructureSnapshot,
+    | "structureTypeId"
+    | "plant"
+    | "growingMinutes"
+    | "performance"
+    | "switchedOff"
+  >,
+): string {
+  const { plant } = structure;
+  if (plant?.running === true) {
+    if (structure.switchedOff) return "growing to the end of its last batch";
+    const rounds = growingRoundsOf(structure.structureTypeId);
+    const left =
+      ((rounds?.lengthHours ?? 0) * 60 - structure.growingMinutes) /
+      structure.performance;
+    return `growing, ${formatShortDuration(Math.max(Math.ceil(left), 0))} left of this round`;
+  }
+  const stop = plant?.stoppedFor?.reason;
+  if (stop === "no-power" || stop === "night") {
+    return "no power: starts a new round once it has some";
+  }
+  return plant === undefined
+    ? "commissioned"
+    : (formatPlant(plant, structure.switchedOff) ?? "commissioned");
 }
 
 /**
@@ -95,6 +145,8 @@ export interface StructureNotes {
   readonly plantRates: string | undefined;
   /** Whether a telescope is observing. */
   readonly observing: string | undefined;
+  /** What a storage tank holds and draws. */
+  readonly tank: string | undefined;
   /** Whether its light is on, or its Night load off to save power. */
   readonly light: string | undefined;
   /** Whether a Habitat is buried, shielded or neither. */
@@ -116,6 +168,7 @@ export function structureNotes(
   return {
     plantRates: formatPlantRates(structure),
     observing: structure.observing ? "observing" : undefined,
+    tank: formatTank(structure, snapshot.lunation.part === "night"),
     light: structure.lit
       ? "lit"
       : structure.savingPower
@@ -130,7 +183,11 @@ export function structureNotes(
           ? "shielded"
           : "unshielded"
       : undefined,
-    waterWall: structure.waterWalled ? "water-walled" : undefined,
+    waterWall: structure.waterWalled
+      ? structure.buried
+        ? "with a vault cistern"
+        : "water-walled"
+      : undefined,
     home: isHome(snapshot, structure.id)
       ? "the Mission Director's home"
       : undefined,
@@ -156,6 +213,7 @@ export function describeStructureEntry(
   const {
     plantRates,
     observing,
+    tank,
     light,
     shielding,
     waterWall,
@@ -167,6 +225,7 @@ export function describeStructureEntry(
   const notes = [
     plantRates,
     observing,
+    tank,
     light,
     shielding,
     waterWall,
@@ -178,6 +237,29 @@ export function describeStructureEntry(
   return notes.length === 0
     ? { value: state }
     : { value: state, note: notes.join(", ") };
+}
+
+/**
+ * Says what a storage tank holds of the stock, out of what it adds to the limit,
+ * and what it draws to keep it, for example "holds 150 of 300 kg of oxygen, draws
+ * 0.15 kW at Night", or that it is losing it for want of power; undefined for
+ * anything else, and for a Broken one, which holds nothing and draws nothing.
+ */
+export function formatTank(
+  structure: Pick<
+    StructureSnapshot,
+    "structureTypeId" | "tank" | "conditionPercent"
+  >,
+  night: boolean,
+): string | undefined {
+  const { tank } = structure;
+  if (tank === undefined || structure.conditionPercent <= 0) return undefined;
+  const stock = resourceRefLabel(tank.resource).toLowerCase();
+  if (tank.losing) return `no power: losing ${stock}`;
+  const kilowatts =
+    catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
+      ?.power.nightUpkeepKilowatts ?? 0;
+  return `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${stock}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
 }
 
 /**
@@ -212,6 +294,10 @@ export function formatPlantRates(
     chosen === undefined || chosen === recipe || structure.switchedOff
       ? ""
       : `; ${chosen.label} from the next batch`;
+  const rounds = growingRoundsOf(structure.structureTypeId);
+  if (rounds !== undefined) {
+    return `using ${flows(recipe.inputs, structure.performance)} an hour, for ${formatScience(rounds.science)} a round`;
+  }
   const components = componentOutputs(recipe);
   if (components.length > 0) {
     const hours = batchHoursOf(recipe);
@@ -235,8 +321,9 @@ function plantKilograms(kilograms: number): string {
 /**
  * Says whether a Plant is running, why not, and how much of its batch is
  * left, for its line in the status panel, for example "running, 40 min
- * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg" or "switched
- * off"; undefined once it is Broken, which the line says already. Given
+ * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg", "waiting for
+ * Water: 49.5 of 50 kg, to leave the Mission Director's reserve of 49 kg",
+ * "waiting for tank space: Water is 399.5 of 400 kg" or "switched off"; undefined once it is Broken, which the line says already. Given
  * that it is switched off, a batch it has started is its last.
  */
 export function formatPlant(
@@ -258,6 +345,10 @@ export function formatPlant(
       return undefined;
     case "no-input":
       return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg`;
+    case "reserve":
+      return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg, to leave the Mission Director's reserve of ${plantKilograms(stop.reserveKilograms)} kg`;
+    case "output-full":
+      return `waiting for tank space: ${resourceRefLabel(stop.resource)} is ${stop.kilograms.toFixed(1)} of ${plantKilograms(stop.limitKilograms)} kg`;
     case "night":
       return `idle at Night: no stored power to spare${left}`;
     case "no-power":

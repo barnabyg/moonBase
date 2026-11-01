@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { batchHoursOf, catalogue, resourceOutputs } from "../src/catalogue";
 
 /**
  * The data catalogue's resources.ts: bulk resources, Exports, digging,
@@ -97,6 +97,78 @@ describe("the data catalogue", () => {
     expect(recordHours).toBeGreaterThan(0);
     expect(Number.isInteger(recordHours * 60)).toBe(true);
     expect(Number.isInteger(windowHours / recordHours)).toBe(true);
+  });
+
+  it("keeps a reserve of each life support stock that outlasts a Night and a Lander's round trip, and comes before the first warning", () => {
+    const { lunation, lander } = catalogue;
+    for (const stock of catalogue.lifeSupportStocks) {
+      expect(stock.reserveEarthDays).toBeGreaterThan(lunation.nightEarthDays);
+      expect(stock.reserveEarthDays).toBeGreaterThan(
+        Object.values(lander.roundTripEarthDays).reduce(
+          (sum, leg) => sum + leg,
+          0,
+        ),
+      );
+      expect(stock.reserveEarthDays).toBeGreaterThan(
+        Math.max(...stock.warningEarthDaysLeft),
+      );
+    }
+  });
+
+  it("sets a storage limit for each life support stock, above what it starts with and its reserve", () => {
+    for (const stock of catalogue.lifeSupportStocks) {
+      expect(stock.storageLimitKilograms).toBeGreaterThan(
+        stock.startingKilograms,
+      );
+      expect(stock.storageLimitKilograms).toBeGreaterThan(
+        stock.reserveEarthDays * stock.usePerEarthDayKilograms,
+      );
+    }
+  });
+
+  it("has room for a whole batch of every recipe in the stock it makes, so that no Plant waits for ever", () => {
+    for (const type of catalogue.structureTypes) {
+      for (const recipe of type.recipes ?? []) {
+        for (const { resource, kilogramsPerHour } of resourceOutputs(recipe)) {
+          if (resource.kind !== "life-support") continue;
+          const limit = catalogue.lifeSupportStocks.find(
+            ({ id }) => id === resource.stockId,
+          )?.storageLimitKilograms;
+          expect(kilogramsPerHour * batchHoursOf(recipe)).toBeLessThan(
+            limit ?? 0,
+          );
+        }
+      }
+    }
+  });
+
+  it("holds a water wall and its reserve with no tank, even a batch below the limit, where a Plant rests", () => {
+    const water = catalogue.lifeSupportStocks.find(({ id }) => id === "water");
+    const wall = catalogue.structureTypes.find(
+      (type) => type.waterWall !== undefined,
+    )?.waterWall;
+    if (water === undefined || wall === undefined) {
+      throw new Error("expected water and a water wall");
+    }
+    const biggestBatch = Math.max(
+      ...catalogue.structureTypes.flatMap((type) =>
+        (type.recipes ?? []).flatMap((recipe) =>
+          resourceOutputs(recipe)
+            .filter(
+              ({ resource }) =>
+                resource.kind === "life-support" &&
+                resource.stockId === "water",
+            )
+            .map(
+              ({ kilogramsPerHour }) => kilogramsPerHour * batchHoursOf(recipe),
+            ),
+        ),
+      ),
+    );
+
+    expect(water.storageLimitKilograms - biggestBatch).toBeGreaterThan(
+      wall.kilograms + wall.reserveEarthDays * water.usePerEarthDayKilograms,
+    );
   });
 
   it("has oxygen and water stocks that are used up, with warnings before they run out", () => {

@@ -18,6 +18,7 @@ import {
   createBuriedHabitatModel,
   createHabitatModel,
   createRegolithShieldingModel,
+  createVaultCisternModel,
   createWaterWallModel,
   HABITAT,
   HARDENED_HABITAT,
@@ -32,7 +33,13 @@ import {
   THERMAL_STORE,
   WHIPPLE_SHIELDED_BATTERY_BANK,
 } from "./battery-bank-models";
+import {
+  createStorageTankModel,
+  STORAGE_TANK_SHAPES,
+} from "./storage-tank-models";
 import { createConcentratorTowerModel } from "./concentrator-tower-model";
+import { createGreenhouseModel } from "./greenhouse-model";
+import { createGrowingHallModel } from "./growing-hall-model";
 import {
   createLandingPadModel,
   createParkingAreaModel,
@@ -124,6 +131,8 @@ export function createStructureModel(
     );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
+  const tank = STORAGE_TANK_SHAPES[structureTypeId];
+  if (tank !== undefined) return createStorageTankModel(tank);
   if (structureTypeId === "buried-habitat") {
     return createBuriedHabitatModel(groundMaterial);
   }
@@ -137,6 +146,9 @@ export function createStructureModel(
     return createSinteredLandingPadModel();
   }
   if (structureTypeId === "telescope") return createTelescopeModel();
+  if (structureTypeId === "greenhouse") return createGreenhouseModel();
+  if (structureTypeId === "growing-hall") return createGrowingHallModel();
+  if (structureTypeId === "vault-cistern") return createVaultCisternModel();
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );

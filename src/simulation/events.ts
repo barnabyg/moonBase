@@ -1,9 +1,12 @@
-import type { ComponentCount } from "../catalogue";
+import type { ComponentCount, ResourceRef } from "../catalogue";
 import type { ExportLine } from "./exports";
 import type { ManifestLine } from "./launch-manifest";
 import type { MaintenanceSubject } from "./maintenance";
 import type { StrikeTarget } from "./micrometeorites";
 import type { PlumeEjectaDamage } from "./plume-ejecta";
+
+/** What cost a Greenhouse its round. */
+export type GreenhouseRoundLoss = "water" | "power" | "switched-off";
 
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
@@ -125,6 +128,39 @@ export type GameEvent =
       readonly atMinute: number;
       /** Everything on the Launch manifest it brought, in catalogue order. */
       readonly delivered: readonly ManifestLine[];
+    }
+  | {
+      /**
+       * The Lander brought more of a life support stock than the base has room
+       * for, and what didn't fit was lost.
+       */
+      readonly kind: "lost-on-landing";
+      readonly atMinute: number;
+      readonly stockId: string;
+      readonly kilograms: number;
+    }
+  | {
+      /**
+       * A storage tank stopped holding its share of a stock: it went Broken, and
+       * its share was lost, or the Robot started taking it apart, and what no
+       * longer fitted was lost.
+       */
+      readonly kind: "storage-tank-lost";
+      readonly atMinute: number;
+      readonly structureTypeId: string;
+      readonly resource: ResourceRef;
+      readonly cause: "broken" | "dismantled";
+      readonly kilograms: number;
+    }
+  | {
+      /**
+       * A storage tank had no power at Night, with power the game-minute before,
+       * so that what it holds has started to go.
+       */
+      readonly kind: "storage-tank-without-power";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
     }
   | {
       /** The Robot has carried the cargo of the Lander, landed on a landing pad, to the stockpile. */
@@ -305,6 +341,32 @@ export type GameEvent =
       readonly atMinute: number;
       /** The Science it earned. */
       readonly science: number;
+    }
+  | {
+      /**
+       * A Greenhouse has grown a whole round: the Science it pays has been added
+       * to the base's, and its next round has begun.
+       */
+      readonly kind: "greenhouse-round-completed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      /** Which type it is, a Greenhouse or a growing hall, for its name. */
+      readonly structureTypeId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
+       * A Greenhouse has lost what it had grown of its round, for want of water
+       * or power, or as the player switched it off. It says nothing of a round
+       * only just begun, so that a base short of water isn't told so every hour.
+       */
+      readonly kind: "greenhouse-round-lost";
+      readonly atMinute: number;
+      readonly structureId: string;
+      /** Which type it is, a Greenhouse or a growing hall, for its name. */
+      readonly structureTypeId: string;
+      readonly reason: GreenhouseRoundLoss;
     }
   | {
       /**

@@ -140,9 +140,9 @@ function doseRate(state: CampaignState, minute: number): number {
 
 /**
  * The dose rate inside a Habitat, in millisieverts an Earth Day: less once
- * it is shielded, less again once it is water-walled, and least of all if it
- * is buried, and multiplied during a Solar Particle Event by the given
- * multiplier.
+ * it is shielded, less again once it is water-walled, less still if it is
+ * buried, and least of all if it is buried with a vault cistern round it, and
+ * multiplied during a Solar Particle Event by the given multiplier.
  */
 export function habitatDoseRate(
   habitat: {
@@ -154,7 +154,9 @@ export function habitatDoseRate(
 ): number {
   const rates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
   const usual = habitat.buried
-    ? rates.buriedHabitat
+    ? habitat.waterWalled
+      ? rates.cisternedBuriedHabitat
+      : rates.buriedHabitat
     : habitat.waterWalled
       ? rates.waterWalledHabitat
       : habitat.shielded

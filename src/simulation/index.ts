@@ -11,6 +11,7 @@ export {
 export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";
+export { isGreenhouse } from "./greenhouses";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";
@@ -129,6 +130,8 @@ export type { ClockSnapshot } from "./clock";
 export type { DeathCause, GameEvent } from "./events";
 export type { HabitatPowerForecast } from "./habitat-power";
 export type { LifeSupportForecast, LifeSupportSnapshot } from "./life-support";
+export { reserveKilograms } from "./life-support-reserve";
+export type { TankSnapshot } from "./storage-tanks";
 export type { LunationPart, LunationSnapshot } from "./lunation";
 export type { RadiationDoseForecast } from "./radiation";
 export type { SolarParticleEventSnapshot } from "./solar-particle-events";

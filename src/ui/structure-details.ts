@@ -10,7 +10,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
-import { designOf, powerRatings } from "./describe";
+import { designOf, formatHours, powerRatings } from "./describe";
 import {
   formatDismantlingStage,
   formatStage,
@@ -19,12 +19,14 @@ import {
 import {
   formatCharge,
   formatCondition,
+  formatKilogramAmount,
   formatMillisieverts,
+  formatScience,
   formatShortDuration,
   formatStageProgress,
   listInWords,
 } from "./format";
-import { structureLabel } from "./labels";
+import { resourceRefLabel, structureLabel } from "./labels";
 import type { Stat } from "./stat";
 import { formatObservingProgramme, formatPower } from "./status-panel-text";
 import {
@@ -202,10 +204,12 @@ export function structureDetails(
       ...(type.power.storageKilowattHours > 0
         ? [batteryLine(type, structure)]
         : []),
+      ...(type.storageTank === undefined ? [] : [tankLine(structure)]),
       ...(type.recipes === undefined
         ? []
         : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
+      ...(type.growing === undefined ? [] : [roundLine(type, structure)]),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -346,6 +350,21 @@ function batteryLine(
   };
 }
 
+/** How much of the stock a storage tank holds, and whether it is losing it. */
+function tankLine(structure: StructureSnapshot | undefined): DetailLine {
+  const label = "Tank";
+  const tank = structure?.tank;
+  if (tank === undefined) return { label, stat: NOT_YET };
+  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${resourceRefLabel(tank.resource).toLowerCase()}`;
+  return {
+    label,
+    stat: tank.losing
+      ? { value, note: "no power, so losing what it holds" }
+      : { value },
+    fraction: Math.min(tank.heldKilograms / tank.addsKilograms, 1),
+  };
+}
+
 /** A Plant's recipe and what it makes and uses an hour. */
 function plantLines(
   snapshot: Snapshot,
@@ -380,7 +399,10 @@ function habitatLines(
 ): DetailLine[] {
   const shielding =
     structure?.buried === true
-      ? ["buried under the Regolith"]
+      ? [
+          "buried under the Regolith",
+          ...(structure.waterWalled ? ["a vault cistern"] : []),
+        ]
       : [
           ...(structure?.shielded === true ? ["Regolith shielding"] : []),
           ...(structure?.waterWalled === true ? ["a water wall"] : []),
@@ -470,6 +492,27 @@ function lightLine(
   return {
     label,
     stat: { value: structureNotes(snapshot, structure).light ?? "off" },
+  };
+}
+
+/** How far a Greenhouse's round has got, and what it pays. */
+function roundLine(
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Round";
+  if (structure === undefined || type.growing === undefined) {
+    return { label, stat: NOT_YET };
+  }
+  const { lengthHours, science } = type.growing;
+  const fraction = Math.min(structure.growingMinutes / (lengthHours * 60), 1);
+  return {
+    label,
+    stat: {
+      value: `${Math.floor(fraction * 100)}% of ${formatHours(lengthHours)}`,
+      note: `pays ${formatScience(science)}; a shortage of water or power loses it`,
+    },
+    fraction,
   };
 }
 

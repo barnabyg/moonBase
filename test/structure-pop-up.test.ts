@@ -33,6 +33,7 @@ function structure(
     lit: false,
     savingPower: false,
     storedKilowattHours: 0,
+    tank: undefined,
     shielded: false,
     waterWalled: false,
     buried: false,
@@ -44,6 +45,7 @@ function structure(
     observing: false,
     recipeId: undefined,
     switchedOff: false,
+    growingMinutes: 0,
     ...changes,
   };
 }

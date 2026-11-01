@@ -41,6 +41,10 @@ export function createNotificationList(
         item.className = "notifications__item";
         if (
           event.kind === "life-support-warning" ||
+          event.kind === "greenhouse-round-lost" ||
+          event.kind === "lost-on-landing" ||
+          event.kind === "storage-tank-lost" ||
+          event.kind === "storage-tank-without-power" ||
           event.kind === "habitat-power-warning" ||
           event.kind === "radiation-dose-warning" ||
           event.kind === "solar-particle-event-warning" ||

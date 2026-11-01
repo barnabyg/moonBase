@@ -119,9 +119,20 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "oxygen-liquefier", label: "Oxygen liquefier" },
   { id: "cryogenic-tank", label: "Cryogenic tank" },
   { id: "propellant-reactor", label: "Propellant reactor" },
+  { id: "propellant-tank-shell", label: "Propellant tank shell" },
+  { id: "propellant-cooler", label: "Propellant cooler" },
   { id: "optical-grinder", label: "Optical grinder" },
   { id: "metrology-bench", label: "Metrology bench" },
+  { id: "greenhouse-dome", label: "Greenhouse dome" },
+  { id: "growing-rack", label: "Growing rack" },
+  { id: "hall-vault-section", label: "Hall vault section" },
+  { id: "light-pipe", label: "Light pipe" },
+  { id: "cistern-cell", label: "Cistern cell" },
   { id: "water-wall-bladder", label: "Water-wall bladder" },
+  { id: "water-tank-shell", label: "Water tank shell" },
+  { id: "tank-heater", label: "Tank heater" },
+  { id: "oxygen-sphere", label: "Oxygen sphere" },
+  { id: "tank-cooler", label: "Tank cooler" },
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },
   { id: "telescope-mount", label: "Telescope mount" },
@@ -151,6 +162,12 @@ export const startingStock: Catalogue["startingStock"] = [
 
 // Enough for about 30 Earth Days at a person's daily use; the oxygen runs
 // out first.
+// The reserve is a fortnight, as a water wall leaves: enough to outlast a Night
+// and a Lander's round trip, and to come before the first warning, so that
+// nothing warns of a Plant taking what is above it.
+// The storage is the base's own, as the Mission Director starts aboard the
+// Lander with stock already held. Water's holds a water wall's 300 kg and its
+// 49 kg reserve, with room for the Plant to work; oxygen's about four months.
 export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
   {
     id: "oxygen",
@@ -158,6 +175,8 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     startingKilograms: 25,
     usePerEarthDayKilograms: 0.84,
     warningEarthDaysLeft: [7, 3, 1],
+    reserveEarthDays: 14,
+    storageLimitKilograms: 100,
   },
   {
     id: "water",
@@ -165,6 +184,8 @@ export const lifeSupportStocks: Catalogue["lifeSupportStocks"] = [
     startingKilograms: 108,
     usePerEarthDayKilograms: 3.5,
     warningEarthDaysLeft: [7, 3, 1],
+    reserveEarthDays: 14,
+    storageLimitKilograms: 400,
   },
 ];
 

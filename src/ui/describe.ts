@@ -6,11 +6,12 @@ import {
   type ComponentCount,
   type Design,
   type LaunchItem,
+  type LifeSupportStock,
   type PlantRecipe,
   type ResourceFlow,
   type StructureType,
 } from "../catalogue";
-import type { Snapshot } from "../simulation";
+import { reserveKilograms, type Snapshot } from "../simulation";
 import { formatScience, listInWords } from "./format";
 import {
   componentInSentence,
@@ -41,8 +42,12 @@ const drawsAtNight = ({ power, telescope }: StructureType) =>
   telescope === true
     ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
     : `draws ${power.nightDrawKilowatts} kW while its light is on`;
+const drawsThroughNight = (kilowatts: number) =>
+  `draws ${kilowatts} kW all through the Night, and nothing in Daylight`;
 const drawsWhileRunning = (kilowatts: number) =>
   `draws ${kilowatts} kW while it runs`;
+const drawsInDaylight = (kilowatts: number) =>
+  `draws ${kilowatts} kW all through Daylight`;
 const drawsAllTheTime = (kilowatts: number) =>
   `draws ${kilowatts} kW all the time`;
 
@@ -65,9 +70,56 @@ export function powerRatings(
       ? [stores(power.storageKilowattHours)]
       : []),
     ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
-    ...(recipe === undefined ? [] : [drawsWhileRunning(recipe.drawKilowatts)]),
+    ...((power.nightUpkeepKilowatts ?? 0) > 0
+      ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
+      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0
+      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
+      : []),
+    ...(recipe === undefined || recipe.drawKilowatts === 0
+      ? []
+      : [drawsWhileRunning(recipe.drawKilowatts)]),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
+}
+
+/** The life support stocks a Structure's recipes take from. */
+function stocksTaken(type: StructureType): LifeSupportStock[] {
+  return catalogue.lifeSupportStocks.filter((stock) =>
+    type.recipes?.some((recipe) =>
+      recipe.inputs.some(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === stock.id,
+      ),
+    ),
+  );
+}
+
+/**
+ * What a Structure's recipes make of the life support stocks, with whether a
+ * recipe makes nothing else, so that it waits when the store is full.
+ */
+function stocksMade(
+  type: StructureType,
+): { readonly stock: LifeSupportStock; readonly only: boolean }[] {
+  return catalogue.lifeSupportStocks.flatMap((stock) => {
+    const recipes = (type.recipes ?? []).filter((recipe) =>
+      resourceOutputs(recipe).some(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === stock.id,
+      ),
+    );
+    return recipes.length === 0
+      ? []
+      : [
+          {
+            stock,
+            only: recipes.every(
+              (recipe) => resourceOutputs(recipe).length === 1,
+            ),
+          },
+        ];
+  });
 }
 
 /** Says what a Structure does once it is commissioned, in figures. */
@@ -97,7 +149,9 @@ export function describeStructure(type: StructureType): string {
     ...(type.waterWall === undefined
       ? []
       : [
-          `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
+          type.waterWall.overBuriedHabitat === true
+            ? `goes round a commissioned Buried Habitat, filled all at once with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()} from the base's tanks, cutting the Radiation Dose inside to ${catalogue.radiation.doseRateMillisievertsPerEarthDay.cisternedBuriedHabitat} mSv an Earth Day`
+            : `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
         ]),
     ...(type.landingPad
       ? ["the Lander lands on it without blasting Plume Ejecta"]
@@ -107,16 +161,32 @@ export function describeStructure(type: StructureType): string {
       : [
           `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover together before Night rather than beside other Structures, once it is cabled to battery banks that will keep them warm through the Night`,
         ]),
-    ...(type.recipes ?? []).map(
-      (recipe) =>
-        `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
-    ),
+    ...(type.growing === undefined
+      ? (type.recipes ?? []).map(
+          (recipe) =>
+            `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+        )
+      : (type.recipes ?? []).map(
+          (recipe) =>
+            `grows a crop day and night, using ${flows(recipe.inputs)} an hour, and completes a round for ${formatScience(type.growing?.science ?? 0)} every ${formatHours(type.growing?.lengthHours ?? 0)} it grows`,
+        )),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
+    ...(type.storageTank === undefined
+      ? []
+      : [
+          `adds ${type.storageTank.kilograms} kg to what the base can hold of ${resourceRefLabel(type.storageTank.resource).toLowerCase()}`,
+        ]),
     ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
+    ...((power.nightUpkeepKilowatts ?? 0) > 0
+      ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
+      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0
+      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
+      : []),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
@@ -124,7 +194,30 @@ export function describeStructure(type: StructureType): string {
     facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`,
     ...(type.recipes?.[0] === undefined
       ? []
-      : [plantsAtNight(batchHoursOf(type.recipes[0]))]),
+      : [
+          type.growing === undefined
+            ? plantsAtNight(batchHoursOf(type.recipes[0]))
+            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+        ]),
+    ...(type.storageTank === undefined
+      ? []
+      : [
+          `It comes empty, and holds its share of the stock. With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day. A Broken one loses its share at once, and one taken apart whatever no longer fits.${type.storageTank.resource.kind === "life-support" ? " None of that takes the stock below the Mission Director's reserve." : ""}`,
+        ]),
+    ...(type.ownStorage === undefined
+      ? []
+      : [
+          `It holds ${type.ownStorage.kilograms} kg of ${resourceRefLabel(type.ownStorage.resource).toLowerCase()} in its own tanks, and with no room for a batch in what the base can hold, it waits for tank space, using nothing. Broken or taken apart it no longer counts towards that, though what the base has stays.`,
+        ]),
+    ...stocksMade(type).map(({ stock, only }) =>
+      only
+        ? `The base's own tanks hold ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: with no room for a batch, it waits for tank space, using nothing.`
+        : `The base's own tanks hold ${stock.storageLimitKilograms} kg of ${stock.label.toLowerCase()}: once what the base can hold is full, it keeps running for what else it makes, and what doesn't fit is lost.`,
+    ),
+    ...stocksTaken(type).map(
+      (stock) =>
+        `It starts no batch that would take ${stock.label.toLowerCase()} below the Mission Director's reserve of ${reserveKilograms(stock.id)} kg, ${stock.reserveEarthDays} Earth Days of what they use, and waits instead.`,
+    ),
     ...(stage === undefined
       ? []
       : [`The ${machineLabel(stage).toLowerCase()} builds it.`]),

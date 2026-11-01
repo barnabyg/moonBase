@@ -13,7 +13,7 @@ function isUnlockable({ designId }: { readonly designId: string }): boolean {
 
 /** The Structures of the Life Support, Industry and Mobility Designs beyond the starting ones. */
 const structures = catalogue.structureTypes.filter(isUnlockable);
-/** Their Launch items: the Components of those Structures, bulk tanks and Robots. */
+/** Their Launch items: the Components of those Structures, and Robots. */
 const items = catalogue.launch.items.filter(isUnlockable);
 const site = { x: 30, y: 25 };
 

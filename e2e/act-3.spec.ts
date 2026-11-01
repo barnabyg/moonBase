@@ -36,6 +36,15 @@ test("the Exports tab shows a Return Mass raised by the propellant in stock, and
 }) => {
   await loadAct3(page);
 
+  // With no Plant yet there is no limit to show, and no less for it to fly on.
+  await expect(
+    page
+      .getByRole("complementary", { name: "Status panel" })
+      .getByRole("status", { name: "Bulk resources", exact: true })
+      .locator("[data-row]")
+      .filter({ hasText: "Propellant" }),
+  ).toHaveText(/^Propellant\s*500 kg/);
+
   await page.getByRole("button", { name: "Launch manifest" }).click();
   await page.getByRole("tab", { name: "Exports" }).click();
   await expect(page.getByText("Return Mass: 0 of 350 kg")).toBeVisible();

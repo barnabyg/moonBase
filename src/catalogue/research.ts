@@ -264,9 +264,28 @@ export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "grinding-line-yield-survey",
     label: "Grinding line yield survey",
-    lengthHours: 14400,
-    science: 2000,
+    lengthHours: 13680,
+    science: 1900,
     requiresDesignId: "optics-grinding-line",
+  },
+  // The Greenhouse chain's. Research already fills the Campaign to Earth Day 3,000,
+  // so that this takes its 30 Earth Days from the Grinding line yield survey above.
+  {
+    id: "hall-yield-trial",
+    label: "Hall yield trial",
+    lengthHours: 720,
+    science: 207,
+    requiresDesignId: "growing-halls",
+  },
+  // Pays for most of the Lunar greenhouses Design, at the rate of a short Research
+  // Task: with no more than this, the whole tree stays payable, and the guide still
+  // finishes research by Earth Day 3,000.
+  {
+    id: "closed-loop-crop-trial",
+    label: "Closed-loop crop trial",
+    lengthHours: 336,
+    science: 130,
+    requiresDesignId: "lunar-greenhouses",
   },
   // Act 2's. So that the reference Campaign's research doesn't change, none is
   // offered sooner than the longest of Act 1's, which it never gets past: each
@@ -566,6 +585,23 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 400,
     prerequisiteDesignIds: ["water-wall-shielding"],
   },
+  // The Greenhouse chain's last Design, far more than Research Tasks pay: what they
+  // leave comes from Greenhouses and growing halls, so that more of them, and the water
+  // they drink, are the way to it. See docs/balancing.md.
+  {
+    id: "vault-cistern",
+    label: "Vault cistern",
+    description:
+      "Cells of water sunk all round a Buried Habitat's vault, which cut the Radiation Dose inside to a fifth, and must be filled all at once from what the base holds in its tanks.",
+    category: "protection",
+    starting: false,
+    scienceCost: 9000,
+    prerequisiteDesignIds: [
+      "growing-halls",
+      "buried-habitat",
+      "bulk-supply-tanks",
+    ],
+  },
   {
     id: "water-wall-shielding",
     label: "Water-wall shielding",
@@ -625,11 +661,13 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 60,
     prerequisiteDesignIds: ["water-processing"],
   },
+  // Costs what it did as Launch items, and needs what it did: see the storage
+  // tanks in docs/balancing.md.
   {
     id: "bulk-supply-tanks",
     label: "Bulk supply tanks",
     description:
-      "Oxygen shipped as a cold liquid, and water, in large light tanks that bring far more for the mass they take up on a Launch, built on what Water electrolysis taught about storing oxygen.",
+      "A water tank and an insulated oxygen sphere with a cooler, shipped empty and cabled to the base, which hold far more than its own tanks and stop what they hold from freezing or boiling off through the Night, built on what Water electrolysis taught about storing oxygen.",
     category: "life-support",
     starting: false,
     scienceCost: 180,
@@ -646,6 +684,34 @@ export const designs: Catalogue["designs"] = [
     starting: false,
     scienceCost: 1050,
     prerequisiteDesignIds: ["water-electrolysis", "parts-machining"],
+  },
+  // Act 3's way to spend water for Science. Past Cold-trap mining, as it wants more
+  // ice than a base has any other reason to find. It costs what a Greenhouse earns
+  // in about two Lunations, as a telescope's Design does, and its own Research Task
+  // pays most of that: see the Greenhouse in docs/balancing.md.
+  {
+    id: "lunar-greenhouses",
+    label: "Lunar greenhouses",
+    description:
+      "A lit dome of growing racks that drinks the base's water and draws its power day and night, and earns Science with every round of growing it completes.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 200,
+    prerequisiteDesignIds: ["cold-trap-mining"],
+  },
+  // The Greenhouse chain, for Science to buy once Act 4's Designs are all had. Past the
+  // Optics grinding line, whose mirrors its light pipes are figured on, so that no date
+  // before it can move: the guide unlocks the cheapest Design it can, and at this
+  // price it would otherwise come before Large propellant production.
+  {
+    id: "growing-halls",
+    label: "Growing halls",
+    description:
+      "A long pressure vault of growing racks lit by light pipes, dearer than any number of domes and drinking twice what one does, that earns more Science for its water, on a round too long to get through a Night short of water.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 800,
+    prerequisiteDesignIds: ["lunar-greenhouses", "optics-grinding-line"],
   },
   {
     id: "regolith-extraction",
@@ -704,7 +770,7 @@ export const designs: Catalogue["designs"] = [
     id: "propellant-production",
     label: "Propellant production",
     description:
-      "A Plant that makes liquid oxygen from Regolith, for the Lander to burn and carry more, or to sell.",
+      "A Plant that makes liquid oxygen from Regolith, for the Lander to burn and carry more, or to sell, and a cooled tank to hold more of it than the Plant can.",
     category: "industry",
     starting: false,
     scienceCost: 500,

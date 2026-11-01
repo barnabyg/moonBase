@@ -145,7 +145,7 @@ export const milestones: Catalogue["milestones"] = [
     id: "precision-optics-sold",
     actId: "act-4",
     label: "First precision optics sold",
-    hint: "Unlock Precision optics on the Tech Tree, ship an optics works, and keep silicon and metals coming to it. Load the optics first on the Launch manifest's Exports tab: nothing the base makes sells for more.",
+    hint: "Unlock Precision optics on the Tech Tree, ship an optics works, and keep silicon, metals and water coming to it. Load the optics first on the Launch manifest's Exports tab: nothing the base makes sells for more.",
     condition: { kind: "export-sold", resourceId: "precision-optics" },
   },
 ];

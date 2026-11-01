@@ -5,6 +5,7 @@ import {
   type LaunchManifestSnapshot,
 } from "../simulation";
 import { formatKilogramAmount, formatMillionDollars } from "./format";
+import { stockLabel } from "./labels";
 
 // What the Launch manifest carries, costs and earns, in words, for the
 // Launch manifest screen and the Guide.
@@ -125,6 +126,22 @@ export function formatLaunchCost(manifest: LaunchManifestSnapshot): string {
     ? ". The Lander can't leave with it until it costs no more."
     : "";
   return `Cost: ${formatMillionDollars(manifest.costMillionDollars)} of ${funding}, including the ${formatMillionDollars(manifest.feeMillionDollars)} Launch fee${over}`;
+}
+
+/**
+ * Warns of what the manifest brings that the base has no room for, for example
+ * "Water: 100 kg on the manifest, room for 50 kg. What doesn't fit is lost on
+ * landing."; undefined with room for it all.
+ */
+export function formatLaunchStorage(
+  manifest: LaunchManifestSnapshot,
+): string | undefined {
+  if (manifest.overLimits.length === 0) return undefined;
+  const lines = manifest.overLimits.map(
+    (over) =>
+      `${stockLabel(over.stockId)}: ${formatKilogramAmount(over.kilograms)} kg on the manifest, room for ${formatKilogramAmount(over.spaceKilograms)} kg.`,
+  );
+  return `${lines.join(" ")} What doesn't fit is lost on landing.`;
 }
 
 /** Says an Export's price, for example "$1.5M a kg". */

@@ -608,6 +608,50 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // drinking water kept back for the Mission Director.
     waterWall: { stockId: "water", kilograms: 300, reserveEarthDays: 14 },
   },
+  // The end of what can be done about the Radiation Dose: cells of water sunk round a
+  // Buried Habitat's vault, filled all at once, so that the base must first hold more
+  // water than its own tanks and one water tank can: 2,000 kg is 400 kg of precision
+  // optics, or 16 rounds of a Greenhouse. See the Greenhouse chain in
+  // docs/balancing.md.
+  {
+    id: "vault-cistern",
+    label: "Vault cistern",
+    designId: "vault-cistern",
+    // The same as the Buried Habitat's, which it stands round.
+    footprintRadiusMetres: 6,
+    components: [{ componentId: "cistern-cell", count: 16 }],
+    stageHours: {
+      sitePreparation: 12,
+      componentDelivery: 8,
+      assembly: 24,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.1,
+    // Under the Regolith with the vault, with nothing moving for Dust to wear.
+    dustWearPercentPerHour: 0,
+    hazardMultipliers: {
+      dustCoating: 1,
+      micrometeorites: 0.1,
+      plumeEjecta: 0.1,
+    },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    waterWall: {
+      stockId: "water",
+      kilograms: 2000,
+      reserveEarthDays: 14,
+      overBuriedHabitat: true,
+    },
+  },
   // A pressure vault sunk in a trench and heaped over with Regolith, so that
   // nothing goes over it and the Mission Director's dose rate falls to a
   // tenth of a water wall's. It is the way past the Radiation Dose limit, and
@@ -1334,12 +1378,18 @@ export const structureTypes: Catalogue["structureTypes"] = [
   },
   // Act 3: liquid oxygen for the Lander, or to sell. 480 kg in a Daylight lifts
   // 240 kg more of Exports a Lunation, so one is enough to raise the Return Mass
-  // but not to triple it every trip.
+  // but not to triple it every trip. Its two cryogenic tanks hold 450 kg, a
+  // tripled Return Mass's 400 kg and some to spare, and not the 600 kg of the
+  // Lander's ceiling: that takes a propellant tank, or a second Plant.
   {
     id: "propellant-plant",
     label: "Propellant plant",
     designId: "propellant-production",
     footprintRadiusMetres: 4,
+    ownStorage: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 450,
+    },
     components: [
       { componentId: "oxygen-liquefier", count: 2 },
       { componentId: "cryogenic-tank", count: 2 },
@@ -1387,12 +1437,16 @@ export const structureTypes: Catalogue["structureTypes"] = [
   },
   // Three times the rate for under one and a half times the price, and enough Regolith to keep an
   // excavator busy, which is what a base pays for every trip at a tripled Return
-  // Mass.
+  // Mass. It has the same two cryogenic tanks, so holds no more than the small one.
   {
     id: "large-propellant-plant",
     label: "Large propellant plant",
     designId: "large-propellant-production",
     footprintRadiusMetres: 5,
+    ownStorage: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 450,
+    },
     components: [
       { componentId: "oxygen-liquefier", count: 2 },
       { componentId: "cryogenic-tank", count: 2 },
@@ -1439,6 +1493,162 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
   },
+  // The same liquid oxygen as the oxygen tank, in a vessel that holds twice as much
+  // for a third more cooling, as its surface grows more slowly than what it holds.
+  // 600 kg is the Lander's whole ceiling, and with a Plant's 450 kg it is more than
+  // the 1,000 kg one trip can use, burning 600 kg to lift 400 kg of propellant. So
+  // one tank does what a second Plant does, at about a fifteenth of the price. 0.2
+  // kW is 46 kWh through a Night, under a quarter of a battery bank. Nobody depends
+  // on what it holds, so with no power at Night it boils off as the oxygen tank's
+  // does, and all the way down.
+  {
+    id: "propellant-tank",
+    label: "Propellant tank",
+    designId: "propellant-production",
+    footprintRadiusMetres: 3.5,
+    components: [
+      { componentId: "propellant-tank-shell", count: 1 },
+      { componentId: "propellant-cooler", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 1,
+      componentDelivery: 1,
+      assembly: 5,
+      commissioning: 1,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.15,
+    // Its cooler has moving parts for Dust to grind on.
+    dustWearPercentPerHour: 0.01,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+      nightUpkeepKilowatts: 0.2,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    storageTank: {
+      resource: { kind: "bulk-resource", resourceId: "propellant" },
+      kilograms: 600,
+      shareLostPerEarthDayWithoutPower: 0.1,
+    },
+  },
+  // Act 3: a dome of growing racks, the one Plant that goes on through the Night,
+  // so what makes water standing idle then is what makes storing it matter. 1 kg
+  // of water an hour is 708 kg a Lunation, and 228 kg of it in a Night, which the
+  // 351 kg the base's own tanks hold above the reserve can carry for one and not for
+  // two. It takes that water a batch at a time, so a lost round has really cost it.
+  // Its pumps draw 0.5 kW by day, and its lamps 1.5 kW at Night, 342 kWh through
+  // one, about half a large battery bank; as a Night load, it gives them up
+  // before anything else goes without. A round is 5 Earth Days for 20 Science, so
+  // one earns about 118 Science a Lunation, what Research Tasks pay by then.
+  {
+    id: "greenhouse",
+    label: "Greenhouse",
+    designId: "lunar-greenhouses",
+    footprintRadiusMetres: 5,
+    components: [
+      { componentId: "greenhouse-dome", count: 1 },
+      { componentId: "growing-rack", count: 2 },
+    ],
+    stageHours: {
+      sitePreparation: 4,
+      componentDelivery: 2,
+      assembly: 12,
+      commissioning: 3,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.15,
+    dustWearPercentPerHour: 0.03,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 1.5,
+      daylightDrawKilowatts: 0.5,
+    },
+    lightRadiusMetres: 14,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    // It draws its power as a Structure does (above), not as a recipe does.
+    recipes: [
+      {
+        id: "growing",
+        label: "Growing",
+        inputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 1,
+          },
+        ],
+        outputs: [],
+        drawKilowatts: 0,
+      },
+    ],
+    growing: { lengthHours: 120, science: 20 },
+  },
+  // The Greenhouse chain's way to spend Funding on water: 100 Science for 480 kg, a
+  // fifth less water for each Science than a Greenhouse, for fourteen times the price
+  // of a dome. Its 10 Earth Day round is longer than a Night, so a Night short of
+  // water or power always costs one whole, and there is only the one basket. Against
+  // the two and a half Greenhouses that earn as much, the 354 kg a Lunation it saves
+  // is about what two cold-trap ice lines bring, at $6000M.
+  {
+    id: "growing-hall",
+    label: "Growing hall",
+    designId: "growing-halls",
+    footprintRadiusMetres: 8,
+    components: [
+      { componentId: "hall-vault-section", count: 4 },
+      { componentId: "light-pipe", count: 6 },
+    ],
+    stageHours: {
+      sitePreparation: 12,
+      componentDelivery: 4,
+      assembly: 36,
+      commissioning: 6,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.05,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      // 798 kWh through a Night, about what a large battery bank stores. By day the
+      // light pipes bring the sun in, so that it draws about what two domes would.
+      nightDrawKilowatts: 3.5,
+      daylightDrawKilowatts: 1,
+    },
+    lightRadiusMetres: 22,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    // It draws its power as a Structure does (above), not as a recipe does.
+    recipes: [
+      {
+        id: "growing",
+        label: "Growing",
+        inputs: [
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 2,
+          },
+        ],
+        outputs: [],
+        drawKilowatts: 0,
+      },
+    ],
+    growing: { lengthHours: 240, science: 100 },
+  },
   // Act 4: the dearest thing the base can sell for its mass, for space telescopes
   // that can't be made in a gravity well. 96 kg in a Daylight.
   {
@@ -1483,6 +1693,12 @@ export const structureTypes: Catalogue["structureTypes"] = [
           {
             resource: { kind: "bulk-resource", resourceId: "metals" },
             kilogramsPerHour: 0.2,
+          },
+          // Coolant for the grinders: the Mission Director's water, which it
+          // never takes below their reserve.
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 1,
           },
         ],
         outputs: [
@@ -1541,6 +1757,10 @@ export const structureTypes: Catalogue["structureTypes"] = [
             resource: { kind: "bulk-resource", resourceId: "metals" },
             kilogramsPerHour: 0.5,
           },
+          {
+            resource: { kind: "life-support", stockId: "water" },
+            kilogramsPerHour: 2.5,
+          },
         ],
         outputs: [
           {
@@ -1589,6 +1809,94 @@ export const structureTypes: Catalogue["structureTypes"] = [
     habitat: false,
     shieldsHabitat: false,
     landingPad: false,
+  },
+  // The storage tanks, for a base that wants more of a stock than its own tanks
+  // hold. Each is shipped empty and filled from the base's stock, as a water
+  // wall's bladders are, and a tank for anything else is another entry like these
+  // (see `StorageTank`), with a shape in storage-tank-models.ts.
+  //
+  // An insulated shell with a heater, holding two and a half times what the
+  // base's own tanks do, for about a fifth of that mass shipped. The heater takes
+  // 11 kWh through a Night, about a twentieth of a battery bank. Without it water
+  // freezes and splits the seams, slowly: a sixth of what it holds in a Night.
+  {
+    id: "water-tank",
+    label: "Water tank",
+    designId: "bulk-supply-tanks",
+    footprintRadiusMetres: 3,
+    components: [
+      { componentId: "water-tank-shell", count: 1 },
+      { componentId: "tank-heater", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 1,
+      componentDelivery: 1,
+      assembly: 3,
+      commissioning: 1,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.1,
+    // Hardly anything moves in it for Dust to wear.
+    dustWearPercentPerHour: 0.005,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+      nightUpkeepKilowatts: 0.05,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    storageTank: {
+      resource: { kind: "life-support", stockId: "water" },
+      kilograms: 1000,
+      shareLostPerEarthDayWithoutPower: 0.02,
+    },
+  },
+  // The large insulated sphere with a cooler that a lunar base should have,
+  // holding three times what the base's own tanks do, about a year more of what
+  // the Mission Director breathes. Its cooler takes 34 kWh through a Night, a
+  // sixth of a battery bank, and without it oxygen boils away far faster than
+  // water freezes: over half of what it holds in a Night.
+  {
+    id: "oxygen-tank",
+    label: "Oxygen tank",
+    designId: "bulk-supply-tanks",
+    footprintRadiusMetres: 3.5,
+    components: [
+      { componentId: "oxygen-sphere", count: 1 },
+      { componentId: "tank-cooler", count: 1 },
+    ],
+    stageHours: {
+      sitePreparation: 1,
+      componentDelivery: 1,
+      assembly: 4,
+      commissioning: 1,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.15,
+    // Its cooler has moving parts for Dust to grind on.
+    dustWearPercentPerHour: 0.01,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+      nightUpkeepKilowatts: 0.15,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    storageTank: {
+      resource: { kind: "life-support", stockId: "oxygen" },
+      kilograms: 300,
+      shareLostPerEarthDayWithoutPower: 0.1,
+    },
   },
   // A heated line out to the shadowed crater, whose head scrapes up water ice
   // and sends it back along it: 192 kg in a Daylight, about what an Expedition

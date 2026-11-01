@@ -47,7 +47,7 @@ The standing Research Task the base's telescopes carry out at Night, a round at 
 _Avoid_: passive science, science income
 
 **Science**:
-The currency spent to unlock Designs in the Tech Tree, earned only through Research Tasks.
+The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and the rounds of growing of Greenhouses and growing halls.
 _Avoid_: research points, RP, knowledge
 
 **Tech Tree**:
@@ -93,7 +93,7 @@ The last Act's Export: optical parts made in the Moon's vacuum, worth far more f
 _Avoid_: lenses, mirrors
 
 **Propellant**:
-Liquid oxygen made at the base, a bulk resource apart from the Mission Director's oxygen. The Lander burns 2 kg of it to carry each kilogram above 100 kg of Exports, and it can be sold as an Export instead.
+Liquid oxygen made at the base, a bulk resource apart from the Mission Director's oxygen. The Lander burns 2 kg of it to carry each kilogram above 100 kg of Exports, and it can be sold as an Export instead. It is the one bulk resource with a storage limit.
 _Avoid_: fuel
 
 **Lander**:
@@ -121,7 +121,7 @@ The mass a Launch can carry, and the main limit on what can be imported from Ear
 _Avoid_: cargo capacity, weight
 
 **Launch manifest**:
-The list of what the next Launch is to bring from Earth: Components, oxygen and water in set amounts, and Robots. Its cost is the Launch fee plus each item's price, or nothing while it is empty, and it must stay within the Payload Mass and the Funding balance, counting what the Exports aboard the Lander and to load will sell for first. It is paid for and locked as the Lander leaves Earth, and joins the base's stock as the Lander lands, except the Robots, which climb down and join the work.
+The list of what the next Launch is to bring from Earth: Components, oxygen and water in set amounts, and Robots. Its cost is the Launch fee plus each item's price, or nothing while it is empty, and it must stay within the Payload Mass and the Funding balance, counting what the Exports aboard the Lander and to load will sell for first. It is paid for and locked as the Lander leaves Earth, and joins the base's stock as the Lander lands, except the Robots, which climb down and join the work, and any oxygen or water over the storage limit, which is lost.
 _Avoid_: order, shopping list, cargo list
 
 **Launch fee**:
@@ -143,16 +143,28 @@ A Plant that makes spare Components from metals at the base, so that they no lon
 _Avoid_: factory, fabricator, printer
 
 **Propellant plant**:
-A Plant that makes propellant from Regolith. A large one makes three times as much.
+A Plant that makes propellant from Regolith. A large one makes three times as much, and holds no more of it: each holds a set amount, which is what the base's storage limit for propellant is made of, with any propellant tanks.
 _Avoid_: refinery, fuel plant
 
 **Optics works**:
-A Plant that makes precision optics from silicon and metals. A grinding line makes them two and a half times as fast.
+A Plant that makes precision optics from silicon and metals, with water as coolant, which it never takes below the reserve. A grinding line makes them two and a half times as fast, for two and a half times the water.
 _Avoid_: lens factory
 
 **Array works**:
 A Plant that makes what a solar array is built from at the base, from silicon and metals, so that more power needs no Launch.
 _Avoid_: factory, panel plant
+
+**Greenhouse**:
+A lit dome of growing racks: a Plant that takes water from the base's stock an hour's worth at a time and draws power day and night, and earns Science by rounds of growing. A shortage of either loses what it has grown of its round, and it starts a new one by itself once it is supplied. It never takes water below the reserve, and gives up its lamps before anything else goes without power.
+_Avoid_: farm, hydroponics bay, crop module
+
+**Growing hall**:
+A long pressure vault of growing racks, a kind of Greenhouse, far dearer than the domes that earn as much, that takes less water for each Science, on a round longer than a Night.
+_Avoid_: farm, large Greenhouse
+
+**Round of growing**:
+What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.
+_Avoid_: harvest, crop cycle
 
 **Cold-trap ice line**:
 A Plant that brings water ice in from a shadowed crater by a heated line, so that no Robot has to go on an Expedition for it.
@@ -236,6 +248,10 @@ _Avoid_: bunker, underground base, deep Habitat
 Bladders of water laid over a Habitat's Regolith shielding, filled from the base's water, which cut the Radiation Dose inside further than Regolith alone.
 _Avoid_: water shield, water jacket, tank
 
+**Vault cistern**:
+Cells of water sunk round a Buried Habitat, filled all at once from the base's water, which cut the Radiation Dose inside further than the Buried Habitat alone. It is filled by a water wall's rules, and the code models it as one.
+_Avoid_: water jacket, tank
+
 ## Condition
 
 **Condition**:
@@ -263,6 +279,18 @@ _Avoid_: node, vein, resource patch
 **Prospecting**:
 Planned: surveying an area to find Deposits and estimate how rich they are.
 _Avoid_: scanning, exploring
+
+**Storage limit**:
+How much of a life support stock or of propellant the base can hold, as the data catalogue sets: of a stock, in the base's own tanks and its storage tanks, and of propellant, in its propellant plants and propellant tanks. What doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full. Water ice and the other bulk resources have none.
+_Avoid_: capacity, cap, maximum
+
+**Storage tank**:
+A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, an oxygen tank, the large insulated sphere with a cooler, or a propellant tank, a fat silver capsule with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night.
+_Avoid_: silo, reservoir, water wall
+
+**Reserve**:
+The part of a life support stock kept for the Mission Director, set in the data catalogue in Earth Days of what they use. Nothing else that takes from the stock, such as a Plant using water as coolant, may take it below that, so that nothing else can kill them.
+_Avoid_: buffer, safety stock, minimum
 
 ## Hazards
 

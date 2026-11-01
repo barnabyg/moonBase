@@ -106,7 +106,7 @@ describe("the base's bulk resources", () => {
   it("start with no Regolith, in catalogue order", () => {
     const { state } = scenario();
 
-    expect(state.bulkResources).toEqual(
+    expect(state.bulkResources).toMatchObject(
       catalogue.bulkResources.map((resource) => ({
         resourceId: resource.id,
         kilograms: 0,

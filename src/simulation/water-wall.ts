@@ -1,6 +1,7 @@
-import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { findStructureType, type ConstructionState } from "./construction";
+import { earthDaysOfUseKilograms } from "./life-support-reserve";
+import { storageLimitKilograms } from "./storage-limits";
 
 /**
  * Why a water wall's Construction waits to start its Assembly: filling it
@@ -13,6 +14,11 @@ export interface WaterReserveWait {
   readonly stockId: string;
   /** How much more of it the base's stock needs before it can be filled. */
   readonly missingKilograms: number;
+  /**
+   * What the base can hold of it, if that is too little for what filling it takes,
+   * so that more of it alone would never do.
+   */
+  readonly tooLittleRoomKilograms?: number;
 }
 
 /**
@@ -26,15 +32,21 @@ export function findWaterReserveWait(
 ): WaterReserveWait | undefined {
   const fill = fillOf(construction);
   if (fill === undefined) return undefined;
-  const missing =
-    fill.kilograms + fill.reserveKilograms - inStock(state, fill.stockId);
-  return missing > 0
-    ? {
-        reason: "water-reserve",
-        stockId: fill.stockId,
-        missingKilograms: missing,
-      }
-    : undefined;
+  const needed = fill.kilograms + fill.reserveKilograms;
+  const missing = needed - inStock(state, fill.stockId);
+  if (missing <= 0) return undefined;
+  const limit = storageLimitKilograms(state, {
+    kind: "life-support",
+    stockId: fill.stockId,
+  });
+  return {
+    reason: "water-reserve",
+    stockId: fill.stockId,
+    missingKilograms: missing,
+    ...(limit !== undefined && limit < needed
+      ? { tooLittleRoomKilograms: limit }
+      : {}),
+  };
 }
 
 /**
@@ -77,13 +89,13 @@ function fillOf(construction: ConstructionState):
   ) {
     return undefined;
   }
-  const use =
-    catalogue.lifeSupportStocks.find((stock) => stock.id === rules.stockId)
-      ?.usePerEarthDayKilograms ?? 0;
   return {
     stockId: rules.stockId,
     kilograms: rules.kilograms,
-    reserveKilograms: rules.reserveEarthDays * use,
+    reserveKilograms: earthDaysOfUseKilograms(
+      rules.stockId,
+      rules.reserveEarthDays,
+    ),
   };
 }
 

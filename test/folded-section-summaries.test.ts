@@ -61,8 +61,18 @@ describe("a folded Power section", () => {
 });
 
 describe("a folded Mission Director section", () => {
-  const oxygen = { stockId: "oxygen", kilograms: 24.9, inUse: true };
-  const water = { stockId: "water", kilograms: 20, inUse: true };
+  const oxygen = {
+    stockId: "oxygen",
+    kilograms: 24.9,
+    limitKilograms: 100,
+    inUse: true,
+  };
+  const water = {
+    stockId: "water",
+    kilograms: 20,
+    limitKilograms: 400,
+    inUse: true,
+  };
   const inHabitat = {
     residence: "habitat",
     habitatId: "s1",
@@ -79,11 +89,15 @@ describe("a folded Mission Director section", () => {
             stockId: "oxygen",
             kilogramsPerEarthDay: -0.84,
             minutesUntilEmpty: toGameMinutes({ earthDays: 29, hours: 15 }),
+            holdingFull: false,
+            minutesUntilReserve: undefined,
           },
           {
             stockId: "water",
             kilogramsPerEarthDay: -3.5,
             minutesUntilEmpty: toGameMinutes({ earthDays: 5, hours: 17 }),
+            holdingFull: false,
+            minutesUntilReserve: undefined,
           },
         ],
       ),
@@ -100,8 +114,16 @@ describe("a folded Mission Director section", () => {
             stockId: "oxygen",
             kilogramsPerEarthDay: 2.8,
             minutesUntilEmpty: undefined,
+            holdingFull: false,
+            minutesUntilReserve: undefined,
           },
-          { stockId: "water", kilogramsPerEarthDay: 0, minutesUntilEmpty: 0 },
+          {
+            stockId: "water",
+            kilogramsPerEarthDay: 0,
+            minutesUntilEmpty: 0,
+            holdingFull: false,
+            minutesUntilReserve: undefined,
+          },
         ],
       ),
     ).toBe("O₂ rising · H₂O ran out");
@@ -117,6 +139,8 @@ describe("a folded Mission Director section", () => {
             stockId: "oxygen",
             kilogramsPerEarthDay: -0.84,
             minutesUntilEmpty: toGameMinutes({ hours: 22, minutes: 10 }),
+            holdingFull: false,
+            minutesUntilReserve: undefined,
           },
         ],
       ),
@@ -173,6 +197,7 @@ describe("a folded Bulk resources section", () => {
     resourceId,
     kilogramsPerHour: -1,
     minutesUntilEmpty: toGameMinutes({ earthDays }),
+    holdingFull: false,
   });
 
   it("shows what will run out soonest, then the first other in stock", () => {
@@ -198,6 +223,7 @@ describe("a folded Bulk resources section", () => {
             resourceId: "metals",
             kilogramsPerHour: 1,
             minutesUntilEmpty: undefined,
+            holdingFull: false,
           },
         ],
       ),

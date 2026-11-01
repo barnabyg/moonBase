@@ -33,6 +33,10 @@ export const radiation: Catalogue["radiation"] = {
     shieldedHabitat: 1.5,
     waterWalledHabitat: 0.15,
     buriedHabitat: 0.015,
+    // A fifth of a Buried Habitat's, so that a base at about 585 mSv by Earth Day
+    // 2,900 has its limit thousands of Earth Days off rather than hundreds: see the
+    // Greenhouse chain in docs/balancing.md.
+    cisternedBuriedHabitat: 0.003,
   },
   doseLimitMillisieverts: 600,
   warningEarthDaysLeft: [7, 3, 1],

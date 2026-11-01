@@ -419,7 +419,10 @@ describe("the data catalogue", () => {
         if (plant.id !== "water-ice") {
           expect(plant.inputs.length).toBeGreaterThan(0);
         }
-        expect(plant.outputs.length).toBeGreaterThan(0);
+        // A Greenhouse's recipe is its water: it earns Science by rounds instead.
+        if (type.growing === undefined) {
+          expect(plant.outputs.length).toBeGreaterThan(0);
+        }
         for (const flow of [...plant.inputs, ...resourceOutputs(plant)]) {
           expect(known(flow)).toBe(true);
           expect(flow.kilogramsPerHour).toBeGreaterThan(0);
@@ -431,17 +434,24 @@ describe("the data catalogue", () => {
             total(plant.inputs),
           );
         }
-        expect(plant.drawKilowatts).toBeGreaterThan(0);
+        // A Greenhouse draws its power as a Structure does, by day and at Night.
+        if (type.growing === undefined) {
+          expect(plant.drawKilowatts).toBeGreaterThan(0);
+        } else {
+          expect(plant.drawKilowatts).toBe(0);
+        }
       },
     );
 
     it("draws power only while it runs, and wears down by Dust while it operates", () => {
-      expect(type.power).toEqual({
-        generationKilowatts: 0,
-        storageKilowattHours: 0,
-        drawKilowatts: 0,
-        nightDrawKilowatts: 0,
-      });
+      if (type.growing === undefined) {
+        expect(type.power).toEqual({
+          generationKilowatts: 0,
+          storageKilowattHours: 0,
+          drawKilowatts: 0,
+          nightDrawKilowatts: 0,
+        });
+      }
       expect(type.dustWearPercentPerHour).toBeGreaterThan(0);
     });
 

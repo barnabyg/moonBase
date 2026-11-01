@@ -2,6 +2,7 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type ResourceRef,
   type PlantRecipe,
 } from "../catalogue";
 import {
@@ -10,6 +11,7 @@ import {
   milestoneActId,
   milestoneLabel,
   recipeOf,
+  workingRecipeOf,
   type BulkResourceForecast,
   type ExpeditionSnapshot,
   type ExportLine,
@@ -282,14 +284,19 @@ export function summariseTravel(
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
  * day", and when it will run out even so, if the Plants standing idle at
- * Night leave it too little to last the Night.
+ * Night leave it too little to last the Night. The amount is shown against what
+ * the base can hold, for example "399.5 of 400 kg", and while the Plants are
+ * holding it there the line says so, whatever else it might have said.
  */
 export function formatLifeSupport(
   stock: LifeSupportSnapshot,
   forecast: LifeSupportForecast | undefined,
   missionDirector: MissionDirectorResidence,
 ): Stat {
-  const value = `${stock.kilograms.toFixed(1)} kg`;
+  const value = `${stock.kilograms.toFixed(1)} of ${stock.limitKilograms} kg`;
+  if (forecast?.holdingFull === true) {
+    return { value, note: "holding full" };
+  }
   if ((forecast?.kilogramsPerEarthDay ?? 0) > 0) {
     const rising = `rising ${(forecast?.kilogramsPerEarthDay ?? 0).toFixed(1)} kg a day`;
     // Rising now, but not enough to last the Night ahead.
@@ -343,7 +350,9 @@ export function formatSelfSufficiency(
       ? undefined
       : `${Math.round(selfSufficiency.coveredShare * 100)}%`;
   const made =
-    share === undefined ? "Nothing used" : `${share} of use made at the base`;
+    share === undefined
+      ? "Nothing used"
+      : `${share} of the Mission Director's use made at the base`;
   if (!selfSufficiency.windowComplete) {
     return {
       value: "not yet",
@@ -391,6 +400,7 @@ function summariseLifeSupport(
   stock: LifeSupportSnapshot,
   forecast: LifeSupportForecast | undefined,
 ): string {
+  if (forecast?.holdingFull === true) return "full";
   const rising = (forecast?.kilogramsPerEarthDay ?? 0) > 0;
   if (stock.kilograms === 0 && !rising) return "ran out";
   // Falling, or rising now but not enough to last the Night ahead.
@@ -571,6 +581,81 @@ export function withSwitchedOffPlants(
   );
 }
 
+/**
+ * Adds to what a life support stock's line says which Plants are using it and
+ * how much, and which are waiting at the Mission Director's reserve, for example
+ * "lasts 14d 6h, optics works using 24 kg a day", and given it, how soon they will
+ * have taken it down to the reserve, Night included, so that the player sees why it
+ * is falling, why it has stopped falling so fast, and whether a Greenhouse will last
+ * the Night.
+ */
+export function withPlantsTaking(
+  stat: Stat,
+  stockId: string,
+  structures: readonly Pick<
+    StructureSnapshot,
+    "structureTypeId" | "recipeId" | "switchedOff" | "performance" | "plant"
+  >[],
+  minutesUntilReserve?: number,
+): Stat {
+  const isThisStock = (resource: ResourceRef) =>
+    resource.kind === "life-support" && resource.stockId === stockId;
+  const usingPerHour = (
+    structure: (typeof structures)[number],
+  ): number | undefined => {
+    if (structure.plant?.running !== true || structure.switchedOff) {
+      return undefined;
+    }
+    const flow = workingRecipeOf({
+      ...structure,
+      batch: structure.plant.batch,
+    })?.inputs.find(({ resource }) => isThisStock(resource));
+    return flow === undefined
+      ? undefined
+      : flow.kilogramsPerHour * structure.performance;
+  };
+  const using = structures.filter((s) => usingPerHour(s) !== undefined);
+  const waiting = structures.filter(
+    ({ plant }) =>
+      plant?.stoppedFor?.reason === "reserve" &&
+      isThisStock(plant.stoppedFor.resource),
+  );
+  const labelsOf = (plants: readonly (typeof structures)[number][]) =>
+    listInWords([
+      ...new Set(
+        plants.map(({ structureTypeId }) =>
+          inSentence(structureLabel(structureTypeId)),
+        ),
+      ),
+    ]);
+  const perEarthDay =
+    using.reduce((sum, structure) => sum + (usingPerHour(structure) ?? 0), 0) *
+    24;
+  const said = [
+    ...(using.length === 0
+      ? []
+      : [
+          `${labelsOf(using)} using ${Number(perEarthDay.toFixed(1))} kg a day`,
+          ...(minutesUntilReserve === undefined
+            ? []
+            : [
+                `down to the reserve in ${formatShortDuration(minutesUntilReserve)}`,
+              ]),
+        ]),
+    ...(waiting.length === 0
+      ? []
+      : [`${labelsOf(waiting)} waiting at the reserve`]),
+  ];
+  return said.length === 0
+    ? stat
+    : {
+        ...stat,
+        note: [...(stat.note === undefined ? [] : [stat.note]), ...said].join(
+          ", ",
+        ),
+      };
+}
+
 /** Whether a Structure is a Plant set to make spare Components. */
 export function makesSpareComponents(
   structure: Pick<StructureSnapshot, "structureTypeId" | "recipeId">,
@@ -629,9 +714,10 @@ function withPlantsOff(
 /**
  * Lists the base's stock of bulk resources, each with its amount and,
  * if it is falling, roughly how long it will last at the current rate, for
- * example "Water ice", "190 kg" and "~7d 22h". Each says whether it is a
- * warning, as one falling with little time left is, and whether it is in
- * play, with any in stock or being made or used.
+ * example "Water ice", "190 kg" and "~7d 22h". One with a limit is shown against
+ * it, for example "450.0 of 450 kg", and while the Plants are holding it there the
+ * line says so. Each says whether it is a warning, as one falling with little time
+ * left is, and whether it is in play, with any in stock or being made or used.
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
@@ -645,7 +731,11 @@ export function formatBulkResources(
   const warnFrom = catalogue.bulkResourceWarningEarthDaysLeft * 24 * 60;
   return bulkResources.map((stock) => {
     const label = resourceLabel(stock.resourceId);
-    const value = formatKilograms(stock.kilograms);
+    // With a limit of none, as with no Plant to hold it, there is nothing to say of it.
+    const value =
+      stock.limitKilograms === undefined || stock.limitKilograms === 0
+        ? formatKilograms(stock.kilograms)
+        : `${stock.kilograms.toFixed(1)} of ${stock.limitKilograms} kg`;
     const empty = stock.kilograms < 1;
     const forecast = forecasts.find(
       (candidate) => candidate.resourceId === stock.resourceId,
@@ -661,7 +751,15 @@ export function formatBulkResources(
       minutes === undefined || stock.kilograms === 0
         ? undefined
         : `~${formatShortDuration(minutes, true)}`;
-    const note = [rate, lasts].filter((part) => part !== undefined).join(", ");
+    const held =
+      forecast?.holdingFull !== true
+        ? undefined
+        : stock.kilograms > (stock.limitKilograms ?? Infinity)
+          ? "holding full, over the limit"
+          : "holding full";
+    const note = [held, rate, lasts]
+      .filter((part) => part !== undefined)
+      .join(", ");
     const shown = {
       label,
       value,

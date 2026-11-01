@@ -767,3 +767,48 @@ export function createWaterWallModel(): StructureModel {
     setLit: () => undefined,
   };
 }
+
+/** How many cells a vault cistern's ring has, one for each Component. */
+const VAULT_CISTERN_CELLS = 16;
+const VAULT_CISTERN_RADIUS = 5.8;
+
+/**
+ * A vault cistern: a ring of low, dark water cells showing at the edge of a Buried
+ * Habitat's mound, the rest of them under the Regolith. During Assembly they go down
+ * one after another.
+ */
+export function createVaultCisternModel(): StructureModel {
+  const cistern = new THREE.Group();
+  cistern.name = "Vault cistern";
+  const cells = Array.from({ length: VAULT_CISTERN_CELLS }, (_, index) => {
+    const around = (index / VAULT_CISTERN_CELLS) * Math.PI * 2;
+    const cell = part(
+      new THREE.BoxGeometry(1.8, 0.35, 0.6),
+      materials.waterBladder,
+      [
+        VAULT_CISTERN_RADIUS * Math.cos(around),
+        0.18,
+        VAULT_CISTERN_RADIUS * Math.sin(around),
+      ],
+    );
+    cell.name = `Cell ${index + 1}`;
+    cell.rotation.y = Math.PI / 2 - around;
+    cistern.add(cell);
+    return cell;
+  });
+
+  return {
+    group: cistern,
+    setAssembled(fraction) {
+      const laid = THREE.MathUtils.clamp(fraction, 0, 1) * VAULT_CISTERN_CELLS;
+      for (const [index, cell] of cells.entries()) {
+        cell.visible = laid > index;
+      }
+    },
+    setFacing: () => undefined,
+    // Like the Regolith over it, it has no status light of its own.
+    setStatusLight: () => undefined,
+    setCharge: () => undefined,
+    setLit: () => undefined,
+  };
+}

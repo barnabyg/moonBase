@@ -323,6 +323,23 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 500,
       priceMillionDollars: 500,
     },
+    // A propellant tank's worth comes to 600 kg and $80M: about a third of a Launch,
+    // and little against what a base earns by then, as what it costs is the Payload
+    // Mass and the Night's power.
+    {
+      id: "propellant-tank-shell",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "propellant-tank-shell" },
+      massKilograms: 480,
+      priceMillionDollars: 60,
+    },
+    {
+      id: "propellant-cooler",
+      designId: "propellant-production",
+      brings: { kind: "component", componentId: "propellant-cooler" },
+      massKilograms: 120,
+      priceMillionDollars: 20,
+    },
     {
       id: "optical-grinder",
       designId: "precision-optics",
@@ -400,6 +417,48 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 200,
       priceMillionDollars: 500,
     },
+    // A Greenhouse's worth comes to 1200 kg and $350M: what it asks for after that
+    // is water, ice and a Night's power, rather than money.
+    {
+      id: "greenhouse-dome",
+      designId: "lunar-greenhouses",
+      brings: { kind: "component", componentId: "greenhouse-dome" },
+      massKilograms: 600,
+      priceMillionDollars: 150,
+    },
+    {
+      id: "growing-rack",
+      designId: "lunar-greenhouses",
+      brings: { kind: "component", componentId: "growing-rack" },
+      massKilograms: 300,
+      priceMillionDollars: 100,
+    },
+    // A growing hall's worth comes to 2000 kg and $5000M, one Launch: about what
+    // the water it saves against two and a half Greenhouses would cost in ice lines.
+    // See the Greenhouse chain in docs/balancing.md.
+    {
+      id: "hall-vault-section",
+      designId: "growing-halls",
+      brings: { kind: "component", componentId: "hall-vault-section" },
+      massKilograms: 320,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "light-pipe",
+      designId: "growing-halls",
+      brings: { kind: "component", componentId: "light-pipe" },
+      massKilograms: 120,
+      priceMillionDollars: 500,
+    },
+    // A vault cistern's worth comes to 1920 kg and $8000M, one Launch. Each cell
+    // costs what a vault section does, the most any Launch item can.
+    {
+      id: "cistern-cell",
+      designId: "vault-cistern",
+      brings: { kind: "component", componentId: "cistern-cell" },
+      massKilograms: 120,
+      priceMillionDollars: 500,
+    },
     // A cold-trap ice line's worth comes to 2000 kg and $3000M.
     {
       id: "cold-trap-head",
@@ -430,23 +489,36 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 60,
       priceMillionDollars: 2,
     },
-    // Oxygen shipped as a cold liquid in one large insulated tank, and
-    // water in a large light tank: six times as much as a resupply tank
-    // each, a third more oxygen and an eighth more water for each
-    // kilogram shipped, at half the price for each kilogram.
+    // A storage tank is shipped empty, so that what it holds comes from the
+    // base's Plants or a resupply: a water tank's comes to 220 kg and $15M, and
+    // an oxygen tank's to 400 kg and $35M, one Launch for both with room to spare.
     {
-      id: "liquid-oxygen-tank",
+      id: "water-tank-shell",
       designId: "bulk-supply-tanks",
-      brings: { kind: "life-support", stockId: "oxygen", kilograms: 150 },
-      massKilograms: 180,
-      priceMillionDollars: 6,
+      brings: { kind: "component", componentId: "water-tank-shell" },
+      massKilograms: 200,
+      priceMillionDollars: 12,
     },
     {
-      id: "bulk-water-tank",
+      id: "tank-heater",
       designId: "bulk-supply-tanks",
-      brings: { kind: "life-support", stockId: "water", kilograms: 300 },
+      brings: { kind: "component", componentId: "tank-heater" },
+      massKilograms: 20,
+      priceMillionDollars: 3,
+    },
+    {
+      id: "oxygen-sphere",
+      designId: "bulk-supply-tanks",
+      brings: { kind: "component", componentId: "oxygen-sphere" },
       massKilograms: 320,
-      priceMillionDollars: 6,
+      priceMillionDollars: 25,
+    },
+    {
+      id: "tank-cooler",
+      designId: "bulk-supply-tanks",
+      brings: { kind: "component", componentId: "tank-cooler" },
+      massKilograms: 80,
+      priceMillionDollars: 10,
     },
     // Shipped empty and folded; a water wall's worth comes to 240 kg.
     {

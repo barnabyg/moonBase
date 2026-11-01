@@ -14,6 +14,7 @@ import { hasComponents } from "./construction-panel-text";
 import {
   formatCondition,
   formatDuration,
+  formatKilogramAmount,
   formatKilograms,
   formatMillionDollars,
   formatScience,
@@ -27,6 +28,7 @@ import {
   machineLabel,
   researchTaskLabel,
   resourceLabel,
+  resourceRefLabel,
   robotLabel,
   stockLabel,
   structureLabel,
@@ -35,6 +37,13 @@ import {
 } from "./labels";
 
 // What happened in each event, in words, for the notification list.
+
+/** What cost a Greenhouse its round. */
+const GREENHOUSE_ROUND_LOST = {
+  water: "its round of growing lost for want of water",
+  power: "its round of growing lost for want of power",
+  "switched-off": "its round of growing given up, as it was switched off",
+} as const;
 
 /**
  * Says what happened in an event, for the notification list, for example
@@ -91,6 +100,14 @@ export function formatEvent(
       return event.delivered.length === 0
         ? "Lander landed"
         : `Lander landed with ${formatManifestLines(event.delivered)}`;
+    case "lost-on-landing":
+      return `The base had no room for ${formatKilogramAmount(event.kilograms)} kg of the ${stockLabel(event.stockId).toLowerCase()} the Lander brought, and it was lost`;
+    case "storage-tank-lost":
+      return event.cause === "broken"
+        ? `${structureLabel(event.structureTypeId)} is Broken, and the ${formatKilogramAmount(event.kilograms)} kg of ${resourceRefLabel(event.resource).toLowerCase()} it held was lost`
+        : `${structureLabel(event.structureTypeId)} is being taken apart, and the ${formatKilogramAmount(event.kilograms)} kg of ${resourceRefLabel(event.resource).toLowerCase()} with no room left was lost`;
+    case "storage-tank-without-power":
+      return `${structureLabel(event.structureTypeId)} has no power, and loses what it holds until it has or Daylight comes`;
     case "lander-unloaded":
       return `Robot unloaded the Lander: ${formatComponents(event.components)} now in the base's stock`;
     case "lander-loaded":
@@ -147,6 +164,10 @@ export function formatEvent(
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":
       return `${researchTaskLabel(event.researchTaskId)} complete, earning ${formatScience(event.science)}`;
+    case "greenhouse-round-completed":
+      return `${structureLabel(event.structureTypeId)}: a round of growing complete, earning ${formatScience(event.science)}`;
+    case "greenhouse-round-lost":
+      return `${structureLabel(event.structureTypeId)}: ${GREENHOUSE_ROUND_LOST[event.reason]}. It starts a new one by itself`;
     case "observing-round-completed":
       return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":

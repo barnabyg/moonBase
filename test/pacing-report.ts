@@ -31,6 +31,13 @@ export type PacedCatalogue = Pick<
 const HOURS_PER_EARTH_DAY = 24;
 const MINUTES_PER_EARTH_DAY = HOURS_PER_EARTH_DAY * 60;
 
+/**
+ * Roughly the Earth Day a base following the Milestones starts its first
+ * Research Task, as the reference Campaign does, to set research's clock against
+ * the Campaign's.
+ */
+const FIRST_RESEARCH_EARTH_DAY = 16;
+
 /** How long a span of Earth Days of game time takes at each game speed but the pause. */
 export function realTimes(
   catalogue: Pick<PacedCatalogue, "gameSpeeds">,
@@ -169,6 +176,130 @@ function designDepths(
   };
   for (const design of catalogue.designs) depthOf(design.id);
   return depths;
+}
+
+/** The Designs past the rest of the Tech Tree, which Greenhouses are the way to reach sooner. */
+export const GREENHOUSE_CHAIN_DESIGN_IDS: readonly string[] = [
+  "growing-halls",
+  "vault-cistern",
+];
+
+/** The Earth Day a guide-like base has its first Greenhouse commissioned, for the chain's dates. */
+const FIRST_GREENHOUSE_EARTH_DAY = 1640;
+
+/** How long a growing hall takes to ship and build, and the water it asks for, once its Design is unlocked. */
+const HALL_LEAD_EARTH_DAYS = 100;
+
+/** When a Design is unlocked, for `greenhouseChainDates`. */
+export interface DesignDate {
+  readonly designId: string;
+  readonly earthDay: number;
+}
+
+/**
+ * When each Design is unlocked, research going as `scienceTimeline` has it on its
+ * clock, the cheapest it can afford as soon as it can, with so many Greenhouses and
+ * growing halls earning, the first from about when the long-game play guide has
+ * its first, the second a while after their Design, every round complete. A Design no Science ever reaches isn't listed.
+ */
+export function greenhouseChainDates(
+  catalogue: Pick<
+    PacedCatalogue,
+    "researchTasks" | "designs" | "structureTypes"
+  >,
+  { greenhouses, halls }: { greenhouses: number; halls: number },
+): DesignDate[] {
+  const perEarthDay = (id: string): number => {
+    const growing = catalogue.structureTypes.find(
+      (type) => type.id === id,
+    )?.growing;
+    return growing === undefined
+      ? 0
+      : (growing.science / growing.lengthHours) * HOURS_PER_EARTH_DAY;
+  };
+  const fromGreenhouses = greenhouses * perEarthDay("greenhouse");
+  const fromHalls = halls * perEarthDay("growing-hall");
+  const unlocked = new Set(
+    catalogue.designs.filter(({ starting }) => starting).map(({ id }) => id),
+  );
+  const left = [...catalogue.researchTasks].sort(
+    (a, b) => a.lengthHours - b.lengthHours,
+  );
+  const dates: DesignDate[] = [];
+  let science = 0;
+  let earthDay = FIRST_RESEARCH_EARTH_DAY;
+  let hallsFrom = Infinity;
+  let running:
+    { readonly science: number; readonly endsEarthDay: number } | undefined;
+  const unlockWhatItCan = () => {
+    for (;;) {
+      const next = catalogue.designs
+        .filter(
+          (design) =>
+            !unlocked.has(design.id) &&
+            design.scienceCost <= science &&
+            design.prerequisiteDesignIds.every((id) => unlocked.has(id)),
+        )
+        .sort((a, b) => a.scienceCost - b.scienceCost)[0];
+      if (next === undefined) return;
+      unlocked.add(next.id);
+      science -= next.scienceCost;
+      dates.push({ designId: next.id, earthDay });
+      if (next.id === "growing-halls") {
+        hallsFrom = earthDay + HALL_LEAD_EARTH_DAYS;
+      }
+    }
+  };
+  for (;;) {
+    if (running === undefined) {
+      const index = left.findIndex(
+        ({ requiresDesignId }) =>
+          requiresDesignId === undefined || unlocked.has(requiresDesignId),
+      );
+      const [task] = index < 0 ? [] : left.splice(index, 1);
+      if (task !== undefined) {
+        running = {
+          science: task.science,
+          endsEarthDay: earthDay + task.lengthHours / HOURS_PER_EARTH_DAY,
+        };
+      }
+    }
+    const rate =
+      (earthDay >= FIRST_GREENHOUSE_EARTH_DAY ? fromGreenhouses : 0) +
+      (earthDay >= hallsFrom ? fromHalls : 0);
+    // The next Design it could reach on what it earns, whatever comes first.
+    const costs = catalogue.designs
+      .filter(
+        (design) =>
+          !unlocked.has(design.id) &&
+          design.prerequisiteDesignIds.every((id) => unlocked.has(id)),
+      )
+      .map(({ scienceCost }) => scienceCost);
+    const cheapest = costs.length === 0 ? undefined : Math.min(...costs);
+    const reachedOn =
+      cheapest === undefined || rate === 0
+        ? Infinity
+        : earthDay + Math.max(cheapest - science, 0) / rate;
+    const startsEarning = [
+      ...(fromGreenhouses > 0 ? [FIRST_GREENHOUSE_EARTH_DAY] : []),
+      ...(fromHalls > 0 ? [hallsFrom] : []),
+    ].filter((day) => day > earthDay);
+    const until = Math.min(
+      running?.endsEarthDay ?? Infinity,
+      reachedOn,
+      ...startsEarning,
+    );
+    if (until === Infinity) return dates;
+    science += rate * (until - earthDay);
+    earthDay = until;
+    if (running !== undefined && running.endsEarthDay <= earthDay) {
+      science += running.science;
+      running = undefined;
+    }
+    // What it earns adds up in fractions, which a whole cost shouldn't miss by.
+    science += 1e-9;
+    unlockWhatItCan();
+  }
 }
 
 /** The Designs' cost at each depth in the Tech Tree, shallowest first. */
@@ -352,7 +483,7 @@ export interface ScienceEarner {
   readonly scienceCost: number;
   /** What the Research Tasks it offers pay, once each. */
   readonly taskScience: number;
-  /** What one telescope of its earns in a Lunation. */
+  /** What one telescope or Greenhouse of its earns in a Lunation. */
   readonly sciencePerLunation: number;
   /** How soon that pays for it: undefined if it never does. */
   readonly paybackEarthDays: number | undefined;
@@ -360,7 +491,8 @@ export interface ScienceEarner {
 
 /**
  * Every Design that earns Science: by the Research Tasks it offers, run back
- * to back, and by one telescope observing through every Night.
+ * to back, by one telescope observing through every Night, and by one Greenhouse
+ * growing all through every Lunation.
  */
 export function scienceEarners(
   catalogue: Pick<
@@ -385,11 +517,17 @@ export function scienceEarners(
     const taskEarthDays =
       tasks.reduce((total, task) => total + task.lengthHours, 0) /
       HOURS_PER_EARTH_DAY;
-    const sciencePerLunation = catalogue.structureTypes.some(
-      (type) => type.designId === design.id && type.telescope === true,
-    )
-      ? roundsPerLunation * science
-      : 0;
+    const sciencePerLunation = catalogue.structureTypes
+      .filter((type) => type.designId === design.id)
+      .reduce((most, { telescope, growing }) => {
+        const telescopes = telescope === true ? roundsPerLunation * science : 0;
+        const greenhouses =
+          growing === undefined
+            ? 0
+            : (lunationEarthDays * HOURS_PER_EARTH_DAY * growing.science) /
+              growing.lengthHours;
+        return Math.max(most, telescopes, greenhouses);
+      }, 0);
     if (taskScience === 0 && sciencePerLunation === 0) return [];
     const perEarthDay =
       (taskEarthDays > 0 ? taskScience / taskEarthDays : 0) +
@@ -546,8 +684,13 @@ const ACT_ADDITIONS: readonly {
 }[] = [
   {
     act: 3,
-    designIds: ["propellant-production", "large-propellant-production"],
+    designIds: [
+      "lunar-greenhouses",
+      "propellant-production",
+      "large-propellant-production",
+    ],
     researchTaskIds: [
+      "closed-loop-crop-trial",
       "ascent-margin-study",
       "liquefier-boil-off-trial",
       "propellant-purity-audit",
@@ -557,12 +700,18 @@ const ACT_ADDITIONS: readonly {
   },
   {
     act: 4,
-    designIds: ["precision-optics", "optics-grinding-line"],
+    designIds: [
+      "precision-optics",
+      "optics-grinding-line",
+      "growing-halls",
+      "vault-cistern",
+    ],
     researchTaskIds: [
       "vacuum-figuring-study",
       "optical-coating-trial",
       "long-term-figure-audit",
       "grinding-line-yield-survey",
+      "hall-yield-trial",
     ],
     exportIds: ["precision-optics"],
   },
@@ -615,13 +764,6 @@ export const act2Plan: ActPlan = {
     "cold-trap-mining",
   ],
 };
-
-/**
- * Roughly the Earth Day a base following the Milestones starts its first
- * Research Task, as the reference Campaign does, to set research's clock against
- * the Campaign's.
- */
-const FIRST_RESEARCH_EARTH_DAY = 16;
 
 export interface ActBalance {
   readonly plan: ActPlan;
@@ -739,6 +881,7 @@ function structureJob(type: StructureType): string | undefined {
   if (type.recipes !== undefined) return undefined;
   if (type.habitat) return "habitat";
   if (type.shieldsHabitat) return "shielding";
+  if (type.waterWall?.overBuriedHabitat === true) return "vault cistern";
   if (type.waterWall !== undefined) return "water wall";
   if (type.landingPad) return "landing pad";
   if (type.parking !== undefined) return "parking";
@@ -827,6 +970,8 @@ export function offerings(
           perHour: output.count / batchHoursOf(recipe),
         })),
       ];
+      // A Greenhouse's recipe makes nothing to weigh: it earns Science by rounds.
+      if (made.length === 0) continue;
       const madePerHour = made.reduce(
         (total, output) => total + output.perHour,
         0,
@@ -1013,7 +1158,7 @@ export function formatPacingReport(
     ),
     "",
     "Payback of each Design that earns Science",
-    "  Assumes its own Research Tasks run back to back, and one telescope, if it brings one, through every Night.",
+    "  Assumes its own Research Tasks run back to back, and one telescope, if it brings one, through every Night, or one Greenhouse all through every Lunation.",
     ...earners.map((earner) => {
       const label = labelOf(catalogue.designs, earner.designId);
       const earns = [
@@ -1021,9 +1166,7 @@ export function formatPacingReport(
           ? [`its Research Tasks pay ${earner.taskScience}`]
           : []),
         ...(earner.sciencePerLunation > 0
-          ? [
-              `a telescope earns ${earner.sciencePerLunation.toFixed(1)} a Lunation`,
-            ]
+          ? [`one earns ${earner.sciencePerLunation.toFixed(1)} a Lunation`]
           : []),
       ].join(", ");
       return `  ${label}: costs ${earner.scienceCost} Science, ${earns}; ${
@@ -1056,6 +1199,48 @@ export function formatPacingReport(
     `  At Earth Day ${act.plan.designsLeftAtEarthDay} there are still to buy: ${act.designsLeftIds.map((id) => labelOf(catalogue.designs, id)).join(", ") || "none"}. The last Research Task is complete about Earth Day ${act.researchEndsEarthDay.toFixed(0)}.`,
     `  Funding: its big purchases come to ${money(act.purchasesMillionDollars)}: ${act.purchases.map((purchase) => `${labelOf(catalogue.structureTypes, purchase.structureTypeId)} ${money(purchase.millionDollars)} (${purchase.kilograms} kg)`).join(", ")}.`,
     `  Against that, circuit boards alone earn about ${money(act.incomeMillionDollars)} over the Act, or ${money(act.incomeWithRestFilledMillionDollars)} with metals filling the rest of a Return Mass every round trip: buying them all takes ${((act.purchasesMillionDollars / act.incomeWithRestFilledMillionDollars) * 100).toFixed(0)}% of that.`,
+    "",
+    "The Designs Greenhouses bring forward",
+    `  Assumes research as above, with so many Greenhouses earning every round from about Earth Day ${FIRST_GREENHOUSE_EARTH_DAY}, and growing halls ${HALL_LEAD_EARTH_DAYS} Earth Days after their Design. The dates go on past Earth Day 3,000 on what they alone earn.`,
+    "  Greenhouses  Growing halls  " +
+      GREENHOUSE_CHAIN_DESIGN_IDS.map((id) =>
+        labelOf(catalogue.designs, id),
+      ).join("  "),
+    ...[
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [5, 0],
+      [1, 1],
+      [2, 1],
+    ].map(([greenhouses = 0, halls = 0]) => {
+      const dates = greenhouseChainDates(catalogue, { greenhouses, halls });
+      return `  ${String(greenhouses).padStart(11)}  ${String(halls).padStart(13)}  ${GREENHOUSE_CHAIN_DESIGN_IDS.map(
+        (id) => {
+          const date = dates.find(({ designId }) => designId === id);
+          return (
+            date === undefined ? "never" : date.earthDay.toFixed(0)
+          ).padStart(labelOf(catalogue.designs, id).length);
+        },
+      ).join("  ")}`;
+    }),
+    "  What they ask in Funding, each by Launch, with no Launch fee:",
+    ...[
+      "growing-hall",
+      "vault-cistern",
+      "greenhouse",
+      "cold-trap-ice-line",
+      "water-processing-plant",
+      "water-tank",
+    ].flatMap((id) => {
+      const type = catalogue.structureTypes.find((other) => other.id === id);
+      if (type === undefined) return [];
+      const { millionDollars, kilograms } = importCost(catalogue, type);
+      return [
+        `    ${labelOf(catalogue.structureTypes, id)}: ${money(millionDollars)}, ${kilograms} kg.`,
+      ];
+    }),
     "",
     "Designs that something cheaper beats outright",
     "  Compares only things that do the same job: Science on the way to it, money and mass against everything it does, including how fast it is built and how well it stands up to Hazards.",

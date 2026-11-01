@@ -24,6 +24,7 @@ import {
   type Driven,
 } from "./driven";
 import type { GameEvent } from "./events";
+import { isGreenhouse, isGreenhouseIdle } from "./greenhouses";
 import { partsAhead, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
 import {
@@ -308,9 +309,14 @@ export function structureNetworks(
     return {
       structures,
       daylightGenerationKilowatts: total((power) => power.generationKilowatts),
-      daylightConsumptionKilowatts: total((power) => power.drawKilowatts),
+      daylightConsumptionKilowatts: total(
+        (power) => power.drawKilowatts + (power.daylightDrawKilowatts ?? 0),
+      ),
       nightConsumptionKilowatts: total(
-        (power) => power.drawKilowatts + power.nightDrawKilowatts,
+        (power) =>
+          power.drawKilowatts +
+          power.nightDrawKilowatts +
+          (power.nightUpkeepKilowatts ?? 0),
       ),
       nightLoadKilowatts: total((power) => power.nightDrawKilowatts),
       // A Broken battery bank's energy is lost with it.
@@ -370,6 +376,8 @@ export function usesPower(structureTypeId: string): boolean {
     power.storageKilowattHours > 0 ||
     power.drawKilowatts > 0 ||
     power.nightDrawKilowatts > 0 ||
+    (power.nightUpkeepKilowatts ?? 0) > 0 ||
+    (power.daylightDrawKilowatts ?? 0) > 0 ||
     recipesOf(structureTypeId).some((recipe) => recipe.drawKilowatts > 0)
   );
 }
@@ -419,7 +427,8 @@ export function consumptionKilowatts(
  * while any energy is left when its turn comes, so the last of it may cover
  * only part of a game-minute, and those after it go without. A Structure
  * that draws nothing always has power, unless it is Broken: then it has
- * none, and stores nothing. The heaters of the Machines and Rovers plugged
+ * none, and stores nothing. A storage tank's upkeep counts as what it draws,
+ * at Night only. The heaters of the Machines and Rovers plugged
  * in to a network come after all its Structures, Machines first, each in
  * their order; each has power while it is plugged in and, at Night, while
  * any energy is left for its heater when its turn comes. Any other has none.
@@ -431,7 +440,9 @@ export function consumptionKilowatts(
  * Night and the data catalogue's reserve after it (see
  * `nightReserveHours`): otherwise it stays off to save power, so that no
  * Night load ever leaves the Habitat, or anything else, without power.
- * Plants come last of all, in the order they
+ * A Greenhouse is a Plant that draws as a Structure and a Night load do, in those
+ * turns, and works while they have power, rather than on what is to spare (see
+ * `runGreenhouses`). Any other Plant comes last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
  * if the energy to spare covers all it draws in the game-minute. In
  * Daylight that is what is left over beyond what the network's battery
@@ -467,10 +478,12 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     const plants = network.structures.filter(isPlant);
     for (const structure of supplyOrder(
       state,
-      network.structures.filter((structure) => !isPlant(structure)),
+      network.structures.filter(
+        (structure) => !isPlant(structure) || isGreenhouse(structure),
+      ),
     )) {
       // Its Night load, if it has one, comes later.
-      const drawn = workingPower(structure).drawKilowatts / 60;
+      const drawn = drawKilowatts(structure, daylight, false) / 60;
       structure.powered =
         !isBroken(structure) &&
         (drawn === 0 ||
@@ -505,8 +518,14 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     for (const plant of plants) {
       const drawn = plantDrawKilowatts(plant) / 60;
       const cantRun = plantCantRun(state, plant, claims);
+      const greenhouse = isGreenhouse(plant);
       plant.powered =
-        cantRun === undefined && spare >= drawn - ENERGY_TOLERANCE_KWH;
+        cantRun === undefined &&
+        (greenhouse
+          ? daylight
+            ? plant.powered
+            : plant.lit
+          : spare >= drawn - ENERGY_TOLERANCE_KWH);
       if (plant.powered) {
         spare = Math.max(spare - drawn, 0);
         left = Math.max(left - drawn, 0);
@@ -514,7 +533,9 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
       }
       plant.plantStop = plant.powered
         ? undefined
-        : (cantRun ?? { reason: daylight ? "no-power" : "night" });
+        : (cantRun ?? {
+            reason: daylight || greenhouse ? "no-power" : "night",
+          });
     }
     const stored = Math.min(left, network.storageCapacityKilowattHours);
 
@@ -635,7 +656,8 @@ export function minutesUntilPowerLost(
     const consumption = partConsumptionKilowatts(network, part, stored);
     // What has to be left in storage at the start of a game-minute for the
     // Habitat to have power in it, on top of what is generated.
-    const needed = (drawKilowatts(habitat, part.daylight) - generated) / 60;
+    const needed =
+      (drawKilowatts(habitat, part.daylight, true) - generated) / 60;
     if (needed > ENERGY_TOLERANCE_KWH) {
       // Storage falls by the network's shortfall each game-minute (the
       // network draws at least what the Habitat does, so there is one) until
@@ -744,10 +766,22 @@ function isHabitat(structure: StructureState): boolean {
   return findStructureType(structure.structureTypeId)?.habitat === true;
 }
 
-/** What a Structure draws in the given part of the Lunation. */
-function drawKilowatts(structure: StructureState, daylight: boolean): number {
+/**
+ * What a Structure draws in the given part of the Lunation, with or without any
+ * Night load, which may be off.
+ */
+function drawKilowatts(
+  structure: StructureState,
+  daylight: boolean,
+  nightLoad: boolean,
+): number {
   const power = workingPower(structure);
-  return power.drawKilowatts + (daylight ? 0 : power.nightDrawKilowatts);
+  if (daylight) return power.drawKilowatts + (power.daylightDrawKilowatts ?? 0);
+  return (
+    power.drawKilowatts +
+    (power.nightUpkeepKilowatts ?? 0) +
+    (nightLoad ? power.nightDrawKilowatts : 0)
+  );
 }
 
 type Power = StructureType["power"];
@@ -766,11 +800,11 @@ function powerOf(structureTypeId: string): Power {
 /**
  * What a Structure does on the power network: it generates and stores less
  * as its performance falls with its Condition, a solar array generates less
- * under a Dust coating, and it does nothing once it is Broken. What it
- * draws doesn't change until then.
+ * under a Dust coating, and it does nothing once it is Broken, or a Greenhouse
+ * once it is switched off. What it draws doesn't change until then.
  */
 function workingPower(structure: StructureState): Power {
-  if (isBroken(structure)) return noPower;
+  if (isBroken(structure) || isGreenhouseIdle(structure)) return noPower;
   const power = powerOf(structure.structureTypeId);
   const performance = structurePerformance(structure);
   return {

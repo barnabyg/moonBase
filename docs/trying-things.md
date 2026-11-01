@@ -16,6 +16,12 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `act-3`               | The start of Act 3, with a propellant plant's Components in stock, 500 kg of propellant, 150 kg of circuit boards, 400 kg of metals and $5,000M |
 | `workshop`            | A base with a Workshop running on two solar arrays and a battery bank, its metals about to run out, and a second Workshop's Components in stock |
 | `buried-habitat`      | A base with the Mission Director behind a water wall at 568 mSv, a Buried Habitat commissioned to move to, and a bare Habitat beside it         |
+| `water-reserve`       | A base with an optics works running on six batches' water above the reserve, and a water-processing plant switched off with water ice to use    |
+| `full-store`          | A base with a water-processing plant running three batches below the limit of 400 kg, its water ice to spare, and an optics works switched off  |
+| `storage-tanks`       | A base with a water tank and an oxygen tank half full, a few hours before Night, and a second water tank's Components in stock                  |
+| `propellant-tanks`    | A base with a propellant plant and a propellant tank three batches from full, a few hours before Night, and a second tank's Components in stock |
+| `greenhouse`          | A base with a Greenhouse growing a few hours before Night on a day's water above the reserve, and a water-processing plant switched off         |
+| `late-game`           | Late in a Campaign, in a Buried Habitat at 570 mSv, a Greenhouse growing, Growing halls unlocked, the Science for a Vault cistern, and $20,000M |
 | `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                |
 
 ## Adding a scenario

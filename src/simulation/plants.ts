@@ -8,7 +8,6 @@ import {
   type ResourceRef,
   inSentence,
 } from "../catalogue";
-import { addBulk, bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import {
@@ -16,9 +15,20 @@ import {
   isBroken,
   type StructureState,
 } from "./construction";
+import {
+  kilogramsAboveReserve,
+  reserveKilograms,
+} from "./life-support-reserve";
 import { readLunation } from "./lunation";
 import { recordLifeSupport, recordSpareComponents } from "./self-sufficiency";
 import { addToStock, inStock } from "./stockpile";
+import {
+  addWithinLimit,
+  amountOf,
+  isSameResource,
+  spaceKilograms,
+  storageLimitKilograms,
+} from "./storage-limits";
 
 /**
  * How many game-minutes of work at full performance a batch of a recipe
@@ -41,9 +51,16 @@ export type PlantStop =
   | { readonly reason: "broken" }
   /**
    * It has no batch started and too little of one of its inputs to start
-   * one: the first in its recipe it is short of.
+   * one: the first in its recipe it is short of. Of a life support stock,
+   * that means too little above the Mission Director's reserve.
    */
   | { readonly reason: "no-input"; readonly resource: ResourceRef }
+  /**
+   * It has no batch started, and none of what it makes has room for a batch's
+   * worth, beyond what the batches under way will make: the first in its recipe.
+   * It starts none until there is.
+   */
+  | { readonly reason: "output-full"; readonly resource: ResourceRef }
   /**
    * It was Night, and its network's battery banks held no more than
    * everything else on it needs through the Night and the reserve after it.
@@ -64,7 +81,15 @@ export type PlantStop =
 
 /** Why a Plant isn't running, as the player sees it. */
 export type PlantStopSnapshot =
-  | Exclude<PlantStop, { readonly reason: "no-input" }>
+  | Exclude<PlantStop, { readonly reason: "no-input" | "output-full" }>
+  | {
+      readonly reason: "output-full";
+      readonly resource: ResourceRef;
+      /** How much of it the base has. */
+      readonly kilograms: number;
+      /** How much of it the base can hold. */
+      readonly limitKilograms: number;
+    }
   | {
       readonly reason: "no-input";
       readonly resource: ResourceRef;
@@ -72,6 +97,21 @@ export type PlantStopSnapshot =
       readonly kilograms: number;
       /** How much of it a batch needs. */
       readonly kilogramsNeeded: number;
+    }
+  /**
+   * It has too little of a life support stock to start a batch and leave the
+   * Mission Director's reserve: saved as `no-input`, as a stock's shortage
+   * always comes to this.
+   */
+  | {
+      readonly reason: "reserve";
+      readonly resource: ResourceRef;
+      /** How much of it the base has, up to what the Plant waits for. */
+      readonly kilograms: number;
+      /** What the Plant waits for: a batch's worth above the reserve. */
+      readonly kilogramsNeeded: number;
+      /** How much of it is kept for the Mission Director. */
+      readonly reserveKilograms: number;
     };
 
 /** Whether a Plant is running, why not if it isn't, and how far its batch has got. */
@@ -255,35 +295,6 @@ function refuse<Reason extends SetRecipeRefusal | SwitchPlantRefusal>(
   return { ok: false, reason, message };
 }
 
-/** How many kilograms of a bulk resource or life support stock the base has. */
-export function amountOf(state: CampaignState, resource: ResourceRef): number {
-  if (resource.kind === "bulk-resource") {
-    return bulkInStock(state, resource.resourceId);
-  }
-  return (
-    state.lifeSupport.find((stock) => stock.stockId === resource.stockId)
-      ?.kilograms ?? 0
-  );
-}
-
-/** Adds kilograms to a bulk resource or life support stock, or takes them away. */
-function addTo(
-  state: CampaignState,
-  resource: ResourceRef,
-  kilograms: number,
-): void {
-  if (resource.kind === "bulk-resource") {
-    addBulk(state, resource.resourceId, kilograms);
-    return;
-  }
-  const stock = state.lifeSupport.find(
-    (candidate) => candidate.stockId === resource.stockId,
-  );
-  if (stock !== undefined) {
-    stock.kilograms = Math.max(stock.kilograms + kilograms, 0);
-  }
-}
-
 /** How many kilograms of a resource a batch of a recipe takes in or puts out. */
 function batchKilograms(recipe: PlantRecipe, flow: ResourceFlow): number {
   return flow.kilogramsPerHour * batchHoursOf(recipe);
@@ -298,7 +309,8 @@ const MINUTE_TOLERANCE = 1e-9;
 /**
  * The kilograms of each bulk resource and life support stock that the
  * Plants given power so far in a game-minute will take as they start their
- * batches, so that no two count on the same kilograms.
+ * batches, so that no two count on the same kilograms, and the room they will
+ * need for what those batches make, so that no two count on the same room.
  */
 export type BatchClaims = Map<string, number>;
 
@@ -306,6 +318,21 @@ function claimKey(resource: ResourceRef): string {
   return resource.kind === "bulk-resource"
     ? `bulk-resource:${resource.resourceId}`
     : `life-support:${resource.stockId}`;
+}
+
+function spaceClaimKey(resource: ResourceRef): string {
+  return `space:${claimKey(resource)}`;
+}
+
+/**
+ * How many kilograms of a resource a Plant may take as it starts a batch: all
+ * there is of a bulk resource, and of a life support stock what is above the
+ * Mission Director's reserve.
+ */
+function amountToTake(state: CampaignState, resource: ResourceRef): number {
+  return resource.kind === "bulk-resource"
+    ? amountOf(state, resource)
+    : kilogramsAboveReserve(state, resource.stockId);
 }
 
 /**
@@ -319,17 +346,74 @@ function shortInput(
 ): ResourceRef | undefined {
   return recipe.inputs.find(
     (flow) =>
-      amountOf(state, flow.resource) -
+      amountToTake(state, flow.resource) -
         (claims.get(claimKey(flow.resource)) ?? 0) <
       batchKilograms(recipe, flow) - AMOUNT_TOLERANCE,
   )?.resource;
+}
+
+/** The kilograms of a resource that the batches under way will make as they finish. */
+function makingKilograms(state: CampaignState, resource: ResourceRef): number {
+  return state.structures.reduce((sum, structure) => {
+    const recipe =
+      structure.batch === undefined ? undefined : workingRecipeOf(structure);
+    if (recipe === undefined) return sum;
+    return (
+      sum +
+      resourceOutputs(recipe)
+        .filter((flow) => isSameResource(flow.resource, resource))
+        .reduce((total, flow) => total + batchKilograms(recipe, flow), 0)
+    );
+  }, 0);
+}
+
+/**
+ * Whether a batch's worth of a recipe's output has room, beyond what the batches
+ * under way and the Plants given power so far this game-minute will make.
+ */
+function hasRoomForBatch(
+  state: CampaignState,
+  recipe: PlantRecipe,
+  flow: ResourceFlow,
+  claims: BatchClaims,
+): boolean {
+  const space = spaceKilograms(state, flow.resource);
+  if (space === Infinity) return true;
+  return (
+    space -
+      makingKilograms(state, flow.resource) -
+      (claims.get(spaceClaimKey(flow.resource)) ?? 0) >=
+    batchKilograms(recipe, flow) - AMOUNT_TOLERANCE
+  );
+}
+
+/**
+ * The first output of a recipe with no room for a batch, if none of its outputs
+ * has any: a Plant that makes anything else, Components among them, keeps running
+ * so that a full store can't block it, and what doesn't fit is lost.
+ */
+function fullOutput(
+  state: CampaignState,
+  recipe: PlantRecipe,
+  claims: BatchClaims,
+): ResourceRef | undefined {
+  if (
+    componentOutputs(recipe).length > 0 ||
+    resourceOutputs(recipe).some((flow) =>
+      hasRoomForBatch(state, recipe, flow, claims),
+    )
+  ) {
+    return undefined;
+  }
+  return resourceOutputs(recipe)[0]?.resource;
 }
 
 /**
  * Why a commissioned Plant couldn't run whatever power it had, if it
  * couldn't: it is Broken, or it has no batch started and is switched off,
  * or has too little of an input to start one, beyond what other Plants
- * have claimed this game-minute. Undefined for any other Structure.
+ * have claimed this game-minute and any reserve kept of it, or has no room for
+ * what it makes. Undefined for any other Structure.
  */
 export function plantCantRun(
   state: CampaignState,
@@ -341,10 +425,14 @@ export function plantCantRun(
   if (isBroken(structure)) return { reason: "broken" };
   if (structure.batch !== undefined) return undefined;
   if (structure.switchedOff) return { reason: "switched-off" };
-  const resource = shortInput(state, recipe, claims);
-  return resource === undefined
+  const short = shortInput(state, recipe, claims);
+  if (short !== undefined) {
+    return { reason: "no-input", resource: { ...short } };
+  }
+  const full = fullOutput(state, recipe, claims);
+  return full === undefined
     ? undefined
-    : { reason: "no-input", resource: { ...resource } };
+    : { reason: "output-full", resource: { ...full } };
 }
 
 /**
@@ -362,6 +450,10 @@ export function claimBatchInputs(
     const key = claimKey(flow.resource);
     claims.set(key, (claims.get(key) ?? 0) + batchKilograms(recipe, flow));
   }
+  for (const flow of resourceOutputs(recipe)) {
+    const key = spaceClaimKey(flow.resource);
+    claims.set(key, (claims.get(key) ?? 0) + batchKilograms(recipe, flow));
+  }
 }
 
 /** The power a Plant draws in a game-minute it runs, in kilowatts. */
@@ -377,8 +469,9 @@ export function plantDrawKilowatts(
  * the recipe it is set to, taking a batch's inputs from the base's stocks,
  * which it claimed as it was given power (see `supplyPower`). A batch is
  * done after its recipe's length of work at full performance, when its
- * outputs are added to the base's stocks, any Components among them. A batch
- * keeps the work done on it while its Plant has no power, as at Night, or is
+ * outputs are added to the base's stocks, any Components among them, as far as
+ * each stock's limit, what doesn't fit being lost, though still counted as made.
+ * A batch keeps the work done on it while its Plant has no power, as at Night, or is
  * Broken.
  */
 export function runPlants(state: CampaignState): void {
@@ -388,7 +481,7 @@ export function runPlants(state: CampaignState): void {
       const recipe = recipeOf(structure);
       if (recipe === undefined) continue;
       for (const flow of recipe.inputs) {
-        addTo(state, flow.resource, -batchKilograms(recipe, flow));
+        addWithinLimit(state, flow.resource, -batchKilograms(recipe, flow));
       }
       structure.batch = { recipeId: recipe.id, minutesWorked: 0 };
     }
@@ -402,7 +495,7 @@ export function runPlants(state: CampaignState): void {
     }
     for (const flow of resourceOutputs(working)) {
       const made = batchKilograms(working, flow);
-      addTo(state, flow.resource, made);
+      addWithinLimit(state, flow.resource, made);
       if (flow.resource.kind === "life-support") {
         recordLifeSupport(state, flow.resource.stockId, { produced: made });
       }
@@ -581,12 +674,60 @@ function flowPerHour(
 }
 
 /**
+ * How many kilograms an hour of a resource the base's Plants could be making
+ * now but for having no room for it: what those waiting for it make in an hour
+ * of their recipes, as fast as their Condition allows. One that is Broken,
+ * switched off or short of an input doesn't say it is waiting for this.
+ */
+export function waitingForSpacePerHour(
+  state: CampaignState,
+  resource: ResourceRef,
+): number {
+  return state.structures.reduce((sum, structure) => {
+    if (structure.plantStop?.reason !== "output-full") return sum;
+    const moved = resourceOutputs(recipeOf(structure))
+      .filter((flow) => isSameResource(flow.resource, resource))
+      .reduce((total, flow) => total + flow.kilogramsPerHour, 0);
+    return sum + moved * structurePerformance(structure);
+  }, 0);
+}
+
+/**
+ * Whether a resource is being held full by the Plants that make it: one is
+ * waiting for room for it, or running with no room for another batch, so that
+ * what it makes tops the stock up and no more.
+ */
+export function isHeldFull(
+  state: CampaignState,
+  resource: ResourceRef,
+): boolean {
+  return state.structures.some((structure) => {
+    const recipe = workingRecipeOf(structure);
+    const flow = resourceOutputs(recipe).find((output) =>
+      isSameResource(output.resource, resource),
+    );
+    if (
+      recipe === undefined ||
+      flow === undefined ||
+      structure.switchedOff ||
+      isBroken(structure)
+    ) {
+      return false;
+    }
+    if (structure.plantStop?.reason === "output-full") return true;
+    return (
+      structure.powered && !hasRoomForBatch(state, recipe, flow, new Map())
+    );
+  });
+}
+
+/**
  * Whether any of the base's Plants makes a resource with the recipe it is
  * set to, and isn't Broken or switched off, whether or not it ran during
  * the latest game-minute.
  */
 export function isMadeByPlants(
-  state: CampaignState,
+  state: Pick<CampaignState, "structures">,
   resource: ResourceRef,
 ): boolean {
   return state.structures.some(
@@ -599,10 +740,20 @@ export function isMadeByPlants(
   );
 }
 
-export function isSameResource(a: ResourceRef, b: ResourceRef): boolean {
-  return a.kind === "bulk-resource"
-    ? b.kind === "bulk-resource" && a.resourceId === b.resourceId
-    : b.kind === "life-support" && a.stockId === b.stockId;
+/**
+ * Whether any of the base's Plants makes a resource (see `isMadeByPlants`) and isn't
+ * short of what it makes it from, whether or not it had the power to run during
+ * the latest game-minute.
+ */
+export function isMadeByPlantsWithInputs(
+  state: CampaignState,
+  resource: ResourceRef,
+): boolean {
+  return state.structures.some(
+    (structure) =>
+      structure.plantStop?.reason !== "no-input" &&
+      isMadeByPlants({ structures: [structure] }, resource),
+  );
 }
 
 /**
@@ -668,11 +819,30 @@ function readStop(
   recipe: PlantRecipe,
   stop: PlantStop,
 ): PlantStopSnapshot {
+  if (stop.reason === "output-full") {
+    const kilograms = amountOf(state, stop.resource);
+    return {
+      reason: "output-full",
+      resource: { ...stop.resource },
+      kilograms,
+      limitKilograms: storageLimitKilograms(state, stop.resource) ?? kilograms,
+    };
+  }
   if (stop.reason !== "no-input") return { ...stop };
   const flow = recipe.inputs.find((input) =>
     isSameResource(input.resource, stop.resource),
   );
   const needed = flow === undefined ? 0 : batchKilograms(recipe, flow);
+  if (stop.resource.kind === "life-support") {
+    const reserve = reserveKilograms(stop.resource.stockId);
+    return {
+      reason: "reserve",
+      resource: { ...stop.resource },
+      kilograms: Math.min(amountOf(state, stop.resource), reserve + needed),
+      kilogramsNeeded: reserve + needed,
+      reserveKilograms: reserve,
+    };
+  }
   return {
     reason: "no-input",
     resource: { ...stop.resource },

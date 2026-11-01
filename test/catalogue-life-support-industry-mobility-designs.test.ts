@@ -354,9 +354,9 @@ describe("the data catalogue", () => {
       (design) => design.category === "life-support" && !design.starting,
     );
 
-    it("has two or three beyond the starting ones, some needing another that isn't a starting one first", () => {
+    it("has two to five beyond the starting ones, some needing another that isn't a starting one first", () => {
       expect(lifeSupport.length).toBeGreaterThanOrEqual(2);
-      expect(lifeSupport.length).toBeLessThanOrEqual(3);
+      expect(lifeSupport.length).toBeLessThanOrEqual(5);
       expect(
         lifeSupport.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
@@ -422,31 +422,54 @@ describe("the data catalogue", () => {
       );
     });
 
-    it("has oxygen and water in bulk tanks, behind Bulk supply tanks, which needs Life support resupply and Water electrolysis first", () => {
-      const tanks = tanksOf("bulk-supply-tanks");
-
+    it("has storage tanks behind Bulk supply tanks, which needs Life support resupply and Water electrolysis first, and no oxygen or water to ship", () => {
       expect(designOf("bulk-supply-tanks")).toMatchObject({
         category: "life-support",
         starting: false,
+        scienceCost: 180,
         prerequisiteDesignIds: ["life-support-resupply", "water-electrolysis"],
       });
-      expect(tanks.map((tank) => tank.stockId)).toEqual(["oxygen", "water"]);
+      expect(tanksOf("bulk-supply-tanks")).toEqual([]);
+      const tanks = catalogue.structureTypes.filter(
+        ({ designId }) => designId === "bulk-supply-tanks",
+      );
+      expect(tanks.map(({ id }) => id)).toEqual(["water-tank", "oxygen-tank"]);
     });
 
-    it("has each bulk tank bring at least five times as much as a resupply tank, more for each kilogram shipped and each dollar", () => {
-      for (const tank of tanksOf("bulk-supply-tanks")) {
-        const resupply = tanksOf("life-support-resupply").find(
-          (other) => other.stockId === tank.stockId,
+    it("has each storage tank add to a stock with a limit, draw a little at Night and take a cable", () => {
+      const tanks = catalogue.structureTypes.filter(
+        ({ storageTank }) => storageTank !== undefined,
+      );
+      expect(tanks.length).toBeGreaterThan(0);
+      const battery = catalogue.structureTypes.find(
+        ({ id }) => id === "battery-bank",
+      );
+      const nightHours = catalogue.lunation.nightEarthDays * 24;
+      for (const type of tanks) {
+        const tank = type.storageTank;
+        if (tank === undefined) throw new Error("expected a tank");
+        // Whatever it adds to has a limit: a life support stock, or a bulk
+        // resource a Plant holds.
+        const { resource } = tank;
+        expect(
+          resource.kind === "life-support" ||
+            catalogue.structureTypes.some(
+              ({ ownStorage }) =>
+                ownStorage?.resource.kind === "bulk-resource" &&
+                ownStorage.resource.resourceId === resource.resourceId,
+            ),
+        ).toBe(true);
+        expect(tank.kilograms).toBeGreaterThan(0);
+        expect(tank.shareLostPerEarthDayWithoutPower).toBeGreaterThan(0);
+        expect(tank.shareLostPerEarthDayWithoutPower).toBeLessThan(1);
+        const upkeep = type.power.nightUpkeepKilowatts ?? 0;
+        expect(upkeep).toBeGreaterThan(0);
+        // A small draw: a fraction of a battery bank through a whole Night.
+        expect(upkeep * nightHours).toBeLessThan(
+          (battery?.power.storageKilowattHours ?? 0) / 4,
         );
-        if (resupply === undefined) throw new Error("expected a resupply");
-
-        expect(tank.kilograms).toBeGreaterThanOrEqual(5 * resupply.kilograms);
-        expect(tank.kilograms / tank.item.massKilograms).toBeGreaterThan(
-          resupply.kilograms / resupply.item.massKilograms,
-        );
-        expect(tank.kilograms / tank.item.priceMillionDollars).toBeGreaterThan(
-          resupply.kilograms / resupply.item.priceMillionDollars,
-        );
+        expect(type.power.drawKilowatts).toBe(0);
+        expect(type.power.nightDrawKilowatts).toBe(0);
       }
     });
   });

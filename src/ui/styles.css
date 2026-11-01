@@ -245,8 +245,13 @@ body {
   scrollbar-width: thin;
 }
 
+/* With every Design unlocked it is taller than the window has room for, so it
+   scrolls rather than push its last Structures off the bottom. */
 .build-menu {
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
   margin-top: auto;
   padding: 10px 12px;
 }
@@ -1516,6 +1521,16 @@ body {
 
 .launch-manifest__intro--locked {
   padding: 8px 12px;
+  color: var(--accent);
+  background: rgb(242 193 78 / 8%);
+  border: 1px solid rgb(242 193 78 / 30%);
+  border-radius: 6px;
+}
+
+.launch-manifest__storage-warning {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
   color: var(--accent);
   background: rgb(242 193 78 / 8%);
   border: 1px solid rgb(242 193 78 / 30%);

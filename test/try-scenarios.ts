@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
-import { catalogue } from "../src/catalogue";
-import { createCampaign, loadCampaign, type Campaign } from "../src/simulation";
+import { catalogue, resourceOutputs } from "../src/catalogue";
+import {
+  createCampaign,
+  loadCampaign,
+  reserveKilograms,
+  type Campaign,
+} from "../src/simulation";
 import {
   playReferenceCampaign,
   REFERENCE_SEED,
@@ -198,9 +203,7 @@ function playAct2Save(): string {
   if (save === undefined) throw new Error(failure ?? "It never got there.");
   const opened = JSON.parse(save) as { state: EditableSaveState };
   // Enough to live on and keep the base repaired while the game is tried.
-  for (const stock of opened.state.lifeSupport) {
-    stock.kilograms = Math.max(stock.kilograms, 400);
-  }
+  fillStocks(opened.state);
   addComponents(opened.state, [
     { componentId: catalogue.maintenance.spareComponentId, count: 40 },
   ]);
@@ -364,7 +367,452 @@ function buriedHabitatSave(): string {
   const moved = campaign.moveMissionDirectorIn(home?.id ?? "");
   if (!moved.ok) throw new Error(moved.message);
   return saveWith(campaign, (state) => {
+    fillStocks(state);
     state.radiationDoseMillisieverts = 568;
+  });
+}
+
+/** Where `opticsBase` puts what makes precision optics, and what powers it. */
+const OPTICS_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["battery-bank", { x: 40, y: 35 }],
+  ["solar-array", { x: 50, y: 35 }],
+  ["solar-array", { x: 60, y: 35 }],
+  ["habitat", { x: -14, y: 30 }],
+  ["optics-works", { x: 50, y: 25 }],
+  ["water-processing-plant", { x: 60, y: 25 }],
+] as const;
+
+/**
+ * A base in Daylight with an optics works running, the Mission Director living
+ * in a shielded Habitat, and a water-processing plant switched off with water
+ * ice to turn into water. It plays only as far as the Robot's building takes, on
+ * a save edited to have what it needs.
+ */
+function opticsBase(): Campaign {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("precision-optics", "water-processing");
+      addComponents(
+        state,
+        OPTICS_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+      );
+      addComponents(state, [
+        { componentId: catalogue.maintenance.spareComponentId, count: 60 },
+      ]);
+      for (const stock of state.lifeSupport) stock.kilograms = 2000;
+      stockOf(state, "silicon", 500);
+      stockOf(state, "metals", 200);
+      stockOf(state, "water-ice", 100);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  const build = (
+    plans: readonly (readonly [string, { x: number; y: number }])[],
+  ) => {
+    for (const [structureTypeId, position] of plans) {
+      const planned = campaign.planConstruction({ structureTypeId, position });
+      if (!planned.ok) throw new Error(planned.message);
+    }
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 40 * 24) throw new Error("The base was never finished.");
+      campaign.advance(60);
+    }
+  };
+  const structureOf = (id: string) =>
+    campaign
+      .snapshot()
+      .structures.find(({ structureTypeId }) => structureTypeId === id);
+  build(OPTICS_BASE_SITES);
+  const switched = campaign.switchPlant(
+    structureOf("water-processing-plant")?.id ?? "",
+    "off",
+  );
+  if (!switched.ok) throw new Error(switched.message);
+  build([["regolith-shielding", { x: -14, y: 30 }]]);
+  // Far enough into a Daylight for the optics works to reach the reserve in it.
+  for (let hours = 0; ; hours++) {
+    const { lunation, solarParticleEvent } = campaign.snapshot();
+    if (
+      lunation.part === "daylight" &&
+      lunation.minutesRemaining >= toGameMinutes({ earthDays: 5 }) &&
+      solarParticleEvent === undefined &&
+      structureOf("optics-works")?.plant?.running === true
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("The optics works never started.");
+    campaign.advance(60);
+  }
+  const moved = campaign.moveMissionDirectorIn(
+    structureOf("habitat")?.id ?? "",
+  );
+  if (!moved.ok) throw new Error(moved.message);
+  return campaign;
+}
+
+/**
+ * Fills every life support stock to its storage limit, whatever it held: a
+ * scenario's way of living on while it is tried, and of ending with no more than
+ * the base can hold after building on more.
+ */
+function fillStocks(state: EditableSaveState): void {
+  for (const stock of state.lifeSupport) {
+    stock.kilograms =
+      catalogue.lifeSupportStocks.find(({ id }) => id === stock.stockId)
+        ?.storageLimitKilograms ?? stock.kilograms;
+  }
+}
+
+/**
+ * `opticsBase`, with water enough for so many batches of an optics works before
+ * the Mission Director's reserve stops it.
+ */
+export function opticsBaseSave(batches: number): string {
+  const batchKilograms =
+    catalogue.structureTypes
+      .find(({ id }) => id === "optics-works")
+      ?.recipes?.[0]?.inputs.find(
+        ({ resource }) =>
+          resource.kind === "life-support" && resource.stockId === "water",
+      )?.kilogramsPerHour ?? 0;
+  return saveWith(opticsBase(), (state) => {
+    fillStocks(state);
+    for (const stock of state.lifeSupport) {
+      if (stock.stockId === "water") {
+        stock.kilograms = reserveKilograms("water") + batches * batchKilograms;
+      }
+    }
+  });
+}
+
+/**
+ * `opticsBase`, with its optics works switched off and its water-processing plant
+ * on, and water so many of the Plant's batches below what the base can hold.
+ */
+export function fullStoreSave(batches: number): string {
+  const type = catalogue.structureTypes.find(
+    ({ id }) => id === "water-processing-plant",
+  );
+  const batchKilograms =
+    resourceOutputs(type?.recipes?.[0])[0]?.kilogramsPerHour ?? 0;
+  const campaign = opticsBase();
+  const { structures } = campaign.snapshot();
+  for (const [id, setting] of [
+    ["optics-works", "off"],
+    ["water-processing-plant", "on"],
+  ] as const) {
+    const switched = campaign.switchPlant(
+      structures.find(({ structureTypeId }) => structureTypeId === id)?.id ??
+        "",
+      setting,
+    );
+    if (!switched.ok) throw new Error(switched.message);
+  }
+  return saveWith(campaign, (state) => {
+    fillStocks(state);
+    for (const stock of state.lifeSupport) {
+      if (stock.stockId === "water") {
+        stock.kilograms -= batches * batchKilograms;
+      }
+    }
+  });
+}
+
+/** Where `greenhouseSave` puts what it builds. */
+const GREENHOUSE_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["large-battery-bank", { x: 40, y: 36 }],
+  ["water-processing-plant", { x: 52, y: 36 }],
+  ["greenhouse", { x: 54, y: 22 }],
+] as const;
+
+/** The water above the Mission Director's reserve in `greenhouseSave`: a day's and a bit, into the Night. */
+const GREENHOUSE_WATER_ABOVE_RESERVE_KILOGRAMS = 30;
+
+/**
+ * A base with a Greenhouse growing on a solar array and a large battery bank, a few
+ * hours before Night, with a day's water above the reserve and a water-processing
+ * plant switched off with water ice to use. The Habitat is left out, so that the
+ * Mission Director's stay aboard the Lander lets a player watch it for as long as
+ * they like.
+ */
+export function greenhouseSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "water-electrolysis",
+        "molten-regolith-electrolysis",
+        "parts-machining",
+        "cold-trap-mining",
+        "large-battery-banks",
+        "lunar-greenhouses",
+      );
+      addComponents(state, [
+        ...GREENHOUSE_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("greenhouse"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+      stockOf(state, "water-ice", 800);
+      // So that it grows from the day it is commissioned, up to the scenario's start.
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") stock.kilograms = 400;
+      }
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of GREENHOUSE_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  const plant = campaign
+    .snapshot()
+    .structures.find(
+      ({ structureTypeId }) => structureTypeId === "water-processing-plant",
+    );
+  const off = campaign.switchPlant(plant?.id ?? "", "off");
+  if (!off.ok) throw new Error(off.message);
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  const watered = loadCampaign(
+    saveWith(campaign, (state) => {
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") {
+          stock.kilograms =
+            reserveKilograms("water") +
+            GREENHOUSE_WATER_ABOVE_RESERVE_KILOGRAMS;
+        }
+      }
+    }),
+  );
+  if (!watered.ok) throw new Error(watered.message);
+  // A game-minute, so that it says it is growing again from the moment it loads.
+  watered.campaign.advance(1);
+  return watered.campaign.save();
+}
+
+/** Where `lateGameSave` puts what it builds. */
+const LATE_GAME_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["solar-array", { x: 40, y: 13 }],
+  ["solar-array", { x: 40, y: 1 }],
+  ["large-battery-bank", { x: 40, y: 37 }],
+  ["large-battery-bank", { x: 52, y: 37 }],
+  ["large-battery-bank", { x: 64, y: 37 }],
+  ["water-tank", { x: 52, y: 25 }],
+  ["water-processing-plant", { x: 64, y: 25 }],
+  ["water-processing-plant", { x: 74, y: 25 }],
+  ["greenhouse", { x: 62, y: 12 }],
+  ["buried-habitat", { x: -18, y: 8 }],
+] as const;
+
+/** The Science in `lateGameSave`: all that a vault cistern costs. */
+export const LATE_GAME_SCIENCE =
+  catalogue.designs.find(({ id }) => id === "vault-cistern")?.scienceCost ?? 0;
+
+/**
+ * Late in a Campaign, with the Mission Director in a Buried Habitat at the dose a
+ * long Campaign has by then: a Greenhouse growing, a water tank nearly full, Growing
+ * halls unlocked, the Science for a Vault cistern, and in stock what a growing hall,
+ * a second water tank and a vault cistern are built from. It plays only as far as
+ * the Robot's building takes, on a save edited to have what it needs.
+ */
+function lateGameSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      for (const design of catalogue.designs) {
+        if (
+          design.id !== "vault-cistern" &&
+          !state.unlockedDesignIds.includes(design.id)
+        ) {
+          state.unlockedDesignIds.push(design.id);
+        }
+      }
+      addComponents(state, [
+        ...LATE_GAME_SITES.flatMap(([id]) => componentsOf(id)),
+        { componentId: catalogue.maintenance.spareComponentId, count: 60 },
+      ]);
+      for (const stock of state.lifeSupport) stock.kilograms = 400;
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of LATE_GAME_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  const home = campaign
+    .snapshot()
+    .structures.find(
+      ({ structureTypeId }) => structureTypeId === "buried-habitat",
+    );
+  for (let hours = 0; home !== undefined; hours++) {
+    if (hours > 40 * 24) throw new Error("The Buried Habitat never had power.");
+    const now = campaign.snapshot().structures.find(({ id }) => id === home.id);
+    if (now?.powered === true) break;
+    campaign.advance(60);
+  }
+  const moved = campaign.moveMissionDirectorIn(home?.id ?? "");
+  if (!moved.ok) throw new Error(moved.message);
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining > toGameMinutes({ earthDays: 15 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Daylight never came.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    state.science = LATE_GAME_SCIENCE;
+    state.fundingMillionDollars = 20000;
+    state.radiationDoseMillisieverts = 570;
+    addComponents(state, [
+      ...componentsOf("growing-hall"),
+      ...componentsOf("vault-cistern"),
+      ...componentsOf("water-tank"),
+    ]);
+    stockOf(state, "water-ice", 1500);
+    for (const stock of state.lifeSupport) {
+      if (stock.stockId === "water") stock.kilograms = 1300;
+    }
+  });
+}
+
+/** Where `propellantTanksSave` puts what it builds. */
+const PROPELLANT_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["solar-array", { x: 40, y: 13 }],
+  ["solar-array", { x: 40, y: 1 }],
+  ["battery-bank", { x: 40, y: 37 }],
+  ["propellant-plant", { x: 54, y: 25 }],
+  ["propellant-tank", { x: 54, y: 37 }],
+] as const;
+
+/**
+ * A base with a commissioned propellant plant and propellant tank, three batches
+ * below what the base can hold, with Regolith for the Plant and a second tank's
+ * Components in stock. It stops a few hours before Night, as `storageTanksSave` does.
+ */
+export function propellantTanksSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("propellant-production");
+      addComponents(state, [
+        ...PROPELLANT_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("propellant-tank"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of PROPELLANT_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    stockOf(state, "propellant", 1047);
+    stockOf(state, "regolith", 1500);
+  });
+}
+
+/** Where `storageTanksSave` puts what it builds. */
+const TANKS_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["battery-bank", { x: 40, y: 35 }],
+  ["water-tank", { x: 52, y: 25 }],
+  ["oxygen-tank", { x: 52, y: 37 }],
+] as const;
+
+/**
+ * A base with a commissioned water tank and oxygen tank on a solar array and a
+ * battery bank, each half full, and a second water tank's Components in stock.
+ * It plays only as far as the Robot's building takes, and stops a few hours
+ * before Night, so that a player sees the draw come and go.
+ */
+export function storageTanksSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push("water-electrolysis", "bulk-supply-tanks");
+      addComponents(state, [
+        ...TANKS_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("water-tank"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of TANKS_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    for (const stock of state.lifeSupport) {
+      stock.kilograms = stock.stockId === "water" ? 700 : 200;
+    }
   });
 }
 
@@ -374,9 +822,9 @@ export const tryScenarios: readonly TryScenario[] = [
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
       "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
-      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 53 items".',
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 55 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
-      "Press Clear: all 53 come back, in the same order.",
+      "Press Clear: all 55 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -422,7 +870,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Launch manifest and open the Exports tab. Return Mass says 0 of 350 kg, as 500 kg of propellant adds 250 kg. Set 150 kg of circuit boards and 150 kg of metals: it says 300 of 350 kg, burning 400 kg of propellant. Try 250 kg of metals: it is refused, naming the Return Mass.",
       'Press Send the Lander. A notification says "Milestone reached: Return Mass tripled", and the status panel shows 100 kg of propellant left.',
       "When the Lander reaches Earth the Funding rises by $600M. When it is back, load the last of the propellant on the Exports tab, and send it again: Oxygen sold as propellant is reached as it reaches Earth, and the Milestones section moves on to Act 4.",
-      "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel rises by about a kilogram a game-hour.",
+      "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel, shown now against the limit of 450 kg that the Plant brings, rises by about a kilogram a game-hour.",
     ],
     save: act3Save,
   },
@@ -453,6 +901,86 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Keeping the Mission Director alive says what a Buried Habitat is for, and the Structures tab has it under Protection. Open the Launch manifest: the vault section and deep life support core are under Protection.",
     ],
     save: buriedHabitatSave,
+  },
+  {
+    id: "water-reserve",
+    title:
+      "A base with an optics works running on six batches' water above the Mission Director's reserve, and a water-processing plant switched off with water ice to use",
+    steps: [
+      'Pause the game. Look at the Base panel\'s Structures: the Optics works says "running" and "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water". The status panel\'s Water says how long it lasts, "optics works using 24 kg a day", and that the water-processing plant is switched off.',
+      'Set the game to 20x. In a few real seconds the Optics works says "waiting for Water", how much there is of the 50 kg it needs, and that this is to leave the Mission Director\'s reserve of 49 kg. Water now falls only as they drink: it lasts about 14 days, and says "optics works waiting at the reserve".',
+      'Pause. Press "Switch on" beside the Water-processing plant and set the game going: Water rises, and each time there is a batch\'s worth above the reserve, the Optics works runs again.',
+      "Open the Guide: the Optics works' card under Structures says it takes water and leaves the reserve, and Power and Night says what the reserve is. Hover over Water beside Self-sufficient: it speaks only of the Mission Director's use, as what the Optics works uses doesn't count against it.",
+    ],
+    save: () => opticsBaseSave(6),
+  },
+  {
+    id: "full-store",
+    title:
+      "A base with a water-processing plant running three batches below the limit of 400 kg of water, with water ice to spare, and an optics works switched off",
+    steps: [
+      "Pause the game. The status panel's Water says \"397.3 of 400 kg\" and that it is rising. The Base panel's Water-processing plant says it is running.",
+      'Set the game to 5x. In a few real seconds the Water-processing plant says "waiting for tank space: Water is 400.0 of 400 kg" or a little under, and the status panel\'s Water says "holding full" instead of how fast it is rising. Water ice stops falling.',
+      "Leave it running: the Mission Director drinks a little, and about every six game-hours there is room for a batch, so the Plant runs for an hour and waits again. Water stays within a batch of 400 kg.",
+      "Open the Launch manifest and add a Water, 50 kg: it warns how much there is room for, and that what doesn't fit is lost on landing. Hover over Water beside Self-sufficient once a whole Lunation has passed: holding full hasn't cost it the title.",
+    ],
+    save: () => fullStoreSave(3),
+  },
+  {
+    id: "storage-tanks",
+    title:
+      "A base with a water tank and an oxygen tank half full on a solar array and a battery bank, a few hours before Night, and a second water tank's Components in stock",
+    steps: [
+      'Pause the game. The status panel says "Water 700.0 of 1400 kg" and "Oxygen 200.0 of 400 kg". In the Base panel the Water tank says "holds 500 of 1000 kg of water, draws 0.05 kW at Night". Find the two tanks on the map: a long capsule on saddles and a gold sphere on legs with a white radiator on top, each with half the lights lit on the post beside it.',
+      'Set the game to 5x until Night falls: the tanks say "drawing 0.05 kW" and "drawing 0.15 kW", and the power line uses that much more.',
+      "Pick the Water tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 2400 kg, and no water has appeared, as a tank comes empty.",
+      "Press Dismantle beside the Oxygen tank. When the Robot starts on it the limit falls to 100 kg, and a notification says 100 kg of oxygen with no room left was lost.",
+      "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
+    ],
+    save: storageTanksSave,
+  },
+  {
+    id: "propellant-tanks",
+    title:
+      "A base with a propellant plant and a propellant tank three batches from full, a few hours before Night, on three solar arrays and a battery bank, and a second tank's Components in stock",
+    steps: [
+      'Pause the game. The status panel\'s Bulk resources say "Propellant 1047.0 of 1050 kg". In the Base panel the Propellant tank says "holds 598.3 of 600 kg of propellant, draws 0.2 kW at Night". Find it on the map: a fat silver capsule on two saddles, with white radiators on top and all its lights lit on the post beside it.',
+      'Set the game to 5x. Within a few real seconds the Propellant plant says "waiting for tank space: Propellant is 1050.0 of 1050 kg", and the status panel says "holding full". Its Regolith stops falling.',
+      'Carry on until Night falls: the tank says "drawing 0.2 kW", and the power line uses that much more.',
+      "Pick the Propellant tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 1650 kg, and in Daylight the Plant starts again by itself, as a tank comes empty.",
+      "Open the Launch manifest's Exports tab: the Return Mass is 400 kg, however much more than 600 kg there is. Set 300 kg of propellant to load: it stops being counted, but the 750 kg left is still more than the 600 kg the ceiling takes, so the Return Mass stays at 400 kg. Propellant can't be brought by Launch: there is no such item on the Imports tab, only the tank's parts, under Industry.",
+      "Press Dismantle beside the Propellant plant. When the Robot starts on it the limit falls by 450 kg, the stock doesn't, and no notification says anything was lost. Press Dismantle beside a Propellant tank: when the Robot starts on it, a notification says what no longer fits was lost.",
+    ],
+    save: propellantTanksSave,
+  },
+  {
+    id: "greenhouse",
+    title:
+      "A base with a Greenhouse growing on a solar array and a large battery bank, a few hours before Night, on a day's water above the reserve, with a water-processing plant switched off and a second Greenhouse's Components in stock",
+    steps: [
+      'Pause the game. In the Base panel the Greenhouse says "growing" and how long is left of this round, and "using 1 kg of water an hour, for 20 Science a round". The status panel\'s Water says "Greenhouse using 24 kg a day" and when it will be down to the reserve. Click it on the map: a glass dome over green racks. Its pop-up has a Round line, with how far the round has got.',
+      "Set the game to 5x until Night falls: the dome lights up from inside and lights the ground round it, and the Greenhouse goes on drinking. The power line uses 1.5 kW more for its lamps, against 0.5 kW by day.",
+      'Set the game to 20x. About a day into the Night, a notification says the round of growing was lost for want of water, the Greenhouse says "waiting for Water" and that this is to leave the Mission Director\'s reserve of 49 kg, and Water stops falling, as they are still aboard the Lander.',
+      'Press "Switch on" beside the Water-processing plant. It has water ice, but it runs only on power to spare: in the next Daylight, once the large battery bank is full, Water rises, and as soon as there is a batch\'s worth above the reserve the Greenhouse starts a new round by itself. Leave it for 5 Earth Days: a notification says a round is complete, and Science in the top bar is 20 higher.',
+      'Press "Switch off" beside the Greenhouse: within the hour a notification says its round was given up, and its lamps and power stop.',
+      "Open the Guide: Structures has the Greenhouse's card, and Science and technologies says what it earns and asks for. The Launch manifest has its dome and racks, under Life Support.",
+    ],
+    save: greenhouseSave,
+  },
+  {
+    id: "late-game",
+    title:
+      "Late in a Campaign, with the Mission Director in a Buried Habitat at 570 mSv, a Greenhouse growing, a water tank nearly full, Growing halls unlocked, the Science for a Vault cistern, $20,000M, and in stock what a growing hall, a second water tank and a vault cistern are built from",
+    steps: [
+      'Pause the game. The status panel\'s Radiation says about "570.0 / 600 mSv" and a limit some 2,000 Earth Days off. Open the Tech Tree: under Life Support, Growing halls is unlocked and says what a growing hall earns, drinks and draws; under Protection, Vault cistern costs all the Science you have and says what it does. Press its Unlock button: Science falls to none.',
+      "Open the Guide: Keeping the Mission Director alive and Science and technologies say what these are for. Both have cards under Structures. The Launch manifest has their parts, dear ones, under Life Support and Protection.",
+      "In the build menu, pick Vault cistern and move it over the Buried Habitat's low mound: click to place it there. Anywhere else it says it can only be built round a commissioned Buried Habitat. Set the game to 5x. Its Work panel line soon says it is waiting for more water, and that the base can hold only 1400 kg, so build another water tank.",
+      "Pick Water tank in the build menu and place it. Once it is commissioned, Water reads against a limit of 2400 kg, and the vault cistern's line no longer speaks of what the base can hold.",
+      'Pick Growing hall and place it on clear ground. Once it is commissioned, click it: a long glazed vault with light pipes along its ridge. The Base panel says "growing" and "using 2 kg of water an hour, for 100 Science a round". Its round takes 10 Earth Days, longer than a Night, so a Night short of water loses a whole one. Now choose: with both it and the Greenhouse growing, Water hardly rises.',
+      'Press "Switch off" beside the Growing hall and the Greenhouse: within the hour notifications say their rounds were given up. Set the game to 20x: the Water-processing plants bring Water up, and once it passes about 2,050 kg the cistern takes 2,000 kg of it all at once, as its Assembly starts.',
+      "Once it is commissioned, click the mound: the Buried Habitat's pop-up says Shielding buried under the Regolith and a vault cistern, and Dose rate 0.003 mSv a day. The status panel's Radiation limit moves thousands of Earth Days off.",
+    ],
+    save: lateGameSave,
   },
   {
     id: "crowded",

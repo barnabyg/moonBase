@@ -24,6 +24,7 @@ export type {
   MachineType,
   MapSize,
   MicrometeoriteRules,
+  GrowingRounds,
   Milestone,
   MilestoneCondition,
   ObservingProgramme,
@@ -38,6 +39,8 @@ export type {
   RoverType,
   SelfSufficiencyRules,
   SolarParticleEventRules,
+  StorageTank,
+  OwnStorage,
   StructureType,
   WaterWallRules,
 } from "./types";

@@ -28,6 +28,65 @@ describe("what npm run try can start the game in", () => {
     },
   );
 
+  it("greenhouse has a Greenhouse growing a few hours before Night, on a day's water above the reserve, with a water-processing plant switched off", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "greenhouse",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    const of = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+    expect(of("greenhouse")?.plant).toMatchObject({ running: true });
+    expect(of("greenhouse")?.growingMinutes).toBeGreaterThan(60);
+    expect(of("water-processing-plant")?.switchedOff).toBe(true);
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeGreaterThanOrEqual(78);
+  });
+
+  it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "late-game",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+    const of = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(state.missionDirector).toMatchObject({
+      residence: "habitat",
+      habitatId: of("buried-habitat")?.id,
+    });
+    expect(state.radiationDoseMillisieverts).toBeCloseTo(570, 1);
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.unlockedDesignIds).toContain("growing-halls");
+    expect(state.unlockedDesignIds).not.toContain("vault-cistern");
+    expect(of("greenhouse")?.plant).toMatchObject({ running: true });
+    expect(state.fundingMillionDollars).toBe(20000);
+
+    const unlocked = loaded.campaign.unlockDesign("vault-cistern");
+    expect(unlocked.ok).toBe(true);
+    expect(
+      loaded.campaign.planConstruction({
+        structureTypeId: "growing-hall",
+        position: { x: 90, y: 40 },
+      }).ok,
+    ).toBe(true);
+    expect(
+      loaded.campaign.planConstruction({
+        structureTypeId: "vault-cistern",
+        position: of("buried-habitat")?.position ?? { x: 0, y: 0 },
+      }).ok,
+    ).toBe(true);
+  });
+
   it("buried-habitat has the Mission Director behind a water wall at a high dose, a powered Buried Habitat to move to and a bare Habitat beside it", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "buried-habitat",
@@ -49,6 +108,122 @@ describe("what npm run try can start the game in", () => {
     expect(habitats.map(({ powered }) => powered)).toEqual([true, true, true]);
     expect(habitats.filter(({ buried }) => buried)).toHaveLength(1);
     expect(habitats.filter(({ waterWalled }) => waterWalled)).toHaveLength(1);
+  });
+
+  it("water-reserve has an optics works running six batches above the reserve, with the Mission Director living behind Regolith shielding", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "water-reserve",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const typed = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(typed("optics-works")?.plant?.running).toBe(true);
+    expect(typed("habitat")?.shielded).toBe(true);
+    expect(state.missionDirector.residence).toBe("habitat");
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeCloseTo(49 + 6, 5);
+    expect(state.lunation.part).toBe("daylight");
+  });
+
+  it("storage-tanks has each tank commissioned and half full, a few hours before Night, with a second water tank's Components in stock", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "storage-tanks",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+
+    expect(
+      state.lifeSupport.map(({ stockId, kilograms, limitKilograms }) => [
+        stockId,
+        kilograms,
+        limitKilograms,
+      ]),
+    ).toEqual([
+      ["oxygen", 200, 400],
+      ["water", 700, 1400],
+    ]);
+    expect(
+      state.structures.find(
+        ({ structureTypeId }) => structureTypeId === "water-tank",
+      )?.tank?.heldKilograms,
+    ).toBe(500);
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    expect(
+      state.stockpile.components.find(
+        ({ componentId }) => componentId === "water-tank-shell",
+      )?.count,
+    ).toBe(1);
+  });
+
+  it("full-store has a water-processing plant running three batches below the limit, with the optics works switched off", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "full-store",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const typed = (id: string) =>
+      state.structures.find(({ structureTypeId }) => structureTypeId === id);
+
+    expect(typed("optics-works")?.switchedOff).toBe(true);
+    expect(typed("water-processing-plant")?.switchedOff).toBe(false);
+    expect(
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
+    ).toBeCloseTo(400 - 3 * 0.9, 5);
+    expect(state.lunation.part).toBe("daylight");
+
+    loaded.campaign.advance(4 * 60);
+
+    expect(
+      loaded.campaign
+        .snapshot()
+        .structures.find(
+          ({ structureTypeId }) => structureTypeId === "water-processing-plant",
+        )?.plant?.stoppedFor?.reason,
+    ).toBe("output-full");
+  });
+
+  it("propellant-tanks has a Plant and a tank commissioned, three batches from full, with a second tank's Components in stock, and the Plant comes to wait", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "propellant-tanks",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+
+    expect(
+      state.bulkResources.find(({ resourceId }) => resourceId === "propellant"),
+    ).toEqual({
+      resourceId: "propellant",
+      kilograms: 1047,
+      limitKilograms: 1050,
+    });
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    expect(
+      state.stockpile.components.find(
+        ({ componentId }) => componentId === "propellant-tank-shell",
+      )?.count,
+    ).toBe(1);
+
+    loaded.campaign.advance(4 * 60);
+
+    const later = loaded.campaign.snapshot();
+    expect(
+      later.bulkResources.find(({ resourceId }) => resourceId === "propellant")
+        ?.kilograms,
+    ).toBe(1050);
+    expect(
+      later.structures.find(
+        ({ structureTypeId }) => structureTypeId === "propellant-plant",
+      )?.plant?.stoppedFor?.reason,
+    ).toBe("output-full");
   });
 
   it("everything-unlocked has every Design unlocked", () => {
