@@ -117,7 +117,7 @@ describe("unlocking a Design is refused, with the reason, and nothing changes", 
     const { campaign } = scenario();
     const [task] = catalogue.researchTasks;
     if (task === undefined) throw new Error("expected a Research Task");
-    campaign.startResearchTask(task.id);
+    campaign.queueResearchTask(task.id);
     campaign.advance(task.lengthHours * 60);
     const { science } = campaign.snapshot();
     expect(science).toBeLessThan(firstDesign.scienceCost);
@@ -157,7 +157,7 @@ describe("a Research Task that needs a Design", () => {
   it("can't be started until its Design is unlocked, then can", () => {
     const { campaign } = scenario();
 
-    expect(campaign.startResearchTask(gated.id)).toEqual({
+    expect(campaign.queueResearchTask(gated.id)).toEqual({
       ok: false,
       reason: "design-locked",
       message: `${gated.label} needs the ${needed.label} Design unlocked first.`,
@@ -174,7 +174,7 @@ describe("a Research Task that needs a Design", () => {
       if (!unlocked.ok) throw new Error(unlocked.message);
     }
 
-    expect(campaign.startResearchTask(gated.id)).toEqual({ ok: true });
+    expect(campaign.queueResearchTask(gated.id)).toEqual({ ok: true });
     expect(campaign.snapshot().researchTask).toMatchObject({
       researchTaskId: gated.id,
     });

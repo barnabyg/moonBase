@@ -33,7 +33,7 @@ export interface ResearchTasksScreen {
  */
 export function createResearchTasksScreen(
   container: HTMLElement,
-  campaign: Pick<Campaign, "startResearchTask">,
+  campaign: Pick<Campaign, "queueResearchTask">,
 ): ResearchTasksScreen {
   const screen = createScreen(container, {
     className: "research-tasks",
@@ -139,7 +139,7 @@ export function createResearchTasksScreen(
     start.textContent = "Start";
     start.setAttribute("aria-label", `Start ${task.label}`);
     start.addEventListener("click", () => {
-      const result = campaign.startResearchTask(task.id);
+      const result = campaign.queueResearchTask(task.id);
       screen.refuse(result.ok ? undefined : result.message);
     });
     const foot = document.createElement("div");

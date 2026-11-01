@@ -32,7 +32,7 @@ export function earnScience(campaign: Campaign, science: number): void {
     if (campaign.snapshot().completedResearchTaskIds.includes(task.id)) {
       continue;
     }
-    const result = campaign.startResearchTask(task.id);
+    const result = campaign.queueResearchTask(task.id);
     if (!result.ok) throw new Error(result.message);
     campaign.advance(task.lengthHours * 60);
   }

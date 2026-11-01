@@ -273,7 +273,7 @@ describe("the later Milestones", () => {
   it("reach the first Research Task as one is completed", () => {
     const game = scenario();
     expect(
-      game.campaign.startResearchTask("regolith-sample-analysis"),
+      game.campaign.queueResearchTask("regolith-sample-analysis"),
     ).toMatchObject({ ok: true });
 
     const events = runUntil(

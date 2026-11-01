@@ -496,7 +496,7 @@ describe("the sample save of format version 26", () => {
   it("plays on from where it was saved, until Seismic monitoring completes and pays its Science", () => {
     const campaign = loadSample("version-26.moonbase");
     expect(
-      campaign.startResearchTask("regolith-sample-analysis"),
+      campaign.queueResearchTask("regolith-sample-analysis"),
     ).toMatchObject({ ok: false, reason: "already-completed" });
 
     const completed = campaign

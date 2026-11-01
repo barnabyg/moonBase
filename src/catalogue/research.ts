@@ -3,11 +3,13 @@ import type { Catalogue } from "./types";
 // The Research Tasks, the observing programme and the Tech Tree's Designs.
 
 // From a few hours to two Lunations. The short ones pay more Science an
-// hour, but the player has to come back to start the next; the long ones
-// run unattended, through a Night, a round trip of the Lander or longer.
-// Some are offered only once the Design they study is unlocked. Run back to
+// hour, but the queue is short, so the player has to come back to keep it
+// filled; the long ones run unattended, through a Night, a round trip of the
+// Lander or longer. Some are offered only once the Design they study is unlocked. Run back to
 // back, they take about thirty Lunations, so research carries on long
 // after the base is self-sufficient.
+export const researchQueueLimit: Catalogue["researchQueueLimit"] = 3;
+
 export const researchTasks: Catalogue["researchTasks"] = [
   {
     id: "regolith-sample-analysis",

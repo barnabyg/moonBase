@@ -322,6 +322,15 @@ export type GameEvent =
     }
   | {
       /**
+       * The first Research Task in the queue has started by itself, as the one
+       * before it completed.
+       */
+      readonly kind: "research-task-started";
+      readonly atMinute: number;
+      readonly researchTaskId: string;
+    }
+  | {
+      /**
        * A Research Task has run its length and is complete: the Science it
        * pays has been added to the base's, and it can't run again.
        */

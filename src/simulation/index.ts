@@ -97,8 +97,10 @@ export type {
 export type { SelfRepairSnapshot } from "./self-repair";
 export type {
   ResearchTaskSnapshot,
-  StartResearchTaskRefusal,
-  StartResearchTaskResult,
+  QueueResearchTaskRefusal,
+  QueueResearchTaskResult,
+  RemoveQueuedResearchTaskRefusal,
+  RemoveQueuedResearchTaskResult,
 } from "./research";
 export type { ObservingProgrammeSnapshot, ObservingStop } from "./observing";
 export type {

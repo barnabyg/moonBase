@@ -139,7 +139,7 @@ describe("the sample saves from before Research Tasks", () => {
     const [task] = catalogue.researchTasks;
     if (task === undefined) throw new Error("expected a Research Task");
 
-    expect(campaign.startResearchTask(task.id)).toEqual({ ok: true });
+    expect(campaign.queueResearchTask(task.id)).toEqual({ ok: true });
     const kinds = campaign
       .advance(task.lengthHours * 60)
       .map((event) => event.kind);

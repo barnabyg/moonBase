@@ -150,7 +150,7 @@ describe("a new Act", () => {
   it("doesn't start when a Milestone of a later Act is reached first", () => {
     const game = scenario();
     expect(
-      game.campaign.startResearchTask("regolith-sample-analysis"),
+      game.campaign.queueResearchTask("regolith-sample-analysis"),
     ).toMatchObject({ ok: true });
 
     const events = untilReached(game, "first-research-task");
@@ -187,7 +187,7 @@ describe("a new Act", () => {
   it("doesn't start as the last Milestone of the last Act is reached, and the Campaign carries on", () => {
     const game = withReached(allBut("first-research-task"));
     expect(
-      game.campaign.startResearchTask("regolith-sample-analysis"),
+      game.campaign.queueResearchTask("regolith-sample-analysis"),
     ).toMatchObject({ ok: true });
 
     const events = untilReached(game, "first-research-task");
