@@ -269,7 +269,7 @@ export function formatTank(
  * does, for example "making 1 spare Component every 24 hours from 3.6 kg of
  * metals", and the recipe it switches to from its next batch if it was
  * switched during this one and will start another; undefined for one that
- * isn't running.
+ * isn't running, or is running on and off.
  */
 export function formatPlantRates(
   structure: Pick<

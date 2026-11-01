@@ -554,6 +554,28 @@ describe("Plants at Night", () => {
       }
     });
 
+    it("say at once that they are switched off, not running on and off", () => {
+      const campaign = changed(heaterAway(0), (state) => {
+        // A batch it has started it would go on with.
+        const saved = state as unknown as {
+          structures: { batch?: unknown }[];
+        };
+        for (const plant of saved.structures) {
+          if (plant.batch !== undefined) plant.batch = null;
+        }
+      });
+      campaign.advance(1);
+      expect(statusOf(plantOf(campaign))).toMatch(/^running on and off/);
+
+      const switched = campaign.switchPlant(
+        structure(campaign.snapshot(), "extraction-plant").id,
+        "off",
+      );
+
+      expect(switched.ok).toBe(true);
+      expect(statusOf(plantOf(campaign))).toBe("switched off");
+    });
+
     it("say so of the one Plant that gets what is freed, and that any other is idle", () => {
       const campaign = heaterAway(0, [plantSite, { x: 30, y: 40 }]);
 

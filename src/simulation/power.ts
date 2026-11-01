@@ -630,14 +630,16 @@ function unpluggedHeaterKilowatts(
 
 /**
  * The Plants running on and off at Night, by the latest game-minute's power
- * (see `supplyPower`), given whether it was Night: at most one on each network. What a network's Plants
- * must leave stored counts heaters not plugged in and Night loads that are
- * off, which draw nothing, so what is to spare grows, by less than a Plant
- * draws. Once it has nearly run out, the Plant that draws least, the earlier
- * commissioned of any that draw the same, runs each time a game-minute of its
- * draw has built up, and stands idle in between; what it spends never builds
- * up enough for any other. It can only say so by looking ahead, as each
- * game-minute's power is decided with no memory of the one before.
+ * (see `supplyPower`), given whether it was Night: at most one on each
+ * network. What a network's Plants must leave stored counts heaters not
+ * plugged in, which draw nothing, so what is to spare grows, by less than a
+ * Plant draws. Once it has nearly run out, the Plant that draws least, the
+ * earlier commissioned of any that draw the same, runs each time a game-minute
+ * of its draw has built up, and stands idle in between; what it spends never
+ * builds up enough for any other. A Night load that is off frees power too,
+ * but only with less stored than the reserve, so never anything to spare. It
+ * can only say so by looking ahead, as each game-minute's power is decided
+ * with no memory of the one before.
  */
 export function plantsRunningOnAndOff(
   state: CampaignState,
@@ -656,6 +658,7 @@ export function plantsRunningOnAndOff(
           isPlant(plant) &&
           !isGreenhouse(plant) &&
           !isBroken(plant) &&
+          !(plant.switchedOff && plant.batch === undefined) &&
           (plant.powered || plant.plantStop?.reason === "night"),
       )
       .reduce<StructureState | undefined>(
@@ -668,16 +671,12 @@ export function plantsRunningOnAndOff(
       );
     if (least === undefined) continue;
     const draw = plantDrawKilowatts(least);
-    const freed =
-      network.nightConsumptionKilowatts +
-      unpluggedHeaters -
-      consumptionKilowatts(network, false);
     const spare =
       network.storedKilowattHours -
       keptFromPlants(network, unpluggedHeaters, nightMinutesAfter);
     if (
-      freed > 0 &&
-      freed < draw &&
+      unpluggedHeaters > 0 &&
+      unpluggedHeaters < draw &&
       spare >= -ENERGY_TOLERANCE_KWH &&
       spare < draw / 60
     ) {
