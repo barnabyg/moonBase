@@ -77,7 +77,7 @@ describe("the data catalogue", () => {
     expect(Number.isInteger(climbingDownHours * 60)).toBe(true);
   });
 
-  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass, but for a Buried Habitat, which is meant to take several", () => {
+  it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass, but for a Buried Habitat and a Large-scale Crew Habitat, which are meant to take several", () => {
     for (const type of catalogue.structureTypes) {
       const unlocked = designsUnlockedWith(type.designId);
       let mass = 0;
@@ -94,7 +94,7 @@ describe("the data catalogue", () => {
         }
         mass += (item?.massKilograms ?? Infinity) * need.count;
       }
-      if (type.buried === true) continue;
+      if (type.buried === true || type.id === "crew-habitat") continue;
       expect(mass).toBeLessThanOrEqual(
         catalogue.launch.payloadMassLimitKilograms,
       );

@@ -248,6 +248,10 @@ _Avoid_: accommodation module, hab, living quarters
 A Habitat built under the Regolith, with neither Regolith shielding nor a water wall over it, that cuts the Radiation Dose rate far enough for the Mission Director to live past the limit behind a water wall.
 _Avoid_: bunker, underground base, deep Habitat
 
+**Large-scale Crew Habitat**:
+What the Campaign builds towards: a pressure vault for two dozen Crew, three Buried Habitats' worth of vault sections, stocked with a Lunation of their oxygen and water before it is sealed. Commissioning it is the last Milestone, which is celebrated, and the Campaign goes on. Nobody moves in, as Crew are still to come, so the Mission Director can't live in it, though it is named for a Habitat.
+_Avoid_: colony, settlement, crew quarters
+
 **Water wall**:
 Bladders of water laid over a Habitat's Regolith shielding, filled from the base's water, which cut the Radiation Dose inside further than Regolith alone.
 _Avoid_: water shield, water jacket, tank

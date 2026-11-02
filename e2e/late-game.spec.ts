@@ -51,7 +51,9 @@ test("the Tech Tree offers a Vault cistern for all the Science a late base has, 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
   await tree.getByRole("tab", { name: /^Life Support/ }).click();
-  await expect(tree.getByText("Growing halls", { exact: true })).toBeVisible();
+  await expect(
+    tree.getByRole("heading", { name: "Growing halls", exact: true }),
+  ).toBeVisible();
   await tree.getByRole("tab", { name: /^Protection/ }).click();
   await expect(tree).toContainText("Vault cistern");
   await expect(tree).toContainText(`${LATE_GAME_SCIENCE} Science`);

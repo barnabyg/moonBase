@@ -26,7 +26,7 @@ These hold throughout, so the sections below don't repeat them:
 
 ## Milestones
 
-Milestones guide a new player through the Campaign. They carry no rewards and never end it, and there is no victory condition. The status panel shows the current Milestone (the earliest not yet reached) with a hint saying what to do next, and the one after it. A Milestone is reached the first time its condition holds, in any order, and stays reached even if the condition later stops holding. The data catalogue lists them, with their hints:
+Milestones guide a new player through the Campaign. They carry no rewards and never end it, and there is no victory condition: the last is celebrated, and the Campaign goes on. The status panel shows the current Milestone (the earliest not yet reached) with a hint saying what to do next, and the one after it. A Milestone is reached the first time its condition holds, in any order, and stays reached even if the condition later stops holding. The data catalogue lists them, with their hints:
 
 1. **Power storage before the first Night:** a Structure that stores power is commissioned (even if the first Night has already fallen).
 2. **Habitat commissioned, Mission Director moved in.**
@@ -44,6 +44,12 @@ Milestones guide a new player through the Campaign. They carry no rewards and ne
 ### Acts
 
 Each Milestone belongs to an Act, set in the data catalogue. The first nine above make up Act 1, and the last three Act 2: Independence; `docs/balancing.md` has the Acts planned after them. Like Milestones, Acts carry no rewards and never end the Campaign.
+
+### The last Milestone
+
+The last Milestone, Act 4's **Large-scale Crew Habitat commissioned**, is what the Campaign builds towards. Its Design, Large-scale Crew Habitats, needs a Buried Habitat and Growing halls, and costs little Science; what it takes is Funding and the base's oxygen and water. Its 24 vault sections, four deep life support cores and two airlocks come by Launch, about nine Launches' worth. As its Assembly starts it is stocked all at once with 600 kg of oxygen and 2,500 kg of water from the base's stocks, by a water wall's rule: it waits, and the Work panel says how much more of which it needs, until taking both leaves the Mission Director a fortnight's reserve of each, and says to build another tank if the base can't hold that much. Nobody moves in, as Crew are still to come: it draws no power and has no "Move here" button.
+
+Once it is commissioned and every other Milestone is reached, as the last of them is reached, a celebration opens over everything, saying the base has moved on to its next phase, and the game pauses until the player presses Carry on, which sets it going again at the speed it had. So a habitat built before the Mission Director has moved underground is celebrated only once they have. It comes only as a Milestone is reached, so loading a save that has reached them all shows none. The Campaign then carries on as it does once every Milestone is reached.
 
 The current Act is the Act of the current Milestone, or the last Act once every Milestone is reached. It isn't saved: it comes from the Milestones reached, so a save, however old, loads in the Act they imply: one with Act 1's Milestones all reached loads straight into Act 2, and says nothing of it beyond the panel. The Milestones section of the status panel shows its name and what it asks, above the current Milestone. The line for the next Milestone also names that Milestone's Act if it is a later one. Once every Milestone is reached, the section says so, and that the Campaign carries on, with one Act or several.
 
@@ -296,6 +302,7 @@ The Designs beyond the starting ones:
 | Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))                                 |
 | Life Support | Lunar greenhouses            | A Greenhouse, which earns Science day and night for water and power (see [Plants](#plants))                                        |
 | Life Support | Growing halls                | A growing hall, which earns more Science for its water, far dearer (see [Plants](#plants))                                         |
+| Life Support | Large-scale Crew Habitats    | A Large-scale Crew Habitat, whose commissioning is the last Milestone (see [The last Milestone](#the-last-milestone))              |
 | Industry     | Molten regolith electrolysis | A large extraction plant                                                                                                           |
 | Industry     | Integrated fabrication       | An integrated fabrication plant                                                                                                    |
 | Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                                                       |

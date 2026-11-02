@@ -55,6 +55,7 @@ function timeline(
       { milestoneId: "first-propellant", atMinute: 1000 * earthDay },
       { milestoneId: "return-mass-tripled", atMinute: 1200 * earthDay },
       { milestoneId: "precision-optics-sold", atMinute: 1700 * earthDay },
+      { milestoneId: "crew-habitat-commissioned", atMinute: 2900 * earthDay },
       {
         milestoneId: "spare-components-self-sufficient",
         atMinute: 500 * earthDay,
@@ -385,6 +386,12 @@ describe("the long-game play guide", () => {
     ["propellant", "first-propellant", 1051, "propellant made by"],
     ["a tripled Return Mass", "return-mass-tripled", 1251, "tripled by"],
     ["optics", "precision-optics-sold", 2001, "optics sold by"],
+    [
+      "the Large-scale Crew Habitat",
+      "crew-habitat-commissioned",
+      3001,
+      "Crew Habitat commissioned by",
+    ],
   ])(
     "fails if %s come too late for Act 3's and Act 4's targets",
     (_what, milestoneId, earthDays, says) => {
@@ -579,6 +586,21 @@ describe("the limit on a purchase that makes no progress", () => {
   });
 });
 
+describe("waiting on a purchase that comes a Launch at a time", () => {
+  it("starts again as each part comes, and gives up only once nothing has come for the limit", () => {
+    const watch = purchaseStallWatch(10);
+    const lacking = (got: string) => [{ what: "habitat", why: "waits", got }];
+
+    watch(0, lacking("8 sections"));
+    watch(9 * earthDay, lacking("4 sections"));
+    watch(18 * earthDay, lacking("1 core"));
+    watch(28 * earthDay, lacking("1 core"));
+    expect(() => {
+      watch(29 * earthDay, lacking("1 core"));
+    }).toThrow("since Earth Day 18.0: habitat waits");
+  });
+});
+
 describe("giving up on a dated pacing target", () => {
   const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
   const allMilestones = {
@@ -590,6 +612,7 @@ describe("giving up on a dated pacing target", () => {
       "first-propellant",
       "return-mass-tripled",
       "precision-optics-sold",
+      "crew-habitat-commissioned",
     ],
   };
   const researchUpToAct = (act: number) =>
@@ -633,6 +656,11 @@ describe("giving up on a dated pacing target", () => {
       "precision-optics-sold",
       laterActTargets.opticsSoldBy,
       "precision optics sold by Earth Day 2000.",
+    ],
+    [
+      "crew-habitat-commissioned",
+      laterActTargets.crewHabitatBy,
+      "a Large-scale Crew Habitat commissioned by Earth Day 3000.",
     ],
   ])(
     "gives up just after %s's date, not on it, in the words the end would use",

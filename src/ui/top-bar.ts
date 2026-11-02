@@ -78,7 +78,12 @@ export function createTopBar(
   });
   speedGroup.append(skip);
 
+  // The speed shown, so that a speed set from elsewhere, as the celebration
+  // pauses the game, shows too, without touching the buttons every frame.
+  let shownSpeedId: string | undefined;
   function showSelectedSpeed(): void {
+    if (shownSpeedId === loop.speed.id) return;
+    shownSpeedId = loop.speed.id;
     for (const button of speedButtons) {
       button.setAttribute(
         "aria-pressed",
@@ -145,6 +150,7 @@ export function createTopBar(
 
   return {
     update(snapshot) {
+      showSelectedSpeed();
       setText(clock, formatClock(snapshot.clock));
       setText(lunation, formatLunation(snapshot.lunation));
       const part = snapshot.lunation.part === "daylight" ? "Daylight" : "Night";

@@ -6,6 +6,7 @@ import { createRenderer, type Renderer } from "./render/renderer";
 import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBasePanel } from "./ui/base-panel";
 import { createBuildMenu } from "./ui/build-menu";
+import { createCelebrationScreen } from "./ui/celebration";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { createGameOverScreen } from "./ui/game-over";
@@ -110,8 +111,10 @@ const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
     constructionPanel.hear(events);
+    celebration.hear(events);
   },
 });
+const celebration = createCelebrationScreen(container, loop, campaign);
 const topBar = createTopBar(
   topBarSlot,
   loop,

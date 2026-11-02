@@ -300,6 +300,11 @@ export interface Milestone {
   /** One line telling a new player what to do next to reach it. */
   readonly hint: string;
   readonly condition: MilestoneCondition;
+  /**
+   * If reaching it is celebrated, as the last is: what the celebration says,
+   * shown over everything as it is reached, before the Campaign goes on.
+   */
+  readonly celebration?: { readonly title: string; readonly text: string };
 }
 
 /**
@@ -344,6 +349,11 @@ export type MilestoneCondition =
   /** The Mission Director lives in a Habitat of this type. */
   | {
       readonly kind: "mission-director-lives-in";
+      readonly structureTypeId: string;
+    }
+  /** A Structure of this type is commissioned. */
+  | {
+      readonly kind: "structure-commissioned";
       readonly structureTypeId: string;
     };
 
@@ -1025,6 +1035,13 @@ export interface StructureType {
    */
   readonly waterWall?: WaterWallRules;
   /**
+   * What it is stocked with from the base's life support stocks, all at once
+   * as its Assembly starts, as a water wall is filled: it waits until there is
+   * enough of every one to leave the Mission Director their reserve, and then
+   * takes them all. Leaving it out is the same as nothing.
+   */
+  readonly stockedWith?: readonly StockFill[];
+  /**
    * Whether it is a Buried Habitat: a Habitat already under the Regolith, so
    * that neither Regolith shielding nor a water wall goes over it, and unless
    * it is Broken its dose rate is the data catalogue's rate for one. Leaving
@@ -1115,21 +1132,28 @@ export interface ParkingBays {
  * Mission Director a reserve of it. The water stays in the wall: neither
  * cancelling nor dismantling gives it back.
  */
-export interface WaterWallRules {
-  /** The life support stock the water comes from. */
-  readonly stockId: string;
-  /** How much it takes to fill. */
-  readonly kilograms: number;
-  /**
-   * How many Earth Days of the Mission Director's use of the stock must be
-   * left once it is filled; its Construction waits until there is.
-   */
-  readonly reserveEarthDays: number;
+export interface WaterWallRules extends StockFill {
   /**
    * Whether it goes round a Buried Habitat, as a vault cistern does, rather than
    * over a Habitat's Regolith shielding.
    */
   readonly overBuriedHabitat?: boolean;
+}
+
+/**
+ * What a Structure takes from one of the base's life support stocks all at
+ * once, as its Assembly starts.
+ */
+export interface StockFill {
+  /** The life support stock it comes from. */
+  readonly stockId: string;
+  /** How much it takes. */
+  readonly kilograms: number;
+  /**
+   * How many Earth Days of the Mission Director's use of the stock must be
+   * left once it is taken; its Construction waits until there is.
+   */
+  readonly reserveEarthDays: number;
 }
 
 /**

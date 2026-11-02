@@ -537,6 +537,55 @@ export const structureTypes: Catalogue["structureTypes"] = [
     landingPad: false,
     buried: true,
   },
+  // What the Campaign builds towards: a pressure vault for two dozen Crew, built from three Buried
+  // Habitats' worth of vault sections and four of their life support cores, and
+  // stocked with a Lunation of what two dozen people breathe and drink before it
+  // is sealed. Nobody moves in, as Crew are still to come (ADR-0001), so it is not
+  // a Habitat the Mission Director can live in, and it stands cold and draws
+  // nothing. Its Components cost $13,920M and weigh 16,400 kg, nine Launches'
+  // worth: about $15,270M with their fees, two thirds of what the long-game base
+  // had left idle at the end before it. Its 600 kg of oxygen takes more tanks
+  // than the base's own and one oxygen tank, and its 2,500 kg of water more than
+  // two water tanks, so it asks for the Plants, ice and tanks of a base at scale
+  // as well as Funding. See "What the last hours are for" in docs/balancing.md.
+  {
+    id: "crew-habitat",
+    label: "Large-scale Crew Habitat",
+    designId: "crew-habitats",
+    footprintRadiusMetres: 10,
+    components: [
+      { componentId: "vault-section", count: 24 },
+      { componentId: "deep-life-support-core", count: 4 },
+      { componentId: "airlock", count: 2 },
+    ],
+    stageHours: {
+      // Grading a wide site, not digging a vault in as a Buried Habitat is.
+      sitePreparation: 24,
+      componentDelivery: 24,
+      assembly: 160,
+      commissioning: 12,
+    },
+    stageMachines: { sitePreparation: "excavator" },
+    commissioningFailureChance: 0.2,
+    dustWearPercentPerHour: 0.01,
+    hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+    power: {
+      generationKilowatts: 0,
+      storageKilowattHours: 0,
+      drawKilowatts: 0,
+      nightDrawKilowatts: 0,
+    },
+    lightRadiusMetres: 0,
+    habitat: false,
+    shieldsHabitat: false,
+    landingPad: false,
+    // A Lunation of what 24 people use, at the Mission Director's 0.84 kg of
+    // oxygen and 3.5 kg of water an Earth Day.
+    stockedWith: [
+      { stockId: "oxygen", kilograms: 600, reserveEarthDays: 14 },
+      { stockId: "water", kilograms: 2500, reserveEarthDays: 14 },
+    ],
+  },
   {
     id: "landing-pad",
     label: "Landing pad",

@@ -73,6 +73,7 @@ export const designsTheLongGameUses: readonly string[] = [
   "optics-grinding-line",
   "growing-halls",
   "vault-cistern",
+  "crew-habitats",
 ];
 
 /**
@@ -114,6 +115,8 @@ export const laterActTargets = {
   act4ResearchUntilAbout: LONG_GAME_END_EARTH_DAY,
   researchWithin: 50,
   opticsSoldBy: 2000,
+  /** What the Campaign builds towards, its last Milestone, by the end of its content. */
+  crewHabitatBy: LONG_GAME_END_EARTH_DAY,
 } as const;
 
 /** What the guide keeps in stock: it switches the Workshop off above this many, and back on below it. */
@@ -149,6 +152,22 @@ const WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS = 800;
 
 /** What the guide lets the water rise to before filling a vault cistern: its 2,000 kg, the reserve and a little over. */
 const WATER_FOR_THE_CISTERN_KILOGRAMS = 2200;
+
+/**
+ * What the guide lets the water rise to before a Large-scale Crew Habitat is stocked,
+ * once it is planned: its 2,500 kg, the reserve and a little over.
+ */
+const WATER_FOR_THE_CREW_HABITAT_KILOGRAMS = 2700;
+
+/**
+ * The oxygen the guide has its large extraction plant make, in place of metals and
+ * silicon, once it has the tanks to hold what a Large-scale Crew Habitat is stocked
+ * with: its 600 kg, the reserve and a little over.
+ */
+const OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS = 630;
+
+/** Where the guide builds a Large-scale Crew Habitat, south of the rest of the base. */
+const CREW_HABITAT_SITE = { x: 80, y: -116 } as const;
 
 /**
  * The Earth Day the guide sends for a Buried Habitat, in good time to move in by
@@ -413,6 +432,18 @@ const PURCHASES: readonly Purchase[] = [
   // What a growing hall drinks and lights, then the hall. It wants 1,416 kg of water
   // a Lunation on top of all else, and 798 kWh through a Night.
   ...GROWING_HALL_PURCHASES,
+  // What holds a Large-scale Crew Habitat's 600 kg of oxygen and 2,500 kg of water,
+  // then the Habitat the Campaign builds towards, before a cistern for a Campaign played on.
+  ...[
+    ["water-tank", { x: 60, y: -104 }],
+    ["water-tank", { x: 60, y: -114 }],
+    ["oxygen-tank", { x: 50, y: -104 }],
+    ["crew-habitat", CREW_HABITAT_SITE],
+  ].map(([structureTypeId, site]) => ({
+    structureTypeId: structureTypeId as string,
+    site: site as GroundPosition,
+    onceDesignId: "crew-habitats",
+  })),
   // What holds a vault cistern's 2,000 kg, then the cistern, round the Buried Habitat.
   {
     structureTypeId: "water-tank",
@@ -520,6 +551,12 @@ function sumOfLines(lines: readonly ManifestLine[]): ManifestLine[] {
 export interface PurchaseWait {
   readonly what: string;
   readonly why: string;
+  /**
+   * How far it has got, such as which Components it still lacks: a change starts
+   * the wait afresh, so that a purchase that comes a Launch at a time, as a
+   * Large-scale Crew Habitat does, is waited on only while nothing comes.
+   */
+  readonly got?: string;
 }
 
 /**
@@ -531,14 +568,16 @@ export function purchaseStallWatch(
   limitEarthDays = PURCHASE_STALL_EARTH_DAYS,
 ): (atMinute: number, waits: readonly PurchaseWait[]) => void {
   const limit = toGameMinutes({ earthDays: limitEarthDays });
-  const since = new Map<string, number>();
+  const since = new Map<string, { from: number; got: string | undefined }>();
   return (atMinute, waits) => {
     for (const what of since.keys()) {
       if (!waits.some((wait) => wait.what === what)) since.delete(what);
     }
-    for (const { what, why } of waits) {
-      const from = since.get(what) ?? atMinute;
-      since.set(what, from);
+    for (const { what, why, got } of waits) {
+      const before = since.get(what);
+      const from =
+        before === undefined || before.got !== got ? atMinute : before.from;
+      since.set(what, { from, got });
       if (atMinute - from > limit) {
         throw new Error(
           `The purchases have made no progress for ${limitEarthDays} Earth Days, since Earth Day ${(from / MINUTES_PER_EARTH_DAY).toFixed(1)}: ${what} ${why}`,
@@ -611,13 +650,19 @@ export function buyInTurn(
         })),
       ...(next === undefined
         ? []
-        : [{ what: named(next), why: seeToPurchase(play, next) }]),
+        : [{ what: named(next), ...seeToPurchase(play, next) }]),
     ]);
   };
 }
 
-/** Orders a purchase, or plans it once it has come, and says what it waits on now. */
-function seeToPurchase(play: Play, next: Purchase): string {
+/**
+ * Orders a purchase, or plans it once it has come, and says what it waits on now
+ * and, while it lacks Components, which.
+ */
+function seeToPurchase(
+  play: Play,
+  next: Purchase,
+): { why: string; got?: string } {
   const { state } = play;
   // What is planned stays in stock until the Robot takes it, so that something
   // planned just after it looks to have its Components already, as the guide's second
@@ -641,23 +686,66 @@ function seeToPurchase(play: Play, next: Purchase): string {
       structureTypeId: next.structureTypeId,
       position: next.site,
     });
-    return planned.ok
-      ? "has only just been planned"
-      : `can't be planned: ${planned.message}`;
+    return {
+      why: planned.ok
+        ? "has only just been planned"
+        : `can't be planned: ${planned.message}`,
+    };
   }
   sendForAsFundingAllows(play, missing, `a ${next.structureTypeId}`);
-  return `lacks ${missing.map(({ itemId, count }) => `${count} ${itemId}`).join(", ")}, with $${state.fundingMillionDollars.toFixed(0)}M of Funding`;
+  const lacks = missing
+    .map(({ itemId, count }) => `${count} ${itemId}`)
+    .join(", ");
+  return {
+    why: `lacks ${lacks}, with $${state.fundingMillionDollars.toFixed(0)}M of Funding`,
+    got: lacks,
+  };
 }
 
-/** Sets a large extraction plant to metals and silicon, as what the base has it for. */
+/**
+ * Sets a large extraction plant to metals and silicon, as what the base has it for,
+ * but to oxygen while a Large-scale Crew Habitat is to be stocked and the base has
+ * the tanks to hold it and too little.
+ */
 function runLargeExtractionPlant(play: Play): void {
-  const plant = play.state.structures.find(
+  const { state } = play;
+  const plant = state.structures.find(
     ({ structureTypeId }) => structureTypeId === "large-extraction-plant",
   );
-  if (plant === undefined || plant.recipeId === "metals-and-silicon") return;
+  if (plant === undefined) return;
+  const oxygenTanks = state.structures.filter(
+    ({ structureTypeId }) => structureTypeId === "oxygen-tank",
+  ).length;
+  const recipeId =
+    crewHabitatToStock(state) &&
+    oxygenTanks >= 2 &&
+    (state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
+      0) < OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS
+      ? "oxygen"
+      : "metals-and-silicon";
+  if (plant.recipeId === recipeId) return;
   succeed(
-    play.campaign.setPlantRecipe(plant.id, "metals-and-silicon"),
-    "Setting the large extraction plant to metals and silicon",
+    play.campaign.setPlantRecipe(plant.id, recipeId),
+    `Setting the large extraction plant to ${recipeId}`,
+  );
+}
+
+/**
+ * Whether the guide means to stock a Large-scale Crew Habitat that isn't stocked
+ * yet: its Design is unlocked, and none stands nor has started its Assembly.
+ */
+function crewHabitatToStock(state: Snapshot): boolean {
+  return (
+    state.unlockedDesignIds.includes("crew-habitats") &&
+    !state.structures.some(
+      ({ structureTypeId }) => structureTypeId === "crew-habitat",
+    ) &&
+    !state.constructions.some(
+      ({ structureTypeId, stage, stageProgress }) =>
+        structureTypeId === "crew-habitat" &&
+        (stage === "commissioning" ||
+          (stage === "assembly" && stageProgress > 0)),
+    )
   );
 }
 
@@ -896,14 +984,21 @@ function waterTheGreenhouse(play: Play): void {
       }
     }
   }
-  const held = cisternToFill
-    ? WATER_FOR_THE_CISTERN_KILOGRAMS
-    : state.structures.some(
-          ({ structureTypeId, switchedOff }) =>
-            structureTypeId === "growing-hall" && !switchedOff,
-        )
-      ? WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS
-      : WATER_FOR_THE_NIGHT_KILOGRAMS;
+  const crewHabitatPlanned =
+    crewHabitatToStock(state) &&
+    state.constructions.some(
+      ({ structureTypeId }) => structureTypeId === "crew-habitat",
+    );
+  const held = crewHabitatPlanned
+    ? WATER_FOR_THE_CREW_HABITAT_KILOGRAMS
+    : cisternToFill
+      ? WATER_FOR_THE_CISTERN_KILOGRAMS
+      : state.structures.some(
+            ({ structureTypeId, switchedOff }) =>
+              structureTypeId === "growing-hall" && !switchedOff,
+          )
+        ? WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS
+        : WATER_FOR_THE_NIGHT_KILOGRAMS;
   const setting =
     water < held
       ? "off"
@@ -968,7 +1063,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a third Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a third Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
     play(play) {
       keepTheBaseGoing(play);
       playOnUntil(play, LONG_GAME_END_EARTH_DAY);
@@ -1393,6 +1488,7 @@ const TARGET_WORDS = {
   propellantMade: `propellant made by Earth Day ${laterActTargets.propellantMadeBy}.`,
   returnMassTripled: `Return Mass tripled by Earth Day ${laterActTargets.returnMassTripledBy}.`,
   opticsSold: `precision optics sold by Earth Day ${laterActTargets.opticsSoldBy}.`,
+  crewHabitat: `a Large-scale Crew Habitat commissioned by Earth Day ${laterActTargets.crewHabitatBy}.`,
   act2Research: `research lasting until about Earth Day ${act2Targets.researchLastsUntilAbout}`,
   act3Research: `Act 3's research lasting until about Earth Day ${laterActTargets.act3ResearchUntilAbout}`,
   act4Research: `Act 4's research lasting until about Earth Day ${laterActTargets.act4ResearchUntilAbout}`,
@@ -1439,6 +1535,11 @@ export function giveUpOnMissedTargets(): (play: Play) => void {
       milestoneId: "precision-optics-sold",
       by: laterActTargets.opticsSoldBy,
       words: TARGET_WORDS.opticsSold,
+    },
+    {
+      milestoneId: "crew-habitat-commissioned",
+      by: laterActTargets.crewHabitatBy,
+      words: TARGET_WORDS.crewHabitat,
     },
   ];
   const research = [
@@ -1622,6 +1723,7 @@ export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
     act4ResearchUntilAbout,
     researchWithin,
     opticsSoldBy,
+    crewHabitatBy,
   } = laterActTargets;
   const near = (earthDay: number, target: number) =>
     Math.abs(earthDay - target) <= researchWithin;
@@ -1635,6 +1737,9 @@ export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
     ...(reachedOn("precision-optics-sold") <= opticsSoldBy
       ? []
       : [TARGET_WORDS.opticsSold]),
+    ...(reachedOn("crew-habitat-commissioned") <= crewHabitatBy
+      ? []
+      : [TARGET_WORDS.crewHabitat]),
     ...(near(researchEnded(3), act3ResearchUntilAbout)
       ? []
       : [

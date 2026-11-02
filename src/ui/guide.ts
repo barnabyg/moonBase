@@ -15,7 +15,7 @@ import {
 } from "./describe";
 import { setText } from "./dom";
 import { formatMillionDollars, formatScience, listInWords } from "./format";
-import { inSentence, stockLabel } from "./labels";
+import { inSentence, stockLabel, structureLabel } from "./labels";
 import { formatLaunchItem } from "./launch-manifest-text";
 import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
@@ -263,6 +263,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         "Pick a Structure in the build menu and click the map to plan it. The Robot fetches its Components from the stockpile, a Machine prepares the site, and the Robot assembles it, lays it a power cable and commissions it. The Work panel shows what it is doing.",
         "Click a Structure on the map, built or not, to see what it is doing in a pop-up beside it, with the same choices as the Base panel. Click empty ground or press Esc to close it; dragging moves the camera instead.",
         "The Milestones at the top of the status panel say what to do next. Click a section's title to fold it away: its headline figures stay beside the title.",
+        `The last Milestone is what the Campaign builds towards: a ${inSentence(structureLabel("crew-habitat"))} for two dozen Crew, the dearest thing a base can build, stocked with their oxygen and water before it is sealed. Nobody moves in yet. Once it is commissioned the base has moved on to its next phase, and the Campaign goes on for as long as you want to play.`,
       ],
     },
     {

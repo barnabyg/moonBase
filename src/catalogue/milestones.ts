@@ -21,7 +21,7 @@ export const acts: Catalogue["acts"] = [
   {
     id: "act-4",
     label: "Act 4: Permanence",
-    asks: "Stay for good: move the Mission Director underground before the Radiation Dose limit, and sell the most valuable thing the Moon can make.",
+    asks: "Stay for good: move the Mission Director underground before the Radiation Dose limit, sell the most valuable thing the Moon can make, and ready the base for Crew.",
   },
 ];
 
@@ -147,5 +147,19 @@ export const milestones: Catalogue["milestones"] = [
     label: "First precision optics sold",
     hint: "Unlock Precision optics on the Tech Tree, ship an optics works, and keep silicon, metals and water coming to it. Load the optics first on the Launch manifest's Exports tab: nothing the base makes sells for more.",
     condition: { kind: "export-sold", resourceId: "precision-optics" },
+  },
+  {
+    id: "crew-habitat-commissioned",
+    actId: "act-4",
+    label: "Large-scale Crew Habitat commissioned",
+    hint: "Unlock Large-scale Crew Habitats on the Tech Tree once you have Growing halls, and save up for its 24 vault sections, four life support cores and two airlocks: about nine Launches. Build tanks for 600 kg of oxygen and 2,500 kg of water, and fill them, as it is stocked with both before it is sealed.",
+    condition: {
+      kind: "structure-commissioned",
+      structureTypeId: "crew-habitat",
+    },
+    celebration: {
+      title: "Ready for Crew",
+      text: "The Large-scale Crew Habitat is commissioned, stocked with a Lunation of oxygen and water for two dozen people. What began as one Mission Director in a Lander is a base that can keep a Crew alive, and the Moon base moves on to its next phase. The Campaign goes on for as long as you want to play it.",
+    },
   },
 ];

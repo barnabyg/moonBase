@@ -172,6 +172,11 @@ export function describeStructure(type: StructureType): string {
             ? `goes round a commissioned Buried Habitat, filled all at once with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()} from the base's tanks, cutting the Radiation Dose inside to ${catalogue.radiation.doseRateMillisievertsPerEarthDay.cisternedBuriedHabitat} mSv an Earth Day`
             : `goes over a Habitat's Regolith shielding, filled with ${type.waterWall.kilograms} kg of ${stockLabel(type.waterWall.stockId).toLowerCase()}`,
         ]),
+    ...(type.stockedWith === undefined
+      ? []
+      : [
+          `is stocked all at once as it is assembled with ${listInWords(type.stockedWith.map(({ kilograms, stockId }) => `${kilograms} kg of ${stockLabel(stockId).toLowerCase()}`))} from the base's tanks, which must leave the Mission Director their reserve: nobody moves in until Crew come`,
+        ]),
     ...(type.landingPad
       ? ["the Lander lands on it without blasting Plume Ejecta"]
       : []),

@@ -327,6 +327,32 @@ describe("what npm run try can start the game in", () => {
     expect(ended).toBeUndefined();
   });
 
+  it("crew-habitat has a stocked Large-scale Crew Habitat being commissioned, whose commissioning reaches the last Milestone", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "crew-habitat",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const { campaign } = loaded;
+    expect(campaign.snapshot().constructions).toMatchObject([
+      { structureTypeId: "crew-habitat", stage: "commissioning" },
+    ]);
+    expect(campaign.snapshot().milestones.currentId).toBe(
+      "crew-habitat-commissioned",
+    );
+
+    for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+      if (hours > 5 * 24) throw new Error("It was never commissioned.");
+      campaign.advance(60);
+    }
+    campaign.advance(1);
+
+    expect(campaign.snapshot().milestones.reachedIds).toContain(
+      "crew-habitat-commissioned",
+    );
+    expect(campaign.snapshot().ended).toBeUndefined();
+  });
+
   it("workshop starts with a Workshop running on metals, and makes a spare Component", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "workshop",

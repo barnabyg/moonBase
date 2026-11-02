@@ -59,6 +59,7 @@ export {
   type RoverModel,
 } from "./rover-model";
 import { createPlantModel, PLANT_SHAPES } from "./plant-models";
+import { createCrewHabitatModel } from "./crew-habitat-model";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
@@ -149,6 +150,7 @@ export function createStructureModel(
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
   if (structureTypeId === "growing-hall") return createGrowingHallModel();
   if (structureTypeId === "vault-cistern") return createVaultCisternModel();
+  if (structureTypeId === "crew-habitat") return createCrewHabitatModel();
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );
