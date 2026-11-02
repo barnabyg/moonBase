@@ -82,16 +82,20 @@ test("a growing hall, built on the late base, says what it is doing and earns it
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.wheel(0, 1_500);
   await placeOnClearGround(page);
-  await speed(page, "20x");
+  // Its Assembly and commissioning, and then its round, are longer than an
+  // expectation should wait for, even at 20x on a slow runner, so the game
+  // stays paused and skips from event to event.
+  const skip = page.getByRole("button", { name: "Skip to next event" });
   const hall = entryOf(page, "Growing hall");
+  const growing = hall.filter({ hasText: "using 2 kg of water an hour" });
+  for (let skips = 0; skips < 60 && (await growing.count()) === 0; skips++) {
+    await skip.click();
+  }
   await expect(hall).toContainText("growing");
   await expect(hall).toContainText(
     "using 2 kg of water an hour, for 100 Science a round",
   );
-  // Its round is longer than an expectation should wait for, even at 20x.
-  await speed(page, "Pause");
   const round = page.getByText("Growing hall: a round of growing complete");
-  const skip = page.getByRole("button", { name: "Skip to next event" });
   for (let skips = 0; skips < 60 && !(await round.isVisible()); skips++) {
     await skip.click();
   }
