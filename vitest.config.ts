@@ -12,5 +12,9 @@ export default defineConfig({
     environment: "node",
     testTimeout: timeoutMs,
     hookTimeout: timeoutMs,
+    // In CI, stop at the first failure rather than play out the rest of the
+    // run first, as the end-to-end tests do (see docs/verification.md). Local
+    // runs still report every failure.
+    bail: process.env["CI"] ? 1 : 0,
   },
 });

@@ -37,9 +37,9 @@ The first runs one Vitest test, the second one Playwright test. Leave out `-t` o
 
 `npm run verify` doesn't play the long game, as it takes about 10 minutes of a full core. CI plays it in a workflow of its own (`.github/workflows/long-game.yml`), on a pull request that changes what the play imports and on `main`, so a change can be handed over without playing it by hand. [`docs/reference-campaign.md`](reference-campaign.md#ci-plays-it) says when it plays and how it reports.
 
-## Stopping at the first end-to-end failure in CI
+## Stopping at the first failure in CI
 
-In CI (`CI` set), `playwright.config.ts` stops the end-to-end tests at the first failure, as its details only print once the run ends: one run's failure came 80 seconds in and was reported over 14 minutes later. A run therefore reports only the first failure it meets, so fixing it can reveal another. Local runs don't stop early.
+In CI (`CI` set), both test runners stop at the first failure: `vitest.config.ts` with `bail`, and `playwright.config.ts` with `maxFailures`. Their details only print once the run ends: one end-to-end run's failure came 80 seconds in and was reported over 14 minutes later. A run therefore reports only the first failure it meets, so fixing it can reveal another. Vitest runs several files at once, so the files already started when one fails still finish, and their failures are reported too. Local runs don't stop early, and report every failure.
 
 ## One worker for headed end-to-end runs
 
