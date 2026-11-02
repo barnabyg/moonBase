@@ -1,23 +1,24 @@
 import * as THREE from "three";
 import type { LunationSnapshot } from "../simulation";
-import { fixedRandom } from "./scenery";
+import { FAR_PLANE_METRES, HIGHEST_IN_VIEW } from "./camera";
+import { fixedRandom, SURROUNDINGS_RADIUS } from "./scenery";
 
 // A sparse scatter of faint stars in the black sky at Night. They are unlit
 // points, not lights, so they leave the base as dark as it was.
 //
-// The camera never tilts higher than about 18° above the horizon at the top
-// of the view, so the stars lie in a band just above the hills rather than
-// over the whole sky, where most would never be seen. Their number is chosen
-// for the dozen or so on screen when the view is tilted low.
+// The top of the view never reaches much above the horizon, so the stars lie
+// in a band just above the hills rather than over the whole sky, where most
+// would never be seen. Their number is chosen for the dozen or so on screen
+// when the view is tilted low.
 
 const STAR_COUNT = 80;
 const LOWEST_ELEVATION = THREE.MathUtils.degToRad(0.5);
-const HIGHEST_ELEVATION = THREE.MathUtils.degToRad(17);
+const HIGHEST_ELEVATION = HIGHEST_IN_VIEW - THREE.MathUtils.degToRad(1);
 /**
- * Beyond the hills, which reach 6 km, and Earth, so that both hide the stars
- * behind them, and well inside the camera's 20 km far plane.
+ * Beyond the land, whose hills and Earth above them hide the stars behind
+ * them, and well inside the camera's far plane.
  */
-const SKY_RADIUS_METRES = 15000;
+const SKY_RADIUS_METRES = (SURROUNDINGS_RADIUS + FAR_PLANE_METRES) / 2;
 /** Across, in CSS pixels: Three.js scales it by the screen's pixel ratio. */
 const STAR_SIZE_PIXELS = 2;
 /** The brightest and faintest, in linear colour. */

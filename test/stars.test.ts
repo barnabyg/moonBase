@@ -1,17 +1,11 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { FAR_PLANE_METRES, HIGHEST_IN_VIEW } from "../src/render/camera";
+import { SURROUNDINGS_RADIUS } from "../src/render/scenery";
 import { createStars } from "../src/render/stars";
 
 const DAYLIGHT = { part: "daylight", minutesRemaining: 600 } as const;
 const NIGHT = { part: "night", minutesRemaining: 600 } as const;
-/** How far out the hills reach, and the camera's far plane. */
-const HILLS_METRES = 6000;
-const FAR_PLANE_METRES = 20000;
-/**
- * The top of the view, tilted as low as the camera goes: 7° below the
- * horizon, with half the 50° field of view above that.
- */
-const HIGHEST_IN_VIEW = THREE.MathUtils.degToRad(18);
 
 /** Where each star is drawn, in the scene, after an update with the camera here. */
 function starsSeenFrom(camera: THREE.Vector3): THREE.Vector3[] {
@@ -85,7 +79,9 @@ describe("the stars", () => {
   it("are beyond the hills and Earth, and nearer than the far plane", () => {
     const camera = new THREE.Vector3(480, 1400, -480);
     for (const star of starsSeenFrom(camera)) {
-      expect(star.distanceTo(camera)).toBeGreaterThan(HILLS_METRES * 1.5);
+      expect(star.distanceTo(camera)).toBeGreaterThan(
+        SURROUNDINGS_RADIUS * 1.5,
+      );
       expect(star.distanceTo(camera)).toBeLessThan(FAR_PLANE_METRES * 0.9);
     }
   });
@@ -100,10 +96,10 @@ describe("the stars", () => {
       star.sub(there).normalize(),
     );
 
+    expect(fromThere).toHaveLength(fromHere.length);
     for (const [index, direction] of fromHere.entries()) {
-      expect(direction.angleTo(fromThere[index] ?? direction)).toBeLessThan(
-        1e-6,
-      );
+      const there = fromThere[index] ?? new THREE.Vector3();
+      expect(direction.angleTo(there)).toBeLessThan(1e-6);
     }
   });
 

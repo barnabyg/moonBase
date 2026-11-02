@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { catalogue } from "../catalogue";
 import type { GroundPosition, Snapshot } from "../simulation";
 import { createCableViews } from "./cable-views";
-import { createCameraControls } from "./camera";
+import {
+  createCameraControls,
+  FAR_PLANE_METRES,
+  FIELD_OF_VIEW_DEGREES,
+} from "./camera";
 import { createConstructionViews } from "./construction-views";
 import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
@@ -91,7 +95,12 @@ export function createRenderer(
 
   // The game opens on a view of the landing site, which the player can then
   // pan, rotate and zoom.
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 20000);
+  const camera = new THREE.PerspectiveCamera(
+    FIELD_OF_VIEW_DEGREES,
+    1,
+    0.1,
+    FAR_PLANE_METRES,
+  );
   const landingSite = toScene(initial.lander.position);
   camera.position.copy(landingSite).add(new THREE.Vector3(17, 8, 21));
   camera.lookAt(landingSite);

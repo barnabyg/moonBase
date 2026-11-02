@@ -26,7 +26,8 @@ export function fixedRandom(seed: number): () => number {
 const REGOLITH_COLOUR = 0x7d7b78;
 /** The land beyond the base map, darker so that the map's edge shows. */
 const SURROUNDINGS_SHADE = 0.72;
-const SURROUNDINGS_RADIUS = 6000;
+/** How far the land reaches, its hills hiding the sky behind them. */
+export const SURROUNDINGS_RADIUS = 6000;
 /** Where the land beyond the map begins to rise into hills, and where they reach their full height. */
 const HILLS_START_METRES = 760;
 const HILLS_FULL_METRES = 2600;
