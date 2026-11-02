@@ -1,4 +1,3 @@
-import { createCrewHabitatModel } from "./crew-habitat-model";
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 // In the order they were first written, so that the materials they make at load
@@ -60,6 +59,7 @@ export {
   type RoverModel,
 } from "./rover-model";
 import { createPlantModel, PLANT_SHAPES } from "./plant-models";
+import { createCrewHabitatModel } from "./crew-habitat-model";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.

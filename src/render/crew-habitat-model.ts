@@ -102,8 +102,10 @@ export function createCrewHabitatModel(): StructureModel {
     ]),
   );
   // Radiator fins standing on the middle vault's crown.
+  const radiators = new THREE.Group();
+  radiators.name = "Radiators";
   for (const z of [-3.5, 3.5]) {
-    airlocks.add(
+    radiators.add(
       part(new THREE.BoxGeometry(0.06, 1.2, 2.4), materials.radiator, [
         0,
         FOOTING_HEIGHT + VAULT_RADIUS + 0.6,
@@ -111,7 +113,7 @@ export function createCrewHabitatModel(): StructureModel {
       ]),
     );
   }
-  habitat.add(airlocks);
+  habitat.add(airlocks, radiators);
 
   return {
     group: habitat,
@@ -125,6 +127,7 @@ export function createCrewHabitatModel(): StructureModel {
       }
       spine.visible = f >= VAULTS_SHARE;
       airlocks.visible = f >= VAULTS_SHARE;
+      radiators.visible = f >= VAULTS_SHARE;
     },
     setFacing: () => undefined,
     setStatusLight(state) {

@@ -387,7 +387,7 @@ describe("the long-game play guide", () => {
     ["a tripled Return Mass", "return-mass-tripled", 1251, "tripled by"],
     ["optics", "precision-optics-sold", 2001, "optics sold by"],
     [
-      "the goal",
+      "the Large-scale Crew Habitat",
       "crew-habitat-commissioned",
       3001,
       "Crew Habitat commissioned by",

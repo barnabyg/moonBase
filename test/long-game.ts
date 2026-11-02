@@ -115,7 +115,7 @@ export const laterActTargets = {
   act4ResearchUntilAbout: LONG_GAME_END_EARTH_DAY,
   researchWithin: 50,
   opticsSoldBy: 2000,
-  /** The Campaign's goal, its last Milestone, by the end of its content. */
+  /** What the Campaign builds towards, its last Milestone, by the end of its content. */
   crewHabitatBy: LONG_GAME_END_EARTH_DAY,
 } as const;
 
@@ -433,7 +433,7 @@ const PURCHASES: readonly Purchase[] = [
   // a Lunation on top of all else, and 798 kWh through a Night.
   ...GROWING_HALL_PURCHASES,
   // What holds a Large-scale Crew Habitat's 600 kg of oxygen and 2,500 kg of water,
-  // then the habitat: the Campaign's goal, before a cistern for a Campaign played on.
+  // then the Habitat the Campaign builds towards, before a cistern for a Campaign played on.
   ...[
     ["water-tank", { x: 60, y: -104 }],
     ["oxygen-tank", { x: 50, y: -104 }],

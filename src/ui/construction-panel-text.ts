@@ -75,7 +75,7 @@ export function formatWaiting(waiting: ConstructionWait): string {
       waiting.tooLittleRoomKilograms === undefined
         ? ""
         : `, and the base can hold only ${formatKilograms(waiting.tooLittleRoomKilograms)}: build another ${stock} tank`;
-    return `Waiting for ${formatKilograms(waiting.missingKilograms)} more ${stock}: filling it must leave the Mission Director a reserve${room}`;
+    return `Waiting for ${formatKilograms(waiting.missingKilograms)} more ${stock}: taking it must leave the Mission Director a reserve${room}`;
   }
   if (waiting.reason !== "missing-components") {
     const machine = machineLabel(waiting.machineTypeId).toLowerCase();

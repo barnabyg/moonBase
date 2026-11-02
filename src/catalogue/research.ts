@@ -605,10 +605,10 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 400,
     prerequisiteDesignIds: ["water-wall-shielding"],
   },
-  // The Campaign's goal. It costs little Science, as research is full to Earth Day
+  // What the Campaign builds towards. It costs little Science, as research is full to Earth Day
   // 3,000: what it takes is Funding, oxygen and water. Needing Growing halls keeps it until
   // about Earth Day 2,000 at the soonest, so that it is what the last hours are for,
-  // and gives two dozen Crew the means to grow their food. See "The goal" in
+  // and gives two dozen Crew the means to grow their food. See "What the last hours are for" in
   // docs/balancing.md.
   {
     id: "crew-habitats",

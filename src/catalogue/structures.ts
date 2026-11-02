@@ -537,7 +537,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     landingPad: false,
     buried: true,
   },
-  // The Campaign's goal: a pressure vault for two dozen Crew, built from three Buried
+  // What the Campaign builds towards: a pressure vault for two dozen Crew, built from three Buried
   // Habitats' worth of vault sections and four of their life support cores, and
   // stocked with a Lunation of what two dozen people breathe and drink before it
   // is sealed. Nobody moves in, as Crew are still to come (ADR-0001), so it is not
@@ -547,7 +547,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
   // had left idle at the end before it. Its 600 kg of oxygen takes more tanks
   // than the base's own and one oxygen tank, and its 2,500 kg of water more than
   // two water tanks, so it asks for the Plants, ice and tanks of a base at scale
-  // as well as Funding. See "The goal" in docs/balancing.md.
+  // as well as Funding. See "What the last hours are for" in docs/balancing.md.
   {
     id: "crew-habitat",
     label: "Large-scale Crew Habitat",
