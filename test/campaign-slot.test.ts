@@ -1,6 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { createCampaignSlot } from "../src/game/campaign-slot";
+import { loadCampaign, type Campaign } from "../src/simulation";
 import { scenario } from "./scenario";
+import { freshSaveWith } from "./try-scenarios";
+
+type Method = (...args: unknown[]) => unknown;
+
+/**
+ * A stand-in for the Campaign with the same methods as a real one, which
+ * records the arguments each call is given.
+ */
+function recordingCampaign(): {
+  campaign: Campaign;
+  calls: Map<string, unknown[]>;
+} {
+  const real = scenario().campaign as unknown as Record<string, Method>;
+  const calls = new Map<string, unknown[]>();
+  const campaign = Object.fromEntries(
+    Object.keys(real).map((name) => [
+      name,
+      (...args: unknown[]) => {
+        calls.set(name, args);
+      },
+    ]),
+  );
+  return { campaign: campaign as unknown as Campaign, calls };
+}
 
 describe("the Campaign slot", () => {
   it("passes every call on to the Campaign in it", () => {
@@ -29,5 +54,37 @@ describe("the Campaign slot", () => {
     expect(slot.snapshot()).toEqual(second.state);
     expect(second.state.clock.elapsedMinutes).toBe(4 * 60);
     expect(first.state.clock.elapsedMinutes).toBe(0);
+  });
+
+  it("starts the type of Expedition asked for", () => {
+    const loaded = loadCampaign(
+      freshSaveWith((state) => {
+        state.unlockedDesignIds.push("survey-expeditions");
+      }),
+    );
+    if (!loaded.ok) throw new Error(loaded.message);
+    const slot = createCampaignSlot(loaded.campaign);
+
+    expect(slot.startExpedition("survey")).toEqual({ ok: true });
+
+    expect(slot.snapshot().expedition?.typeId).toBe("survey");
+  });
+
+  it("passes on every argument each of the Campaign's calls takes", () => {
+    const real = scenario().campaign as unknown as Record<string, Method>;
+    const recording = recordingCampaign();
+    const slot = createCampaignSlot(recording.campaign) as unknown as Record<
+      string,
+      Method
+    >;
+
+    for (const [name, method] of Object.entries(real)) {
+      const args = Array.from({ length: method.length }, (_, i) => ({
+        argument: i,
+      }));
+      slot[name]?.(...args);
+
+      expect(recording.calls.get(name), name).toEqual(args);
+    }
   });
 });
