@@ -12,8 +12,12 @@
 // depends on, bundles it into one file first. Its module runner would do without
 // the file, but reaches every import through a getter, which made a play take
 // nearly twice as long.
+//
+// The play runs at below-normal priority, so that a PC playing it stays usable:
+// at normal priority, its one busy core interrupted music and video playback.
 import { spawnSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
+import { constants, setPriority } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -28,6 +32,7 @@ function reportToCi(lines) {
 }
 
 if (process.argv.includes(PLAY)) {
+  setPriority(constants.priority.PRIORITY_BELOW_NORMAL);
   const { build } = await import("vite");
   const root = fileURLToPath(new URL("..", import.meta.url));
   const outDir = join(root, "node_modules", ".cache", "long-game");
