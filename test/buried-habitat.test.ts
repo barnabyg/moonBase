@@ -9,6 +9,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../src/simulation";
+import { describeStructure } from "../src/ui/describe";
 import {
   buriedHabitatBase,
   buriedHabitatSites,
@@ -154,6 +155,18 @@ describe("the Buried Habitat's place in the data catalogue", () => {
       starting: false,
       prerequisiteDesignIds: ["water-wall-shielding"],
     });
+  });
+
+  it("says in a sentence that the Mission Director can move into it, and that it is already under the Regolith", () => {
+    const habitat = catalogue.structureTypes.find(({ id }) => id === "habitat");
+    if (habitat === undefined) throw new Error("There is no Habitat.");
+
+    expect(describeStructure(buried)).toMatch(
+      /^It is a home the Mission Director can move into, is already under the Regolith, so that /,
+    );
+    expect(describeStructure(habitat)).toMatch(
+      /^It is a home the Mission Director can move into/,
+    );
   });
 
   it("takes more than one Launch's Payload Mass, and costs more than the most a Launch can carry of anything else", () => {
