@@ -4,20 +4,28 @@ import { loadCampaign, type Campaign } from "../src/simulation";
 import { scenario } from "./scenario";
 import { freshSaveWith } from "./try-scenarios";
 
-type Method = (...args: unknown[]) => unknown;
+/** One of the Campaign's calls, taken by name. */
+type Call = (...args: unknown[]) => unknown;
 
 /**
- * A stand-in for the Campaign with the same methods as a real one, which
- * records the arguments each call is given.
+ * A real Campaign's calls by name. Each declares all its parameters, with no
+ * defaults, so a call's `length` counts every argument it takes.
+ */
+function campaignCalls(): Record<string, Call> {
+  return scenario().campaign as unknown as Record<string, Call>;
+}
+
+/**
+ * A stand-in for the Campaign with the same calls as a real one, which
+ * records the arguments the latest of each call was given.
  */
 function recordingCampaign(): {
   campaign: Campaign;
   calls: Map<string, unknown[]>;
 } {
-  const real = scenario().campaign as unknown as Record<string, Method>;
   const calls = new Map<string, unknown[]>();
   const campaign = Object.fromEntries(
-    Object.keys(real).map((name) => [
+    Object.keys(campaignCalls()).map((name) => [
       name,
       (...args: unknown[]) => {
         calls.set(name, args);
@@ -71,15 +79,14 @@ describe("the Campaign slot", () => {
   });
 
   it("passes on every argument each of the Campaign's calls takes", () => {
-    const real = scenario().campaign as unknown as Record<string, Method>;
     const recording = recordingCampaign();
     const slot = createCampaignSlot(recording.campaign) as unknown as Record<
       string,
-      Method
+      Call
     >;
 
-    for (const [name, method] of Object.entries(real)) {
-      const args = Array.from({ length: method.length }, (_, i) => ({
+    for (const [name, call] of Object.entries(campaignCalls())) {
+      const args = Array.from({ length: call.length }, (_, i) => ({
         argument: i,
       }));
       slot[name]?.(...args);
