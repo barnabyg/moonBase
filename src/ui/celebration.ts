@@ -1,15 +1,15 @@
 import type { GameLoop } from "../game/loop";
-import type { GameEvent } from "../simulation";
+import type { Campaign, GameEvent } from "../simulation";
 import { setText } from "./dom";
 import { findCelebration } from "./celebration-text";
 
 export interface CelebrationScreen {
-  /** Hears the events of a game-minute, and celebrates a Milestone reached then that has a celebration. */
+  /** Hears the events of a game-minute, and celebrates if they reach the last Milestone still to reach. */
   hear(events: readonly GameEvent[]): void;
 }
 
 /**
- * The celebration, shown over everything as the last Milestone is reached: it
+ * The celebration, shown over everything once every Milestone is reached: it
  * pauses the game while it is open, and Carry on closes it and sets the game
  * going again at the speed it had. A Campaign loaded with the Milestone already
  * reached isn't celebrated again, as nothing reaches it then.
@@ -17,6 +17,7 @@ export interface CelebrationScreen {
 export function createCelebrationScreen(
   container: HTMLElement,
   loop: Pick<GameLoop, "speed" | "setSpeed">,
+  campaign: Pick<Campaign, "snapshot">,
 ): CelebrationScreen {
   const dialog = document.createElement("dialog");
   dialog.className = "celebration";
@@ -45,7 +46,11 @@ export function createCelebrationScreen(
 
   return {
     hear(events) {
-      const celebration = findCelebration(events);
+      if (!events.some(({ kind }) => kind === "milestone-reached")) return;
+      const celebration = findCelebration(
+        events,
+        campaign.snapshot().milestones.reachedIds,
+      );
       if (celebration === undefined || dialog.open) return;
       setText(title, celebration.title);
       setText(text, celebration.text);

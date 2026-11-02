@@ -114,7 +114,7 @@ const loop = createGameLoop(campaign, {
     celebration.hear(events);
   },
 });
-const celebration = createCelebrationScreen(container, loop);
+const celebration = createCelebrationScreen(container, loop, campaign);
 const topBar = createTopBar(
   topBarSlot,
   loop,

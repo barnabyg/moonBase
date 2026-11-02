@@ -8,18 +8,23 @@ export interface Celebration {
 }
 
 /**
- * What to celebrate among the events of a game-minute: the celebration of a
- * Milestone reached then, if it has one; undefined otherwise.
+ * What to celebrate among the events of a game-minute: once a Milestone reached
+ * then leaves none still to reach, the celebration of a Milestone that has one,
+ * as the last does; undefined otherwise. So a Milestone with a celebration that
+ * is reached before the others, as Milestones may be, is celebrated only as the
+ * last of them is reached.
  */
 export function findCelebration(
   events: readonly GameEvent[],
+  reachedIds: readonly string[],
 ): Celebration | undefined {
-  for (const event of events) {
-    if (event.kind !== "milestone-reached") continue;
-    const celebration = catalogue.milestones.find(
-      (milestone) => milestone.id === event.milestoneId,
-    )?.celebration;
-    if (celebration !== undefined) return celebration;
+  if (
+    !events.some((event) => event.kind === "milestone-reached") ||
+    catalogue.milestones.some(({ id }) => !reachedIds.includes(id))
+  ) {
+    return undefined;
   }
-  return undefined;
+  return catalogue.milestones.find(
+    (milestone) => milestone.celebration !== undefined,
+  )?.celebration;
 }
