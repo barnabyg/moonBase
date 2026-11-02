@@ -156,10 +156,10 @@ export function describeStructure(type: StructureType): string {
           `lights the ground ${type.lightRadiusMetres} m round it at Night, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
         ]
       : []),
-    ...(type.habitat ? ["the Mission Director can move into it"] : []),
+    ...(type.habitat ? ["is a home the Mission Director can move into"] : []),
     ...(type.buried === true
       ? [
-          `already under the Regolith, so that it takes neither shielding nor a water wall, with a Radiation Dose of ${catalogue.radiation.doseRateMillisievertsPerEarthDay.buriedHabitat} mSv an Earth Day inside`,
+          `is already under the Regolith, so that it takes neither shielding nor a water wall, with a Radiation Dose of ${catalogue.radiation.doseRateMillisievertsPerEarthDay.buriedHabitat} mSv an Earth Day inside`,
         ]
       : []),
     ...(type.shieldsHabitat

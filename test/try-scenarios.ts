@@ -11,6 +11,7 @@ import {
   REFERENCE_SEED,
   referenceSteps,
 } from "./reference-campaign";
+import { keepTheBaseGoing, playLongGame, playOnUntil } from "./long-game";
 import { toGameMinutes } from "./scenario";
 
 // What `npm run try` can start the game in, so that a change can be tried by
@@ -259,6 +260,29 @@ function act3Save(): string {
   stockOf(opened.state, "metals", 400);
   stockOf(opened.state, "circuit-boards", 150);
   return JSON.stringify(opened, undefined, 2);
+}
+
+/**
+ * The long-game play guide's own base on the Earth Day given, reached by playing
+ * the guide and left as it stands, so that a stretch of Act 4 can be played from a
+ * base that has really played everything before it. It takes minutes.
+ */
+function longGameSaveOn(earthDay: number): string {
+  let save: string | undefined;
+  const { failure } = playLongGame([
+    ...referenceSteps,
+    {
+      milestoneId: undefined,
+      description: `Keep the base going as the long-game play guide does, until Earth Day ${earthDay}.`,
+      play(play) {
+        keepTheBaseGoing(play);
+        playOnUntil(play, earthDay);
+        save = play.campaign.save();
+      },
+    },
+  ]);
+  if (save === undefined) throw new Error(failure ?? "It never got there.");
+  return save;
 }
 
 /** Where `buriedHabitatBase` puts what can be lived in, in view north of the Lander. */
@@ -873,6 +897,87 @@ export const tryScenarios: readonly TryScenario[] = [
       "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel, shown now against the limit of 450 kg that the Plant brings, rises by about a kilogram a game-hour.",
     ],
     save: act3Save,
+  },
+  {
+    id: "act-4",
+    title:
+      "The start of Act 4, on Earth Day 1,400, at the long-game play guide's own base as it played there: 530 mSv, $12,171M and a Buried Habitat unlocked",
+    slow: true,
+    steps: [
+      'Pause the game. The Milestones say "Act 4: Permanence", with Moved into a Buried Habitat as "Now". Radiation says about "529.6 / 600 mSv" with the limit about 470 days off. Funding is about $12,171M, and it is Night. The Lander is at Earth, so what is on the Launch manifest now comes on the next Launch.',
+      "The goal: move the Mission Director into a Buried Habitat, which cuts the dose rate tenfold. Its parts come to 5,300 kg, and a Launch carries 2,000 kg, so it takes three Launches.",
+      "Open the Launch manifest and, under Protection, add 4 vault sections: 2,000 kg, a full Launch. Set the game to 20x.",
+      "Each time the Lander is back and unloaded, open the manifest again: 4 more vault sections on the second Launch, then the deep life support core, under Protection, and an airlock, under Life Support, on the third. Press Send the Lander each time.",
+      "Once all the parts are in, pick Buried Habitat in the build menu and place it on clear ground, early in a Daylight if you can. The excavator takes about 5 Earth Days to dig it in.",
+      'Once it is commissioned and has power, click it on the map, the low mound with a hatch at one end, and press "Move here" in its pop-up. Radiation now says "+0.015 a day". The guide moved in on about Earth Day 1,592, at 568 mSv. If you like, dismantle the old Habitat to get its power back: its water wall first, then its shielding, then the Habitat itself.',
+      "The rest of the base is the guide's, with its choices: its Workshops and propellant plants are switched off while it has enough, and a solar array it planned waits unbuilt for the array works' Components. Note how soon the limit felt pressing, whether the Funding made a Buried Habitat a choice or a given, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(1400),
+  },
+  {
+    id: "act-4-moved-in",
+    title:
+      "Act 4 on Earth Day 1,600, at the long-game play guide's base just after it moved into a Buried Habitat: 568 mSv, $11,378M and 1,353 Science",
+    slow: true,
+    steps: [
+      'Pause the game. Living says "in the Buried Habitat", and the old Habitat, its water wall and its shielding are gone. Radiation says about "568.5 / 600 mSv" and "+0.015 a day". Funding is about $11,378M and Science about 1,353.',
+      "The limit is years off now. Look at what to aim for next: the Tech Tree, where Precision optics costs 1,800 Science, the Milestones' First precision optics sold, a Greenhouse, a second Robot.",
+      "Play on at 20x as you would for 15 minutes, about 75 Earth Days.",
+      "Note whether you knew what to aim for, whether waiting for the Science for Precision optics was felt, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(1600),
+  },
+  {
+    id: "act-4-optics",
+    title:
+      "Act 4 on Earth Day 1,700, at the long-game play guide's base just after Precision optics was unlocked, with a Greenhouse growing and $12,933M",
+    slow: true,
+    steps: [
+      "Pause the game. Precision optics is unlocked and no optics works is built yet. A Greenhouse stands, and Water is about 149 kg. Funding is about $12,933M.",
+      "Open the Launch manifest: the guide has already put an optics works' two optical grinders and metrology bench on it. Keep them or clear them: precision optics sell for $6M a kilogram, twice circuit boards, and an optics works takes 5 kg of water for each kilogram, from the same water as the Greenhouse.",
+      "Play on at 20x as you would for 15 minutes, about 75 Earth Days. The guide sold its first precision optics on about Earth Day 1,721.",
+      "Note whether water felt like the limit, whether you'd rather it went to optics or to the Greenhouse's Science, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(1700),
+  },
+  {
+    id: "act-4-late",
+    title:
+      "Act 4 on Earth Day 2,000, at the long-game play guide's base with an optics works and a Greenhouse, $18,186M and 2,043 Science",
+    slow: true,
+    steps: [
+      "Pause the game. An optics works, a Greenhouse, a water tank and an oxygen tank stand. Water is about 165 kg, so the guide has switched the optics works off, as it does below 320 kg, to leave the Greenhouse a Night's water. Funding is about $18,186M and Science about 2,043. In the Tech Tree, the Optics grinding line comes next, then Growing halls and Vault cistern.",
+      "Play on at 20x as you would for 15 minutes, about 75 Earth Days.",
+      "Note what you spent Funding on, if anything, whether a Greenhouse's Science felt worth its water, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(2000),
+  },
+  {
+    id: "act-4-halls",
+    title:
+      "Act 4 on Earth Day 2,200, at the long-game play guide's base just after Growing halls was unlocked, with $20,012M and 93 kg of water",
+    slow: true,
+    steps: [
+      "Pause the game. Growing halls has just been unlocked. The guide has built a third Workshop and a water-processing plant, and its optics works and grinding line are switched off, as Water is about 93 kg. Funding is about $20,012M. The Launch manifest holds a large battery bank's parts.",
+      "Open the Tech Tree and the Guide: a growing hall earns more Science for its water than a Greenhouse, for $5,000M. The guide went on to buy three more water-processing plants, four cold-trap ice lines at $3,000M each and a growing hall, about $18,500M with the rest.",
+      "Play on at 20x as you would for 15 to 20 minutes, 75 to 100 Earth Days.",
+      "Note whether Funding was worth spending on Science and water, or better left idle, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(2200),
+  },
+  {
+    id: "act-4-end",
+    title:
+      "The end of Act 4, on Earth Day 2,850, at the long-game play guide's base with Vault cistern unlocked, 1,381 kg of water and $20,389M",
+    slow: true,
+    steps: [
+      'Pause the game. Vault cistern has just been unlocked and is not built yet: a ring of water round the Buried Habitat that cuts the dose rate to a fifth. Radiation says about "593.4 / 600 mSv", with the limit about 440 days off, some 300 Earth Days past the end. Funding is about $20,389M and Water about 1,381 kg. The guide has switched off the growing hall, Greenhouse, optics works and grinding line, to save the 2,000 kg of water a vault cistern takes at once.',
+      "Decide whether to build a vault cistern or let the Greenhouse, growing hall and optics have the water. Not building one: click each on the map, press Switch on, and play on.",
+      "Building one: set the game to 20x until a notification says the Lander has landed. The manifest is locked while it is away, and opens once it is unloaded. Open the Launch manifest: the guide has put a water tank's shell and heater on it. Add 14 cistern cells, under Protection, 1,900 kg in all, and press Send the Lander. On the next trip, send the last 2 cistern cells.",
+      "When the water tank's parts come, build it: without a second tank the base holds only 1,400 kg of water. When the cells come, pick Vault cistern in the build menu and click on the Buried Habitat's mound. It fills itself once Water passes about 2,050 kg, and then Radiation's limit moves thousands of Earth Days off.",
+      "Play on at 20x to Earth Day 3,000, about 30 minutes, where the Campaign's content runs out. Note whether this last stretch had a purpose, whether a vault cistern was worth building for a Campaign you would stop at Earth Day 3,000, and whether those Earth Days had enough to do or dragged.",
+    ],
+    save: () => longGameSaveOn(2850),
   },
   {
     id: "workshop",

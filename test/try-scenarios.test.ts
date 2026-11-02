@@ -22,7 +22,9 @@ function saveOf(scenario: TryScenario | undefined): string {
 
 describe("what npm run try can start the game in", () => {
   // act-2 is slow, and kept: its save comes from playing the reference
-  // Campaign to Act 2, and that play still reaching it is the check.
+  // Campaign to Act 2, and that play still reaching it is the check. The act-4
+  // scenarios are left out as slow: they play the long-game play guide for minutes,
+  // and CI plays that already.
   it.each(tryScenarios.filter((scenario) => scenario.slow !== true))(
     "$id prepares a Campaign the game can load",
     (scenario) => {
