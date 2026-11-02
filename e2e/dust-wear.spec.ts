@@ -23,7 +23,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   const speeds = page.getByRole("group", { name: "Game speed" });
   const notifications = page.getByRole("log", { name: "Notifications" });
   const array = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: /^Solar array/ });
 

@@ -39,6 +39,8 @@ export interface PanelSection {
   summarise(summary: string | undefined): void;
   /** Marks the title while anything in the section is a warning, so it shows even when folded. */
   refreshWarning(): void;
+  /** Marks the title, or stops marking it, as the section's owner decides. */
+  warn(warning: boolean): void;
 }
 
 /**
@@ -71,6 +73,9 @@ export function createPanelSection(id: string, title: string): PanelSection {
   const body = document.createElement("div");
   body.className = "panel-section__body";
   element.append(summary, body);
+  const warn = (on: boolean): void => {
+    warning.hidden = !on;
+  };
   element.addEventListener("toggle", () => {
     const folded = readFolded();
     if (element.open) folded.delete(id);
@@ -91,10 +96,12 @@ export function createPanelSection(id: string, title: string): PanelSection {
       if (summaryLine.title !== (text ?? "")) summaryLine.title = text ?? "";
     },
     refreshWarning() {
-      warning.hidden =
+      warn(
         body.querySelector(
           ".stat--warning:not([hidden]), .stat-chip--warning:not([hidden])",
-        ) === null;
+        ) !== null,
+      );
     },
+    warn,
   };
 }

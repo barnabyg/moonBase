@@ -34,7 +34,7 @@ test("the Base panel and the forecast say what a Workshop is making, and follow 
 }) => {
   await loadWorkshopBase(page);
   const workshop = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: "Workshop" });
   const spares = page

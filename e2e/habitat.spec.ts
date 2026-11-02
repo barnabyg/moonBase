@@ -26,7 +26,10 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   await skip.click();
   await expect(notifications).toContainText("Inflatable Habitat commissioned");
 
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   // Dust has worn the solar array down a little since it was commissioned.
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array Condition 9\d% commissioned · Dust coating \d+%(?!,)/,

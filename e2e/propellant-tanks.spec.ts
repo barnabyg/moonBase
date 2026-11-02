@@ -42,7 +42,7 @@ function propellantRow(page: Page) {
 
 function entryOf(page: Page, name: string) {
   return page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: name });
 }

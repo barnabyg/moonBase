@@ -32,7 +32,10 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const skip = page.getByRole("button", { name: "Skip to next event" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
 
   /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */

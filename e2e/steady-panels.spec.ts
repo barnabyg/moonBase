@@ -164,7 +164,7 @@ test("at the fastest game speed, the panels' rows keep their order and place whi
   // digs Regolith by itself.
   const texts = await watchRows(page, "version-35.moonbase", (on) =>
     on
-      .getByRole("list", { name: "Structures" })
+      .getByRole("group", { name: "Structures", exact: true })
       .getByRole("listitem")
       .filter({ hasText: "Vacuum fabrication plant" }),
   );
@@ -200,8 +200,9 @@ test("at the fastest game speed, the Research Tasks screen's lines keep their pl
       // Once the save has loaded, which has a vacuum fabrication plant.
       await expect(
         on
-          .getByRole("list", { name: "Structures" })
-          .getByText("Vacuum fabrication plant"),
+          .getByRole("group", { name: "Structures", exact: true })
+          .getByRole("listitem")
+          .filter({ hasText: "Vacuum fabrication plant" }),
       ).toBeVisible();
       await on.getByRole("button", { name: "Research Tasks" }).click();
       // Two Earth Days long, so that it runs all the time it is watched,

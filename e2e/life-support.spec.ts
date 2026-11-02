@@ -67,7 +67,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
 
   await skipUntil(notifications.getByText("Inflatable Habitat commissioned"));
   await page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("button", { name: "Move in" })
     .click();
   await expect(oxygen).toHaveText(/^Oxygen 2\d\.\d of 100 kg · lasts 2[89]d/);
