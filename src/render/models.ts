@@ -1,3 +1,4 @@
+import { createCrewHabitatModel } from "./crew-habitat-model";
 import * as THREE from "three";
 import { catalogue } from "../catalogue";
 // In the order they were first written, so that the materials they make at load
@@ -149,6 +150,7 @@ export function createStructureModel(
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
   if (structureTypeId === "growing-hall") return createGrowingHallModel();
   if (structureTypeId === "vault-cistern") return createVaultCisternModel();
+  if (structureTypeId === "crew-habitat") return createCrewHabitatModel();
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );
