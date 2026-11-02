@@ -74,6 +74,7 @@ describe("the Milestones", () => {
       "return-mass-tripled",
       "moved-into-buried-habitat",
       "precision-optics-sold",
+      "crew-habitat-commissioned",
     ]);
     expect(new Set(milestones.map((milestone) => milestone.id)).size).toBe(
       milestones.length,
@@ -97,16 +98,29 @@ describe("the Milestones", () => {
     }
   });
 
-  it("carry no reward, only a condition", () => {
+  it("carry no reward, only a condition, and the last alone a celebration", () => {
     for (const milestone of catalogue.milestones) {
-      expect(Object.keys(milestone).sort()).toEqual([
+      const { celebration, ...rest } = milestone;
+      expect(Object.keys(rest).sort()).toEqual([
         "actId",
         "condition",
         "hint",
         "id",
         "label",
       ]);
+      expect(celebration !== undefined).toBe(
+        milestone === catalogue.milestones.at(-1),
+      );
     }
+  });
+
+  it("celebrate the last with a title and one paragraph that says the Campaign goes on", () => {
+    const celebration = catalogue.milestones.at(-1)?.celebration;
+
+    expect(celebration?.title.trim()).not.toBe("");
+    expect(celebration?.text).toMatch(/^[A-Z].*\.$/);
+    expect(celebration?.text).not.toContain("\n");
+    expect(celebration?.text).toMatch(/goes on/);
   });
 
   it("name the deadline of power storage, and point at the battery bank in the starting stock", () => {

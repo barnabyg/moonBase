@@ -605,6 +605,21 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 400,
     prerequisiteDesignIds: ["water-wall-shielding"],
   },
+  // The Campaign's goal. It costs little Science, as research is full to Earth Day
+  // 3,000: what it takes is Funding, oxygen and water. Needing Growing halls keeps it until
+  // about Earth Day 2,000 at the soonest, so that it is what the last hours are for,
+  // and gives two dozen Crew the means to grow their food. See "The goal" in
+  // docs/balancing.md.
+  {
+    id: "crew-habitats",
+    label: "Large-scale Crew Habitats",
+    description:
+      "A pressure vault three times a Buried Habitat's, for two dozen Crew, stocked with a Lunation of their oxygen and water before it is sealed: the base ready for the people who come next.",
+    category: "life-support",
+    starting: false,
+    scienceCost: 100,
+    prerequisiteDesignIds: ["buried-habitat", "growing-halls"],
+  },
   // The Greenhouse chain's last Design, far more than Research Tasks pay: what they
   // leave comes from Greenhouses and growing halls, so that more of them, and the water
   // they drink, are the way to it. See docs/balancing.md.

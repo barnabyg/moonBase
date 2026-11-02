@@ -203,5 +203,9 @@ function holds(
         )
       );
     }
+    case "structure-commissioned":
+      return state.structures.some(
+        (structure) => structure.structureTypeId === condition.structureTypeId,
+      );
   }
 }

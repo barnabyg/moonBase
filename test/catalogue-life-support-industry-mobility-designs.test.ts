@@ -354,9 +354,9 @@ describe("the data catalogue", () => {
       (design) => design.category === "life-support" && !design.starting,
     );
 
-    it("has two to five beyond the starting ones, some needing another that isn't a starting one first", () => {
+    it("has two to six beyond the starting ones, some needing another that isn't a starting one first", () => {
       expect(lifeSupport.length).toBeGreaterThanOrEqual(2);
-      expect(lifeSupport.length).toBeLessThanOrEqual(5);
+      expect(lifeSupport.length).toBeLessThanOrEqual(6);
       expect(
         lifeSupport.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
