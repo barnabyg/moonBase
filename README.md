@@ -23,7 +23,8 @@ The Milestones in the status panel guide you through the Campaign, each with a h
 - [`docs/rules.md`](docs/rules.md): how the game works, system by system.
 - [`GLOSSARY.md`](GLOSSARY.md): the game's language.
 - [`docs/adr/`](docs/adr/): the design decisions.
-- [`docs/balancing.md`](docs/balancing.md): how the data catalogue is balanced, with the targets, the Acts, the decisions behind them and the catalogue's consistency rules.
+- [`docs/balancing.md`](docs/balancing.md): how the data catalogue is balanced, with the targets, the Acts, the decisions behind them, the latest long-game play and the catalogue's consistency rules.
+- [`docs/balancing-history.md`](docs/balancing-history.md): what the long-game play guide played at each earlier data catalogue version, and what the maintainer's playtests found.
 - [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthroughs and how to run them (`npm.cmd run reference-campaign` prints the timeline of the one the tests play, `npm.cmd run pacing-report` how the numbers fit together, and `npm.cmd run long-game` how a longer Campaign holds up).
 - [`docs/adding-content.md`](docs/adding-content.md): the checklists for adding a Structure, a Plant, a type of Expedition, a Milestone or an Act, and when the catalogue's version is raised.
 - [`docs/save-format.md`](docs/save-format.md): the `.moonbase` format and the rules for changing it.

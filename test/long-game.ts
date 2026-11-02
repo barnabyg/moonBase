@@ -79,7 +79,7 @@ export const designsTheLongGameUses: readonly string[] = [
 /**
  * How long one purchase may wait for its Funding, Components or site, or stand
  * planned, before the guide gives up. A purchase waited at most 22 Earth Days as
- * the guide played, up to Earth Day 2,400, and past that docs/balancing.md has a
+ * the guide played, up to Earth Day 2,400, and past that docs/balancing-history.md has a
  * vault cistern commissioned 40 after its Design. Waiting for Science doesn't count.
  */
 export const PURCHASE_STALL_EARTH_DAYS = 300;
@@ -408,7 +408,7 @@ const PURCHASES: readonly Purchase[] = [
     structureTypeId: "water-processing-plant",
     site: { x: 96, y: -56 },
     fromEarthDay: GREENHOUSE_EARTH_DAY,
-    // From Earth Day 1,626 to about 2,200, as `seeToPurchase` and docs/balancing.md say.
+    // From Earth Day 1,626 to about 2,200, as `seeToPurchase` and docs/balancing-history.md say.
     strandedBecause: "planned on the first's Components",
   },
   {
