@@ -13,6 +13,17 @@ const CLOSEST_ZOOM_METRES = 4;
 const FARTHEST_ZOOM_METRES = 1400;
 /** Just short of horizontal, so the camera stays above the ground. */
 const LOWEST_VIEW_ANGLE = THREE.MathUtils.degToRad(83);
+/** From the bottom of the view to the top. */
+export const FIELD_OF_VIEW_DEGREES = 50;
+/** Beyond the hills and Earth, so that the camera sees all the scenery. */
+export const FAR_PLANE_METRES = 20000;
+/**
+ * How high above the horizon the top of the view reaches, tilted as low as
+ * the camera goes: the sky never shows any higher.
+ */
+export const HIGHEST_IN_VIEW =
+  THREE.MathUtils.degToRad(FIELD_OF_VIEW_DEGREES / 2) -
+  (Math.PI / 2 - LOWEST_VIEW_ANGLE);
 
 export interface CameraControls {
   /** The point on the ground the camera looks at. */
