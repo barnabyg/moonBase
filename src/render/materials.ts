@@ -417,6 +417,32 @@ export const materials = {
     metalness: 0.1,
     roughness: 0.75,
   }),
+  // A heliostat's silvered glass. With only the black sky to reflect, a
+  // real one would look dark but for the sun's glint, so it is drawn paler.
+  mirror: new THREE.MeshStandardMaterial({
+    color: 0xcfdbe8,
+    metalness: 0.6,
+    roughness: 0.12,
+  }),
+  // A finished circuit board: green solder mask over the copper.
+  circuitBoard: new THREE.MeshStandardMaterial({
+    color: 0x2e6b3f,
+    metalness: 0.2,
+    roughness: 0.55,
+  }),
+  // Lumps of water ice from a shadowed crater.
+  ice: new THREE.MeshStandardMaterial({
+    color: 0xd8ecf5,
+    metalness: 0,
+    roughness: 0.3,
+    flatShading: true,
+  }),
+  // Polished Precision optics: clear glass with a pale blue coating.
+  precisionOptic: new THREE.MeshStandardMaterial({
+    color: 0xb4d4e6,
+    metalness: 0.3,
+    roughness: 0.05,
+  }),
   statusOff: new THREE.MeshStandardMaterial({ color: 0x222222 }),
   statusTesting: new THREE.MeshStandardMaterial({
     color: 0xffb020,
@@ -500,17 +526,26 @@ export function rods(
   material: THREE.Material,
   sides = 6,
 ): THREE.Mesh {
-  const pieces = segments.map(([from, to]) => {
-    const placed = new THREE.Object3D();
-    placeRod(placed, from, to);
-    placed.updateMatrix();
-    return new THREE.CylinderGeometry(radius, radius, 1, sides, 1, true)
-      .toNonIndexed()
-      .applyMatrix4(placed.matrix);
-  });
-  const merged = mergeGeometries(pieces);
-  for (const piece of pieces) piece.dispose();
-  return part(merged, material, [0, 0, 0]);
+  return part(
+    merged(segments.map(([from, to]) => rodGeometry(from, to, radius, sides))),
+    material,
+    [0, 0, 0],
+  );
+}
+
+/** The geometry of an open-ended round rod from one point to another, to merge with others. */
+export function rodGeometry(
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  radius: number,
+  sides = 6,
+): THREE.BufferGeometry {
+  const rod = new THREE.Object3D();
+  placeRod(rod, from, to);
+  rod.updateMatrix();
+  return new THREE.CylinderGeometry(radius, radius, 1, sides, 1, true)
+    .toNonIndexed()
+    .applyMatrix4(rod.matrix);
 }
 
 /** Stretches a rod of length 1, made by `rod`, from one point to another. */
@@ -566,9 +601,65 @@ export function boxAt(
   return new THREE.BoxGeometry(width, height, depth).translate(x, y, z);
 }
 
+/**
+ * A geometry moved to the given point, after turning it by the given angles
+ * (radians, as for Object3D.rotation) and stretching it by the given scale.
+ */
+export function placed(
+  geometry: THREE.BufferGeometry,
+  [x, y, z]: readonly [number, number, number],
+  [rotateX, rotateY, rotateZ]: readonly [number, number, number] = [0, 0, 0],
+  [scaleX, scaleY, scaleZ]: readonly [number, number, number] = [1, 1, 1],
+): THREE.BufferGeometry {
+  return geometry.applyMatrix4(
+    new THREE.Matrix4().compose(
+      new THREE.Vector3(x, y, z),
+      new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(rotateX, rotateY, rotateZ),
+      ),
+      new THREE.Vector3(scaleX, scaleY, scaleZ),
+    ),
+  );
+}
+
 /** One geometry of the given pieces, which are disposed of. */
 export function merged(pieces: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const geometry = mergeGeometries(pieces);
-  for (const piece of pieces) piece.dispose();
+  // Pieces with an index and pieces without can't be merged together, so a
+  // mixture is merged without.
+  const mixed = new Set(pieces.map((piece) => piece.index === null)).size > 1;
+  const flat = mixed
+    ? pieces.map((piece) =>
+        piece.index === null ? piece : piece.toNonIndexed(),
+      )
+    : pieces;
+  const geometry = mergeGeometries(flat);
+  for (const piece of new Set([...pieces, ...flat])) piece.dispose();
   return geometry;
+}
+
+/**
+ * Small parts gathered by material, to be merged into one mesh of each, so
+ * that a model's detail costs a few draws rather than one a part.
+ */
+export interface DetailParts {
+  /** Adds geometries made of the given material. */
+  add(material: THREE.Material, ...geometries: THREE.BufferGeometry[]): void;
+  /** One mesh of each material, merging what was added. */
+  meshes(): THREE.Mesh[];
+}
+
+export function detailParts(): DetailParts {
+  const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  return {
+    add(material, ...geometries) {
+      const pieces = byMaterial.get(material) ?? [];
+      pieces.push(...geometries);
+      byMaterial.set(material, pieces);
+    },
+    meshes() {
+      return [...byMaterial].map(([material, pieces]) =>
+        part(merged(pieces), material, [0, 0, 0]),
+      );
+    },
+  };
 }
