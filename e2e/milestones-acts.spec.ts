@@ -74,7 +74,7 @@ function milestonesSection(page: Page) {
   };
 }
 
-test("with the last Milestone reached, the panel shows the last Act, and says so sensibly, with no line below moving up", async ({
+test("with the last Milestone reached, the panel shows the last Act, and says so sensibly, with no line below moving up, after the celebration that every Milestone is reached", async ({
   page,
 }) => {
   await page.goto("/?seed=1");
@@ -111,6 +111,12 @@ test("with the last Milestone reached, the panel shows the last Act, and says so
   await expect(section.next).toHaveText("Next none left");
   const after = await section.living.boundingBox();
   expect(after?.y).toBeGreaterThanOrEqual(before?.y ?? Infinity);
+
+  // It comes as the last Milestone still to reach is reached, whichever it is.
+  const celebration = page.getByRole("dialog", { name: "Ready for Crew" });
+  await expect(celebration).toBeVisible();
+  await celebration.getByRole("button", { name: "Carry on" }).click();
+  await expect(celebration).toBeHidden();
 
   await section.toggle.click();
   await expect(section.summary).toHaveText("every Milestone reached");

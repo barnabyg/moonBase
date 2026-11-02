@@ -921,6 +921,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Pick the Battery bank in the build menu, place it on clear ground beside the Lander, and set the game to 20x. In a few real seconds the Robot has built it.",
       'A notification says "Milestone reached: Power storage before the first Night", and another that Act 4: Permanence begins, the last Act there is.',
       'The panel now says "Act 4: Permanence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
+      'A "Ready for Crew" message opens over everything, as every Milestone is now reached, with the game paused. Press Carry on: the game runs at 20x again.',
       "Leave the game running: it carries on, and nothing ends.",
       'Click the Milestones title to fold it: beside the title it says "every Milestone reached".',
     ],
@@ -1028,14 +1029,14 @@ export const tryScenarios: readonly TryScenario[] = [
   {
     id: "act-4-end",
     title:
-      "The end of Act 4, on Earth Day 2,850, at the long-game play guide's base with Vault cistern unlocked, 1,381 kg of water and $20,389M",
+      "The end of Act 4, on Earth Day 2,850, at the long-game play guide's base with a Large-scale Crew Habitat planned and waiting for water, 557 kg of water and $4,815M",
     slow: true,
     steps: [
-      'Pause the game. Vault cistern has just been unlocked and is not built yet: a ring of water round the Buried Habitat that cuts the dose rate to a fifth. Radiation says about "593.4 / 600 mSv", with the limit about 440 days off, some 300 Earth Days past the end. Funding is about $20,389M and Water about 1,381 kg. The guide has switched off the growing hall, Greenhouse, optics works and grinding line, to save the 2,000 kg of water a vault cistern takes at once.',
-      "Decide whether to build a vault cistern or let the Greenhouse, growing hall and optics have the water. Not building one: click each on the map, press Switch on, and play on.",
-      "Building one: set the game to 20x until a notification says the Lander has landed. The manifest is locked while it is away, and opens once it is unloaded. Open the Launch manifest: the guide has put a water tank's shell and heater on it. Add 14 cistern cells, under Protection, 1,900 kg in all, and press Send the Lander. On the next trip, send the last 2 cistern cells.",
-      "When the water tank's parts come, build it: without a second tank the base holds only 1,400 kg of water. When the cells come, pick Vault cistern in the build menu and click on the Buried Habitat's mound. It fills itself once Water passes about 2,050 kg, and then Radiation's limit moves thousands of Earth Days off.",
-      "Play on at 20x to Earth Day 3,000, about 30 minutes, where the Campaign's content runs out. Note whether this last stretch had a purpose, whether a vault cistern was worth building for a Campaign you would stop at Earth Day 3,000, and whether those Earth Days had enough to do or dragged.",
+      'Pause the game. The Milestones say "Now" is Large-scale Crew Habitat commissioned, the last. The Work panel says the Large-scale Crew Habitat is waiting for about 1,992 kg more water: stocking it must leave the Mission Director a reserve. Water is about 557 of 3,400 kg and Oxygen about 624 kg, enough for its 600 kg. Funding is about $4,815M, and Science about 8,930, 70 short of a Vault cistern. Radiation says about "593.3 / 600 mSv", with the limit after Earth Day 3,000.',
+      "The Greenhouse and growing hall are running, and drink the water it waits for; the guide has switched the optics works and grinding line off to save it. Decide: switch the Greenhouse and growing hall off in the Base panel to stock it sooner, which leaves the Vault cistern's Science out of reach, or let them earn it. The guide waits until Vault cistern is unlocked, about 4 Earth Days on, then switches them off, and its habitat was stocked and commissioned on about Earth Day 2,879.",
+      'Set the game to 20x. Once there is the water, Water and Oxygen fall by 2,500 kg and 600 kg at once and the Robots assemble it. As it is commissioned, every Milestone is reached and a "Ready for Crew" message opens over everything, with the game paused. Press Carry on.',
+      "If you like, then build a vault cistern: unlock it in the Tech Tree, ship its 16 cistern cells, under Protection, over two Launches, and place it on the Buried Habitat's mound. It fills itself once Water passes about 2,050 kg. The guide commissioned one on about Earth Day 2,950.",
+      "Play on at 20x to Earth Day 3,000, about 30 minutes, where the Campaign's content runs out. Note whether saving up for the habitat and stocking it felt like a purpose or a wait, whether the celebration landed, and whether those Earth Days had enough to do or dragged.",
     ],
     save: () => longGameSaveOn(2850),
   },
