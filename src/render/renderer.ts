@@ -20,6 +20,7 @@ import { createRegolithHeapView } from "./regolith-heap-view";
 import { createRobotViews } from "./robot-views";
 import { createRoverViews } from "./rover-views";
 import { createEarth, createGround } from "./scenery";
+import { createStars } from "./stars";
 
 export type { Frame, PlacementPreview };
 
@@ -106,7 +107,13 @@ export function createRenderer(
     // several times over.
     drawsInSoftware(webgl) ? 1 : webgl.capabilities.getMaxAnisotropy(),
   );
-  scene.add(ground.group, createEarth(earthDirection), ...lighting.objects);
+  const stars = createStars();
+  scene.add(
+    ground.group,
+    createEarth(earthDirection),
+    stars.object,
+    ...lighting.objects,
+  );
 
   const cameraControls = createCameraControls(
     camera,
@@ -177,6 +184,7 @@ export function createRenderer(
         focus,
         camera.position.distanceTo(focus),
       );
+      stars.update(current.lunation, camera.position);
       lander.update(frame, realSeconds);
       stockpile.group.position.copy(toScene(current.stockpile.position));
       stockpile.showStock(

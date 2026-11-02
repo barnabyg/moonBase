@@ -10,9 +10,9 @@ import {
 
 // The look of the south pole: grey Regolith pitted with craters and strewn
 // with rocks, low hills on the horizon, a black sky and Earth low above them.
-// The sun and its long shadows are in lighting.ts. The base map itself stays
-// flat, as the simulation treats it; only the craters' rims and the rocks
-// stand up from it.
+// The sun and its long shadows are in lighting.ts, and the stars at Night in
+// stars.ts. The base map itself stays flat, as the simulation treats it; only
+// the craters' rims and the rocks stand up from it.
 
 /** A small, fixed pseudo-random sequence, so the scenery looks the same on every load. */
 export function fixedRandom(seed: number): () => number {
