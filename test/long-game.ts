@@ -970,29 +970,42 @@ export const longGameSteps: readonly PlayStep[] = [
     milestoneId: undefined,
     description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a third Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
     play(play) {
-      play.keepUp(unlockEveryDesign);
-      play.keepUp(buyInTurn());
-      play.keepUp(runWorkshops);
-      play.keepUp(runLargeExtractionPlant);
-      play.keepUp(runArrayWorks);
-      play.keepUp(loadTheLander);
-      play.keepUp(runPropellantPlants);
-      play.keepUp(shipBuriedHabitat);
-      play.keepUp(moveIntoBuriedHabitat);
-      play.keepUp(shipASecondRobot);
-      play.keepUp(waterTheGreenhouse);
-      // Last, to see what the others have just done.
-      play.keepUp(giveUpOnMissedTargets());
-      const end = toGameMinutes({ earthDays: LONG_GAME_END_EARTH_DAY });
-      play.waitUntil(
-        `Earth Day ${LONG_GAME_END_EARTH_DAY}`,
-        (state) => state.clock.elapsedMinutes >= end,
-        LONGEST_PLAY_ON,
-      );
+      keepTheBaseGoing(play);
+      playOnUntil(play, LONG_GAME_END_EARTH_DAY);
       checkEverythingResearched(play);
     },
   },
 ];
+
+/**
+ * Has the long-game play guide's last step keep the base going, as its
+ * description says, for as long as the Campaign is then played.
+ */
+export function keepTheBaseGoing(play: Play): void {
+  play.keepUp(unlockEveryDesign);
+  play.keepUp(buyInTurn());
+  play.keepUp(runWorkshops);
+  play.keepUp(runLargeExtractionPlant);
+  play.keepUp(runArrayWorks);
+  play.keepUp(loadTheLander);
+  play.keepUp(runPropellantPlants);
+  play.keepUp(shipBuriedHabitat);
+  play.keepUp(moveIntoBuriedHabitat);
+  play.keepUp(shipASecondRobot);
+  play.keepUp(waterTheGreenhouse);
+  // Last, to see what the others have just done.
+  play.keepUp(giveUpOnMissedTargets());
+}
+
+/** Lets the Campaign run until the Earth Day given. */
+export function playOnUntil(play: Play, earthDay: number): void {
+  const end = toGameMinutes({ earthDays: earthDay });
+  play.waitUntil(
+    `Earth Day ${earthDay}`,
+    (state) => state.clock.elapsedMinutes >= end,
+    LONGEST_PLAY_ON,
+  );
+}
 
 /** Plays the long-game play guide, as far as it goes. */
 export function playLongGame(

@@ -2,7 +2,7 @@
 // <scenario>`). See docs/trying-things.md. It prepares the scenario's save with
 // Vite's module runner, as the play guides do, writes it to the ignored `.try/`
 // folder, then starts the dev server with the address that makes the game load it.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createServer, runnerImport } from "vite";
 
@@ -44,19 +44,26 @@ if (chosen === undefined) {
 }
 
 const plugins = chosen.crowded === true ? [await crowdedPlugin()] : [];
-console.log(`Preparing ${chosen.id}...`);
-// On the same catalogue as the game will run on.
-const { module: prepared } = await runnerImport("/test/try-scenarios.ts", {
-  root,
-  configFile: false,
-  logLevel: "error",
-  plugins,
-});
-const save = prepared.tryScenarios
-  .find((scenario) => scenario.id === chosen.id)
-  .save();
-mkdirSync(new URL("../.try/", import.meta.url), { recursive: true });
-writeFileSync(new URL(`../.try/${chosen.id}.moonbase`, import.meta.url), save);
+// `--keep` starts from the save prepared last time, for a slow scenario: it is
+// what that code and catalogue made, so prepare it afresh after changing them.
+const saveFile = new URL(`../.try/${chosen.id}.moonbase`, import.meta.url);
+if (process.argv.includes("--keep") && existsSync(saveFile)) {
+  console.log(`Keeping the ${chosen.id} save prepared last time.`);
+} else {
+  console.log(`Preparing ${chosen.id}...`);
+  // On the same catalogue as the game will run on.
+  const { module: prepared } = await runnerImport("/test/try-scenarios.ts", {
+    root,
+    configFile: false,
+    logLevel: "error",
+    plugins,
+  });
+  const save = prepared.tryScenarios
+    .find((scenario) => scenario.id === chosen.id)
+    .save();
+  mkdirSync(new URL("../.try/", import.meta.url), { recursive: true });
+  writeFileSync(saveFile, save);
+}
 
 // Firefox is the only supported browser, as in run.bat.
 const firefox = `${process.env.ProgramFiles ?? "C:\\Program Files"}\\Mozilla Firefox\\firefox.exe`;
