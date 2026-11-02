@@ -70,7 +70,7 @@ It plays the reference Campaign's play guide (`test/reference-campaign.ts`), the
 
 It prints the reference Campaign's timeline, then when each Research Task was completed and each Design unlocked, then the spare Components in stock Lunation by Lunation with what Launches brought before and after the Workshop, then Act 2's Structures and whether its targets were met, then the Funding every 100 Earth Days and what Exports earned in Act 2, then what Exports earned in Act 4 and what became of the propellant, then the Buried Habitat's dates with the Radiation Dose at each, then when the Greenhouse was commissioned with the Science it earned and the rounds it lost, then the game's forecast of the date the Radiation Dose reaches its limit. The forecast counts only the Solar Particle Events the Mission Director knows of, so the limit really comes sooner, as [the last time it was played to](balancing.md#targets) showed. That is why the guide plays the whole length rather than trusting a forecast.
 
-It takes about 10 minutes of one full core, reporting on stderr every 100 Earth Days how far it has got, with the timeline on stdout at the end (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it.
+It takes about 10 minutes of one full core, reporting on stderr every 100 Earth Days how far it has got, with the timeline on stdout at the end (`scripts/long-game.mjs` stops it at a hard limit of 60), so it stays out of `npm run verify`, and no test plays it. It plays at below-normal priority, so the PC stays usable while it does.
 
 ### CI plays it
 
