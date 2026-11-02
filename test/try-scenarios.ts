@@ -396,6 +396,66 @@ function buriedHabitatSave(): string {
   });
 }
 
+/** Where `crewHabitatSave` builds the Large-scale Crew Habitat, in view north-west of the Lander. */
+export const CREW_HABITAT_SITE = { x: -24, y: 22 } as const;
+
+/**
+ * Early in a Campaign with every Design unlocked and every Milestone reached but
+ * the last, and a Large-scale Crew Habitat built as far as its Commissioning
+ * in Daylight from the Components and oxygen and water a save was edited to
+ * have, so that the last Milestone and its celebration come in a few game-hours. It plays only
+ * as far as the Robot's building takes.
+ */
+export function crewHabitatSave(): string {
+  const type = catalogue.structureTypes.find(({ id }) => id === "crew-habitat");
+  if (type?.stockedWith === undefined) {
+    throw new Error("expected a Large-scale Crew Habitat");
+  }
+  const { stockedWith } = type;
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      unlockEverything(state);
+      reachEveryMilestoneBut(state, "crew-habitat-commissioned");
+      addComponents(state, type.components);
+      // What it is stocked with, and as much again, beyond what its tanks hold.
+      for (const stock of state.lifeSupport) {
+        const fill = stockedWith.find(
+          ({ stockId }) => stockId === stock.stockId,
+        );
+        if (fill !== undefined) stock.kilograms = 2 * fill.kilograms;
+      }
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  // Planned early enough in a Daylight to be commissioned in it, as its building
+  // takes about 9 Earth Days.
+  for (
+    let hours = 0;
+    campaign.snapshot().lunation.part !== "daylight" ||
+    campaign.snapshot().lunation.minutesRemaining <
+      toGameMinutes({ earthDays: 12 });
+    hours++
+  ) {
+    if (hours > 40 * 24) throw new Error("Daylight never came.");
+    campaign.advance(60);
+  }
+  const planned = campaign.planConstruction({
+    structureTypeId: type.id,
+    position: CREW_HABITAT_SITE,
+  });
+  if (!planned.ok) throw new Error(planned.message);
+  for (
+    let hours = 0;
+    campaign.snapshot().constructions[0]?.stage !== "commissioning";
+    hours++
+  ) {
+    if (hours > 40 * 24) throw new Error("It never came to its Commissioning.");
+    campaign.advance(60);
+  }
+  return campaign.save();
+}
+
 /** Where `opticsBase` puts what makes precision optics, and what powers it. */
 const OPTICS_BASE_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -978,6 +1038,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Play on at 20x to Earth Day 3,000, about 30 minutes, where the Campaign's content runs out. Note whether this last stretch had a purpose, whether a vault cistern was worth building for a Campaign you would stop at Earth Day 3,000, and whether those Earth Days had enough to do or dragged.",
     ],
     save: () => longGameSaveOn(2850),
+  },
+  {
+    id: "crew-habitat",
+    title:
+      "Early in a Campaign with every Milestone reached but the last, and a Large-scale Crew Habitat being commissioned",
+    steps: [
+      'Pause the game. The Milestones say "Act 4: Permanence", with Large-scale Crew Habitat commissioned as "Now". The Work panel shows the Large-scale Crew Habitat being commissioned. Find it on the map north-west of the Lander: three long white vaults side by side, joined by a lower spine with an airlock at each end.',
+      "Click it: the pop-up says it is a Large-scale Crew Habitat. The status panel's Oxygen and Water are lower by the 600 kg and 2,500 kg it was stocked with as its Assembly started.",
+      'Set the game to 20x. Within a few real seconds it is commissioned (if Commissioning fails, the Robot tries again), and a "Ready for Crew" message opens over everything, saying the base has moved on to its next phase and that the Campaign goes on. The game speed now shows Pause.',
+      'Press "Carry on": the message closes and the game runs at 20x again. A notification says "Milestone reached: Large-scale Crew Habitat commissioned", and the Milestones say every Milestone is reached. The Base panel has no "Move here" button beside it.',
+      "Save the game and load the save: the message doesn't open again.",
+      "Open the Guide: How it works says what the last Milestone builds towards, and the Structures tab has the Large-scale Crew Habitat under Life Support, saying what it is stocked with.",
+    ],
+    save: crewHabitatSave,
   },
   {
     id: "workshop",
