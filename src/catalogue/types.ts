@@ -773,8 +773,9 @@ export interface RoverType {
 
 /**
  * Expeditions: the Robot drives the Rover off the map and comes back some
- * time later with water ice. The Rover wears down by Dust at its rate for
- * each game-hour it is driven, there and back as on the map.
+ * time later with the reward of the type of Expedition the player chose, such
+ * as water ice or Science. The Rover wears down by Dust at its rate for each
+ * game-hour it is driven, there and back as on the map.
  */
 export interface ExpeditionRules {
   /** The types the player can choose from: water ice, always there, first. */

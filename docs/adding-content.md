@@ -92,15 +92,15 @@ Tests and docs:
 
 ## The catalogue's version
 
-`version` in `src/catalogue/catalogue.ts` is a label, with no written rule behind it until now. No game code reads it. The reference Campaign's timeline and the pacing report print it, and a catalogue test checks that it is a whole number from 1 up, so nothing fails if you forget. It isn't in a save, whose format has its own version.
+`version` in `src/catalogue/catalogue.ts` is a label. No game code reads it. The reference Campaign's timeline and the pacing report print it, and a catalogue test checks that it is a whole number from 1 up, so nothing fails if you forget. It isn't in a save, whose format has its own version.
 
-What the history shows, with version 66 reached one step at a time:
+The rule comes from what the history showed when it was written, at version 66, reached one step at a time:
 
 - Each ticket that adds content raises it by one in the commit that changes the catalogue, as all three above did.
 - So do changes to numbers or to the words alone: `b5ca87a` changed one Milestone's hint, and `79fe87b` was for descriptions.
 - A change to code beside the catalogue, with no data changed, leaves it alone (`174b24a`).
 - When two branches took the same number, a later commit raised it again for the two together (`9346be9`).
 
-So raise it by one when a change alters what the catalogue holds. That has been the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
+So raise it by one when a change alters what the catalogue holds. Before it was written down, that was the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
 
 The docs quote the version a figure was measured at, so change the number there only when you measure again: [`docs/balancing.md`](balancing.md#targets) still quotes version 61 for a long-game figure.

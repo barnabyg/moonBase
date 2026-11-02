@@ -62,12 +62,12 @@ The test figures are from the CI run of the merge of pull request #206 into `mai
 | Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)       | over 30×   |
 | CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                    | about 3×   |
 | CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | 8.6 min for one share                                                                                      | about 3.5× |
-| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | not yet played in CI; about 10 min on a developer's PC                                                     | about 6×   |
-| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | as above; 15 min above the hard limit, so that the script reports being stopped                            | 7.5×       |
+| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                       | about 6×   |
+| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
 
-The long game's rows have no CI figure yet. Replace them with the slowest seen once it has played there, and raise the limits if the margin is thin.
+The long game's figures are the slowest of its 14 green plays in CI up to and including the merge of pull request #230 into `main` (2 November 2026), from the first on pull request #210: pull request #224's play, run 41508111671. Plays took from 4.6 to 9.9 minutes, as the runners' speed varies; a developer's PC takes about 10.
 
-The runners' speed varies a lot from one run to the next, so the job limits are set against the slowest run, not a typical one. In the run above the four shares took 24.5 minutes between them, so the end-to-end limit would only just cover every test landing on one runner; a share of a quarter of them has more margin than that.
+The runners' speed varies a lot from one run to the next, so the job limits are set against the slowest run, not a typical one. In the run of pull request #206's merge the four end-to-end shares took 24.5 minutes between them, so the end-to-end limit would only just cover every test landing on one runner; a share of a quarter of them has more margin than that.
 
 The cost of a generous limit is that a test that really hangs takes longer to report. That is cheaper than a red run that has to be investigated and re-run.
 
