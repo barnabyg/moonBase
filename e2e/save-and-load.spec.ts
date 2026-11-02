@@ -98,7 +98,7 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   const saved = {
     statuses: await statuses.allTextContents(),
     structures: await page
-      .getByRole("list", { name: "Structures" })
+      .getByRole("group", { name: "Structures", exact: true })
       .textContent(),
     work: await work.textContent(),
   };
@@ -121,9 +121,9 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   );
 
   await expect(statuses).toHaveText(saved.statuses);
-  await expect(page.getByRole("list", { name: "Structures" })).toHaveText(
-    saved.structures ?? "",
-  );
+  await expect(
+    page.getByRole("group", { name: "Structures", exact: true }),
+  ).toHaveText(saved.structures ?? "");
   await expect(work).toHaveText(saved.work ?? "");
   // It carries on from there.
   await page.getByRole("button", { name: "20x" }).click();

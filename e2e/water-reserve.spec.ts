@@ -33,7 +33,10 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
   page,
 }) => {
   await loadOpticsBase(page);
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   const works = structures
     .getByRole("listitem")
     .filter({ hasText: "Optics works" });

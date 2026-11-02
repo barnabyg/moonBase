@@ -550,6 +550,23 @@ body {
   margin-top: 4px;
 }
 
+/* A type's Structures, under a heading that folds them away. */
+
+.structure-group > .panel-section__title {
+  padding: 4px 0;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.structure-group > .panel-section__body {
+  padding: 0 0 2px 11px;
+}
+
+.structure-group + .structure-group {
+  border-top-color: rgb(255 255 255 / 6%);
+}
+
 .entry {
   display: flex;
   flex-wrap: wrap;

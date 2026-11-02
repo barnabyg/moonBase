@@ -34,7 +34,7 @@ test("a water-processing plant fills the base's water to its limit, waits for ta
 }) => {
   await loadFullStoreBase(page);
   const plant = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: "Water-processing plant" });
   const water = page

@@ -33,7 +33,9 @@ test("the Robot carries out the Construction of a solar array placed on the map,
     .click();
 
   await expect(
-    page.getByRole("list", { name: "Structures" }).getByRole("listitem"),
+    page
+      .getByRole("group", { name: "Structures", exact: true })
+      .getByRole("listitem"),
   ).toHaveText([
     /^Solar array Condition 100% commissioned · Dust coating \d+%(?!,)/,
   ]);
@@ -104,7 +106,10 @@ test("dismantling a Structure has the Robot take it apart and return most of its
 }) => {
   await planSolarArray(page);
   const skip = page.getByRole("button", { name: "Skip to next event" });
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array Condition \d+% commissioned/,

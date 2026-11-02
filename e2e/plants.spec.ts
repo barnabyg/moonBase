@@ -20,7 +20,7 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
   await (await chooser).setFiles(batchSave);
 
   const plants = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: /plant/ });
   await expect(plants).toHaveText([
@@ -52,7 +52,7 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
   await loadFile(switchSave);
 
   const structures = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem");
   const waterPlant = structures.filter({ hasText: "Water-processing plant" });
   const extraction = structures.filter({ hasText: "Extraction plant" });
@@ -115,7 +115,7 @@ test("a Plant switched on between batches says so at once, then starts its next 
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(switchSave);
   const extraction = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: "Extraction plant" });
   await expect(extraction).toContainText(/Condition \d+% switched off/);
@@ -145,7 +145,7 @@ test("a Plant to be dismantled can no longer be switched off or on", async ({
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(switchSave);
   const waterPlant = page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: "Water-processing plant" });
   await expect(

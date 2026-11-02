@@ -140,7 +140,10 @@ test("the pop-up's Dismantle does what the Base panel's does, and the pop-up clo
 }) => {
   const site = await planSolarArray(page);
   const skip = page.getByRole("button", { name: "Skip to next event" });
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array Condition \d+% commissioned/,

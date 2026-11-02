@@ -43,7 +43,10 @@ test("a water wall built over a shielded Habitat shows it as water-walled and cu
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(waterWallSave);
 
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   const habitat = structures
     .getByRole("listitem")
     .filter({ hasText: /^Inflatable Habitat/ });

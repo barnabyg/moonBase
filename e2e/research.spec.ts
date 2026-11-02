@@ -213,7 +213,7 @@ test("the Research section shows the observing programme a telescope works on at
   );
   await expect(
     page
-      .getByRole("list", { name: "Structures" })
+      .getByRole("group", { name: "Structures", exact: true })
       .getByRole("listitem")
       .filter({ hasText: "Telescope" }),
   ).toContainText("observing");

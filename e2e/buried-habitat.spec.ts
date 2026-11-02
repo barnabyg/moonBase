@@ -44,7 +44,7 @@ function radiation(page: Page) {
 
 function structure(page: Page, label: RegExp) {
   return page
-    .getByRole("list", { name: "Structures" })
+    .getByRole("group", { name: "Structures", exact: true })
     .getByRole("listitem")
     .filter({ hasText: label });
 }

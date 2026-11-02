@@ -11,7 +11,7 @@ import { formatCondition } from "./format";
 import { machineLabel, robotLabel, structureLabel } from "./labels";
 import type { Stat } from "./stat";
 import { holdHeight } from "./hold";
-import { createPanelSection } from "./panel-section";
+import { createPanelSection, type PanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createMeter } from "./stat";
 import {
@@ -109,14 +109,29 @@ export function createBasePanel(
   panel.className = "base-panel";
   panel.setAttribute("aria-label", "Base");
 
+  // The Structures, listed together by type, each type in a group the
+  // player can fold away on its own. A group goes on the end when the first
+  // of its type is built, so that the groups above it hold still, and goes
+  // when the last of its type is dismantled.
   const structuresSection = createPanelSection("structures", "Structures");
-  const structures = document.createElement("ul");
-  structures.className = "entries";
+  const structures = document.createElement("div");
+  structures.className = "structure-groups";
+  structures.setAttribute("role", "group");
   structures.setAttribute("aria-label", "Structures");
   structuresSection.body.append(
     createRepairHint(describeRepair("maintained")),
     structures,
   );
+  const groups = new Map<string, StructureGroup>();
+  const groupFor = (structureTypeId: string): StructureGroup => {
+    let group = groups.get(structureTypeId);
+    if (group === undefined) {
+      group = createStructureGroup(structureTypeId);
+      structures.append(group.section.element);
+      groups.set(structureTypeId, group);
+    }
+    return group;
+  };
   const structureEntries = new Map<
     string,
     Entry & { readonly controls: StructureControls }
@@ -128,7 +143,7 @@ export function createBasePanel(
     );
     const controls = createStructureControls(structure, campaign, showResult);
     entry.actions.append(...controls.elements);
-    structures.append(entry.item);
+    groupFor(structure.structureTypeId).list.append(entry.item);
     return { ...entry, controls };
   };
 
@@ -201,6 +216,20 @@ export function createBasePanel(
           structureEntries.delete(id);
         }
       }
+      for (const [structureTypeId, group] of groups) {
+        const count = group.list.childElementCount;
+        if (count === 0) {
+          group.section.element.remove();
+          groups.delete(structureTypeId);
+        } else {
+          group.section.count(count);
+          group.section.warn(
+            group.list.querySelector(
+              ".entry--broken, .entry__condition--low",
+            ) !== null,
+          );
+        }
+      }
       structuresSection.element.hidden = structureEntries.size === 0;
       structuresSection.count(structureEntries.size);
 
@@ -244,7 +273,8 @@ export function createBasePanel(
       );
     },
     startAfresh() {
-      for (const entry of structureEntries.values()) entry.item.remove();
+      for (const group of groups.values()) group.section.element.remove();
+      groups.clear();
       structureEntries.clear();
       for (const entries of [robotEntries, machineEntries, roverEntries]) {
         for (const entry of entries.values()) entry.item.remove();
@@ -252,6 +282,31 @@ export function createBasePanel(
       }
     },
   };
+}
+
+/** A type's Structures in the Base panel, under a heading that folds them away. */
+interface StructureGroup {
+  readonly section: PanelSection;
+  /** Where the type's entries go. */
+  readonly list: HTMLUListElement;
+}
+
+/**
+ * A group for a type's Structures, headed by the type's label and how many
+ * there are, and marked while any of them is Broken or low on Condition, so
+ * that it shows even when folded. It stays folded on the next visit, as
+ * sections do, and starts open for a type the player hasn't folded.
+ */
+function createStructureGroup(structureTypeId: string): StructureGroup {
+  const label = structureLabel(structureTypeId);
+  const section = createPanelSection(`structures:${structureTypeId}`, label);
+  section.element.classList.add("structure-group");
+  section.element.dataset["row"] = `group:${structureTypeId}`;
+  const list = document.createElement("ul");
+  list.className = "entries";
+  list.setAttribute("aria-label", label);
+  section.body.append(list);
+  return { section, list };
 }
 
 /** A line at the top of a section saying how what it lists is repaired. */

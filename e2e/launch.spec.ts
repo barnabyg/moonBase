@@ -57,7 +57,10 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   // so the Mission Director waits aboard the Lander until both are past.
   await skipUntil(page, "Daylight has come");
   await skipUntil(page, "Solar Particle Event over");
-  const structures = page.getByRole("list", { name: "Structures" });
+  const structures = page.getByRole("group", {
+    name: "Structures",
+    exact: true,
+  });
   await structures.getByRole("button", { name: "Move in" }).click();
   await expect(
     page.getByRole("status", { name: "Mission Director" }),
