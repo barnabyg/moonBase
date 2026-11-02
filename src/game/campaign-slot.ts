@@ -30,7 +30,7 @@ export function createCampaignSlot(first: Campaign): CampaignSlot {
       current.setPlantRecipe(structureId, recipeId),
     switchPlant: (structureId, setting) =>
       current.switchPlant(structureId, setting),
-    startExpedition: () => current.startExpedition(),
+    startExpedition: (typeId) => current.startExpedition(typeId),
     queueResearchTask: (researchTaskId) =>
       current.queueResearchTask(researchTaskId),
     removeQueuedResearchTask: (researchTaskId) =>
