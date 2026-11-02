@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { catalogue, type Catalogue } from "../src/catalogue";
-import type {
-  GroundPosition,
-  MachineSnapshot,
-  Snapshot,
+import {
+  loadCampaign,
+  type GroundPosition,
+  type MachineSnapshot,
+  type Snapshot,
 } from "../src/simulation";
-import { scenario, type Scenario } from "./scenario";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
 
 // The Robot and the excavator stand idle when no other Work Order wants
 // them, rather than digging Regolith.
@@ -19,26 +20,51 @@ const habitatSite: GroundPosition = { x: 25, y: -20 };
 /** On the Habitat's footprint, but not at its centre. */
 const onTheHabitat: GroundPosition = { x: 27, y: -18.5 };
 
-/** Runs the game a game-minute at a time until the condition holds, returning every state. */
+/**
+ * Runs the game a game-minute at a time until the condition holds, returning
+ * every state. Each state is read once, as reading it builds a Snapshot.
+ */
 function runUntil(
   game: Scenario,
   done: (state: Snapshot) => boolean,
 ): Snapshot[] {
   const states: Snapshot[] = [];
+  let state = game.state;
   for (let minute = 0; minute < 20 * 24 * 60; minute++) {
-    if (done(game.state)) return states;
-    states.push(game.advance({ minutes: 1 }).state);
+    if (done(state)) return states;
+    state = game.advance({ minutes: 1 }).state;
+    states.push(state);
   }
   throw new Error("It never happened.");
 }
 
+/**
+ * Plays a set-up once, the first time it is needed, and keeps its save and
+ * the ids it found; each call then loads the save afresh, so that no test
+ * sees another's game.
+ */
+function playedOnce<Ids>(
+  play: () => { game: Scenario; ids: Ids },
+): () => { game: Scenario } & Ids {
+  let played: { text: string; ids: Ids } | undefined;
+  return () => {
+    if (played === undefined) {
+      const { game, ids } = play();
+      played = { text: game.campaign.save(), ids };
+    }
+    const loaded = loadCampaign(played.text);
+    if (!loaded.ok) throw new Error(loaded.message);
+    return { game: scenarioOf(loaded.campaign), ...played.ids };
+  };
+}
+
 /** A newly commissioned Habitat, with nothing else built. */
-function commissionedHabitat(): { game: Scenario; habitatId: string } {
+const commissionedHabitat = playedOnce(() => {
   const game = scenario().plan("habitat", habitatSite);
   const habitatId = game.state.constructions[0]?.id ?? "";
   runUntil(game, (state) => state.constructions.length === 0);
-  return { game, habitatId };
-}
+  return { game, ids: { habitatId } };
+});
 
 function planShielding(game: Scenario, position: GroundPosition) {
   return game.campaign.planConstruction({
@@ -161,11 +187,7 @@ if (printerType === undefined || shieldingType === undefined) {
 }
 
 /** A commissioned Habitat cabled to a solar array, with its shielding just planned. */
-function shieldingPlanned(): {
-  game: Scenario;
-  habitatId: string;
-  shieldingId: string;
-} {
+const shieldingPlanned = playedOnce(() => {
   const game = scenario()
     .plan("solar-array", { x: 20, y: 12 })
     .plan("habitat", habitatSite);
@@ -173,15 +195,34 @@ function shieldingPlanned(): {
   runUntil(game, (state) => state.constructions.length === 0);
   const result = planShielding(game, onTheHabitat);
   if (!result.ok) throw new Error(`Planning was refused: ${result.message}`);
-  return { game, habitatId, shieldingId: result.constructionId };
+  return { game, ids: { habitatId, shieldingId: result.constructionId } };
+});
+
+/**
+ * The shielding planned above, built until it is commissioned: the state
+ * as it was planned, every state from then on, and the game at the end.
+ */
+const shieldingBuilt = playedOnce(() => {
+  const { game, ...ids } = shieldingPlanned();
+  const planned = game.state;
+  const states = runUntil(game, (state) => state.constructions.length === 0);
+  return { game, ids: { ...ids, planned, states } };
+});
+
+/** The states up to and including the first for which the condition holds. */
+function statesUntil(
+  states: readonly Snapshot[],
+  done: (state: Snapshot) => boolean,
+): readonly Snapshot[] {
+  const index = states.findIndex(done);
+  if (index === -1) throw new Error("It never happened.");
+  return states.slice(0, index + 1);
 }
 
 describe("building Regolith shielding", () => {
   it("goes through Site Preparation, Assembly and Commissioning, using no Components and needing no cable", () => {
-    const { game, shieldingId } = shieldingPlanned();
-    const stock = game.state.stockpile.components;
-
-    const states = runUntil(game, (state) => state.constructions.length === 0);
+    const { game, shieldingId, planned, states } = shieldingBuilt();
+    const stock = planned.stockpile.components;
 
     const stages = states
       .map((state) => state.constructions[0]?.stage)
@@ -205,13 +246,17 @@ describe("building Regolith shielding", () => {
   });
 
   it("is printed by the regolith printer by itself, once the Robot has driven it there and activated it", () => {
-    const { game, shieldingId } = shieldingPlanned();
-    const start = printerOf(game.state).position;
+    const built = shieldingBuilt();
+    const { shieldingId } = built;
+    const start = printerOf(built.planned).position;
 
-    const states = runUntil(
-      game,
+    const states = statesUntil(
+      built.states,
       (state) => state.constructions[0]?.stage === "commissioning",
     );
+    // As the game stood when Commissioning began.
+    const end = states.at(-1);
+    if (end === undefined) throw new Error("expected a state");
 
     const assembly = states.filter(
       (state) => state.constructions[0]?.stage === "assembly",
@@ -251,11 +296,11 @@ describe("building Regolith shielding", () => {
     for (const state of printing.slice(0, -1)) {
       expect(state.robots[0]?.activity).toEqual({ kind: "idle" });
     }
-    expect(printerOf(game.state).position).not.toEqual(start);
+    expect(printerOf(end).position).not.toEqual(start);
     expect(
       Math.hypot(
-        printerOf(game.state).position.x - habitatSite.x,
-        printerOf(game.state).position.y - habitatSite.y,
+        printerOf(end).position.x - habitatSite.x,
+        printerOf(end).position.y - habitatSite.y,
       ),
     ).toBeLessThanOrEqual(
       shieldingType.footprintRadiusMetres +
@@ -276,12 +321,10 @@ describe("a shielded Habitat", () => {
   }
 
   it("is shown as shielded only once its shielding is commissioned", () => {
-    const { game, habitatId } = shieldingPlanned();
+    const { game, habitatId, planned, states } = shieldingBuilt();
     const habitatOf = (state: Snapshot) =>
       state.structures.find((structure) => structure.id === habitatId);
-    expect(habitatOf(game.state)).toMatchObject({ shielded: false });
-
-    const states = runUntil(game, (state) => state.constructions.length === 0);
+    expect(habitatOf(planned)).toMatchObject({ shielded: false });
 
     for (const state of states.slice(0, -1)) {
       expect(habitatOf(state)).toMatchObject({ shielded: false });
@@ -314,14 +357,8 @@ describe("a shielded Habitat", () => {
 });
 
 describe("a Habitat's Regolith shielding once it is built", () => {
-  function shielded() {
-    const planned = shieldingPlanned();
-    runUntil(planned.game, (state) => state.constructions.length === 0);
-    return planned;
-  }
-
   it("keeps any more shielding off the Habitat", () => {
-    const { game } = shielded();
+    const { game } = shieldingBuilt();
 
     expect(planShielding(game, onTheHabitat)).toEqual({
       ok: false,
@@ -348,7 +385,7 @@ describe("a Habitat's Regolith shielding once it is built", () => {
   });
 
   it("keeps new shielding off the Habitat, saying why, until it has been dismantled", () => {
-    const { game, shieldingId } = shielded();
+    const { game, shieldingId } = shieldingBuilt();
     game.campaign.dismantleStructure(shieldingId);
 
     expect(planShielding(game, onTheHabitat)).toEqual({
@@ -359,7 +396,7 @@ describe("a Habitat's Regolith shielding once it is built", () => {
   });
 
   it("can be dismantled, leaving the Habitat unshielded and nothing to carry to the stockpile", () => {
-    const { game, habitatId, shieldingId } = shielded();
+    const { game, habitatId, shieldingId } = shieldingBuilt();
     const stock = game.state.stockpile.components;
     game.campaign.dismantleStructure(shieldingId);
 
