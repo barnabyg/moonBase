@@ -1,8 +1,15 @@
+import { availableParallelism } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E_PORT lets two checkouts (such as git worktrees) run their end-to-end
 // tests at once: each starts its own dev server rather than reusing another's.
 const port = Number(process.env["E2E_PORT"] ?? 4173);
+// One address for both the dev server and Firefox. Vite binds "localhost" to
+// ::1 alone on Windows, while Firefox tries both ::1 and 127.0.0.1 for it, so
+// a page slow to connect fell back to 127.0.0.1, where nothing listens, and
+// failed with NS_ERROR_CONNECTION_REFUSED, hiding why it was slow (see
+// docs/verification.md).
+const host = "127.0.0.1";
 // Headless Firefox on a GPU-less Linux machine can't create an OpenGL
 // context, so CI runs Firefox with a window inside a virtual X display
 // (see .github/workflows/end-to-end.yml).
@@ -24,16 +31,20 @@ export default defineConfig({
   // other's animation frames: in CI, with two workers, one test's page went
   // up to 28 s without a frame while its timers ran on time, and the game
   // only updates what it shows once a frame. One worker is no slower there
-  // overall, as both contend for the same CPUs. Headless runs keep Playwright's
-  // default of half the CPU cores.
-  workers: headed ? 1 : "50%",
+  // overall, as both contend for the same CPUs. Headless runs use half the CPU
+  // cores, but no more than 4: each Firefox makes a WebGL context as the game
+  // starts, and with 8 or 10 starting at once on a developer's PC some pages
+  // stalled for minutes before they loaded (see docs/verification.md).
+  workers: headed
+    ? 1
+    : Math.max(1, Math.min(4, Math.floor(availableParallelism() / 2))),
   reporter: "list",
   // A timeout is there to stop a test that hangs, not to judge its speed.
   // docs/verification.md has the slowest times seen in CI against each limit.
   timeout: 300_000,
   expect: { timeout: 60_000 },
   use: {
-    baseURL: `http://localhost:${port}`,
+    baseURL: `http://${host}:${port}`,
     headless: !headed,
     // Beside the page snapshot a failure leaves anyway, as CI keeps them.
     screenshot: "only-on-failure",
@@ -60,8 +71,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npx vite --port ${port} --strictPort`,
-    url: `http://localhost:${port}`,
+    command: `npx vite --host ${host} --port ${port} --strictPort`,
+    url: `http://${host}:${port}`,
     reuseExistingServer: !process.env["CI"],
   },
 });
