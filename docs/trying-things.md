@@ -23,6 +23,7 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `workshop`            | A base with a Workshop running on two solar arrays and a battery bank, its metals about to run out, and a second Workshop's Components in stock    |
 | `crew-habitat`        | Early in a Campaign with every Milestone reached but the last, and a stocked Large-scale Crew Habitat being commissioned                           |
 | `buried-habitat`      | A base with the Mission Director behind a water wall at 568 mSv, a Buried Habitat commissioned to move to, and a bare Habitat beside it            |
+| `split-network`       | The starting base with the Mission Director moved in, but the Habitat and one battery bank on a network apart from the solar array and other banks |
 | `water-reserve`       | A base with an optics works running on six batches' water above the reserve, and a water-processing plant switched off with water ice to use       |
 | `full-store`          | A base with a water-processing plant running three batches below the limit of 400 kg, its water ice to spare, and an optics works switched off     |
 | `storage-tanks`       | A base with a water tank and an oxygen tank half full, a few hours before Night, and a second water tank's Components in stock                     |

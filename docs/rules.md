@@ -72,7 +72,7 @@ Nothing can be built over the stockpile, the Lander, the landing site or the Rov
 
 ## Power
 
-Solar arrays generate only in Daylight. Battery banks store any surplus and cover any shortfall. The status panel shows each network's generation, use, stored energy and when stored power will run out.
+Solar arrays generate only in Daylight. Battery banks store any surplus and cover any shortfall. The status panel adds up the base's generation, use and stored energy across its networks, and says when the first network's stored power will run out. The Habitat can draw only on its own network, so while the Mission Director lives in a Habitat and another network has a solar array or battery bank, a Habitat line below says what the Habitat's network has stored and when it will run out, and the folded Power section adds how full its battery banks are, for example "Habitat 56%".
 
 When a network can't cover everything, power goes in this order:
 
