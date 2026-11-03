@@ -396,6 +396,54 @@ function buriedHabitatSave(): string {
   });
 }
 
+/** Where `splitNetworkSave` builds the base, in view north-east of the Lander. */
+export const SPLIT_NETWORK_SITES = {
+  solarArray: { x: 20, y: 12 },
+  firstBattery: { x: 30, y: 25 },
+  habitat: { x: 40, y: 40 },
+  secondBattery: { x: 52, y: 52 },
+  thirdBattery: { x: 8, y: 26 },
+} as const;
+
+/**
+ * The starting base, with the Mission Director moved in, but with the
+ * Habitat and one battery bank on a network of their own, and the solar
+ * array and the other two battery banks on another: as a save holds it after
+ * dismantling a battery bank the Habitat was cabled through, before
+ * dismantling joined up the cables it went with. Built in Daylight, then its
+ * cable from the first battery bank to the Habitat taken out of the save.
+ */
+export function splitNetworkSave(): string {
+  const campaign = createCampaign({ seed: REFERENCE_SEED });
+  const sites = SPLIT_NETWORK_SITES;
+  for (const [structureTypeId, position] of [
+    ["solar-array", sites.solarArray],
+    ["battery-bank", sites.firstBattery],
+    ["habitat", sites.habitat],
+    ["battery-bank", sites.secondBattery],
+    ["battery-bank", sites.thirdBattery],
+  ] as const) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  const habitat = campaign
+    .snapshot()
+    .structures.find(({ structureTypeId }) => structureTypeId === "habitat");
+  const moved = campaign.moveMissionDirectorIn(habitat?.id ?? "");
+  if (!moved.ok) throw new Error(moved.message);
+  const save = JSON.parse(campaign.save()) as {
+    state: { cables: { toStructureId: string }[] };
+  };
+  save.state.cables = save.state.cables.filter(
+    ({ toStructureId }) => toStructureId !== habitat?.id,
+  );
+  return JSON.stringify(save, undefined, 2);
+}
+
 /** Where `crewHabitatSave` builds the Large-scale Crew Habitat, in view north-west of the Lander. */
 export const CREW_HABITAT_SITE = { x: -24, y: 22 } as const;
 
@@ -1081,6 +1129,17 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Keeping the Mission Director alive says what a Buried Habitat is for, and the Structures tab has it under Protection. Open the Launch manifest: the vault section and deep life support core are under Protection.",
     ],
     save: buriedHabitatSave,
+  },
+  {
+    id: "split-network",
+    title:
+      "The starting base with the Mission Director moved in, but with the Habitat and one battery bank on a network of their own, apart from the solar array and the other battery banks",
+    steps: [
+      'Pause the game. Look at the status panel\'s Power: Stored says about "337 / 600 kWh" for the whole base, and the Habitat line below it says how little of that the Habitat can draw on, about "112 / 200 kWh", and "own network, lasts 3d 17h". The Mission Director\'s Habitat power says it "fails in" the same time.',
+      'Click the Power title to fold it: beside the title it says the power to spare, how full the base\'s battery banks are, and "Habitat 56%".',
+      "Open it again and set the game to 20x: the Habitat line falls while the base's solar array keeps the other battery banks full, and the warnings that Habitat power will fail come as it runs down.",
+    ],
+    save: splitNetworkSave,
   },
   {
     id: "water-reserve",

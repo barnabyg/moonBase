@@ -14,6 +14,7 @@ import {
   explainObservingProgramme,
   formatAct,
   formatBulkResources,
+  formatHabitatNetworkPower,
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
@@ -31,6 +32,7 @@ import {
   formatStoredPower,
   summariseMilestones,
   summariseMissionDirector,
+  habitatNetworkApart,
   summarisePower,
   summariseResearch,
   summariseBulkResources,
@@ -172,7 +174,18 @@ export function createStatusPanel(
   const powerSection = createPanelSection("power", "Power");
   const power = createStatLine("Power");
   const storedPower = createStatLine("Stored", "Stored power");
-  powerSection.body.append(power.element, storedPower.element);
+  // What the Habitat's own network holds, shown only when some of the
+  // base's power is on another network, where the Habitat can't draw on it.
+  const habitatNetworkPower = createStatLine(
+    "Habitat",
+    "Habitat's network power",
+  );
+  habitatNetworkPower.element.hidden = true;
+  powerSection.body.append(
+    power.element,
+    storedPower.element,
+    habitatNetworkPower.element,
+  );
 
   // The base's stock: Components at the stockpile, and spare Components and
   // how long they will last.
@@ -399,6 +412,20 @@ export function createStatusPanel(
       const stored = formatStoredPower(snapshot.power, forecasts.power);
       storedPower.show(stored);
       storedPower.fill(stored.fraction);
+      const habitatNetwork = habitatNetworkApart(
+        snapshot.power,
+        missionDirector,
+        snapshot.structures,
+      );
+      habitatNetworkPower.element.hidden = habitatNetwork === undefined;
+      if (habitatNetwork !== undefined) {
+        const habitatStored = formatHabitatNetworkPower(
+          habitatNetwork,
+          forecasts.power,
+        );
+        habitatNetworkPower.show(habitatStored);
+        habitatNetworkPower.fill(habitatStored.fraction);
+      }
 
       components.show({ value: formatStock(snapshot.stockpile) });
       // The line before each, so that a new one goes in its place in the list.
@@ -491,7 +518,7 @@ export function createStatusPanel(
           forecasts.lifeSupport,
         ),
       );
-      powerSection.summarise(summarisePower(snapshot.power));
+      powerSection.summarise(summarisePower(snapshot.power, habitatNetwork));
       stockSection.summarise(summariseStock(forecasts.spareComponents));
       bulkSection.summarise(
         summariseBulkResources(snapshot.bulkResources, forecasts.bulkResources),

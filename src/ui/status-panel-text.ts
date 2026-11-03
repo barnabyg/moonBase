@@ -120,12 +120,95 @@ export function formatStoredPower(
   };
 }
 
+/** Whether a Structure of this type generates or stores power. */
+function isPowerSource(structureTypeId: string): boolean {
+  const type = catalogue.structureTypes.find(
+    ({ id }) => id === structureTypeId,
+  );
+  return (
+    type !== undefined &&
+    (type.power.generationKilowatts > 0 || type.power.storageKilowattHours > 0)
+  );
+}
+
+/**
+ * The network of the Habitat the Mission Director lives in, if it is apart
+ * from some of the base's power: another network has a solar array or a
+ * battery bank, which the base's totals count but the Habitat can't draw on.
+ * Undefined while they live aboard the Lander, or when no other network
+ * has a power source.
+ */
+export function habitatNetworkApart(
+  power: Snapshot["power"],
+  missionDirector: MissionDirectorResidence,
+  structures: Snapshot["structures"],
+): PowerNetworkSnapshot | undefined {
+  if (missionDirector.residence !== "habitat") return undefined;
+  const { habitatId } = missionDirector;
+  const home = power.networks.find((network) =>
+    network.structureIds.includes(habitatId),
+  );
+  if (home === undefined) return undefined;
+  const sources = new Set(
+    structures
+      .filter(({ structureTypeId }) => isPowerSource(structureTypeId))
+      .map(({ id }) => id),
+  );
+  const apart = power.networks.some(
+    (network) =>
+      network !== home && network.structureIds.some((id) => sources.has(id)),
+  );
+  return apart ? home : undefined;
+}
+
+/**
+ * Says how much energy the Habitat's own network has stored and when it will
+ * run out, for example "115.3 / 200.0 kWh" and "own network, lasts 3d 18h",
+ * with how full its battery banks are, from 0 to 1, or undefined if it has
+ * none.
+ */
+export function formatHabitatNetworkPower(
+  network: PowerNetworkSnapshot,
+  forecast: PowerForecast,
+): Stat & { readonly fraction: number | undefined } {
+  const capacity = network.storageCapacityKilowattHours;
+  if (capacity === 0) {
+    return {
+      value: "no battery banks",
+      note: "own network",
+      fraction: undefined,
+    };
+  }
+  const stored = network.storedKilowattHours;
+  const first = network.structureIds[0];
+  const minutesUntilEmpty = forecast.networks.find(({ structureIds }) =>
+    structureIds.includes(first ?? ""),
+  )?.minutesUntilEmpty;
+  const lasts =
+    minutesUntilEmpty !== undefined
+      ? `lasts ${formatShortDuration(minutesUntilEmpty)}`
+      : stored > 0
+        ? "doesn't run out"
+        : "empty";
+  return {
+    value: formatCharge(stored, capacity),
+    note: `own network, ${lasts}`,
+    fraction: stored / capacity,
+  };
+}
+
 /**
  * Sums up the base's power for its folded section: the power to spare
  * across its networks, and how full its battery banks are if it has any,
- * for example "+9.70 kW · 78%".
+ * for example "+9.70 kW · 78%". With the Habitat's network apart from some
+ * of the base's power (see `habitatNetworkApart`), it also says how full
+ * the Habitat's own battery banks are, for example "+9.70 kW · 78% ·
+ * Habitat 58%".
  */
-export function summarisePower(power: Snapshot["power"]): string {
+export function summarisePower(
+  power: Snapshot["power"],
+  habitatNetwork?: PowerNetworkSnapshot,
+): string {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
   const spare = signed(
@@ -135,9 +218,20 @@ export function summarisePower(power: Snapshot["power"]): string {
     "kW",
   );
   const capacity = total((network) => network.storageCapacityKilowattHours);
-  if (capacity === 0) return spare;
-  const stored = total((network) => network.storedKilowattHours);
-  return `${spare} · ${Math.round((stored / capacity) * 100)}%`;
+  const parts = [spare];
+  if (capacity > 0) {
+    const stored = total((network) => network.storedKilowattHours);
+    parts.push(`${Math.round((stored / capacity) * 100)}%`);
+  }
+  if (habitatNetwork !== undefined) {
+    const habitatCapacity = habitatNetwork.storageCapacityKilowattHours;
+    parts.push(
+      habitatCapacity === 0
+        ? "Habitat no storage"
+        : `Habitat ${Math.round((habitatNetwork.storedKilowattHours / habitatCapacity) * 100)}%`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 /** Says where the Mission Director lives, for example "aboard the Lander". */
