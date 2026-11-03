@@ -54,7 +54,7 @@ Each Act's pacing targets, added to the targets above as it is built, and measur
 
 ## The larger changes, and why
 
-Each change's reasons, with the figures it was decided on. What the long-game play guide played at each earlier version, and the maintainer's playtests, are in [the balancing history](balancing-history.md); the latest play is under What the guide played, at version 76, below.
+Each change's reasons, with the figures it was decided on. What the long-game play guide played at each earlier version, and the maintainer's playtests, are in [the balancing history](balancing-history.md); the latest play is under What the guide played, at version 78, below.
 
 **Battery banks.** A Night lasts 228 hours. Through it the Habitat draws 274 kWh (1.2 kW), each solar array 11 kWh, and the heaters of the excavator, the regolith printer and the Rover, which the Robot plugs in before every Night, 137 kWh between them. A battery bank stores 200 kWh, about what a small electric car carries, and its heaters draw 0.07 kW, 16 kWh through a Night. The starting stock holds three battery banks, 600 kWh, which carry the Habitat, two solar arrays and all the heaters through a Night, about 480 kWh, with over 100 kWh to spare; two would not. The large battery bank stays the better buy: 800 kWh for 0.2 kW of heaters, less mass and money for each kWh. (A battery bank used to store 60 kWh, and its heaters to draw 0.25 kW, 57 of those 60 through a Night, so no number of battery banks could carry anything else through one.)
 
@@ -197,24 +197,29 @@ So one Greenhouse, as the guide had, doesn't reach the last Design within the Ca
 
 **Why it stands where it does.** Needing Growing halls keeps it until about Earth Day 2,000 at the soonest, and 2,180 for the guide: with no Design behind it, a base with the Funding of Earth Day 1,800 could have it built well before the end, and the last hours would ask nothing again. It costs only 100 Science, as research is full to Earth Day 3,000 and the tree's other tests hold with it: the Research Tasks still pay for all but the vault cistern. The Design's rules want a Design beyond the starting ones to cost some Science. It is a Life Support Design, as a Habitat is, so it takes the Hazards in full, and its Site Preparation is a day's grading, as the Buried Habitat keeps by far the longest dig. Its stocking reuses the water wall's rule, with a list of stocks in the data catalogue (`stockedWith`), and no saved state.
 
-**What the guide played, at version 76.** Every pacing target is met, and nothing before Earth Day 2,180 moves. The guide unlocks Large-scale Crew Habitats on 2,205.0 and buys it after the growing hall, before a vault cistern: two more water tanks and a second oxygen tank, its large extraction plant set to oxygen until there is 630 kg, then the habitat's parts over nine Launches from Earth Day 2,332.3 to 2,637.9, as the Funding allows, holding the optics back once it is planned until there is 2,700 kg of water to stock it. It was commissioned on 2,879.4. The vault cistern, unlocked on 2,853.7 (from 2,831.2, as the 100 Science comes first), followed on 2,950.6, and the last Research Task still finished on 2,994.7.
-
-| What it plays                | At version 75 | At version 76 |
-| ---------------------------- | ------------- | ------------- |
-| Growing halls unlocked       | 2,180.0       | 2,180.0       |
-| Funding on Earth Day 2,300   | $6,721M       | $6,706M       |
-| Funding on Earth Day 2,400   |               | $430M         |
-| Funding on Earth Day 2,600   |               | $1,273M       |
-| Funding on Earth Day 2,800   |               | $3,542M       |
-| Vault cistern unlocked       | 2,831.2       | 2,853.7       |
-| Large-scale Crew Habitat     |               | 2,879.4       |
-| Vault cistern commissioned   |               | 2,950.6       |
-| Last Research Task completed | 2,994.7       | 2,994.7       |
-| Funding at the end           | $22,987M      | $5,366M       |
-
-In Act 4 it sold 2,096 kg of precision optics, 10,251 kg of circuit boards and 3,620 kg of propellant, $47,673M over 147 trips. So Funding is a limit from Earth Day 2,300 to about 2,700, the first time since Act 2 that it has bitten for so long. Stocking the habitat then takes about 240 Earth Days after its last parts were sent: the Greenhouse and growing hall drink the water it waits for, with the optics held back, until the Vault cistern's Design leaves Science nothing to buy and the guide switches them off, and within 26 Earth Days of that it is stocked and commissioned. That is a choice for a player too: switching them off sooner stocks it sooner, but leaves the Vault cistern's 9,000 Science out of reach, as the guide would then fail with a Design never unlocked. Only the last 49 Earth Days ask nothing, and about $5,400M is idle at the end rather than $23,000M.
-
 A first play bought one water tank too few, so the base could hold 2,400 kg of water, less than the 2,549 kg stocking takes with the reserve: the Work panel said so, and the habitat was stocked only once the vault cistern's tank came. The habitat's purchase spans many Launches, so the guide's limit on a purchase making no progress counts each Component that comes as progress (see [the long-game play guide](reference-campaign.md#when-it-fails)); before that, a first play gave up on Earth Day 2,621, one core short. A person has yet to play it: whether saving up for it and stocking it feel like a purpose or a wait, and whether the celebration lands, is for the maintainer's play.
+
+[What the long-game play guide played with the Large-scale Crew Habitat, at version 76](balancing-history.md#the-large-scale-crew-habitat-at-version-76) is in the balancing history.
+
+**Dismantling for spare Components (#236).** Dismantling a Structure used to give back its own Components, less a fifth damaged beyond reuse. It now gives back spare Components instead: one from most Structures and more from larger ones, by their Assembly hours, up to six from a Large-scale Crew Habitat. A Structure printed from Regolith gives back none, or the printer's hours would make spares, which is the Workshop's job. No Structure costs less on a Launch than the spares it gives back, so buying one to dismantle is never a cheaper way to ship them, as the catalogue tests check.
+
+**What the guide played, at version 78.** Version 77 played as 76 did. The guide dismantles only the old Habitat, its water wall and its Regolith shielding, after moving into the Buried Habitat on Earth Day 1,591.6, so they now give back 3 spare Components, where they gave back 2 of the Habitat's Components and 3 water-wall bladders. Nothing before Earth Day 1,636 moves, and every pacing target is met.
+
+| What it plays                             | At version 77 | At version 78 |
+| ----------------------------------------- | ------------- | ------------- |
+| Growing halls unlocked                    | 2,180.0       | 2,180.0       |
+| Funding on Earth Day 2,300                | $6,706M       | $6,878M       |
+| Funding on Earth Day 2,400                | $430M         | $555M         |
+| Funding on Earth Day 2,600                | $1,273M       | $1,241M       |
+| Funding on Earth Day 2,800                | $3,542M       | $3,429M       |
+| Vault cistern unlocked                    | 2,853.7       | 2,818.2       |
+| Large-scale Crew Habitat                  | 2,879.4       | 2,847.5       |
+| Vault cistern commissioned                | 2,950.6       | 2,930.1       |
+| Last Research Task completed              | 2,994.7       | 2,994.7       |
+| Fewest spare Components, after a Workshop | 11            | 6             |
+| Funding at the end                        | $5,366M       | $7,467M       |
+
+From Earth Day 1,636 the Robot's work falls at slightly different times, and the rest of the Campaign plays a little differently. In Act 4 it sold 2,400 kg of precision optics, 10,257 kg of circuit boards, 3,749 kg of propellant and 6 kg of metals, $49,676M over 147 trips: $2,003M more than at version 77, most of the $2,101M more Funding at the end. The Large-scale Crew Habitat's parts went over the same nine Launches, from Earth Day 2,323.9 to 2,642.8, and it was commissioned 32 Earth Days sooner. The Greenhouse and the growing hall each lost 2 rounds for want of water, not 7. The stock of spare Components fell lowest to 6, in the Lunation to Earth Day 2,596, while the habitat's parts were coming, against 11 at version 77, and was back to 26 a Lunation later. The 3 spares from dismantling came about 1,000 Earth Days before that, so the lower low comes from the different order of work, not from them.
 
 ## What the first Acts taught
 
@@ -243,14 +248,14 @@ A Survey earns 2.5 Science an Earth Day, against about 6 from late Research Task
 
 ## Still to watch
 
-- **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end.
+- **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end, and at version 78 about $7,500M.
 - **What Science buys.** The playtest (#189) kept the chain's numbers. A player with several Greenhouses early reaches Vault cistern on about Earth Day 2,200, with 800 Earth Days to spare.
 
 - **A second circuit board chain.** A second extraction plant, vacuum fabrication plant and circuit board plant cost about $200M and fill the Return Mass with circuit boards, worth three times metals. They are the reference Campaign's items, so their prices can't rise without changing its timeline, and it stays the best money a base can spend, far better than anything in Act 2. Metals then have no room, and Act 3's propellant isn't worth burning for them.
 
 - **Two Habitats on one network.** Commissioning a Buried Habitat beside the old one adds 1.2 kW, which a two-array base can't spare: its forecast warns of the Night, and the Workshop, among the last in line for power, runs less. Dismantling the old one, or adding solar arrays and battery banks, cures it, but nothing but the forecast tells the player so.
 - **Machine heaters.** The Machines' and Rover's heaters draw from the Habitat's network every Night, because the Robot parks them beside the nearest powered Structure. That is about a third of what the battery banks have to carry, and nothing tells the player. It is how the code parks them, so it is noted here rather than balanced away.
-- **Spare Components.** Dust wears everything down steadily, so a growing base uses spare Components fast: the reference Campaign keeps 30 in stock, topped up by every Launch, until a Workshop takes that over. With fewer, Maintenance waits for spares, solar arrays wear down to Broken, and a Night can then empty the battery banks. With one Workshop the long-game play guide's stock fell to 3 on about Earth Day 2,685 and recovered, for a cause never found; with two and a concentrator tower it no longer does, and its low after Earth Day 2,500 was 25. It has since been less comfortable: with a Greenhouse's second Robot and more Structures its low was 12 at data catalogue version 70, and 2 at version 71, on about Earth Day 2,980, with no trace yet of why. At version 72 it has a third Workshop: with two, a growing hall and two ice lines, in a run also short of water, it stayed at about none from Earth Day 2,330. With three, and all the chain's Structures, its low was 7.
+- **Spare Components.** Dust wears everything down steadily, so a growing base uses spare Components fast: the reference Campaign keeps 30 in stock, topped up by every Launch, until a Workshop takes that over. With fewer, Maintenance waits for spares, solar arrays wear down to Broken, and a Night can then empty the battery banks. With one Workshop the long-game play guide's stock fell to 3 on about Earth Day 2,685 and recovered, for a cause never found; with two and a concentrator tower it no longer does, and its low after Earth Day 2,500 was 25. It has since been less comfortable: with a Greenhouse's second Robot and more Structures its low was 12 at data catalogue version 70, and 2 at version 71, on about Earth Day 2,980, with no trace yet of why. At version 72 it has a third Workshop: with two, a growing hall and two ice lines, in a run also short of water, it stayed at about none from Earth Day 2,330. With three, and all the chain's Structures, its low was 7. Its low was 11 at version 77, and 6 at version 78, in the Lunation to Earth Day 2,596, as the Large-scale Crew Habitat's parts came.
 - **Skipping in the late game.** Skip to next event stops at every event, and on a large base nearly all of them are Maintenance starting or finishing: from the guide's base on Earth Day 1,400, 30 Earth Days took 49 skips, a median of 8.4 game-hours each, about 4 real seconds at 20x. So it doesn't shorten the late game, which is why Act 4's playtest played stretches from saves rather than skipping through.
 - **Three Launches for a Buried Habitat.** Its 5,300 kg of parts take three Lander trips, and the playtest (#178) found the wait drags a little. It was kept, as not bad enough to change; watch it if Act 4 is felt to drag elsewhere.
 - **One extraction plant.** It can make oxygen or silicon, but not both at once, so wafer and circuit board production slows while the oxygen is topped up.
