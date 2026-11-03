@@ -36,7 +36,7 @@ Trying and playing it:
 - `test/long-game.ts`: steps that build it, with its Design in `designsTheLongGameUses`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
-- Open the pull request and let CI play the long game, as `npm run verify` doesn't, then record what changes in [`docs/balancing.md`](balancing.md) from the timeline in the run's summary. [`docs/reference-campaign.md`](reference-campaign.md#ci-plays-it) says when it plays, what to run before it, and when playing it by hand is worth it. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
+- Open the pull request and let CI play the long game, as `npm run verify` doesn't, then record what changes in [`docs/balancing.md`](balancing.md) from the timeline in the run's summary. A new play's figures replace the latest play's there, beside the change they come from, and the play they replace moves unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` keeps only the latest figures and doesn't grow with each play. Each figure names the version it was played at. [`docs/reference-campaign.md`](reference-campaign.md#ci-plays-it) says when it plays, what to run before it, and when playing it by hand is worth it. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
 
 Tests and docs:
 
@@ -50,7 +50,7 @@ Everything for a Structure, and:
 
 - `recipes` on its Structure type in `src/catalogue/structures.ts`, using `src/catalogue/recipes.ts` to read them. The catalogue tests run every Plant through the same checks of its recipes, power and Components.
 - `src/catalogue/resources.ts`: any new bulk resource or Export. The `bulk-resource-has-a-use` and `export-can-be-sold` rules fail one that nothing takes in or makes.
-- `PLANT_SHAPES` in `src/render/plant-models.ts`: its shape, instead of a case in `createStructureModel`, unless it needs a model no shape can draw, as a Greenhouse's lit dome does. Keep its vessels, and fixtures such as gas bottles or a radiator, on the plinth. `test/plant-models.test.ts` checks that every Plant's model stays within its footprint, but not that it stays on its plinth. Nothing catches a missing shape: without either it is drawn as a solar array.
+- `PLANT_SHAPES` in `src/render/plant-models.ts`: its shape, instead of a case in `createStructureModel`, unless it needs a model no shape can draw, as a Greenhouse's lit dome does. Keep its vessels, and fixtures such as gas bottles or a radiator, on the plinth. A new kind of vessel goes in `src/render/plant-vessels.ts`: a kind in `PlantVessel`, and its drawing in `VESSEL_DRAWINGS`, which the type check asks for. `test/plant-models.test.ts` checks that every Plant's model stays within its footprint, but not that it stays on its plinth. Nothing catches a missing shape: without either it is drawn as a solar array.
 - `src/simulation/plants.ts`: a recipe that works differently, such as making Components (`componentsPerHour`).
 - The forecasts, if it makes or uses something they count: `src/simulation/spare-forecast.ts`, `bulk-forecast.ts`, `life-support.ts` or `self-sufficiency.ts`, and what `src/ui/status-panel-text.ts` says of them. A recipe that takes a life support stock leaves the reserve, and is counted by the forecast, with no more code; anything else that takes one, which isn't a Plant's recipe, should ask `life-support-reserve.ts` what it may take. A recipe that makes a stock with a limit waits or discards with no more code, and anything else that adds to one, or adds to how much it holds, goes through `storage-limits.ts`. Nothing catches it: the forecast just goes on ignoring the Plant.
 - `describeRecipeFlows` in `src/ui/describe.ts` and `formatPlantRates` in `src/ui/structure-state.ts`, if its recipe has a new shape. The type check only catches a change to a type they read.
@@ -92,15 +92,15 @@ Tests and docs:
 
 ## The catalogue's version
 
-`version` in `src/catalogue/catalogue.ts` is a label, with no written rule behind it until now. No game code reads it. The reference Campaign's timeline and the pacing report print it, and a catalogue test checks that it is a whole number from 1 up, so nothing fails if you forget. It isn't in a save, whose format has its own version.
+`version` in `src/catalogue/catalogue.ts` is a label. No game code reads it. The reference Campaign's timeline and the pacing report print it, and a catalogue test checks that it is a whole number from 1 up, so nothing fails if you forget. It isn't in a save, whose format has its own version.
 
-What the history shows, with version 66 reached one step at a time:
+The rule comes from what the history showed when it was written, at version 66, reached one step at a time:
 
 - Each ticket that adds content raises it by one in the commit that changes the catalogue, as all three above did.
 - So do changes to numbers or to the words alone: `b5ca87a` changed one Milestone's hint, and `79fe87b` was for descriptions.
 - A change to code beside the catalogue, with no data changed, leaves it alone (`174b24a`).
 - When two branches took the same number, a later commit raised it again for the two together (`9346be9`).
 
-So raise it by one when a change alters what the catalogue holds. That has been the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
+So raise it by one when a change alters what the catalogue holds. Before it was written down, that was the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
 
 The docs quote the version a figure was measured at, so change the number there only when you measure again: [`docs/balancing.md`](balancing.md#targets) still quotes version 61 for a long-game figure.
