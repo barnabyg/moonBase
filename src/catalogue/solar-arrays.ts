@@ -139,6 +139,7 @@ function arrayType(
       `${prefabricated ? "prefabricated " : ""}${made}solar array`,
     ),
     designId: designOf(mast, panel, prefabricated),
+    listGroup: "power",
     solarArray: {
       sealed: mast.sealed,
       screened: panel.screened,

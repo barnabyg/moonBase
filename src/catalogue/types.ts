@@ -172,6 +172,14 @@ export interface Catalogue {
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
   /**
+   * The groups the Base panel lists Structures in, by what they are for, in
+   * the order it shows them.
+   */
+  readonly structureListGroups: readonly {
+    readonly id: StructureListGroup;
+    readonly label: string;
+  }[];
+  /**
    * The share, from 0 to 1, of a dismantled Structure's Components that are
    * damaged beyond reuse, rounded to the nearest whole Component.
    */
@@ -556,6 +564,20 @@ export interface ObservingProgramme {
   readonly science: number;
 }
 
+/**
+ * The groups the Base panel lists Structures in, by what they are for. A
+ * Habitat's Regolith shielding, water wall or vault cistern goes with it.
+ */
+export type StructureListGroup =
+  | "habitats"
+  | "power"
+  | "lights"
+  | "landing-and-parking"
+  | "life-support"
+  | "industry"
+  | "tanks"
+  | "science";
+
 /** The six categories the Tech Tree's Designs fall into. */
 export type DesignCategory =
   | "power"
@@ -897,6 +919,8 @@ export interface StructureType {
   readonly label: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /** The group the Base panel lists it in. */
+  readonly listGroup: StructureListGroup;
   /**
    * What its parts make it, if it is a kind of solar array. The player only
    * plans the plain one; its parts decide which kind it turns out to be.

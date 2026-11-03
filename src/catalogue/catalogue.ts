@@ -17,7 +17,11 @@ import {
   lifeSupportStocks,
   selfSufficiency,
 } from "./resources";
-import { structureTypes, dismantlingLossShare } from "./structures";
+import {
+  structureTypes,
+  structureListGroups,
+  dismantlingLossShare,
+} from "./structures";
 import { programmeGrantMillionDollars, launch } from "./launch";
 import {
   researchQueueLimit,
@@ -48,7 +52,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 76,
+  version: 77,
   map,
   lander,
   stockpile,
@@ -64,6 +68,7 @@ export const catalogue: Catalogue = {
   digging,
   componentTypes,
   structureTypes,
+  structureListGroups,
   dismantlingLossShare,
   startingStock,
   lifeSupportStocks,

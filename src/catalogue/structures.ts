@@ -18,6 +18,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "concentrator-tower",
     label: "Concentrator tower",
     designId: "concentrator-towers",
+    listGroup: "power",
     footprintRadiusMetres: 5.5,
     components: [
       { componentId: "heliostat-panel", count: 6 },
@@ -49,6 +50,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "battery-bank",
     label: "Battery bank",
     designId: "battery-banks",
+    listGroup: "power",
     footprintRadiusMetres: 2,
     components: [
       { componentId: "battery-module", count: 3 },
@@ -87,6 +89,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "whipple-shielded-battery-bank",
     label: "Whipple-shielded battery bank",
     designId: "whipple-shielding",
+    listGroup: "power",
     footprintRadiusMetres: 2,
     components: [
       { componentId: "battery-module", count: 3 },
@@ -124,6 +127,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "large-battery-bank",
     label: "Large battery bank",
     designId: "large-battery-banks",
+    listGroup: "power",
     footprintRadiusMetres: 3,
     components: [
       { componentId: "large-battery-module", count: 4 },
@@ -156,6 +160,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "light-mast",
     label: "Light mast",
     designId: "light-masts",
+    listGroup: "lights",
     footprintRadiusMetres: 0.8,
     components: [
       { componentId: "mast-pole", count: 1 },
@@ -191,6 +196,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "tall-light-mast",
     label: "Tall Light Mast",
     designId: "tall-light-masts",
+    listGroup: "lights",
     footprintRadiusMetres: 1.2,
     components: [
       { componentId: "tall-mast-pole", count: 1 },
@@ -231,6 +237,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "telescope",
     label: "Telescope",
     designId: "optical-telescopes",
+    listGroup: "science",
     footprintRadiusMetres: 1.5,
     components: [
       { componentId: "telescope-optics", count: 1 },
@@ -263,6 +270,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "habitat",
     label: "Inflatable Habitat",
     designId: "inflatable-habitat",
+    listGroup: "habitats",
     footprintRadiusMetres: 4,
     components: [
       { componentId: "habitat-core", count: 1 },
@@ -300,6 +308,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "hardened-habitat",
     label: "Hardened Habitat",
     designId: "hardened-habitat",
+    listGroup: "habitats",
     footprintRadiusMetres: 4,
     components: [
       { componentId: "habitat-core", count: 1 },
@@ -335,6 +344,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "regolith-shielding",
     label: "Regolith shielding",
     designId: "regolith-shielding",
+    listGroup: "habitats",
     // The same as the Habitat's, so that the excavator, left beside the
     // Habitat after grading its site, isn't in the way.
     footprintRadiusMetres: 4,
@@ -376,6 +386,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "sintered-regolith-shielding",
     label: "Sintered Regolith shielding",
     designId: "microwave-sintering",
+    listGroup: "habitats",
     footprintRadiusMetres: 4,
     components: [],
     stageHours: {
@@ -412,6 +423,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "water-wall",
     label: "Water wall",
     designId: "water-wall-shielding",
+    listGroup: "habitats",
     // The same as the Habitat's and its shielding's, which it stands over.
     footprintRadiusMetres: 4,
     components: [{ componentId: "water-wall-bladder", count: 4 }],
@@ -450,6 +462,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "vault-cistern",
     label: "Vault cistern",
     designId: "vault-cistern",
+    listGroup: "habitats",
     // The same as the Buried Habitat's, which it stands round.
     footprintRadiusMetres: 6,
     components: [{ componentId: "cistern-cell", count: 16 }],
@@ -503,6 +516,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "buried-habitat",
     label: "Buried Habitat",
     designId: "buried-habitat",
+    listGroup: "habitats",
     footprintRadiusMetres: 6,
     components: [
       { componentId: "vault-section", count: 8 },
@@ -552,6 +566,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "crew-habitat",
     label: "Large-scale Crew Habitat",
     designId: "crew-habitats",
+    listGroup: "habitats",
     footprintRadiusMetres: 10,
     components: [
       { componentId: "vault-section", count: 24 },
@@ -590,6 +605,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "landing-pad",
     label: "Landing pad",
     designId: "landing-pads",
+    listGroup: "landing-and-parking",
     // Wide enough for the Lander to stand on with room round it, and for
     // its engine to blast nothing but the pad.
     footprintRadiusMetres: 7,
@@ -631,6 +647,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "sintered-landing-pad",
     label: "Sintered landing pad",
     designId: "regolith-sintering",
+    listGroup: "landing-and-parking",
     footprintRadiusMetres: 7,
     components: [],
     stageHours: {
@@ -669,6 +686,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "lit-landing-pad",
     label: "Lit landing pad",
     designId: "landing-pad-lights",
+    listGroup: "landing-and-parking",
     footprintRadiusMetres: 7,
     components: [
       { componentId: "pad-panel", count: 8 },
@@ -709,6 +727,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "parking-area",
     label: "Parking area",
     designId: "parking-areas",
+    listGroup: "landing-and-parking",
     footprintRadiusMetres: 5.5,
     components: [{ componentId: "bay-socket", count: 4 }],
     stageHours: {
@@ -748,6 +767,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "extraction-plant",
     label: "Extraction plant",
     designId: "regolith-extraction",
+    listGroup: "industry",
     footprintRadiusMetres: 3,
     // A reactor that melts Regolith and splits it by electrolysis, and
     // the plant that draws the oxygen off.
@@ -858,6 +878,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "large-extraction-plant",
     label: "Large extraction plant",
     designId: "molten-regolith-electrolysis",
+    listGroup: "industry",
     footprintRadiusMetres: 4,
     components: [
       { componentId: "molten-regolith-cell", count: 1 },
@@ -942,6 +963,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "water-processing-plant",
     label: "Water-processing plant",
     designId: "water-processing",
+    listGroup: "life-support",
     footprintRadiusMetres: 2.5,
     // A heated tank that melts the ice, and a still that cleans the water.
     components: [
@@ -1005,6 +1027,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "electrolysis-plant",
     label: "Electrolysis plant",
     designId: "water-electrolysis",
+    listGroup: "life-support",
     footprintRadiusMetres: 2.5,
     components: [
       { componentId: "ice-melter", count: 1 },
@@ -1055,6 +1078,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "vacuum-fabrication-plant",
     label: "Vacuum fabrication plant",
     designId: "vacuum-fabrication",
+    listGroup: "industry",
     footprintRadiusMetres: 2.5,
     // A furnace that grows silicon crystals in the Moon's vacuum, and a saw
     // that slices them into wafers.
@@ -1115,6 +1139,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "circuit-board-plant",
     label: "Circuit board plant",
     designId: "circuit-board-fabrication",
+    listGroup: "industry",
     footprintRadiusMetres: 2.5,
     // An etcher that lays circuits on metal-cored boards, and an oven
     // that solders the chips cut from the wafers onto them.
@@ -1191,6 +1216,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "integrated-fabrication-plant",
     label: "Integrated fabrication plant",
     designId: "integrated-fabrication",
+    listGroup: "industry",
     footprintRadiusMetres: 3,
     components: [
       { componentId: "crystal-furnace", count: 1 },
@@ -1267,6 +1293,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "propellant-plant",
     label: "Propellant plant",
     designId: "propellant-production",
+    listGroup: "industry",
     footprintRadiusMetres: 4,
     ownStorage: {
       resource: { kind: "bulk-resource", resourceId: "propellant" },
@@ -1324,6 +1351,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "large-propellant-plant",
     label: "Large propellant plant",
     designId: "large-propellant-production",
+    listGroup: "industry",
     footprintRadiusMetres: 5,
     ownStorage: {
       resource: { kind: "bulk-resource", resourceId: "propellant" },
@@ -1387,6 +1415,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "propellant-tank",
     label: "Propellant tank",
     designId: "propellant-production",
+    listGroup: "tanks",
     footprintRadiusMetres: 3.5,
     components: [
       { componentId: "propellant-tank-shell", count: 1 },
@@ -1433,6 +1462,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "greenhouse",
     label: "Greenhouse",
     designId: "lunar-greenhouses",
+    listGroup: "life-support",
     footprintRadiusMetres: 5,
     components: [
       { componentId: "greenhouse-dome", count: 1 },
@@ -1486,6 +1516,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "growing-hall",
     label: "Growing hall",
     designId: "growing-halls",
+    listGroup: "life-support",
     footprintRadiusMetres: 8,
     components: [
       { componentId: "hall-vault-section", count: 4 },
@@ -1537,6 +1568,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "optics-works",
     label: "Optics works",
     designId: "precision-optics",
+    listGroup: "industry",
     footprintRadiusMetres: 3.5,
     components: [
       { componentId: "optical-grinder", count: 2 },
@@ -1600,6 +1632,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "grinding-line",
     label: "Grinding line",
     designId: "optics-grinding-line",
+    listGroup: "industry",
     footprintRadiusMetres: 4.5,
     components: [
       { componentId: "optical-grinder", count: 3 },
@@ -1666,6 +1699,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "thermal-store",
     label: "Thermal store",
     designId: "thermal-storage",
+    listGroup: "power",
     footprintRadiusMetres: 4.5,
     components: [
       { componentId: "heat-store-core", count: 3 },
@@ -1705,6 +1739,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "water-tank",
     label: "Water tank",
     designId: "bulk-supply-tanks",
+    listGroup: "tanks",
     footprintRadiusMetres: 3,
     components: [
       { componentId: "water-tank-shell", count: 1 },
@@ -1747,6 +1782,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "oxygen-tank",
     label: "Oxygen tank",
     designId: "bulk-supply-tanks",
+    listGroup: "tanks",
     footprintRadiusMetres: 3.5,
     components: [
       { componentId: "oxygen-sphere", count: 1 },
@@ -1791,6 +1827,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "cold-trap-ice-line",
     label: "Cold-trap ice line",
     designId: "cold-trap-mining",
+    listGroup: "life-support",
     footprintRadiusMetres: 3,
     components: [
       { componentId: "cold-trap-head", count: 1 },
@@ -1844,6 +1881,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "array-works",
     label: "Array works",
     designId: "array-fabrication",
+    listGroup: "industry",
     footprintRadiusMetres: 3.5,
     components: [
       { componentId: "panel-line", count: 2 },
@@ -1920,6 +1958,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     id: "workshop",
     label: "Workshop",
     designId: "parts-machining",
+    listGroup: "industry",
     footprintRadiusMetres: 3,
     components: [
       { componentId: "machine-tool", count: 1 },
@@ -1964,6 +2003,17 @@ export const structureTypes: Catalogue["structureTypes"] = [
       },
     ],
   },
+];
+
+export const structureListGroups: Catalogue["structureListGroups"] = [
+  { id: "habitats", label: "Habitats" },
+  { id: "power", label: "Power" },
+  { id: "lights", label: "Lights" },
+  { id: "landing-and-parking", label: "Landing and parking" },
+  { id: "life-support", label: "Life support" },
+  { id: "industry", label: "Industry" },
+  { id: "tanks", label: "Tanks" },
+  { id: "science", label: "Science" },
 ];
 
 export const dismantlingLossShare: Catalogue["dismantlingLossShare"] = 0.2;
