@@ -124,3 +124,22 @@ The long-game play guide at data catalogue version 75, which unlocks Prefabricat
 | Last Research Task completed  | 2,994.7       | 2,994.7       |
 | Funding on Earth Day 2,300    | $6,851M       | $6,721M       |
 | Funding at the end            | $23,544M      | $22,987M      |
+
+## The Large-scale Crew Habitat, at version 76
+
+**What the guide played, at version 76.** Every pacing target is met, and nothing before Earth Day 2,180 moves. The guide unlocks Large-scale Crew Habitats on 2,205.0 and buys it after the growing hall, before a vault cistern: two more water tanks and a second oxygen tank, its large extraction plant set to oxygen until there is 630 kg, then the habitat's parts over nine Launches from Earth Day 2,332.3 to 2,637.9, as the Funding allows, holding the optics back once it is planned until there is 2,700 kg of water to stock it. It was commissioned on 2,879.4. The vault cistern, unlocked on 2,853.7 (from 2,831.2, as the 100 Science comes first), followed on 2,950.6, and the last Research Task still finished on 2,994.7.
+
+| What it plays                | At version 75 | At version 76 |
+| ---------------------------- | ------------- | ------------- |
+| Growing halls unlocked       | 2,180.0       | 2,180.0       |
+| Funding on Earth Day 2,300   | $6,721M       | $6,706M       |
+| Funding on Earth Day 2,400   |               | $430M         |
+| Funding on Earth Day 2,600   |               | $1,273M       |
+| Funding on Earth Day 2,800   |               | $3,542M       |
+| Vault cistern unlocked       | 2,831.2       | 2,853.7       |
+| Large-scale Crew Habitat     |               | 2,879.4       |
+| Vault cistern commissioned   |               | 2,950.6       |
+| Last Research Task completed | 2,994.7       | 2,994.7       |
+| Funding at the end           | $22,987M      | $5,366M       |
+
+In Act 4 it sold 2,096 kg of precision optics, 10,251 kg of circuit boards and 3,620 kg of propellant, $47,673M over 147 trips. So Funding is a limit from Earth Day 2,300 to about 2,700, the first time since Act 2 that it has bitten for so long. Stocking the habitat then takes about 240 Earth Days after its last parts were sent: the Greenhouse and growing hall drink the water it waits for, with the optics held back, until the Vault cistern's Design leaves Science nothing to buy and the guide switches them off, and within 26 Earth Days of that it is stocked and commissioned. That is a choice for a player too: switching them off sooner stocks it sooner, but leaves the Vault cistern's 9,000 Science out of reach, as the guide would then fail with a Design never unlocked. Only the last 49 Earth Days ask nothing, and about $5,400M is idle at the end rather than $23,000M.
