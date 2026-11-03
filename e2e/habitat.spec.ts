@@ -31,17 +31,18 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
     exact: true,
   });
   // Dust has worn the solar array down a little since it was commissioned.
+  // Habitats are listed first.
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array Condition 9\d% commissioned · Dust coating \d+%(?!,)/,
     /^Inflatable Habitat Condition 100% commissioned · unshielded(?!,)/,
+    /^Solar array Condition 9\d% commissioned · Dust coating \d+%(?!,)/,
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 
   await expect(missionDirector).toHaveText("Living in the Inflatable Habitat");
   await expect(lander).toHaveText("Lander landed · free to fly");
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array/,
     /, the Mission Director's home/,
+    /^Solar array/,
   ]);
   await expect(
     structures.getByRole("button", { name: "Move in" }),

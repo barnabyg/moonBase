@@ -1,5 +1,9 @@
-import { catalogue } from "../catalogue";
-import type { Snapshot, StructureSnapshot } from "../simulation";
+import { catalogue, type StructureListGroup } from "../catalogue";
+import {
+  habitatUnder,
+  type Snapshot,
+  type StructureSnapshot,
+} from "../simulation";
 import { setText } from "./dom";
 import {
   formatMachine,
@@ -109,10 +113,9 @@ export function createBasePanel(
   panel.className = "base-panel";
   panel.setAttribute("aria-label", "Base");
 
-  // The Structures, listed together by type, each type in a group the
-  // player can fold away on its own. A group goes on the end when the first
-  // of its type is built, so that the groups above it hold still, and goes
-  // when the last of its type is dismantled.
+  // The Structures, listed by what they are for, each group one the player
+  // can fold away on its own. The groups always come in the catalogue's
+  // order, and a group shows only while it holds something.
   const structuresSection = createPanelSection("structures", "Structures");
   const structures = document.createElement("div");
   structures.className = "structure-groups";
@@ -122,13 +125,20 @@ export function createBasePanel(
     createRepairHint(describeRepair("maintained")),
     structures,
   );
-  const groups = new Map<string, StructureGroup>();
-  const groupFor = (structureTypeId: string): StructureGroup => {
-    let group = groups.get(structureTypeId);
+  const groups = new Map<StructureListGroup, StructureGroup>();
+  const groupFor = (id: StructureListGroup): StructureGroup => {
+    let group = groups.get(id);
     if (group === undefined) {
-      group = createStructureGroup(structureTypeId);
-      structures.append(group.section.element);
-      groups.set(structureTypeId, group);
+      group = createStructureGroup(id);
+      const place = groupPlace(id);
+      const next = [...groups.values()]
+        .filter((other) => groupPlace(other.id) > place)
+        .sort((a, b) => groupPlace(a.id) - groupPlace(b.id))[0];
+      structures.insertBefore(
+        group.section.element,
+        next?.section.element ?? null,
+      );
+      groups.set(id, group);
     }
     return group;
   };
@@ -143,7 +153,6 @@ export function createBasePanel(
     );
     const controls = createStructureControls(structure, campaign, showResult);
     entry.actions.append(...controls.elements);
-    groupFor(structure.structureTypeId).list.append(entry.item);
     return { ...entry, controls };
   };
 
@@ -192,7 +201,8 @@ export function createBasePanel(
   return {
     update(snapshot) {
       const seen = new Set<string>();
-      for (const structure of snapshot.structures) {
+      const listed = new Map<StructureListGroup, ListedStructure[]>();
+      for (const [built, structure] of snapshot.structures.entries()) {
         seen.add(structure.id);
         let entry = structureEntries.get(structure.id);
         if (entry === undefined) {
@@ -209,6 +219,28 @@ export function createBasePanel(
           structure.conditionPercent,
         );
         entry.controls.update(snapshot, structure);
+        // A Habitat's shielding, water wall or vault cistern goes under it.
+        const habitat = habitatUnder(snapshot, structure);
+        const anchor = habitat ?? structure;
+        const groupId = listGroupOf(anchor.structureTypeId);
+        let inGroup = listed.get(groupId);
+        if (inGroup === undefined) {
+          inGroup = [];
+          listed.set(groupId, inGroup);
+        }
+        entry.item.classList.toggle("entry--cover", habitat !== undefined);
+        inGroup.push({
+          item: entry.item,
+          key: [
+            typePlace(anchor.structureTypeId),
+            habitat === undefined
+              ? built
+              : snapshot.structures.findIndex(({ id }) => id === habitat.id),
+            habitat === undefined ? 0 : 1,
+            typePlace(structure.structureTypeId),
+            built,
+          ],
+        });
       }
       for (const [id, entry] of structureEntries) {
         if (!seen.has(id)) {
@@ -216,11 +248,18 @@ export function createBasePanel(
           structureEntries.delete(id);
         }
       }
-      for (const [structureTypeId, group] of groups) {
+      for (const [groupId, inGroup] of listed) {
+        inGroup.sort((a, b) => compareKeys(a.key, b.key));
+        placeInOrder(
+          groupFor(groupId).list,
+          inGroup.map(({ item }) => item),
+        );
+      }
+      for (const [groupId, group] of groups) {
         const count = group.list.childElementCount;
         if (count === 0) {
           group.section.element.remove();
-          groups.delete(structureTypeId);
+          groups.delete(groupId);
         } else {
           group.section.count(count);
           group.section.warn(
@@ -284,29 +323,78 @@ export function createBasePanel(
   };
 }
 
-/** A type's Structures in the Base panel, under a heading that folds them away. */
+/** Where a group comes in the Base panel: the catalogue's order. */
+function groupPlace(id: StructureListGroup): number {
+  return catalogue.structureListGroups.findIndex((group) => group.id === id);
+}
+
+/** Where a Structure type comes within its group: the catalogue's order. */
+function typePlace(structureTypeId: string): number {
+  return catalogue.structureTypes.findIndex(({ id }) => id === structureTypeId);
+}
+
+function listGroupOf(structureTypeId: string): StructureListGroup {
+  return (
+    catalogue.structureTypes.find(({ id }) => id === structureTypeId)
+      ?.listGroup ?? "industry"
+  );
+}
+
+/**
+ * A Structure's entry and where it sorts in its group: by its type, or its
+ * Habitat's, in catalogue order, then in the order they were built, with a
+ * Habitat's covers straight after it.
+ */
+interface ListedStructure {
+  readonly item: HTMLLIElement;
+  readonly key: readonly number[];
+}
+
+function compareKeys(a: readonly number[], b: readonly number[]): number {
+  for (const [place, value] of a.entries()) {
+    const difference = value - (b[place] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+/**
+ * Puts a list's entries in order, moving only those out of place, so that
+ * an entry the player is using keeps its focus while the order holds.
+ */
+function placeInOrder(list: HTMLElement, items: readonly HTMLElement[]): void {
+  for (const [place, item] of items.entries()) {
+    const there = list.children[place];
+    if (there !== item) list.insertBefore(item, there ?? null);
+  }
+}
+
+/** A group of Structures in the Base panel, under a heading that folds them away. */
 interface StructureGroup {
+  readonly id: StructureListGroup;
   readonly section: PanelSection;
-  /** Where the type's entries go. */
+  /** Where the group's entries go. */
   readonly list: HTMLUListElement;
 }
 
 /**
- * A group for a type's Structures, headed by the type's label and how many
- * there are, and marked while any of them is Broken or low on Condition, so
- * that it shows even when folded. It stays folded on the next visit, as
- * sections do, and starts open for a type the player hasn't folded.
+ * A group of Structures, by what they are for, headed by its label and how
+ * many there are, and marked while any of them is Broken or low on
+ * Condition, so that it shows even when folded. It stays folded on the next
+ * visit, as sections do, and starts open for a group the player hasn't
+ * folded.
  */
-function createStructureGroup(structureTypeId: string): StructureGroup {
-  const label = structureLabel(structureTypeId);
-  const section = createPanelSection(`structures:${structureTypeId}`, label);
+function createStructureGroup(id: StructureListGroup): StructureGroup {
+  const label =
+    catalogue.structureListGroups.find((group) => group.id === id)?.label ?? id;
+  const section = createPanelSection(`structures:${id}`, label);
   section.element.classList.add("structure-group");
-  section.element.dataset["row"] = `group:${structureTypeId}`;
+  section.element.dataset["row"] = `group:${id}`;
   const list = document.createElement("ul");
   list.className = "entries";
   list.setAttribute("aria-label", label);
   section.body.append(list);
-  return { section, list };
+  return { id, section, list };
 }
 
 /** A line at the top of a section saying how what it lists is repaired. */

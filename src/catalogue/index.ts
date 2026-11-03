@@ -43,6 +43,7 @@ export type {
   SolarParticleEventRules,
   StorageTank,
   OwnStorage,
+  StructureListGroup,
   StructureType,
   WaterWallRules,
 } from "./types";

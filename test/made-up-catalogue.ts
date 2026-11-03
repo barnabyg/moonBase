@@ -13,6 +13,7 @@ export function structure(
     id,
     label: id,
     designId,
+    listGroup: "industry",
     footprintRadiusMetres: 2,
     components: [],
     stageHours: {

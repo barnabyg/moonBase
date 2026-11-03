@@ -69,8 +69,8 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   await skipUntil(notifications.getByText("Inflatable Habitat commissioned"));
   await structures.getByRole("button", { name: "Move in" }).click();
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array/,
     /^Inflatable Habitat Condition \d+% commissioned · unshielded, the Mission Director's home/,
+    /^Solar array/,
   ]);
   await expect(radiationDose).toContainText(perDay(doseRates.habitat));
 
@@ -82,9 +82,9 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   await skipUntil(notifications.getByText("Regolith shielding commissioned"));
 
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array/,
     /^Inflatable Habitat Condition \d+% commissioned · shielded, the Mission Director's home/,
     /^Regolith shielding Condition 100% commissioned(?! ·)/,
+    /^Solar array/,
   ]);
   await expect(radiationDose).toContainText(perDay(doseRates.shieldedHabitat));
 });

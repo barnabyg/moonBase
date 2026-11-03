@@ -550,7 +550,7 @@ body {
   margin-top: 4px;
 }
 
-/* A type's Structures, under a heading that folds them away. */
+/* A group of Structures, by what they are for, under a heading that folds them away. */
 
 .structure-group > .panel-section__title {
   padding: 4px 0;
@@ -576,6 +576,11 @@ body {
   padding: 5px 0;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* A Habitat's shielding, water wall or vault cistern, set in under it. */
+.entry--cover {
+  padding-left: 14px;
 }
 
 .entry + .entry {

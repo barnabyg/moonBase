@@ -36,6 +36,27 @@ describe("the data catalogue", () => {
     },
   );
 
+  it("lists each group of the Base panel once, every one holding some Structure type, and Habitats' covers and lights in their own groups", () => {
+    const { structureListGroups, structureTypes } = catalogue;
+    const ids = structureListGroups.map(({ id }) => id);
+    const groupOf = (id: string) =>
+      structureTypes.find((type) => type.id === id)?.listGroup;
+
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) {
+      expect(structureTypes.some((type) => type.listGroup === id)).toBe(true);
+    }
+    for (const type of structureTypes) {
+      if (type.habitat || type.shieldsHabitat || type.waterWall) {
+        expect(type.listGroup).toBe("habitats");
+      }
+    }
+    expect([groupOf("light-mast"), groupOf("tall-light-mast")]).toEqual([
+      "lights",
+      "lights",
+    ]);
+  });
+
   it("describes Structures that can be constructed", () => {
     const { structureTypes } = catalogue;
     expect(new Set(structureTypes.map((type) => type.id)).size).toBe(
