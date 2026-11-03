@@ -493,7 +493,7 @@ describe("a Workshop's Batches", () => {
     expect(workshopOf(broken.snapshot()).plant?.batch?.minutesLeft).toBe(left);
   });
 
-  it("loses the Batch it has started if dismantled: neither the metals nor a spare Component come", () => {
+  it("loses the Batch it has started if dismantled: neither the metals nor the Batch's spare Component come", () => {
     const campaign = workshopBase();
     const { id } = workshopOf(campaign.snapshot());
     const stock = spares(campaign.snapshot());
@@ -501,24 +501,19 @@ describe("a Workshop's Batches", () => {
     const dismantled = campaign.dismantleStructure(id);
     if (!dismantled.ok) throw new Error(dismantled.message);
 
-    for (
-      let hours = 0;
-      campaign
-        .snapshot()
-        .structures.some(
-          (structure) => structure.structureTypeId === "workshop",
-        );
-      hours++
-    ) {
+    for (let hours = 0; campaign.snapshot().dismantlings.length > 0; hours++) {
       if (hours > 2 * 24) throw new Error("It was never dismantled.");
-      campaign.advance(10);
+      campaign.advance(60);
     }
     const lost = spares(campaign.snapshot());
-    // At most what it had finished before the Robot started on it.
     campaign.advance(batchMinutes);
     expect(spares(campaign.snapshot())).toBe(lost);
     expect(metals(campaign.snapshot())).toBeLessThanOrEqual(taken);
-    expect(lost - stock).toBeLessThanOrEqual(sparesPerBatch);
+    // At most what it had finished before the Robot started on it, and the
+    // spare Components dismantling it gives back.
+    expect(lost - stock).toBeLessThanOrEqual(
+      sparesPerBatch + type.dismantlingSpareComponents,
+    );
   });
 
   it("is a Plant the player can see the output of, in words", () => {

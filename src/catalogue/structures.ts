@@ -1,7 +1,14 @@
 import { solarArrayTypes } from "./solar-arrays";
 import type { Catalogue } from "./types";
 
-// The Structures that can be planned, and what is lost in dismantling them.
+// The Structures that can be planned.
+//
+// Dismantling a Structure gives back spare Components rather than what it was
+// built from, more for a larger or more complex one, as its Assembly hours
+// measure: 1 under 8 hours, 2 up to 19, 3 up to 39, 4 up to 99, and 6 from
+// 100. One made from Regolith alone gives back none, or printing shielding
+// from free Regolith would make spares, which is the Workshop's job. None
+// costs less on a Launch than the spares it gives back.
 
 export const structureTypes: Catalogue["structureTypes"] = [
   ...solarArrayTypes,
@@ -24,6 +31,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "heliostat-panel", count: 6 },
       { componentId: "receiver-tower", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 6,
       componentDelivery: 3,
@@ -56,6 +64,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "battery-module", count: 3 },
       { componentId: "battery-cabinet", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -95,6 +104,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "battery-module", count: 3 },
       { componentId: "whipple-cabinet", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -133,6 +143,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "large-battery-module", count: 4 },
       { componentId: "large-battery-cabinet", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1.5,
@@ -166,6 +177,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "mast-pole", count: 1 },
       { componentId: "light-head", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 0.5,
       componentDelivery: 0.5,
@@ -202,6 +214,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "tall-mast-pole", count: 1 },
       { componentId: "light-head", count: 2 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 0.5,
@@ -243,6 +256,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "telescope-optics", count: 1 },
       { componentId: "telescope-mount", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 0.5,
@@ -277,6 +291,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "habitat-envelope", count: 1 },
       { componentId: "airlock", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -315,6 +330,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "armoured-habitat-envelope", count: 1 },
       { componentId: "airlock", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -352,6 +368,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // the Habitat, as part of Site Preparation: 3 hours of grading, then
     // 6 of digging. No Components.
     components: [],
+    dismantlingSpareComponents: 0,
     stageHours: {
       sitePreparation: 9,
       componentDelivery: 0,
@@ -389,6 +406,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     listGroup: "habitats",
     footprintRadiusMetres: 4,
     components: [],
+    dismantlingSpareComponents: 0,
     stageHours: {
       sitePreparation: 9,
       componentDelivery: 0,
@@ -427,6 +445,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // The same as the Habitat's and its shielding's, which it stands over.
     footprintRadiusMetres: 4,
     components: [{ componentId: "water-wall-bladder", count: 4 }],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -466,6 +485,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     // The same as the Buried Habitat's, which it stands round.
     footprintRadiusMetres: 6,
     components: [{ componentId: "cistern-cell", count: 16 }],
+    dismantlingSpareComponents: 3,
     stageHours: {
       sitePreparation: 12,
       componentDelivery: 8,
@@ -523,6 +543,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "deep-life-support-core", count: 1 },
       { componentId: "airlock", count: 1 },
     ],
+    dismantlingSpareComponents: 4,
     stageHours: {
       sitePreparation: 120,
       componentDelivery: 8,
@@ -573,6 +594,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "deep-life-support-core", count: 4 },
       { componentId: "airlock", count: 2 },
     ],
+    dismantlingSpareComponents: 6,
     stageHours: {
       // Grading a wide site, not digging a vault in as a Buried Habitat is.
       sitePreparation: 24,
@@ -615,6 +637,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "pad-panel", count: 8 },
       { componentId: "pad-beacon", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 6,
       componentDelivery: 2,
@@ -650,6 +673,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     listGroup: "landing-and-parking",
     footprintRadiusMetres: 7,
     components: [],
+    dismantlingSpareComponents: 0,
     stageHours: {
       sitePreparation: 12,
       componentDelivery: 0,
@@ -693,6 +717,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "pad-beacon", count: 1 },
       { componentId: "landing-floodlight", count: 4 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 6,
       componentDelivery: 2,
@@ -730,6 +755,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
     listGroup: "landing-and-parking",
     footprintRadiusMetres: 5.5,
     components: [{ componentId: "bay-socket", count: 4 }],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 0.5,
@@ -775,6 +801,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "extraction-reactor", count: 1 },
       { componentId: "oxygen-separator", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 3,
       componentDelivery: 1,
@@ -884,6 +911,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "molten-regolith-cell", count: 1 },
       { componentId: "oxygen-separator", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 1,
@@ -970,6 +998,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "ice-melter", count: 1 },
       { componentId: "water-purifier", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1033,6 +1062,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "ice-melter", count: 1 },
       { componentId: "electrolyser-stack", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1086,6 +1116,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "crystal-furnace", count: 1 },
       { componentId: "wafer-saw", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1147,6 +1178,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "circuit-etcher", count: 1 },
       { componentId: "reflow-oven", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1222,6 +1254,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "crystal-furnace", count: 1 },
       { componentId: "board-assembly-line", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1303,6 +1336,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "oxygen-liquefier", count: 2 },
       { componentId: "cryogenic-tank", count: 2 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -1362,6 +1396,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "cryogenic-tank", count: 2 },
       { componentId: "propellant-reactor", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -1421,6 +1456,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "propellant-tank-shell", count: 1 },
       { componentId: "propellant-cooler", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -1468,6 +1504,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "greenhouse-dome", count: 1 },
       { componentId: "growing-rack", count: 2 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -1522,6 +1559,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "hall-vault-section", count: 4 },
       { componentId: "light-pipe", count: 6 },
     ],
+    dismantlingSpareComponents: 3,
     stageHours: {
       sitePreparation: 12,
       componentDelivery: 4,
@@ -1574,6 +1612,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "optical-grinder", count: 2 },
       { componentId: "metrology-bench", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -1638,6 +1677,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "optical-grinder", count: 3 },
       { componentId: "metrology-bench", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 2,
@@ -1705,6 +1745,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "heat-store-core", count: 3 },
       { componentId: "thermal-exchanger", count: 1 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 6,
       componentDelivery: 3,
@@ -1745,6 +1786,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "water-tank-shell", count: 1 },
       { componentId: "tank-heater", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -1788,6 +1830,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "oxygen-sphere", count: 1 },
       { componentId: "tank-cooler", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,
@@ -1833,6 +1876,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "cold-trap-head", count: 1 },
       { componentId: "ice-haul-line", count: 5 },
     ],
+    dismantlingSpareComponents: 2,
     stageHours: {
       sitePreparation: 4,
       componentDelivery: 3,
@@ -1887,6 +1931,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "panel-line", count: 2 },
       { componentId: "casting-furnace", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -1964,6 +2009,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
       { componentId: "machine-tool", count: 1 },
       { componentId: "casting-furnace", count: 1 },
     ],
+    dismantlingSpareComponents: 1,
     stageHours: {
       sitePreparation: 2,
       componentDelivery: 1,
@@ -2015,5 +2061,3 @@ export const structureListGroups: Catalogue["structureListGroups"] = [
   { id: "tanks", label: "Tanks" },
   { id: "science", label: "Science" },
 ];
-
-export const dismantlingLossShare: Catalogue["dismantlingLossShare"] = 0.2;

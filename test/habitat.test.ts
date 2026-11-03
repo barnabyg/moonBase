@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
 import type { GroundPosition, Snapshot } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
 
@@ -178,9 +179,18 @@ describe("dismantling a Habitat", () => {
     );
   });
 
-  it("goes ahead while nobody lives in it", () => {
+  it("goes ahead while nobody lives in it, giving back more spare Components than a small Structure", () => {
     const { game, habitatId } = commissionedHabitat();
+    const spares = () =>
+      game.state.stockpile.components.find(
+        ({ componentId }) =>
+          componentId === catalogue.maintenance.spareComponentId,
+      )?.count ?? 0;
+    const before = spares();
 
     expect(game.campaign.dismantleStructure(habitatId)).toEqual({ ok: true });
+    runUntil(game, (state) => state.dismantlings.length === 0);
+
+    expect(spares() - before).toBe(2);
   });
 });

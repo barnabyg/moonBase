@@ -101,7 +101,7 @@ test("cancelling a Construction removes it and frees its Components", async ({
   await expect(solarArray).toContainText("1 available");
 });
 
-test("dismantling a Structure has the Robot take it apart and return most of its Components", async ({
+test("dismantling a Structure has the Robot take it apart and return a spare Component", async ({
   page,
 }) => {
   await planSolarArray(page);
@@ -125,8 +125,11 @@ test("dismantling a Structure has the Robot take it apart and return most of its
   await skip.click();
   await expect(work).toHaveText("WorkNo work under way");
   await expect(structures).toBeHidden();
-  // One of its two solar panels was damaged beyond reuse, so another solar
-  // array can't be planned from what came back.
+  await expect(page.getByRole("log", { name: "Notifications" })).toContainText(
+    "Solar array dismantled, 1 spare component back in the base's stock",
+  );
+  // What came back is a spare Component, not its solar panels, so another
+  // solar array can't be planned from it.
   await expect(
     page
       .getByRole("complementary", { name: "Build menu" })

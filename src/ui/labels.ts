@@ -87,6 +87,21 @@ export function formatComponents(counts: readonly ComponentCount[]): string {
   );
 }
 
+/**
+ * What dismantling a Structure gives back, the way a sentence would, for
+ * example "2 spare components"; undefined if it gives nothing back.
+ */
+export function dismantlingReturn(structureTypeId: string): string | undefined {
+  const count =
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.dismantlingSpareComponents ?? 0;
+  return count === 0
+    ? undefined
+    : formatComponents([
+        { componentId: catalogue.maintenance.spareComponentId, count },
+      ]);
+}
+
 export function machineLabel(machineTypeId: string): string {
   return (
     catalogue.machineTypes.find((type) => type.id === machineTypeId)?.label ??

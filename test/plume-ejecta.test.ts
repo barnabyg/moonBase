@@ -243,7 +243,7 @@ describe("a Broken Structure", () => {
     });
   });
 
-  it("can be dismantled, and built again from the Components recovered", () => {
+  it("can be dismantled for a spare Component, and built again", () => {
     const game = base([
       ["habitat", habitatSite],
       ["light-mast", near(10, 10)],
@@ -251,14 +251,15 @@ describe("a Broken Structure", () => {
     const mast = structure(game.state, "light-mast");
     send(game);
     skipUntil(game, "lander-landed");
-    const poles = () =>
-      game.state.stockpile.components.find((s) => s.componentId === "mast-pole")
-        ?.count ?? 0;
-    const before = poles();
+    const spares = () =>
+      game.state.stockpile.components.find(
+        (s) => s.componentId === "spare-component",
+      )?.count ?? 0;
+    const before = spares();
 
     expect(game.campaign.dismantleStructure(mast.id)).toEqual({ ok: true });
     skipUntil(game, "structure-dismantled");
-    expect(poles()).toBe(before + 1);
+    expect(spares()).toBe(before + 1);
     buildAll(game.plan("light-mast", near(10, 10)));
 
     expect(structure(game.state, "light-mast").conditionPercent).toBe(100);

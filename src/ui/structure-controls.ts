@@ -1,6 +1,6 @@
 import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot, StructureSnapshot } from "../simulation";
-import { structureLabel } from "./labels";
+import { dismantlingReturn, structureLabel } from "./labels";
 import type { ChoiceResult } from "./refusal";
 import { formatDoseRate } from "./format";
 import { isHabitat, isHome, isToBeDismantled } from "./structure-state";
@@ -91,8 +91,11 @@ export function createStructureControls(
   dismantle.type = "button";
   dismantle.className = "panel-button";
   dismantle.textContent = "Dismantle";
+  const recovered = dismantlingReturn(structure.structureTypeId);
   dismantle.title =
-    "Have the Robot take it apart and carry most of its Components back into the base's stock.";
+    recovered === undefined
+      ? "Have the Robot take it apart. It gives nothing back."
+      : `Have the Robot take it apart and carry ${recovered} back into the base's stock.`;
   dismantle.addEventListener("click", () => {
     showResult(campaign.dismantleStructure(structureId));
   });

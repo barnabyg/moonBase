@@ -179,11 +179,6 @@ export interface Catalogue {
     readonly id: StructureListGroup;
     readonly label: string;
   }[];
-  /**
-   * The share, from 0 to 1, of a dismantled Structure's Components that are
-   * damaged beyond reuse, rounded to the nearest whole Component.
-   */
-  readonly dismantlingLossShare: number;
   /** The Components in the base's stock, which the Lander brought, when a Campaign begins. */
   readonly startingStock: readonly ComponentCount[];
   /**
@@ -938,6 +933,12 @@ export interface StructureType {
    * Regolith alone has none, and so has no Component delivery.
    */
   readonly components: readonly ComponentCount[];
+  /**
+   * How many spare Components dismantling it gives back, in place of the
+   * Components it was assembled from: 0 for a Structure made from Regolith
+   * alone, and at least 1 for any other.
+   */
+  readonly dismantlingSpareComponents: number;
   /**
    * The working time for each stage of Construction, in game-hours, whether
    * a Machine or the Robot does the work. Walking, driving and activating
