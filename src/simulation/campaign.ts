@@ -250,7 +250,8 @@ export interface Campaign {
   cancelConstruction(constructionId: string): CancelResult;
   /**
    * Plans the dismantling of a commissioned Structure, which the Robot then
-   * carries out by itself, returning most of its Components to stock.
+   * carries out by itself, returning the spare Components it gives back to
+   * stock.
    */
   dismantleStructure(structureId: string): DismantleResult;
   /**

@@ -22,6 +22,7 @@ import { formatScience, listInWords } from "./format";
 import {
   componentInSentence,
   componentLabel,
+  dismantlingReturn,
   formatComponents,
   machineLabel,
   researchTaskLabel,
@@ -129,6 +130,14 @@ function stocksMade(
 }
 
 /** Says what a Structure does once it is commissioned, in figures. */
+/** What dismantling a Structure gives back, as a sentence. */
+function dismantledGives(structureTypeId: string): string {
+  const recovered = dismantlingReturn(structureTypeId);
+  return recovered === undefined
+    ? "Dismantled, it gives nothing back."
+    : `Dismantled, it gives back ${recovered}.`;
+}
+
 export function describeStructure(type: StructureType): string {
   const { power } = type;
   const facts = [
@@ -245,6 +254,7 @@ export function describeStructure(type: StructureType): string {
     ...(stage === undefined
       ? []
       : [`The ${machineLabel(stage).toLowerCase()} builds it.`]),
+    dismantledGives(type.id),
   ].join(" ");
 }
 

@@ -16,6 +16,7 @@ export function structure(
     listGroup: "industry",
     footprintRadiusMetres: 2,
     components: [],
+    dismantlingSpareComponents: 0,
     stageHours: {
       sitePreparation: 1,
       componentDelivery: 1,

@@ -153,6 +153,7 @@ function arrayType(
           { componentId: panel.componentId, count: 2 },
           { componentId: mast.componentId, count: 1 },
         ],
+    dismantlingSpareComponents: 1,
     // Standing on less grading, it only has to be unfolded.
     stageHours: prefabricated
       ? {

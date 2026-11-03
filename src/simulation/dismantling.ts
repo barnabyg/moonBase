@@ -6,7 +6,6 @@ import {
 import type { CampaignState } from "./campaign";
 import {
   chooseWorkSpot,
-  componentsFor,
   findStructureType,
   shieldingOver,
   waterWallOver,
@@ -17,7 +16,8 @@ import { hasPowerSource, structureNetworks, type CableState } from "./power";
 
 /**
  * The stages of dismantling a Structure: the Robot takes it apart, then
- * carries the Components it recovers back to the base's stock at the stockpile.
+ * carries the spare Components it recovers back to the base's stock at the
+ * stockpile.
  */
 export type DismantlingStage = "taking-apart" | "returning-components";
 
@@ -213,23 +213,13 @@ function joinUpCables(
 }
 
 /**
- * The Components recovered from a dismantled Structure. The data
- * catalogue's share of them, rounded to the nearest whole Component, is
- * damaged beyond reuse, taken from whichever Component it has most of.
+ * The Components recovered from a dismantled Structure: the spare Components
+ * the data catalogue says it gives back, in place of what it was built from.
  */
 export function recoveredComponents(structureTypeId: string): ComponentCount[] {
-  const recovered: { componentId: string; count: number }[] =
-    componentsFor(structureTypeId);
-  const total = recovered.reduce((sum, need) => sum + need.count, 0);
-  const lost = Math.round(total * catalogue.dismantlingLossShare);
-  for (let index = 0; index < lost; index++) {
-    // The earlier Component in the data catalogue wins a tie.
-    const most = recovered.reduce<(typeof recovered)[number] | undefined>(
-      (best, count) =>
-        best === undefined || count.count > best.count ? count : best,
-      undefined,
-    );
-    if (most !== undefined) most.count -= 1;
-  }
-  return recovered.filter((count) => count.count > 0);
+  const count =
+    findStructureType(structureTypeId)?.dismantlingSpareComponents ?? 0;
+  return count === 0
+    ? []
+    : [{ componentId: catalogue.maintenance.spareComponentId, count }];
 }

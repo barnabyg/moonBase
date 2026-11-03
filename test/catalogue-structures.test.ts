@@ -118,9 +118,37 @@ describe("the data catalogue", () => {
     }
   });
 
-  it("loses less than half of a dismantled Structure's Components", () => {
-    expect(catalogue.dismantlingLossShare).toBeGreaterThanOrEqual(0);
-    expect(catalogue.dismantlingLossShare).toBeLessThan(0.5);
+  it("gives back spare Components from dismantling anything but a Structure made from Regolith alone", () => {
+    for (const type of catalogue.structureTypes) {
+      const spares = type.dismantlingSpareComponents;
+      expect(Number.isInteger(spares), type.id).toBe(true);
+      if (type.components.length === 0) {
+        expect(spares, type.id).toBe(0);
+      } else {
+        expect(spares, type.id).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it("gives back no more by dismantling a Structure than its Components cost on a Launch", () => {
+    // Otherwise buying a Structure to dismantle would be a cheaper way to
+    // ship spare Components than shipping them.
+    const spare = catalogue.launch.items.find(
+      (item) =>
+        item.brings.kind === "component" &&
+        item.brings.componentId === catalogue.maintenance.spareComponentId,
+    );
+    if (spare === undefined) throw new Error("expected spare Components");
+    for (const type of catalogue.structureTypes) {
+      const { kilograms, millionDollars } = shipped(type);
+      const spares = type.dismantlingSpareComponents;
+      expect(kilograms, type.id).toBeGreaterThanOrEqual(
+        spares * spare.massKilograms,
+      );
+      expect(millionDollars, type.id).toBeGreaterThanOrEqual(
+        spares * spare.priceMillionDollars,
+      );
+    }
   });
 
   it("has a landing pad behind a starting Design, built by the Robot from Components a Launch can bring but the starting stock doesn't hold", () => {

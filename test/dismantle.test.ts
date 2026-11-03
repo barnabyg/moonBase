@@ -5,6 +5,7 @@ import type {
   GroundPosition,
   Snapshot,
 } from "../src/simulation";
+import { recoveredComponents } from "../src/simulation/dismantling";
 import { scenario, type Scenario } from "./scenario";
 
 const solarArray = catalogue.structureTypes.find(
@@ -26,8 +27,19 @@ function runUntil(
   throw new Error("It never happened.");
 }
 
-function total(counts: readonly ComponentCount[]): number {
-  return counts.reduce((sum, { count }) => sum + count, 0);
+/** The Components the base's stock has gained, leaving out those it hasn't. */
+function gained(
+  before: readonly ComponentCount[],
+  after: readonly ComponentCount[],
+): ComponentCount[] {
+  return after
+    .map(({ componentId, count }) => ({
+      componentId,
+      count:
+        count -
+        (before.find((stock) => stock.componentId === componentId)?.count ?? 0),
+    }))
+    .filter(({ count }) => count !== 0);
 }
 
 /** A commissioned solar array. */
@@ -38,8 +50,25 @@ function commissionedArray(): { game: Scenario; id: string } {
   return { game, id };
 }
 
+describe("what dismantling gives back", () => {
+  it("is the spare Components the data catalogue gives, more for a larger Structure", () => {
+    const spare = catalogue.maintenance.spareComponentId;
+    expect(recoveredComponents("light-mast")).toEqual([
+      { componentId: spare, count: 1 },
+    ]);
+    expect(recoveredComponents("crew-habitat")).toEqual([
+      { componentId: spare, count: 6 },
+    ]);
+  });
+
+  it("is nothing for a Structure made from Regolith alone", () => {
+    expect(recoveredComponents("regolith-shielding")).toEqual([]);
+    expect(recoveredComponents("sintered-landing-pad")).toEqual([]);
+  });
+});
+
 describe("dismantling a Structure", () => {
-  it("has the Robot take it apart live, then carry most of its Components back into stock", () => {
+  it("has the Robot take it apart live, then carry spare Components back into stock", () => {
     const { game, id } = commissionedArray();
     const stockBefore = game.state.stockpile.components;
 
@@ -61,23 +90,12 @@ describe("dismantling a Structure", () => {
       ),
     ).toHaveLength(solarArray.stageHours.assembly * 60);
     expect(game.state.structures).toEqual([]);
-    const recovered = game.state.stockpile.components.map(
-      (stock, index) => stock.count - (stockBefore[index]?.count ?? 0),
-    );
-    const recoveredTotal = recovered.reduce((sum, count) => sum + count, 0);
-    const builtFrom = total(solarArray.components);
-    expect(recoveredTotal).toBe(
-      builtFrom - Math.round(builtFrom * catalogue.dismantlingLossShare),
-    );
-    expect(recoveredTotal).toBeGreaterThan(builtFrom / 2);
-    for (const [index, stock] of game.state.stockpile.components.entries()) {
-      const used =
-        solarArray.components.find(
-          (need) => need.componentId === stock.componentId,
-        )?.count ?? 0;
-      expect(recovered[index]).toBeGreaterThanOrEqual(0);
-      expect(recovered[index]).toBeLessThanOrEqual(used);
-    }
+    expect(gained(stockBefore, game.state.stockpile.components)).toEqual([
+      {
+        componentId: catalogue.maintenance.spareComponentId,
+        count: solarArray.dismantlingSpareComponents,
+      },
+    ]);
   });
 
   it("takes it off its power network, with its cables, once the Robot starts taking it apart", () => {

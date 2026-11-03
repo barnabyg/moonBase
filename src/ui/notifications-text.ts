@@ -10,7 +10,6 @@ import {
   type RobotSnapshot,
   type StrikeTarget,
 } from "../simulation";
-import { hasComponents } from "./construction-panel-text";
 import {
   formatCondition,
   formatDuration,
@@ -23,6 +22,7 @@ import {
 } from "./format";
 import { describeCause } from "./game-over-text";
 import {
+  dismantlingReturn,
   formatComponents,
   formatExportLines,
   machineLabel,
@@ -64,10 +64,12 @@ export function formatEvent(
       return "Lights switching off to save power, so the battery banks carry the rest of the base through the Night";
     case "construction-completed":
       return `${structureLabel(event.structureTypeId)} commissioned`;
-    case "structure-dismantled":
-      return hasComponents(event.structureTypeId)
-        ? `${structureLabel(event.structureTypeId)} dismantled, its Components back in the base's stock`
-        : `${structureLabel(event.structureTypeId)} dismantled`;
+    case "structure-dismantled": {
+      const recovered = dismantlingReturn(event.structureTypeId);
+      return recovered === undefined
+        ? `${structureLabel(event.structureTypeId)} dismantled`
+        : `${structureLabel(event.structureTypeId)} dismantled, ${recovered} back in the base's stock`;
+    }
     case "life-support-warning":
       return `${stockLabel(event.stockId)} will run out in ${formatDuration(event.minutesUntilEmpty)}`;
     case "habitat-power-warning":
