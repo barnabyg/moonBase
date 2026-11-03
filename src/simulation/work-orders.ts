@@ -22,6 +22,7 @@ import {
   usesPower,
   type CableTarget,
 } from "./power";
+import { isParkingTime } from "./parking";
 import { findStructureToReconnect } from "./reconnection";
 import { inStock } from "./stockpile";
 import { findWaterReserveWait, type WaterReserveWait } from "./water-wall";
@@ -183,9 +184,12 @@ function missingComponents(
  * worked on now and that no other Robot's Work Order is in the way of (see
  * `isInTheWay`), leaving the Rover for an Expedition to the Robot going on
  * it. Maintenance comes first, in the order it was raised, then parking
- * Machines; then the Constructions, dismantling, unloading and loading of
- * the Lander and cables to Structures cut off from power, in the order they
- * were planned; and last, setting a Machine digging. Each Construction's
+ * Machines and Rovers before and during Night; then the Constructions,
+ * dismantling, unloading and loading of the Lander and cables to
+ * Structures cut off from power, in the order they were planned; then
+ * parking them in a parking area's bays in the rest of Daylight, so that
+ * tidying never holds up the base's work; and last, setting a Machine
+ * digging. Each Construction's
  * current stage comes before laying its cable, which can be done at any
  * stage before Commissioning.
  */
@@ -216,9 +220,14 @@ export function claimWorkOrder(
       return workOrder;
     }
   }
-  for (const parking of state.parking) {
-    const workOrder = drivenWorkOrder(parking.target, "park");
-    if (isFree(workOrder)) return workOrder;
+  const parkingTime = isParkingTime(state);
+  const nextParking = () =>
+    state.parking
+      .map((parking) => drivenWorkOrder(parking.target, "park"))
+      .find(isFree);
+  if (parkingTime) {
+    const workOrder = nextParking();
+    if (workOrder !== undefined) return workOrder;
   }
   const plans = [
     ...state.constructions.map((construction) => ({
@@ -284,6 +293,10 @@ export function claimWorkOrder(
   for (const { structureId, next } of plans) {
     const kind = next();
     if (kind !== undefined) return { structureId, kind };
+  }
+  if (!parkingTime) {
+    const workOrder = nextParking();
+    if (workOrder !== undefined) return workOrder;
   }
   for (const machine of state.machines) {
     const workOrder: WorkOrder = { machineId: machine.id, kind: "dig" };

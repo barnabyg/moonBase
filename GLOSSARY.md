@@ -195,7 +195,7 @@ A Structure of sintered Regolith that takes in heat by day and gives it back by 
 _Avoid_: heat battery, thermal battery
 
 **Parking area**:
-A cheap Structure of graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and Rovers together before Night, so that they plug in and keep warm. A bay holds one Machine or Rover.
+A cheap Structure of graded, marked ground with bays, each with a power socket, where the Robot parks Machines and Rovers together once they have nothing else to do, so that they stand tidily out of the way, plug in and keep warm through the Night. A bay holds one Machine or Rover.
 _Avoid_: car park, garage, depot
 
 **Site Preparation**:
