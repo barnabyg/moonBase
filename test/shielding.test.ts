@@ -40,21 +40,21 @@ function runUntil(
 
 /**
  * Plays a set-up once, the first time it is needed, and keeps its save and
- * the ids it found; each call then loads the save afresh, so that no test
+ * what it found; each call then loads the save afresh, so that no test
  * sees another's game.
  */
-function playedOnce<Ids>(
-  play: () => { game: Scenario; ids: Ids },
-): () => { game: Scenario } & Ids {
-  let played: { text: string; ids: Ids } | undefined;
+function playedOnce<Found>(
+  play: () => { game: Scenario; found: Found },
+): () => { game: Scenario } & Found {
+  let played: { text: string; found: Found } | undefined;
   return () => {
     if (played === undefined) {
-      const { game, ids } = play();
-      played = { text: game.campaign.save(), ids };
+      const { game, found } = play();
+      played = { text: game.campaign.save(), found };
     }
     const loaded = loadCampaign(played.text);
     if (!loaded.ok) throw new Error(loaded.message);
-    return { game: scenarioOf(loaded.campaign), ...played.ids };
+    return { game: scenarioOf(loaded.campaign), ...played.found };
   };
 }
 
@@ -63,7 +63,7 @@ const commissionedHabitat = playedOnce(() => {
   const game = scenario().plan("habitat", habitatSite);
   const habitatId = game.state.constructions[0]?.id ?? "";
   runUntil(game, (state) => state.constructions.length === 0);
-  return { game, ids: { habitatId } };
+  return { game, found: { habitatId } };
 });
 
 function planShielding(game: Scenario, position: GroundPosition) {
@@ -195,7 +195,7 @@ const shieldingPlanned = playedOnce(() => {
   runUntil(game, (state) => state.constructions.length === 0);
   const result = planShielding(game, onTheHabitat);
   if (!result.ok) throw new Error(`Planning was refused: ${result.message}`);
-  return { game, ids: { habitatId, shieldingId: result.constructionId } };
+  return { game, found: { habitatId, shieldingId: result.constructionId } };
 });
 
 /**
@@ -206,7 +206,7 @@ const shieldingBuilt = playedOnce(() => {
   const { game, ...ids } = shieldingPlanned();
   const planned = game.state;
   const states = runUntil(game, (state) => state.constructions.length === 0);
-  return { game, ids: { ...ids, planned, states } };
+  return { game, found: { ...ids, planned, states } };
 });
 
 /** The states up to and including the first for which the condition holds. */
