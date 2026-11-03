@@ -125,6 +125,49 @@ describe("dismantling a Structure", () => {
     ]);
   });
 
+  it("joins up what drew power through it, so the Habitat keeps the battery banks it shared a network with", () => {
+    // The Habitat is cabled from the first battery bank, and the second from
+    // the Habitat, so that taking the first away would leave the Habitat on a
+    // network with a battery bank, and the rest of the storage on another.
+    const game = scenario()
+      .plan("solar-array", site)
+      .plan("battery-bank", { x: 30, y: 25 })
+      .plan("habitat", { x: 40, y: 40 })
+      .plan("battery-bank", { x: 52, y: 52 })
+      .plan("battery-bank", { x: 8, y: 26 });
+    const [solarId, firstBankId, habitatId, secondBankId, thirdBankId] =
+      game.state.constructions.map((c) => c.id);
+    runUntil(game, (state) => state.constructions.length === 0);
+    expect(
+      game.state.cables.map(({ fromStructureId, toStructureId }) => [
+        fromStructureId,
+        toStructureId,
+      ]),
+    ).toEqual([
+      [solarId, firstBankId],
+      [firstBankId, habitatId],
+      [habitatId, secondBankId],
+      [solarId, thirdBankId],
+    ]);
+    expect(game.campaign.moveMissionDirectorIn(habitatId ?? "")).toEqual({
+      ok: true,
+    });
+
+    game.campaign.dismantleStructure(firstBankId ?? "");
+    runUntil(game, (state) => state.robots[0]?.activity.kind === "dismantling");
+
+    expect(game.state.power.networks).toEqual([
+      expect.objectContaining({
+        structureIds: [solarId, habitatId, secondBankId, thirdBankId],
+      }),
+    ]);
+    expect(
+      game.state.cables.every(({ fromStructureId, toStructureId }) =>
+        [fromStructureId, toStructureId].every((id) => id !== firstBankId),
+      ),
+    ).toBe(true);
+  });
+
   it("has the Robot unload the recovered Components beside the stockpile", () => {
     const { game, id } = commissionedArray();
     game.campaign.dismantleStructure(id);

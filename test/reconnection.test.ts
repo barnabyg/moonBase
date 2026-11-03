@@ -9,7 +9,8 @@ import type {
 import { scenario, type Scenario } from "./scenario";
 
 // The starting stock holds one solar array's Components, and dismantling it
-// loses some, so these scenarios start with enough for a second one.
+// gives back none of them, so these scenarios start with enough for a second
+// one.
 vi.mock(import("../src/catalogue"), async (importOriginal) => {
   const original = await importOriginal();
   return {
@@ -108,7 +109,7 @@ function runUntilPart(game: Scenario, part: "daylight" | "night"): void {
 }
 
 describe("a Structure cut off from power", () => {
-  it("is cabled again from the nearest powered Structure once the solar array it was cabled from is dismantled", () => {
+  it("isn't cut off when the solar array it was cabled from is dismantled while a battery bank shares their network, as its cables are joined up", () => {
     const game = scenario();
     const [solarId, batteryId, mastId] = planAll(game, [
       ["solar-array", solarSite],
@@ -119,13 +120,13 @@ describe("a Structure cut off from power", () => {
     expect(cableTo(game.state, mastId ?? "").fromStructureId).toBe(solarId);
 
     game.campaign.dismantleStructure(solarId ?? "");
-    runUntilIdle(game);
-    runUntil(game, (state) =>
-      state.cables.some(
-        (cable) => cable.toStructureId === mastId && cable.complete,
-      ),
-    );
+    const states = runUntilIdle(game);
 
+    expect(
+      states.filter((state) =>
+        state.robots.some((robot) => robot.activity.kind === "laying-cable"),
+      ),
+    ).toEqual([]);
     expect(cableTo(game.state, mastId ?? "")).toMatchObject({
       fromStructureId: batteryId,
       complete: true,
@@ -247,9 +248,8 @@ describe("a Structure cut off from power", () => {
 
   it("gets one cable for all the Structures cut off with it, laid to the one that had none", () => {
     const game = scenario();
-    const [solarId, batteryId, mastId, secondMastId] = planAll(game, [
+    const [solarId, mastId, secondMastId] = planAll(game, [
       ["solar-array", solarSite],
-      ["battery-bank", batterySite],
       ["light-mast", mastSite],
       ["light-mast", secondMastSite],
     ]);
@@ -259,6 +259,7 @@ describe("a Structure cut off from power", () => {
     );
 
     game.campaign.dismantleStructure(solarId ?? "");
+    const [secondSolarId] = planAll(game, [["solar-array", secondSolarSite]]);
     runUntilIdle(game);
     runUntil(game, (state) =>
       state.cables.some(
@@ -273,29 +274,31 @@ describe("a Structure cut off from power", () => {
         toStructureId: secondMastId,
       }),
       expect.objectContaining({
-        fromStructureId: batteryId,
+        fromStructureId: secondSolarId,
         toStructureId: mastId,
       }),
     ]);
     expect(networkOf(game.state, secondMastId ?? "").structureIds).toEqual([
-      batteryId,
       mastId,
       secondMastId,
+      secondSolarId,
     ]);
   });
 
   it("is cabled in plan order, after the Constructions planned before it was cut off", () => {
     const game = scenario();
-    const [solarId, , mastId] = planAll(game, [
+    const [solarId, mastId] = planAll(game, [
       ["solar-array", solarSite],
-      ["battery-bank", batterySite],
       ["light-mast", mastSite],
     ]);
     runUntilIdle(game);
 
     game.campaign.dismantleStructure(solarId ?? "");
-    const [laterMastId] = planAll(game, [["light-mast", secondMastSite]]);
-    runUntil(game, (state) => state.cables.length < 2);
+    const [, laterMastId] = planAll(game, [
+      ["solar-array", secondSolarSite],
+      ["light-mast", secondMastSite],
+    ]);
+    runUntil(game, (state) => state.cables.length === 0);
     const states = runUntil(game, (state) =>
       state.cables.some(
         (cable) => cable.toStructureId === mastId && cable.complete,
@@ -321,14 +324,14 @@ describe("a Structure cut off from power", () => {
 
   it("isn't cabled again if it is due to be dismantled", () => {
     const game = scenario();
-    const [solarId, , mastId] = planAll(game, [
+    const [solarId, mastId] = planAll(game, [
       ["solar-array", solarSite],
-      ["battery-bank", batterySite],
       ["light-mast", mastSite],
     ]);
     runUntilIdle(game);
 
     game.campaign.dismantleStructure(solarId ?? "");
+    planAll(game, [["solar-array", secondSolarSite]]);
     game.campaign.dismantleStructure(mastId ?? "");
     const states = runUntilIdle(game);
     game.advance({ earthDays: 1 });
