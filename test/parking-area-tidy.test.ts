@@ -121,34 +121,139 @@ function untilParked(game: Scenario): void {
   }
 }
 
-describe("a parking area, before Night", () => {
-  it("has the Robot park the idle Machines and the Rover in its bays even when they are plugged in beside another Structure", () => {
+/** The park Work Order for the excavator, if there is one. */
+function excavatorParking(state: Snapshot) {
+  return state.parking.find(
+    (order) =>
+      order.subject.kind === "machine" &&
+      order.subject.machineTypeId === "excavator",
+  );
+}
+
+/** The Campaign as saved, with the excavator moved to a spot, then loaded. */
+function withExcavatorAt(game: Scenario, spot: GroundPosition): Scenario {
+  const document = JSON.parse(game.campaign.save()) as {
+    state: { machines: { id: string; position: GroundPosition }[] };
+  };
+  for (const machine of document.state.machines) {
+    if (machine.id === excavator(game.state).id) machine.position = spot;
+  }
+  const loaded = loadCampaign(JSON.stringify(document));
+  if (!loaded.ok) throw new Error(loaded.message);
+  return scenarioOf(loaded.campaign);
+}
+
+/** A spot beside the last battery bank, where the excavator is plugged in. */
+function besideTheLastBank(state: Snapshot): GroundPosition {
+  const bank = state.structures.filter(
+    (s) => s.structureTypeId === "battery-bank",
+  )[1];
+  if (bank === undefined) throw new Error("expected a battery bank");
+  return { x: bank.position.x, y: bank.position.y - 4 };
+}
+
+/** Expects every Machine and the Rover to stand plugged in, each in a bay of its own. */
+function expectAllInBays(state: Snapshot): void {
+  const everything = [...state.machines, ...state.rovers];
+  const bays = everything.map((driven) => bayAt(state, driven.position));
+  expect(bays).not.toContain(undefined);
+  expect(new Set(bays).size).toBe(everything.length);
+  expect(everything.map((driven) => driven.pluggedIn)).not.toContain(false);
+}
+
+describe("a parking area, in Daylight", () => {
+  it("has the Robot take the Machines and the Rover to its bays as soon as they have nothing else to do, long before Night, even one plugged in beside another Structure", () => {
     const game = excavatorBesideABatteryBank();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    expect(game.state.lunation.minutesRemaining).toBeGreaterThan(
+      parkingLeadHours * 60 * 2,
+    );
     expect(excavator(game.state)).toMatchObject({ pluggedIn: true });
     expect(bayAt(game.state, excavator(game.state).position)).toBeUndefined();
 
     game.advance({ minutes: 1 });
-    expect(
-      game.state.parking.find(
-        (order) =>
-          order.subject.kind === "machine" &&
-          order.subject.machineTypeId === "excavator",
-      ),
-    ).toMatchObject({ inBay: true, structureTypeId: "parking-area" });
+    expect(excavatorParking(game.state)).toMatchObject({
+      inBay: true,
+      structureTypeId: "parking-area",
+    });
     untilParked(game);
 
-    const everything = [...game.state.machines, ...game.state.rovers];
-    const bays = everything.map((driven) => bayAt(game.state, driven.position));
-    expect(bays).not.toContain(undefined);
-    expect(new Set(bays).size).toBe(everything.length);
-    expect(everything.map((driven) => driven.pluggedIn)).not.toContain(false);
+    expect(game.state.lunation.part).toBe("daylight");
+    expect(game.state.lunation.minutesRemaining).toBeGreaterThan(
+      parkingLeadHours * 60,
+    );
+    expectAllInBays(game.state);
+  });
+
+  it("leaves a Machine out while a Construction waits for its type of Machine, and takes it to a bay once none does", () => {
+    const game = excavatorBesideABatteryBank();
+    untilParked(game);
+    // Two Constructions whose Site Preparation the excavator carries out,
+    // from Components in stock: the second waits for it while the Robot
+    // delivers the first's.
+    game.plan("light-mast", { x: -42, y: 4 });
+    game.plan("light-mast", { x: -48, y: 4 });
+    let waited = false;
+    for (let minutes = 0; game.state.constructions.length > 0; minutes++) {
+      if (minutes > 10 * 24 * 60) {
+        throw new Error("The Constructions never finished.");
+      }
+      game.advance({ minutes: 1 });
+      const left = game.state.constructions;
+      if (
+        game.state.lunation.minutesRemaining > parkingLeadHours * 60 &&
+        excavator(game.state).activity.kind === "idle" &&
+        left.some((construction) => construction.stage === "site-preparation")
+      ) {
+        waited = true;
+        expect(excavatorParking(game.state)).toBeUndefined();
+      }
+    }
+    expect(waited).toBe(true);
+
+    untilParked(game);
+    expect(bayAt(game.state, excavator(game.state).position)).toBeDefined();
+  });
+
+  it("has the Robot carry out planned work before taking anything to a bay", () => {
+    const parked = excavatorBesideABatteryBank();
+    untilParked(parked);
+    const game = withExcavatorAt(parked, { x: 30, y: -30 });
+    game.plan("light-mast", { x: -42, y: 4 });
+    game.advance({ minutes: 1 });
+    const mast = game.state.constructions[0];
+
+    expect(mast).toBeDefined();
+    expect(excavatorParking(game.state)).toBeUndefined();
+    expect(game.state.robots[0]?.activity).toMatchObject({
+      kind: "walking",
+      structureId: mast?.id,
+    });
+  });
+});
+
+describe("a parking area, before Night", () => {
+  it("has the Robot park the idle Machines and the Rover in its bays even when they are plugged in beside another Structure", () => {
+    const built = excavatorBesideABatteryBank();
+    untilParked(built);
+    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    // The excavator plugged in beside the battery bank, as if its work had
+    // kept it there until then.
+    const game = withExcavatorAt(built, besideTheLastBank(built.state));
+    expect(excavator(game.state)).toMatchObject({ pluggedIn: true });
+    expect(bayAt(game.state, excavator(game.state).position)).toBeUndefined();
+
+    game.advance({ minutes: 1 });
+    expect(excavatorParking(game.state)).toMatchObject({
+      inBay: true,
+      structureTypeId: "parking-area",
+    });
+    untilParked(game);
+
+    expectAllInBays(game.state);
   });
 
   it("leaves what is parked in its bays there, through the Night and the next Daylight, raising no more park Work Orders for it", () => {
     const game = excavatorBesideABatteryBank();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
-    game.advance({ minutes: 1 });
     untilParked(game);
     const where = () =>
       [...game.state.machines, ...game.state.rovers].map(
@@ -158,8 +263,9 @@ describe("a parking area, before Night", () => {
 
     // Through the Night, the next Daylight and into the next parking time.
     for (let hours = 0; game.state.lunation.part === "daylight"; hours++) {
-      if (hours > 24) throw new Error("Night never fell.");
+      if (hours > 10 * 24) throw new Error("Night never fell.");
       game.advance({ hours: 1 });
+      expect(game.state.parking).toEqual([]);
     }
     game.advance({ minutes: game.state.lunation.minutesRemaining + 1 });
     untilBeforeNight(game.campaign, parkingLeadHours * 60 - 60);
@@ -170,29 +276,15 @@ describe("a parking area, before Night", () => {
 
   it("doesn't move one plugged in beside another Structure during Night, when the drive would leave it in the cold", () => {
     const game = excavatorBesideABatteryBank();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
-    game.advance({ minutes: 1 });
     untilParked(game);
     for (let hours = 0; game.state.lunation.part === "daylight"; hours++) {
-      if (hours > 24) throw new Error("Night never fell.");
+      if (hours > 10 * 24) throw new Error("Night never fell.");
       game.advance({ hours: 1 });
     }
     // The excavator back where it was, plugged in beside the battery bank,
     // as if its work at Night had left it there.
-    const bank = game.state.structures.filter(
-      (s) => s.structureTypeId === "battery-bank",
-    )[1];
-    if (bank === undefined) throw new Error("expected a battery bank");
-    const spot = { x: bank.position.x, y: bank.position.y - 4 };
-    const document = JSON.parse(game.campaign.save()) as {
-      state: { machines: { id: string; position: GroundPosition }[] };
-    };
-    for (const machine of document.state.machines) {
-      if (machine.id === excavator(game.state).id) machine.position = spot;
-    }
-    const loaded = loadCampaign(JSON.stringify(document));
-    if (!loaded.ok) throw new Error(loaded.message);
-    const night = scenarioOf(loaded.campaign);
+    const spot = besideTheLastBank(game.state);
+    const night = withExcavatorAt(game, spot);
     expect(excavator(night.state)).toMatchObject({
       pluggedIn: true,
       position: spot,

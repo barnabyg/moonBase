@@ -52,6 +52,20 @@ function untilParkingStarts(game: Scenario): Snapshot {
   return game.state;
 }
 
+/** The Machines and Rovers standing in the parking area's one bay. */
+function standingInTheBay(state: Snapshot) {
+  const area = state.structures.find(
+    (structure) => structure.structureTypeId === "parking-area",
+  );
+  const bay = catalogue.structureTypes.find((type) => type.parking)?.parking
+    ?.bayOffsets[0];
+  return [...state.machines, ...state.rovers].filter(
+    (driven) =>
+      driven.position.x === (area?.position.x ?? 0) + (bay?.x ?? 0) &&
+      driven.position.y === (area?.position.y ?? 0) + (bay?.y ?? 0),
+  );
+}
+
 describe("a full parking area", () => {
   it("has the Robot park whatever its bays can't take beside the nearest powered Structure, as without one", () => {
     const game = buildAll(
@@ -60,15 +74,15 @@ describe("a full parking area", () => {
         .plan("battery-bank", bankSite)
         .plan("parking-area", parkingSite),
     );
-    const { parking } = untilParkingStarts(game);
+    const state = untilParkingStarts(game);
 
-    expect(parking.length).toBeGreaterThanOrEqual(2);
-    expect(parking.filter((order) => order.inBay)).toHaveLength(1);
-    expect(
-      parking
-        .filter((order) => !order.inBay)
-        .map((order) => order.structureTypeId),
-    ).not.toContain("parking-area");
+    // One went to the bay in Daylight, once it had nothing else to do.
+    expect(standingInTheBay(state)).toHaveLength(1);
+    expect(state.parking.length).toBeGreaterThanOrEqual(2);
+    expect(state.parking.map((order) => order.inBay)).not.toContain(true);
+    expect(state.parking.map((order) => order.structureTypeId)).not.toContain(
+      "parking-area",
+    );
   });
 
   it("takes nothing more into its bay once something is parked in it", () => {
@@ -83,18 +97,7 @@ describe("a full parking area", () => {
       if (minutes > 24 * 60) throw new Error("The parking was never done.");
       game.advance({ minutes: 1 });
     }
-    const area = game.state.structures.find(
-      (structure) => structure.structureTypeId === "parking-area",
-    );
-    const bay = catalogue.structureTypes.find((type) => type.parking)?.parking
-      ?.bayOffsets[0];
-    const inBay = [...game.state.machines, ...game.state.rovers].filter(
-      (driven) =>
-        driven.position.x === (area?.position.x ?? 0) + (bay?.x ?? 0) &&
-        driven.position.y === (area?.position.y ?? 0) + (bay?.y ?? 0),
-    );
-
-    expect(inBay).toHaveLength(1);
+    expect(standingInTheBay(game.state)).toHaveLength(1);
     expect(
       [...game.state.machines, ...game.state.rovers].map(
         (driven) => driven.pluggedIn,

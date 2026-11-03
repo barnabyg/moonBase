@@ -4,9 +4,11 @@ import {
   chooseParkingSpot,
   distance,
   findStructureType,
+  stageMachine,
   type Footing,
   type StructureState,
 } from "./construction";
+import { needsDigging } from "./digging";
 import {
   bodyOf,
   drivenSpec,
@@ -22,6 +24,7 @@ import {
 } from "./driven";
 import { isRoverSpokenFor } from "./expeditions";
 import { lunationMinutes, readLunation } from "./lunation";
+import { machineOn } from "./machines";
 import { isUnderMaintenance } from "./maintenance";
 import {
   minutesUntilEmpty,
@@ -32,12 +35,13 @@ import {
   structureNetworks,
   type PowerNetwork,
 } from "./power";
+import { findWaitingReason } from "./work-orders";
 
 /**
- * A "park" Work Order: the Robot drives an idle Machine or Rover that isn't
- * plugged in to a free bay of a powered parking area, or failing that to a
- * free spot beside the nearest powered Structure, where it plugs in and its
- * heater keeps the cold of Night off it.
+ * A "park" Work Order: the Robot drives an idle Machine or Rover to a free
+ * bay of a powered parking area, or, if it isn't plugged in, failing that
+ * to a free spot beside the nearest powered Structure, where it plugs in
+ * and its heater keeps the cold of Night off it.
  */
 export interface ParkingState {
   /** The Machine or Rover to park. */
@@ -83,53 +87,67 @@ export interface ParkingSnapshot {
  * (see `heatsThroughNight`), if there is one no further off than the
  * nearest powered Structure and the data catalogue's detour beyond it;
  * otherwise beside the nearest powered Structure, as it would without a
- * parking area. In the lead time, while it is still Daylight, one that is
- * plugged in but stands in no bay is parked in such a bay too, if there is
- * one, so that idle Machines and Rovers stand together; never at Night,
- * when the drive would leave it in the cold, and never one already in a
- * bay. A Work Order that nobody has claimed goes once what it parks no
- * longer needs parking, is given other work or, if it is for a bay, once
- * that network can't keep heaters on; one a Robot has claimed goes only if
- * what it parks breaks or its Structure can no longer take a plug.
+ * parking area. So that idle Machines and Rovers stand together, in
+ * Daylight one that stands in no bay is also parked in such a bay, if there
+ * is one: before the lead time, as soon as it has nothing else to do (see
+ * `hasWorkAhead`), however far off the bay is; in the lead time, one that
+ * is plugged in. Never at Night, when the drive would leave it in the cold,
+ * and never one already in a bay. A Work Order that nobody has claimed goes
+ * once what it parks no longer needs parking, is given other work or, if it
+ * is for a bay, once that network can't keep heaters on; one a Robot has
+ * claimed goes only if what it parks breaks or its Structure can no longer
+ * take a plug.
  */
 export function planParking(state: CampaignState): void {
   const parkingTime = isParkingTime(state);
-  // Nothing is raised outside parking time, so with no Work Orders to keep
-  // or drop there is nothing to do.
-  if (!parkingTime && state.parking.length === 0) return;
-  const networks = structureNetworks(state);
-  const plugs = pluggedIn(state, networks);
-  const daylight =
-    readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight";
+  const everyBay = state.structures.flatMap(baysOf);
+  const inBay = (driven: Driven) =>
+    everyBay.some((bay) => standsIn(bay, bodyOf(driven).position));
   const idle = (driven: Driven) =>
-    parkingTime &&
     (driven.kind === "rover"
       ? !isRoverSpokenFor(state, driven.rover.id)
       : driven.machine.assignment === undefined) &&
     !isDrivenBroken(driven) &&
     !isUnderMaintenance(state, drivenTarget(driven));
-  const needsParking = (driven: Driven) =>
-    idle(driven) && !plugs.has(bodyOf(driven).id);
-  const everyBay = parkingTime ? state.structures.flatMap(baysOf) : [];
-  const wantsBay = (driven: Driven) => {
-    const { id, position } = bodyOf(driven);
-    return (
-      daylight &&
-      idle(driven) &&
-      plugs.has(id) &&
-      !everyBay.some((bay) => standsIn(bay, position))
+  const goesHome = (driven: Driven) =>
+    !parkingTime &&
+    idle(driven) &&
+    !inBay(driven) &&
+    !hasWorkAhead(state, driven);
+  // Outside parking time only those with nothing else to do go to a bay, so
+  // with none of them, or no bay with nothing standing in it, and no Work
+  // Orders to keep or drop there is nothing to do. This spares working out
+  // the power networks every Daylight minute.
+  if (!parkingTime && state.parking.length === 0) {
+    const standing = everyDriven(state).map(
+      (driven) => bodyOf(driven).position,
     );
-  };
+    const anyBayEmpty = everyBay.some(
+      (bay) => !standing.some((position) => standsIn(bay, position)),
+    );
+    if (!anyBayEmpty || !everyDriven(state).some(goesHome)) return;
+  }
+  const networks = structureNetworks(state);
+  const plugs = pluggedIn(state, networks);
+  const daylight =
+    readLunation(state.elapsedMinutes, catalogue.lunation).part === "daylight";
+  const needsParking = (driven: Driven) =>
+    parkingTime && idle(driven) && !plugs.has(bodyOf(driven).id);
+  const wantsBay = (driven: Driven) =>
+    parkingTime
+      ? daylight &&
+        idle(driven) &&
+        plugs.has(bodyOf(driven).id) &&
+        !inBay(driven)
+      : goesHome(driven);
   const sockets = powerSockets(state, networks);
   const stillPowered = (parking: ParkingState) =>
     sockets.some((structure) => structure.id === parking.structureId);
-  // The parking areas whose bays are used, worked out only when parking.
+  // The parking areas whose bays are used.
   const keepsWarm = heatsThroughNight(state);
-  const bayAreas = parkingTime
-    ? sockets.filter(
-        (structure) => baysOf(structure).length > 0 && keepsWarm(structure),
-      )
-    : [];
+  const bayAreas = sockets.filter(
+    (structure) => baysOf(structure).length > 0 && keepsWarm(structure),
+  );
   state.parking = state.parking.filter((parking) => {
     const driven = findDriven(state, parking.target);
     if (driven === undefined || isDrivenBroken(driven)) return false;
@@ -156,12 +174,16 @@ export function planParking(state: CampaignState): void {
     const body = bodyOf(driven);
     const structure = nearestPoweredStructure(state, body.position);
     if (structure === undefined) continue;
+    // The detour is there so that the drive fits before Night falls; going
+    // home in Daylight, before the lead time, there is time for any drive.
     const bay = nearestFreeBay(
       state,
       bayAreas,
       body.position,
-      distance(structure.position, body.position) +
-        catalogue.cold.bayDetourMetres,
+      parkingTime
+        ? distance(structure.position, body.position) +
+            catalogue.cold.bayDetourMetres
+        : Infinity,
     );
     if (bay !== undefined) {
       state.parking.push({
@@ -199,6 +221,37 @@ export function planParking(state: CampaignState): void {
       ),
     });
   }
+}
+
+/**
+ * Whether a Machine has more work coming, so that it isn't sent to a bay
+ * between jobs only to be driven out again: it is set digging, or is the
+ * Machine that digs while the base needs digging, or a Construction's
+ * current stage is carried out by its type of Machine, none is on it yet
+ * and it waits for nothing but a Machine. One waiting for Components or
+ * water may wait for weeks, so it doesn't keep a Machine out. A Rover's
+ * next Expedition is already ruled out by its being idle.
+ */
+function hasWorkAhead(state: CampaignState, driven: Driven): boolean {
+  if (driven.kind === "rover") return false;
+  const { machine } = driven;
+  if (
+    machine.digging !== undefined ||
+    (machine.machineTypeId === catalogue.digging.machineTypeId &&
+      needsDigging(state))
+  ) {
+    return true;
+  }
+  return state.constructions.some((construction) => {
+    if (
+      stageMachine(construction)?.machineTypeId !== machine.machineTypeId ||
+      machineOn(state, construction.id) !== undefined
+    ) {
+      return false;
+    }
+    const wait = findWaitingReason(state, construction)?.reason;
+    return wait !== "missing-components" && wait !== "water-reserve";
+  });
 }
 
 /** A bay of a parking area. */

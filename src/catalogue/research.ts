@@ -896,7 +896,7 @@ export const designs: Catalogue["designs"] = [
     id: "parking-areas",
     label: "Parking areas",
     description:
-      "Graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and the Rover together to keep warm through the Night.",
+      "Graded, marked ground with bays, each with a power socket, where the Robot parks idle Machines and the Rover together, out of the way, to keep warm through the Night.",
     category: "mobility",
     starting: true,
     scienceCost: 0,

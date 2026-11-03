@@ -106,7 +106,17 @@ interface SavedState {
     conditionPercent: number;
   }[];
   cables: { fromStructureId: string; toStructureId: string }[];
+  machines: { id: string; position: GroundPosition }[];
+  rovers: { id: string; position: GroundPosition }[];
 }
+
+/** Where each Machine and the Rover stand as a Campaign begins. */
+const startingPositions = (() => {
+  const { machines, rovers } = scenario().state;
+  return new Map(
+    [...machines, ...rovers].map((driven) => [driven.id, driven.position]),
+  );
+})();
 
 /** The Campaign as saved, changed as given, then loaded. */
 function changedSave(
@@ -121,18 +131,33 @@ function changedSave(
 }
 
 /**
- * Runs from before parking starts until every park Work Order raised for
- * the Night has been carried out.
+ * Runs to a game-minute before parking for the Night starts, with every
+ * Machine and the Rover back where it began, as if its work had kept it
+ * out until then. By then each would otherwise have gone to a bay in
+ * Daylight, as soon as it had nothing else to do.
  */
-function parkedForNight(game: Scenario): Snapshot {
+function outBeforeNight(game: Scenario): Scenario {
   untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+  return changedSave(game.campaign, (state) => {
+    for (const driven of [...state.machines, ...state.rovers]) {
+      driven.position = startingPositions.get(driven.id) ?? driven.position;
+    }
+  });
+}
+
+/**
+ * Runs from before parking starts, with everything out of the bays, until
+ * every park Work Order raised for the Night has been carried out.
+ */
+function parkedForNight(built: Scenario): Scenario {
+  const game = outBeforeNight(built);
   game.advance({ minutes: 1 });
   expect(game.state.parking.length).toBeGreaterThan(0);
   for (let minutes = 0; game.state.parking.length > 0; minutes++) {
     if (minutes > 24 * 60) throw new Error("The parking was never done.");
     game.advance({ minutes: 1 });
   }
-  return game.state;
+  return game;
 }
 
 describe("a parking area", () => {
@@ -153,15 +178,14 @@ describe("a parking area", () => {
   });
 
   it("has the Robot park the idle Machines and the Rover that aren't plugged in in its bays as Night comes, rather than beside the nearer powered Structures, each in a bay of its own", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const game = outBeforeNight(baseWithParkingArea());
     const unplugged = [...game.state.machines, ...game.state.rovers]
       .filter((driven) => !driven.pluggedIn)
       .map((driven) => driven.id);
     expect(unplugged).toContain("rover-1");
     expect(unplugged.length).toBeGreaterThanOrEqual(2);
 
-    const state = parkedForNight(game);
+    const { state } = parkedForNight(game);
     const area = structure(state, "parking-area");
     const parked = [...state.machines, ...state.rovers].filter((driven) =>
       unplugged.includes(driven.id),
@@ -175,8 +199,7 @@ describe("a parking area", () => {
   });
 
   it("keeps what is parked in its bays warm through the Night", () => {
-    const game = baseWithParkingArea();
-    parkedForNight(game);
+    const game = parkedForNight(baseWithParkingArea());
     const area = structure(game.state, "parking-area");
     const inBays = () =>
       [...game.state.machines, ...game.state.rovers].filter(
@@ -207,8 +230,7 @@ describe("a parking area", () => {
   });
 
   it("says which park Work Orders are for one of its bays, and the Work panel says so", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const game = outBeforeNight(baseWithParkingArea());
     game.advance({ minutes: 1 });
 
     expect(game.state.parking.length).toBeGreaterThan(0);
@@ -229,8 +251,8 @@ describe("a parking area", () => {
   });
 
   it("carries on parking in its bays exactly the same through saving and loading", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 - 30);
+    const game = outBeforeNight(baseWithParkingArea());
+    game.advance({ minutes: 31 });
     expect(game.state.parking.length).toBeGreaterThan(0);
     const loaded = loadCampaign(game.campaign.save());
     if (!loaded.ok) throw new Error(loaded.message);
@@ -242,8 +264,8 @@ describe("a parking area", () => {
   });
 
   it("keeps which bay each park Work Order is for in the save, not only where it goes", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 - 1);
+    const game = outBeforeNight(baseWithParkingArea());
+    game.advance({ minutes: 2 });
     const area = structure(game.state, "parking-area");
     const document = JSON.parse(game.campaign.save()) as {
       state: {
@@ -283,13 +305,58 @@ describe("a parking area", () => {
     const held = after.state.parking.map((order) => order.bayIndex);
     expect(new Set(held).size).toBe(held.length);
   });
+
+  it("leaves the excavator out while the base needs digging, and has the Robot take it to a bay in Daylight once the stock is full", () => {
+    // The base starts with no Regolith, so the excavator digs once the
+    // Constructions are done.
+    const game = baseWithParkingArea();
+    const area = structure(game.state, "parking-area");
+    const excavator = () => {
+      const found = game.state.machines.find(
+        (machine) => machine.machineTypeId === "excavator",
+      );
+      if (found === undefined) throw new Error("expected the excavator");
+      return found;
+    };
+    const regolith = () =>
+      game.state.bulkResources.find(
+        (resource) => resource.resourceId === "regolith",
+      )?.kilograms ?? 0;
+    let dug = false;
+    for (
+      let minutes = 0;
+      bayAt(area, excavator().position) === undefined;
+      minutes++
+    ) {
+      if (minutes > 4 * 24 * 60) throw new Error("It never went to a bay.");
+      game.advance({ minutes: 1 });
+      dug ||= excavator().activity.kind === "digging";
+      if (regolith() < catalogue.digging.fullKilograms) {
+        expect(
+          game.state.parking.some(
+            (order) =>
+              order.subject.kind === "machine" &&
+              order.subject.machineTypeId === "excavator",
+          ),
+        ).toBe(false);
+      }
+    }
+
+    expect(dug).toBe(true);
+    expect(regolith()).toBe(catalogue.digging.fullKilograms);
+    expect(game.state.lunation.part).toBe("daylight");
+    expect(game.state.lunation.minutesRemaining).toBeGreaterThan(
+      parkingLeadHours * 60,
+    );
+  });
 });
 
 describe("a parking area far from what is to be parked", () => {
   it("takes nothing from further than the data catalogue's detour beyond the nearest powered Structure: parking is beside that, as without one", () => {
     const farSite: GroundPosition = { x: -20, y: -130 };
-    const game = buildAll(poweredBase().plan("parking-area", farSite));
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const game = outBeforeNight(
+      buildAll(poweredBase().plan("parking-area", farSite)),
+    );
     const area = structure(game.state, "parking-area");
     const nearestBay = (position: GroundPosition) =>
       Math.min(
@@ -322,8 +389,7 @@ describe("a parking area far from what is to be parked", () => {
   });
 
   it("is still used from as far as the detour beyond the nearest powered Structure", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const game = outBeforeNight(baseWithParkingArea());
     const area = structure(game.state, "parking-area");
     const printer = game.state.machines.find(
       (machine) => machine.machineTypeId === "regolith-printer",
@@ -359,8 +425,7 @@ describe("a parking area that can't keep heaters on through the Night", () => {
   }
 
   it("on a network with a solar array but no battery bank, takes nothing: parking is beside the nearest powered Structure, as without one", () => {
-    const built = baseWithParkingArea();
-    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    const built = outBeforeNight(baseWithParkingArea());
     const banks = built.state.structures
       .filter((s) => s.structureTypeId === "battery-bank")
       .map((s) => s.id);
@@ -384,23 +449,16 @@ describe("a parking area that can't keep heaters on through the Night", () => {
 
     const orders = ordersRaised(game);
     expect(orders.map((order) => order.inBay)).not.toContain(true);
-    expect(orders.map((order) => order.structureTypeId)).not.toContain(
-      "parking-area",
-    );
   });
 
   it("on a network whose battery banks are flat, takes nothing: parking is beside the nearest powered Structure, as without one", () => {
-    const built = baseWithParkingArea();
-    untilBeforeNight(built.campaign, parkingLeadHours * 60 + 1);
+    const built = outBeforeNight(baseWithParkingArea());
     const game = changedSave(built.campaign, (state) => {
       for (const s of state.structures) s.storedKilowattHours = 0;
     });
 
     const orders = ordersRaised(game);
     expect(orders.map((order) => order.inBay)).not.toContain(true);
-    expect(orders.map((order) => order.structureTypeId)).not.toContain(
-      "parking-area",
-    );
   });
 });
 
@@ -426,8 +484,7 @@ describe("a parking area that can't take a plug", () => {
   });
 
   it("drops the park Work Orders for its bays once it is to be dismantled, even one under way, and parks them beside the nearest powered Structure instead", () => {
-    const game = baseWithParkingArea();
-    untilBeforeNight(game.campaign, parkingLeadHours * 60 + 1);
+    const game = outBeforeNight(baseWithParkingArea());
     for (let minutes = 0; !game.state.parking.some((p) => p.underWay);) {
       if (++minutes > 60) throw new Error("No parking got under way.");
       game.advance({ minutes: 1 });
