@@ -11,6 +11,11 @@ export const habitatPowerWarningHoursLeft: Catalogue["habitatPowerWarningHoursLe
 // life shouldn't hang on leaving one unbuilt.
 export const nightReserveHours: Catalogue["nightReserveHours"] = 24;
 
+// A day's charging at the full surplus, a twentieth of Daylight, so that
+// a Dust coating or a Micrometeorite strike late in Daylight still leaves
+// the battery banks time to fill before Night falls.
+export const daylightChargeMarginHours: Catalogue["daylightChargeMarginHours"] = 24;
+
 // The limit is a career limit for astronauts. Unshielded, the dose rate is
 // tuned well above the roughly 1.4 mSv an Earth Day measured on the lunar
 // surface, so that the limit comes in 20 Earth Days and shielding the

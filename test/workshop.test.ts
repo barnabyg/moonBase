@@ -364,12 +364,17 @@ describe("a Workshop's Batches", () => {
     expect(second?.plant?.stoppedFor?.reason).toBe("no-input");
   });
 
-  it("uses only power nothing else needs: it waits while a battery bank charges, and takes no metals until it starts", () => {
+  it("uses only power nothing else needs: it waits while a battery bank needs the surplus to fill before Night, and takes no metals until it starts", () => {
     const campaign = withWorkshopKit(scenario().campaign);
     plan(campaign, "solar-array", arraySite);
     plan(campaign, "battery-bank", bankSite);
     plan(campaign, "workshop", workshopSite);
     buildAll(campaign);
+    // Too close to Night for the bank to fill in time with it running.
+    campaign.advance(
+      campaign.snapshot().lunation.minutesRemaining -
+        (catalogue.daylightChargeMarginHours + 12) * 60,
+    );
     const uncharged = changed(withMetals(campaign, 100), (state) => {
       for (const structure of state.structures) {
         structure.storedKilowattHours = 0;

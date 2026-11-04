@@ -449,13 +449,15 @@ export function usesPower(structureTypeId: string): boolean {
 
 /**
  * What a network's Plants drew during the latest game-minute: those that
- * ran. They only ever run on power nothing else needs: in Daylight what no
- * battery bank can store, and at Night what the battery banks hold beyond
- * what everything else draws through the rest of the Night and the reserve
- * after it (see `supplyPower`). So no forecast counts them: what they take
- * at Night can only shorten how long the stored energy lasts into a
- * Daylight that generates less than the network draws, and by then the
- * forecast starts from what is really stored.
+ * ran. They only ever run on power nothing else needs: in Daylight what
+ * leaves the battery banks full a margin before Night falls, and at Night
+ * what the battery banks hold beyond what everything else draws through
+ * the rest of the Night and the reserve after it (see `supplyPower`). So
+ * no forecast counts them: in Daylight they only slow the charging, never
+ * past filling the banks before Night, and what they take at Night can
+ * only shorten how long the stored energy lasts into a Daylight that
+ * generates less than the network draws, and by then the forecast starts
+ * from what is really stored.
  */
 export function plantConsumptionKilowatts(network: PowerNetwork): number {
   return network.structures
@@ -510,9 +512,12 @@ export function consumptionKilowatts(
  * `runGreenhouses`). Any other Plant comes last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
  * if the energy to spare covers all it draws in the game-minute. In
- * Daylight that is what is left over beyond what the network's battery
- * banks can store; at Night, what they hold beyond what everything else on
- * the network, Night loads included, draws through the rest of the Night and the
+ * Daylight that is as much as the Plants can draw every game-minute until
+ * the margin before Night falls, with the network's battery banks still
+ * full by then (see `spareInDaylight`), so they run as the banks charge
+ * whenever the surplus covers both; at Night, what they hold beyond what
+ * everything else on the network, Night loads included, draws through the
+ * rest of the Night and the
  * reserve after it, counting the heater of every Machine and Rover that
  * isn't Broken or plugged in to another network, as it may be parked on
  * this one before the Night ends. So no Plant ever takes power from
@@ -525,6 +530,8 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
   // The game-minute being supplied has already been counted.
   const now = readLunation(state.elapsedMinutes, catalogue.lunation);
   const nightMinutesAfter = now.part === "night" ? now.minutesRemaining : 0;
+  const daylightMinutesAfter =
+    now.part === "daylight" ? now.minutesRemaining : 0;
   // The base's stocks are shared by every network's Plants.
   const claims: BatchClaims = new Map();
   const networks = powerNetworks(state);
@@ -568,7 +575,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     }
     let spare = Math.max(
       daylight
-        ? left - network.storageCapacityKilowattHours
+        ? spareInDaylight(network, left, daylightMinutesAfter)
         : left - keptFromPlants(network, unpluggedHeaters, nightMinutesAfter),
       0,
     );
@@ -854,6 +861,36 @@ function keptFromNightLoads(
     (restOfNetworkAtNight(network) *
       (nightMinutesLeft + catalogue.nightReserveHours * 60)) /
     60
+  );
+}
+
+/**
+ * The energy a network's Plants may draw in a game-minute of Daylight, given
+ * what is left once everything else has drawn and the game-minutes of
+ * Daylight after it: as much as, drawn every game-minute from now on while
+ * what is generated and drawn stays as it is, still leaves the battery banks
+ * full the data catalogue's margin before Night falls (see
+ * `daylightChargeMarginHours`). With no more Daylight than the margin left,
+ * that is only what the banks can't store; with them full, everything the
+ * network generates beyond what it draws. Negative if the banks would not
+ * be full in time even without the Plants.
+ */
+function spareInDaylight(
+  network: PowerNetwork,
+  left: number,
+  daylightMinutesLeft: number,
+): number {
+  const minutes = Math.max(
+    daylightMinutesLeft - catalogue.daylightChargeMarginHours * 60,
+    0,
+  );
+  // What each game-minute adds to what is stored, before the Plants draw.
+  const surplus = left - network.storedKilowattHours;
+  // A Plant's draw this game-minute and in each of those ahead of the margin
+  // all have to come out of what fills the banks by then.
+  return (
+    (left - network.storageCapacityKilowattHours + surplus * minutes) /
+    (1 + minutes)
   );
 }
 

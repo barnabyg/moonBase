@@ -179,6 +179,13 @@ describe("the data catalogue", () => {
     );
   });
 
+  it("has Plants in Daylight leave the battery banks a margin to fill before Night that is a whole number of game-minutes, and shorter than Daylight", () => {
+    const margin = catalogue.daylightChargeMarginHours;
+    expect(margin).toBeGreaterThanOrEqual(0);
+    expect(Number.isInteger(margin * 60)).toBe(true);
+    expect(margin).toBeLessThan(catalogue.lunation.daylightEarthDays * 24);
+  });
+
   it("has no Radiation Dose aboard the Lander, less in a shielded Habitat than an unshielded one, and warnings before an unshielded Habitat's dose reaches the limit", () => {
     const { radiation } = catalogue;
 
