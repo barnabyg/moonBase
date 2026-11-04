@@ -253,6 +253,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
     launch,
     radiation,
     nightReserveHours,
+    daylightChargeMarginHours,
     observingProgramme,
   } = catalogue;
   return [
@@ -274,7 +275,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `Machines and the Rover parked within ${cold.plugInReachMetres} m of a powered Structure draw power for their heaters at Night, and the Robot parks them before Night falls; left in the cold, they wear down.`,
         `Build a parking area to keep them together: once it is cabled to battery banks that will keep their heaters on through the Night and has a bay free, the Robot takes each one there in Daylight as soon as it has nothing else to do, after the work you planned. Before Night falls it parks the rest in its bays too, rather than beside the nearest powered Structure, as long as the bay is no more than ${cold.bayDetourMetres} m further off than that Structure. Put it near where the Machines work, as the Robot drives them there and back.`,
         "Plants work in batches of their recipe, most of them an hour long: each starts once there is a batch's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
-        `Plants run only on power that nothing else needs: in Daylight, once the battery banks are full, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, or run on and off on the little that is freed, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
+        `Plants run only on power that nothing else needs: in Daylight, while the battery banks would still be full ${formatHours(daylightChargeMarginHours)} before Night falls with them running, so they run as the banks charge if there is surplus enough for both, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, or run on and off on the little that is freed, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
         ...catalogue.lifeSupportStocks
           .filter((stock) => stock.id === "water")
           .map(

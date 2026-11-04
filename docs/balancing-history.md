@@ -143,3 +143,25 @@ The long-game play guide at data catalogue version 75, which unlocks Prefabricat
 | Funding at the end           | $22,987M      | $5,366M       |
 
 In Act 4 it sold 2,096 kg of precision optics, 10,251 kg of circuit boards and 3,620 kg of propellant, $47,673M over 147 trips. So Funding is a limit from Earth Day 2,300 to about 2,700, the first time since Act 2 that it has bitten for so long. Stocking the habitat then takes about 240 Earth Days after its last parts were sent: the Greenhouse and growing hall drink the water it waits for, with the optics held back, until the Vault cistern's Design leaves Science nothing to buy and the guide switches them off, and within 26 Earth Days of that it is stocked and commissioned. That is a choice for a player too: switching them off sooner stocks it sooner, but leaves the Vault cistern's 9,000 Science out of reach, as the guide would then fail with a Design never unlocked. Only the last 49 Earth Days ask nothing, and about $5,400M is idle at the end rather than $23,000M.
+
+## Dismantling for spare Components, at version 78
+
+From [Dismantling for spare Components (#236)](balancing.md#the-larger-changes-and-why).
+
+**What the guide played, at version 78.** Version 77 played as 76 did. The guide dismantles only the old Habitat, its water wall and its Regolith shielding, after moving into the Buried Habitat on Earth Day 1,591.6, so they now give back 3 spare Components, where they gave back 2 of the Habitat's Components and 3 water-wall bladders. Nothing before Earth Day 1,636 moves, and every pacing target is met.
+
+| What it plays                             | At version 77 | At version 78 |
+| ----------------------------------------- | ------------- | ------------- |
+| Growing halls unlocked                    | 2,180.0       | 2,180.0       |
+| Funding on Earth Day 2,300                | $6,706M       | $6,878M       |
+| Funding on Earth Day 2,400                | $430M         | $555M         |
+| Funding on Earth Day 2,600                | $1,273M       | $1,241M       |
+| Funding on Earth Day 2,800                | $3,542M       | $3,429M       |
+| Vault cistern unlocked                    | 2,853.7       | 2,818.2       |
+| Large-scale Crew Habitat                  | 2,879.4       | 2,847.5       |
+| Vault cistern commissioned                | 2,950.6       | 2,930.1       |
+| Last Research Task completed              | 2,994.7       | 2,994.7       |
+| Fewest spare Components, after a Workshop | 11            | 6             |
+| Funding at the end                        | $5,366M       | $7,467M       |
+
+From Earth Day 1,636 the Robot's work falls at slightly different times, and the rest of the Campaign plays a little differently. In Act 4 it sold 2,400 kg of precision optics, 10,257 kg of circuit boards, 3,749 kg of propellant and 6 kg of metals, $49,676M over 147 trips: $2,003M more than at version 77, most of the $2,101M more Funding at the end. The Large-scale Crew Habitat's parts went over the same nine Launches, from Earth Day 2,323.9 to 2,642.8, and it was commissioned 32 Earth Days sooner. The Greenhouse and the growing hall each lost 2 rounds for want of water, not 7. The stock of spare Components fell lowest to 6, in the Lunation to Earth Day 2,596, while the habitat's parts were coming, against 11 at version 77, and was back to 26 a Lunation later. The 3 spares from dismantling came about 1,000 Earth Days before that, so the lower low comes from the different order of work, not from them.

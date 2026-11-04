@@ -418,36 +418,92 @@ describe("a Plant on a network short of power", () => {
       without.snapshot().power.networks[0]?.storedKilowattHours,
     );
   });
+});
 
-  it("in Daylight only runs on power its battery banks can't store, once they are full", () => {
+describe("a Plant in Daylight while its battery banks charge", () => {
+  const margin = catalogue.daylightChargeMarginHours * 60;
+
+  /** The Campaign the given game-minutes before Night falls, its battery bank holding the given energy. */
+  function chargingBase(
+    minutesBeforeNight: number,
+    storedKilowattHours = 0,
+  ): Campaign {
     const campaign = habitatBase(true);
-    const network = () => campaign.snapshot().power.networks[0];
-
-    for (let minutes = 0; minutes < 24 * 60; minutes++) {
-      campaign.advance(1);
-      const state = network();
-      if (plantOf(campaign.snapshot()).plant?.running === true) {
-        expect(state?.storedKilowattHours).toBeCloseTo(
-          state?.storageCapacityKilowattHours ?? Number.NaN,
-          6,
-        );
-      }
-    }
-    expect(plantOf(campaign.snapshot()).plant?.running).toBe(true);
-  });
-
-  it("waits in Daylight while its battery banks charge, saying it waits for power to spare", () => {
-    const campaign = changed(habitatBase(true), (state) => {
+    campaign.advance(
+      campaign.snapshot().lunation.minutesRemaining - minutesBeforeNight,
+    );
+    const bank = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "battery-bank",
+      );
+    return changed(campaign, (state) => {
       for (const structure of state.structures) {
-        structure.storedKilowattHours = 0;
+        if (structure.id === bank?.id) {
+          structure.storedKilowattHours = storedKilowattHours;
+        }
       }
     });
+  }
+
+  function arrayOf(campaign: Campaign): StructureSnapshot {
+    const array = campaign
+      .snapshot()
+      .structures.find(
+        (structure) => structure.structureTypeId === "solar-array",
+      );
+    if (array === undefined) throw new Error("expected a solar array");
+    return array;
+  }
+
+  function networkOf(campaign: Campaign) {
+    const network = campaign.snapshot().power.networks[0];
+    if (network === undefined) throw new Error("expected a network");
+    return network;
+  }
+
+  /** Whether the network's battery banks are full, give or take a game-minute's Dust coating. */
+  function full(campaign: Campaign): boolean {
+    const network = networkOf(campaign);
+    return (
+      network.storedKilowattHours > network.storageCapacityKilowattHours - 0.01
+    );
+  }
+
+  /** Plays on to the margin before Night, saying each hour whether the Plant ran. */
+  function toMargin(campaign: Campaign): boolean[] {
+    const running: boolean[] = [];
+    while (campaign.snapshot().lunation.minutesRemaining > margin) {
+      campaign.advance(
+        Math.min(60, campaign.snapshot().lunation.minutesRemaining - margin),
+      );
+      running.push(plantOf(campaign.snapshot()).plant?.running === true);
+    }
+    return running;
+  }
+
+  it("runs from the start while the surplus is enough to fill them before Night as well", () => {
+    // The surplus left with the Plant running fills the bank in about 45 hours.
+    const campaign = chargingBase(margin + 72 * 60);
 
     campaign.advance(1);
 
-    const state = campaign.snapshot();
-    expect(state.lunation.part).toBe("daylight");
-    const { plant } = plantOf(state);
+    expect(plantOf(campaign.snapshot()).plant).toMatchObject({
+      running: true,
+      stoppedFor: undefined,
+    });
+    expect(full(campaign)).toBe(false);
+    expect(toMargin(campaign).every(Boolean)).toBe(true);
+    expect(full(campaign)).toBe(true);
+  });
+
+  it("waits, saying it waits for power to spare, until they are far enough ahead to fill before Night with it running", () => {
+    // Long enough to fill the bank without the Plant, not with it.
+    const campaign = chargingBase(margin + 30 * 60);
+
+    campaign.advance(1);
+
+    const { plant } = plantOf(campaign.snapshot());
     expect(plant).toMatchObject({
       running: false,
       stoppedFor: { reason: "no-power" },
@@ -455,6 +511,48 @@ describe("a Plant on a network short of power", () => {
     expect(plant === undefined ? "" : formatPlant(plant)).toMatch(
       /^waiting for power to spare/,
     );
+    const running = toMargin(campaign);
+    // It starts part-way, then runs on to the margin.
+    const started = running.indexOf(true);
+    expect(started).toBeGreaterThan(0);
+    expect(running.slice(started).every(Boolean)).toBe(true);
+    expect(full(campaign)).toBe(true);
+  });
+
+  it("stops once the surplus falls too far to fill them with it running, and they still fill before Night", () => {
+    const campaign = chargingBase(margin + 60 * 60);
+    campaign.advance(1);
+    expect(plantOf(campaign.snapshot()).plant?.running).toBe(true);
+
+    // Below half its Condition the array generates less, and with no spare
+    // Components it isn't repaired.
+    const weakened = worn(campaign, arrayOf(campaign).id, 30, 0);
+    weakened.advance(1);
+
+    expect(plantOf(weakened.snapshot()).plant).toMatchObject({
+      running: false,
+      stoppedFor: { reason: "no-power" },
+    });
+    toMargin(weakened);
+    expect(full(weakened)).toBe(true);
+  });
+
+  it("within the margin before Night, only runs on power they can't store, once they are full", () => {
+    // Half full: the Dust coating gathered by now leaves too little surplus
+    // to fill an empty bank within the margin.
+    const campaign = chargingBase(margin, 100);
+
+    for (let minutes = 0; minutes < margin - 30; minutes++) {
+      campaign.advance(1);
+      const network = networkOf(campaign);
+      if (plantOf(campaign.snapshot()).plant?.running === true) {
+        expect(network.storedKilowattHours).toBeCloseTo(
+          network.storageCapacityKilowattHours,
+          6,
+        );
+      }
+    }
+    expect(plantOf(campaign.snapshot()).plant?.running).toBe(true);
   });
 });
 

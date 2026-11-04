@@ -185,11 +185,17 @@ const BURIED_HABITAT_SITE = { x: 46, y: 8 } as const;
 
 /**
  * The Earth Days of Daylight the guide wants left as it plans a Buried Habitat:
- * about 9 to build it and 3 to dismantle the old Habitat, as this base's battery
- * banks can't carry both through a Night, and with both drawing power by day the
- * Workshop, last in line for it, makes too few spare Components.
+ * enough to build it and dismantle the old Habitat, its water wall and its
+ * shielding before Night falls, as this base's battery banks can't carry both
+ * Habitats through a Night, and with both drawing power by day the Workshop,
+ * last in line for it, makes too few spare Components. At version 80 building
+ * took about 10.6 Earth Days and dismantling about 4.9: with 12 wanted, a
+ * Buried Habitat planned with just over 12 left was moved into 1.4 Earth Days
+ * before Night, dismantling ran 3.5 into it, and the Mission Director died
+ * near its end. So a Buried Habitat whose Components come later than that
+ * waits for the next Daylight.
  */
-const DAYLIGHT_TO_BUILD_AND_MOVE = { earthDays: 12 };
+const DAYLIGHT_TO_BUILD_AND_MOVE = { earthDays: 16 };
 
 /** The Components a type of Structure takes, as Launch manifest lines. */
 function manifestLinesOf(structureTypeId: string): readonly ManifestLine[] {
@@ -348,7 +354,7 @@ export interface Purchase {
 /** What a growing hall needs bought first, and the hall, once its Design is unlocked. */
 const GROWING_HALL_PURCHASES = [
   ...[
-    // A base this size uses more spare Components than two Workshops make.
+    // A base this size uses more spare Components than three Workshops make.
     ["workshop", { x: 104, y: -92 }],
     ["large-battery-bank", { x: 54, y: -84 }],
     ["water-processing-plant", { x: 106, y: -56 }],
@@ -415,6 +421,14 @@ const PURCHASES: readonly Purchase[] = [
   {
     structureTypeId: "greenhouse",
     site: { x: 68, y: -72 },
+    fromEarthDay: GREENHOUSE_EARTH_DAY,
+  },
+  // With two Workshops, the base growing from here ran out of spare Components
+  // from about Earth Day 2,050 until the growing hall's Workshop came, at
+  // version 80, where Plants running in Daylight paid for it all sooner.
+  {
+    structureTypeId: "workshop",
+    site: { x: 114, y: -92 },
     fromEarthDay: GREENHOUSE_EARTH_DAY,
   },
   // Their Design comes in Act 1, but nothing here needs more than the base's own
@@ -597,6 +611,8 @@ export function buyInTurn(
   purchases: readonly Purchase[] = PURCHASES,
   watch = purchaseStallWatch(),
 ): (play: Play) => void {
+  // The most water there has been since a Large-scale Crew Habitat was planned.
+  let mostWater = 0;
   return (play) => {
     const { state } = play;
     if (
@@ -604,6 +620,14 @@ export function buyInTurn(
     ) {
       return;
     }
+    const water =
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms ??
+      0;
+    mostWater = state.constructions.some(
+      ({ structureTypeId }) => structureTypeId === "crew-habitat",
+    )
+      ? Math.max(mostWater, water)
+      : 0;
     const stands = (
       footing: {
         readonly structureTypeId: string;
@@ -645,14 +669,34 @@ export function buyInTurn(
             purchase.strandedBecause === undefined &&
             state.constructions.some((footing) => stands(footing, purchase)),
         )
-        .map((purchase) => ({
-          what: named(purchase),
-          why: "is planned, and hasn't been commissioned",
-        })),
+        .map((purchase) =>
+          purchase.structureTypeId === "crew-habitat"
+            ? stockingWait(named(purchase), mostWater)
+            : {
+                what: named(purchase),
+                why: "is planned, and hasn't been commissioned",
+              },
+        ),
       ...(next === undefined
         ? []
         : [{ what: named(next), ...seeToPurchase(play, next) }]),
     ]);
+  };
+}
+
+/**
+ * The wait on a planned Large-scale Crew Habitat, which the guide stocks once
+ * the water has risen to what it holds back for it. Each new high, in steps of
+ * 100 kg, starts the wait afresh: with the Greenhouse and growing hall drinking,
+ * it rose about 250 kg a Lunation at version 80, from the Habitat planned on
+ * Earth Day 2,427, and would have reached it after more than 300 Earth Days.
+ */
+function stockingWait(what: string, mostWater: number): PurchaseWait {
+  const most = Math.floor(mostWater / 100) * 100;
+  return {
+    what,
+    why: `is planned, and hasn't been commissioned: the water has risen to ${most} kg of the ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg held back to stock it`,
+    got: `${most} kg of water`,
   };
 }
 
@@ -1064,7 +1108,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants and a Greenhouse, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a third Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, an optics works and a grinding line, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants, a Greenhouse and a third Workshop, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a fourth Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
     play(play) {
       keepTheBaseGoing(play);
       playOnUntil(play, LONG_GAME_END_EARTH_DAY);

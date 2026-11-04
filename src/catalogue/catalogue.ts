@@ -29,6 +29,7 @@ import {
 import {
   habitatPowerWarningHoursLeft,
   nightReserveHours,
+  daylightChargeMarginHours,
   radiation,
   solarParticleEvents,
   plumeEjecta,
@@ -48,7 +49,7 @@ import type { Catalogue } from "./types";
  * directory, with its types in `types.ts`.
  */
 export const catalogue: Catalogue = {
-  version: 79,
+  version: 80,
   map,
   lander,
   stockpile,
@@ -70,6 +71,7 @@ export const catalogue: Catalogue = {
   selfSufficiency,
   habitatPowerWarningHoursLeft,
   nightReserveHours,
+  daylightChargeMarginHours,
   radiation,
   solarParticleEvents,
   programmeGrantMillionDollars,

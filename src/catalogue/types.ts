@@ -205,6 +205,13 @@ export interface Catalogue {
    * than 0.
    */
   readonly nightReserveHours: number;
+  /**
+   * In Daylight a Plant runs only if, with it running, its power network's
+   * battery banks would still be full this many game-hours before Night
+   * falls; within them, only on what the banks can't store. Must come to
+   * a whole number of game-minutes, and be at least 0.
+   */
+  readonly daylightChargeMarginHours: number;
   readonly radiation: RadiationRules;
   readonly solarParticleEvents: SolarParticleEventRules;
   /**
