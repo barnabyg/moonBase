@@ -603,6 +603,8 @@ export function buyInTurn(
   purchases: readonly Purchase[] = PURCHASES,
   watch = purchaseStallWatch(),
 ): (play: Play) => void {
+  // The most water there has been since a Large-scale Crew Habitat was planned.
+  let mostWater = 0;
   return (play) => {
     const { state } = play;
     if (
@@ -610,6 +612,14 @@ export function buyInTurn(
     ) {
       return;
     }
+    const water =
+      state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms ??
+      0;
+    mostWater = state.constructions.some(
+      ({ structureTypeId }) => structureTypeId === "crew-habitat",
+    )
+      ? Math.max(mostWater, water)
+      : 0;
     const stands = (
       footing: {
         readonly structureTypeId: string;
@@ -651,14 +661,34 @@ export function buyInTurn(
             purchase.strandedBecause === undefined &&
             state.constructions.some((footing) => stands(footing, purchase)),
         )
-        .map((purchase) => ({
-          what: named(purchase),
-          why: "is planned, and hasn't been commissioned",
-        })),
+        .map((purchase) =>
+          purchase.structureTypeId === "crew-habitat"
+            ? stockingWait(named(purchase), mostWater)
+            : {
+                what: named(purchase),
+                why: "is planned, and hasn't been commissioned",
+              },
+        ),
       ...(next === undefined
         ? []
         : [{ what: named(next), ...seeToPurchase(play, next) }]),
     ]);
+  };
+}
+
+/**
+ * The wait on a planned Large-scale Crew Habitat, which the guide stocks once
+ * the water has risen to what it holds back for it. Each new high, in steps of
+ * 100 kg, starts the wait afresh: with the Greenhouse and growing hall drinking,
+ * it rose about 250 kg a Lunation at version 80, from the Habitat planned on
+ * Earth Day 2,427, and would have reached it after more than 300 Earth Days.
+ */
+function stockingWait(what: string, mostWater: number): PurchaseWait {
+  const most = Math.floor(mostWater / 100) * 100;
+  return {
+    what,
+    why: `is planned, and hasn't been commissioned: the water has risen to ${most} kg of the ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg held back to stock it`,
+    got: `${most} kg of water`,
   };
 }
 

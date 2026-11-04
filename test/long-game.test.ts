@@ -586,6 +586,53 @@ describe("the limit on a purchase that makes no progress", () => {
   });
 });
 
+describe("waiting on a Large-scale Crew Habitat to be stocked", () => {
+  const fresh = createCampaign({ seed: REFERENCE_SEED }).snapshot();
+  const crewHabitat = {
+    structureTypeId: "crew-habitat",
+    site: { x: 80, y: -116 },
+  };
+
+  /** Looks at the purchase each Earth Day for the given days, the Habitat planned and the water as given. */
+  function lookEachDay(days: number, waterOn: (day: number) => number): void {
+    const buy = buyInTurn([crewHabitat], purchaseStallWatch(10));
+    for (let day = 400; day <= 400 + days; day++) {
+      buy({
+        state: {
+          ...fresh,
+          clock: { ...fresh.clock, elapsedMinutes: day * earthDay },
+          constructions: [
+            {
+              structureTypeId: crewHabitat.structureTypeId,
+              position: crewHabitat.site,
+            },
+          ] as unknown as Snapshot["constructions"],
+          lifeSupport: fresh.lifeSupport.map((stock) =>
+            stock.stockId === "water"
+              ? { ...stock, kilograms: waterOn(day) }
+              : stock,
+          ),
+        },
+      } as unknown as Play);
+    }
+  }
+
+  it("starts again each time the water rises 100 kg higher than it has been", () => {
+    // Up and down with Daylight and Night, but higher each time.
+    expect(() => {
+      lookEachDay(60, (day) => 1000 + (day - 400) * 15 - (day % 2) * 300);
+    }).not.toThrow();
+  });
+
+  it("gives up once the water has risen no higher for the limit, saying how high it rose", () => {
+    expect(() => {
+      lookEachDay(20, (day) => (day % 2 === 0 ? 1550 : 1000));
+    }).toThrow(
+      "since Earth Day 400.0: a crew-habitat at (80, -116) is planned, and hasn't been commissioned: the water has risen to 1500 kg of the 2700 kg held back to stock it",
+    );
+  });
+});
+
 describe("waiting on a purchase that comes a Launch at a time", () => {
   it("starts again as each part comes, and gives up only once nothing has come for the limit", () => {
     const watch = purchaseStallWatch(10);
