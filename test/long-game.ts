@@ -185,11 +185,17 @@ const BURIED_HABITAT_SITE = { x: 46, y: 8 } as const;
 
 /**
  * The Earth Days of Daylight the guide wants left as it plans a Buried Habitat:
- * about 9 to build it and 3 to dismantle the old Habitat, as this base's battery
- * banks can't carry both through a Night, and with both drawing power by day the
- * Workshop, last in line for it, makes too few spare Components.
+ * enough to build it and dismantle the old Habitat, its water wall and its
+ * shielding before Night falls, as this base's battery banks can't carry both
+ * Habitats through a Night, and with both drawing power by day the Workshop,
+ * last in line for it, makes too few spare Components. At version 80 building
+ * took about 10.6 Earth Days and dismantling about 4.9: with 12 wanted, a
+ * Buried Habitat planned with just over 12 left was moved into 1.4 Earth Days
+ * before Night, dismantling ran 3.5 into it, and the Mission Director died
+ * near its end. So a Buried Habitat whose Components come later than that
+ * waits for the next Daylight.
  */
-const DAYLIGHT_TO_BUILD_AND_MOVE = { earthDays: 12 };
+const DAYLIGHT_TO_BUILD_AND_MOVE = { earthDays: 16 };
 
 /** The Components a type of Structure takes, as Launch manifest lines. */
 function manifestLinesOf(structureTypeId: string): readonly ManifestLine[] {
