@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 const doseRates = catalogue.radiation.doseRateMillisievertsPerEarthDay;
@@ -32,10 +33,7 @@ test("Regolith shielding is printed over the Habitat the Mission Director lives 
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const skip = page.getByRole("button", { name: "Skip to next event" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
 
   /** Clicks "Skip to next event" until the target shows, checking only once a frame has drawn the skip. */

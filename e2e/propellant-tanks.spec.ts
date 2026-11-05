@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 // The smallest screen the status panel is laid out for.
@@ -40,25 +41,18 @@ function propellantRow(page: Page) {
     .filter({ hasText: "Propellant" });
 }
 
-function entryOf(page: Page, name: string) {
-  return page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: name });
-}
-
 test("the status panel shows propellant against its limit, and at the limit the Plant waits and the Base panel says why", async ({
   page,
 }) => {
   await loadBase(page);
 
   await expect(propellantRow(page)).toContainText("1047.0 of 1050 kg");
-  await expect(entryOf(page, "Propellant tank")).toContainText(
+  await expect(structureEntry(page, "Propellant tank")).toContainText(
     "holds 598.3 of 600 kg of propellant, draws 0.2 kW at Night",
   );
 
   await speed(page, "5x");
-  await expect(entryOf(page, "Propellant plant")).toContainText(
+  await expect(structureEntry(page, "Propellant plant")).toContainText(
     "waiting for tank space: Propellant is 1050.0 of 1050 kg",
   );
   await expect(propellantRow(page)).toContainText("holding full");
@@ -99,7 +93,7 @@ test("a dismantled Propellant plant lowers the limit and loses nothing, with no 
 }) => {
   await loadBase(page);
 
-  await entryOf(page, "Propellant plant")
+  await structureEntry(page, "Propellant plant")
     .getByRole("button", { name: "Dismantle" })
     .click();
   await speed(page, "20x");

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /**
@@ -22,10 +23,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   await page.goto("/?seed=1");
   const speeds = page.getByRole("group", { name: "Game speed" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const array = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: /^Solar array/ });
+  const array = structureEntry(page, /^Solar array/);
 
   await page
     .getByRole("complementary", { name: "Build menu" })

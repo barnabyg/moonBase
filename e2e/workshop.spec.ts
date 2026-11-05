@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /**
@@ -33,10 +34,7 @@ test("the Base panel and the forecast say what a Workshop is making, and follow 
   page,
 }) => {
   await loadWorkshopBase(page);
-  const workshop = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: "Workshop" });
+  const workshop = structureEntry(page, "Workshop");
   const spares = page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Spare Components", exact: true });

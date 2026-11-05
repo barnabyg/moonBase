@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LATE_GAME_SCIENCE, tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 async function speed(page: Page, name: string): Promise<void> {
@@ -27,13 +28,6 @@ async function loadLateGame(page: Page): Promise<void> {
     mimeType: "application/json",
     buffer: Buffer.from(scenario.save()),
   });
-}
-
-function entryOf(page: Page, name: string) {
-  return page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: name });
 }
 
 function buildButton(page: Page, name: RegExp) {
@@ -88,7 +82,7 @@ test("a growing hall, built on the late base, says what it is doing and earns it
   // expectation should wait for, even at 20x on a slow runner, so the game
   // stays paused and skips from event to event.
   const skip = page.getByRole("button", { name: "Skip to next event" });
-  const hall = entryOf(page, "Growing hall");
+  const hall = structureEntry(page, "Growing hall");
   const growing = hall.filter({ hasText: "using 2 kg of water an hour" });
   for (let skips = 0; skips < 60 && (await growing.count()) === 0; skips++) {
     await skip.click();

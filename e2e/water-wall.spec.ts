@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
+import { structuresList } from "./base-panel";
 
 /**
  * A sample save of a Campaign an hour into the Assembly of a water wall over
@@ -43,10 +44,7 @@ test("a water wall built over a shielded Habitat shows it as water-walled and cu
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(waterWallSave);
 
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   const habitat = structures
     .getByRole("listitem")
     .filter({ hasText: /^Inflatable Habitat/ });

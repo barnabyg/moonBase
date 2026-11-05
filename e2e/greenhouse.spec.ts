@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -29,13 +30,6 @@ async function loadGreenhouseBase(page: Page): Promise<void> {
   });
 }
 
-function entryOf(page: Page, name: string) {
-  return page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: name });
-}
-
 function waterLine(page: Page) {
   return page
     .getByRole("complementary", { name: "Status panel" })
@@ -46,7 +40,7 @@ test("the Base panel and status panel say what a Greenhouse is doing, and it goe
   page,
 }) => {
   await loadGreenhouseBase(page);
-  const greenhouse = entryOf(page, "Greenhouse");
+  const greenhouse = structureEntry(page, "Greenhouse");
 
   await expect(greenhouse).toContainText("growing");
   await expect(greenhouse).toContainText("left of this round");
@@ -74,7 +68,7 @@ test("a Greenhouse switched off gives up its round, and its Structure can be swi
   page,
 }) => {
   await loadGreenhouseBase(page);
-  const greenhouse = entryOf(page, "Greenhouse");
+  const greenhouse = structureEntry(page, "Greenhouse");
 
   await greenhouse.getByRole("button", { name: "Switch off" }).click();
   await speed(page, "5x");
