@@ -10,7 +10,7 @@ import { shipped } from "./catalogue-helpers";
 
 /**
  * The data catalogue's Life Support, Industry and Mobility Designs, in
- * research.ts, and the Structures they bring, in structures.ts.
+ * research.ts, and the Structures they bring, in the structures-*.ts files.
  */
 
 describe("the data catalogue", () => {

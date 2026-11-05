@@ -486,7 +486,7 @@ export const launch: Catalogue["launch"] = {
     },
     // With the airlock, a Buried Habitat's worth comes to 5300 kg, three
     // Launches' Payload Mass, and $4510M: see the Buried Habitat in
-    // structures.ts for why. A section costs what no other Launch item does,
+    // structures-habitats.ts for why. A section costs what no other Launch item does,
     // the most that a Launch can carry on the Programme Grant alone.
     {
       id: "vault-section",

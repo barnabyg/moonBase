@@ -4,7 +4,7 @@ import { designsUnlockedWith } from "./catalogue-helpers";
 
 /**
  * The data catalogue's Protection Designs, in research.ts, and the Structures
- * they bring, in structures.ts.
+ * they bring, in the structures-*.ts files.
  */
 
 describe("the data catalogue", () => {
