@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /**
@@ -66,10 +67,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   };
 
   await skipUntil(notifications.getByText("Inflatable Habitat commissioned"));
-  await page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("button", { name: "Move in" })
-    .click();
+  await structuresList(page).getByRole("button", { name: "Move in" }).click();
   await expect(oxygen).toHaveText(/^Oxygen 2\d\.\d of 100 kg · lasts 2[89]d/);
   await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · lasts (29|30)d/);
   await expect(habitatPower).toHaveText(/^Habitat power on · fails in \d+d/);

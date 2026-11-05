@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 
 /**
  * Starts a base with the Mission Director behind a water wall at a high dose
@@ -42,13 +43,6 @@ function radiation(page: Page) {
     .getByRole("status", { name: "Radiation Dose" });
 }
 
-function structure(page: Page, label: RegExp) {
-  return page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: label });
-}
-
 /**
  * Clicks across the 3D view, as a player finds a thing on the map, until a
  * pop-up with the given name opens saying the given text, and returns where it
@@ -85,8 +79,8 @@ test("the Mission Director moves from behind a water wall into a Buried Habitat:
   page,
 }) => {
   await loadBase(page);
-  const home = structure(page, /^Inflatable Habitat.*water-walled/);
-  const buried = structure(page, /^Buried Habitat/);
+  const home = structureEntry(page, /^Inflatable Habitat.*water-walled/);
+  const buried = structureEntry(page, /^Buried Habitat/);
 
   await expect(radiation(page)).toContainText("568.0 / 600 mSv");
   await expect(radiation(page)).toContainText(
@@ -155,7 +149,7 @@ test("the Mission Director moves from behind a water wall into a Buried Habitat:
   await expect(page.getByRole("alert")).toHaveText(
     "Its Regolith shielding is over it, and must be dismantled first.",
   );
-  await structure(page, /^Water wall/)
+  await structureEntry(page, /^Water wall/)
     .getByRole("button", { name: "Dismantle" })
     .click();
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
@@ -190,7 +184,7 @@ test("the Mission Director can move into a bare Habitat, where the pop-up, the s
   page,
 }) => {
   await loadBase(page);
-  const bare = structure(page, /^Inflatable Habitat.*unshielded/);
+  const bare = structureEntry(page, /^Inflatable Habitat.*unshielded/);
   await expect(bare).toBeVisible();
 
   // Two Habitats share the name: the bare one's pop-up is the one with this.

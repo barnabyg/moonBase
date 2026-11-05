@@ -3,13 +3,14 @@ import {
   catalogue,
   type ResourceFlow,
   resourceOutputs,
+  type StructureType,
 } from "../src/catalogue";
 import { shipped } from "./catalogue-helpers";
 
 /**
- * The data catalogue's structures.ts: Structure types and how they are built,
- * Plants among them. Those that belong to a category's later Designs are in the
- * catalogue-*-designs.test.ts files.
+ * The data catalogue's structures.ts and structures-*.ts: Structure types and
+ * how they are built, Plants among them. Those that belong to a category's
+ * later Designs are in the catalogue-*-designs.test.ts files.
  */
 
 describe("the data catalogue", () => {
@@ -55,6 +56,32 @@ describe("the data catalogue", () => {
       "lights",
       "lights",
     ]);
+  });
+
+  it("keeps each Structure type in the file of its group, and lists every one of them in structures.ts", () => {
+    const files = import.meta.glob<Record<string, StructureType>>(
+      "../src/catalogue/structures-*.ts",
+      { eager: true },
+    );
+    const groupIds = catalogue.structureListGroups.map(({ id }) => id);
+    const defined: StructureType[] = [];
+
+    expect(Object.keys(files).length).toBeGreaterThan(0);
+    for (const [path, exports] of Object.entries(files)) {
+      const name = /structures-(.+)\.ts$/.exec(path)?.[1] ?? "";
+      const group = groupIds.find(
+        (id) => name === id || name.startsWith(`${id}-`),
+      );
+      expect(group, path).toBeDefined();
+      for (const type of Object.values(exports)) {
+        expect(type.listGroup, `${type.id} in ${path}`).toBe(group);
+        defined.push(type);
+      }
+    }
+    const listed = catalogue.structureTypes.filter((type) =>
+      defined.includes(type),
+    );
+    expect(listed).toHaveLength(defined.length);
   });
 
   it("describes Structures that can be constructed", () => {

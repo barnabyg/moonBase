@@ -1,14 +1,51 @@
 import { expect, test, type Page } from "@playwright/test";
-import { tryScenarios } from "../test/try-scenarios";
+import { tryScenarios, type EditableSaveState } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
+
+function workshopScenarioSave(): string {
+  const scenario = tryScenarios.find(({ id }) => id === "workshop");
+  if (scenario === undefined) throw new Error("expected a workshop scenario");
+  return scenario.save();
+}
+
+/** What a Workshop's batch takes and how long, as the tests below say. */
+const metalsPerBatch = 3.6;
+const batchMinutes = 24 * 60;
+
+/**
+ * The workshop scenario's base with its first batch 3 hours from done, and
+ * with the metals it would have left after the two batches it has metals
+ * for, so that at 20x they run out in seconds rather than three batches.
+ */
+function lastBatchSave(): string {
+  const save = JSON.parse(workshopScenarioSave()) as {
+    state: EditableSaveState & {
+      structures: {
+        structureTypeId: string;
+        batch?: { minutesWorked: number };
+      }[];
+    };
+  };
+  for (const { structureTypeId, batch } of save.state.structures) {
+    if (structureTypeId === "workshop" && batch !== undefined) {
+      batch.minutesWorked = batchMinutes - 3 * 60;
+    }
+  }
+  for (const stock of save.state.bulkResources) {
+    if (stock.resourceId === "metals") stock.kilograms -= 2 * metalsPerBatch;
+  }
+  return JSON.stringify(save);
+}
 
 /**
  * Starts a base with a Workshop running, as `npm run try -- workshop` does,
  * with the game paused so that no batch moves on between the steps.
  */
-async function loadWorkshopBase(page: Page): Promise<void> {
-  const scenario = tryScenarios.find(({ id }) => id === "workshop");
-  if (scenario === undefined) throw new Error("expected a workshop scenario");
+async function loadWorkshopBase(
+  page: Page,
+  save: string = workshopScenarioSave(),
+): Promise<void> {
   await page.goto("/?seed=1");
   await speed(page, "Pause");
   const chooser = page.waitForEvent("filechooser");
@@ -18,7 +55,7 @@ async function loadWorkshopBase(page: Page): Promise<void> {
   ).setFiles({
     name: "workshop.moonbase",
     mimeType: "application/json",
-    buffer: Buffer.from(scenario.save()),
+    buffer: Buffer.from(save),
   });
 }
 
@@ -32,11 +69,8 @@ async function speed(page: Page, name: string): Promise<void> {
 test("the Base panel and the forecast say what a Workshop is making, and follow it being switched off and its metals running out", async ({
   page,
 }) => {
-  await loadWorkshopBase(page);
-  const workshop = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: "Workshop" });
+  await loadWorkshopBase(page, lastBatchSave());
+  const workshop = structureEntry(page, "Workshop");
   const spares = page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Spare Components", exact: true });

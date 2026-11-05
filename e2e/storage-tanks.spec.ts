@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { tryScenarios } from "../test/try-scenarios";
+import { storageTanksSave, tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 async function speed(page: Page, name: string): Promise<void> {
@@ -9,14 +10,21 @@ async function speed(page: Page, name: string): Promise<void> {
     .click();
 }
 
+function scenarioSave(): string {
+  const scenario = tryScenarios.find(({ id }) => id === "storage-tanks");
+  if (scenario === undefined) throw new Error("expected the scenario");
+  return scenario.save();
+}
+
 /**
  * Starts a base with a water tank and an oxygen tank half full, as `npm run try
  * -- storage-tanks` does, with the game paused so that nothing moves on between
  * the steps.
  */
-async function loadTankBase(page: Page): Promise<void> {
-  const scenario = tryScenarios.find(({ id }) => id === "storage-tanks");
-  if (scenario === undefined) throw new Error("expected the scenario");
+async function loadTankBase(
+  page: Page,
+  save: string = scenarioSave(),
+): Promise<void> {
   await page.goto("/?seed=1");
   await speed(page, "Pause");
   const chooser = page.waitForEvent("filechooser");
@@ -26,7 +34,7 @@ async function loadTankBase(page: Page): Promise<void> {
   ).setFiles({
     name: "storage-tanks.moonbase",
     mimeType: "application/json",
-    buffer: Buffer.from(scenario.save()),
+    buffer: Buffer.from(save),
   });
 }
 
@@ -34,13 +42,6 @@ function stockLine(page: Page, name: string) {
   return page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name, exact: true });
-}
-
-function entryOf(page: Page, name: string) {
-  return page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: name });
 }
 
 test("the status panel counts the tanks in each limit, and the Base panel says what each holds and draws, in Daylight and at Night", async ({
@@ -54,23 +55,28 @@ test("the status panel counts the tanks in each limit, and the Base panel says w
   await expect(stockLine(page, "Oxygen")).toHaveText(
     /^Oxygen 200(\.0)? of 400 kg/,
   );
-  await expect(entryOf(page, "Water tank")).toContainText(
+  await expect(structureEntry(page, "Water tank")).toContainText(
     "holds 500 of 1000 kg of water, draws 0.05 kW at Night",
   );
-  await expect(entryOf(page, "Oxygen tank")).toContainText(
+  await expect(structureEntry(page, "Oxygen tank")).toContainText(
     "holds 150 of 300 kg of oxygen, draws 0.15 kW at Night",
   );
 
   await speed(page, "5x");
-  await expect(entryOf(page, "Oxygen tank")).toContainText("drawing 0.15 kW");
+  await expect(structureEntry(page, "Oxygen tank")).toContainText(
+    "drawing 0.15 kW",
+  );
   await speed(page, "Pause");
-  await expect(entryOf(page, "Water tank")).toContainText("drawing 0.05 kW");
+  await expect(structureEntry(page, "Water tank")).toContainText(
+    "drawing 0.05 kW",
+  );
 });
 
 test("a second water tank, picked from the build menu and commissioned, raises the limit with no water of its own, and its pop-up says what it holds", async ({
   page,
 }) => {
-  await loadTankBase(page);
+  // Early in the Daylight, as at Night the building takes half as long again.
+  await loadTankBase(page, storageTanksSave({ nearNight: false }));
   await page
     .getByRole("complementary", { name: "Build menu" })
     .getByRole("button", { name: /Water tank/ })
@@ -97,7 +103,7 @@ test("a dismantled oxygen tank takes what no longer fits with it, with a notific
 }) => {
   await loadTankBase(page);
 
-  await entryOf(page, "Oxygen tank")
+  await structureEntry(page, "Oxygen tank")
     .getByRole("button", { name: "Dismantle" })
     .click();
   await speed(page, "20x");

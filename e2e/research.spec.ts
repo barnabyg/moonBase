@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
+import { structureEntry } from "./base-panel";
 
 /**
  * A sample save of a Campaign in its first Night, with a telescope ten
@@ -211,12 +212,7 @@ test("the Research section shows the observing programme a telescope works on at
   await expect(observing).toHaveText(
     "Observing Night-sky survey · observing, 1d 14h left",
   );
-  await expect(
-    page
-      .getByRole("group", { name: "Structures", exact: true })
-      .getByRole("listitem")
-      .filter({ hasText: "Telescope" }),
-  ).toContainText("observing");
+  await expect(structureEntry(page, "Telescope")).toContainText("observing");
   await expect(science).toHaveText("70");
   // Folded, the Research section still shows how far the round has got,
   // after the Research Task running.

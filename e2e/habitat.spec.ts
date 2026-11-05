@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 test("the Mission Director moves from the Lander into a commissioned Habitat, which then can't be dismantled", async ({
@@ -26,10 +27,7 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   await skip.click();
   await expect(notifications).toContainText("Inflatable Habitat commissioned");
 
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   // Dust has worn the solar array down a little since it was commissioned.
   // Habitats are listed first.
   await expect(structures.getByRole("listitem")).toHaveText([

@@ -4,7 +4,7 @@ import { shipped } from "./catalogue-helpers";
 
 /**
  * The data catalogue's Power and Construction Designs, in research.ts, and the
- * Structures they bring, in structures.ts.
+ * Structures they bring, in the structures-*.ts files.
  */
 
 describe("the data catalogue", () => {

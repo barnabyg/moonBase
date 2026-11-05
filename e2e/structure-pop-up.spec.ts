@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { ScreenPoint } from "../src/render/renderer";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /**
@@ -140,10 +141,7 @@ test("the pop-up's Dismantle does what the Base panel's does, and the pop-up clo
 }) => {
   const site = await planSolarArray(page);
   const skip = page.getByRole("button", { name: "Skip to next event" });
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array Condition \d+% commissioned/,

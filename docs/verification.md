@@ -49,15 +49,7 @@ So CI gets its parallelism from separate runners instead, each with its own disp
 
 ## Four workers at most for headless end-to-end runs
 
-On a developer's PC, `playwright.config.ts` runs headless end-to-end tests on half the CPU cores, but no more than four workers. Each worker's Firefox makes a WebGL context as the game starts, and when many start at once on the PC's GPU, some pages stall for minutes before they load. With 10 workers, the old default on a 20-core PC, the first tests of a run failed in some runs and not others (#228): pages that never loaded, `NS_ERROR_CONNECTION_REFUSED`, and Firefox logging "WebGL is currently disabled" in the first minute, long before `e2e/no-webgl.spec.ts`, which switches WebGL off on purpose and logs it every run.
-
-What showed it, starting 4 to 10 headless Firefox instances at once against one dev server, each loading the game, two rounds a server:
-
-- With 10, pages hung for over 60 seconds, or took 20 to 60 seconds, in most rounds, though every request had been answered within 6 seconds. With 8, one round in six hung; with 6, one round in six stalled for about 27 seconds. With 5 or 4, every page of 24 rounds loaded in 3 to 6 seconds.
-- With WebGL turned off, 10 at once all loaded in 2.5 to 4.3 seconds. Software WebGL (`webgl.angle.force-warp`) and no GPU process (`layers.gpu-process.enabled` off) still hung or stalled.
-- A cold Vite cache, the full Vitest run just before, and the CPU kept busy by Vitest beside them didn't bring it back with one run of 10 workers. Two runs of 10 at once, from two checkouts, did: 20 Firefox instances.
-
-Four workers make a quiet run take 5 to 10 minutes on that PC, against 3.4 to 4.2 with 10. Three runs in a row with four workers, the first straight after the Vitest run, and two runs of four at once, all passed with none of the errors above. The other error #228 met, `browserContext.close` failing with `removeBrowserContext` as a failed test's Firefox closed, wasn't seen in any of these runs, stalled or not. Two checkouts running their end-to-end tests at once (see `E2E_PORT`) still add their workers together, so more than two at once could bring it back.
+On a developer's PC, `playwright.config.ts` runs headless end-to-end tests on half the CPU cores, but no more than four workers. Each worker's Firefox makes a WebGL context as the game starts, and when many start at once on the PC's GPU, some pages stall for minutes before they load. With 10 workers, the old default on a 20-core PC, the first tests of a run failed in some runs and not others (#228): pages that never loaded, `NS_ERROR_CONNECTION_REFUSED`, and Firefox logging "WebGL is currently disabled" in the first minute, long before `e2e/no-webgl.spec.ts`, which switches WebGL off on purpose and logs it every run. In five runs, four workers passed with none of those errors, at 5 to 10 minutes a run on that PC against 3.4 to 4.2 with 10. Two checkouts running their end-to-end tests at once (see `E2E_PORT`) add their workers together, so more than two at once could bring the stalls back. [What showed it](verification-history.md#four-workers-at-most-what-showed-it-228), from 4 to 10 Firefox instances started at once, is in the verification history.
 
 The dev server listens on 127.0.0.1, and Firefox goes there, rather than to `localhost`. Vite binds `localhost` to `::1` alone on Windows, while Firefox tries both `::1` and 127.0.0.1 for it, so a page slow to connect fell back to 127.0.0.1, where nothing listened, and reported `NS_ERROR_CONNECTION_REFUSED` instead of the stall.
 
@@ -65,7 +57,7 @@ The dev server listens on 127.0.0.1, and Firefox goes there, rather than to `loc
 
 A timeout is there to stop a test that hangs, not to check how fast it runs. Each limit is set well above the slowest run seen in CI, so ordinary variation in machine speed can't fail a test. If a test needs to check speed, it should measure it explicitly. Set limits for the whole suite, not for single tests, with one exception: the reference Campaign's test plays some 170 Earth Days a game-minute at a time, far longer than any other, so it sets its own limit rather than raising the suite's for every test.
 
-The test figures are from the CI run of the merge of pull request #206 into `main` (1 November 2026, runs 41323630921 and 41323631019), which ran 2,161 Vitest tests and 98 end-to-end tests, except the first row's, which is from the CI run of pull request #207 (run 41330828226), the first after the slowest test was cut. The job figures are the slowest of the green runs on `main` up to and including it: the last 20 for the checks job, and all 9 for the end-to-end jobs since they were shared out.
+The figures are the slowest seen in CI up to early November 2026: the tests' from one full run, the jobs' from the slowest of their recent green runs on `main`. [Which runs they came from](verification-history.md#the-ci-runs-behind-the-timeout-table) is in the verification history.
 
 | Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                         | Margin     |
 | ------------------------------------- | ---------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- | ---------- |
@@ -79,7 +71,7 @@ The test figures are from the CI run of the merge of pull request #206 into `mai
 | Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                       | about 6×   |
 | CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
 
-The long game's figures are the slowest of its 14 green plays in CI up to and including the merge of pull request #230 into `main` (2 November 2026), from the first on pull request #210: pull request #224's play, run 41508111671. Plays took from 4.6 to 9.9 minutes, as the runners' speed varies; a developer's PC takes about 10.
+The long game's plays in CI took from 4.6 to 9.9 minutes, as the runners' speed varies; a developer's PC takes about 10.
 
 The runners' speed varies a lot from one run to the next, so the job limits are set against the slowest run, not a typical one. In the run of pull request #206's merge the four end-to-end shares took 24.5 minutes between them, so the end-to-end limit would only just cover every test landing on one runner; a share of a quarter of them has more margin than that.
 

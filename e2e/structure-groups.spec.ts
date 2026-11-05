@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 interface SavedStructure {
@@ -85,20 +86,14 @@ async function loadBrokenArrayBase(
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(brokenArraySave({ more }));
-  await expect(entriesOf(structuresOf(page))).toHaveCount(
+  await expect(entriesOf(structuresList(page))).toHaveCount(
     4 + (more ? ADDED.length : 0),
   );
 }
 
-function structuresOf(page: Page): Locator {
-  return page
-    .getByRole("complementary", { name: "Base" })
-    .getByRole("group", { name: "Structures", exact: true });
-}
-
 /** A group of Structures, by its label, folded or not. */
 function groupOf(page: Page, label: string): Locator {
-  return structuresOf(page)
+  return structuresList(page)
     .locator("details")
     .filter({
       has: page.locator("summary", {
@@ -116,7 +111,7 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   page,
 }) => {
   await loadBrokenArrayBase(page, { more: true });
-  const structures = structuresOf(page);
+  const structures = structuresList(page);
   const habitats = groupOf(page, "Habitats");
   const power = groupOf(page, "Power");
   const lights = groupOf(page, "Lights");
@@ -195,7 +190,7 @@ test("building a Structure puts it in its place in its group, folded or not, or 
   page,
 }) => {
   await loadBrokenArrayBase(page);
-  const structures = structuresOf(page);
+  const structures = structuresList(page);
   const power = groupOf(page, "Power");
   const industry = groupOf(page, "Industry");
   const skip = page.getByRole("button", { name: "Skip to next event" });
