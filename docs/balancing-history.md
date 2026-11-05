@@ -1,6 +1,6 @@
 # Balancing history
 
-What the long-game play guide played at each data catalogue version, and what the maintainer's playtests found, moved here from [`docs/balancing.md`](balancing.md) unedited, apart from links into it. Each section names the part of `docs/balancing.md` it came from, which "above" and "below" in it refer to. `docs/balancing.md` keeps the targets, the decisions behind the numbers and the latest play; each figure here is from the version its section names, so measure again before relying on one.
+What the long-game play guide played at each data catalogue version, and what the maintainer's playtests found, moved here from [`docs/balancing.md`](balancing.md) unedited, apart from links into it. Each section names the part of `docs/balancing.md` it came from, which "above" and "below" in it refer to. `docs/balancing.md` keeps the targets, the decisions behind the numbers and the latest play; each figure here is from the version its section names, so measure again before relying on one. The last section came from [`docs/adding-content.md`](adding-content.md) instead.
 
 ## Water as coolant, at version 67
 
@@ -165,3 +165,16 @@ From [Dismantling for spare Components (#236)](balancing.md#the-larger-changes-a
 | Funding at the end                        | $5,366M       | $7,467M       |
 
 From Earth Day 1,636 the Robot's work falls at slightly different times, and the rest of the Campaign plays a little differently. In Act 4 it sold 2,400 kg of precision optics, 10,257 kg of circuit boards, 3,749 kg of propellant and 6 kg of metals, $49,676M over 147 trips: $2,003M more than at version 77, most of the $2,101M more Funding at the end. The Large-scale Crew Habitat's parts went over the same nine Launches, from Earth Day 2,323.9 to 2,642.8, and it was commissioned 32 Earth Days sooner. The Greenhouse and the growing hall each lost 2 rounds for want of water, not 7. The stock of spare Components fell lowest to 6, in the Lunation to Earth Day 2,596, while the habitat's parts were coming, against 11 at version 77, and was back to 26 a Lunation later. The 3 spares from dismantling came about 1,000 Earth Days before that, so the lower low comes from the different order of work, not from them.
+
+## The catalogue's version, up to version 66
+
+From [The catalogue's version](adding-content.md#the-catalogues-version) in `docs/adding-content.md`, where "all three above" are the commits that added a Workshop (`5a81a54`), a Buried Habitat (`2b5bf20`) and Act 2 (`ce8bc96`).
+
+The rule comes from what the history showed when it was written, at version 66, reached one step at a time:
+
+- Each ticket that adds content raises it by one in the commit that changes the catalogue, as all three above did.
+- So do changes to numbers or to the words alone: `b5ca87a` changed one Milestone's hint, and `79fe87b` was for descriptions.
+- A change to code beside the catalogue, with no data changed, leaves it alone (`174b24a`).
+- When two branches took the same number, a later commit raised it again for the two together (`9346be9`).
+
+So raise it by one when a change alters what the catalogue holds. Before it was written down, that was the usual practice rather than a rule that always held: pull requests #107 and #108 changed digging's numbers and removed a Design with no raise, and within a branch that has raised it, later commits sometimes haven't (`8c44cb2` added six Milestones).
