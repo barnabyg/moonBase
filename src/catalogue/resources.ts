@@ -62,12 +62,21 @@ export const exports: Catalogue["exports"] = [
 // excavator down by some 8 percentage points, and an extraction plant
 // takes some ten days of Daylight to use that much. Filling the stock
 // from empty takes about two.
+//
+// The excavator is parked through the Night, some 9.5 Earth Days, while
+// Plants with stored power to spare go on drawing the stock down, so it is
+// topped up first. From just above the refill level that is some 20 hours'
+// digging at full Condition; 30 hours leaves time for the drive there and a
+// worn excavator. Topping up only when an hour's digging or more short of
+// full keeps a Plant from having the Robot out for every few kilograms.
 export const digging: Catalogue["digging"] = {
   machineTypeId: "excavator",
   resourceId: "regolith",
   refillBelowKilograms: 1000,
   fullKilograms: 2000,
   kilogramsPerWorkingHour: 50,
+  topUpHoursBeforeParking: 30,
+  topUpBelowKilograms: 1950,
 };
 
 export const componentTypes: Catalogue["componentTypes"] = [

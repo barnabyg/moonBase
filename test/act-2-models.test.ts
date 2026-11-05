@@ -10,24 +10,32 @@ vi.stubGlobal("document", {
 });
 
 let models: typeof import("../src/render/models");
+let plants: typeof import("../src/render/plant-models");
 
 beforeAll(async () => {
   models = await import("../src/render/models");
+  plants = await import("../src/render/plant-models");
 });
 
 afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-/** The box round everything in a model that shows, in the model's own frame. */
-function boundsOf(object: THREE.Object3D): THREE.Box3 {
+/**
+ * The box round everything in a model that shows, in the model's own frame,
+ * leaving out any part named `leaveOut`.
+ */
+function boundsOf(object: THREE.Object3D, leaveOut?: string): THREE.Box3 {
   object.updateMatrixWorld(true);
   const box = new THREE.Box3();
-  object.traverseVisible((child) => {
+  const visit = (child: THREE.Object3D) => {
+    if (!child.visible || child.name === leaveOut) return;
     if (child instanceof THREE.Mesh) {
       box.union(new THREE.Box3().setFromObject(child, true));
     }
-  });
+    child.children.forEach(visit);
+  };
+  visit(object);
   return box;
 }
 
@@ -65,7 +73,9 @@ describe.each(newStructures)("the %s's model", (id, name) => {
     expect(model.group.name).toBe(name);
     model.setAssembled(1);
 
-    const box = boundsOf(model.group);
+    // The cold-trap ice line's haul line runs out beyond its footprint, as
+    // scenery: test/plant-models.test.ts checks it.
+    const box = boundsOf(model.group, plants.HAUL_LINE_NAME);
     expect(box.min.y).toBeCloseTo(0, 1);
     const reach = Math.hypot(
       Math.max(-box.min.x, box.max.x),

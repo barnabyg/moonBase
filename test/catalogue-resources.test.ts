@@ -62,6 +62,23 @@ describe("the data catalogue", () => {
     expect(digging.kilogramsPerWorkingHour).toBeGreaterThan(0);
   });
 
+  it("has the excavator top the Regolith up before Night from just below full, in time to dig it full from the refill level", () => {
+    const { digging } = catalogue;
+
+    expect(digging.topUpBelowKilograms).toBeGreaterThan(
+      digging.refillBelowKilograms,
+    );
+    expect(digging.topUpBelowKilograms).toBeLessThan(digging.fullKilograms);
+    // At least an hour's digging, so that a Robot isn't sent out for a few kilograms.
+    expect(
+      digging.fullKilograms - digging.topUpBelowKilograms,
+    ).toBeGreaterThanOrEqual(digging.kilogramsPerWorkingHour);
+    expect(digging.topUpHoursBeforeParking).toBeGreaterThan(
+      (digging.fullKilograms - digging.refillBelowKilograms) /
+        digging.kilogramsPerWorkingHour,
+    );
+  });
+
   it("has Components with unique ids and labels", () => {
     const { componentTypes } = catalogue;
 

@@ -164,6 +164,46 @@ describe("the types of Expedition", () => {
     }
   });
 
+  // The first extraction plant comes on the second Launch, which lands about
+  // 12 Earth Days after the first Research Task. Prospecting has to be had by
+  // then, with the water wall's Design bought first, or it comes once the
+  // Plants already make metals and silicon and has nothing left to do (#249).
+  it("can be had before the first extraction plant runs: it, what it needs and the water wall's Design cost no more than 10 Earth Days of the first Research Tasks pay", () => {
+    const RESEARCH_HOURS = 10 * 24;
+    const designOf = (id: string) => {
+      const found = catalogue.designs.find((design) => design.id === id);
+      if (found === undefined) throw new Error(`expected a Design "${id}"`);
+      return found;
+    };
+    const withWhatItNeeds = (id: string): Set<string> => {
+      const ids = new Set<string>([id]);
+      for (const needed of designOf(id).prerequisiteDesignIds) {
+        for (const each of withWhatItNeeds(needed)) ids.add(each);
+      }
+      return ids;
+    };
+    const tasksFirst = catalogue.researchTasks
+      .filter((task) => task.requiresDesignId === undefined)
+      .toSorted((a, b) => a.lengthHours - b.lengthHours);
+    let hours = 0;
+    let science = 0;
+    for (const task of tasksFirst) {
+      if (hours + task.lengthHours > RESEARCH_HOURS) break;
+      hours += task.lengthHours;
+      science += task.science;
+    }
+    const designs = new Set([
+      ...withWhatItNeeds(PROSPECTING),
+      ...withWhatItNeeds("water-wall-shielding"),
+    ]);
+    const cost = [...designs].reduce(
+      (sum, id) => sum + designOf(id).scienceCost,
+      0,
+    );
+
+    expect(cost).toBeLessThanOrEqual(science);
+  });
+
   it("carries on as water ice from an older save with one under way", () => {
     const game = baseWith([]);
     game.campaign.startExpedition("water-ice");

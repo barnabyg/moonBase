@@ -24,7 +24,7 @@ import {
 } from "./driven";
 import { isRoverSpokenFor } from "./expeditions";
 import { lunationMinutes, readLunation } from "./lunation";
-import { machineOn } from "./machines";
+import { isMachineBroken, machineOn, type MachineState } from "./machines";
 import { isUnderMaintenance } from "./maintenance";
 import {
   minutesUntilEmpty,
@@ -226,9 +226,10 @@ export function planParking(state: CampaignState): void {
 /**
  * Whether a Machine has more work coming, so that it isn't sent to a bay
  * between jobs only to be driven out again: it is set digging, or is the
- * Machine that digs while the base needs digging, or a Construction's
- * current stage is carried out by its type of Machine, none is on it yet
- * and it waits for nothing but a Machine. One waiting for Components or
+ * Machine that digs while the base needs digging, which in the hours before
+ * Night includes topping the stock up (see `needsDigging`), or a
+ * Construction's current stage is carried out by its type of Machine, none
+ * is on it yet and it waits for nothing but a Machine. One waiting for Components or
  * water may wait for weeks, so it doesn't keep a Machine out. A Rover's
  * next Expedition is already ruled out by its being idle.
  */
@@ -408,6 +409,30 @@ export function isParkingTime(state: CampaignState): boolean {
     lunation.part === "night" ||
     lunation.minutesRemaining <=
       Math.round(catalogue.cold.parkingLeadHours * 60)
+  );
+}
+
+/**
+ * Whether a Machine is parked for Night: it is parking time, and it stands
+ * idle and plugged in with nothing to do (no stage of Construction, not
+ * Broken or undergoing Maintenance) and no park Work Order to move it, so
+ * it stays where it is until Daylight. One the Robots are still to take to
+ * a bay isn't parked yet.
+ */
+export function isParkedForNight(
+  state: CampaignState,
+  machine: MachineState,
+  plugs: ReadonlyMap<string, unknown>,
+): boolean {
+  const target: DrivenTarget = { kind: "machine", machineId: machine.id };
+  return (
+    isParkingTime(state) &&
+    machine.activity.kind === "idle" &&
+    machine.assignment === undefined &&
+    !isMachineBroken(machine) &&
+    !isUnderMaintenance(state, target) &&
+    plugs.has(machine.id) &&
+    !state.parking.some((parking) => isSameDriven(parking.target, target))
   );
 }
 

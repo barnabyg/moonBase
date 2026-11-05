@@ -148,8 +148,10 @@ export const researchTasks: Catalogue["researchTasks"] = [
     science: 66,
     requiresDesignId: "large-battery-banks",
   },
-  // These two pay back what their Designs cost, as the Tech Tree's Science is
-  // tight: 120 more with nothing to pay for it put its last Designs out of reach.
+  // These two pay back at least what their Designs cost, as the Tech Tree's
+  // Science is tight: 120 more with nothing to pay for it put its last Designs
+  // out of reach. The Deposit assay survey kept its 80 when Prospecting
+  // Expeditions came down to 30 (#249).
   // Their 15 Earth Days come from the Grinding line yield survey, as research
   // already takes up nearly the whole Campaign.
   {
@@ -934,10 +936,16 @@ export const designs: Catalogue["designs"] = [
       "Assay tools for the Rover, so that an Expedition can bring back metals or silicon from a richer site than the base's own Regolith.",
     category: "mobility",
     starting: false,
-    scienceCost: 80,
-    // Past making parts at the base, so that it comes once the Plant chain
-    // is standing, not in place of it: Regolith extraction is a starting Design.
-    prerequisiteDesignIds: ["parts-machining"],
+    // Cheap, and past only Robots, so that it can be had before the second
+    // Launch brings the first extraction plant: it bridges the base to its
+    // Plants rather than coming once they already make metals and silicon
+    // (#249). Past Robots because an Expedition takes a Robot away for six
+    // Earth Days, so it comes with the Design that lets a base ship a second.
+    // That Robot comes by Launch, on the second at the soonest, so sending
+    // one before it lands leaves the base without a Robot for those days: the
+    // player's trade-off.
+    scienceCost: 30,
+    prerequisiteDesignIds: ["robots"],
   },
   {
     id: "landing-pad-lights",

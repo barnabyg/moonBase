@@ -15,7 +15,13 @@ import {
 } from "./describe";
 import { setText } from "./dom";
 import { formatMillionDollars, formatScience, listInWords } from "./format";
-import { inSentence, stockLabel, structureLabel } from "./labels";
+import {
+  inSentence,
+  machineLabel,
+  resourceLabel,
+  stockLabel,
+  structureLabel,
+} from "./labels";
 import { formatLaunchItem } from "./launch-manifest-text";
 import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
@@ -255,6 +261,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
     nightReserveHours,
     daylightChargeMarginHours,
     observingProgramme,
+    digging,
   } = catalogue;
   return [
     {
@@ -274,6 +281,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         "The Habitat is supplied first. If it loses power with the Mission Director inside, they die, so build enough battery banks before Night falls: the status panel shows how long the stored power will last. Only the battery banks on the Habitat's own network can carry it: should some of the base's power be on another network, the status panel says what the Habitat's network holds, apart from the base's total.",
         `Machines and the Rover parked within ${cold.plugInReachMetres} m of a powered Structure draw power for their heaters at Night, and the Robot parks them before Night falls; left in the cold, they wear down.`,
         `Build a parking area to keep them together: once it is cabled to battery banks that will keep their heaters on through the Night and has a bay free, the Robot takes each one there in Daylight as soon as it has nothing else to do, after the work you planned. Before Night falls it parks the rest in its bays too, rather than beside the nearest powered Structure, as long as the bay is no more than ${cold.bayDetourMetres} m further off than that Structure. Put it near where the Machines work, as the Robot drives them there and back.`,
+        `The ${inSentence(machineLabel(digging.machineTypeId))} digs the base's ${resourceLabel(digging.resourceId)} beside the stockpile whenever no Construction needs it: once there is less than ${digging.refillBelowKilograms} kg, it digs until there is ${digging.fullKilograms} kg. It is parked through the Night, so in the ${formatHours(digging.topUpHoursBeforeParking)} before the Robot starts parking it also tops the stock up once it is below ${digging.topUpBelowKilograms} kg, to give the Plants the most to draw on. Plants that use it all at Night wait for Daylight, and the status panel's ${resourceLabel(digging.resourceId)} line says why it isn't being dug.`,
         "Plants work in batches of their recipe, most of them an hour long: each starts once there is a batch's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
         `Plants run only on power that nothing else needs: in Daylight, while the battery banks would still be full ${formatHours(daylightChargeMarginHours)} before Night falls with them running, so they run as the banks charge if there is surplus enough for both, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, or run on and off on the little that is freed, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
         ...catalogue.lifeSupportStocks
@@ -333,7 +341,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
                 ],
         ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",
-        "An Expedition can go for more than water ice: Designs add Prospecting, for metals or silicon, and a Survey, for Science. Each ties up a Robot and the Rover while it is away, and Prospecting brings less than an extraction plant makes in the time, so it tops a base up rather than taking the place of its Plants.",
+        "An Expedition can go for more than water ice: Designs add Prospecting, for metals or silicon, and a Survey, for Science. Each ties up a Robot and the Rover while it is away. Prospecting is cheap and needs only Robots, so it can bring metals and silicon before the first extraction plant comes, though until a second Robot lands the base has none while it is away; it brings less than an extraction plant makes in the time, so once the Plants run it only tops the base up.",
         "A technology changes only what can be bought from then on: arrays already built, and Components at the base or on a Lander, stay as they are. Each solar array is as good as the Components it is built from.",
         "The Technologies tab lists every Design and what unlocking it brings.",
       ],

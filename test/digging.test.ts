@@ -8,7 +8,9 @@ import {
   type RobotSnapshot,
   type Snapshot,
 } from "../src/simulation";
-import { scenario, scenarioOf } from "./scenario";
+import { formatMachine } from "../src/ui/base-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-text";
+import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 
 const { digging } = catalogue;
@@ -37,6 +39,14 @@ function excavatorOf(state: Snapshot): MachineSnapshot {
   );
   if (excavator === undefined) throw new Error("expected an excavator");
   return excavator;
+}
+
+/** What the status panel's Regolith line says beside its amount. */
+function regolithNote(campaign: Campaign): string | undefined {
+  return formatBulkResources(
+    campaign.snapshot().bulkResources,
+    campaign.forecasts().bulkResources,
+  ).find((line) => line.label === "Regolith")?.note;
 }
 
 function distanceBetween(a: GroundPosition, b: GroundPosition): number {
@@ -285,6 +295,9 @@ describe("digging", () => {
 
     expect(regolith(campaign.snapshot())).toBe(0);
     expect(robotOf(campaign.snapshot()).activity.kind).toBe("idle");
+    expect(regolithNote(campaign)).toBe(
+      "not dug while the excavator is Broken",
+    );
   });
 
   it("gives way to the Site Preparation of a Construction planned while it digs, and carries on afterwards", () => {
@@ -298,6 +311,9 @@ describe("digging", () => {
 
     expect(excavatorOf(game.state).activity.kind).toBe("being-positioned");
     expect(game.state.constructions[0]?.waiting).toBeUndefined();
+    expect(regolithNote(game.campaign)).toBe(
+      "not dug while the excavator is busy with Construction",
+    );
     const stopped = regolith(game.state);
 
     for (let hours = 0; game.state.constructions.length > 0; hours++) {
@@ -309,6 +325,7 @@ describe("digging", () => {
 
     expect(excavatorOf(game.state).activity.kind).toBe("digging");
     expect(regolith(game.state)).toBeGreaterThan(stopped);
+    expect(regolithNote(game.campaign)).not.toContain("not dug");
   });
 
   it("waits after giving way, once the Regolith is back above the level that starts it, until it falls below it again", () => {
@@ -376,5 +393,134 @@ describe("digging", () => {
     loaded.campaign.advance(6 * 60);
 
     expect(loaded.campaign.snapshot()).toEqual(campaign.snapshot());
+  });
+});
+
+describe("digging before Night", () => {
+  const { parkingLeadHours } = catalogue.cold;
+
+  /** A solar array and a battery bank cabled to it, built in the first Daylight, so Machines are parked for Night. */
+  function poweredBase(): Scenario {
+    const game = scenario()
+      .plan("solar-array", site)
+      .plan("battery-bank", { x: -30, y: 4 });
+    for (let hours = 0; game.state.constructions.length > 0; hours++) {
+      if (hours > 10 * 24) throw new Error("The Constructions never finished.");
+      game.advance({ hours: 1 });
+    }
+    return game;
+  }
+
+  /** Advances to the given number of game-minutes before the Machines start being parked for Night. */
+  function untilBeforeParking(campaign: Campaign, minutes: number): void {
+    const { lunation } = campaign.snapshot();
+    if (lunation.part !== "daylight") throw new Error("expected Daylight");
+    campaign.advance(
+      lunation.minutesRemaining - parkingLeadHours * 60 - minutes,
+    );
+  }
+
+  it("tops the Regolith up to full before the excavator is parked, so the Plants have the most to draw on through the Night", () => {
+    const { campaign } = poweredBase();
+    // Well above the level that starts digging, a day before topping up starts.
+    untilBeforeParking(campaign, (digging.topUpHoursBeforeParking + 24) * 60);
+    const ready = withRegolith(campaign, digging.refillBelowKilograms + 500);
+
+    const states = everyMinute(
+      ready,
+      (digging.topUpHoursBeforeParking + 24 + parkingLeadHours) * 60 + 1,
+    );
+
+    expect(ready.snapshot().lunation.part).toBe("night");
+    expect(diggingActivations(states)).toBe(1);
+    expect(regolith(ready.snapshot())).toBe(digging.fullKilograms);
+    // Parked for the Night, all the same.
+    expect(excavatorOf(ready.snapshot())).toMatchObject({
+      activity: { kind: "idle" },
+      pluggedIn: true,
+    });
+  });
+
+  it("doesn't top up what is less than an hour's digging short of full", () => {
+    const { campaign } = poweredBase();
+    untilBeforeParking(campaign, digging.topUpHoursBeforeParking * 60);
+    const ready = withRegolith(campaign, digging.topUpBelowKilograms);
+
+    const states = everyMinute(ready, digging.topUpHoursBeforeParking * 60);
+
+    expect(diggingActivations(states)).toBe(0);
+    expect(regolith(ready.snapshot())).toBe(digging.topUpBelowKilograms);
+  });
+
+  it("doesn't top up earlier than the data catalogue's hours before parking", () => {
+    const { campaign } = poweredBase();
+    untilBeforeParking(campaign, (digging.topUpHoursBeforeParking + 24) * 60);
+    const ready = withRegolith(campaign, digging.refillBelowKilograms + 500);
+
+    const states = everyMinute(ready, 24 * 60 - 1);
+
+    expect(diggingActivations(states)).toBe(0);
+  });
+
+  it("doesn't happen at Night while the excavator is parked, even with no Regolith left, until Daylight", () => {
+    const { campaign } = poweredBase();
+    untilBeforeParking(campaign, 0);
+    const night = withRegolith(campaign, 0);
+    night.advance(parkingLeadHours * 60 + 1);
+    expect(night.snapshot().lunation.part).toBe("night");
+
+    const states = everyMinute(
+      night,
+      night.snapshot().lunation.minutesRemaining - 1,
+    );
+
+    expect(diggingActivations(states)).toBe(0);
+    expect(regolith(night.snapshot())).toBe(0);
+    // The game says why.
+    expect(regolithNote(night)).toBe(
+      "not dug while the excavator is parked for Night",
+    );
+    const excavator = excavatorOf(night.snapshot());
+    expect(excavator.parkedForNight).toBe(true);
+    expect(formatMachine(excavator, []).value).toBe("parked for Night");
+
+    night.advance(24 * 60);
+    expect(regolith(night.snapshot())).toBeGreaterThan(0);
+    expect(excavatorOf(night.snapshot()).parkedForNight).toBe(false);
+    expect(regolithNote(night)).not.toContain("not dug");
+  });
+
+  it("isn't shown as parked for Night while it is undergoing Maintenance", () => {
+    const { campaign } = poweredBase();
+    untilBeforeParking(campaign, 0);
+    campaign.advance(parkingLeadHours * 60 + 1);
+    expect(excavatorOf(campaign.snapshot()).parkedForNight).toBe(true);
+    const worn = changed(campaign, (state) => {
+      for (const machine of state.machines) {
+        if (machine.id === excavatorOf(campaign.snapshot()).id) {
+          machine.conditionPercent = catalogue.maintenance.thresholdPercent - 1;
+        }
+      }
+    });
+    const underWay = () =>
+      worn
+        .snapshot()
+        .maintenance.find(
+          ({ target }) =>
+            target.kind === "machine" &&
+            target.machineId === excavatorOf(worn.snapshot()).id,
+        )?.underWay === true;
+    for (let minutes = 0; !underWay(); minutes++) {
+      if (minutes > 24 * 60) throw new Error("It was never maintained.");
+      worn.advance(1);
+    }
+    const { maintenance } = worn.snapshot();
+    const excavator = excavatorOf(worn.snapshot());
+
+    expect(excavator.parkedForNight).toBe(false);
+    expect(formatMachine(excavator, maintenance)).toMatchObject({
+      value: "idle",
+      note: expect.stringContaining("undergoing Maintenance") as string,
+    });
   });
 });

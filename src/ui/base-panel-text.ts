@@ -16,8 +16,9 @@ import type { Stat } from "./stat";
 /**
  * Says what a Machine is doing, and whether it is plugged in and powered,
  * working below par or due Maintenance, for the status panel, for example
- * "idle" and "plugged in and powered", or "Broken" and "awaiting
- * Maintenance". Its Condition is shown beside it.
+ * "idle" and "plugged in and powered", "parked for Night" while it waits
+ * plugged in for Daylight, or "Broken" and "awaiting Maintenance". Its
+ * Condition is shown beside it.
  */
 export function formatMachine(
   machine: MachineSnapshot,
@@ -36,7 +37,9 @@ export function formatMachine(
             ? "being set digging"
             : machine.activity.kind === "digging"
               ? `digging ${resourceLabel(catalogue.digging.resourceId)}`
-              : "idle";
+              : machine.parkedForNight
+                ? "parked for Night"
+                : "idle";
   const order = maintenance.find(
     ({ target }) =>
       target.kind === "machine" && target.machineId === machine.id,

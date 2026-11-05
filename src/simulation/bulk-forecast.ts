@@ -1,5 +1,6 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { diggingHold, type DiggingHold } from "./digging";
 import { machinePerformance } from "./machines";
 import {
   consumptionPerHour,
@@ -28,13 +29,25 @@ export interface BulkResourceForecast {
    * neither rising nor running out (see `isHeldFull`).
    */
   readonly holdingFull: boolean;
+  /**
+   * For the resource the data catalogue has dug, why the Machine that digs
+   * it isn't, while the base needs it dug (see `diggingHold`); left out for
+   * any other, and while nothing keeps it from digging.
+   */
+  readonly diggingHold?: DiggingHold;
 }
 
 /** Says how long each of the base's bulk resources will last, in catalogue order, as things stand. */
 export function forecastBulkResources(
   state: CampaignState,
 ): BulkResourceForecast[] {
+  const keptFromDigging = diggingHold(state);
   return state.bulkResources.map((stock) => {
+    const withDiggingHold =
+      stock.resourceId === catalogue.digging.resourceId &&
+      keptFromDigging !== undefined
+        ? { diggingHold: keptFromDigging }
+        : {};
     const resource = {
       kind: "bulk-resource" as const,
       resourceId: stock.resourceId,
@@ -45,6 +58,7 @@ export function forecastBulkResources(
         kilogramsPerHour: 0,
         minutesUntilEmpty: undefined,
         holdingFull: true,
+        ...withDiggingHold,
       };
     }
     const dug =
@@ -70,6 +84,7 @@ export function forecastBulkResources(
       minutesUntilEmpty:
         perHour < 0 ? Math.floor((kilograms / -perHour) * 60) : undefined,
       holdingFull: false,
+      ...withDiggingHold,
     };
   });
 }

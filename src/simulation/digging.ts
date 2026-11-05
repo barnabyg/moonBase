@@ -9,6 +9,7 @@ import {
   wearMachine,
   type MachineState,
 } from "./machines";
+import { readLunation } from "./lunation";
 import { isUnderMaintenance } from "./maintenance";
 import { isBeingParked, isParkingTime } from "./parking";
 import { powerSockets } from "./power";
@@ -28,11 +29,84 @@ export interface MachineDigging {
 
 /**
  * Whether the base has fallen low enough on the resource the data catalogue
- * has dug for digging to start.
+ * has dug for digging to start: below the level that starts it, or, in the
+ * data catalogue's hours before Machines are parked for Night, below the
+ * level that tops it up, so that the stock goes into the Night full.
  */
 export function needsDigging(state: CampaignState): boolean {
-  const { resourceId, refillBelowKilograms } = catalogue.digging;
-  return bulkInStock(state, resourceId) < refillBelowKilograms;
+  const { resourceId, refillBelowKilograms, topUpBelowKilograms } =
+    catalogue.digging;
+  const kilograms = bulkInStock(state, resourceId);
+  return (
+    kilograms < refillBelowKilograms ||
+    (kilograms < topUpBelowKilograms && isTopUpTime(state))
+  );
+}
+
+/**
+ * Whether it is the data catalogue's hours of topping up the stock before
+ * Machines are parked for Night: from that many hours before parking starts
+ * until it does.
+ */
+export function isTopUpTime(state: CampaignState): boolean {
+  const lunation = readLunation(state.elapsedMinutes, catalogue.lunation);
+  if (lunation.part !== "daylight") return false;
+  const untilParking =
+    lunation.minutesRemaining -
+    Math.round(catalogue.cold.parkingLeadHours * 60);
+  return (
+    untilParking > 0 &&
+    untilParking <= Math.round(catalogue.digging.topUpHoursBeforeParking * 60)
+  );
+}
+
+/** What keeps the Machine that digs from digging (see `diggingHold`). */
+export type DiggingHold =
+  "broken" | "maintenance" | "construction" | "parked-for-night";
+
+/**
+ * Why the Machine that digs isn't digging while the base needs digging:
+ * it is Broken, undergoing Maintenance, carrying out a stage of
+ * Construction, or parked for Night (being parked, or it is time for
+ * Machines to be parked where they can plug in, when digging waits for
+ * Daylight). Undefined while it is set digging or is free to be, or while
+ * the base doesn't need digging.
+ */
+export function diggingHold(state: CampaignState): DiggingHold | undefined {
+  if (!needsDigging(state)) return undefined;
+  const digger = state.machines.find(
+    (machine) => machine.machineTypeId === catalogue.digging.machineTypeId,
+  );
+  if (digger === undefined || digger.digging !== undefined) return undefined;
+  return (
+    whatKeepsFromDigging(state, digger) ??
+    (isNightDiggingHeld(state) ? "parked-for-night" : undefined)
+  );
+}
+
+/**
+ * What digging gives way to on a Machine, if anything: it is Broken,
+ * undergoing Maintenance, carrying out a stage of Construction or being
+ * parked. The one list of them, for `canDig` and `diggingHold`.
+ */
+function whatKeepsFromDigging(
+  state: CampaignState,
+  machine: MachineState,
+): DiggingHold | undefined {
+  const target = { kind: "machine", machineId: machine.id } as const;
+  if (isMachineBroken(machine)) return "broken";
+  if (isUnderMaintenance(state, target)) return "maintenance";
+  if (machine.assignment !== undefined) return "construction";
+  if (isBeingParked(state, target)) return "parked-for-night";
+  return undefined;
+}
+
+/**
+ * Whether digging waits for Daylight: it is time for Machines to be parked
+ * where they can plug in, which would only take it off digging again.
+ */
+function isNightDiggingHeld(state: CampaignState): boolean {
+  return isParkingTime(state) && powerSockets(state).length > 0;
 }
 
 /** Whether digging under way should carry on: the stock isn't full yet. */
@@ -49,10 +123,7 @@ function isShort(state: CampaignState): boolean {
 export function canDig(state: CampaignState, machine: MachineState): boolean {
   return (
     machine.machineTypeId === catalogue.digging.machineTypeId &&
-    machine.assignment === undefined &&
-    !isMachineBroken(machine) &&
-    !isUnderMaintenance(state, { kind: "machine", machineId: machine.id }) &&
-    !isBeingParked(state, { kind: "machine", machineId: machine.id })
+    whatKeepsFromDigging(state, machine) === undefined
   );
 }
 
@@ -70,7 +141,7 @@ export function isDiggingWanted(
     needsDigging(state) &&
     canDig(state, machine) &&
     machine.digging?.working !== true &&
-    !(isParkingTime(state) && powerSockets(state).length > 0)
+    !isNightDiggingHeld(state)
   );
 }
 

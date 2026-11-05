@@ -42,7 +42,7 @@ import {
   readObservingProgramme,
   type ObservingProgrammeSnapshot,
 } from "./observing";
-import { readParking, type ParkingSnapshot } from "./parking";
+import { isParkedForNight, readParking, type ParkingSnapshot } from "./parking";
 import { isPlant, readPlant, type PlantSnapshot } from "./plants";
 import { readPlumeEjecta, type PlumeEjectaSnapshot } from "./plume-ejecta";
 import {
@@ -135,6 +135,13 @@ export interface MachineSnapshot {
    * cold wears it down.
    */
   readonly powered: boolean;
+  /**
+   * Whether it is parked for Night: idle and plugged in, with no work and no
+   * park Work Order to move it, while Machines are parked (see
+   * `isParkedForNight`). It stays there until Daylight, unless a stage of
+   * Construction or Maintenance needs it.
+   */
+  readonly parkedForNight: boolean;
 }
 
 export interface RoverSnapshot {
@@ -475,6 +482,7 @@ export function readSnapshot(state: CampaignState): Snapshot {
       performance: machinePerformance(machine),
       pluggedIn: plugs.has(machine.id),
       powered: machine.powered,
+      parkedForNight: isParkedForNight(state, machine, plugs),
     })),
     rovers: state.rovers.map((rover) => ({
       id: rover.id,
