@@ -19,6 +19,7 @@ export function withoutDigging(catalogue: Catalogue): Catalogue {
       ...catalogue.digging,
       refillBelowKilograms: 0,
       fullKilograms: 0,
+      topUpBelowKilograms: 0,
     },
   };
 }

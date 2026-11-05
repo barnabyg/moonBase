@@ -86,6 +86,7 @@ export type { UnloadingSnapshot } from "./unloading";
 export type { ExportLoadingSnapshot } from "./export-loading";
 export type { ParkingSnapshot } from "./parking";
 export type { BulkResourceForecast } from "./bulk-forecast";
+export type { DiggingHold } from "./digging";
 export type { SelfSufficiencySnapshot } from "./self-sufficiency";
 export type { MilestonesSnapshot } from "./milestones";
 export type {

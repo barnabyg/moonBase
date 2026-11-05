@@ -878,6 +878,19 @@ export interface DiggingRules {
   readonly fullKilograms: number;
   /** How much it digs in a game-hour at full performance; less as its Condition falls. */
   readonly kilogramsPerWorkingHour: number;
+  /**
+   * For this many game-hours before Machines start being parked for Night
+   * (see `ColdRules.parkingLeadHours`), digging also starts once the base has
+   * less than `topUpBelowKilograms`, so that the stock goes into the Night as
+   * full as it can be: the Machine that digs is parked through the Night.
+   */
+  readonly topUpHoursBeforeParking: number;
+  /**
+   * The level that starts digging in the hours before parking, between
+   * `refillBelowKilograms` and `fullKilograms`. Just below full, so that a
+   * Robot isn't sent to set it digging for a few kilograms.
+   */
+  readonly topUpBelowKilograms: number;
 }
 
 /**
