@@ -41,11 +41,12 @@ export interface BulkResourceForecast {
 export function forecastBulkResources(
   state: CampaignState,
 ): BulkResourceForecast[] {
-  const hold = diggingHold(state);
+  const keptFromDigging = diggingHold(state);
   return state.bulkResources.map((stock) => {
-    const held =
-      stock.resourceId === catalogue.digging.resourceId && hold !== undefined
-        ? { diggingHold: hold }
+    const withDiggingHold =
+      stock.resourceId === catalogue.digging.resourceId &&
+      keptFromDigging !== undefined
+        ? { diggingHold: keptFromDigging }
         : {};
     const resource = {
       kind: "bulk-resource" as const,
@@ -57,7 +58,7 @@ export function forecastBulkResources(
         kilogramsPerHour: 0,
         minutesUntilEmpty: undefined,
         holdingFull: true,
-        ...held,
+        ...withDiggingHold,
       };
     }
     const dug =
@@ -83,7 +84,7 @@ export function forecastBulkResources(
       minutesUntilEmpty:
         perHour < 0 ? Math.floor((kilograms / -perHour) * 60) : undefined,
       holdingFull: false,
-      ...held,
+      ...withDiggingHold,
     };
   });
 }

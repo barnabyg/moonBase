@@ -78,17 +78,26 @@ export function diggingHold(state: CampaignState): DiggingHold | undefined {
     (machine) => machine.machineTypeId === catalogue.digging.machineTypeId,
   );
   if (digger === undefined || digger.digging !== undefined) return undefined;
-  if (isMachineBroken(digger)) return "broken";
-  if (isUnderMaintenance(state, { kind: "machine", machineId: digger.id })) {
-    return "maintenance";
-  }
-  if (digger.assignment !== undefined) return "construction";
-  if (
-    isBeingParked(state, { kind: "machine", machineId: digger.id }) ||
-    isNightDiggingHeld(state)
-  ) {
-    return "parked-for-night";
-  }
+  return (
+    whatKeepsFromDigging(state, digger) ??
+    (isNightDiggingHeld(state) ? "parked-for-night" : undefined)
+  );
+}
+
+/**
+ * What digging gives way to on a Machine, if anything: it is Broken,
+ * undergoing Maintenance, carrying out a stage of Construction or being
+ * parked. The one list of them, for `canDig` and `diggingHold`.
+ */
+function whatKeepsFromDigging(
+  state: CampaignState,
+  machine: MachineState,
+): DiggingHold | undefined {
+  const target = { kind: "machine", machineId: machine.id } as const;
+  if (isMachineBroken(machine)) return "broken";
+  if (isUnderMaintenance(state, target)) return "maintenance";
+  if (machine.assignment !== undefined) return "construction";
+  if (isBeingParked(state, target)) return "parked-for-night";
   return undefined;
 }
 
@@ -114,10 +123,7 @@ function isShort(state: CampaignState): boolean {
 export function canDig(state: CampaignState, machine: MachineState): boolean {
   return (
     machine.machineTypeId === catalogue.digging.machineTypeId &&
-    machine.assignment === undefined &&
-    !isMachineBroken(machine) &&
-    !isUnderMaintenance(state, { kind: "machine", machineId: machine.id }) &&
-    !isBeingParked(state, { kind: "machine", machineId: machine.id })
+    whatKeepsFromDigging(state, machine) === undefined
   );
 }
 

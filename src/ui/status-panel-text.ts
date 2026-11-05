@@ -878,11 +878,11 @@ export function formatBulkResources(
         : stock.kilograms > (stock.limitKilograms ?? Infinity)
           ? "holding full, over the limit"
           : "holding full";
-    const hold =
+    const diggingHold =
       forecast?.diggingHold === undefined
         ? undefined
         : formatDiggingHold(forecast.diggingHold);
-    const note = [held, rate, lasts, hold]
+    const note = [held, rate, lasts, diggingHold]
       .filter((part) => part !== undefined)
       .join(", ");
     const shown = {
