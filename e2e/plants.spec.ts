@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import { structureEntries, structureEntry } from "./base-panel";
 
 /**
  * A sample save of a Campaign with an extraction plant half way through a
@@ -19,10 +20,7 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(batchSave);
 
-  const plants = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: /plant/ });
+  const plants = structureEntry(page, /plant/);
   await expect(plants).toHaveText([
     /^Extraction plant Condition \d+% running, 30 min left of this batch · making 0\.15 kg of oxygen, 0\.04 kg of metals and 0\.02 kg of silicon an hour from 4 kg of regolith/,
     /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.35 kg(?! ·)/,
@@ -51,9 +49,7 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
   };
   await loadFile(switchSave);
 
-  const structures = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem");
+  const structures = structureEntries(page);
   const waterPlant = structures.filter({ hasText: "Water-processing plant" });
   const extraction = structures.filter({ hasText: "Extraction plant" });
   const statusPanel = page.getByRole("complementary", { name: "Status panel" });
@@ -114,10 +110,7 @@ test("a Plant switched on between batches says so at once, then starts its next 
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(switchSave);
-  const extraction = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: "Extraction plant" });
+  const extraction = structureEntry(page, "Extraction plant");
   await expect(extraction).toContainText(/Condition \d+% switched off/);
 
   // Paused, so that it hasn't tried to run yet.
@@ -144,10 +137,7 @@ test("a Plant to be dismantled can no longer be switched off or on", async ({
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(switchSave);
-  const waterPlant = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: "Water-processing plant" });
+  const waterPlant = structureEntry(page, "Water-processing plant");
   await expect(
     waterPlant.getByRole("button", { name: "Switch off" }),
   ).toBeVisible();

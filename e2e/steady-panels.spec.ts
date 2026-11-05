@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { structureEntry } from "./base-panel";
 import { crowdedSave, useCrowdedCatalogue, type SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
 
@@ -163,10 +164,7 @@ test("at the fastest game speed, the panels' rows keep their order and place whi
   // plant makes a little of in each of its Batches, while the excavator
   // digs Regolith by itself.
   const texts = await watchRows(page, "version-35.moonbase", (on) =>
-    on
-      .getByRole("group", { name: "Structures", exact: true })
-      .getByRole("listitem")
-      .filter({ hasText: "Vacuum fabrication plant" }),
+    structureEntry(on, "Vacuum fabrication plant"),
   );
 
   // What it said changed meanwhile, under the rows it used to push about.
@@ -199,10 +197,7 @@ test("at the fastest game speed, the Research Tasks screen's lines keep their pl
     async (on) => {
       // Once the save has loaded, which has a vacuum fabrication plant.
       await expect(
-        on
-          .getByRole("group", { name: "Structures", exact: true })
-          .getByRole("listitem")
-          .filter({ hasText: "Vacuum fabrication plant" }),
+        structureEntry(on, "Vacuum fabrication plant"),
       ).toBeVisible();
       await on.getByRole("button", { name: "Research Tasks" }).click();
       // Two Earth Days long, so that it runs all the time it is watched,

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structuresList } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -33,10 +34,7 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
   page,
 }) => {
   await loadOpticsBase(page);
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   const works = structures
     .getByRole("listitem")
     .filter({ hasText: "Optics works" });

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { structureEntries, structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 test("the Robot carries out the Construction of a solar array placed on the map, and a second one waits for Components", async ({
@@ -32,11 +33,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
     .getByRole("button", { name: "20x" })
     .click();
 
-  await expect(
-    page
-      .getByRole("group", { name: "Structures", exact: true })
-      .getByRole("listitem"),
-  ).toHaveText([
+  await expect(structureEntries(page)).toHaveText([
     /^Solar array Condition 100% commissioned · Dust coating \d+%(?!,)/,
   ]);
   await expect(
@@ -106,10 +103,7 @@ test("dismantling a Structure has the Robot take it apart and return a spare Com
 }) => {
   await planSolarArray(page);
   const skip = page.getByRole("button", { name: "Skip to next event" });
-  const structures = page.getByRole("group", {
-    name: "Structures",
-    exact: true,
-  });
+  const structures = structuresList(page);
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
     /^Solar array Condition \d+% commissioned/,

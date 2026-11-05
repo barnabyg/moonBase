@@ -41,7 +41,7 @@ Trying and playing it:
 
 Tests and docs:
 
-- `test/<name>.test.ts` and `e2e/<name>.spec.ts`: its whole path, from unlocking the Design to using it. Nothing catches their absence. Existing tests that build a Snapshot by hand, or filter a category's Structures, may need it too.
+- `test/<name>.test.ts` and `e2e/<name>.spec.ts`: its whole path, from unlocking the Design to using it. Nothing catches their absence. The spec finds its entry in the Base panel with `structureEntry` from `e2e/base-panel.ts`, not a locator of its own. Existing tests that build a Snapshot by hand, or filter a category's Structures, may need it too.
 - `GLOSSARY.md`, [`docs/rules.md`](rules.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
 - [`docs/save-format.md`](save-format.md) says whether the save format changes: new Components and bulk resources don't, and new saved state does.
 

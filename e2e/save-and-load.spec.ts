@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /** A sample save of a Campaign that ended when the Habitat lost power. */
@@ -97,9 +98,7 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   await expect(work).not.toContainText("Done");
   const saved = {
     statuses: await statuses.allTextContents(),
-    structures: await page
-      .getByRole("group", { name: "Structures", exact: true })
-      .textContent(),
+    structures: await structuresList(page).textContent(),
     work: await work.textContent(),
   };
   expect(saved.statuses[0]).not.toMatch(/^Earth Day 1, 00:/);
@@ -121,9 +120,7 @@ test("a Campaign saved to a file carries on from the saved state when the file i
   );
 
   await expect(statuses).toHaveText(saved.statuses);
-  await expect(
-    page.getByRole("group", { name: "Structures", exact: true }),
-  ).toHaveText(saved.structures ?? "");
+  await expect(structuresList(page)).toHaveText(saved.structures ?? "");
   await expect(work).toHaveText(saved.work ?? "");
   // It carries on from there.
   await page.getByRole("button", { name: "20x" }).click();

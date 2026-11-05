@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
+import { structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -33,10 +34,7 @@ test("a water-processing plant fills the base's water to its limit, waits for ta
   page,
 }) => {
   await loadFullStoreBase(page);
-  const plant = page
-    .getByRole("group", { name: "Structures", exact: true })
-    .getByRole("listitem")
-    .filter({ hasText: "Water-processing plant" });
+  const plant = structureEntry(page, "Water-processing plant");
   const water = page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Water", exact: true });
