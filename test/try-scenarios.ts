@@ -905,9 +905,11 @@ const TANKS_BASE_SITES = [
  * A base with a commissioned water tank and oxygen tank on a solar array and a
  * battery bank, each half full, and a second water tank's Components in stock.
  * It plays only as far as the Robot's building takes, and stops a few hours
- * before Night, so that a player sees the draw come and go.
+ * before Night, so that a player sees the draw come and go, or, with
+ * `nearNight` false, as soon as the base is built, while Daylight has longer
+ * to run, so that more can be built before Night slows the building down.
  */
-export function storageTanksSave(): string {
+export function storageTanksSave({ nearNight = true } = {}): string {
   const componentsOf = (id: string) =>
     catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
   const loaded = loadCampaign(
@@ -930,7 +932,7 @@ export function storageTanksSave(): string {
     if (hours > 40 * 24) throw new Error("The base was never finished.");
     campaign.advance(60);
   }
-  for (let hours = 0; ; hours++) {
+  for (let hours = 0; nearNight; hours++) {
     const { part, minutesRemaining } = campaign.snapshot().lunation;
     if (
       part === "daylight" &&
@@ -1176,7 +1178,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Dismantle beside the Oxygen tank. When the Robot starts on it the limit falls to 100 kg, and a notification says 100 kg of oxygen with no room left was lost.",
       "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
     ],
-    save: storageTanksSave,
+    save: () => storageTanksSave(),
   },
   {
     id: "propellant-tanks",

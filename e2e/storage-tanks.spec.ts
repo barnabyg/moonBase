@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { tryScenarios } from "../test/try-scenarios";
+import { storageTanksSave, tryScenarios } from "../test/try-scenarios";
 import { structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
@@ -10,14 +10,21 @@ async function speed(page: Page, name: string): Promise<void> {
     .click();
 }
 
+function scenarioSave(): string {
+  const scenario = tryScenarios.find(({ id }) => id === "storage-tanks");
+  if (scenario === undefined) throw new Error("expected the scenario");
+  return scenario.save();
+}
+
 /**
  * Starts a base with a water tank and an oxygen tank half full, as `npm run try
  * -- storage-tanks` does, with the game paused so that nothing moves on between
  * the steps.
  */
-async function loadTankBase(page: Page): Promise<void> {
-  const scenario = tryScenarios.find(({ id }) => id === "storage-tanks");
-  if (scenario === undefined) throw new Error("expected the scenario");
+async function loadTankBase(
+  page: Page,
+  save: string = scenarioSave(),
+): Promise<void> {
   await page.goto("/?seed=1");
   await speed(page, "Pause");
   const chooser = page.waitForEvent("filechooser");
@@ -27,7 +34,7 @@ async function loadTankBase(page: Page): Promise<void> {
   ).setFiles({
     name: "storage-tanks.moonbase",
     mimeType: "application/json",
-    buffer: Buffer.from(scenario.save()),
+    buffer: Buffer.from(save),
   });
 }
 
@@ -68,7 +75,8 @@ test("the status panel counts the tanks in each limit, and the Base panel says w
 test("a second water tank, picked from the build menu and commissioned, raises the limit with no water of its own, and its pop-up says what it holds", async ({
   page,
 }) => {
-  await loadTankBase(page);
+  // Early in the Daylight, as at Night the building takes half as long again.
+  await loadTankBase(page, storageTanksSave({ nearNight: false }));
   await page
     .getByRole("complementary", { name: "Build menu" })
     .getByRole("button", { name: /Water tank/ })
