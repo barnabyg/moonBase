@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structuresList } from "./base-panel";
+import { structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -34,10 +34,7 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
   page,
 }) => {
   await loadOpticsBase(page);
-  const structures = structuresList(page);
-  const works = structures
-    .getByRole("listitem")
-    .filter({ hasText: "Optics works" });
+  const works = structureEntry(page, "Optics works");
   const water = page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Water", exact: true });
@@ -58,9 +55,7 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
     /^Water 4\d\.\d of 400 kg · lasts 1[234]d.*, water-processing plant switched off, optics works waiting at the reserve$/,
   );
 
-  await structures
-    .getByRole("listitem")
-    .filter({ hasText: "Water-processing plant" })
+  await structureEntry(page, "Water-processing plant")
     .getByRole("button", { name: "Switch on" })
     .click();
   await speed(page, "20x");

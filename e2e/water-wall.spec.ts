@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
-import { structuresList } from "./base-panel";
+import { structureEntries, structureEntry } from "./base-panel";
 
 /**
  * A sample save of a Campaign an hour into the Assembly of a water wall over
@@ -44,10 +44,7 @@ test("a water wall built over a shielded Habitat shows it as water-walled and cu
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(waterWallSave);
 
-  const structures = structuresList(page);
-  const habitat = structures
-    .getByRole("listitem")
-    .filter({ hasText: /^Inflatable Habitat/ });
+  const habitat = structureEntry(page, /^Inflatable Habitat/);
   const radiationDose = page
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Radiation Dose" });
@@ -62,7 +59,7 @@ test("a water wall built over a shielded Habitat shows it as water-walled and cu
   await expect(habitat).toContainText(
     "shielded, water-walled, the Mission Director's home",
   );
-  await expect(structures.getByRole("listitem")).toContainText([
+  await expect(structureEntries(page)).toContainText([
     /^Water wall Condition 100% commissioned/,
   ]);
   await expect(radiationDose).toContainText(
