@@ -489,4 +489,38 @@ describe("digging before Night", () => {
     expect(excavatorOf(night.snapshot()).parkedForNight).toBe(false);
     expect(regolithNote(night)).not.toContain("not dug");
   });
+
+  it("isn't shown as parked for Night while it is undergoing Maintenance", () => {
+    const { campaign } = poweredBase();
+    untilBeforeParking(campaign, 0);
+    campaign.advance(parkingLeadHours * 60 + 1);
+    expect(excavatorOf(campaign.snapshot()).parkedForNight).toBe(true);
+    const worn = changed(campaign, (state) => {
+      for (const machine of state.machines) {
+        if (machine.id === excavatorOf(campaign.snapshot()).id) {
+          machine.conditionPercent = catalogue.maintenance.thresholdPercent - 1;
+        }
+      }
+    });
+    const underWay = () =>
+      worn
+        .snapshot()
+        .maintenance.find(
+          ({ target }) =>
+            target.kind === "machine" &&
+            target.machineId === excavatorOf(worn.snapshot()).id,
+        )?.underWay === true;
+    for (let minutes = 0; !underWay(); minutes++) {
+      if (minutes > 24 * 60) throw new Error("It was never maintained.");
+      worn.advance(1);
+    }
+    const { maintenance } = worn.snapshot();
+    const excavator = excavatorOf(worn.snapshot());
+
+    expect(excavator.parkedForNight).toBe(false);
+    expect(formatMachine(excavator, maintenance)).toMatchObject({
+      value: "idle",
+      note: expect.stringContaining("undergoing Maintenance") as string,
+    });
+  });
 });

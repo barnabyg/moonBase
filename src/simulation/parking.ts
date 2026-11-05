@@ -24,7 +24,7 @@ import {
 } from "./driven";
 import { isRoverSpokenFor } from "./expeditions";
 import { lunationMinutes, readLunation } from "./lunation";
-import { machineOn } from "./machines";
+import { isMachineBroken, machineOn, type MachineState } from "./machines";
 import { isUnderMaintenance } from "./maintenance";
 import {
   minutesUntilEmpty,
@@ -409,6 +409,30 @@ export function isParkingTime(state: CampaignState): boolean {
     lunation.part === "night" ||
     lunation.minutesRemaining <=
       Math.round(catalogue.cold.parkingLeadHours * 60)
+  );
+}
+
+/**
+ * Whether a Machine is parked for Night: it is parking time, and it stands
+ * idle and plugged in with nothing to do (no stage of Construction, not
+ * Broken or undergoing Maintenance) and no park Work Order to move it, so
+ * it stays where it is until Daylight. One the Robots are still to take to
+ * a bay isn't parked yet.
+ */
+export function isParkedForNight(
+  state: CampaignState,
+  machine: MachineState,
+  plugs: ReadonlyMap<string, unknown>,
+): boolean {
+  const target: DrivenTarget = { kind: "machine", machineId: machine.id };
+  return (
+    isParkingTime(state) &&
+    machine.activity.kind === "idle" &&
+    machine.assignment === undefined &&
+    !isMachineBroken(machine) &&
+    !isUnderMaintenance(state, target) &&
+    plugs.has(machine.id) &&
+    !state.parking.some((parking) => isSameDriven(parking.target, target))
   );
 }
 

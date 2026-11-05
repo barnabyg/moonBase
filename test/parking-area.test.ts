@@ -250,6 +250,49 @@ describe("a parking area", () => {
     );
   });
 
+  it("shows a Machine plugged in beside another Structure as parked for Night only once the Robot has taken it to its bay", () => {
+    const [bank] = bankSites;
+    if (bank === undefined) throw new Error("expected a battery bank site");
+    const beside: GroundPosition = { x: bank.x, y: bank.y + 4 };
+    const game = changedSave(
+      outBeforeNight(baseWithParkingArea()).campaign,
+      (state) => {
+        for (const machine of state.machines) {
+          if (machine.id === "regolith-printer-2") machine.position = beside;
+        }
+      },
+    );
+    const printer = () => {
+      const found = game.state.machines.find(
+        (machine) => machine.id === "regolith-printer-2",
+      );
+      if (found === undefined) throw new Error("expected the printer");
+      return found;
+    };
+    game.advance({ minutes: 1 });
+    expect(printer()).toMatchObject({
+      activity: { kind: "idle" },
+      pluggedIn: true,
+    });
+    expect(
+      game.state.parking.some(
+        (order) =>
+          order.subject.kind === "machine" &&
+          order.subject.machineTypeId === "regolith-printer",
+      ),
+    ).toBe(true);
+
+    expect(printer().parkedForNight).toBe(false);
+
+    for (let minutes = 0; game.state.parking.length > 0; minutes++) {
+      if (minutes > 24 * 60) throw new Error("The parking was never done.");
+      game.advance({ minutes: 1 });
+    }
+    const area = structure(game.state, "parking-area");
+    expect(bayAt(area, printer().position)).toBeDefined();
+    expect(printer().parkedForNight).toBe(true);
+  });
+
   it("carries on parking in its bays exactly the same through saving and loading", () => {
     const game = outBeforeNight(baseWithParkingArea());
     game.advance({ minutes: 31 });
