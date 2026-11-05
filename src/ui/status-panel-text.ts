@@ -13,6 +13,7 @@ import {
   recipeOf,
   workingRecipeOf,
   type BulkResourceForecast,
+  type DiggingHold,
   type ExpeditionReward,
   type ExpeditionSnapshot,
   type ExportLine,
@@ -50,6 +51,7 @@ import {
   formatComponents,
   inSentence,
   formatExportLines,
+  machineLabel,
   researchTaskLabel,
   resourceLabel,
   stockLabel,
@@ -811,12 +813,32 @@ function withPlantsOff(
 }
 
 /**
+ * Says why the resource the excavator digs isn't being dug though the base
+ * needs it, for example "not dug while the excavator is parked for Night".
+ */
+export function formatDiggingHold(hold: DiggingHold): string {
+  const machine = inSentence(machineLabel(catalogue.digging.machineTypeId));
+  const why =
+    hold === "parked-for-night"
+      ? "parked for Night"
+      : hold === "construction"
+        ? "busy with Construction"
+        : hold === "broken"
+          ? "Broken"
+          : "undergoing Maintenance";
+  return `not dug while the ${machine} is ${why}`;
+}
+
+/**
  * Lists the base's stock of bulk resources, each with its amount and,
  * if it is falling, roughly how long it will last at the current rate, for
  * example "Water ice", "190 kg" and "~7d 22h". One with a limit is shown against
  * it, for example "450.0 of 450 kg", and while the Plants are holding it there the
- * line says so. Each says whether it is a warning, as one falling with little time
- * left is, and whether it is in play, with any in stock or being made or used.
+ * line says so. The one the excavator digs says why it isn't being dug, if
+ * the base needs it and something keeps the excavator from it (see
+ * `formatDiggingHold`). Each says whether it is a warning, as one falling with
+ * little time left is, and whether it is in play, with any in stock or being
+ * made or used.
  */
 export function formatBulkResources(
   bulkResources: Snapshot["bulkResources"],
@@ -856,7 +878,11 @@ export function formatBulkResources(
         : stock.kilograms > (stock.limitKilograms ?? Infinity)
           ? "holding full, over the limit"
           : "holding full";
-    const note = [held, rate, lasts]
+    const hold =
+      forecast?.diggingHold === undefined
+        ? undefined
+        : formatDiggingHold(forecast.diggingHold);
+    const note = [held, rate, lasts, hold]
       .filter((part) => part !== undefined)
       .join(", ");
     const shown = {
