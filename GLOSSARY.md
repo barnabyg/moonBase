@@ -113,7 +113,7 @@ The base's stock of Components, and of bulk resources such as Regolith measured 
 _Avoid_: cargo, cargo stock, inventory
 
 **Regolith heap**:
-The base's stock of Regolith as it lies on the ground: a heap of loose Regolith beside the stockpile's footprint, where the excavator tips what it digs, growing and shrinking with the stock.
+The base's stock of Regolith as it lies on the ground: a heap of loose Regolith beside the stockpile's footprint, where the excavator tips what it digs, growing and shrinking with the stock up to what it holds, which is Regolith's storage limit without a Regolith bin.
 _Avoid_: spoil heap, mound, pile
 
 **Ice store**:
@@ -173,6 +173,10 @@ _Avoid_: harvest, crop cycle
 **Cold-trap ice line**:
 A Plant that brings water ice in from a shadowed crater by a heated line, so that no Robot has to go on an Expedition for it.
 _Avoid_: pipeline, ice mine
+
+**Bucket-wheel digger**:
+A Plant that digs Regolith by itself with a bucket wheel at the end of a conveyor, into the base's stock, at Night too while it has power to spare. It is built in place and runs by itself, so it is a Plant, not a Machine.
+_Avoid_: excavator (the Machine), dredge, Regolith mine
 
 **Batch**:
 A game-hour of a Plant's recipe, or longer if its recipe says so, as a Workshop's and an array works' do: the unit a Plant works in. It takes the inputs as it starts and puts out the outputs as it finishes.
@@ -293,11 +297,11 @@ A type of Expedition that brings back metals or silicon from a site richer than 
 _Avoid_: scanning, exploring
 
 **Storage limit**:
-How much of a life support stock or of propellant the base can hold, as the data catalogue sets: of a stock, in the base's own tanks and its storage tanks, and of propellant, in its propellant plants and propellant tanks. What doesn't fit is lost. A Plant that makes only that stock waits for tank space instead of making more, and the status panel says the stock is holding full. Water ice and the other bulk resources have none.
+How much of a life support stock, of propellant or of Regolith the base can hold, as the data catalogue sets: of a stock, in the base's own tanks and its storage tanks; of propellant, in its propellant plants and propellant tanks; and of Regolith, in its heap and Regolith bins. What doesn't fit is lost. A Plant that makes only that stock waits for room instead of making more, and the status panel says the stock is holding full. Water ice and the other bulk resources have none.
 _Avoid_: capacity, cap, maximum
 
 **Storage tank**:
-A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, an oxygen tank, the large insulated sphere with a cooler, or a propellant tank, a fat silver capsule with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night.
+A Structure that raises a stock's storage limit once it is commissioned, shipped empty and cabled to draw a little power through the Night: a water tank, an oxygen tank, the large insulated sphere with a cooler, or a propellant tank, a fat silver capsule with a cooler. It holds its share of the stock, which it loses if it is Broken and loses little by little with no power at Night. A **Regolith bin**, an open bay of metal walls the excavator fills, is one too, but needs no power or cable, as Regolith keeps without it.
 _Avoid_: silo, reservoir, water wall
 
 **Reserve**:

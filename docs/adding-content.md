@@ -17,7 +17,7 @@ Data catalogue:
 
 Rules and model:
 
-- A storage tank needs no code: `storageTank` and `power.nightUpkeepKilowatts` on its Structure type say what it holds and draws, and `STORAGE_TANK_SHAPES` in `src/render/storage-tank-models.ts` gives it a shape in place of a case in `createStructureModel`. `src/simulation/storage-limits.ts` raises the limit of whatever `ResourceRef` it names, so long as that resource has a limit to raise: a life support stock always has, and a bulk resource has if some Structure type's `ownStorage` names it, as the propellant plants' does.
+- A storage tank needs no code: `storageTank` and `power.nightUpkeepKilowatts` on its Structure type say what it holds and draws, and `STORAGE_TANK_SHAPES` in `src/render/storage-tank-models.ts` gives it a shape in place of a case in `createStructureModel`. `src/simulation/storage-limits.ts` raises the limit of whatever `ResourceRef` it names, so long as that resource has a limit to raise: a life support stock always has, as does the bulk resource the excavator digs (the heap's `digging.fullKilograms`), and any other bulk resource has if some Structure type's `ownStorage` names it, as the propellant plants' does. A tank whose contents keep without power, as a Regolith bin's, has no `nightUpkeepKilowatts` and a `shareLostPerEarthDayWithoutPower` of 0, and takes no cable.
 - `src/simulation/`: anything it does that no Structure did before, such as a Buried Habitat's dose rate in `radiation.ts`. Nothing catches it but the tests you write.
 - `src/render/`: a model, in a file of its own or beside its kind, and a case for it in `createStructureModel` in `models.ts`. Nothing catches it: an id it doesn't know is drawn as a solar array. `test/buried-habitat-model.test.ts` shows how to test one.
 

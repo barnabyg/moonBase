@@ -1,4 +1,4 @@
-import { catalogue } from "../catalogue";
+import { catalogue, resourceOutputs, type ResourceRef } from "../catalogue";
 import {
   designLabel,
   reserveKilograms,
@@ -32,12 +32,56 @@ export interface GuideScreen {
 }
 
 /** What the Guide says of the limit on propellant, from the data catalogue's figures. */
+/**
+ * What the Guide says of the dug resource's limit, and of a Plant that digs it
+ * and a storage tank that holds more of it, if the data catalogue has them.
+ */
+function dugStorage(): string[] {
+  const { digging } = catalogue;
+  const isDug = (resource: ResourceRef) =>
+    resource.kind === "bulk-resource" &&
+    resource.resourceId === digging.resourceId;
+  const label = resourceLabel(digging.resourceId);
+  const bin = catalogue.structureTypes.find(
+    ({ storageTank }) =>
+      storageTank !== undefined && isDug(storageTank.resource),
+  );
+  const digger = catalogue.structureTypes.find(({ recipes }) =>
+    recipes?.some(
+      (recipe) =>
+        recipe.inputs.length === 0 &&
+        resourceOutputs(recipe).some((output) => isDug(output.resource)),
+    ),
+  );
+  const recipe = digger?.recipes?.[0];
+  const rate =
+    recipe === undefined
+      ? undefined
+      : resourceOutputs(recipe)[0]?.kilogramsPerHour;
+  return [
+    `The heap holds ${digging.fullKilograms} kg of ${label}, and the status panel shows it against that limit.${
+      bin?.storageTank === undefined
+        ? ""
+        : ` A ${inSentence(bin.label)} (the ${designLabel(bin.designId)} Design) adds ${bin.storageTank.kilograms} kg. It needs no power or cable, and the ${inSentence(machineLabel(digging.machineTypeId))} digs to fill it, starting and topping up as far below the raised limit as it would below the heap's.`
+    }${
+      digger === undefined || rate === undefined
+        ? ""
+        : ` A ${inSentence(digger.label)} (the same Design) digs ${rate} kg an hour by itself, a Plant like any other: it runs on power to spare, at Night too, so it can keep the Plants supplied while the ${inSentence(machineLabel(digging.machineTypeId))} is parked, and it waits once the ${label} is at its limit.`
+    }`,
+  ];
+}
+
 function propellantStorage(): string[] {
   const holds = catalogue.structureTypes.find(
     ({ ownStorage }) => ownStorage !== undefined,
   )?.ownStorage;
   const tank = catalogue.structureTypes.find(
-    ({ storageTank }) => storageTank?.resource.kind === "bulk-resource",
+    ({ storageTank }) =>
+      holds !== undefined &&
+      storageTank !== undefined &&
+      storageTank.resource.kind === "bulk-resource" &&
+      holds.resource.kind === "bulk-resource" &&
+      storageTank.resource.resourceId === holds.resource.resourceId,
   )?.storageTank;
   if (holds === undefined || tank === undefined) return [];
   return [
@@ -282,6 +326,7 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
         `Machines and the Rover parked within ${cold.plugInReachMetres} m of a powered Structure draw power for their heaters at Night, and the Robot parks them before Night falls; left in the cold, they wear down.`,
         `Build a parking area to keep them together: once it is cabled to battery banks that will keep their heaters on through the Night and has a bay free, the Robot takes each one there in Daylight as soon as it has nothing else to do, after the work you planned. Before Night falls it parks the rest in its bays too, rather than beside the nearest powered Structure, as long as the bay is no more than ${cold.bayDetourMetres} m further off than that Structure. Put it near where the Machines work, as the Robot drives them there and back.`,
         `The ${inSentence(machineLabel(digging.machineTypeId))} digs the base's ${resourceLabel(digging.resourceId)} beside the stockpile whenever no Construction needs it: once there is less than ${digging.refillBelowKilograms} kg, it digs until there is ${digging.fullKilograms} kg. It is parked through the Night, so in the ${formatHours(digging.topUpHoursBeforeParking)} before the Robot starts parking it also tops the stock up once it is below ${digging.topUpBelowKilograms} kg, to give the Plants the most to draw on. Plants that use it all at Night wait for Daylight, and the status panel's ${resourceLabel(digging.resourceId)} line says why it isn't being dug.`,
+        ...dugStorage(),
         "Plants work in batches of their recipe, most of them an hour long: each starts once there is a batch's worth of every input in stock, and its outputs come as it finishes. The Base panel says what each is waiting for, and how much of it there is.",
         `Plants run only on power that nothing else needs: in Daylight, while the battery banks would still be full ${formatHours(daylightChargeMarginHours)} before Night falls with them running, so they run as the banks charge if there is surplus enough for both, and at Night while the battery banks hold more than everything else needs through to Daylight and ${formatHours(nightReserveHours)} more. Build more battery banks to keep them running into the Night. Once there is none to spare they stand idle, or run on and off on the little that is freed, with any batch they have started kept for later, so keep enough oxygen and water in stock to last the Night; the status panel says when a stock won't.`,
         ...catalogue.lifeSupportStocks

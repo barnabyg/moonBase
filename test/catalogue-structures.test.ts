@@ -492,7 +492,7 @@ describe("the data catalogue", () => {
                   stock.id === flow.resource.stockId,
               );
         // Only what comes straight from the ground takes nothing in.
-        if (plant.id !== "water-ice") {
+        if (plant.id !== "water-ice" && plant.id !== "regolith") {
           expect(plant.inputs.length).toBeGreaterThan(0);
         }
         // A Greenhouse's recipe is its water: it earns Science by rounds instead.

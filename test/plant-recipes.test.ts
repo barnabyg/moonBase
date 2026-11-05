@@ -313,7 +313,7 @@ describe("a Plant's recipe", () => {
 
     const set = structureOf(campaign.snapshot(), "extraction-plant");
     expect(formatPlantRates(set)).toMatch(
-      /^making 0\.15 kg of oxygen.* from 4 kg of regolith; Metals and silicon from the next batch$/,
+      /^making 0\.15 kg of oxygen.* from 4 kg of Regolith; Metals and silicon from the next batch$/,
     );
     campaign.advance(30);
     const after = campaign.snapshot();

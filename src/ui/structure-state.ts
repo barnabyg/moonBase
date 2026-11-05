@@ -25,7 +25,7 @@ import {
   formatShortDuration,
   listInWords,
 } from "./format";
-import { resourceRefLabel } from "./labels";
+import { inSentence, resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
 // What state a commissioned Structure is in, in words, for the Base panel's
@@ -255,7 +255,7 @@ export function formatTank(
 ): string | undefined {
   const { tank } = structure;
   if (tank === undefined || structure.conditionPercent <= 0) return undefined;
-  const stock = resourceRefLabel(tank.resource).toLowerCase();
+  const stock = inSentence(resourceRefLabel(tank.resource));
   if (tank.losing) return `no power: losing ${stock}`;
   const kilowatts =
     catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
@@ -293,7 +293,7 @@ export function formatPlantRates(
     listInWords(
       resources.map(
         (flow) =>
-          `${plantKilograms(flow.kilogramsPerHour * rate)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+          `${plantKilograms(flow.kilogramsPerHour * rate)} kg of ${inSentence(resourceRefLabel(flow.resource))}`,
       ),
     );
   const next =

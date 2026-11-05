@@ -279,6 +279,31 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 500,
       priceMillionDollars: 500,
     },
+    // A bucket-wheel digger's worth comes to 1500 kg and $700M, under half a large
+    // propellant plant's price, and a Regolith bin's to 400 kg and $30M: the
+    // digger is what a base pays to run a large propellant plant through the
+    // Night, and the bin is cheap, as what it costs is mostly Payload Mass.
+    {
+      id: "bucket-wheel-head",
+      designId: "continuous-excavation",
+      brings: { kind: "component", componentId: "bucket-wheel-head" },
+      massKilograms: 900,
+      priceMillionDollars: 400,
+    },
+    {
+      id: "regolith-conveyor",
+      designId: "continuous-excavation",
+      brings: { kind: "component", componentId: "regolith-conveyor" },
+      massKilograms: 200,
+      priceMillionDollars: 100,
+    },
+    {
+      id: "regolith-bin-walls",
+      designId: "continuous-excavation",
+      brings: { kind: "component", componentId: "regolith-bin-walls" },
+      massKilograms: 400,
+      priceMillionDollars: 30,
+    },
     // A propellant tank's worth comes to 600 kg and $80M: about a third of a Launch,
     // and little against what a base earns by then, as what it costs is the Payload
     // Mass and the Night's power.

@@ -59,6 +59,7 @@ export {
   type RoverModel,
 } from "./rover-model";
 import { createPlantModel, PLANT_SHAPES } from "./plant-models";
+import { createRegolithBinModel } from "./regolith-bin-model";
 import { createCrewHabitatModel } from "./crew-habitat-model";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
@@ -132,6 +133,9 @@ export function createStructureModel(
     );
   }
   if (structureTypeId === "water-wall") return createWaterWallModel();
+  if (structureTypeId === "regolith-bin") {
+    return createRegolithBinModel(groundMaterial);
+  }
   const tank = STORAGE_TANK_SHAPES[structureTypeId];
   if (tank !== undefined) return createStorageTankModel(tank);
   if (structureTypeId === "buried-habitat") {

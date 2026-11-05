@@ -1,7 +1,7 @@
 import type { StructureType } from "./types";
 
 // The Industry group's Plants that refine Regolith into oxygen, metals and
-// silicon, and make propellant. Those that make parts are in
+// silicon, make propellant, and dig Regolith. Those that make parts are in
 // structures-industry-fabrication.ts. structures.ts lists them in catalogue
 // order.
 
@@ -324,6 +324,62 @@ export const largePropellantPlant: StructureType = {
         },
       ],
       drawKilowatts: 20,
+    },
+  ],
+};
+
+// A bucket wheel on a skid at the end of a conveyor, which digs a strip of
+// Regolith and sends it back to the stockpile: 30 kg an hour, three fifths of
+// the excavator's rate, but by itself and at Night too, so that the stock
+// needn't run out while a large propellant plant (35 kg an hour) runs through
+// the Night. At 4 kW that is 912 kWh through a Night, over a large battery
+// bank, which is the price of digging in the dark. The Regolith goes in with
+// the excavator's, so it waits once the stock is full.
+export const bucketWheelDigger: StructureType = {
+  id: "bucket-wheel-digger",
+  label: "Bucket-wheel digger",
+  designId: "continuous-excavation",
+  listGroup: "industry",
+  footprintRadiusMetres: 3,
+  components: [
+    { componentId: "bucket-wheel-head", count: 1 },
+    { componentId: "regolith-conveyor", count: 3 },
+  ],
+  dismantlingSpareComponents: 2,
+  stageHours: {
+    sitePreparation: 3,
+    componentDelivery: 2,
+    assembly: 10,
+    commissioning: 2,
+  },
+  stageMachines: { sitePreparation: "excavator" },
+  commissioningFailureChance: 0.2,
+  // Its teeth and belt are in the Regolith all the time it runs.
+  dustWearPercentPerHour: 0.08,
+  hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+  // It draws power only while it runs (see its recipe).
+  power: {
+    generationKilowatts: 0,
+    storageKilowattHours: 0,
+    drawKilowatts: 0,
+    nightDrawKilowatts: 0,
+  },
+  lightRadiusMetres: 0,
+  habitat: false,
+  shieldsHabitat: false,
+  landingPad: false,
+  recipes: [
+    {
+      id: "regolith",
+      label: "Regolith",
+      inputs: [],
+      outputs: [
+        {
+          resource: { kind: "bulk-resource", resourceId: "regolith" },
+          kilogramsPerHour: 30,
+        },
+      ],
+      drawKilowatts: 4,
     },
   ],
 };

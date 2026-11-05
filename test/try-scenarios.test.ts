@@ -230,6 +230,39 @@ describe("what npm run try can start the game in", () => {
     ).toBe("output-full");
   });
 
+  it("regolith-digger has a digger and a bin commissioned, 4,800 of 5,000 kg of Regolith before Night, and the digger keeps it up at Night", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "regolith-digger",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const regolith = (snapshot: typeof state) =>
+      snapshot.bulkResources.find(
+        ({ resourceId }) => resourceId === "regolith",
+      );
+
+    expect(regolith(state)).toEqual({
+      resourceId: "regolith",
+      kilograms: 4800,
+      limitKilograms: 5000,
+    });
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeLessThanOrEqual(6 * 60);
+    expect(
+      state.stockpile.components.find(
+        ({ componentId }) => componentId === "regolith-bin-walls",
+      )?.count,
+    ).toBe(1);
+
+    // Into the Night, the excavator parked, and a day of it gone: the
+    // propellant plant has used more than a batch, and the digger made it up.
+    loaded.campaign.advance(6 * 60 + 24 * 60);
+    const night = loaded.campaign.snapshot();
+    expect(night.lunation.part).toBe("night");
+    expect(regolith(night)?.kilograms).toBeGreaterThan(5000 - 2 * 30);
+  });
+
   it("everything-unlocked has every Design unlocked", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "everything-unlocked",

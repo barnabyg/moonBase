@@ -153,3 +153,47 @@ describe("a storage tank's model", () => {
     expect(lightsLit(model.group)).toBe(6);
   });
 });
+
+describe("a Regolith bin's model", () => {
+  const fillOf = (model: { readonly group: THREE.Object3D }) => {
+    const regolith = model.group.getObjectByName("Regolith");
+    if (regolith === undefined) throw new Error("expected its Regolith");
+    return regolith.visible ? boundsOf(regolith).max.y : 0;
+  };
+
+  it("is an open bay whose Regolith rises with its share of the stock, below the top of its walls", () => {
+    const model = models.createStructureModel("regolith-bin");
+    model.setAssembled(1);
+    const walls = model.group.getObjectByName("Walls");
+    if (walls === undefined) throw new Error("expected its walls");
+    const top = boundsOf(walls).max.y;
+
+    model.setCharge(0);
+    const empty = fillOf(model);
+    model.setCharge(0.5);
+    const half = fillOf(model);
+    model.setCharge(1);
+    const full = fillOf(model);
+
+    expect(empty).toBeLessThan(0.1);
+    expect(half).toBeGreaterThan(empty);
+    expect(full).toBeGreaterThan(half);
+    expect(full).toBeLessThan(top);
+  });
+
+  it("goes up during Assembly: nothing at first, then its walls, then what it holds", () => {
+    const model = models.createStructureModel("regolith-bin");
+    const walls = model.group.getObjectByName("Walls");
+
+    model.setAssembled(0);
+    expect(walls?.visible).toBe(false);
+    expect(fillOf(model)).toBe(0);
+
+    model.setAssembled(0.5);
+    expect(walls?.visible).toBe(true);
+    expect(fillOf(model)).toBe(0);
+
+    model.setAssembled(1);
+    expect(fillOf(model)).toBeGreaterThan(0);
+  });
+});

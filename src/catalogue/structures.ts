@@ -43,6 +43,7 @@ import {
   largeExtractionPlant,
   propellantPlant,
   largePropellantPlant,
+  bucketWheelDigger,
 } from "./structures-industry-refining";
 import {
   waterProcessingPlant,
@@ -60,7 +61,12 @@ import {
   arrayWorks,
   workshop,
 } from "./structures-industry-fabrication";
-import { propellantTank, waterTank, oxygenTank } from "./structures-tanks";
+import {
+  propellantTank,
+  waterTank,
+  oxygenTank,
+  regolithBin,
+} from "./structures-tanks";
 import type { Catalogue } from "./types";
 
 export const structureTypes: Catalogue["structureTypes"] = [
@@ -93,7 +99,9 @@ export const structureTypes: Catalogue["structureTypes"] = [
   integratedFabricationPlant,
   propellantPlant,
   largePropellantPlant,
+  bucketWheelDigger,
   propellantTank,
+  regolithBin,
   greenhouse,
   growingHall,
   opticsWorks,
