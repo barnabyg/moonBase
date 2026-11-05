@@ -40,7 +40,42 @@ interface PlantShape {
   readonly vessels: readonly PlantVessel[];
   /** Where the box of plant that feeds and empties it stands, across. */
   readonly feederAt: number;
+  /** A pipeline running out from one of its vessels, if it has one. */
+  readonly pipeline?: PlantPipeline;
 }
+
+/**
+ * A long pipeline on low supports, from a vessel on the plinth out to a head
+ * at its far end. It is scenery: it runs out well beyond the footprint, which
+ * stays the plinth's, and doesn't take the ground it crosses, so Structures
+ * can be built, and the Robot and Rover can go, under or beside it.
+ */
+export interface PlantPipeline {
+  /** The vessel it starts from, across and front to back, as `PlantVessel.at`. */
+  readonly from: readonly [number, number];
+  /**
+   * The way it runs, in radians about the vertical: 0 runs it straight out
+   * of the back of the plinth (towards the ground's +y), and a positive
+   * heading turns it anticlockwise seen from above, as `rotation.y` does.
+   * The one place its direction is set, for a heading chosen on placement
+   * to drive later.
+   */
+  readonly heading: number;
+  /** How far it runs from that vessel to the far end of its head. */
+  readonly lengthMetres: number;
+}
+
+/** The name of a Plant's pipeline group, the one part drawn beyond its footprint. */
+export const PIPELINE_NAME = "Pipeline";
+
+/** How high the middle of a pipeline's pipe runs above the ground. */
+const PIPELINE_HEIGHT = 0.95;
+/** The radius of a pipeline's lagged pipe. */
+const PIPELINE_RADIUS = 0.16;
+/** How far apart a pipeline's supports stand. */
+const PIPELINE_SUPPORT_SPACING = 2.5;
+/** How long a pipeline's head is, from the end of the pipe to the intake beyond it. */
+const PIPELINE_HEAD_LENGTH = 2.2;
 
 /**
  * An extraction plant: a tall molten regolith reactor, with a rack of
@@ -155,8 +190,9 @@ const WORKSHOP: PlantShape = {
 };
 
 /**
- * A cold-trap ice line: a lagged tank for the ice, and the sloping belt where
- * the line from the crater comes in.
+ * A cold-trap ice line: a lagged tank for the ice, fed by a long pipeline
+ * from the head in the crater's shadow, and the sloping belt that carries
+ * the ice on from the tank.
  */
 const COLD_TRAP_ICE_LINE: PlantShape = {
   name: "Cold-trap ice line",
@@ -166,6 +202,9 @@ const COLD_TRAP_ICE_LINE: PlantShape = {
     { kind: "conveyor", at: [0.05, 0], scale: 0.7, carries: "ice" },
   ],
   feederAt: 1.6,
+  // Straight back, so that a row of them side by side, as the long game
+  // builds, lies in parallel lines rather than across one another.
+  pipeline: { from: [-1.5, 0], heading: 0, lengthMetres: 17 },
 };
 
 /**
@@ -309,6 +348,78 @@ function plantPipes(shape: PlantShape, detail: DetailParts): void {
 }
 
 /**
+ * A pipeline: a lagged pipe on low supports from the vessel it feeds, with a
+ * flange at each support, out to its head, a pump house on a skid that glows
+ * while the Plant runs, with the intake beyond it dipping to the ground.
+ * Drawn along -z from the vessel, then turned to its heading, in a group of
+ * its own named `PIPELINE_NAME`.
+ */
+function createPipeline(
+  { from, heading, lengthMetres }: PlantPipeline,
+  glow: THREE.Material,
+): THREE.Group {
+  const pipeline = new THREE.Group();
+  pipeline.name = PIPELINE_NAME;
+  pipeline.position.set(from[0], 0, from[1]);
+  pipeline.rotation.y = heading;
+  const y = PIPELINE_HEIGHT;
+  const pipeEnd = lengthMetres - PIPELINE_HEAD_LENGTH;
+  const intakeAt = lengthMetres - 0.45;
+  const at = (along: number, height: number) =>
+    new THREE.Vector3(0, height, -along);
+  const supports = Array.from(
+    { length: Math.floor((pipeEnd - 0.5) / PIPELINE_SUPPORT_SPACING) },
+    (_, index) => (index + 1) * PIPELINE_SUPPORT_SPACING,
+  );
+  const detail = detailParts();
+  detail.add(
+    materials.silverFoil,
+    // It starts inside the vessel, so that it seems to come out of it.
+    rodGeometry(at(0, y), at(pipeEnd, y), PIPELINE_RADIUS, 10),
+    rodGeometry(at(pipeEnd + 1.4, y), at(intakeAt, y), 0.1, 8),
+    placed(new THREE.SphereGeometry(0.1, 8, 6), [0, y, -intakeAt]),
+    rodGeometry(at(intakeAt, y), at(intakeAt, 0.45), 0.1, 8),
+  );
+  const beam = y - PIPELINE_RADIUS - 0.04;
+  detail.add(
+    materials.darkMetal,
+    ...supports.flatMap((along) => [
+      ...[-0.32, 0.32].map((x) =>
+        boxAt(0.08, beam, 0.08, [x, beam / 2, -along]),
+      ),
+      boxAt(0.8, 0.08, 0.12, [0, beam, -along]),
+      boxAt(0.9, 0.04, 0.3, [0, 0.02, -along]),
+      placed(
+        new THREE.CylinderGeometry(0.21, 0.21, 0.08, 10),
+        [0, y, -along],
+        [Math.PI / 2, 0, 0],
+      ),
+    ]),
+    // The head's skid, and the intake's mouth on the ground.
+    boxAt(1.6, 0.14, 1.8, [0, 0.07, -(pipeEnd + 0.8)]),
+    placed(new THREE.CylinderGeometry(0.18, 0.45, 0.5, 12), [
+      0,
+      0.25,
+      -intakeAt,
+    ]),
+  );
+  detail.add(
+    materials.machinePaint,
+    boxAt(1.3, 1.2, 1.4, [0, 0.74, -(pipeEnd + 0.7)]),
+  );
+  detail.add(
+    materials.aluminium,
+    ...supports.map((along) =>
+      boxAt(0.36, 0.06, 0.16, [0, beam + 0.07, -along]),
+    ),
+  );
+  // A band round the pump house that glows while the Plant works.
+  detail.add(glow, boxAt(1.34, 0.08, 1.0, [0, 1.1, -(pipeEnd + 0.7)]));
+  pipeline.add(...detail.meshes());
+  return pipeline;
+}
+
+/**
  * The feeder's detail: louvres along its back, a control panel on its
  * front, and a shroud round the fan on top.
  */
@@ -425,6 +536,10 @@ export function createPlantModel(shape: PlantShape): StructureModel {
     fan.add(blade);
   }
   upper.add(fan);
+  // It rises with the vessels during Assembly, as it is scaled with them.
+  if (shape.pipeline !== undefined) {
+    upper.add(createPipeline(shape.pipeline, glow));
+  }
   plant.add(upper);
   return {
     group: plant,
