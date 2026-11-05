@@ -52,8 +52,17 @@ export function tanksWithoutPower(
   return workingTanks(state).filter((tank) => isLosing(tank, night));
 }
 
+/**
+ * Whether a tank is losing what it holds for want of power at Night. One that
+ * loses nothing without power, as a Regolith bin, needs none and is never cabled.
+ */
 function isLosing(structure: StructureState, night: boolean): boolean {
-  return night && !isBroken(structure) && !structure.powered;
+  return (
+    night &&
+    !isBroken(structure) &&
+    !structure.powered &&
+    (storageTankOf(structure)?.shareLostPerEarthDayWithoutPower ?? 0) > 0
+  );
 }
 
 /**

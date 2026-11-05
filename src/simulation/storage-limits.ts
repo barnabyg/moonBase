@@ -28,22 +28,26 @@ export function storageLimitKilograms(
 }
 
 /**
- * The bulk resources that some type of Structure stores: most have none, and this
- * is asked of each of a Plant's outputs every game-minute it can start a batch.
+ * The bulk resources that some type of Structure stores, and the one the data
+ * catalogue has dug, whose heap holds a set amount: most have none, and this is
+ * asked of each of a Plant's outputs every game-minute it can start a batch.
  */
-const BULK_RESOURCES_STORED: ReadonlySet<string> = new Set(
-  catalogue.structureTypes.flatMap(({ ownStorage }) =>
+const BULK_RESOURCES_STORED: ReadonlySet<string> = new Set([
+  catalogue.digging.resourceId,
+  ...catalogue.structureTypes.flatMap(({ ownStorage }) =>
     ownStorage?.resource.kind === "bulk-resource"
       ? [ownStorage.resource.resourceId]
       : [],
   ),
-);
+]);
 
 /**
  * What the base holds of a resource with no tank, or undefined if it has no limit.
- * A bulk resource has a limit only if some type of Structure stores it, and then
- * holds what the commissioned ones that aren't Broken do, which may be none. One to
- * be dismantled still counts until the Robot starts on it, as a tank does.
+ * A bulk resource has a limit only if some type of Structure stores it, or it is
+ * the one the data catalogue has dug, and then holds what the commissioned ones
+ * that aren't Broken do, which may be none, and the dug one what its heap holds
+ * besides. One to be dismantled still counts until the Robot starts on it, as a
+ * tank does.
  */
 function ownStorageKilograms(
   state: CampaignState,
@@ -55,6 +59,10 @@ function ownStorageKilograms(
     )?.storageLimitKilograms;
   }
   if (!BULK_RESOURCES_STORED.has(resource.resourceId)) return undefined;
+  const heap =
+    resource.resourceId === catalogue.digging.resourceId
+      ? catalogue.digging.fullKilograms
+      : 0;
   return state.structures.reduce((sum, structure) => {
     const own = findStructureType(structure.structureTypeId)?.ownStorage;
     return own !== undefined &&
@@ -62,7 +70,7 @@ function ownStorageKilograms(
       !isBroken(structure)
       ? sum + own.kilograms
       : sum;
-  }, 0);
+  }, heap);
 }
 
 /** What a Structure holds if it is a storage tank, whatever state it is in. */

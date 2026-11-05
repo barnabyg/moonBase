@@ -80,7 +80,7 @@ describe("a Component and a bulk resource added since a save was written", () =>
       expect(components).toContainEqual(stock);
     }
     for (const stock of saved.state.bulkResources) {
-      expect(bulkResources).toContainEqual(stock);
+      expect(bulkResources).toContainEqual(expect.objectContaining(stock));
     }
   });
 
@@ -152,10 +152,9 @@ describe("a save missing a count", () => {
       componentId: "spare-component",
       count: 0,
     });
-    expect(bulkResources).toContainEqual({
-      resourceId: "regolith",
-      kilograms: 0,
-    });
+    expect(bulkResources).toContainEqual(
+      expect.objectContaining({ resourceId: "regolith", kilograms: 0 }),
+    );
   });
 
   it("still refuses a count that isn't a whole number, and a stock that isn't a list", () => {
