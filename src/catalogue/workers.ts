@@ -88,7 +88,7 @@ export const expeditions: Catalogue["expeditions"] = {
     // the second Launch brings the first extraction plant, so they bridge a
     // base to its Plants, and later top it up, even through a Night and with
     // no power, but can't take the place of the Plants, and they cost the
-    // base a Robot for six Earth Days.
+    // base a Robot for six Earth Days: its only one, until a second lands.
     {
       id: "prospecting-metals",
       label: "Prospecting for metals",

@@ -939,8 +939,11 @@ export const designs: Catalogue["designs"] = [
     // Cheap, and past only Robots, so that it can be had before the second
     // Launch brings the first extraction plant: it bridges the base to its
     // Plants rather than coming once they already make metals and silicon
-    // (#249). Robots first, so that a second Robot can keep the base going
-    // while one is away.
+    // (#249). Past Robots because an Expedition takes a Robot away for six
+    // Earth Days, so it comes with the Design that lets a base ship a second.
+    // That Robot comes by Launch, on the second at the soonest, so sending
+    // one before it lands leaves the base without a Robot for those days: the
+    // player's trade-off.
     scienceCost: 30,
     prerequisiteDesignIds: ["robots"],
   },
