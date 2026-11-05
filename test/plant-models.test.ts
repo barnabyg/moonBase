@@ -66,14 +66,14 @@ const detailed = catalogue.structureTypes.filter(
 describe.each(detailed.map((type) => [type.id, type] as const))(
   "the %s's model",
   (_, type) => {
-    // A pipeline is scenery that runs out beyond the footprint without taking
+    // A haul line is scenery that runs out beyond the footprint without taking
     // the ground it crosses (see below), so it is left out here.
     it("stands on the ground within its footprint", () => {
       const model = models.createStructureModel(type.id);
       model.setAssembled(1);
       model.setFacing(0.7);
 
-      const box = boundsOf(model.group, plants.PIPELINE_NAME);
+      const box = boundsOf(model.group, plants.HAUL_LINE_NAME);
       expect(box.min.y).toBeCloseTo(0, 1);
       const reach = Math.hypot(
         Math.max(-box.min.x, box.max.x),
@@ -92,38 +92,38 @@ describe.each(detailed.map((type) => [type.id, type] as const))(
   },
 );
 
-// The cold-trap ice line's pipeline runs out from its tank to the head in the
-// crater, as scenery: the footprint stays the tank end's, so the pipeline
+// The cold-trap ice line's haul line runs out from its tank to the head in the
+// crater, as scenery: the footprint stays the tank end's, so the haul line
 // doesn't stop anything being built, walked or parked where it runs.
-describe("the cold-trap ice line's pipeline", () => {
-  const pipelineOf = (model: { readonly group: THREE.Object3D }) => {
-    const pipeline = partNamed(model.group, plants.PIPELINE_NAME);
-    if (pipeline === undefined) throw new Error("expected a pipeline");
-    return pipeline;
+describe("the cold-trap ice line's haul line", () => {
+  const haulLineOf = (model: { readonly group: THREE.Object3D }) => {
+    const haulLine = partNamed(model.group, plants.HAUL_LINE_NAME);
+    if (haulLine === undefined) throw new Error("expected a haul line");
+    return haulLine;
   };
   const iceLineShape = () => {
     const shape = plants.PLANT_SHAPES["cold-trap-ice-line"];
-    if (shape?.pipeline === undefined) throw new Error("expected a pipeline");
-    return { shape, pipeline: shape.pipeline };
+    if (shape?.haulLine === undefined) throw new Error("expected a haul line");
+    return { shape, haulLine: shape.haulLine };
   };
 
   it("is the only Plant's", () => {
     for (const id of Object.keys(plants.PLANT_SHAPES)) {
       const model = models.createStructureModel(id);
-      expect(partNamed(model.group, plants.PIPELINE_NAME) !== undefined).toBe(
+      expect(partNamed(model.group, plants.HAUL_LINE_NAME) !== undefined).toBe(
         id === "cold-trap-ice-line",
       );
     }
   });
 
   it("runs 15 to 20 m straight back from its tank, low and narrow", () => {
-    const { pipeline } = iceLineShape();
-    expect(pipeline.heading).toBe(0);
-    const [tankX, tankZ] = pipeline.from;
+    const { haulLine } = iceLineShape();
+    expect(haulLine.heading).toBe(0);
+    const [tankX, tankZ] = haulLine.from;
     const model = models.createStructureModel("cold-trap-ice-line");
     model.setAssembled(1);
 
-    const box = boundsOf(pipelineOf(model));
+    const box = boundsOf(haulLineOf(model));
     expect(box.min.y).toBeCloseTo(0, 1);
     expect(box.max.y).toBeLessThan(1.5);
     expect(tankZ - box.min.z).toBeGreaterThanOrEqual(15);
@@ -134,31 +134,31 @@ describe("the cold-trap ice line's pipeline", () => {
   });
 
   it("turns with its heading, anticlockwise seen from above", () => {
-    const { shape, pipeline } = iceLineShape();
+    const { shape, haulLine } = iceLineShape();
     const model = plants.createPlantModel({
       ...shape,
-      pipeline: { ...pipeline, heading: Math.PI / 2 },
+      haulLine: { ...haulLine, heading: Math.PI / 2 },
     });
     model.setAssembled(1);
 
     // A quarter turn takes it from the back of the plinth to the left.
-    const box = boundsOf(pipelineOf(model));
-    expect(pipeline.from[0] - box.min.x).toBeGreaterThanOrEqual(15);
+    const box = boundsOf(haulLineOf(model));
+    expect(haulLine.from[0] - box.min.x).toBeGreaterThanOrEqual(15);
     expect(box.max.z - box.min.z).toBeLessThan(2);
   });
 
   it("rises with the rest of the Plant as it is assembled", () => {
     const model = models.createStructureModel("cold-trap-ice-line");
     model.setAssembled(1);
-    const full = boundsOf(pipelineOf(model)).max.y;
+    const full = boundsOf(haulLineOf(model)).max.y;
     model.setAssembled(0.2);
-    expect(boundsOf(pipelineOf(model)).max.y).toBeLessThan(full * 0.5);
+    expect(boundsOf(haulLineOf(model)).max.y).toBeLessThan(full * 0.5);
   });
 
   it("is drawn in a handful of meshes", () => {
     const model = models.createStructureModel("cold-trap-ice-line");
     let meshes = 0;
-    pipelineOf(model).traverse((child) => {
+    haulLineOf(model).traverse((child) => {
       if (child instanceof THREE.Mesh) meshes += 1;
     });
     expect(meshes).toBeGreaterThan(0);

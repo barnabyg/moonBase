@@ -40,17 +40,17 @@ interface PlantShape {
   readonly vessels: readonly PlantVessel[];
   /** Where the box of plant that feeds and empties it stands, across. */
   readonly feederAt: number;
-  /** A pipeline running out from one of its vessels, if it has one. */
-  readonly pipeline?: PlantPipeline;
+  /** A haul line running out from one of its vessels, if it has one. */
+  readonly haulLine?: PlantHaulLine;
 }
 
 /**
- * A long pipeline on low supports, from a vessel on the plinth out to a head
+ * A long haul line on low supports, from a vessel on the plinth out to a head
  * at its far end. It is scenery: it runs out well beyond the footprint, which
  * stays the plinth's, and doesn't take the ground it crosses, so Structures
  * can be built, and the Robot and Rover can go, under or beside it.
  */
-export interface PlantPipeline {
+export interface PlantHaulLine {
   /** The vessel it starts from, across and front to back, as `PlantVessel.at`. */
   readonly from: readonly [number, number];
   /**
@@ -65,17 +65,17 @@ export interface PlantPipeline {
   readonly lengthMetres: number;
 }
 
-/** The name of a Plant's pipeline group, the one part drawn beyond its footprint. */
-export const PIPELINE_NAME = "Pipeline";
+/** The name of a Plant's haul line group, the one part drawn beyond its footprint. */
+export const HAUL_LINE_NAME = "Haul line";
 
-/** How high the middle of a pipeline's pipe runs above the ground. */
-const PIPELINE_HEIGHT = 0.95;
-/** The radius of a pipeline's lagged pipe. */
-const PIPELINE_RADIUS = 0.16;
-/** How far apart a pipeline's supports stand. */
-const PIPELINE_SUPPORT_SPACING = 2.5;
-/** How long a pipeline's head is, from the end of the pipe to the intake beyond it. */
-const PIPELINE_HEAD_LENGTH = 2.2;
+/** How high the middle of a haul line's pipe runs above the ground. */
+const HAUL_LINE_HEIGHT = 0.95;
+/** The radius of a haul line's lagged pipe. */
+const HAUL_LINE_RADIUS = 0.16;
+/** How far apart a haul line's supports stand. */
+const HAUL_LINE_SUPPORT_SPACING = 2.5;
+/** How long a haul line's head is, from the end of the pipe to the intake beyond it. */
+const HAUL_LINE_HEAD_LENGTH = 2.2;
 
 /**
  * An extraction plant: a tall molten regolith reactor, with a rack of
@@ -190,7 +190,7 @@ const WORKSHOP: PlantShape = {
 };
 
 /**
- * A cold-trap ice line: a lagged tank for the ice, fed by a long pipeline
+ * A cold-trap ice line: a lagged tank for the ice, fed by a long haul line
  * from the head in the crater's shadow, and the sloping belt that carries
  * the ice on from the tank.
  */
@@ -204,7 +204,7 @@ const COLD_TRAP_ICE_LINE: PlantShape = {
   feederAt: 1.6,
   // Straight back, so that a row of them side by side, as the long game
   // builds, lies in parallel lines rather than across one another.
-  pipeline: { from: [-1.5, 0], heading: 0, lengthMetres: 17 },
+  haulLine: { from: [-1.5, 0], heading: 0, lengthMetres: 17 },
 };
 
 /**
@@ -348,39 +348,39 @@ function plantPipes(shape: PlantShape, detail: DetailParts): void {
 }
 
 /**
- * A pipeline: a lagged pipe on low supports from the vessel it feeds, with a
+ * A haul line: a lagged pipe on low supports from the vessel it feeds, with a
  * flange at each support, out to its head, a pump house on a skid that glows
  * while the Plant runs, with the intake beyond it dipping to the ground.
  * Drawn along -z from the vessel, then turned to its heading, in a group of
- * its own named `PIPELINE_NAME`.
+ * its own named `HAUL_LINE_NAME`.
  */
-function createPipeline(
-  { from, heading, lengthMetres }: PlantPipeline,
+function createHaulLine(
+  { from, heading, lengthMetres }: PlantHaulLine,
   glow: THREE.Material,
 ): THREE.Group {
-  const pipeline = new THREE.Group();
-  pipeline.name = PIPELINE_NAME;
-  pipeline.position.set(from[0], 0, from[1]);
-  pipeline.rotation.y = heading;
-  const y = PIPELINE_HEIGHT;
-  const pipeEnd = lengthMetres - PIPELINE_HEAD_LENGTH;
+  const haulLine = new THREE.Group();
+  haulLine.name = HAUL_LINE_NAME;
+  haulLine.position.set(from[0], 0, from[1]);
+  haulLine.rotation.y = heading;
+  const y = HAUL_LINE_HEIGHT;
+  const pipeEnd = lengthMetres - HAUL_LINE_HEAD_LENGTH;
   const intakeAt = lengthMetres - 0.45;
   const at = (along: number, height: number) =>
     new THREE.Vector3(0, height, -along);
   const supports = Array.from(
-    { length: Math.floor((pipeEnd - 0.5) / PIPELINE_SUPPORT_SPACING) },
-    (_, index) => (index + 1) * PIPELINE_SUPPORT_SPACING,
+    { length: Math.floor((pipeEnd - 0.5) / HAUL_LINE_SUPPORT_SPACING) },
+    (_, index) => (index + 1) * HAUL_LINE_SUPPORT_SPACING,
   );
   const detail = detailParts();
   detail.add(
     materials.silverFoil,
     // It starts inside the vessel, so that it seems to come out of it.
-    rodGeometry(at(0, y), at(pipeEnd, y), PIPELINE_RADIUS, 10),
+    rodGeometry(at(0, y), at(pipeEnd, y), HAUL_LINE_RADIUS, 10),
     rodGeometry(at(pipeEnd + 1.4, y), at(intakeAt, y), 0.1, 8),
     placed(new THREE.SphereGeometry(0.1, 8, 6), [0, y, -intakeAt]),
     rodGeometry(at(intakeAt, y), at(intakeAt, 0.45), 0.1, 8),
   );
-  const beam = y - PIPELINE_RADIUS - 0.04;
+  const beam = y - HAUL_LINE_RADIUS - 0.04;
   detail.add(
     materials.darkMetal,
     ...supports.flatMap((along) => [
@@ -415,8 +415,8 @@ function createPipeline(
   );
   // A band round the pump house that glows while the Plant works.
   detail.add(glow, boxAt(1.34, 0.08, 1.0, [0, 1.1, -(pipeEnd + 0.7)]));
-  pipeline.add(...detail.meshes());
-  return pipeline;
+  haulLine.add(...detail.meshes());
+  return haulLine;
 }
 
 /**
@@ -537,8 +537,8 @@ export function createPlantModel(shape: PlantShape): StructureModel {
   }
   upper.add(fan);
   // It rises with the vessels during Assembly, as it is scaled with them.
-  if (shape.pipeline !== undefined) {
-    upper.add(createPipeline(shape.pipeline, glow));
+  if (shape.haulLine !== undefined) {
+    upper.add(createHaulLine(shape.haulLine, glow));
   }
   plant.add(upper);
   return {

@@ -73,9 +73,9 @@ describe.each(newStructures)("the %s's model", (id, name) => {
     expect(model.group.name).toBe(name);
     model.setAssembled(1);
 
-    // The cold-trap ice line's pipeline runs out beyond its footprint, as
+    // The cold-trap ice line's haul line runs out beyond its footprint, as
     // scenery: test/plant-models.test.ts checks it.
-    const box = boundsOf(model.group, plants.PIPELINE_NAME);
+    const box = boundsOf(model.group, plants.HAUL_LINE_NAME);
     expect(box.min.y).toBeCloseTo(0, 1);
     const reach = Math.hypot(
       Math.max(-box.min.x, box.max.x),
