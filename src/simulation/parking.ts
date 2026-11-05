@@ -8,7 +8,7 @@ import {
   type Footing,
   type StructureState,
 } from "./construction";
-import { isTopUpTime, needsDigging } from "./digging";
+import { needsDigging } from "./digging";
 import {
   bodyOf,
   drivenSpec,
@@ -226,10 +226,10 @@ export function planParking(state: CampaignState): void {
 /**
  * Whether a Machine has more work coming, so that it isn't sent to a bay
  * between jobs only to be driven out again: it is set digging, or is the
- * Machine that digs while the base needs digging or in the hours of topping
- * the stock up before Night (see `isTopUpTime`), or a Construction's
- * current stage is carried out by its type of Machine, none is on it yet
- * and it waits for nothing but a Machine. One waiting for Components or
+ * Machine that digs while the base needs digging, which in the hours before
+ * Night includes topping the stock up (see `needsDigging`), or a
+ * Construction's current stage is carried out by its type of Machine, none
+ * is on it yet and it waits for nothing but a Machine. One waiting for Components or
  * water may wait for weeks, so it doesn't keep a Machine out. A Rover's
  * next Expedition is already ruled out by its being idle.
  */
@@ -239,7 +239,7 @@ function hasWorkAhead(state: CampaignState, driven: Driven): boolean {
   if (
     machine.digging !== undefined ||
     (machine.machineTypeId === catalogue.digging.machineTypeId &&
-      (needsDigging(state) || isTopUpTime(state)))
+      needsDigging(state))
   ) {
     return true;
   }

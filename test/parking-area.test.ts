@@ -108,6 +108,7 @@ interface SavedState {
   cables: { fromStructureId: string; toStructureId: string }[];
   machines: { id: string; position: GroundPosition }[];
   rovers: { id: string; position: GroundPosition }[];
+  bulkResources: { resourceId: string; kilograms: number }[];
 }
 
 /** Where each Machine and the Rover stand as a Campaign begins. */
@@ -390,6 +391,50 @@ describe("a parking area", () => {
     expect(game.state.lunation.part).toBe("daylight");
     expect(game.state.lunation.minutesRemaining).toBeGreaterThan(
       parkingLeadHours * 60,
+    );
+  });
+
+  it("has the Robot take the excavator to a bay in the hours of topping up before Night once the stock needs no topping up", () => {
+    const { topUpHoursBeforeParking, topUpBelowKilograms } = catalogue.digging;
+    const game = baseWithParkingArea();
+    const excavator = () => {
+      const found = game.state.machines.find(
+        (machine) => machine.machineTypeId === "excavator",
+      );
+      if (found === undefined) throw new Error("expected the excavator");
+      return found;
+    };
+    untilBeforeNight(
+      game.campaign,
+      (parkingLeadHours + topUpHoursBeforeParking / 2) * 60,
+    );
+    const topping = changedSave(game.campaign, (state) => {
+      for (const stock of state.bulkResources) {
+        if (stock.resourceId === "regolith") {
+          stock.kilograms = topUpBelowKilograms;
+        }
+      }
+      for (const machine of state.machines) {
+        if (machine.id === excavator().id) {
+          machine.position =
+            startingPositions.get(machine.id) ?? machine.position;
+        }
+      }
+    });
+    expect(
+      topping.state.machines.find(({ id }) => id === excavator().id)?.activity,
+    ).toEqual({ kind: "idle" });
+
+    topping.advance({ minutes: 1 });
+
+    expect(topping.state.parking).toContainEqual(
+      expect.objectContaining({
+        subject: expect.objectContaining({
+          kind: "machine",
+          machineTypeId: "excavator",
+        }) as unknown,
+        inBay: true,
+      }),
     );
   });
 });
