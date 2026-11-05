@@ -5,6 +5,7 @@ import {
   resourceOutputs,
   type GrowingRounds,
   type ResourceFlow,
+  type ResourceRef,
 } from "../catalogue";
 import {
   isGreenhouse,
@@ -24,7 +25,7 @@ import {
   formatShortDuration,
   listInWords,
 } from "./format";
-import { resourceRefLabel } from "./labels";
+import { inSentence, resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
 // What state a commissioned Structure is in, in words, for the Base panel's
@@ -254,12 +255,14 @@ export function formatTank(
 ): string | undefined {
   const { tank } = structure;
   if (tank === undefined || structure.conditionPercent <= 0) return undefined;
-  const stock = resourceRefLabel(tank.resource).toLowerCase();
+  const stock = inSentence(resourceRefLabel(tank.resource));
   if (tank.losing) return `no power: losing ${stock}`;
   const kilowatts =
     catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
       ?.power.nightUpkeepKilowatts ?? 0;
-  return `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${stock}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
+  const holds = `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${stock}`;
+  if (kilowatts === 0) return holds;
+  return `${holds}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
 }
 
 /**
@@ -290,7 +293,7 @@ export function formatPlantRates(
     listInWords(
       resources.map(
         (flow) =>
-          `${plantKilograms(flow.kilogramsPerHour * rate)} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+          `${plantKilograms(flow.kilogramsPerHour * rate)} kg of ${inSentence(resourceRefLabel(flow.resource))}`,
       ),
     );
   const next =
@@ -355,7 +358,7 @@ export function formatPlant(
     case "reserve":
       return `waiting for ${resourceRefLabel(stop.resource)}: ${plantKilograms(stop.kilograms)} of ${plantKilograms(stop.kilogramsNeeded)} kg, to leave the Mission Director's reserve of ${plantKilograms(stop.reserveKilograms)} kg`;
     case "output-full":
-      return `waiting for tank space: ${resourceRefLabel(stop.resource)} is ${stop.kilograms.toFixed(1)} of ${plantKilograms(stop.limitKilograms)} kg`;
+      return `waiting for ${isDug(stop.resource) ? "room to store it" : "tank space"}: ${resourceRefLabel(stop.resource)} is ${stop.kilograms.toFixed(1)} of ${plantKilograms(stop.limitKilograms)} kg`;
     case "night":
       return `idle at Night: no stored power to spare${left}`;
     case "no-power":
@@ -383,4 +386,12 @@ export function formatDustCoating(
   return generates
     ? `Dust coating ${Math.round(structure.dustCoatingPercent)}%`
     : undefined;
+}
+
+/** Whether a resource is the one the data catalogue has dug, which is heaped and binned rather than kept in tanks. */
+function isDug(resource: ResourceRef): boolean {
+  return (
+    resource.kind === "bulk-resource" &&
+    resource.resourceId === catalogue.digging.resourceId
+  );
 }

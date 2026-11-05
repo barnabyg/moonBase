@@ -893,6 +893,68 @@ export function propellantTanksSave(): string {
   });
 }
 
+/** Where `regolithDiggerSave` puts what it builds. */
+const REGOLITH_BASE_SITES = [
+  ["solar-array", { x: 40, y: 25 }],
+  ["solar-array", { x: 40, y: 13 }],
+  ["solar-array", { x: 40, y: 1 }],
+  ["battery-bank", { x: 40, y: 37 }],
+  ["battery-bank", { x: 50, y: 37 }],
+  ["propellant-plant", { x: 54, y: 25 }],
+  ["bucket-wheel-digger", { x: 66, y: 13 }],
+  ["regolith-bin", { x: 54, y: 1 }],
+] as const;
+
+/**
+ * A base with a propellant plant, a bucket-wheel digger and a Regolith bin
+ * commissioned, with 4,800 kg of the 5,000 kg of Regolith it can hold and a
+ * second bin's Components in stock. It stops a few hours before Night, as
+ * `propellantTanksSave` does, so that a player sees the excavator parked and
+ * the digger carry on.
+ */
+export function regolithDiggerSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "propellant-production",
+        "large-propellant-production",
+        "continuous-excavation",
+      );
+      addComponents(state, [
+        ...REGOLITH_BASE_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("regolith-bin"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of REGOLITH_BASE_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; ; hours++) {
+    const { part, minutesRemaining } = campaign.snapshot().lunation;
+    if (
+      part === "daylight" &&
+      minutesRemaining <= toGameMinutes({ hours: 6 })
+    ) {
+      break;
+    }
+    if (hours > 40 * 24) throw new Error("Night never came near.");
+    campaign.advance(60);
+  }
+  return saveWith(campaign, (state) => {
+    stockOf(state, "regolith", 4800);
+  });
+}
+
 /** Where `storageTanksSave` puts what it builds. */
 const TANKS_BASE_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -1193,6 +1255,19 @@ export const tryScenarios: readonly TryScenario[] = [
       "Press Dismantle beside the Propellant plant. When the Robot starts on it the limit falls by 450 kg, the stock doesn't, and no notification says anything was lost. Press Dismantle beside a Propellant tank: when the Robot starts on it, a notification says what no longer fits was lost.",
     ],
     save: propellantTanksSave,
+  },
+  {
+    id: "regolith-digger",
+    title:
+      "A base with a propellant plant, a bucket-wheel digger and a Regolith bin, 4,800 of 5,000 kg of Regolith, a few hours before Night, on three solar arrays and two battery banks, and a second bin's Components in stock",
+    steps: [
+      'Pause the game. The status panel\'s Bulk resources say "Regolith 4800.0 of 5000 kg". In the Base panel the Regolith bin says "holds 2880 of 3000 kg of Regolith", with nothing about power. Find it on the map: an open square bay of metal walls, filled with Regolith, and the digger, a Plant with a conveyor running back to a skid where it digs.',
+      'Set the game to 5x. The digger says "making 30 kg of Regolith an hour from the ground", and the Regolith rises, faster than the propellant plant uses it. The excavator stays where it is: with the bin, digging starts only below 4000 kg.',
+      'Carry on until Night falls. The Robot parks the excavator, but once the propellant plant has drawn the Regolith down a batch, the digger runs again on the battery banks\' spare power, and the Regolith stays near full. Once the banks have no more to spare, the digger says "idle at Night: no stored power to spare", and the Regolith falls as it did before.',
+      "Pick the Regolith bin in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 8000 kg, and in Daylight the excavator digs to fill it. The bin needs no cable.",
+      "Open the Launch manifest: the digger's head and conveyors and the bin's walls are under Industry, behind Continuous excavation. Open the Guide's Structures for their cards.",
+    ],
+    save: regolithDiggerSave,
   },
   {
     id: "greenhouse",

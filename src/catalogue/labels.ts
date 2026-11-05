@@ -6,7 +6,9 @@ export function inSentence(label: string): string {
     label === "Workshop" ||
     label === "Greenhouse" ||
     label === "Buried Habitat" ||
-    label === "Large-scale Crew Habitat"
+    label === "Large-scale Crew Habitat" ||
+    label === "Regolith" ||
+    label === "Regolith bin"
     ? label
     : label.toLowerCase();
 }

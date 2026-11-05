@@ -13,6 +13,7 @@ import { readLunation } from "./lunation";
 import { isUnderMaintenance } from "./maintenance";
 import { isBeingParked, isParkingTime } from "./parking";
 import { powerSockets } from "./power";
+import { storageLimitKilograms } from "./storage-limits";
 
 /**
  * A Machine set to dig beside the stockpile, from the Robot claiming the
@@ -28,18 +29,38 @@ export interface MachineDigging {
 }
 
 /**
+ * How many kilograms of the resource the data catalogue has dug the base can
+ * hold: what the heap holds, and whatever its working storage tanks add. Digging
+ * fills it to that, and each level that starts digging is as far below it as
+ * the data catalogue's is below what the heap alone holds.
+ */
+export function diggingFullKilograms(state: CampaignState): number {
+  const { resourceId, fullKilograms } = catalogue.digging;
+  return (
+    storageLimitKilograms(state, { kind: "bulk-resource", resourceId }) ??
+    fullKilograms
+  );
+}
+
+/**
  * Whether the base has fallen low enough on the resource the data catalogue
  * has dug for digging to start: below the level that starts it, or, in the
  * data catalogue's hours before Machines are parked for Night, below the
- * level that tops it up, so that the stock goes into the Night full.
+ * level that tops it up, so that the stock goes into the Night full. Storage
+ * tanks for it raise both levels by what they add.
  */
 export function needsDigging(state: CampaignState): boolean {
-  const { resourceId, refillBelowKilograms, topUpBelowKilograms } =
-    catalogue.digging;
+  const {
+    resourceId,
+    refillBelowKilograms,
+    topUpBelowKilograms,
+    fullKilograms,
+  } = catalogue.digging;
+  const added = diggingFullKilograms(state) - fullKilograms;
   const kilograms = bulkInStock(state, resourceId);
   return (
-    kilograms < refillBelowKilograms ||
-    (kilograms < topUpBelowKilograms && isTopUpTime(state))
+    kilograms < refillBelowKilograms + added ||
+    (kilograms < topUpBelowKilograms + added && isTopUpTime(state))
   );
 }
 
@@ -111,8 +132,10 @@ function isNightDiggingHeld(state: CampaignState): boolean {
 
 /** Whether digging under way should carry on: the stock isn't full yet. */
 function isShort(state: CampaignState): boolean {
-  const { resourceId, fullKilograms } = catalogue.digging;
-  return bulkInStock(state, resourceId) < fullKilograms;
+  return (
+    bulkInStock(state, catalogue.digging.resourceId) <
+    diggingFullKilograms(state)
+  );
 }
 
 /**
@@ -184,13 +207,13 @@ export function dig(state: CampaignState, machine: MachineState): GameEvent[] {
     return [];
   }
   machine.activity = { kind: "digging" };
-  const { resourceId, fullKilograms, kilogramsPerWorkingHour } =
-    catalogue.digging;
+  const { resourceId, kilogramsPerWorkingHour } = catalogue.digging;
+  const full = diggingFullKilograms(state);
   const dug = (kilogramsPerWorkingHour * machinePerformance(machine)) / 60;
-  if (bulkInStock(state, resourceId) + dug < fullKilograms) {
+  if (bulkInStock(state, resourceId) + dug < full) {
     addBulk(state, resourceId, dug);
   } else {
-    setBulk(state, resourceId, fullKilograms);
+    setBulk(state, resourceId, Math.max(full, bulkInStock(state, resourceId)));
     machine.digging = undefined;
   }
   return wearMachine(

@@ -143,3 +143,45 @@ export const oxygenTank: StructureType = {
     shareLostPerEarthDayWithoutPower: 0.1,
   },
 };
+
+// Walls of bolted panels round a bay beside the stockpile, which the excavator
+// tips into as it does onto the heap: 3,000 kg more, a day and a half more of a
+// large propellant plant's Regolith. Regolith keeps without power, so it draws
+// none and needs no cable, and loses nothing at Night. The excavator digs to
+// fill it, so each bin is about two and a half more days of its digging to
+// fill from empty.
+export const regolithBin: StructureType = {
+  id: "regolith-bin",
+  label: "Regolith bin",
+  designId: "continuous-excavation",
+  listGroup: "tanks",
+  footprintRadiusMetres: 3,
+  components: [{ componentId: "regolith-bin-walls", count: 1 }],
+  dismantlingSpareComponents: 1,
+  stageHours: {
+    sitePreparation: 1,
+    componentDelivery: 1,
+    assembly: 3,
+    commissioning: 1,
+  },
+  stageMachines: { sitePreparation: "excavator" },
+  commissioningFailureChance: 0.05,
+  // Nothing in it moves for Dust to wear.
+  dustWearPercentPerHour: 0.005,
+  hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+  power: {
+    generationKilowatts: 0,
+    storageKilowattHours: 0,
+    drawKilowatts: 0,
+    nightDrawKilowatts: 0,
+  },
+  lightRadiusMetres: 0,
+  habitat: false,
+  shieldsHabitat: false,
+  landingPad: false,
+  storageTank: {
+    resource: { kind: "bulk-resource", resourceId: "regolith" },
+    kilograms: 3000,
+    shareLostPerEarthDayWithoutPower: 0,
+  },
+};

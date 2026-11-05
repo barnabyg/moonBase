@@ -208,6 +208,24 @@ const COLD_TRAP_ICE_LINE: PlantShape = {
 };
 
 /**
+ * A bucket-wheel digger: a hopper for the Regolith, fed by a conveyor run out
+ * to the bucket wheel's skid where it digs, and the belt that carries the
+ * Regolith on from the hopper.
+ */
+const BUCKET_WHEEL_DIGGER: PlantShape = {
+  name: "Bucket-wheel digger",
+  plinth: [5, 3],
+  vessels: [
+    { kind: "tank", at: [-1.5, 0], scale: 0.6 },
+    { kind: "conveyor", at: [0.05, 0], scale: 0.7 },
+  ],
+  feederAt: 1.6,
+  // Straight back, as a cold-trap ice line's, so that side by side they lie
+  // in parallel lines.
+  haulLine: { from: [-1.5, 0], heading: 0, lengthMetres: 10 },
+};
+
+/**
  * An array works: a small casting furnace for the frames and a deposition
  * chamber for the cells behind a long belt carrying panels, which are
  * stacked on a pallet as they come off it.
@@ -291,6 +309,7 @@ export const PLANT_SHAPES: Readonly<Record<string, PlantShape>> = {
   "integrated-fabrication-plant": INTEGRATED_FABRICATION_PLANT,
   workshop: WORKSHOP,
   "cold-trap-ice-line": COLD_TRAP_ICE_LINE,
+  "bucket-wheel-digger": BUCKET_WHEEL_DIGGER,
   "array-works": ARRAY_WORKS,
   "propellant-plant": PROPELLANT_PLANT,
   "large-propellant-plant": LARGE_PROPELLANT_PLANT,

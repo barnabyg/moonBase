@@ -22,7 +22,7 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
 
   const plants = structureEntry(page, /plant/);
   await expect(plants).toHaveText([
-    /^Extraction plant Condition \d+% running, 30 min left of this batch · making 0\.15 kg of oxygen, 0\.04 kg of metals and 0\.02 kg of silicon an hour from 4 kg of regolith/,
+    /^Extraction plant Condition \d+% running, 30 min left of this batch · making 0\.15 kg of oxygen, 0\.04 kg of metals and 0\.02 kg of silicon an hour from 4 kg of Regolith/,
     /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.35 kg(?! ·)/,
   ]);
 });

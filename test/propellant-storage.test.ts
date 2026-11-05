@@ -143,10 +143,13 @@ describe("the propellant limit", () => {
     });
   });
 
-  it("leaves every other bulk resource with no limit, water ice among them", () => {
+  it("leaves every other bulk resource but the dug one with no limit, water ice among them", () => {
     const { state } = scenario();
     for (const line of state.bulkResources) {
-      if (line.resourceId !== "propellant") {
+      if (
+        line.resourceId !== "propellant" &&
+        line.resourceId !== catalogue.digging.resourceId
+      ) {
         expect(line.limitKilograms).toBeUndefined();
       }
     }

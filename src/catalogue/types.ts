@@ -872,9 +872,16 @@ export interface DiggingRules {
   readonly machineTypeId: string;
   /** The bulk resource it digs. */
   readonly resourceId: string;
-  /** Digging starts once the base has less than this. */
+  /**
+   * Digging starts once the base has less than this, and as much more as any
+   * storage tanks for the resource add.
+   */
   readonly refillBelowKilograms: number;
-  /** Once started, digging carries on until the base has this much. */
+  /**
+   * What the base's heap of the resource holds: its storage limit with no
+   * storage tank for it. Once started, digging carries on until the base has
+   * as much as its limit, this and what any storage tanks add.
+   */
   readonly fullKilograms: number;
   /** How much it digs in a game-hour at full performance; less as its Condition falls. */
   readonly kilogramsPerWorkingHour: number;
@@ -887,8 +894,9 @@ export interface DiggingRules {
   readonly topUpHoursBeforeParking: number;
   /**
    * The level that starts digging in the hours before parking, between
-   * `refillBelowKilograms` and `fullKilograms`. Just below full, so that a
-   * Robot isn't sent to set it digging for a few kilograms.
+   * `refillBelowKilograms` and `fullKilograms`, and raised as they are by any
+   * storage tanks. Just below full, so that a Robot isn't sent to set it
+   * digging for a few kilograms.
    */
   readonly topUpBelowKilograms: number;
 }
@@ -1132,18 +1140,23 @@ export interface OwnStorage {
 
 /**
  * What a storage tank holds. Its power has `nightUpkeepKilowatts`, for keeping
- * that from boiling off or freezing. It holds a share of the base's stock, as a
- * battery bank does of its network's energy: a Broken one loses that share, one
- * taken apart loses whatever no longer fits, and one with no power at Night
- * loses its share little by little, none of them taking a life support stock
- * below the Mission Director's reserve.
+ * that from boiling off or freezing, unless what it holds keeps without power,
+ * as Regolith does. It holds a share of the base's stock, as a battery bank does
+ * of its network's energy: a Broken one loses that share, one taken apart loses
+ * whatever no longer fits, and one with no power at Night loses its share little
+ * by little, none of them taking a life support stock below the Mission
+ * Director's reserve.
  */
 export interface StorageTank {
   /** A resource the base has a limit to, as a tank adds to that limit. */
   readonly resource: ResourceRef;
   /** How much it adds to what the base can hold. */
   readonly kilograms: number;
-  /** The share, from 0 to 1, of what it holds that it loses each Earth Day with no power at Night. */
+  /**
+   * The share, from 0 to 1, of what it holds that it loses each Earth Day with no
+   * power at Night. None for one that needs no power, which has no
+   * `nightUpkeepKilowatts`.
+   */
   readonly shareLostPerEarthDayWithoutPower: number;
 }
 

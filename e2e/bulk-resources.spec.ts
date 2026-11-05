@@ -137,5 +137,5 @@ test("a bulk resource shows from when the base first has some, and stays once it
     ),
   );
   await expect(rows).toHaveCount(1);
-  await expect(rows).toContainText("Regolith 2000 kg");
+  await expect(rows).toContainText("Regolith 2000.0 of 2000 kg");
 });

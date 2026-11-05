@@ -8,6 +8,8 @@ describe("names in a sentence", () => {
     expect(inSentence("Workshop")).toBe("Workshop");
     expect(inSentence("Greenhouse")).toBe("Greenhouse");
     expect(inSentence("Buried Habitat")).toBe("Buried Habitat");
+    expect(inSentence("Regolith")).toBe("Regolith");
+    expect(inSentence("Regolith bin")).toBe("Regolith bin");
   });
 
   it.each([

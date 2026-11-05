@@ -23,6 +23,7 @@ import {
   componentInSentence,
   componentLabel,
   dismantlingReturn,
+  inSentence,
   formatComponents,
   machineLabel,
   researchTaskLabel,
@@ -197,7 +198,7 @@ export function describeStructure(type: StructureType): string {
     ...(type.growing === undefined
       ? (type.recipes ?? []).map(
           (recipe) =>
-            `runs for ${recipe.label.toLowerCase()}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+            `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
         )
       : (type.recipes ?? []).map(
           (recipe) =>
@@ -211,7 +212,7 @@ export function describeStructure(type: StructureType): string {
     ...(type.storageTank === undefined
       ? []
       : [
-          `adds ${type.storageTank.kilograms} kg to what the base can hold of ${resourceRefLabel(type.storageTank.resource).toLowerCase()}`,
+          `adds ${type.storageTank.kilograms} kg to what the base can hold of ${inSentence(resourceRefLabel(type.storageTank.resource))}`,
         ]),
     ...(power.nightDrawKilowatts > 0 ? [drawsAtNight(type)] : []),
     ...((power.nightUpkeepKilowatts ?? 0) > 0
@@ -235,12 +236,12 @@ export function describeStructure(type: StructureType): string {
     ...(type.storageTank === undefined
       ? []
       : [
-          `It comes empty, and holds its share of the stock. With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day. A Broken one loses its share at once, and one taken apart whatever no longer fits.${type.storageTank.resource.kind === "life-support" ? " None of that takes the stock below the Mission Director's reserve." : ""}`,
+          `It comes empty, and holds its share of the stock. ${type.storageTank.shareLostPerEarthDayWithoutPower > 0 ? `With no power at Night it loses ${Math.round(type.storageTank.shareLostPerEarthDayWithoutPower * 100)}% of its share an Earth Day.` : "It needs no power to keep it."} A Broken one loses its share at once, and one taken apart whatever no longer fits.${type.storageTank.resource.kind === "life-support" ? " None of that takes the stock below the Mission Director's reserve." : ""}`,
         ]),
     ...(type.ownStorage === undefined
       ? []
       : [
-          `It holds ${type.ownStorage.kilograms} kg of ${resourceRefLabel(type.ownStorage.resource).toLowerCase()} in its own tanks, and with no room for a batch in what the base can hold, it waits for tank space, using nothing. Broken or taken apart it no longer counts towards that, though what the base has stays.`,
+          `It holds ${type.ownStorage.kilograms} kg of ${inSentence(resourceRefLabel(type.ownStorage.resource))} in its own tanks, and with no room for a batch in what the base can hold, it waits for tank space, using nothing. Broken or taken apart it no longer counts towards that, though what the base has stays.`,
         ]),
     ...stocksMade(type).map(({ stock, only }) =>
       only
@@ -449,7 +450,7 @@ function flows(resources: readonly ResourceFlow[], hours: number = 1): string {
   return listInWords(
     resources.map(
       (flow) =>
-        `${Number((flow.kilogramsPerHour * hours).toFixed(2))} kg of ${resourceRefLabel(flow.resource).toLowerCase()}`,
+        `${Number((flow.kilogramsPerHour * hours).toFixed(2))} kg of ${inSentence(resourceRefLabel(flow.resource))}`,
     ),
   );
 }

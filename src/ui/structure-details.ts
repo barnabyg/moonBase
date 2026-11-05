@@ -26,7 +26,7 @@ import {
   formatStageProgress,
   listInWords,
 } from "./format";
-import { resourceRefLabel, structureLabel } from "./labels";
+import { inSentence, resourceRefLabel, structureLabel } from "./labels";
 import type { Stat } from "./stat";
 import { formatObservingProgramme, formatPower } from "./status-panel-text";
 import {
@@ -355,7 +355,7 @@ function tankLine(structure: StructureSnapshot | undefined): DetailLine {
   const label = "Tank";
   const tank = structure?.tank;
   if (tank === undefined) return { label, stat: NOT_YET };
-  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${resourceRefLabel(tank.resource).toLowerCase()}`;
+  const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${inSentence(resourceRefLabel(tank.resource))}`;
   return {
     label,
     stat: tank.losing

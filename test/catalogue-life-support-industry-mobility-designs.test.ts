@@ -75,8 +75,8 @@ describe("the data catalogue", () => {
       }
     });
 
-    it("has nine beyond the starting ones, some needing another that isn't a starting one first", () => {
-      expect(industry).toHaveLength(9);
+    it("has ten beyond the starting ones, some needing another that isn't a starting one first", () => {
+      expect(industry).toHaveLength(10);
       expect(
         industry.some((design) =>
           design.prerequisiteDesignIds.some((id) => !designOf(id).starting),
@@ -436,7 +436,7 @@ describe("the data catalogue", () => {
       expect(tanks.map(({ id }) => id)).toEqual(["water-tank", "oxygen-tank"]);
     });
 
-    it("has each storage tank add to a stock with a limit, draw a little at Night and take a cable", () => {
+    it("has each storage tank add to a stock with a limit, and draw a little at Night unless what it holds keeps without power", () => {
       const tanks = catalogue.structureTypes.filter(
         ({ storageTank }) => storageTank !== undefined,
       );
@@ -448,11 +448,12 @@ describe("the data catalogue", () => {
       for (const type of tanks) {
         const tank = type.storageTank;
         if (tank === undefined) throw new Error("expected a tank");
-        // Whatever it adds to has a limit: a life support stock, or a bulk
-        // resource a Plant holds.
+        // Whatever it adds to has a limit: a life support stock, a bulk
+        // resource a Plant holds, or the one the excavator digs.
         const { resource } = tank;
         expect(
           resource.kind === "life-support" ||
+            resource.resourceId === catalogue.digging.resourceId ||
             catalogue.structureTypes.some(
               ({ ownStorage }) =>
                 ownStorage?.resource.kind === "bulk-resource" &&
@@ -460,16 +461,20 @@ describe("the data catalogue", () => {
             ),
         ).toBe(true);
         expect(tank.kilograms).toBeGreaterThan(0);
-        expect(tank.shareLostPerEarthDayWithoutPower).toBeGreaterThan(0);
-        expect(tank.shareLostPerEarthDayWithoutPower).toBeLessThan(1);
+        expect(type.power.drawKilowatts).toBe(0);
+        expect(type.power.nightDrawKilowatts).toBe(0);
         const upkeep = type.power.nightUpkeepKilowatts ?? 0;
+        // One that loses nothing without power draws none, as a Regolith bin.
+        if (tank.shareLostPerEarthDayWithoutPower === 0) {
+          expect(upkeep).toBe(0);
+          continue;
+        }
+        expect(tank.shareLostPerEarthDayWithoutPower).toBeLessThan(1);
         expect(upkeep).toBeGreaterThan(0);
         // A small draw: a fraction of a battery bank through a whole Night.
         expect(upkeep * nightHours).toBeLessThan(
           (battery?.power.storageKilowattHours ?? 0) / 4,
         );
-        expect(type.power.drawKilowatts).toBe(0);
-        expect(type.power.nightDrawKilowatts).toBe(0);
       }
     });
   });

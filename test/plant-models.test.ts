@@ -107,11 +107,11 @@ describe("the cold-trap ice line's haul line", () => {
     return { shape, haulLine: shape.haulLine };
   };
 
-  it("is the only Plant's", () => {
+  it("is the only Plant's, with the bucket-wheel digger's conveyor", () => {
     for (const id of Object.keys(plants.PLANT_SHAPES)) {
       const model = models.createStructureModel(id);
       expect(partNamed(model.group, plants.HAUL_LINE_NAME) !== undefined).toBe(
-        id === "cold-trap-ice-line",
+        id === "cold-trap-ice-line" || id === "bucket-wheel-digger",
       );
     }
   });

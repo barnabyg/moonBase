@@ -823,6 +823,20 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 1200,
     prerequisiteDesignIds: ["propellant-production"],
   },
+  // What lets a base keep a large propellant plant fed: the excavator alone digs
+  // about what one uses, and only in Daylight. Cheap, so that it comes with Large
+  // propellant production and moves no other Design's date: the Science to spare
+  // when the Optics grinding line is unlocked covers it.
+  {
+    id: "continuous-excavation",
+    label: "Continuous excavation",
+    description:
+      "A bucket-wheel digger that digs Regolith by itself, at Night too while it has power, and a bin to hold more Regolith than the heap.",
+    category: "industry",
+    starting: false,
+    scienceCost: 30,
+    prerequisiteDesignIds: ["large-propellant-production"],
+  },
   {
     id: "precision-optics",
     label: "Precision optics",
