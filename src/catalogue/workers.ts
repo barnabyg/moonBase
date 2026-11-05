@@ -84,9 +84,11 @@ export const expeditions: Catalogue["expeditions"] = {
     // These two pay less each Earth Day, even sent without a pause, than the
     // one extraction plant makes (7.2 kg of metals and
     // 4.8 kg of silicon an Earth Day, over a Lunation), and a load of metals
-    // sells for a fifth of the Launch fee. So they top a base up, even through
-    // a Night and with no power, but can't take the place of the Plants, and
-    // they cost the base its Robot for six Earth Days.
+    // sells for a fifth of the Launch fee. Their Design comes early, before
+    // the second Launch brings the first extraction plant, so they bridge a
+    // base to its Plants, and later top it up, even through a Night and with
+    // no power, but can't take the place of the Plants, and they cost the
+    // base a Robot for six Earth Days.
     {
       id: "prospecting-metals",
       label: "Prospecting for metals",
