@@ -46,9 +46,15 @@ describe.each(structures)("the $label", (type) => {
         campaign.setLaunchManifest([{ itemId: need.componentId, count: 1 }]),
       ).toEqual({ ok: true });
     }
+    // An antenna field joins an array, so with none to join it is refused
+    // for that, not for its Design (`test/antenna-field.test.ts`).
     expect(
       campaign.planConstruction({ structureTypeId: type.id, position: site }),
-    ).toMatchObject({ ok: true });
+    ).toMatchObject(
+      type.antennaField === undefined
+        ? { ok: true }
+        : { ok: false, reason: "not-beside-radio-array" },
+    );
   });
 });
 
