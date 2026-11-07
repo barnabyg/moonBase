@@ -20,6 +20,8 @@ import {
   formatLifeSupport,
   formatMissionDirector,
   formatNextMilestone,
+  formatInfraredSurvey,
+  formatRadioSurvey,
   formatObservingProgramme,
   formatPower,
   formatRadiationDose,
@@ -247,10 +249,14 @@ export function createStatusPanel(
   const researchTask = createStatLine("Task", "Research Task");
   const researchQueue = createStatLine("Queued", "Research queue");
   const observing = createStatLine("Observing", "Observing programme");
+  const infrared = createStatLine("Infrared", "Infrared survey");
+  const radio = createStatLine("Radio", "Radio survey");
   researchSection.body.append(
     researchTask.element,
     researchQueue.element,
     observing.element,
+    infrared.element,
+    radio.element,
   );
 
   const sections = [
@@ -507,6 +513,25 @@ export function createStatusPanel(
         if (observing.element.title !== explanation) {
           observing.element.title = explanation;
         }
+      }
+      const survey = formatInfraredSurvey(snapshot.infraredTelescopes);
+      infrared.element.hidden = survey === undefined;
+      if (survey !== undefined) {
+        infrared.show(survey);
+        infrared.fill(
+          Math.max(
+            ...snapshot.infraredTelescopes.map(({ progress }) => progress),
+          ),
+        );
+      }
+
+      const radioSurvey = formatRadioSurvey(snapshot.radioArrays);
+      radio.element.hidden = radioSurvey === undefined;
+      if (radioSurvey !== undefined) {
+        radio.show(radioSurvey);
+        radio.fill(
+          Math.max(...snapshot.radioArrays.map(({ progress }) => progress)),
+        );
       }
 
       // What each section shows beside its title while it is folded.

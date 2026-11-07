@@ -14,6 +14,8 @@ import {
   TALL_LIGHT_MAST,
 } from "./light-mast-model";
 import { createTelescopeModel } from "./telescope-model";
+import { createInfraredTelescopeModel } from "./infrared-telescope-model";
+import { createRadioTelescopeArrayModel } from "./radio-telescope-array-model";
 import {
   createBuriedHabitatModel,
   createHabitatModel,
@@ -38,6 +40,7 @@ import {
   STORAGE_TANK_SHAPES,
 } from "./storage-tank-models";
 import { createConcentratorTowerModel } from "./concentrator-tower-model";
+import { createExperimentsLabModel } from "./experiments-lab-model";
 import { createGreenhouseModel } from "./greenhouse-model";
 import { createGrowingHallModel } from "./growing-hall-model";
 import {
@@ -151,7 +154,19 @@ export function createStructureModel(
     return createSinteredLandingPadModel();
   }
   if (structureTypeId === "telescope") return createTelescopeModel();
+  if (structureTypeId === "infrared-telescope") {
+    return createInfraredTelescopeModel();
+  }
+  if (structureTypeId === "radio-telescope-array") {
+    return createRadioTelescopeArrayModel();
+  }
+  if (structureTypeId === "antenna-field") {
+    return createRadioTelescopeArrayModel("field");
+  }
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
+  if (structureTypeId === "experiments-lab") {
+    return createExperimentsLabModel();
+  }
   if (structureTypeId === "growing-hall") return createGrowingHallModel();
   if (structureTypeId === "vault-cistern") return createVaultCisternModel();
   if (structureTypeId === "crew-habitat") return createCrewHabitatModel();

@@ -1,38 +1,20 @@
-import { batchHoursOf } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import { findStructureType, type StructureState } from "./construction";
 import type { GameEvent, GreenhouseRoundLoss } from "./events";
-import { recipeOf } from "./plants";
+import { batchMinutes, loseRound, workRound } from "./rounds";
 
 // A Greenhouse's rounds of growing. It is a Plant, for its water: its recipe takes
 // it a batch at a time, keeps the reserve, and is counted by the forecasts, like
 // any other's. Its power it draws as a Structure does, by day and at Night, rather
 // than on what is left over (see `supplyPower`). What it has that no Plant does is
-// here: a round that a shortage loses.
-
-/** How close to a whole round counts as one, as below full performance it adds fractions of a game-minute. */
-const MINUTE_TOLERANCE = 1e-9;
+// here: a round that a shortage loses (see `rounds.ts`).
 
 /** Whether a Structure is a Greenhouse. */
 export function isGreenhouse(
   structure: Pick<StructureState, "structureTypeId">,
 ): boolean {
   return findStructureType(structure.structureTypeId)?.growing !== undefined;
-}
-
-/**
- * Whether a Greenhouse is switched off and has finished its last batch, so that
- * it draws no power.
- */
-export function isGreenhouseIdle(
-  structure: Pick<StructureState, "structureTypeId" | "switchedOff" | "batch">,
-): boolean {
-  return (
-    structure.switchedOff &&
-    structure.batch === undefined &&
-    isGreenhouse(structure)
-  );
 }
 
 /**
@@ -47,29 +29,29 @@ export function runGreenhouses(state: CampaignState): GameEvent[] {
     const growing = findStructureType(structure.structureTypeId)?.growing;
     if (growing === undefined) return [];
     if (structure.powered) {
-      structure.growingMinutes += structurePerformance(structure);
-      const length = growing.lengthHours * 60;
-      if (structure.growingMinutes < length - MINUTE_TOLERANCE) return [];
-      structure.growingMinutes = Math.max(structure.growingMinutes - length, 0);
-      state.science += growing.science;
-      return [
-        {
-          kind: "greenhouse-round-completed",
-          atMinute: state.elapsedMinutes,
-          structureId: structure.id,
-          structureTypeId: structure.structureTypeId,
-          science: growing.science,
-        },
-      ];
+      const completed = workRound(
+        state,
+        structure,
+        growing,
+        "growingMinutes",
+        structurePerformance(structure),
+      );
+      return completed
+        ? [
+            {
+              kind: "greenhouse-round-completed",
+              atMinute: state.elapsedMinutes,
+              structureId: structure.id,
+              structureTypeId: structure.structureTypeId,
+              science: growing.science,
+            },
+          ]
+        : [];
     }
     const reason = whyTheRoundIsLost(structure);
     if (reason === undefined) return [];
-    const grown = structure.growingMinutes;
-    structure.growingMinutes = 0;
-    const recipe = recipeOf(structure);
-    return grown <= (recipe === undefined ? 0 : batchHoursOf(recipe) * 60)
-      ? []
-      : [
+    return loseRound(structure, "growingMinutes", batchMinutes(structure))
+      ? [
           {
             kind: "greenhouse-round-lost",
             atMinute: state.elapsedMinutes,
@@ -77,7 +59,8 @@ export function runGreenhouses(state: CampaignState): GameEvent[] {
             structureTypeId: structure.structureTypeId,
             reason,
           },
-        ];
+        ]
+      : [];
   });
 }
 

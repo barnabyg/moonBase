@@ -15,6 +15,18 @@ export interface PlacementPreview {
   readonly position: GroundPosition;
   readonly allowed: boolean;
   readonly plumeEjecta: PlumeEjectaSnapshot | undefined;
+  /**
+   * If it can't work near a kind of Structure: the radius it must be kept clear
+   * within, and the Structures there now that would stop it, each where it
+   * stands and how far its footprint reaches.
+   */
+  readonly keepClear?: {
+    readonly radiusMetres: number;
+    readonly inTheWay: readonly {
+      readonly position: GroundPosition;
+      readonly footprintRadiusMetres: number;
+    }[];
+  };
 }
 
 const previewMaterials = {
@@ -43,24 +55,46 @@ const previewMaterials = {
     opacity: 0.6,
     depthWrite: false,
   }),
+  // The radius a Structure must be kept clear within, such as a dark radius.
+  clearZone: new THREE.MeshBasicMaterial({
+    color: 0x7fb8ff,
+    transparent: true,
+    opacity: 0.1,
+    depthWrite: false,
+  }),
+  clearEdge: new THREE.MeshBasicMaterial({
+    color: 0x7fb8ff,
+    transparent: true,
+    opacity: 0.7,
+    depthWrite: false,
+  }),
+  // A Structure within it that would stop the one being placed working.
+  inTheWay: new THREE.MeshBasicMaterial({
+    color: 0xff5a4a,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+  }),
 };
 
 /**
- * The Plume Ejecta danger zone, a faint disc with a bright edge, of radius 1
- * so that it can be scaled to the zone's radius.
+ * A zone on the ground, a faint disc with a bright edge, of radius 1 so that it
+ * can be scaled to the zone's radius: the Plume Ejecta danger zone, or the radius
+ * a Structure must be kept clear within.
  */
-function createDangerZone(): THREE.Group {
+function createZone(
+  name: string,
+  fill: THREE.Material,
+  edgeMaterial: THREE.Material,
+): THREE.Group {
   const zone = new THREE.Group();
-  zone.name = "Plume Ejecta danger zone";
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(1, 64),
-    previewMaterials.dangerZone,
-  );
+  zone.name = name;
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64), fill);
   disc.rotation.x = -Math.PI / 2;
   disc.position.y = 0.03;
   const edge = new THREE.Mesh(
-    new THREE.RingGeometry(0.985, 1, 64),
-    previewMaterials.dangerEdge,
+    new THREE.RingGeometry(0.985, 1, 96),
+    edgeMaterial,
   );
   edge.rotation.x = -Math.PI / 2;
   edge.position.y = 0.04;
@@ -71,8 +105,21 @@ function createDangerZone(): THREE.Group {
 
 /** The translucent preview of a Structure, drawn where the player is pointing. */
 export function createPlacementPreview(scene: THREE.Scene) {
-  const dangerZone = createDangerZone();
-  scene.add(dangerZone);
+  const dangerZone = createZone(
+    "Plume Ejecta danger zone",
+    previewMaterials.dangerZone,
+    previewMaterials.dangerEdge,
+  );
+  const clearZone = createZone(
+    "Keep-clear radius",
+    previewMaterials.clearZone,
+    previewMaterials.clearEdge,
+  );
+  // Rings round the Structures within it, redrawn as they change.
+  const inTheWay = new THREE.Group();
+  inTheWay.name = "In the way";
+  scene.add(dangerZone, clearZone, inTheWay);
+  let inTheWayShown = "";
   let shown:
     | { structureTypeId: string; group: THREE.Group; meshes: THREE.Mesh[] }
     | undefined;
@@ -102,6 +149,37 @@ export function createPlacementPreview(scene: THREE.Scene) {
     return { structureTypeId, group, meshes };
   };
 
+  /** The radius the Structure must be kept clear within, and what is in it now. */
+  const showKeepClear = (preview: PlacementPreview | undefined) => {
+    const keepClear = preview?.keepClear;
+    clearZone.visible = preview !== undefined && keepClear !== undefined;
+    if (preview === undefined || keepClear === undefined) {
+      inTheWay.visible = false;
+      return;
+    }
+    clearZone.position.copy(toScene(preview.position));
+    clearZone.scale.setScalar(keepClear.radiusMetres);
+    inTheWay.visible = true;
+    const key = JSON.stringify(keepClear.inTheWay);
+    if (key === inTheWayShown) return;
+    inTheWayShown = key;
+    for (const ring of inTheWay.children) {
+      (ring as THREE.Mesh).geometry.dispose();
+    }
+    inTheWay.clear();
+    for (const { position, footprintRadiusMetres } of keepClear.inTheWay) {
+      const radius = footprintRadiusMetres + 0.6;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(radius - 0.3, radius, 32),
+        previewMaterials.inTheWay,
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.copy(toScene(position));
+      ring.position.y = 0.05;
+      inTheWay.add(ring);
+    }
+  };
+
   return {
     show(preview: PlacementPreview | undefined): void {
       const zone = preview?.plumeEjecta;
@@ -110,6 +188,7 @@ export function createPlacementPreview(scene: THREE.Scene) {
         dangerZone.position.copy(toScene(zone.position));
         dangerZone.scale.setScalar(zone.radiusMetres);
       }
+      showKeepClear(preview);
       if (preview === undefined) {
         if (shown !== undefined) shown.group.visible = false;
         return;

@@ -897,6 +897,58 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 60,
     prerequisiteDesignIds: ["battery-banks"],
   },
+  // Act 4's way to shorten its long Research Tasks by building and supplying, rather
+  // than waiting (ADR-0009). Past Precision optics, so that it comes as the longest
+  // of them start. Its price is in Funding, power, water and oxygen rather than
+  // Science: 20 is less than the 23 that research alone has to spare when the
+  // Optics grinding line is unlocked, so that it moves no Design's date for a player
+  // who unlocks it and never builds one. No Research Task pays for it, as research
+  // already fills the Campaign to Earth Day 3,000.
+  {
+    id: "automated-experiments",
+    label: "Automated experiments",
+    description:
+      "An automated experiments lab: a pressure module of experiment racks tended by robotic arms, which makes the Research Task running advance faster while it has its power, water and oxygen, adding the same again for each lab.",
+    category: "industry",
+    starting: false,
+    scienceCost: 20,
+    prerequisiteDesignIds: ["precision-optics"],
+  },
+  // Act 4's second way to earn Science by building and supplying (ADR-0009): an
+  // infrared telescope, past Optical telescopes and Precision optics, whose mirror
+  // the optics works could figure. Like Automated experiments, its price is in
+  // Funding, power and propellant rather than Science: research alone has only 23
+  // to spare when the Optics grinding line is unlocked, Automated experiments
+  // takes 20 and Radio astronomy 1, so that it moves no Design's date for a player
+  // who unlocks it and never builds one. No Research Task pays for it, as research
+  // already fills the Campaign to Earth Day 3,000.
+  {
+    id: "infrared-astronomy",
+    label: "Infrared astronomy",
+    description:
+      "An infrared telescope: a 2 m segmented mirror whose camera is cooled by boiling off the base's propellant. It observes at Night for a survey of its own, paying several times the Night-sky survey, but only far from any light, at the end of a long cable.",
+    category: "industry",
+    starting: false,
+    scienceCost: 2,
+    prerequisiteDesignIds: ["optical-telescopes", "precision-optics"],
+  },
+  // Act 4's third (ADR-0009): a radio telescope array, past Optical telescopes and
+  // Precision optics as the infrared telescope is. Its price is in Components,
+  // cable and the Robot's time rather than Science: 1 is the least a Design may
+  // cost, and research alone has nothing left to spare when the Optics grinding
+  // line is unlocked once the other two have theirs, so that it moves no Design's
+  // date for a player who unlocks it and never builds one. No Research Task pays
+  // for it, as research already fills the Campaign to Earth Day 3,000.
+  {
+    id: "radio-astronomy",
+    label: "Radio astronomy",
+    description:
+      "A radio telescope array: a field of antenna tiles whose signals a correlator combines. It works through Daylight and Night alike for a survey of its own, for a steady draw of power, but only far from any Plant, whose machinery drowns the sky's faint signals, at the end of a long cable.",
+    category: "industry",
+    starting: false,
+    scienceCost: 1,
+    prerequisiteDesignIds: ["optical-telescopes", "precision-optics"],
+  },
   {
     id: "landing-pads",
     label: "Landing pads",

@@ -109,11 +109,15 @@ describe("the data catalogue", () => {
         expect(value).toBeGreaterThanOrEqual(0);
       }
       expect(type.lightRadiusMetres).toBeGreaterThanOrEqual(0);
-      // A light needs power to shine, a telescope power to observe, and
-      // only these Night loads draw power at Night only.
-      expect(type.lightRadiusMetres > 0 || type.telescope === true).toBe(
-        type.power.nightDrawKilowatts > 0,
-      );
+      // A light needs power to shine, a telescope or an infrared telescope
+      // power to observe, an automated experiments lab power to run, and only
+      // these Night loads draw power at Night only.
+      expect(
+        type.lightRadiusMetres > 0 ||
+          type.telescope === true ||
+          type.observingRounds !== undefined ||
+          type.speedsResearch !== undefined,
+      ).toBe(type.power.nightDrawKilowatts > 0);
     }
   });
 
@@ -496,7 +500,14 @@ describe("the data catalogue", () => {
           expect(plant.inputs.length).toBeGreaterThan(0);
         }
         // A Greenhouse's recipe is its water: it earns Science by rounds instead.
-        if (type.growing === undefined) {
+        // An automated experiments lab's is its water and oxygen: it speeds up
+        // the Research Task running instead. An infrared telescope's is its
+        // propellant: it earns Science by rounds of observing instead.
+        const drawsAsAStructure =
+          type.growing !== undefined ||
+          type.speedsResearch !== undefined ||
+          type.observingRounds !== undefined;
+        if (!drawsAsAStructure) {
           expect(plant.outputs.length).toBeGreaterThan(0);
         }
         for (const flow of [...plant.inputs, ...resourceOutputs(plant)]) {
@@ -510,8 +521,9 @@ describe("the data catalogue", () => {
             total(plant.inputs),
           );
         }
-        // A Greenhouse draws its power as a Structure does, by day and at Night.
-        if (type.growing === undefined) {
+        // A Greenhouse, an automated experiments lab and an infrared telescope
+        // draw their power as a Structure or a Night load does.
+        if (!drawsAsAStructure) {
           expect(plant.drawKilowatts).toBeGreaterThan(0);
         } else {
           expect(plant.drawKilowatts).toBe(0);
@@ -520,7 +532,11 @@ describe("the data catalogue", () => {
     );
 
     it("draws power only while it runs, and wears down by Dust while it operates", () => {
-      if (type.growing === undefined) {
+      if (
+        type.growing === undefined &&
+        type.speedsResearch === undefined &&
+        type.observingRounds === undefined
+      ) {
         expect(type.power).toEqual({
           generationKilowatts: 0,
           storageKilowattHours: 0,

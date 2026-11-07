@@ -1,12 +1,16 @@
 import { catalogue, type ResearchTask } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import type { GameEvent } from "./events";
+import { isExperimentsLab, researchSpeedUp } from "./experiments-labs";
 import { designLabel, isDesignUnlocked } from "./tech-tree";
 
 /** The Research Task running, and how far it has got. */
 export interface ResearchTaskState {
   researchTaskId: string;
-  /** The game-minutes it has run so far. */
+  /**
+   * The game-minutes of it done so far: one for each game-minute it has run, and
+   * more while automated experiments labs speed it up, so not always a whole number.
+   */
   workedMinutes: number;
 }
 
@@ -15,9 +19,19 @@ export interface ResearchTaskSnapshot {
   readonly researchTaskId: string;
   /** How much of it is done, from 0 to 1. */
   readonly progress: number;
-  /** Game-minutes until it is complete. */
+  /** Game-minutes of it left to do, which take as long at the base rate. */
   readonly minutesLeft: number;
+  /**
+   * How many game-minutes of it were done during the latest game-minute: 1, and
+   * more for each automated experiments lab that sped it up.
+   */
+  readonly rate: number;
+  /** Game-minutes until it is complete, at that rate. */
+  readonly minutesLeftAtRate: number;
 }
+
+/** Game-minutes too few to count, from adding up a lab's fractions of one. */
+const MINUTE_TOLERANCE = 1e-9;
 
 export type QueueResearchTaskRefusal =
   | "unknown-research-task"
@@ -82,6 +96,12 @@ export function queueResearchTask(
   const running = state.researchTask;
   if (running === undefined) {
     state.researchTask = { researchTaskId: task.id, workedMinutes: 0 };
+    // Labs left idle with nothing to speed up start drawing power again at once.
+    for (const lab of state.structures.filter(isExperimentsLab)) {
+      if (lab.plantStop?.reason === "no-research-task") {
+        lab.plantStop = undefined;
+      }
+    }
     return { ok: true };
   }
   if (running.researchTaskId === task.id) {
@@ -127,16 +147,22 @@ export function removeQueuedResearchTask(
 
 /**
  * Runs the Research Task for a game-minute. It needs no Robot, power or
- * Components, so nothing else holds it up. Once it has run its length, it is
- * complete: its Science is added to the base's, it can't run again, and the
- * first in the queue starts, to run from the next game-minute.
+ * Components, so nothing else holds it up, and each automated experiments lab
+ * that had its power, water and oxygen during the game-minute adds to it (see
+ * `researchSpeedUp`). Once it has run its length, it is complete: its Science is
+ * added to the base's, it can't run again, and the first in the queue starts,
+ * to run from the next game-minute. What the labs did beyond its length is not
+ * carried over to it.
  */
 export function runResearch(state: CampaignState): GameEvent[] {
   const running = state.researchTask;
   if (running === undefined) return [];
-  running.workedMinutes += 1;
+  running.workedMinutes += 1 + researchSpeedUp(state);
   const task = findResearchTask(running.researchTaskId);
-  if (task === undefined || running.workedMinutes < researchTaskMinutes(task)) {
+  if (
+    task === undefined ||
+    running.workedMinutes < researchTaskMinutes(task) - MINUTE_TOLERANCE
+  ) {
     return [];
   }
   state.researchTask = undefined;
@@ -170,10 +196,14 @@ export function readResearchTask(
   const task = findResearchTask(running.researchTaskId);
   if (task === undefined) return undefined;
   const length = researchTaskMinutes(task);
+  const left = Math.max(length - running.workedMinutes, 0);
+  const rate = 1 + researchSpeedUp(state);
   return {
     researchTaskId: running.researchTaskId,
     progress: Math.min(running.workedMinutes / length, 1),
-    minutesLeft: Math.max(length - running.workedMinutes, 0),
+    minutesLeft: Math.max(Math.ceil(left - MINUTE_TOLERANCE), 0),
+    rate,
+    minutesLeftAtRate: Math.max(Math.ceil(left / rate - MINUTE_TOLERANCE), 0),
   };
 }
 

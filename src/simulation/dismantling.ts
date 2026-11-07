@@ -45,7 +45,8 @@ export type DismantleResult =
 /**
  * Plans the dismantling of a commissioned Structure. The Robot carries it
  * out as Work Orders, in plan order; the Structure keeps working until the
- * Robot starts taking it apart.
+ * Robot starts taking it apart. A radio telescope array can't be dismantled
+ * while an antenna field joins it, commissioned or being built.
  */
 export function dismantleStructure(
   state: CampaignState,
@@ -96,6 +97,19 @@ export function dismantleStructure(
     return {
       ok: false,
       message: `Its ${(findStructureType(wall.structureTypeId)?.label ?? "water wall").toLowerCase()} is over it, and must be dismantled first.`,
+    };
+  }
+  if (state.structures.some((other) => other.arrayId === structureId)) {
+    return {
+      ok: false,
+      message: "Its antenna fields join it, and must be dismantled first.",
+    };
+  }
+  if (state.constructions.some((other) => other.arrayId === structureId)) {
+    return {
+      ok: false,
+      message:
+        "An antenna field being built joins it. Cancel it, or dismantle it once built, first.",
     };
   }
   state.dismantlings.push({

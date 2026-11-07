@@ -7,6 +7,7 @@ import {
   waterWallOver,
   type ConstructionSnapshot,
   type DismantlingSnapshot,
+  type GroundPosition,
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
@@ -26,10 +27,25 @@ import {
   formatStageProgress,
   listInWords,
 } from "./format";
-import { inSentence, resourceRefLabel, structureLabel } from "./labels";
-import type { Stat } from "./stat";
-import { formatObservingProgramme, formatPower } from "./status-panel-text";
 import {
+  inSentence,
+  researchTaskLabel,
+  resourceRefLabel,
+  structureLabel,
+} from "./labels";
+import {
+  formatInTheWay,
+  formatKeptClearOf,
+  radiusName,
+} from "./keep-clear-text";
+import type { Stat } from "./stat";
+import {
+  formatObservingProgramme,
+  formatPower,
+  formatResearchRate,
+} from "./status-panel-text";
+import {
+  formatAntennaFields,
   isHome,
   isToBeDismantled,
   structureNotes,
@@ -194,7 +210,7 @@ export function structureDetails(
     description: designOf(type.designId)?.description ?? "",
     lines: [
       stageLine(phase),
-      stateLine(phase),
+      stateLine(snapshot, phase),
       conditionLine(snapshot, structure),
       {
         label: "Rated",
@@ -210,6 +226,19 @@ export function structureDetails(
         : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
       ...(type.growing === undefined ? [] : [roundLine(type, structure)]),
+      ...(type.speedsResearch === undefined
+        ? []
+        : [speedUpLine(snapshot, structure)]),
+      ...(type.observingRounds === undefined
+        ? []
+        : [surveyLine(type, structure)]),
+      ...(type.radioArray === undefined
+        ? []
+        : radioArrayLines(snapshot, type, structure)),
+      ...(type.antennaField === undefined ? [] : [antennaFieldLine(structure)]),
+      ...(type.keepClear === undefined
+        ? []
+        : [clearanceLine(snapshot, type, footing.position, structure)]),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -264,7 +293,7 @@ function stageLine(phase: Phase): DetailLine {
 }
 
 /** What state it is in, in a few words, as the Base panel says it once it is commissioned. */
-function stateLine(phase: Phase): DetailLine {
+function stateLine(snapshot: Snapshot, phase: Phase): DetailLine {
   const label = "State";
   switch (phase.kind) {
     case "construction":
@@ -272,7 +301,13 @@ function stateLine(phase: Phase): DetailLine {
     case "commissioned":
       return {
         label,
-        stat: { value: structureStatus(phase.structure, phase.toBeDismantled) },
+        stat: {
+          value: structureStatus(
+            phase.structure,
+            phase.toBeDismantled,
+            snapshot.radioArrays,
+          ),
+        },
         warning: phase.structure.conditionPercent <= 0,
       };
     case "dismantling":
@@ -513,6 +548,142 @@ function roundLine(
       note: `pays ${formatScience(science)}; a shortage of water or power loses it`,
     },
     fraction,
+  };
+}
+
+/** How far an infrared telescope's round of its survey has got, and what it pays. */
+function surveyLine(
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Round";
+  if (structure === undefined || type.observingRounds === undefined) {
+    return { label, stat: NOT_YET };
+  }
+  const { lengthHours, science, label: survey } = type.observingRounds;
+  const fraction = Math.min(structure.observedMinutes / (lengthHours * 60), 1);
+  return {
+    label,
+    stat: {
+      value: `${Math.floor(fraction * 100)}% of ${formatHours(lengthHours)} of Night`,
+      note: `${survey}, pays ${formatScience(science)}; a shortage of propellant or power, or a light within its dark radius, loses it`,
+    },
+    fraction,
+  };
+}
+
+/**
+ * How far a radio telescope array's round of its survey has got and what it pays,
+ * and how many antenna fields it has and what it earns with them.
+ */
+function radioArrayLines(
+  snapshot: Snapshot,
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine[] {
+  const array = snapshot.radioArrays.find(
+    ({ structureId }) => structureId === structure?.id,
+  );
+  if (
+    structure === undefined ||
+    type.radioArray === undefined ||
+    array === undefined
+  ) {
+    return [
+      { label: "Round", stat: NOT_YET },
+      { label: "Antenna fields", stat: NOT_YET },
+    ];
+  }
+  const { lengthHours, science, label: survey } = type.radioArray;
+  const kept = formatKeptClearOf(type.id, "none") ?? "something too near";
+  return [
+    {
+      label: "Round",
+      stat: {
+        value:
+          array.antennaFields === 1 || array.minutesLeft === undefined
+            ? `${Math.floor(array.progress * 100)}% of ${formatHours(lengthHours)} with one antenna field`
+            : `${Math.floor(array.progress * 100)}%, ${formatShortDuration(array.minutesLeft)} left at its rate`,
+        note: `${survey}, pays ${formatScience(science)}; a shortage of power, or ${kept}, loses it`,
+      },
+      fraction: array.progress,
+    },
+    { label: "Antenna fields", stat: { value: formatAntennaFields(array) } },
+  ];
+}
+
+/**
+ * Whether an antenna field adds its work to the radio telescope array it joins,
+ * or why not.
+ */
+function antennaFieldLine(
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Array";
+  if (structure === undefined) return { label, stat: NOT_YET };
+  const joins = "its radio telescope array";
+  const why =
+    structure.conditionPercent <= 0
+      ? "Broken"
+      : structure.powered
+        ? undefined
+        : "no power";
+  return {
+    label,
+    stat: {
+      value:
+        why === undefined
+          ? `adds a field's work to ${joins}`
+          : `adds nothing to ${joins}: ${why}`,
+    },
+    warning: why !== undefined,
+  };
+}
+
+/**
+ * What stops a Structure that is kept clear of something working where it stands,
+ * for example "1 lit Structure within its dark radius of 80 m: light mast".
+ */
+function clearanceLine(
+  snapshot: Snapshot,
+  type: StructureType,
+  position: GroundPosition,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const rule = type.keepClear;
+  const label =
+    rule === undefined ? "Clearance" : capitalised(radiusName(rule));
+  return {
+    label,
+    stat: {
+      value:
+        formatInTheWay(type.id, position, snapshot.structures, structure?.id) ??
+        "",
+    },
+  };
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** What an automated experiments lab is doing for the Research Task running. */
+function speedUpLine(
+  snapshot: Snapshot,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Research";
+  const running = snapshot.researchTask;
+  if (structure === undefined) return { label, stat: NOT_YET };
+  if (running === undefined) {
+    return { label, stat: { value: "no Research Task running" } };
+  }
+  return {
+    label,
+    stat: {
+      value: researchTaskLabel(running.researchTaskId),
+      note: `${structure.plant?.running === true ? "speeding it up" : "not speeding it up"}; running at ${formatResearchRate(running.rate)}, ${formatShortDuration(running.minutesLeftAtRate)} left`,
+    },
   };
 }
 

@@ -75,6 +75,9 @@ export const designsTheLongGameUses: readonly string[] = [
   "growing-halls",
   "vault-cistern",
   "crew-habitats",
+  "automated-experiments",
+  "infrared-astronomy",
+  "radio-astronomy",
 ];
 
 /**
@@ -114,8 +117,15 @@ export const laterActTargets = {
   returnMassTripledBy: 1250,
   /** When research lasts until, for each of the two Acts. */
   act3ResearchUntilAbout: 1400,
-  act4ResearchUntilAbout: LONG_GAME_END_EARTH_DAY,
+  /**
+   * With the late science built and supplied (ADR-0009): the automated
+   * experiments lab speeds up the Research Tasks, and a base that builds none
+   * still finishes on about Earth Day 3,000, as the pacing report shows.
+   */
+  act4ResearchUntilAbout: 2300,
   researchWithin: 50,
+  /** Act 4's is the player's to shorten, so it may be two Lunations either way. */
+  act4ResearchWithin: 60,
   opticsSoldBy: 2000,
   /** What the Campaign builds towards, its last Milestone, by the end of its content. */
   crewHabitatBy: LONG_GAME_END_EARTH_DAY,
@@ -151,6 +161,12 @@ const WATER_TO_SPARE_KILOGRAMS = 360;
  * with a little over.
  */
 const WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS = 800;
+
+/**
+ * With an automated experiments lab running as well, what it takes through a
+ * Night comes on top of either: 114 kg, with a little over.
+ */
+const WATER_FOR_THE_LAB_AT_NIGHT_KILOGRAMS = 120;
 
 /** What the guide lets the water rise to before filling a vault cistern: its 2,000 kg, the reserve and a little over. */
 const WATER_FOR_THE_CISTERN_KILOGRAMS = 2200;
@@ -374,6 +390,54 @@ const GROWING_HALL_PURCHASES = [
 ];
 
 /**
+ * Where the guide builds its late science (ADR-0009). The automated experiments
+ * lab and the large battery banks that carry it and the telescopes through the
+ * Night stand west of the landing site, clear of the Lander's Plume Ejecta on
+ * the landing pad. The infrared telescope stands far to the north-west, over 80 m
+ * from anything lit, the landing pad the nearest, and the radio telescope array
+ * far to the north, over 120 m from any Plant, the lab and the telescope among
+ * them, with its antenna fields round it on the side away from the base, each
+ * within 10 m of the array's footprint (centres 24 m apart, footprints 8 m).
+ */
+const LAB_SITE = { x: -40, y: -62 } as const;
+const LATE_SCIENCE_BATTERY_SITES: readonly GroundPosition[] = [
+  { x: -40, y: -30 },
+  { x: -40, y: -40 },
+  { x: -40, y: -50 },
+  { x: -52, y: -35 },
+];
+const INFRARED_TELESCOPE_SITE = { x: -130, y: 60 } as const;
+const RADIO_ARRAY_SITE = { x: 60, y: 150 } as const;
+const ANTENNA_FIELD_SITES: readonly GroundPosition[] = [
+  { x: 60, y: 174 },
+  { x: 36, y: 150 },
+];
+
+/**
+ * What the guide buys for its late science, once Automated experiments is
+ * unlocked with Precision optics: a large battery bank and the lab, as the lab
+ * is what shortens Act 4's research, then the telescopes, each with a large
+ * battery bank for its Night, and the array's antenna fields. The lab draws 4 kW
+ * through the Night, 912 kWh, as the infrared telescope does, the array 456 kWh
+ * and each field 114 kWh, against 800 kWh in a large battery bank.
+ */
+const LATE_SCIENCE_PURCHASES: readonly Purchase[] = [
+  ["large-battery-bank", LATE_SCIENCE_BATTERY_SITES[0]],
+  ["experiments-lab", LAB_SITE],
+  ["large-battery-bank", LATE_SCIENCE_BATTERY_SITES[1]],
+  ["infrared-telescope", INFRARED_TELESCOPE_SITE],
+  ["large-battery-bank", LATE_SCIENCE_BATTERY_SITES[2]],
+  ["large-battery-bank", LATE_SCIENCE_BATTERY_SITES[3]],
+  ["radio-telescope-array", RADIO_ARRAY_SITE],
+  // Each is refused until the array is commissioned, and tried again.
+  ...ANTENNA_FIELD_SITES.map((site) => ["antenna-field", site] as const),
+].map(([structureTypeId, site]) => ({
+  structureTypeId: structureTypeId as string,
+  site: site as GroundPosition,
+  onceDesignId: "automated-experiments",
+}));
+
+/**
  * What Funding buys from Act 2 on, in the order the guide wants it, each once its
  * Design is unlocked and its Components have come. It holds a good deal more
  * than a base can buy at once, so that it waits for Funding as well as Science.
@@ -438,6 +502,7 @@ const PURCHASES: readonly Purchase[] = [
     site: { x: 114, y: -92 },
     fromEarthDay: GREENHOUSE_EARTH_DAY,
   },
+  ...LATE_SCIENCE_PURCHASES,
   // Their Design comes in Act 1, but nothing here needs more than the base's own
   // tanks hold until the optics take water. So they wait until those have sold,
   // which also keeps them out of Act 2's and Act 3's dates.
@@ -755,9 +820,20 @@ function seeToPurchase(
 }
 
 /**
+ * The oxygen below which, while an automated experiments lab runs, the guide sets
+ * its large extraction plant to oxygen, and above which it sets it back. The lab
+ * takes 2.4 kg an Earth Day down to the reserve, about 12 kg, nearly three times
+ * what the Mission Director breathes, more than the first extraction plant makes
+ * running all Daylight: with only that plant, the stock fell to 4.7 kg on Earth
+ * Day 1,800.6 at version 88, under six Earth Days of breathing.
+ */
+const OXYGEN_FOR_THE_LAB_KILOGRAMS = { low: 40, high: 80 } as const;
+
+/**
  * Sets a large extraction plant to metals and silicon, as what the base has it for,
  * but to oxygen while a Large-scale Crew Habitat is to be stocked and the base has
- * the tanks to hold it and too little.
+ * the tanks to hold it and too little, or while an automated experiments lab runs
+ * and the oxygen is short of what it and the Mission Director take.
  */
 function runLargeExtractionPlant(play: Play): void {
   const { state } = play;
@@ -768,11 +844,25 @@ function runLargeExtractionPlant(play: Play): void {
   const oxygenTanks = state.structures.filter(
     ({ structureTypeId }) => structureTypeId === "oxygen-tank",
   ).length;
+  const oxygen =
+    state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
+    0;
+  const labWanted =
+    !everythingResearched(state) &&
+    state.structures.some(
+      ({ structureTypeId }) => structureTypeId === "experiments-lab",
+    );
+  const forTheLab =
+    labWanted &&
+    oxygen <
+      (plant.recipeId === "oxygen"
+        ? OXYGEN_FOR_THE_LAB_KILOGRAMS.high
+        : OXYGEN_FOR_THE_LAB_KILOGRAMS.low);
   const recipeId =
-    crewHabitatToStock(state) &&
-    oxygenTanks >= 2 &&
-    (state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
-      0) < OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS
+    (crewHabitatToStock(state) &&
+      oxygenTanks >= 2 &&
+      oxygen < OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS) ||
+    forTheLab
       ? "oxygen"
       : "metals-and-silicon";
   if (plant.recipeId === recipeId) return;
@@ -1064,16 +1154,19 @@ function waterTheGreenhouse(play: Play): void {
     state.constructions.some(
       ({ structureTypeId }) => structureTypeId === "crew-habitat",
     );
+  const running = (structureTypeId: string) =>
+    state.structures.some(
+      (structure) =>
+        structure.structureTypeId === structureTypeId && !structure.switchedOff,
+    );
   const held = crewHabitatPlanned
     ? WATER_FOR_THE_CREW_HABITAT_KILOGRAMS
     : cisternToFill
       ? WATER_FOR_THE_CISTERN_KILOGRAMS
-      : state.structures.some(
-            ({ structureTypeId, switchedOff }) =>
-              structureTypeId === "growing-hall" && !switchedOff,
-          )
-        ? WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS
-        : WATER_FOR_THE_NIGHT_KILOGRAMS;
+      : (running("growing-hall")
+          ? WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS
+          : WATER_FOR_THE_NIGHT_KILOGRAMS) +
+        (running("experiments-lab") ? WATER_FOR_THE_LAB_AT_NIGHT_KILOGRAMS : 0);
   const setting =
     water < held
       ? "off"
@@ -1090,6 +1183,57 @@ function waterTheGreenhouse(play: Play): void {
       succeed(
         play.campaign.switchPlant(plant.id, setting),
         "Switching the optics",
+      );
+    }
+  }
+}
+
+/** Whether every Research Task is completed, so that an automated experiments lab has nothing to speed up. */
+function everythingResearched(state: Snapshot): boolean {
+  return catalogue.researchTasks.every(({ id }) =>
+    state.completedResearchTaskIds.includes(id),
+  );
+}
+
+/**
+ * The oxygen below which the guide switches its automated experiments lab off,
+ * and above which it switches it on again, so that the lab doesn't leave the
+ * Mission Director living on the reserve: at version 88, with the lab taking
+ * the stock down to it, a gap in what the Plants made took it to 7.6 kg on
+ * Earth Day 2,063, under the reserve of about 12 kg.
+ */
+const LAB_OXYGEN_KILOGRAMS = { off: 25, on: 40 } as const;
+
+/**
+ * Runs the late science: the automated experiments lab while there is research
+ * left and oxygen enough to spare, and the infrared telescope until Vault cistern
+ * is unlocked, when it is switched off with the Greenhouses, so that it boils
+ * off no more propellant for Science with nothing left to buy. The radio
+ * telescope array isn't a Plant, so it can't be switched off, and goes on
+ * earning what it costs only power.
+ */
+function runLateScience(play: Play): void {
+  const { state } = play;
+  const researched = everythingResearched(state);
+  const nothingToBuy = state.unlockedDesignIds.includes("vault-cistern");
+  const oxygen =
+    state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
+    0;
+  for (const plant of state.structures) {
+    const setting =
+      plant.structureTypeId === "experiments-lab"
+        ? researched || oxygen < LAB_OXYGEN_KILOGRAMS.off
+          ? "off"
+          : oxygen > LAB_OXYGEN_KILOGRAMS.on
+            ? "on"
+            : undefined
+        : plant.structureTypeId === "infrared-telescope" && nothingToBuy
+          ? "off"
+          : undefined;
+    if (setting !== undefined && (setting === "off") !== plant.switchedOff) {
+      succeed(
+        play.campaign.switchPlant(plant.id, setting),
+        `Switching the ${plant.structureTypeId} ${setting}`,
       );
     }
   }
@@ -1138,7 +1282,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, a bucket-wheel digger, a Regolith bin, an optics works and a grinding line, running the digger only at Night, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants, a Greenhouse and a third Workshop, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a fourth Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse and growing hall off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, a bucket-wheel digger, a Regolith bin, an optics works and a grinding line, running the digger only at Night, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants, a Greenhouse and a third Workshop, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. Once Automated experiments is unlocked, ship and build a large battery bank and an automated experiments lab west of the landing site, holding the optics back a further ${WATER_FOR_THE_LAB_AT_NIGHT_KILOGRAMS} kg of water while it runs and setting the large extraction plant to oxygen below ${OXYGEN_FOR_THE_LAB_KILOGRAMS.low} kg of oxygen, back above ${OXYGEN_FOR_THE_LAB_KILOGRAMS.high} kg, then a large battery bank and an infrared telescope far to the north-west, away from the lights, two more large battery banks, and a radio telescope array far to the north, away from the Plants, with ${ANTENNA_FIELD_SITES.length} antenna fields round it once it is commissioned. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a fourth Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse, growing hall and infrared telescope off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over. Switch the lab off below ${LAB_OXYGEN_KILOGRAMS.off} kg of oxygen, on again above ${LAB_OXYGEN_KILOGRAMS.on} kg, and off for good once every Research Task is completed.`,
     play(play) {
       keepTheBaseGoing(play);
       playOnUntil(play, LONG_GAME_END_EARTH_DAY);
@@ -1164,6 +1308,7 @@ export function keepTheBaseGoing(play: Play): void {
   play.keepUp(moveIntoBuriedHabitat);
   play.keepUp(shipASecondRobot);
   play.keepUp(waterTheGreenhouse);
+  play.keepUp(runLateScience);
   // Last, to see what the others have just done.
   play.keepUp(giveUpOnMissedTargets());
 }
@@ -1316,7 +1461,7 @@ function formatGreenhouse(
     (structure) => structure.structureTypeId === structureTypeId,
   )?.atMinute;
   if (built === undefined) return [`No ${label} was commissioned.`];
-  const rounds = timeline.greenhouseRounds.filter(
+  const rounds = timeline.scienceRounds.filter(
     (round) => round.structureTypeId === structureTypeId,
   );
   const earned = rounds.filter(({ lostFor }) => lostFor === undefined);
@@ -1329,6 +1474,81 @@ function formatGreenhouse(
     (catalogue.lunation.daylightEarthDays + catalogue.lunation.nightEarthDays);
   return [
     `A ${label} was commissioned on Earth Day ${(built / MINUTES_PER_EARTH_DAY).toFixed(1)}. It earned ${science} Science in ${earned.length} rounds, ${(science / lunations).toFixed(0)} a Lunation, and lost ${lost("water")} rounds for want of water, ${lost("power")} for want of power and ${lost("switched-off")} by being switched off.`,
+  ];
+}
+
+/** Why a telescope's rounds were lost, in words, by the reasons the events give. */
+const ROUND_LOST_FOR: Readonly<Record<string, string>> = {
+  propellant: "for want of propellant",
+  power: "for want of power",
+  light: "to a light within its dark radius",
+  plant: "to a Plant within its quiet radius",
+  "switched-off": "by being switched off",
+};
+
+/**
+ * What the late science did (ADR-0009): when the automated experiments lab came
+ * and how long it sped up the Research Task running, what each telescope earned
+ * and what rounds it lost, and when research ended, as lines of text.
+ */
+function formatLateScience(timeline: ReferenceTimeline): string[] {
+  const builtOn = (structureTypeId: string) =>
+    timeline.structureTypesBuilt.find(
+      (structure) => structure.structureTypeId === structureTypeId,
+    )?.atMinute;
+  const lab = builtOn("experiments-lab");
+  const speedUp =
+    catalogue.structureTypes.find(({ id }) => id === "experiments-lab")
+      ?.speedsResearch?.addedMinutesPerMinute ?? 0;
+  const telescope = (structureTypeId: string, label: string): string => {
+    const built = builtOn(structureTypeId);
+    if (built === undefined) return `No ${label} was commissioned.`;
+    const rounds = timeline.scienceRounds.filter(
+      (round) => round.structureTypeId === structureTypeId,
+    );
+    const earned = rounds.filter(({ lostFor }) => lostFor === undefined);
+    const science = earned.reduce((total, round) => total + round.science, 0);
+    const lunations =
+      (timeline.endMinute - built) /
+      MINUTES_PER_EARTH_DAY /
+      (catalogue.lunation.daylightEarthDays +
+        catalogue.lunation.nightEarthDays);
+    const losses = new Map<string, number>();
+    for (const { lostFor } of rounds) {
+      if (lostFor !== undefined) {
+        losses.set(lostFor, (losses.get(lostFor) ?? 0) + 1);
+      }
+    }
+    const lost =
+      losses.size === 0
+        ? "lost no rounds"
+        : `lost ${[...losses]
+            .map(
+              ([reason, count]) =>
+                `${count} ${ROUND_LOST_FOR[reason] ?? `to ${reason}`}`,
+            )
+            .join(", ")}`;
+    const article = /^[aeiou]/i.test(label) ? "An" : "A";
+    return `${article} ${label} was commissioned on Earth Day ${(built / MINUTES_PER_EARTH_DAY).toFixed(1)}. It earned ${science} Science in ${earned.length} rounds, ${(science / lunations).toFixed(0)} a Lunation, and ${lost}.`;
+  };
+  const field = builtOn("antenna-field");
+  const researchEnded =
+    Math.max(
+      0,
+      ...timeline.researchTasksCompleted.map(({ atMinute }) => atMinute),
+    ) / MINUTES_PER_EARTH_DAY;
+  return [
+    lab === undefined
+      ? "No automated experiments lab was commissioned."
+      : `An automated experiments lab was commissioned on Earth Day ${(lab / MINUTES_PER_EARTH_DAY).toFixed(1)}. Labs sped up the Research Task running for ${timeline.labHoursSpeedingUp.toFixed(0)} hours, saving about ${((timeline.labHoursSpeedingUp * speedUp) / 24).toFixed(0)} Earth Days of research.`,
+    telescope("infrared-telescope", "infrared telescope"),
+    telescope("radio-telescope-array", "radio telescope array"),
+    ...(field === undefined
+      ? []
+      : [
+          `Its first antenna field was commissioned on Earth Day ${(field / MINUTES_PER_EARTH_DAY).toFixed(1)}.`,
+        ]),
+    `The last Research Task was completed on Earth Day ${researchEnded.toFixed(1)}.`,
   ];
 }
 
@@ -1425,6 +1645,8 @@ export function formatLongGame(timeline: ReferenceTimeline): string[] {
     ...formatGreenhouse(timeline, "greenhouse", "Greenhouse"),
     ...formatGreenhouse(timeline, "growing-hall", "growing hall"),
     ...formatLateBuying(timeline),
+    "",
+    ...formatLateScience(timeline),
     "",
     limitAt === undefined
       ? "Forecast: the Radiation Dose isn't rising, so it never reaches the limit."
@@ -1634,7 +1856,7 @@ export function giveUpOnMissedTargets(): (play: Play) => void {
     {
       act: 4,
       until: laterActTargets.act4ResearchUntilAbout,
-      within: laterActTargets.researchWithin,
+      within: laterActTargets.act4ResearchWithin,
       words: TARGET_WORDS.act4Research,
     },
   ].map((target) => ({
@@ -1798,11 +2020,15 @@ export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
     act3ResearchUntilAbout,
     act4ResearchUntilAbout,
     researchWithin,
+    act4ResearchWithin,
     opticsSoldBy,
     crewHabitatBy,
   } = laterActTargets;
-  const near = (earthDay: number, target: number) =>
-    Math.abs(earthDay - target) <= researchWithin;
+  const near = (
+    earthDay: number,
+    target: number,
+    within: number = researchWithin,
+  ) => Math.abs(earthDay - target) <= within;
   return [
     ...(reachedOn("first-propellant") <= propellantMadeBy
       ? []
@@ -1821,7 +2047,7 @@ export function laterActTargetsMissed(timeline: ReferenceTimeline): string[] {
       : [
           `${TARGET_WORDS.act3Research} (it ended on ${researchEnded(3).toFixed(0)}).`,
         ]),
-    ...(near(researchEnded(4), act4ResearchUntilAbout)
+    ...(near(researchEnded(4), act4ResearchUntilAbout, act4ResearchWithin)
       ? []
       : [
           `${TARGET_WORDS.act4Research} (it ended on ${researchEnded(4).toFixed(0)}).`,

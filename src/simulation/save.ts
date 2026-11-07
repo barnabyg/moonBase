@@ -379,6 +379,9 @@ const plantStop: Decoder<PlantStop> = tagged("reason", {
   "no-power": object({ reason: exactly("no-power") }),
   "switched-off": object({ reason: exactly("switched-off") }),
   "switched-on": object({ reason: exactly("switched-on") }),
+  "no-research-task": object({ reason: exactly("no-research-task") }),
+  daylight: object({ reason: exactly("daylight") }),
+  "too-close": object({ reason: exactly("too-close") }),
 } satisfies Record<PlantStop["reason"], unknown>);
 
 /**
@@ -401,6 +404,8 @@ const structure: Decoder<StructureState> = (() => {
     plantStop: optional(plantStop),
     switchedOff: boolean,
     growingMinutes: amount,
+    observedMinutes: amount,
+    arrayId: optional(text),
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -452,6 +457,20 @@ const structure: Decoder<StructureState> = (() => {
       throw refuse(
         at(path, "growingMinutes"),
         "isn't 0, though the Structure isn't a Greenhouse",
+      );
+    }
+    if (
+      decoded.observedMinutes > 0 &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.observingRounds === undefined &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.radioArray === undefined
+    ) {
+      throw refuse(
+        at(path, "observedMinutes"),
+        "isn't 0, though the Structure isn't an infrared telescope or a radio telescope array",
       );
     }
     return decoded;
@@ -767,9 +786,7 @@ const simulationFields = object({
   launchFeePaidMillionDollars: optional(amount),
   exportsToLoad: list(exportLine),
   science: wholeNumber,
-  researchTask: optional(
-    object({ researchTaskId, workedMinutes: wholeNumber }),
-  ),
+  researchTask: optional(object({ researchTaskId, workedMinutes: amount })),
   researchQueue: list(researchTaskId),
   completedResearchTaskIds: list(researchTaskId),
   observingMinutes: amount,
@@ -850,6 +867,7 @@ const simulationFields = object({
       workedMinutes: amount,
       componentsTaken: boolean,
       failedCommissionings: wholeNumber,
+      arrayId: optional(text),
     }),
   ),
   structures: list(structure),
@@ -942,7 +960,9 @@ const simulationFields = object({
 }) satisfies Decoder<Omit<CampaignState, "random">>;
 
 /**
- * The Campaign state apart from the random generator's. Its queue is refused
+ * The Campaign state apart from the random generator's. An antenna field,
+ * commissioned or being built, must join a commissioned radio telescope array,
+ * and nothing else may join one. Its queue is refused
  * if it holds one twice, the one running or one completed, any of which would
  * pay its Science again, or anything with nothing running ahead of it, which
  * would never start. Its length and what its Research Tasks need are left to
@@ -953,6 +973,35 @@ const simulationState: Decoder<Omit<CampaignState, "random">> = (
   path,
 ) => {
   const state = simulationFields(value, path);
+  for (const key of ["structures", "constructions"] as const) {
+    for (const [index, joining] of state[key].entries()) {
+      const isField =
+        catalogue.structureTypes.find(
+          (type) => type.id === joining.structureTypeId,
+        )?.antennaField !== undefined;
+      const where = at(at(at(path, key), index), "arrayId");
+      if (!isField) {
+        if (joining.arrayId !== undefined) {
+          throw refuse(where, "isn't null, though it isn't an antenna field");
+        }
+        continue;
+      }
+      const array = state.structures.find(
+        (other) => other.id === joining.arrayId,
+      );
+      if (
+        array === undefined ||
+        catalogue.structureTypes.find(
+          (type) => type.id === array.structureTypeId,
+        )?.radioArray === undefined
+      ) {
+        throw refuse(
+          where,
+          "isn't a commissioned radio telescope array, though it is an antenna field",
+        );
+      }
+    }
+  }
   const field = at(path, "researchQueue");
   const queue = state.researchQueue;
   if (queue.length > 0 && state.researchTask === undefined) {

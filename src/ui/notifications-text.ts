@@ -45,6 +45,18 @@ const GREENHOUSE_ROUND_LOST = {
   "switched-off": "its round of growing given up, as it was switched off",
 } as const;
 
+const INFRARED_ROUND_LOST = {
+  propellant: "its round of observing lost for want of propellant",
+  power: "its round of observing lost for want of power",
+  light: "its round of observing lost to a light within its dark radius",
+  "switched-off": "its round of observing given up, as it was switched off",
+} as const;
+
+const RADIO_ROUND_LOST = {
+  power: "its round of its survey lost for want of power",
+  plant: "its round of its survey lost to a Plant within its quiet radius",
+} as const;
+
 /**
  * Says what happened in an event, for the notification list, for example
  * "Night has fallen". Given the base's Robots, it says which Robot an
@@ -183,6 +195,14 @@ export function formatEvent(
       return `${structureLabel(event.structureTypeId)}: a round of growing complete, earning ${formatScience(event.science)}`;
     case "greenhouse-round-lost":
       return `${structureLabel(event.structureTypeId)}: ${GREENHOUSE_ROUND_LOST[event.reason]}. It starts a new one by itself`;
+    case "infrared-round-completed":
+      return `${surveyLabel(event.structureTypeId)}: a round of observing complete, earning ${formatScience(event.science)}`;
+    case "infrared-round-lost":
+      return `${structureLabel(event.structureTypeId)}: ${INFRARED_ROUND_LOST[event.reason]}. It starts a new one by itself`;
+    case "radio-round-completed":
+      return `${radioSurveyLabel(event.structureTypeId)}: a round complete, earning ${formatScience(event.science)}`;
+    case "radio-round-lost":
+      return `${structureLabel(event.structureTypeId)}: ${RADIO_ROUND_LOST[event.reason]}. It starts a new one by itself`;
     case "observing-round-completed":
       return `${catalogue.observingProgramme.label}: a round of observing complete, earning ${formatScience(event.science)}`;
     case "design-unlocked":
@@ -242,4 +262,20 @@ function strikeTargetLabel(
         ? robotLabel(target.robotId, robots)
         : "the Robot";
   }
+}
+
+/** The name of the survey a type of infrared telescope observes for. */
+function surveyLabel(structureTypeId: string): string {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.observingRounds?.label ?? structureLabel(structureTypeId)
+  );
+}
+
+/** The name of the survey a type of radio telescope array works on. */
+function radioSurveyLabel(structureTypeId: string): string {
+  return (
+    catalogue.structureTypes.find((type) => type.id === structureTypeId)
+      ?.radioArray?.label ?? structureLabel(structureTypeId)
+  );
 }

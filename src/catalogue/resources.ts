@@ -149,6 +149,14 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },
   { id: "telescope-mount", label: "Telescope mount" },
+  { id: "lab-module", label: "Lab module" },
+  { id: "experiment-rack", label: "Experiment rack" },
+  { id: "infrared-mirror-segment", label: "Infrared mirror segment" },
+  { id: "infrared-camera", label: "Infrared camera" },
+  { id: "heavy-telescope-mount", label: "Heavy telescope mount" },
+  { id: "antenna-tile", label: "Antenna tile" },
+  { id: "array-correlator", label: "Array correlator" },
+  { id: "field-receiver", label: "Field receiver" },
   ...solarArrayComponentTypes,
 ];
 

@@ -240,7 +240,7 @@ test("at the fastest game speed, the panels' rows keep their place while a teles
   expect(texts.size).toBeGreaterThan(2);
 });
 
-test("at the fastest game speed, on a catalogue of 80 Launch items, the Launch manifest's rows keep their place while the player changes what it carries", async ({
+test("at the fastest game speed, on a catalogue of 100 Launch items, the Launch manifest's rows keep their place while the player changes what it carries", async ({
   page,
 }) => {
   await useCrowdedCatalogue(page);

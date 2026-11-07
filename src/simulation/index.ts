@@ -19,6 +19,20 @@ export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";
 export { isGreenhouse } from "./greenhouses";
+export { isExperimentsLab } from "./experiments-labs";
+export { isInfraredTelescope } from "./infrared-telescopes";
+export type {
+  InfraredStop,
+  InfraredTelescopeSnapshot,
+} from "./infrared-telescopes";
+export { isRadioArray } from "./radio-arrays";
+export type { RadioArrayStop, RadioArraySnapshot } from "./radio-arrays";
+export { isOfKind, keepClearOf, structuresInTheWay } from "./keep-clear";
+export type { StandingStructure } from "./keep-clear";
+export type {
+  ExperimentsLabShortage,
+  ExperimentsLabsSnapshot,
+} from "./experiments-labs";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";

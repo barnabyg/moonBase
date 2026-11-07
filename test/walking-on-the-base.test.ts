@@ -115,6 +115,8 @@ function packedBase(seed: number): Site {
       plantStop: undefined,
       switchedOff: false,
       growingMinutes: 0,
+      observedMinutes: 0,
+      arrayId: undefined,
     });
   }
   return {

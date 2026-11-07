@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { loadCampaign } from "../src/simulation";
-import { tryScenarios, type TryScenario } from "./try-scenarios";
+import {
+  EXPERIMENTS_LAB_TASK,
+  tryScenarios,
+  type TryScenario,
+} from "./try-scenarios";
 
 /**
  * The save a scenario prepares, prepared once and shared, as a save's text
@@ -51,6 +55,109 @@ describe("what npm run try can start the game in", () => {
     expect(
       state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
     ).toBeGreaterThanOrEqual(78);
+  });
+
+  it("experiments-lab has an automated experiments lab speeding up a long Research Task in Daylight", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "experiments-lab",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeGreaterThan(24 * 60);
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: EXPERIMENTS_LAB_TASK,
+      rate:
+        1 +
+        (catalogue.structureTypes.find(({ id }) => id === "experiments-lab")
+          ?.speedsResearch?.addedMinutesPerMinute ?? 0),
+    });
+    expect(state.experimentsLabs).toEqual({
+      labs: 1,
+      speedingUp: 1,
+      short: [],
+    });
+    const lab = catalogue.structureTypes.find(
+      ({ id }) => id === "experiments-lab",
+    );
+    for (const { componentId, count } of lab?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
+  });
+
+  it("infrared-telescope has an infrared telescope observing at Night out past a Light Mast's reach, with propellant and a second set of its Components", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "infrared-telescope",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("night");
+    expect(state.infraredTelescopes).toEqual([
+      expect.objectContaining({ observing: true, inTheWay: [] }),
+    ]);
+    expect(
+      state.bulkResources.find(({ resourceId }) => resourceId === "propellant")
+        ?.kilograms,
+    ).toBeGreaterThan(500);
+    const telescope = catalogue.structureTypes.find(
+      ({ id }) => id === "infrared-telescope",
+    );
+    for (const { componentId, count } of telescope?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
+  });
+
+  it("radio-telescope-array has a radio telescope array working in Daylight out past a Plant's reach, with a second water-processing plant's Components and two antenna fields'", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "radio-telescope-array",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.radioArrays).toEqual([
+      expect.objectContaining({
+        working: true,
+        inTheWay: [],
+        antennaFields: 1,
+      }),
+    ]);
+    expect(state.radioArrays[0]?.progress).toBeGreaterThan(0);
+    const plant = catalogue.structureTypes.find(
+      ({ id }) => id === "water-processing-plant",
+    );
+    const field = catalogue.structureTypes.find(
+      ({ id }) => id === "antenna-field",
+    );
+    for (const { componentId, count } of [
+      ...(plant?.components ?? []),
+      ...(field?.components ?? []).map((needed) => ({
+        ...needed,
+        count: needed.count * 2,
+      })),
+    ]) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
   });
 
   it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {

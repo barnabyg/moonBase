@@ -98,6 +98,70 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 120,
       priceMillionDollars: 7,
     },
+    // An automated experiments lab's worth comes to 1,800 kg and $3,000M, one
+    // Launch: a late, dear build, for a base whose Funding has little else to buy.
+    {
+      id: "lab-module",
+      designId: "automated-experiments",
+      brings: { kind: "component", componentId: "lab-module" },
+      massKilograms: 600,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "experiment-rack",
+      designId: "automated-experiments",
+      brings: { kind: "component", componentId: "experiment-rack" },
+      massKilograms: 150,
+      priceMillionDollars: 500,
+    },
+    // An infrared telescope's worth comes to 1,500 kg and $2,200M, one Launch:
+    // three mirror segments, a camera and a mount, for a late base's Funding.
+    {
+      id: "infrared-mirror-segment",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "infrared-mirror-segment" },
+      massKilograms: 250,
+      priceMillionDollars: 400,
+    },
+    {
+      id: "infrared-camera",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "infrared-camera" },
+      massKilograms: 150,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "heavy-telescope-mount",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "heavy-telescope-mount" },
+      massKilograms: 600,
+      priceMillionDollars: 500,
+    },
+    // A radio telescope array's worth comes to 1,100 kg and $1,300M, one Launch:
+    // sixteen antenna tiles, light but many, and the correlator that combines them.
+    {
+      id: "antenna-tile",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "antenna-tile" },
+      massKilograms: 50,
+      priceMillionDollars: 50,
+    },
+    {
+      id: "array-correlator",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "array-correlator" },
+      massKilograms: 300,
+      priceMillionDollars: 500,
+    },
+    // Another antenna field's worth comes to 950 kg and $1,000M, one Launch:
+    // sixteen more antenna tiles and the receiver that sends their signals on.
+    {
+      id: "field-receiver",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "field-receiver" },
+      massKilograms: 150,
+      priceMillionDollars: 200,
+    },
     {
       id: "habitat-core",
       designId: "inflatable-habitat",

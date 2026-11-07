@@ -252,9 +252,9 @@ describe("the data catalogue", () => {
     expect(completed.size).toBe(catalogue.researchTasks.length);
   });
 
-  it("has enough Designs in the Tech Tree for the Acts so far, and no more than 50", () => {
+  it("has enough Designs in the Tech Tree for the Acts so far, and no more than 60", () => {
     expect(catalogue.designs.length).toBeGreaterThanOrEqual(23);
-    expect(catalogue.designs.length).toBeLessThanOrEqual(50);
+    expect(catalogue.designs.length).toBeLessThanOrEqual(60);
   });
 
   it("has every Design beyond the starting ones permit at least one Structure type, Launch item or type of Expedition, so that unlocking one always gives the player something", () => {

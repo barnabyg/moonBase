@@ -545,6 +545,88 @@ export interface GrowingRounds {
 }
 
 /**
+ * What an automated experiments lab does for the Research Task running: every
+ * game-minute it has its power, water and oxygen, the task advances this many
+ * game-minutes more, times its performance, so that two add twice what one does.
+ * It changes no Research Task, and adds nothing while none is running.
+ */
+export interface ResearchSpeedUp {
+  /** The game-minutes more the Research Task running advances each game-minute, at full performance. */
+  readonly addedMinutesPerMinute: number;
+}
+
+/**
+ * The kinds of Structure that another can't work near: `lit`, any Structure
+ * with a light radius, such as a Light Mast, and `plants`, any Plant. Only one
+ * commissioned, not Broken and not switched off counts.
+ */
+export type KeepClearOf = "lit" | "plants";
+
+/**
+ * What a Structure can't work near: while a Structure of the given kind stands
+ * with any part of its footprint within the radius of its centre, it does nothing
+ * (an infrared telescope's dark radius, for one).
+ */
+export interface KeepClear {
+  readonly of: KeepClearOf;
+  readonly radiusMetres: number;
+}
+
+/**
+ * An infrared telescope's standing observing programme, which each one works on
+ * by itself, a round at a time, at Night: every game-minute it observes adds its
+ * performance's share of a game-minute, and the round's Science comes once it has
+ * its length. Daylight only pauses a round, but a shortage of its coolant or its
+ * power, or something it is kept clear of coming near, loses what it has observed.
+ */
+export interface ObservingRounds {
+  readonly label: string;
+  /**
+   * How long a round takes at full performance, in game-hours of Night. Must
+   * come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete, a whole amount. */
+  readonly science: number;
+}
+
+/**
+ * A radio telescope array's standing survey, which each array works on by itself,
+ * a round at a time, through Daylight and Night alike: every game-minute it has
+ * power and nothing it is kept clear of is near adds its performance's share of a
+ * game-minute for each antenna field it has, and the round's Science comes once it
+ * has its length. A shortage of power, or something it is kept clear of coming
+ * near, loses what it has done of the round. It is built with one antenna field,
+ * and each antenna field that joins it later (see `AntennaField`) adds a whole
+ * field's work, at that field's own performance, while it has power.
+ */
+export interface RadioArray {
+  readonly label: string;
+  /**
+   * How long a round takes with one antenna field at full performance, in
+   * game-hours. Must come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete, a whole amount. */
+  readonly science: number;
+}
+
+/**
+ * An antenna field, which joins the radio telescope array it is placed beside,
+ * and adds a field's work to its round once commissioned (see `RadioArray`). A
+ * Plant within the field's quiet radius stops the whole array, as one within the
+ * array's own does.
+ */
+export interface AntennaField {
+  /**
+   * How far its footprint may stand from the footprint of a commissioned radio
+   * telescope array, or of an antenna field joining one, in metres: it must be
+   * placed beside one of them.
+   */
+  readonly besideWithinMetres: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -1114,11 +1196,42 @@ export interface StructureType {
    */
   readonly telescope?: boolean;
   /**
+   * If it can't work while a kind of Structure is near it: how near, and which
+   * kind (see `KeepClear`). Leaving it out means nothing stops it.
+   */
+  readonly keepClear?: KeepClear;
+  /**
+   * If it is an infrared telescope: a Plant that takes its coolant a batch at a
+   * time, observes only at Night, while its Night load has power and nothing it
+   * is kept clear of is near, and earns Science by rounds of its own standing
+   * programme (see `ObservingRounds`).
+   */
+  readonly observingRounds?: ObservingRounds;
+  /**
+   * If it is a radio telescope array: a Structure that draws its power steadily,
+   * by day and at Night, and earns Science by rounds of its own standing survey
+   * while it has power and nothing it is kept clear of is near (see `RadioArray`).
+   */
+  readonly radioArray?: RadioArray;
+  /**
+   * If it is an antenna field: a Structure placed beside a commissioned radio
+   * telescope array, which it joins, adding to how fast the array works its round
+   * (see `AntennaField`).
+   */
+  readonly antennaField?: AntennaField;
+  /**
    * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
    * crop grows a round at a time while it has water and power, day and night, and
    * earns Science as each round is complete (see `GrowingRounds`).
    */
   readonly growing?: GrowingRounds;
+  /**
+   * If it is an automated experiments lab: a Plant that takes its water and oxygen
+   * a batch at a time, only while a Research Task is running, draws its power as a
+   * Greenhouse does, and speeds up the Research Task running while it has all
+   * three (see `ResearchSpeedUp`).
+   */
+  readonly speedsResearch?: ResearchSpeedUp;
   /**
    * If it is a storage tank: once it is commissioned, and until it is Broken or
    * taken apart, it adds to what the base can hold of a resource.

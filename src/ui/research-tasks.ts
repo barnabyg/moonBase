@@ -9,7 +9,11 @@ import { describeScienceReach, nextDesigns } from "./describe";
 import { setText } from "./dom";
 import { formatDuration, formatScience } from "./format";
 import { researchTaskLabel } from "./labels";
-import { formatObservingProgramme } from "./status-panel-text";
+import {
+  formatExperimentsLabs,
+  formatObservingProgramme,
+  formatResearchRate,
+} from "./status-panel-text";
 import { holdHeight } from "./hold";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";
@@ -55,12 +59,17 @@ export function createResearchTasksScreen(
   const nowMeter = createMeter();
   const nowDetail = document.createElement("p");
   nowDetail.className = "research-tasks__now-detail";
-  now.append(nowHeading, nowName, nowMeter.element, nowDetail);
+  // What the automated experiments labs are doing for it, if the base has any.
+  const nowLabs = document.createElement("p");
+  nowLabs.className = "research-tasks__now-detail";
+  nowLabs.setAttribute("aria-label", "Automated experiments labs");
+  now.append(nowHeading, nowName, nowMeter.element, nowDetail, nowLabs);
   // Its name and countdown change length as it runs; the lines below them,
   // and the cards, keep their places.
   for (const [line, row] of [
     [nowName, "Research Task running"],
     [nowDetail, "Research Task time left"],
+    [nowLabs, "Automated experiments labs"],
   ] as const) {
     line.dataset["row"] = row;
     holdHeight(line);
@@ -220,9 +229,12 @@ export function createResearchTasksScreen(
         setText(nowName, researchTaskLabel(running.researchTaskId));
         setText(
           nowDetail,
-          `${formatDuration(running.minutesLeft)} left, then it pays ${formatScience(task?.science ?? 0)}`,
+          `${formatDuration(running.minutesLeftAtRate)} left${running.rate > 1 ? ` at ${formatResearchRate(running.rate)}` : ""}, then it pays ${formatScience(task?.science ?? 0)}`,
         );
       }
+      const labs = formatExperimentsLabs(snapshot);
+      setText(nowLabs, labs ?? "");
+      nowLabs.hidden = labs === undefined;
       now.classList.toggle("screen__card--idle", running === undefined);
       nowMeter.fill(running?.progress);
 

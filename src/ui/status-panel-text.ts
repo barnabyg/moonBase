@@ -16,6 +16,7 @@ import {
   type DiggingHold,
   type ExpeditionReward,
   type ExpeditionSnapshot,
+  type ExperimentsLabShortage,
   type ExportLine,
   type ExportLoadingSnapshot,
   type HabitatPowerForecast,
@@ -24,6 +25,10 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type MissionDirectorResidence,
+  type InfraredStop,
+  type InfraredTelescopeSnapshot,
+  type RadioArrayStop,
+  type RadioArraySnapshot,
   type ObservingProgrammeSnapshot,
   type PowerForecast,
   type PowerNetworkSnapshot,
@@ -54,6 +59,7 @@ import {
   machineLabel,
   researchTaskLabel,
   resourceLabel,
+  resourceRefLabel,
   stockLabel,
   structureLabel,
 } from "./labels";
@@ -900,8 +906,8 @@ export function formatBulkResources(
 
 /**
  * Says which Research Task is running and how long it has left, for the
- * status panel, for example "Seismic monitoring" and "2d 5h left", or that
- * none is.
+ * status panel, for example "Seismic monitoring" and "2d 5h left", or "1d 3h
+ * left at ×2" while automated experiments labs speed it up, or that none is.
  */
 export function formatResearchTask(
   running: ResearchTaskSnapshot | undefined,
@@ -910,8 +916,61 @@ export function formatResearchTask(
     ? { value: "none running" }
     : {
         value: researchTaskLabel(running.researchTaskId),
-        note: `${formatShortDuration(running.minutesLeft)} left`,
+        note: `${formatShortDuration(running.minutesLeftAtRate)} left${running.rate > 1 ? ` at ${formatResearchRate(running.rate)}` : ""}`,
       };
+}
+
+/** What an automated experiments lab lacks, in a few words. */
+function labShortage(shortOf: ExperimentsLabShortage): string {
+  switch (shortOf.reason) {
+    case "power":
+      return "short of power";
+    case "supply":
+      return `short of ${inSentence(resourceRefLabel(shortOf.resource))}`;
+    case "broken":
+      return "Broken";
+    case "switched-off":
+      return "switched off";
+  }
+}
+
+/**
+ * Says what the base's automated experiments labs are doing for the Research Task
+ * running, for the Research Tasks screen, for example "2 automated experiments
+ * labs speeding it up and 1 short of oxygen", or undefined if it has none.
+ */
+export function formatExperimentsLabs(
+  snapshot: Pick<Snapshot, "experimentsLabs" | "researchTask">,
+): string | undefined {
+  const { labs, speedingUp, short } = snapshot.experimentsLabs;
+  if (labs === 0) return undefined;
+  const name = inSentence(structureLabel("experiments-lab"));
+  const count = (n: number) => `${String(n)} ${n === 1 ? name : `${name}s`}`;
+  if (snapshot.researchTask === undefined) {
+    return `${count(labs)} standing idle until a Research Task runs`;
+  }
+  const reasons = new Map<string, number>();
+  for (const { shortOf } of short) {
+    const reason = labShortage(shortOf);
+    reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+  const parts = [
+    ...(speedingUp > 0 ? [[speedingUp, "speeding it up"] as const] : []),
+    ...[...reasons].map(([reason, n]) => [n, reason] as const),
+  ];
+  return listInWords(
+    parts.map(([n, what], index) =>
+      index === 0 ? `${count(n)} ${what}` : `${String(n)} ${what}`,
+    ),
+  );
+}
+
+/**
+ * How fast the Research Task running advances, as automated experiments labs
+ * speed it up, for example "×2" or "×2.5".
+ */
+export function formatResearchRate(rate: number): string {
+  return `×${String(Math.round(rate * 10) / 10)}`;
 }
 
 /**
@@ -964,6 +1023,83 @@ export function formatObservingProgramme(
     case undefined:
       return { value, note: "waits for Night" };
   }
+}
+
+/** Why an infrared telescope isn't observing, in a few words. */
+const INFRARED_STOPS: Record<InfraredStop, string> = {
+  daylight: "waits for Night",
+  light: "a lit Structure within its dark radius",
+  propellant: "short of propellant",
+  power: "no power to observe",
+  "switched-off": "switched off",
+  broken: "Broken",
+};
+
+/**
+ * Says how the base's infrared telescopes are getting on with their survey, for
+ * example "2 infrared telescopes observing, 1d 4h left" with the least time left
+ * of any round, or why the first of them isn't observing, for example "a lit
+ * Structure within its dark radius"; undefined while the base has none.
+ */
+export function formatInfraredSurvey(
+  telescopes: readonly InfraredTelescopeSnapshot[],
+): Stat | undefined {
+  const [first] = telescopes;
+  if (first === undefined) return undefined;
+  const value =
+    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
+      ?.observingRounds?.label ?? "Infrared survey";
+  const observing = telescopes.filter((telescope) => telescope.observing);
+  if (observing.length > 0) {
+    const left = Math.min(
+      ...observing.map(({ minutesLeft }) => minutesLeft ?? Infinity),
+    );
+    return {
+      value,
+      note: `${plural(observing.length, "infrared telescope")} observing, ${formatShortDuration(left)} left`,
+    };
+  }
+  const stopped = telescopes.find(
+    ({ stoppedFor }) => stoppedFor !== "daylight",
+  );
+  return {
+    value,
+    note: INFRARED_STOPS[(stopped ?? first).stoppedFor ?? "daylight"],
+  };
+}
+
+/** Why a radio telescope array isn't working, in a few words. */
+const RADIO_STOPS: Record<RadioArrayStop, string> = {
+  plant: "a Plant within its quiet radius",
+  power: "no power to work",
+  broken: "Broken",
+};
+
+/**
+ * Says how the base's radio telescope arrays are getting on with their survey,
+ * for example "2 radio telescope arrays working, 14h left" with the least time
+ * left of any round, or why the first of them isn't working, for example "a
+ * Plant within its quiet radius"; undefined while the base has none.
+ */
+export function formatRadioSurvey(
+  arrays: readonly RadioArraySnapshot[],
+): Stat | undefined {
+  const [first] = arrays;
+  if (first === undefined) return undefined;
+  const value =
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.radioArray?.label ?? "Radio survey";
+  const working = arrays.filter((array) => array.working);
+  if (working.length > 0) {
+    const left = Math.min(
+      ...working.map(({ minutesLeft }) => minutesLeft ?? Infinity),
+    );
+    return {
+      value,
+      note: `${plural(working.length, "radio telescope array")} working, ${formatShortDuration(left)} left`,
+    };
+  }
+  return { value, note: RADIO_STOPS[first.stoppedFor ?? "power"] };
 }
 
 /**

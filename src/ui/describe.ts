@@ -18,7 +18,8 @@ import {
   SOLAR_ARRAY_ID,
   type Snapshot,
 } from "../simulation";
-import { formatScience, listInWords } from "./format";
+import { formatScience, listInWords, plural } from "./format";
+import { describeKeepClear } from "./keep-clear-text";
 import {
   componentInSentence,
   componentLabel,
@@ -46,16 +47,25 @@ const generates = (kilowatts: number) =>
   `generates ${kilowatts} kW in Daylight`;
 const stores = (kilowattHours: number) => `stores ${kilowattHours} kWh`;
 /** What a Night load draws: a light while it is on, or a telescope while it observes. */
-const drawsAtNight = ({ power, telescope }: StructureType) =>
-  telescope === true
+const drawsAtNight = ({
+  power,
+  telescope,
+  speedsResearch,
+  observingRounds,
+}: StructureType) =>
+  telescope === true || observingRounds !== undefined
     ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
-    : `draws ${power.nightDrawKilowatts} kW while its light is on`;
+    : speedsResearch !== undefined
+      ? `draws ${power.nightDrawKilowatts} kW at Night while it runs`
+      : `draws ${power.nightDrawKilowatts} kW while its light is on`;
 const drawsThroughNight = (kilowatts: number) =>
   `draws ${kilowatts} kW all through the Night, and nothing in Daylight`;
 const drawsWhileRunning = (kilowatts: number) =>
   `draws ${kilowatts} kW while it runs`;
-const drawsInDaylight = (kilowatts: number) =>
-  `draws ${kilowatts} kW all through Daylight`;
+const drawsInDaylight = ({ power, speedsResearch }: StructureType) =>
+  speedsResearch !== undefined
+    ? `draws ${power.daylightDrawKilowatts ?? 0} kW in Daylight while it runs`
+    : `draws ${power.daylightDrawKilowatts ?? 0} kW all through Daylight`;
 const drawsAllTheTime = (kilowatts: number) =>
   `draws ${kilowatts} kW all the time`;
 
@@ -81,9 +91,7 @@ export function powerRatings(
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
-    ...((power.daylightDrawKilowatts ?? 0) > 0
-      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
-      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0 ? [drawsInDaylight(type)] : []),
     ...(recipe === undefined || recipe.drawKilowatts === 0
       ? []
       : [drawsWhileRunning(recipe.drawKilowatts)]),
@@ -195,15 +203,35 @@ export function describeStructure(type: StructureType): string {
       : [
           `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover together whenever they have nothing else to do, rather than leaving them about the base, once it is cabled to battery banks that will keep them warm through the Night`,
         ]),
-    ...(type.growing === undefined
+    ...(type.growing !== undefined
       ? (type.recipes ?? []).map(
           (recipe) =>
-            `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
-        )
-      : (type.recipes ?? []).map(
-          (recipe) =>
             `grows a crop day and night, using ${flows(recipe.inputs)} an hour, and completes a round for ${formatScience(type.growing?.science ?? 0)} every ${formatHours(type.growing?.lengthHours ?? 0)} it grows`,
-        )),
+        )
+      : type.speedsResearch !== undefined
+        ? (type.recipes ?? []).map(
+            (recipe) =>
+              `runs day and night while a Research Task is running, using ${flows(recipe.inputs)} an hour, and makes that Research Task advance ${plural(type.speedsResearch?.addedMinutesPerMinute ?? 0, "game-minute")} more for every game-minute it runs, adding the same again for each lab`,
+          )
+        : type.observingRounds !== undefined
+          ? (type.recipes ?? []).map(
+              (recipe) =>
+                `observes the sky at Night for the ${type.observingRounds?.label ?? ""}, a standing survey of its own, boiling off ${flows(recipe.inputs)} an hour to cool its camera, and completes a round for ${formatScience(type.observingRounds?.science ?? 0)} every ${formatHours(type.observingRounds?.lengthHours ?? 0)} it observes`,
+            )
+          : (type.recipes ?? []).map(
+              (recipe) =>
+                `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+            )),
+    ...(type.radioArray === undefined
+      ? []
+      : [
+          `listens to the sky through Daylight and Night for the ${type.radioArray.label}, a standing survey of its own, completing a round for ${formatScience(type.radioArray.science)} every ${formatHours(type.radioArray.lengthHours)} it works with its own antenna field, sooner with each antenna field that joins it`,
+        ]),
+    ...(type.antennaField === undefined
+      ? []
+      : [
+          `joins the ${arrayName()} it is built beside, adding another antenna field's work to its round once commissioned, as much again as the array's own field`,
+        ]),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
@@ -218,9 +246,7 @@ export function describeStructure(type: StructureType): string {
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
-    ...((power.daylightDrawKilowatts ?? 0) > 0
-      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
-      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0 ? [drawsInDaylight(type)] : []),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
@@ -229,9 +255,23 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [
-          type.growing === undefined
-            ? plantsAtNight(batchHoursOf(type.recipes[0]))
-            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+          type.observingRounds !== undefined
+            ? `Unlike most Plants, it draws its power as a Night load, in its turn after the heaters, and gives it up before anything else goes without. It takes its propellant an hour's worth at a time, never what the Lander needs to lift and sell the Exports set to load.${type.keepClear === undefined ? "" : ` ${describeKeepClear(type.keepClear, "observe")}, and then draws no power: build it away from the base, at the end of a long cable.`} A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round, with a notification, and it starts a new one by itself; Daylight only pauses it. Switching it off gives up the round too. More of them earn more, each with its own round.`
+            : type.speedsResearch !== undefined
+              ? "Unlike most Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night, and gives it up before anything else goes without. It takes its water and oxygen an hour's worth at a time, never below the Mission Director's reserve, and none while no Research Task is running, when it draws no power either. A shortage of any of them only stops the speed-up until it is supplied again: no Research Task is lost or changed."
+              : type.growing === undefined
+                ? plantsAtNight(batchHoursOf(type.recipes[0]))
+                : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+        ]),
+    ...(type.radioArray === undefined
+      ? []
+      : [
+          `${type.keepClear === undefined ? "" : `${describeKeepClear(type.keepClear, "work")}, though it still draws its power: build it away from the base, at the end of a long cable. `}It isn't a Plant, so arrays never stop each other. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round, with a notification, and it starts a new one by itself. More of them earn more, each with its own round. A Plant within the quiet radius of an antenna field joining it stops it too, and it can't be dismantled while one joins it: dismantle the fields first.`,
+        ]),
+    ...(type.antennaField === undefined
+      ? []
+      : [
+          `It can only be built beside a commissioned ${arrayName()}, within ${type.antennaField.besideWithinMetres} m of it or of one of its antenna fields.${type.keepClear === undefined ? "" : ` A Plant within ${type.keepClear.radiusMetres} m of it, its quiet radius, stops the whole array, as one within the array's own does.`} It isn't a Plant itself. A Broken field, or one without power, adds nothing, but loses the array no round. Dismantling a field slows the array again, and the array can't be dismantled while an antenna field joins it.`,
         ]),
     ...(type.storageTank === undefined
       ? []
@@ -482,5 +522,13 @@ export function formatComponentsMade(
       ({ componentId, count }) =>
         `${count} ${componentInSentence(componentId)}${count === 1 ? "" : "s"}`,
     ),
+  );
+}
+
+/** What the player calls a radio telescope array, in a sentence. */
+function arrayName(): string {
+  return inSentence(
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.label ?? "Radio telescope array",
   );
 }

@@ -14,11 +14,17 @@ import {
   formatHours,
 } from "./describe";
 import { setText } from "./dom";
-import { formatMillionDollars, formatScience, listInWords } from "./format";
+import {
+  formatMillionDollars,
+  formatScience,
+  listInWords,
+  plural,
+} from "./format";
 import {
   inSentence,
   machineLabel,
   resourceLabel,
+  resourceRefLabel,
   stockLabel,
   structureLabel,
 } from "./labels";
@@ -383,6 +389,38 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
               ? []
               : [
                   `A ${inSentence(label)} (the ${designLabel(designId)} Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
+                ],
+        ),
+        ...catalogue.structureTypes.flatMap(
+          ({ designId, speedsResearch, label, power, recipes }) =>
+            speedsResearch === undefined
+              ? []
+              : [
+                  `An ${inSentence(label)} (the ${designLabel(designId)} Design) makes the Research Task running advance faster while it has its power, water and oxygen: each adds ${plural(speedsResearch.addedMinutesPerMinute, "game-minute")} of it for every game-minute, so one runs it at ×${1 + speedsResearch.addedMinutesPerMinute} and two at ×${1 + 2 * speedsResearch.addedMinutesPerMinute}. It takes ${listInWords((recipes?.[0]?.inputs ?? []).map((flow) => `${flow.kilogramsPerHour} kg of ${inSentence(resourceRefLabel(flow.resource))}`))} an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, more through a Night than a large battery bank stores, so add battery banks or a thermal store for it. It never takes water or oxygen below the reserve, and gives up its power before anything else goes without. A shortage only stops the speed-up, and it takes and draws nothing while no Research Task is running. The Research Tasks screen shows the rate and the time left at it, and says when a lab is short of something.`,
+                ],
+        ),
+        ...catalogue.structureTypes.flatMap(
+          ({ designId, observingRounds, keepClear, label, power, recipes }) =>
+            observingRounds === undefined
+              ? []
+              : [
+                  `An ${inSentence(label)} (the ${designLabel(designId)} Design) works on the ${observingRounds.label}, a standing survey of its own, at Night only: every ${formatHours(observingRounds.lengthHours)} of its observing completes a round for ${formatScience(observingRounds.science)}, and each has its own round, so more earn more. Its camera is cooled by boiling off ${listInWords((recipes?.[0]?.inputs ?? []).map((flow) => `${flow.kilogramsPerHour} kg of ${inSentence(resourceRefLabel(flow.resource))}`))} an hour, which it never takes from what the Lander needs for the Exports you have set to load, so it competes with the propellant you sell. It draws ${power.nightDrawKilowatts} kW at Night, more through a Night than a large battery bank stores, and gives up its power before anything else goes without. It can't observe while a lit Structure, such as a Light Mast, stands within ${keepClear?.radiusMetres ?? 0} m of it, its dark radius: placing one shows the radius and rings what is in it, so build it away from the base at the end of a long cable. A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round; Daylight only pauses it. The Research section of the status panel shows how its survey is going.`,
+                ],
+        ),
+        ...catalogue.structureTypes.flatMap(
+          ({ designId, radioArray, keepClear, label, power }) =>
+            radioArray === undefined
+              ? []
+              : [
+                  `A ${inSentence(label)} (the ${designLabel(designId)} Design) works on the ${radioArray.label}, a standing survey of its own, through Daylight and Night alike: every ${formatHours(radioArray.lengthHours)} of its work completes a round for ${formatScience(radioArray.science)}, and each has its own round, so more earn more. It takes nothing from the base's stocks, only a steady ${power.drawKilowatts} kW, by day and at Night. It can't work while a Plant stands within ${keepClear?.radiusMetres ?? 0} m of it, its quiet radius, as the Plants' machinery drowns the sky's faint signals: placing one shows the radius and rings what is in it, so build it away from the base at the end of a long cable. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round. The Research section of the status panel shows how its survey is going.`,
+                ],
+        ),
+        ...catalogue.structureTypes.flatMap(
+          ({ antennaField, keepClear, label }) =>
+            antennaField === undefined
+              ? []
+              : [
+                  `An array keeps growing: build an ${inSentence(label)} beside it, within ${antennaField.besideWithinMetres} m of it or of one of its fields, and once commissioned the field joins it and adds as much again to how fast it works its round, for Components and the Robot's time. A Broken field, or one without power, adds nothing until it is repaired. Each field has the array's quiet radius of ${keepClear?.radiusMetres ?? 0} m, and a Plant within it stops the whole array, so grow the array away from the base. Dismantle its fields before the array itself.`,
                 ],
         ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",

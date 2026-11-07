@@ -188,6 +188,31 @@ From [Dismantling for spare Components (#236)](balancing.md#the-larger-changes-a
 
 From Earth Day 1,636 the Robot's work falls at slightly different times, and the rest of the Campaign plays a little differently. In Act 4 it sold 2,400 kg of precision optics, 10,257 kg of circuit boards, 3,749 kg of propellant and 6 kg of metals, $49,676M over 147 trips: $2,003M more than at version 77, most of the $2,101M more Funding at the end. The Large-scale Crew Habitat's parts went over the same nine Launches, from Earth Day 2,323.9 to 2,642.8, and it was commissioned 32 Earth Days sooner. The Greenhouse and the growing hall each lost 2 rounds for want of water, not 7. The stock of spare Components fell lowest to 6, in the Lunation to Earth Day 2,596, while the habitat's parts were coming, against 11 at version 77, and was back to 26 a Lunation later. The 3 spares from dismantling came about 1,000 Earth Days before that, so the lower low comes from the different order of work, not from them.
 
+## Prospecting, the Regolith top-up and the digger, at versions 82 and 83
+
+From [Prospecting before the Plants](balancing.md#the-larger-changes-and-why), [Topping up the Regolith before Night](balancing.md#the-larger-changes-and-why) and [A bucket-wheel digger and Regolith bins](balancing.md#the-larger-changes-and-why).
+
+**What the guide played, at versions 82 and 83.** Version 81's play wasn't recorded, and version 82's, with Prospecting Expeditions early and the Regolith top-up, is the column between. At version 83 the guide's purchases each wait only for their own Design, so it ships the digger and the bin as soon as Continuous excavation is unlocked with Large propellant production, on Earth Day 1,249.7, not after the optics works: the Launch of Earth Day 1,274.2 paid $850M for them. Every pacing target is still met, and Act 4 opens as it did: the first precision optics sold on Earth Day 1,723.7, against 1,719.8.
+
+| What it plays                        | At version 80 | At version 82 | At version 83, digger all day | At version 83, digger at Night only |
+| ------------------------------------ | ------------- | ------------- | ----------------------------- | ----------------------------------- |
+| Continuous excavation unlocked       |               |               | 1,249.7                       | 1,249.7                             |
+| Growing halls unlocked               | 2,180.0       | 2,165.0       | 2,175.0                       | 2,175.8                             |
+| Funding on Earth Day 2,300           | $13,917M      | $13,409M      | $5,983M                       | $14,714M                            |
+| Funding on Earth Day 2,400           | $2,885M       | $878M         | $791M                         | $2,827M                             |
+| Funding on Earth Day 2,600           | $6,252M       | $5,145M       | $915M                         | $6,460M                             |
+| Funding on Earth Day 2,800           | $10,757M      | $9,568M       | $3,870M                       | $10,846M                            |
+| Vault cistern unlocked               | 2,808.0       | 2,799.0       | 2,814.1                       | 2,800.4                             |
+| Large-scale Crew Habitat             | 2,816.2       | 2,819.4       | 2,846.5                       | 2,816.5                             |
+| Vault cistern commissioned           | 2,846.0       | 2,844.5       | 2,932.5                       | 2,832.3                             |
+| Last Research Task completed         | 2,994.7       | 2,994.7       | 2,994.7                       | 2,994.7                             |
+| Fewest spare Components, after Act 2 | 17            | 11            | 8                             | 13                                  |
+| Funding at the end                   | $16,961M      | $14,746M      | $6,840M                       | $14,254M                            |
+
+In Act 4 it sold 2,397 kg of precision optics, 10,501 kg of circuit boards and 3,355 kg of propellant, $49,911M over 148 trips, against 3,994 kg of optics, 10,456 kg of boards and 2,961 kg of propellant, $58,885M over the same 148 trips, at version 82. So version 83, whose only change to the guide's play is the digger and the bin, cost the base about $9,000M of optics, far more than the $730M they cost to ship, and it burned 3,306 kg of propellant to lift them against 5,622. Why is now known. The guide's purchases each wait only for their own Design, so it shipped the digger and the bin on Earth Day 1,274, and it left the digger on. The Plants on a network take spare power in the order they were commissioned, so a digger running all through the Daylight takes 4 kW ahead of the water-processing plants and the cold-trap ice lines built after it. The optics stood switched off for most of the difference, and the guide switches them off only when water runs low, so the water those Plants make is the link, though no play measured the water itself: from Earth Day 1,200 on, the optics works ran 4,512 hours in Daylight, against 9,479 in a play with the digger built but switched off. Meanwhile the digger did little for the guide: its large propellant plant stands switched off most of the time, as the propellant it holds is enough, so the excavator digs all the Regolith it needs, and the digger stood with the stock full for 13,789 of its 27,913 Daylight hours. The guide now runs the digger only at Night, when the excavator is parked, and the optics works ran 9,457 hours, as many as without it. Played to the end that way, it sold 3,720 kg of precision optics, 10,423 kg of circuit boards and 2,980 kg of propellant in Act 4, $57,165M over 147 trips, within $1,720M of version 82, and ended with $14,254M; every pacing target was met. The table's last column is that play.
+
+A player can make the same mistake: a digger left running in Daylight starves the Plants built after it, and the Base panel shows them "waiting for power to spare".
+
 ## The catalogue's version, up to version 66
 
 From [The catalogue's version](adding-content.md#the-catalogues-version) in `docs/adding-content.md`, where "all three above" are the commits that added a Workshop (`5a81a54`), a Buried Habitat (`2b5bf20`) and Act 2 (`ce8bc96`).

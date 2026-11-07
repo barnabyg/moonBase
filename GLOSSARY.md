@@ -51,7 +51,7 @@ The standing Research Task the base's telescopes carry out at Night, a round at 
 _Avoid_: passive science, science income
 
 **Science**:
-The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and the rounds of growing of Greenhouses and growing halls.
+The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme, the rounds of growing of Greenhouses and growing halls, and the rounds of infrared telescopes and radio telescope arrays.
 _Avoid_: research points, RP, knowledge
 
 **Tech Tree**:
@@ -165,6 +165,30 @@ _Avoid_: farm, hydroponics bay, crop module
 **Growing hall**:
 A long pressure vault of growing racks, a kind of Greenhouse, far dearer than the domes that earn as much, that takes less water for each Science, on a round longer than a Night.
 _Avoid_: farm, large Greenhouse
+
+**Automated experiments lab**:
+A pressure module of experiment racks tended by robotic arms: a Plant that takes water and oxygen from the base's stocks an hour's worth at a time and draws power day and night, and while it has all three makes the Research Task running advance faster, by the same again for each lab. It changes no Research Task, and a shortage only stops the speed-up. It never takes water or oxygen below the reserve, takes and draws nothing while no Research Task is running, and gives up its power before anything else goes without.
+_Avoid_: research lab, science lab, laboratory
+
+**Infrared telescope**:
+A large telescope whose near-infrared camera is cooled by boiling off the base's propellant: a Plant that takes its propellant an hour's worth at a time and draws power as a Night load, and earns Science by rounds of its own survey, at Night only. It can't observe while a lit Structure is within its dark radius. A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round. It never takes the propellant the Lander needs for the Exports set to load. The telescope, the optical one, is a different Structure.
+_Avoid_: IR scope, cryogenic telescope
+
+**Dark radius**:
+How near an infrared telescope a lit Structure, one with a light radius such as a Light Mast, may stand before it stops the telescope observing. It is one kind of radius a Structure can be kept clear within; a quiet radius is another.
+_Avoid_: light exclusion zone, no-light zone
+
+**Radio telescope array**:
+A field of antenna tiles whose signals a correlator combines: a Structure, not a Plant, that draws a steady power by day and at Night, takes nothing from the base's stocks, and earns Science by rounds of its own survey, through Daylight and Night alike. It is built with one antenna field, and works its round faster for each field it has. It can't work while a Plant is within its quiet radius. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round.
+_Avoid_: radio telescope, dish, antenna farm
+
+**Antenna field**:
+A square of antenna tiles that a radio telescope array works with; an array is built with one. More are Structures of their own, each placed beside a commissioned array or one of its fields, which it joins: once commissioned, each adds a field's work to how fast the array works its round, and nothing while Broken or without power. A Plant within a field's quiet radius stops the whole array. The array can't be dismantled while a field joins it, so its fields are dismantled first.
+_Avoid_: antenna, station
+
+**Quiet radius**:
+How near a radio telescope array, or any antenna field joining it, a Plant, commissioned, not Broken and not switched off, may stand before it stops the array working. Another array isn't a Plant, so arrays never stop each other.
+_Avoid_: radio-quiet zone, exclusion zone
 
 **Round of growing**:
 What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.

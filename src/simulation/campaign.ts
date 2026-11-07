@@ -113,6 +113,8 @@ import {
   type RemoveQueuedResearchTaskResult,
 } from "./research";
 import { runObservingProgramme } from "./observing";
+import { runInfraredTelescopes } from "./infrared-telescopes";
+import { runRadioArrays } from "./radio-arrays";
 import { runGreenhouses } from "./greenhouses";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
@@ -573,6 +575,7 @@ function campaignFrom(state: CampaignState): Campaign {
         workedMinutes: 0,
         componentsTaken: false,
         failedCommissionings: 0,
+        arrayId: check.arrayId,
       });
       state.nextPlanNumber += 1;
       return deepFreeze({ ok: true, constructionId: id });
@@ -793,6 +796,8 @@ function advanceOneTick(state: CampaignState, run: TickRun): GameEvent[] {
   );
   runPlants(state);
   events.push(...runGreenhouses(state));
+  events.push(...runInfraredTelescopes(state));
+  events.push(...runRadioArrays(state));
   events.push(...runResearch(state));
   events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;
