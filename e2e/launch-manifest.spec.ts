@@ -338,7 +338,7 @@ test("at the start of a Campaign, the Imports tab lists its items in groups, wit
   await expect(screen.getByRole("searchbox")).toBeHidden();
 });
 
-test("on a catalogue of 80 Launch items, the player can find an item by what it is called or what it is for, with the bars still in sight", async ({
+test("on a catalogue of 100 Launch items, the player can find an item by what it is called or what it is for, with the bars still in sight", async ({
   page,
 }, testInfo) => {
   await useCrowdedCatalogue(page);
@@ -362,10 +362,10 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
   }
 
   // By what it is called, in any case.
-  await find.fill("MADE-UP PART 7");
+  await find.fill("MADE-UP PART 23");
   await expect(shown).toHaveText(`Showing 1 of ${CROWDED_LAUNCH_ITEMS} items`);
   await expect(
-    screen.getByRole("row", { name: /^Made-up part 7\b/ }),
+    screen.getByRole("row", { name: /^Made-up part 23\b/ }),
   ).toBeVisible();
 
   // By what it is for: an array pack doesn't say "solar" in its name, only

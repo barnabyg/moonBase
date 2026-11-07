@@ -1539,7 +1539,7 @@ export const tryScenarios: readonly TryScenario[] = [
   {
     id: "crowded",
     title:
-      "A base with two Plants running, every Design unlocked and $5,000M, on a catalogue crowded with made-up items: 80 Launch items and 15 bulk resources, all in stock",
+      "A base with two Plants running, every Design unlocked and $5,000M, on a catalogue crowded with made-up items: 100 Launch items and 15 bulk resources, all in stock",
     crowded: true,
     steps: [
       'Set the game to 20x and open the Launch manifest: it says "80 items", in groups. Scroll to the end: the Payload Mass and cost bars and the box to find an item stay in sight at the top.',

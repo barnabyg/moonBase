@@ -12,7 +12,7 @@ import type {
 // from the first line, with nothing in the game itself knowing.
 
 /** How many Launch items a crowded catalogue has, all told. */
-export const CROWDED_LAUNCH_ITEMS = 80;
+export const CROWDED_LAUNCH_ITEMS = 100;
 /** How many bulk resources a crowded catalogue has, all told. */
 export const CROWDED_BULK_RESOURCES = 15;
 
