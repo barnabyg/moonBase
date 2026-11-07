@@ -70,7 +70,10 @@ describe("what npm run try can start the game in", () => {
     expect(state.lunation.minutesRemaining).toBeGreaterThan(24 * 60);
     expect(state.researchTask).toMatchObject({
       researchTaskId: EXPERIMENTS_LAB_TASK,
-      rate: 2,
+      rate:
+        1 +
+        (catalogue.structureTypes.find(({ id }) => id === "experiments-lab")
+          ?.speedsResearch?.addedMinutesPerMinute ?? 0),
     });
     expect(state.experimentsLabs).toEqual({
       labs: 1,

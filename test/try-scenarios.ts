@@ -1482,9 +1482,9 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "A base with an automated experiments lab speeding up a long Research Task in Daylight, on two solar arrays and two large battery banks, with a second lab's Components in stock",
     steps: [
-      'Pause the game and open Research Tasks. Solar wind volatiles survey is running, and says how long it has left "at ×2", and below that "1 automated experiments lab speeding it up". The status panel\'s Research Task line says the same time left at ×2.',
+      'Pause the game and open Research Tasks. Solar wind volatiles survey is running, and says how long it has left "at ×2.3", and below that "1 automated experiments lab speeding it up". The status panel\'s Research Task line says the same time left at ×2.3.',
       'Click the lab on the map: two long modules side by side under a radiator, their ports lit. Its pop-up has a Research line with the task and the rate, and the Base panel says "speeding up the Research Task running". The status panel\'s Water and Oxygen fall by 0.5 kg and 0.1 kg an hour.',
-      "Pick Automated experiments lab in the build menu and place a second one on clear ground. Once it is commissioned, Research Tasks says ×3, and 2 labs speeding it up.",
+      "Pick Automated experiments lab in the build menu and place a second one on clear ground. Once it is commissioned, Research Tasks says ×3.6, and 2 labs speeding it up.",
       "Set the game to 20x until Night falls and on into it. The two labs draw 8 kW from the battery banks, more than they hold for a whole Night: once the banks are down to what everything else needs, the labs stop, Research Tasks says they are short of power, and the rate falls back to ×1. Nothing else loses power.",
       'Let the Research Task complete with nothing queued: the labs say "idle: no Research Task running to speed up", and draw no power and take no water or oxygen until you start another.',
       "Open the Guide: Structures has the lab's card, and Science and technologies says what it does and asks for. The Launch manifest has its modules and racks, under Industry.",

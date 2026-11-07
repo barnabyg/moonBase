@@ -13,6 +13,7 @@ import {
 } from "../src/simulation";
 import {
   formatExperimentsLabs,
+  formatResearchRate,
   formatResearchTask,
 } from "../src/ui/status-panel-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
@@ -79,6 +80,10 @@ function structureType(id: string): StructureType {
 const lab = structureType("experiments-lab");
 const { speedsResearch } = lab;
 if (speedsResearch === undefined) throw new Error("expected a speed-up");
+const added = speedsResearch.addedMinutesPerMinute;
+/** The rate the Research Task running goes at with one lab supplied, and with two. */
+const withOne = 1 + added;
+const withTwo = 1 + 2 * added;
 const inputs = lab.recipes?.[0]?.inputs ?? [];
 const perHour = (stockId: string) =>
   inputs.find(
@@ -184,17 +189,17 @@ function consumption(state: Snapshot, structureId: string): number {
 }
 
 describe("an automated experiments lab", () => {
-  it("makes the Research Task running advance twice as fast while it has its power, water and oxygen", () => {
+  it("makes the Research Task running advance faster while it has its power, water and oxygen", () => {
     const game = running(labBase());
     expect(game.state.lunation.part).toBe("daylight");
     const before = minutesLeft(game.state);
 
     game.advance({ hours: 3 });
 
-    expect(minutesLeft(game.state)).toBe(before - 2 * 3 * 60);
+    expect(minutesLeft(game.state)).toBe(before - withOne * 3 * 60);
     expect(game.state.researchTask).toMatchObject({
-      rate: 1 + speedsResearch.addedMinutesPerMinute,
-      minutesLeftAtRate: Math.ceil(minutesLeft(game.state) / 2),
+      rate: withOne,
+      minutesLeftAtRate: Math.ceil(minutesLeft(game.state) / withOne),
     });
     expect(game.state.experimentsLabs).toEqual({
       labs: 1,
@@ -202,7 +207,7 @@ describe("an automated experiments lab", () => {
       short: [],
     });
     expect(formatResearchTask(game.state.researchTask).note).toMatch(
-      / left at ×2$/,
+      new RegExp(` left at ${formatResearchRate(withOne)}$`),
     );
     expect(formatExperimentsLabs(game.state)).toBe(
       "1 automated experiments lab speeding it up",
@@ -217,11 +222,11 @@ describe("an automated experiments lab", () => {
 
     both.advance({ hours: 2 });
 
-    expect(minutesLeft(both.state)).toBe(before - 3 * 2 * 60);
-    expect(both.state.researchTask?.rate).toBe(3);
+    expect(minutesLeft(both.state)).toBe(before - withTwo * 2 * 60);
+    expect(both.state.researchTask?.rate).toBe(withTwo);
     expect(both.state.experimentsLabs.speedingUp).toBe(2);
     expect(formatResearchTask(both.state.researchTask).note).toMatch(
-      / left at ×3$/,
+      new RegExp(` left at ${formatResearchRate(withTwo)}$`),
     );
   });
 
@@ -231,7 +236,7 @@ describe("an automated experiments lab", () => {
     const science = game.state.science;
     const length = minutesLeft(game.state);
 
-    const events = game.campaign.advance(Math.ceil(length / 2));
+    const events = game.campaign.advance(Math.ceil(length / withOne));
 
     expect(events).toContainEqual(
       expect.objectContaining({
@@ -300,9 +305,9 @@ describe("an automated experiments lab", () => {
     half.advance({ hours: 2 });
 
     expect(minutesLeft(half.state)).toBe(
-      Math.ceil(before - 2 * 60 * (1 + performance) - 1e-9),
+      Math.ceil(before - 2 * 60 * (1 + added * performance) - 1e-9),
     );
-    expect(half.state.researchTask?.rate).toBeCloseTo(1 + performance);
+    expect(half.state.researchTask?.rate).toBeCloseTo(1 + added * performance);
   });
 
   it("goes on exactly as an uninterrupted run would when saved and loaded part-way through a Research Task", () => {
@@ -376,7 +381,7 @@ describe("an automated experiments lab short of water or oxygen", () => {
       expect(labsOf(refilled.state)[0]?.plant).toMatchObject({
         running: true,
       });
-      expect(refilled.state.researchTask?.rate).toBe(2);
+      expect(refilled.state.researchTask?.rate).toBe(withOne);
     });
   }
 });
@@ -389,7 +394,7 @@ describe("an automated experiments lab short of power", () => {
     runUntilBuilt(game);
     const supplied = running(game);
     supplied.advance({ hours: 1 });
-    expect(supplied.state.researchTask?.rate).toBe(2);
+    expect(supplied.state.researchTask?.rate).toBe(withOne);
 
     runUntil(supplied, "night");
     supplied.advance({ minutes: 5 });
@@ -409,7 +414,7 @@ describe("an automated experiments lab short of power", () => {
     const day = withStocks(supplied, { water: 300, oxygen: 100 });
     runUntil(day, "daylight");
     day.advance({ hours: 1 });
-    expect(day.state.researchTask?.rate).toBe(2);
+    expect(day.state.researchTask?.rate).toBe(withOne);
   });
 
   it("gives up its power at Night before anything else goes without, keeping the battery banks' reserve", () => {
@@ -421,7 +426,7 @@ describe("an automated experiments lab short of power", () => {
     );
     supplied.advance({ hours: 1 });
     expect(labsOf(supplied.state)[0]?.plant).toMatchObject({ running: true });
-    expect(supplied.state.researchTask?.rate).toBe(2);
+    expect(supplied.state.researchTask?.rate).toBe(withOne);
     // A few hours of the lab above what everything else needs through the rest of
     // the Night and the reserve after it, shared between the two battery banks.
     const solarDraw = 2 * structureType("solar-array").power.drawKilowatts;

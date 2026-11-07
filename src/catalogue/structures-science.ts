@@ -50,18 +50,20 @@ export const telescope: StructureType = {
 };
 
 // Act 4: a pressure module of experiment racks that robotic arms tend, so that the
-// Research Task running advances twice as fast while it has its power, water and
-// oxygen (ADR-0009). It changes no Research Task: it adds a game-minute to the one
-// running for each game-minute it is supplied, so a lab supplied all through a
-// Lunation saves 708 hours of research, and two save twice that. For each hour
-// saved it takes 0.5 kg of water, 0.1 kg of oxygen and 4 kWh: 354 kg, 71 kg and
-// 2,832 kWh a Lunation. Act 4's Research Tasks pay about 0.14 Science an hour, so
-// that comes to about 100 Science a Lunation, a little less than a Greenhouse's
-// 118, for half its water, as much oxygen as nearly three Mission Directors
-// breathe, and five times its power. What it costs is power: 4 kW by day, which a
-// concentrator tower covers, and 4 kW at Night, 912 kWh through one, more than a
-// large battery bank stores, so a typical Act 4 base has to add a battery bank or
-// a thermal store for it. As a Night load it gives that up before anything else
+// Research Task running advances 2.3 times as fast while it has its power, water
+// and oxygen (ADR-0009). It changes no Research Task: it adds 1.3 game-minutes to
+// the one running for each game-minute it is supplied, so a lab supplied all
+// through a Lunation saves 920 hours of research, and two save twice that. That
+// rate is what has the long-game play guide, with one lab, finish Act 4's research
+// near Earth Day 2,300 (#265). Each game-hour it runs it takes 0.5 kg of water,
+// 0.1 kg of oxygen and 4 kWh, about 0.38 kg, 0.08 kg and 3.1 kWh for each hour
+// saved: 354 kg, 71 kg and 2,832 kWh a Lunation. Act 4's Research Tasks pay about
+// 0.14 Science an hour, so that comes to about 129 Science a Lunation, a little
+// more than a Greenhouse's 118, for half its water, as much oxygen as nearly three
+// Mission Directors breathe, and five times its power. What it costs is power:
+// 4 kW by day, which a concentrator tower covers, and 4 kW at Night, 912 kWh
+// through one, more than a large battery bank stores, so a typical Act 4 base has
+// to add a battery bank or a thermal store for it. As a Night load it gives that up before anything else
 // goes without, and it takes its water and oxygen a batch at a time, never below
 // the reserve. A shortage only stops the speed-up, as no Research Task is lost.
 export const experimentsLab: StructureType = {
@@ -116,7 +118,7 @@ export const experimentsLab: StructureType = {
       drawKilowatts: 0,
     },
   ],
-  speedsResearch: { addedMinutesPerMinute: 1 },
+  speedsResearch: { addedMinutesPerMinute: 1.3 },
 };
 
 // Act 4: a 2 m segmented mirror on a heavy mount, its near-infrared camera cooled by
