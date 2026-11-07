@@ -67,24 +67,6 @@ export const exemptions: readonly Exemption[] = [
   },
   {
     rule: "design-has-a-purpose",
-    item: "automated-experiments",
-    reason:
-      "Speeds up the Research Task running for a base that builds and supplies an automated experiments lab, which the rule can't see as a job. The long-game play guide starts building one in #265, which takes this off the list.",
-  },
-  {
-    rule: "design-has-a-purpose",
-    item: "infrared-astronomy",
-    reason:
-      "Earns Science at Night for a base that builds an infrared telescope away from its lights and keeps it in propellant, which the rule can't see as a job. The long-game play guide starts building one in #265, which takes this off the list.",
-  },
-  {
-    rule: "design-has-a-purpose",
-    item: "radio-astronomy",
-    reason:
-      "Earns Science through Daylight and Night for a base that builds a radio telescope array away from its Plants and keeps it in power, which the rule can't see as a job. The long-game play guide starts building one in #265, which takes this off the list.",
-  },
-  {
-    rule: "design-has-a-purpose",
     item: "parking-areas",
     reason:
       "Keeps idle Machines and Rovers tidy and off the Habitat's network at Night. It is a convenience the long game doesn't need, as the Robot otherwise parks them beside the nearest powered Structure.",

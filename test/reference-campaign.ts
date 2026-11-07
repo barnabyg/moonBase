@@ -726,15 +726,23 @@ export interface ReferenceTimeline {
   }[];
   /** Each Launch item ever put on the Launch manifest. */
   readonly launchItemsManifested: readonly string[];
-  /** Each round a Greenhouse completed or lost, by the game-minute it did. */
-  readonly greenhouseRounds: readonly {
+  /**
+   * Each round a Greenhouse, a growing hall, an infrared telescope or a radio
+   * telescope array completed or lost, by the game-minute it did.
+   */
+  readonly scienceRounds: readonly {
     readonly atMinute: number;
-    /** Whether it was a Greenhouse's or a growing hall's. */
+    /** Which type of Structure's round it was. */
     readonly structureTypeId: string;
     /** The Science it earned; none for a round lost. */
     readonly science: number;
     readonly lostFor?: string;
   }[];
+  /**
+   * The game-hours the automated experiments labs sped up the Research Task
+   * running, a lab's hour for each lab that did, as seen at each look.
+   */
+  readonly labHoursSpeedingUp: number;
   /** What became of the base's propellant: what is sold comes from `sales`. */
   readonly propellantUse: {
     /** What the Lander burned on all its take-offs, and on how many it burned any. */
@@ -963,7 +971,7 @@ function recorder(campaign: Campaign) {
   }[] = [];
   const structureTypesBuilt: { structureTypeId: string; atMinute: number }[] =
     [];
-  const greenhouseRounds: {
+  const scienceRounds: {
     atMinute: number;
     structureTypeId: string;
     science: number;
@@ -978,6 +986,7 @@ function recorder(campaign: Campaign) {
   let highestPropellant = 0;
   let minutesWaiting = 0;
   let lastLookAtPropellant = 0;
+  let labHoursSpeedingUp = 0;
   return {
     events(events: readonly GameEvent[]) {
       for (const event of events) {
@@ -995,15 +1004,23 @@ function recorder(campaign: Campaign) {
           mostBurnedKilograms = Math.max(mostBurnedKilograms, burned);
           mostCarriedKilograms = Math.max(mostCarriedKilograms, carried);
         }
-        if (event.kind === "greenhouse-round-completed") {
-          greenhouseRounds.push({
+        if (
+          event.kind === "greenhouse-round-completed" ||
+          event.kind === "infrared-round-completed" ||
+          event.kind === "radio-round-completed"
+        ) {
+          scienceRounds.push({
             atMinute: event.atMinute,
             structureTypeId: event.structureTypeId,
             science: event.science,
           });
         }
-        if (event.kind === "greenhouse-round-lost") {
-          greenhouseRounds.push({
+        if (
+          event.kind === "greenhouse-round-lost" ||
+          event.kind === "infrared-round-lost" ||
+          event.kind === "radio-round-lost"
+        ) {
+          scienceRounds.push({
             atMinute: event.atMinute,
             structureTypeId: event.structureTypeId,
             science: 0,
@@ -1072,6 +1089,9 @@ function recorder(campaign: Campaign) {
       ) {
         minutesWaiting += atMinute - lastLookAtPropellant;
       }
+      labHoursSpeedingUp +=
+        (state.experimentsLabs.speedingUp * (atMinute - lastLookAtPropellant)) /
+        60;
       lastLookAtPropellant = atMinute;
       for (const { itemId } of state.launchManifest.items) {
         launchItemsManifested.add(itemId);
@@ -1222,7 +1242,8 @@ function recorder(campaign: Campaign) {
           count,
         })),
         launchItemsManifested: [...launchItemsManifested],
-        greenhouseRounds,
+        scienceRounds,
+        labHoursSpeedingUp,
         propellantUse: {
           burnedKilograms,
           takeOffsBurning,

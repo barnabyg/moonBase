@@ -66,7 +66,7 @@ function timeline(
       { researchTaskId: "ascent-load-survey", atMinute: 1400 * earthDay },
       {
         researchTaskId: "grinding-line-yield-survey",
-        atMinute: 2990 * earthDay,
+        atMinute: 2300 * earthDay,
       },
     ],
     designsUnlocked: [
@@ -209,7 +209,7 @@ describe("the long-game play guide", () => {
             fundingMillionDollars: 20000,
           },
         ],
-        greenhouseRounds: [
+        scienceRounds: [
           {
             atMinute: 1700 * earthDay,
             structureTypeId: "greenhouse",
@@ -247,6 +247,76 @@ describe("the long-game play guide", () => {
       "Growing halls was unlocked on Earth Day 2200.0, with $20000M in hand. The first of each commissioned since:",
     );
     expect(lines).toContain("  2800.0  Vault cistern");
+  });
+
+  it("says what the late science did: the lab's hours, each telescope's Science and rounds lost, and when research ended", () => {
+    const lines = formatLongGame(
+      timeline({
+        endMinute: 1759 * earthDay,
+        structureTypesBuilt: [
+          { structureTypeId: "experiments-lab", atMinute: 1700 * earthDay },
+          { structureTypeId: "infrared-telescope", atMinute: 1700 * earthDay },
+          {
+            structureTypeId: "radio-telescope-array",
+            atMinute: 1700 * earthDay,
+          },
+          { structureTypeId: "antenna-field", atMinute: 1710 * earthDay },
+        ],
+        labHoursSpeedingUp: 480,
+        scienceRounds: [
+          {
+            atMinute: 1720 * earthDay,
+            structureTypeId: "infrared-telescope",
+            science: 24,
+          },
+          {
+            atMinute: 1730 * earthDay,
+            structureTypeId: "infrared-telescope",
+            science: 0,
+            lostFor: "propellant",
+          },
+          {
+            atMinute: 1740 * earthDay,
+            structureTypeId: "infrared-telescope",
+            science: 0,
+            lostFor: "light",
+          },
+          {
+            atMinute: 1720 * earthDay,
+            structureTypeId: "radio-telescope-array",
+            science: 6,
+          },
+        ],
+        researchTasksCompleted: [
+          {
+            researchTaskId: "grinding-line-yield-survey",
+            atMinute: 2310.5 * earthDay,
+          },
+        ],
+      }),
+    );
+    const speedUp =
+      catalogue.structureTypes.find(({ id }) => id === "experiments-lab")
+        ?.speedsResearch?.addedMinutesPerMinute ?? 0;
+
+    expect(lines).toContain(
+      `An automated experiments lab was commissioned on Earth Day 1700.0. Labs sped up the Research Task running for 480 hours, saving about ${(20 * speedUp).toFixed(0)} Earth Days of research.`,
+    );
+    expect(lines).toContain(
+      "An infrared telescope was commissioned on Earth Day 1700.0. It earned 24 Science in 1 rounds, 12 a Lunation, and lost 1 for want of propellant, 1 to a light within its dark radius.",
+    );
+    expect(lines).toContain(
+      "A radio telescope array was commissioned on Earth Day 1700.0. It earned 6 Science in 1 rounds, 3 a Lunation, and lost no rounds.",
+    );
+    expect(lines).toContain(
+      "Its first antenna field was commissioned on Earth Day 1710.0.",
+    );
+    expect(lines).toContain(
+      "The last Research Task was completed on Earth Day 2310.5.",
+    );
+    expect(formatLongGame(timeline({ structureTypesBuilt: [] }))).toContain(
+      "No automated experiments lab was commissioned.",
+    );
   });
 
   it("plays to the length the Campaign's content is meant to last", () => {
@@ -782,6 +852,7 @@ describe("giving up on a dated pacing target", () => {
   it.each([
     [2, 850, 950, "research lasting until about Earth Day 900"],
     [3, 1350, 1450, "Act 3's research lasting until about Earth Day 1400"],
+    [4, 2240, 2360, "Act 4's research lasting until about Earth Day 2300"],
   ])(
     "gives up on Act %i's research ending too soon or still going too late",
     (act, soonest, latest, words) => {
@@ -800,19 +871,6 @@ describe("giving up on a dated pacing target", () => {
       }).toThrow(`${words} (it hasn't ended).`);
     },
   );
-
-  it("gives up on Act 4's research ending too soon, and leaves whether it lasts to the end", () => {
-    const done = { completedResearchTaskIds: researchUpToAct(4) };
-    expect(() => {
-      lookOn(2949, done);
-    }).toThrow("Act 4's research lasting until about Earth Day 3000");
-    expect(() => {
-      lookOn(2950, done);
-    }).not.toThrow();
-    expect(() => {
-      lookOn(3000, { completedResearchTaskIds: researchUpToAct(3) });
-    }).not.toThrow();
-  });
 
   it("says nothing while every target is still on course", () => {
     expect(() => {
