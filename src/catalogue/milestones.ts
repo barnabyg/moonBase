@@ -152,7 +152,7 @@ export const milestones: Catalogue["milestones"] = [
     id: "crew-habitat-commissioned",
     actId: "act-4",
     label: "Large-scale Crew Habitat commissioned",
-    hint: "Unlock Large-scale Crew Habitats on the Tech Tree once you have Growing halls, and save up for its 24 vault sections, four life support cores and two airlocks: about nine Launches. Build tanks for 600 kg of oxygen and 2,500 kg of water, and fill them, as it is stocked with both before it is sealed.",
+    hint: "Unlock Large-scale Crew Habitats on the Tech Tree once you have Growing halls, and save up for its 24 vault sections, four life support cores and two airlocks: about nine Launches. Build tanks for 600 kg of oxygen and 2,500 kg of water, and fill them, as it is stocked with both before it is sealed. Research needn't wait: an automated experiments lab speeds up the Research Task running, and an infrared telescope far from the lights and a radio telescope array, with its antenna fields, far from the Plants earn Science.",
     condition: {
       kind: "structure-commissioned",
       structureTypeId: "crew-habitat",
