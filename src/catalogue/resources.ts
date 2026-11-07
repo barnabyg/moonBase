@@ -149,6 +149,8 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "bay-socket", label: "Bay socket" },
   { id: "telescope-optics", label: "Telescope optics" },
   { id: "telescope-mount", label: "Telescope mount" },
+  { id: "lab-module", label: "Lab module" },
+  { id: "experiment-rack", label: "Experiment rack" },
   ...solarArrayComponentTypes,
 ];
 

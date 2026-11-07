@@ -54,6 +54,10 @@ import {
   powerNetworks,
 } from "./power";
 import { readResearchTask, type ResearchTaskSnapshot } from "./research";
+import {
+  readExperimentsLabs,
+  type ExperimentsLabsSnapshot,
+} from "./experiments-labs";
 import type { RobotActivity } from "./robot";
 import { roverPerformance, type RoverActivity } from "./rovers";
 import {
@@ -372,6 +376,8 @@ export interface Snapshot {
   readonly completedResearchTaskIds: readonly string[];
   /** The observing programme, the standing Research Task the base's telescopes work on at Night. */
   readonly observingProgramme: ObservingProgrammeSnapshot;
+  /** The automated experiments labs that speed up the Research Task running. */
+  readonly experimentsLabs: ExperimentsLabsSnapshot;
   /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
@@ -458,6 +464,7 @@ export function readSnapshot(state: CampaignState): Snapshot {
     researchQueue: [...state.researchQueue],
     completedResearchTaskIds: [...state.completedResearchTaskIds],
     observingProgramme: readObservingProgramme(state),
+    experimentsLabs: readExperimentsLabs(state),
     unlockedDesignIds: [...state.unlockedDesignIds],
     milestones: readMilestones(state),
     exports: readExports(state),

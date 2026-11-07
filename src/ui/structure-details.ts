@@ -26,9 +26,18 @@ import {
   formatStageProgress,
   listInWords,
 } from "./format";
-import { inSentence, resourceRefLabel, structureLabel } from "./labels";
+import {
+  inSentence,
+  researchTaskLabel,
+  resourceRefLabel,
+  structureLabel,
+} from "./labels";
 import type { Stat } from "./stat";
-import { formatObservingProgramme, formatPower } from "./status-panel-text";
+import {
+  formatObservingProgramme,
+  formatPower,
+  formatResearchRate,
+} from "./status-panel-text";
 import {
   isHome,
   isToBeDismantled,
@@ -210,6 +219,9 @@ export function structureDetails(
         : plantLines(snapshot, type, structure)),
       ...(type.habitat ? habitatLines(snapshot, structureId, structure) : []),
       ...(type.growing === undefined ? [] : [roundLine(type, structure)]),
+      ...(type.speedsResearch === undefined
+        ? []
+        : [speedUpLine(snapshot, structure)]),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -513,6 +525,26 @@ function roundLine(
       note: `pays ${formatScience(science)}; a shortage of water or power loses it`,
     },
     fraction,
+  };
+}
+
+/** What an automated experiments lab is doing for the Research Task running. */
+function speedUpLine(
+  snapshot: Snapshot,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Research";
+  const running = snapshot.researchTask;
+  if (structure === undefined) return { label, stat: NOT_YET };
+  if (running === undefined) {
+    return { label, stat: { value: "no Research Task running" } };
+  }
+  return {
+    label,
+    stat: {
+      value: researchTaskLabel(running.researchTaskId),
+      note: `${structure.plant?.running === true ? "speeding it up" : "not speeding it up"}; running at ${formatResearchRate(running.rate)}, ${formatShortDuration(running.minutesLeftAtRate)} left`,
+    },
   };
 }
 

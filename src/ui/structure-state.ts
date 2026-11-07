@@ -8,6 +8,7 @@ import {
   type ResourceRef,
 } from "../catalogue";
 import {
+  isExperimentsLab,
   isGreenhouse,
   recipeOf,
   workingRecipeOf,
@@ -93,6 +94,13 @@ export function structureStatus(
     return structure.powered ? "commissioned" : "no power";
   }
   if (isGreenhouse(structure)) return formatGreenhouse(structure);
+  if (
+    isExperimentsLab(structure) &&
+    structure.plant.running &&
+    !structure.switchedOff
+  ) {
+    return "speeding up the Research Task running";
+  }
   return formatPlant(structure.plant, structure.switchedOff) ?? "commissioned";
 }
 
@@ -304,6 +312,9 @@ export function formatPlantRates(
   if (rounds !== undefined) {
     return `using ${flows(recipe.inputs, structure.performance)} an hour, for ${formatScience(rounds.science)} a round`;
   }
+  if (isExperimentsLab(structure)) {
+    return `using ${flows(recipe.inputs, structure.performance)} an hour`;
+  }
   const components = componentOutputs(recipe);
   if (components.length > 0) {
     const hours = batchHoursOf(recipe);
@@ -367,6 +378,8 @@ export function formatPlant(
       return "switched off";
     case "switched-on":
       return "switched on: starts a batch as soon as it can";
+    case "no-research-task":
+      return "idle: no Research Task running to speed up";
   }
 }
 

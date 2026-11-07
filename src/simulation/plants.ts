@@ -77,7 +77,13 @@ export type PlantStop =
    * It was switched off between batches, and the player has switched it
    * on since: it starts its next batch as soon as it can.
    */
-  | { readonly reason: "switched-on" };
+  | { readonly reason: "switched-on" }
+  /**
+   * It is an automated experiments lab with no batch started, and no Research
+   * Task is running for it to speed up: it starts none, and draws no power, until
+   * one is.
+   */
+  | { readonly reason: "no-research-task" };
 
 /** Why a Plant isn't running, as the player sees it. */
 export type PlantStopSnapshot =
@@ -425,7 +431,8 @@ function fullOutput(
 /**
  * Why a commissioned Plant couldn't run whatever power it had, if it
  * couldn't: it is Broken, or it has no batch started and is switched off,
- * or has too little of an input to start one, beyond what other Plants
+ * or is an automated experiments lab with no Research Task running to speed
+ * up, or has too little of an input to start one, beyond what other Plants
  * have claimed this game-minute and any reserve kept of it, or has no room for
  * what it makes. Undefined for any other Structure.
  */
@@ -439,6 +446,12 @@ export function plantCantRun(
   if (isBroken(structure)) return { reason: "broken" };
   if (structure.batch !== undefined) return undefined;
   if (structure.switchedOff) return { reason: "switched-off" };
+  if (
+    state.researchTask === undefined &&
+    findStructureType(structure.structureTypeId)?.speedsResearch !== undefined
+  ) {
+    return { reason: "no-research-task" };
+  }
   const short = shortInput(state, recipe, claims);
   if (short !== undefined) {
     return { reason: "no-input", resource: { ...short } };

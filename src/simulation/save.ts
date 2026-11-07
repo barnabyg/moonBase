@@ -379,6 +379,7 @@ const plantStop: Decoder<PlantStop> = tagged("reason", {
   "no-power": object({ reason: exactly("no-power") }),
   "switched-off": object({ reason: exactly("switched-off") }),
   "switched-on": object({ reason: exactly("switched-on") }),
+  "no-research-task": object({ reason: exactly("no-research-task") }),
 } satisfies Record<PlantStop["reason"], unknown>);
 
 /**
@@ -767,9 +768,7 @@ const simulationFields = object({
   launchFeePaidMillionDollars: optional(amount),
   exportsToLoad: list(exportLine),
   science: wholeNumber,
-  researchTask: optional(
-    object({ researchTaskId, workedMinutes: wholeNumber }),
-  ),
+  researchTask: optional(object({ researchTaskId, workedMinutes: amount })),
   researchQueue: list(researchTaskId),
   completedResearchTaskIds: list(researchTaskId),
   observingMinutes: amount,

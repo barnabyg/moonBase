@@ -166,6 +166,10 @@ _Avoid_: farm, hydroponics bay, crop module
 A long pressure vault of growing racks, a kind of Greenhouse, far dearer than the domes that earn as much, that takes less water for each Science, on a round longer than a Night.
 _Avoid_: farm, large Greenhouse
 
+**Automated experiments lab**:
+A pressure module of experiment racks tended by robotic arms: a Plant that takes water and oxygen from the base's stocks an hour's worth at a time and draws power day and night, and while it has all three makes the Research Task running advance faster, by the same again for each lab. It changes no Research Task, and a shortage only stops the speed-up. It never takes water or oxygen below the reserve, takes and draws nothing while no Research Task is running, and gives up its power before anything else goes without.
+_Avoid_: research lab, science lab, laboratory
+
 **Round of growing**:
 What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.
 _Avoid_: harvest, crop cycle

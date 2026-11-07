@@ -19,6 +19,11 @@ export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";
 export { isGreenhouse } from "./greenhouses";
+export { isExperimentsLab } from "./experiments-labs";
+export type {
+  ExperimentsLabShortage,
+  ExperimentsLabsSnapshot,
+} from "./experiments-labs";
 export { robotNumber } from "./arrival";
 export { lunationMinutes } from "./lunation";
 export { MAX_SEED } from "./random";

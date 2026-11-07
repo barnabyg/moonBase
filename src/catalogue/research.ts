@@ -897,6 +897,23 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 60,
     prerequisiteDesignIds: ["battery-banks"],
   },
+  // Act 4's way to shorten its long Research Tasks by building and supplying, rather
+  // than waiting (ADR-0009). Past Precision optics, so that it comes as the longest
+  // of them start. Its price is in Funding, power, water and oxygen rather than
+  // Science: 20 is less than the 23 that research alone has to spare when the
+  // Optics grinding line is unlocked, so that it moves no Design's date for a player
+  // who unlocks it and never builds one. No Research Task pays for it, as research
+  // already fills the Campaign to Earth Day 3,000.
+  {
+    id: "automated-experiments",
+    label: "Automated experiments",
+    description:
+      "An automated experiments lab: a pressure module of experiment racks tended by robotic arms, which makes the Research Task running advance faster while it has its power, water and oxygen, adding the same again for each lab.",
+    category: "industry",
+    starting: false,
+    scienceCost: 20,
+    prerequisiteDesignIds: ["precision-optics"],
+  },
   {
     id: "landing-pads",
     label: "Landing pads",

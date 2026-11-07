@@ -545,6 +545,17 @@ export interface GrowingRounds {
 }
 
 /**
+ * What an automated experiments lab does for the Research Task running: every
+ * game-minute it has its power, water and oxygen, the task advances this many
+ * game-minutes more, times its performance, so that two add twice what one does.
+ * It changes no Research Task, and adds nothing while none is running.
+ */
+export interface ResearchSpeedUp {
+  /** The game-minutes more the Research Task running advances each game-minute, at full performance. */
+  readonly addedMinutesPerMinute: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -1119,6 +1130,13 @@ export interface StructureType {
    * earns Science as each round is complete (see `GrowingRounds`).
    */
   readonly growing?: GrowingRounds;
+  /**
+   * If it is an automated experiments lab: a Plant that takes its water and oxygen
+   * a batch at a time, only while a Research Task is running, draws its power as a
+   * Greenhouse does, and speeds up the Research Task running while it has all
+   * three (see `ResearchSpeedUp`).
+   */
+  readonly speedsResearch?: ResearchSpeedUp;
   /**
    * If it is a storage tank: once it is commissioned, and until it is Broken or
    * taken apart, it adds to what the base can hold of a resource.

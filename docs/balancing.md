@@ -259,6 +259,25 @@ Prospecting is held below what the base can make for itself, because a cheap sou
 
 A Survey earns 2.5 Science an Earth Day, against about 6 from late Research Tasks, on top of them. Sent without a pause through 3,000 Earth Days it would bring 7,500 Science of the 22,495 the Tech Tree costs, with a Robot and the Rover gone for good. These are worked out from the numbers, not played: neither the long game nor the reference Campaign sends either type.
 
+## The automated experiments lab
+
+ADR-0009 gives Act 4's player something to build and supply so that its long Research Tasks take less waiting: an automated experiments lab (#260), the Automated experiments Design, past Precision optics, at data catalogue version 84. While it has its power, water and oxygen, the Research Task running advances a game-minute more for every game-minute, ×2 with one lab and ×3 with two. No Research Task's length or Science changes, so a base that builds none takes as long as before.
+
+| For each lab, supplied all through                         | Figure                                               |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| Hours of research it saves a Lunation (708 hours)          | 708                                                  |
+| What it uses for each hour saved                           | 0.5 kg of water, 0.1 kg of oxygen and 4 kWh          |
+| What that comes to a Lunation                              | 354 kg of water, 71 kg of oxygen and 2,832 kWh       |
+| At Act 4's rate of about 0.14 Science an hour, it is worth | about 100 Science a Lunation, a Greenhouse 118       |
+| Through a Night of 228 hours                               | 912 kWh, more than a large battery bank's 800 kWh    |
+| Its Components, by Launch                                  | 1,800 kg and $3,000M: two lab modules and four racks |
+
+So a lab is worth a little less than a Greenhouse in Science, for half its water, as much oxygen as nearly three Mission Directors breathe, and five times its power. Power is what it costs: 4 kW by day, which a concentrator tower covers, and 4 kW at Night, which no typical Act 4 base has to spare, so it needs another large battery bank or a thermal store for each lab that is to run through the Night. A shortage only stops the speed-up, as a lab has no round to lose. The 555 Earth Days of the Grinding line yield survey would take 278 with one lab supplied all through, and 185 with two.
+
+The Design costs 20 Science, so that it moves no Design's date: the pacing report's research alone has 23 Science to spare when the Optics grinding line is unlocked, and unlocks Automated experiments with Precision optics, on Earth Day 1,690, leaving every other Design where it was. Its price is in Funding, power, water and oxygen instead, which a late base has more of than Science. No Research Task pays for it and no Research Task changed, as research already fills the Campaign to Earth Day 2,995. One of every Launch item now comes to $11,507M, 77 Launches of circuit boards.
+
+The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played.
+
 ## Still to watch
 
 - **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end, and at version 78 about $7,500M.

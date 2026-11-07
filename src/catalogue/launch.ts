@@ -98,6 +98,22 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 120,
       priceMillionDollars: 7,
     },
+    // An automated experiments lab's worth comes to 1,800 kg and $3,000M, one
+    // Launch: a late, dear build, for a base whose Funding has little else to buy.
+    {
+      id: "lab-module",
+      designId: "automated-experiments",
+      brings: { kind: "component", componentId: "lab-module" },
+      massKilograms: 600,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "experiment-rack",
+      designId: "automated-experiments",
+      brings: { kind: "component", componentId: "experiment-rack" },
+      massKilograms: 150,
+      priceMillionDollars: 500,
+    },
     {
       id: "habitat-core",
       designId: "inflatable-habitat",

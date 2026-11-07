@@ -16,6 +16,7 @@ import {
   type DiggingHold,
   type ExpeditionReward,
   type ExpeditionSnapshot,
+  type ExperimentsLabShortage,
   type ExportLine,
   type ExportLoadingSnapshot,
   type HabitatPowerForecast,
@@ -54,6 +55,7 @@ import {
   machineLabel,
   researchTaskLabel,
   resourceLabel,
+  resourceRefLabel,
   stockLabel,
   structureLabel,
 } from "./labels";
@@ -900,8 +902,8 @@ export function formatBulkResources(
 
 /**
  * Says which Research Task is running and how long it has left, for the
- * status panel, for example "Seismic monitoring" and "2d 5h left", or that
- * none is.
+ * status panel, for example "Seismic monitoring" and "2d 5h left", or "1d 3h
+ * left at ×2" while automated experiments labs speed it up, or that none is.
  */
 export function formatResearchTask(
   running: ResearchTaskSnapshot | undefined,
@@ -910,8 +912,61 @@ export function formatResearchTask(
     ? { value: "none running" }
     : {
         value: researchTaskLabel(running.researchTaskId),
-        note: `${formatShortDuration(running.minutesLeft)} left`,
+        note: `${formatShortDuration(running.minutesLeftAtRate)} left${running.rate > 1 ? ` at ${formatResearchRate(running.rate)}` : ""}`,
       };
+}
+
+/** What an automated experiments lab lacks, in a few words. */
+function labShortage(shortOf: ExperimentsLabShortage): string {
+  switch (shortOf.reason) {
+    case "power":
+      return "short of power";
+    case "supply":
+      return `short of ${inSentence(resourceRefLabel(shortOf.resource))}`;
+    case "broken":
+      return "Broken";
+    case "switched-off":
+      return "switched off";
+  }
+}
+
+/**
+ * Says what the base's automated experiments labs are doing for the Research Task
+ * running, for the Research Tasks screen, for example "2 automated experiments
+ * labs speeding it up and 1 short of oxygen", or undefined if it has none.
+ */
+export function formatExperimentsLabs(
+  snapshot: Pick<Snapshot, "experimentsLabs" | "researchTask">,
+): string | undefined {
+  const { labs, speedingUp, short } = snapshot.experimentsLabs;
+  if (labs === 0) return undefined;
+  const name = inSentence(structureLabel("experiments-lab"));
+  const count = (n: number) => `${String(n)} ${n === 1 ? name : `${name}s`}`;
+  if (snapshot.researchTask === undefined) {
+    return `${count(labs)} standing idle until a Research Task runs`;
+  }
+  const reasons = new Map<string, number>();
+  for (const { shortOf } of short) {
+    const reason = labShortage(shortOf);
+    reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+  const parts = [
+    ...(speedingUp > 0 ? [[speedingUp, "speeding it up"] as const] : []),
+    ...[...reasons].map(([reason, n]) => [n, reason] as const),
+  ];
+  return listInWords(
+    parts.map(([n, what], index) =>
+      index === 0 ? `${count(n)} ${what}` : `${String(n)} ${what}`,
+    ),
+  );
+}
+
+/**
+ * How fast the Research Task running advances, as automated experiments labs
+ * speed it up, for example "×2" or "×2.5".
+ */
+export function formatResearchRate(rate: number): string {
+  return `×${String(Math.round(rate * 10) / 10)}`;
 }
 
 /**

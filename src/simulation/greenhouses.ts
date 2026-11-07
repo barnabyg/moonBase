@@ -22,20 +22,6 @@ export function isGreenhouse(
 }
 
 /**
- * Whether a Greenhouse is switched off and has finished its last batch, so that
- * it draws no power.
- */
-export function isGreenhouseIdle(
-  structure: Pick<StructureState, "structureTypeId" | "switchedOff" | "batch">,
-): boolean {
-  return (
-    structure.switchedOff &&
-    structure.batch === undefined &&
-    isGreenhouse(structure)
-  );
-}
-
-/**
  * Runs every Greenhouse's round for a game-minute, once its Plant has worked. One
  * that had its water and power adds its performance's share of the game-minute.
  * Once the round has its length, its Science is added to the base's, and the next

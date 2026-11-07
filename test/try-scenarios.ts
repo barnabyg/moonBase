@@ -742,6 +742,64 @@ export function greenhouseSave(): string {
   return watered.campaign.save();
 }
 
+/** Where `experimentsLabSave` puts what it builds. */
+const EXPERIMENTS_LAB_SITES = [
+  ["solar-array", { x: 20, y: 12 }],
+  ["solar-array", { x: 18, y: 28 }],
+  ["large-battery-bank", { x: 30, y: 25 }],
+  ["large-battery-bank", { x: 30, y: 36 }],
+  ["experiments-lab", { x: 36, y: 8 }],
+] as const;
+
+/** The Research Task `experimentsLabSave` runs: a long one that needs no Design. */
+export const EXPERIMENTS_LAB_TASK = "solar-wind-volatiles-survey";
+
+/**
+ * A base with an automated experiments lab speeding up a long Research Task in
+ * Daylight, on two solar arrays and two large battery banks, with water and oxygen
+ * to spare and a second lab's Components in stock. The Habitat is left out, so
+ * that the Mission Director's stay aboard the Lander leaves the stocks to the lab.
+ */
+export function experimentsLabSave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "large-battery-banks",
+        "molten-regolith-electrolysis",
+        "large-propellant-production",
+        "precision-optics",
+        "automated-experiments",
+      );
+      addComponents(state, [
+        ...EXPERIMENTS_LAB_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("experiments-lab"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+      for (const stock of state.lifeSupport) {
+        if (stock.stockId === "water") stock.kilograms = 380;
+        if (stock.stockId === "oxygen") stock.kilograms = 60;
+      }
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of EXPERIMENTS_LAB_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  const started = campaign.queueResearchTask(EXPERIMENTS_LAB_TASK);
+  if (!started.ok) throw new Error(started.message);
+  // An hour, so that it is speeding the task up from the moment it loads.
+  campaign.advance(60);
+  return campaign.save();
+}
+
 /** Where `lateGameSave` puts what it builds. */
 const LATE_GAME_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -1018,9 +1076,9 @@ export const tryScenarios: readonly TryScenario[] = [
     title: "An hour into a Campaign with every Design unlocked and $5,000M",
     steps: [
       "Open the Launch manifest: every item the game has today is listed, under Supplies, then Power, Construction, Protection, Life Support, Industry and Mobility, with a box above them to find one.",
-      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 55 items".',
+      'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 67 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
-      "Press Clear: all 55 come back, in the same order.",
+      "Press Clear: all 67 come back, in the same order.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
@@ -1282,6 +1340,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Structures has the Greenhouse's card, and Science and technologies says what it earns and asks for. The Launch manifest has its dome and racks, under Life Support.",
     ],
     save: greenhouseSave,
+  },
+  {
+    id: "experiments-lab",
+    title:
+      "A base with an automated experiments lab speeding up a long Research Task in Daylight, on two solar arrays and two large battery banks, with a second lab's Components in stock",
+    steps: [
+      'Pause the game and open Research Tasks. Solar wind volatiles survey is running, and says how long it has left "at ×2", and below that "1 automated experiments lab speeding it up". The status panel\'s Research Task line says the same time left at ×2.',
+      'Click the lab on the map: two long modules side by side under a radiator, their ports lit. Its pop-up has a Research line with the task and the rate, and the Base panel says "speeding up the Research Task running". The status panel\'s Water and Oxygen fall by 0.5 kg and 0.1 kg an hour.',
+      "Pick Automated experiments lab in the build menu and place a second one on clear ground. Once it is commissioned, Research Tasks says ×3, and 2 labs speeding it up.",
+      "Set the game to 20x until Night falls and on into it. The two labs draw 8 kW from the battery banks, more than they hold for a whole Night: once the banks are down to what everything else needs, the labs stop, Research Tasks says they are short of power, and the rate falls back to ×1. Nothing else loses power.",
+      'Let the Research Task complete with nothing queued: the labs say "idle: no Research Task running to speed up", and draw no power and take no water or oxygen until you start another.',
+      "Open the Guide: Structures has the lab's card, and Science and technologies says what it does and asks for. The Launch manifest has its modules and racks, under Industry.",
+    ],
+    save: experimentsLabSave,
   },
   {
     id: "late-game",

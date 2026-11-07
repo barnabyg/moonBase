@@ -315,6 +315,8 @@ describe("a folded Research section", () => {
     researchTaskId: "seismic-monitoring",
     progress: 0.456,
     minutesLeft: toGameMinutes({ earthDays: 2 }),
+    rate: 1,
+    minutesLeftAtRate: toGameMinutes({ earthDays: 2 }),
   };
 
   it("shows the Research Task running and how far it has got", () => {

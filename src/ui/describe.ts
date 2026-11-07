@@ -18,7 +18,7 @@ import {
   SOLAR_ARRAY_ID,
   type Snapshot,
 } from "../simulation";
-import { formatScience, listInWords } from "./format";
+import { formatScience, listInWords, plural } from "./format";
 import {
   componentInSentence,
   componentLabel,
@@ -46,16 +46,20 @@ const generates = (kilowatts: number) =>
   `generates ${kilowatts} kW in Daylight`;
 const stores = (kilowattHours: number) => `stores ${kilowattHours} kWh`;
 /** What a Night load draws: a light while it is on, or a telescope while it observes. */
-const drawsAtNight = ({ power, telescope }: StructureType) =>
+const drawsAtNight = ({ power, telescope, speedsResearch }: StructureType) =>
   telescope === true
     ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
-    : `draws ${power.nightDrawKilowatts} kW while its light is on`;
+    : speedsResearch !== undefined
+      ? `draws ${power.nightDrawKilowatts} kW at Night while it runs`
+      : `draws ${power.nightDrawKilowatts} kW while its light is on`;
 const drawsThroughNight = (kilowatts: number) =>
   `draws ${kilowatts} kW all through the Night, and nothing in Daylight`;
 const drawsWhileRunning = (kilowatts: number) =>
   `draws ${kilowatts} kW while it runs`;
-const drawsInDaylight = (kilowatts: number) =>
-  `draws ${kilowatts} kW all through Daylight`;
+const drawsInDaylight = ({ power, speedsResearch }: StructureType) =>
+  speedsResearch !== undefined
+    ? `draws ${power.daylightDrawKilowatts ?? 0} kW in Daylight while it runs`
+    : `draws ${power.daylightDrawKilowatts ?? 0} kW all through Daylight`;
 const drawsAllTheTime = (kilowatts: number) =>
   `draws ${kilowatts} kW all the time`;
 
@@ -81,9 +85,7 @@ export function powerRatings(
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
-    ...((power.daylightDrawKilowatts ?? 0) > 0
-      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
-      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0 ? [drawsInDaylight(type)] : []),
     ...(recipe === undefined || recipe.drawKilowatts === 0
       ? []
       : [drawsWhileRunning(recipe.drawKilowatts)]),
@@ -195,15 +197,20 @@ export function describeStructure(type: StructureType): string {
       : [
           `has ${type.parking.bayOffsets.length} bays, each with a power socket, where the Robot parks idle Machines and the Rover together whenever they have nothing else to do, rather than leaving them about the base, once it is cabled to battery banks that will keep them warm through the Night`,
         ]),
-    ...(type.growing === undefined
+    ...(type.growing !== undefined
       ? (type.recipes ?? []).map(
           (recipe) =>
-            `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
-        )
-      : (type.recipes ?? []).map(
-          (recipe) =>
             `grows a crop day and night, using ${flows(recipe.inputs)} an hour, and completes a round for ${formatScience(type.growing?.science ?? 0)} every ${formatHours(type.growing?.lengthHours ?? 0)} it grows`,
-        )),
+        )
+      : type.speedsResearch !== undefined
+        ? (type.recipes ?? []).map(
+            (recipe) =>
+              `runs day and night while a Research Task is running, using ${flows(recipe.inputs)} an hour, and makes that Research Task advance ${plural(type.speedsResearch?.addedMinutesPerMinute ?? 0, "game-minute")} more for every game-minute it runs, adding the same again for each lab`,
+          )
+        : (type.recipes ?? []).map(
+            (recipe) =>
+              `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+          )),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
@@ -218,9 +225,7 @@ export function describeStructure(type: StructureType): string {
     ...((power.nightUpkeepKilowatts ?? 0) > 0
       ? [drawsThroughNight(power.nightUpkeepKilowatts ?? 0)]
       : []),
-    ...((power.daylightDrawKilowatts ?? 0) > 0
-      ? [drawsInDaylight(power.daylightDrawKilowatts ?? 0)]
-      : []),
+    ...((power.daylightDrawKilowatts ?? 0) > 0 ? [drawsInDaylight(type)] : []),
     ...(power.drawKilowatts > 0 ? [drawsAllTheTime(power.drawKilowatts)] : []),
   ];
   const stage = type.stageMachines.assembly;
@@ -229,9 +234,11 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [
-          type.growing === undefined
-            ? plantsAtNight(batchHoursOf(type.recipes[0]))
-            : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+          type.speedsResearch !== undefined
+            ? "Unlike most Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night, and gives it up before anything else goes without. It takes its water and oxygen an hour's worth at a time, never below the Mission Director's reserve, and none while no Research Task is running, when it draws no power either. A shortage of any of them only stops the speed-up until it is supplied again: no Research Task is lost or changed."
+            : type.growing === undefined
+              ? plantsAtNight(batchHoursOf(type.recipes[0]))
+              : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
         ]),
     ...(type.storageTank === undefined
       ? []

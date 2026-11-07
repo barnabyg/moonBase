@@ -14,11 +14,17 @@ import {
   formatHours,
 } from "./describe";
 import { setText } from "./dom";
-import { formatMillionDollars, formatScience, listInWords } from "./format";
+import {
+  formatMillionDollars,
+  formatScience,
+  listInWords,
+  plural,
+} from "./format";
 import {
   inSentence,
   machineLabel,
   resourceLabel,
+  resourceRefLabel,
   stockLabel,
   structureLabel,
 } from "./labels";
@@ -383,6 +389,14 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
               ? []
               : [
                   `A ${inSentence(label)} (the ${designLabel(designId)} Design) earns ${formatScience(growing.science)} for every ${formatHours(growing.lengthHours)} it grows, Daylight and Night alike, and each has its own round, so more earn more. It drinks ${recipes?.[0]?.inputs[0]?.kilogramsPerHour ?? 0} kg of water an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, when Plants that make water may stand idle: store enough to last the Night, as a shortage of water or power loses what it has grown of its round. It never takes water below the reserve, and gives up its lamps before anything else goes without power, so it can't kill the Mission Director. It starts a new round by itself once it is supplied, and switching it off gives up the round.`,
+                ],
+        ),
+        ...catalogue.structureTypes.flatMap(
+          ({ designId, speedsResearch, label, power, recipes }) =>
+            speedsResearch === undefined
+              ? []
+              : [
+                  `An ${inSentence(label)} (the ${designLabel(designId)} Design) makes the Research Task running advance faster while it has its power, water and oxygen: each adds ${plural(speedsResearch.addedMinutesPerMinute, "game-minute")} of it for every game-minute, so one runs it at ×${1 + speedsResearch.addedMinutesPerMinute} and two at ×${1 + 2 * speedsResearch.addedMinutesPerMinute}. It takes ${listInWords((recipes?.[0]?.inputs ?? []).map((flow) => `${flow.kilogramsPerHour} kg of ${inSentence(resourceRefLabel(flow.resource))}`))} an hour and draws ${power.daylightDrawKilowatts ?? 0} kW by day and ${power.nightDrawKilowatts} kW at Night, more through a Night than a large battery bank stores, so add battery banks or a thermal store for it. It never takes water or oxygen below the reserve, and gives up its power before anything else goes without. A shortage only stops the speed-up, and it takes and draws nothing while no Research Task is running. The Research Tasks screen shows the rate and the time left at it, and says when a lab is short of something.`,
                 ],
         ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",

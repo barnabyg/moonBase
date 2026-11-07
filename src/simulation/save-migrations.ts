@@ -1032,6 +1032,10 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 46 to 47: nothing in the document changes. From this version on, automated
+  // experiments labs speed up the Research Task running, so the game-minutes done of
+  // it may be a fraction, and a Plant may be saved as waiting for a Research Task.
+  (document) => ({ ...document }),
 ];
 
 /**

@@ -24,7 +24,8 @@ import {
   type Driven,
 } from "./driven";
 import type { GameEvent } from "./events";
-import { isGreenhouse, isGreenhouseIdle } from "./greenhouses";
+import { isExperimentsLab } from "./experiments-labs";
+import { isGreenhouse } from "./greenhouses";
 import { partsAhead, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
 import {
@@ -507,9 +508,10 @@ export function consumptionKilowatts(
  * Night and the data catalogue's reserve after it (see
  * `nightReserveHours`): otherwise it stays off to save power, so that no
  * Night load ever leaves the Habitat, or anything else, without power.
- * A Greenhouse is a Plant that draws as a Structure and a Night load do, in those
- * turns, and works while they have power, rather than on what is to spare (see
- * `runGreenhouses`). Any other Plant comes last of all, in the order they
+ * A Greenhouse, or an automated experiments lab, is a Plant that draws as a
+ * Structure and a Night load do, in those turns, and works while they have power,
+ * rather than on what is to spare (see `runGreenhouses` and `researchSpeedUp`).
+ * Any other Plant comes last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
  * if the energy to spare covers all it draws in the game-minute. In
  * Daylight that is as much as the Plants can draw every game-minute until
@@ -543,7 +545,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     for (const structure of supplyOrder(
       state,
       network.structures.filter(
-        (structure) => !isPlant(structure) || isGreenhouse(structure),
+        (structure) => !isPlant(structure) || drawsAsAStructure(structure),
       ),
     )) {
       // Its Night load, if it has one, comes later.
@@ -582,7 +584,7 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     for (const plant of plants) {
       const drawn = plantDrawKilowatts(plant) / 60;
       const cantRun = plantCantRun(state, plant, claims);
-      const greenhouse = isGreenhouse(plant);
+      const greenhouse = drawsAsAStructure(plant);
       plant.powered =
         cantRun === undefined &&
         (greenhouse
@@ -663,7 +665,7 @@ export function plantsRunningOnAndOff(
       .filter(
         (plant) =>
           isPlant(plant) &&
-          !isGreenhouse(plant) &&
+          !drawsAsAStructure(plant) &&
           !isBroken(plant) &&
           !(plant.switchedOff && plant.batch === undefined) &&
           (plant.powered || plant.plantStop?.reason === "night"),
@@ -956,6 +958,35 @@ function drawKilowatts(
   );
 }
 
+/**
+ * Whether a Plant draws its power as a Structure and a Night load do, rather than
+ * as a recipe does: a Greenhouse or an automated experiments lab.
+ */
+function drawsAsAStructure(
+  structure: Pick<StructureState, "structureTypeId">,
+): boolean {
+  return isGreenhouse(structure) || isExperimentsLab(structure);
+}
+
+/**
+ * Whether a Plant that draws as a Structure does has finished its last batch and
+ * starts no other, so that it draws no power: it is switched off, or it is an
+ * automated experiments lab that has found no Research Task running to speed up.
+ */
+function isIdle(
+  structure: Pick<
+    StructureState,
+    "structureTypeId" | "switchedOff" | "batch" | "plantStop"
+  >,
+): boolean {
+  return (
+    structure.batch === undefined &&
+    (structure.switchedOff ||
+      structure.plantStop?.reason === "no-research-task") &&
+    drawsAsAStructure(structure)
+  );
+}
+
 type Power = StructureType["power"];
 
 const noPower: Power = {
@@ -973,10 +1004,11 @@ function powerOf(structureTypeId: string): Power {
  * What a Structure does on the power network: it generates and stores less
  * as its performance falls with its Condition, a solar array generates less
  * under a Dust coating, and it does nothing once it is Broken, or a Greenhouse
- * once it is switched off. What it draws doesn't change until then.
+ * or an automated experiments lab once it is idle (see `isIdle`). What it draws
+ * doesn't change until then.
  */
 function workingPower(structure: StructureState): Power {
-  if (isBroken(structure) || isGreenhouseIdle(structure)) return noPower;
+  if (isBroken(structure) || isIdle(structure)) return noPower;
   const power = powerOf(structure.structureTypeId);
   // Most Structures neither generate nor store, and this is asked of each of
   // them many times a game-minute.

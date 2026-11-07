@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { loadCampaign } from "../src/simulation";
-import { tryScenarios, type TryScenario } from "./try-scenarios";
+import {
+  EXPERIMENTS_LAB_TASK,
+  tryScenarios,
+  type TryScenario,
+} from "./try-scenarios";
 
 /**
  * The save a scenario prepares, prepared once and shared, as a save's text
@@ -51,6 +55,38 @@ describe("what npm run try can start the game in", () => {
     expect(
       state.lifeSupport.find(({ stockId }) => stockId === "water")?.kilograms,
     ).toBeGreaterThanOrEqual(78);
+  });
+
+  it("experiments-lab has an automated experiments lab speeding up a long Research Task in Daylight", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "experiments-lab",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.lunation.minutesRemaining).toBeGreaterThan(24 * 60);
+    expect(state.researchTask).toMatchObject({
+      researchTaskId: EXPERIMENTS_LAB_TASK,
+      rate: 2,
+    });
+    expect(state.experimentsLabs).toEqual({
+      labs: 1,
+      speedingUp: 1,
+      short: [],
+    });
+    const lab = catalogue.structureTypes.find(
+      ({ id }) => id === "experiments-lab",
+    );
+    for (const { componentId, count } of lab?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
   });
 
   it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {

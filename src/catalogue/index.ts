@@ -27,6 +27,7 @@ export type {
   MapSize,
   MicrometeoriteRules,
   GrowingRounds,
+  ResearchSpeedUp,
   Milestone,
   MilestoneCondition,
   ObservingProgramme,
