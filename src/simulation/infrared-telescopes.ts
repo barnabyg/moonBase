@@ -1,10 +1,15 @@
-import { batchHoursOf } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import { findStructureType, type StructureState } from "./construction";
 import type { GameEvent, InfraredRoundLoss } from "./events";
 import { structuresInTheWay } from "./keep-clear";
-import { recipeOf } from "./plants";
+import {
+  batchMinutes,
+  loseRound,
+  roundFraction,
+  roundMinutesLeft,
+  workRound,
+} from "./rounds";
 
 // The infrared telescope (ADR-0009). It is a Plant, for its propellant: its recipe
 // takes it a batch at a time, never what the Lander needs for the Exports set to
@@ -12,10 +17,7 @@ import { recipeOf } from "./plants";
 // Night load, as the optical telescope does (see `supplyPower`), only at Night and
 // only while no lit Structure is within its dark radius (see `plantCantRun`). What
 // it has that no Plant does is here: rounds of its own survey, which a shortage
-// loses, as a Greenhouse's are.
-
-/** How close to a whole round counts as one, as below full performance it adds fractions of a game-minute. */
-const MINUTE_TOLERANCE = 1e-9;
+// loses, as a Greenhouse's are (see `rounds.ts`).
 
 /** Whether a Structure is an infrared telescope. */
 export function isInfraredTelescope(
@@ -42,32 +44,29 @@ export function runInfraredTelescopes(state: CampaignState): GameEvent[] {
     )?.observingRounds;
     if (rounds === undefined) return [];
     if (structure.powered) {
-      structure.observedMinutes += structurePerformance(structure);
-      const length = rounds.lengthHours * 60;
-      if (structure.observedMinutes < length - MINUTE_TOLERANCE) return [];
-      structure.observedMinutes = Math.max(
-        structure.observedMinutes - length,
-        0,
+      const completed = workRound(
+        state,
+        structure,
+        rounds,
+        "observedMinutes",
+        structurePerformance(structure),
       );
-      state.science += rounds.science;
-      return [
-        {
-          kind: "infrared-round-completed",
-          atMinute: state.elapsedMinutes,
-          structureId: structure.id,
-          structureTypeId: structure.structureTypeId,
-          science: rounds.science,
-        },
-      ];
+      return completed
+        ? [
+            {
+              kind: "infrared-round-completed",
+              atMinute: state.elapsedMinutes,
+              structureId: structure.id,
+              structureTypeId: structure.structureTypeId,
+              science: rounds.science,
+            },
+          ]
+        : [];
     }
     const reason = whyTheRoundIsLost(structure);
     if (reason === undefined) return [];
-    const observed = structure.observedMinutes;
-    structure.observedMinutes = 0;
-    const recipe = recipeOf(structure);
-    return observed <= (recipe === undefined ? 0 : batchHoursOf(recipe) * 60)
-      ? []
-      : [
+    return loseRound(structure, "observedMinutes", batchMinutes(structure))
+      ? [
           {
             kind: "infrared-round-lost",
             atMinute: state.elapsedMinutes,
@@ -75,7 +74,8 @@ export function runInfraredTelescopes(state: CampaignState): GameEvent[] {
             structureTypeId: structure.structureTypeId,
             reason,
           },
-        ];
+        ]
+      : [];
   });
 }
 
@@ -128,18 +128,16 @@ export function readInfraredTelescopes(
       structure.structureTypeId,
     )?.observingRounds;
     if (rounds === undefined) return [];
-    const length = rounds.lengthHours * 60;
-    const performance = structurePerformance(structure);
-    const left = Math.max(length - structure.observedMinutes, 0);
     return [
       {
         structureId: structure.id,
         observing: structure.powered,
-        progress: Math.min(structure.observedMinutes / length, 1),
-        minutesLeft:
-          performance === 0
-            ? undefined
-            : Math.ceil(left / performance - MINUTE_TOLERANCE),
+        progress: roundFraction(structure.observedMinutes, rounds),
+        minutesLeft: roundMinutesLeft(
+          structure.observedMinutes,
+          rounds,
+          structurePerformance(structure),
+        ),
         stoppedFor: structure.powered ? undefined : stopOf(structure),
         inTheWay: structuresInTheWay(
           structure.structureTypeId,
