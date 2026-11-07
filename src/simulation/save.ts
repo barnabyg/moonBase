@@ -405,6 +405,7 @@ const structure: Decoder<StructureState> = (() => {
     switchedOff: boolean,
     growingMinutes: amount,
     observedMinutes: amount,
+    arrayId: optional(text),
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -866,6 +867,7 @@ const simulationFields = object({
       workedMinutes: amount,
       componentsTaken: boolean,
       failedCommissionings: wholeNumber,
+      arrayId: optional(text),
     }),
   ),
   structures: list(structure),
@@ -958,7 +960,9 @@ const simulationFields = object({
 }) satisfies Decoder<Omit<CampaignState, "random">>;
 
 /**
- * The Campaign state apart from the random generator's. Its queue is refused
+ * The Campaign state apart from the random generator's. An antenna field,
+ * commissioned or being built, must join a commissioned radio telescope array,
+ * and nothing else may join one. Its queue is refused
  * if it holds one twice, the one running or one completed, any of which would
  * pay its Science again, or anything with nothing running ahead of it, which
  * would never start. Its length and what its Research Tasks need are left to
@@ -969,6 +973,35 @@ const simulationState: Decoder<Omit<CampaignState, "random">> = (
   path,
 ) => {
   const state = simulationFields(value, path);
+  for (const key of ["structures", "constructions"] as const) {
+    for (const [index, joining] of state[key].entries()) {
+      const isField =
+        catalogue.structureTypes.find(
+          (type) => type.id === joining.structureTypeId,
+        )?.antennaField !== undefined;
+      const where = at(at(at(path, key), index), "arrayId");
+      if (!isField) {
+        if (joining.arrayId !== undefined) {
+          throw refuse(where, "isn't null, though it isn't an antenna field");
+        }
+        continue;
+      }
+      const array = state.structures.find(
+        (other) => other.id === joining.arrayId,
+      );
+      if (
+        array === undefined ||
+        catalogue.structureTypes.find(
+          (type) => type.id === array.structureTypeId,
+        )?.radioArray === undefined
+      ) {
+        throw refuse(
+          where,
+          "isn't a commissioned radio telescope array, though it is an antenna field",
+        );
+      }
+    }
+  }
   const field = at(path, "researchQueue");
   const queue = state.researchQueue;
   if (queue.length > 0 && state.researchTask === undefined) {

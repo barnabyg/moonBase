@@ -415,6 +415,14 @@ function basicTopics(): { title: string; paragraphs: string[] }[] {
                   `A ${inSentence(label)} (the ${designLabel(designId)} Design) works on the ${radioArray.label}, a standing survey of its own, through Daylight and Night alike: every ${formatHours(radioArray.lengthHours)} of its work completes a round for ${formatScience(radioArray.science)}, and each has its own round, so more earn more. It takes nothing from the base's stocks, only a steady ${power.drawKilowatts} kW, by day and at Night. It can't work while a Plant stands within ${keepClear?.radiusMetres ?? 0} m of it, its quiet radius, as the Plants' machinery drowns the sky's faint signals: placing one shows the radius and rings what is in it, so build it away from the base at the end of a long cable. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round. The Research section of the status panel shows how its survey is going.`,
                 ],
         ),
+        ...catalogue.structureTypes.flatMap(
+          ({ antennaField, keepClear, label }) =>
+            antennaField === undefined
+              ? []
+              : [
+                  `An array keeps growing: build an ${inSentence(label)} beside it, within ${antennaField.besideWithinMetres} m of it or of one of its fields, and once commissioned the field joins it and adds as much again to how fast it works its round, for Components and the Robot's time. A Broken field, or one without power, adds nothing until it is repaired. Each field has the array's quiet radius of ${keepClear?.radiusMetres ?? 0} m, and a Plant within it stops the whole array, so grow the array away from the base. Dismantle its fields before the array itself.`,
+                ],
+        ),
         "The last Designs in the Tech Tree cost more than Research Tasks pay: more Greenhouses reach them sooner, for the water and power they take from everything else, and the ice lines, water-processing plants, tanks and battery banks that bring it are where a rich base's Funding goes.",
         "An Expedition can go for more than water ice: Designs add Prospecting, for metals or silicon, and a Survey, for Science. Each ties up a Robot and the Rover while it is away. Prospecting is cheap and needs only Robots, so it can bring metals and silicon before the first extraction plant comes, though until a second Robot lands the base has none while it is away; it brings less than an extraction plant makes in the time, so once the Plants run it only tops the base up.",
         "A technology changes only what can be bought from then on: arrays already built, and Components at the base or on a Lander, stay as they are. Each solar array is as good as the Components it is built from.",

@@ -596,7 +596,9 @@ export interface ObservingRounds {
  * power and nothing it is kept clear of is near adds its performance's share of a
  * game-minute for each antenna field it has, and the round's Science comes once it
  * has its length. A shortage of power, or something it is kept clear of coming
- * near, loses what it has done of the round. It is built with one antenna field.
+ * near, loses what it has done of the round. It is built with one antenna field,
+ * and each antenna field that joins it later (see `AntennaField`) adds a whole
+ * field's work, at that field's own performance, while it has power.
  */
 export interface RadioArray {
   readonly label: string;
@@ -607,6 +609,21 @@ export interface RadioArray {
   readonly lengthHours: number;
   /** The Science a round earns as it is complete, a whole amount. */
   readonly science: number;
+}
+
+/**
+ * An antenna field, which joins the radio telescope array it is placed beside,
+ * and adds a field's work to its round once commissioned (see `RadioArray`). A
+ * Plant within the field's quiet radius stops the whole array, as one within the
+ * array's own does.
+ */
+export interface AntennaField {
+  /**
+   * How far its footprint may stand from the footprint of a commissioned radio
+   * telescope array, or of an antenna field joining one, in metres: it must be
+   * placed beside one of them.
+   */
+  readonly besideWithinMetres: number;
 }
 
 /**
@@ -1196,6 +1213,12 @@ export interface StructureType {
    * while it has power and nothing it is kept clear of is near (see `RadioArray`).
    */
   readonly radioArray?: RadioArray;
+  /**
+   * If it is an antenna field: a Structure placed beside a commissioned radio
+   * telescope array, which it joins, adding to how fast the array works its round
+   * (see `AntennaField`).
+   */
+  readonly antennaField?: AntennaField;
   /**
    * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
    * crop grows a round at a time while it has water and power, day and night, and

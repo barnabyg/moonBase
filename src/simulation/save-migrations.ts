@@ -1057,6 +1057,27 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 48 to 49: antenna fields, each joining the radio telescope array it was placed
+  // beside, kept as `arrayId` on its Structure or Construction. There were none
+  // before, so every Structure and Construction joins none.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const joiningNone = (items: unknown) =>
+      Array.isArray(items)
+        ? (items as unknown[]).map((item) =>
+            isRecord(item) ? { ...item, arrayId: null } : item,
+          )
+        : items;
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: joiningNone(state["structures"]),
+        constructions: joiningNone(state["constructions"]),
+      },
+    };
+  },
 ];
 
 /**

@@ -634,6 +634,7 @@ function finishCommissioning(
     switchedOff: false,
     growingMinutes: 0,
     observedMinutes: 0,
+    arrayId: construction.arrayId,
   });
   return [
     {

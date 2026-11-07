@@ -153,6 +153,15 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 300,
       priceMillionDollars: 500,
     },
+    // Another antenna field's worth comes to 950 kg and $1,000M, one Launch:
+    // sixteen more antenna tiles and the receiver that sends their signals on.
+    {
+      id: "field-receiver",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "field-receiver" },
+      massKilograms: 150,
+      priceMillionDollars: 200,
+    },
     {
       id: "habitat-core",
       designId: "inflatable-habitat",

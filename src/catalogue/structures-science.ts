@@ -1,7 +1,8 @@
 import type { StructureType } from "./types";
 
-// The telescope, the automated experiments lab, the infrared telescope and the
-// radio telescope array. structures.ts lists them in catalogue order.
+// The telescope, the automated experiments lab, the infrared telescope, the
+// radio telescope array and its antenna fields. structures.ts lists them in
+// catalogue order.
 
 // An optical telescope: a half-metre mirror in an open tube on a
 // fork mount, which observes the sky only at Night, when the sun is
@@ -244,4 +245,53 @@ export const radioTelescopeArray: StructureType = {
     lengthHours: 24,
     science: 3,
   },
+};
+
+// Act 4: another antenna field for a radio telescope array, the lever a player
+// can keep pulling (#263): sixteen more antenna tiles and a field receiver that
+// sends their signals to the array's correlator. It may be placed only beside a
+// commissioned array, its footprint within 10 m of the array's or of a field's
+// that joins it, and joins that array. Once commissioned, each field adds a whole
+// field's work to the array's round, at its own performance, while it has power:
+// another 88.5 Science a Lunation, as much as the array earns with its own field,
+// for 950 kg and $1,000M by Launch, 52 hours of Construction and a short cable,
+// less than the array costs as it needs no correlator. Its receiver draws a
+// steady 0.5 kW, by day and at Night, 114 kWh through a Night. A Broken field, or
+// one without power, adds nothing, but loses the array no round. It isn't a
+// Plant, but a Plant within its quiet radius, as within the array's, stops the
+// whole array. The array can't be dismantled while any field joins it.
+export const antennaField: StructureType = {
+  id: "antenna-field",
+  label: "Antenna field",
+  designId: "radio-astronomy",
+  listGroup: "science",
+  footprintRadiusMetres: 8,
+  components: [
+    { componentId: "antenna-tile", count: 16 },
+    { componentId: "field-receiver", count: 1 },
+  ],
+  dismantlingSpareComponents: 3,
+  stageHours: {
+    sitePreparation: 10,
+    componentDelivery: 8,
+    // Laying out and connecting sixteen tiles, one at a time.
+    assembly: 30,
+    commissioning: 4,
+  },
+  stageMachines: { sitePreparation: "excavator" },
+  commissioningFailureChance: 0.1,
+  dustWearPercentPerHour: 0.02,
+  hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+  power: {
+    generationKilowatts: 0,
+    storageKilowattHours: 0,
+    drawKilowatts: 0.5,
+    nightDrawKilowatts: 0,
+  },
+  lightRadiusMetres: 0,
+  habitat: false,
+  shieldsHabitat: false,
+  landingPad: false,
+  keepClear: { of: "plants", radiusMetres: 120 },
+  antennaField: { besideWithinMetres: 10 },
 };

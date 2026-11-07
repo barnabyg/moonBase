@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { loadCampaign } from "../src/simulation";
 import { tryScenarios } from "../test/try-scenarios";
 import { structureEntry } from "./base-panel";
 
@@ -133,5 +134,64 @@ test("a radio telescope array with a Plant moved within its quiet radius stops w
   );
   await expect(statusLine(page)).toContainText(
     "a Plant within its quiet radius",
+  );
+});
+
+/** The array base's save with an antenna field commissioned beside the array. */
+function withFieldSave(): string {
+  const loaded = loadCampaign(arrayBaseSave());
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  const planned = campaign.planConstruction({
+    structureTypeId: "antenna-field",
+    position: { x: 175, y: 45 },
+  });
+  if (!planned.ok) throw new Error(planned.message);
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 20 * 24) throw new Error("The field was never built.");
+    campaign.advance(60);
+  }
+  return campaign.save();
+}
+
+test("an antenna field can only be placed beside a radio telescope array", async ({
+  page,
+}) => {
+  await loadSave(page, arrayBaseSave());
+  await page
+    .getByRole("complementary", { name: "Build menu" })
+    .getByRole("button", { name: /Antenna field/ })
+    .click();
+  const box = await page.locator("canvas").boundingBox();
+  if (box === null) throw new Error("The 3D view has no size.");
+
+  // The game opens looking at the Lander, far from the array.
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.7);
+
+  await expect(page.getByRole("status", { name: "Placement" })).toHaveText(
+    "An antenna field can only be built beside a commissioned radio telescope array, within 10 m of it or of one of its antenna fields.",
+  );
+  await page.keyboard.press("Escape");
+});
+
+test("a radio telescope array with an antenna field says it has two, and can't be dismantled until the field is", async ({
+  page,
+}) => {
+  await loadSave(page, withFieldSave());
+  const array = structureEntry(page, "Radio telescope array");
+
+  await expect(array).toContainText(
+    "2 antenna fields, about 177 Science a Lunation",
+  );
+
+  await array.getByRole("button", { name: "Dismantle" }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Its antenna fields join it, and must be dismantled first.",
+  );
+  await structureEntry(page, /^Antenna field/)
+    .getByRole("button", { name: "Dismantle" })
+    .click();
+  await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
+    "Dismantling the antenna field",
   );
 });

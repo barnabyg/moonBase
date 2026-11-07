@@ -227,13 +227,22 @@ export function formatRadioArray(
 }
 
 /**
- * How many antenna fields a radio telescope array has and what it earns with
- * them, for example "1 antenna field, about 89 Science a Lunation".
+ * How many antenna fields a radio telescope array has, how many of them add
+ * nothing, and what it earns with them, for example "1 antenna field, about 89
+ * Science a Lunation" or "3 antenna fields, 1 adding nothing, about 177 Science a
+ * Lunation".
  */
 export function formatAntennaFields(
-  array: Pick<RadioArraySnapshot, "antennaFields" | "sciencePerLunation">,
+  array: Pick<
+    RadioArraySnapshot,
+    "antennaFields" | "antennaFieldsAddingNothing" | "sciencePerLunation"
+  >,
 ): string {
-  return `${plural(array.antennaFields, "antenna field")}, about ${formatScience(Math.round(array.sciencePerLunation))} a Lunation`;
+  const idle =
+    array.antennaFieldsAddingNothing > 0
+      ? `, ${array.antennaFieldsAddingNothing} adding nothing`
+      : "";
+  return `${plural(array.antennaFields, "antenna field")}${idle}, about ${formatScience(Math.round(array.sciencePerLunation))} a Lunation`;
 }
 
 /**

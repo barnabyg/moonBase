@@ -70,3 +70,24 @@ describe("the radio telescope array's model", () => {
     }
   });
 });
+
+describe("an antenna field's model", () => {
+  const field = catalogue.structureTypes.find(
+    (type) => type.id === "antenna-field",
+  );
+  if (field === undefined) throw new Error("expected an antenna field");
+
+  it("is its own model, the array's square of tiles with a smaller cabinet, within its footprint", () => {
+    const model = models.createStructureModel(field.id);
+    expect(model.group.name).toBe("Antenna field");
+    model.setAssembled(1);
+
+    const box = boundsOf(model.group);
+
+    expect(box.min.y).toBeCloseTo(0, 2);
+    expect(box.max.y).toBeLessThan(2);
+    expect(
+      Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z),
+    ).toBeLessThanOrEqual(field.footprintRadiusMetres);
+  });
+});

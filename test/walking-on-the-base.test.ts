@@ -116,6 +116,7 @@ function packedBase(seed: number): Site {
       switchedOff: false,
       growingMinutes: 0,
       observedMinutes: 0,
+      arrayId: undefined,
     });
   }
   return {

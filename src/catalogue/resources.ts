@@ -156,6 +156,7 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "heavy-telescope-mount", label: "Heavy telescope mount" },
   { id: "antenna-tile", label: "Antenna tile" },
   { id: "array-correlator", label: "Array correlator" },
+  { id: "field-receiver", label: "Field receiver" },
   ...solarArrayComponentTypes,
 ];
 

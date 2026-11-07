@@ -32,6 +32,7 @@ export type {
   KeepClearOf,
   ObservingRounds,
   RadioArray,
+  AntennaField,
   Milestone,
   MilestoneCondition,
   ObservingProgramme,

@@ -118,7 +118,7 @@ describe("what npm run try can start the game in", () => {
     }
   });
 
-  it("radio-telescope-array has a radio telescope array working in Daylight out past a Plant's reach, with a second water-processing plant's Components", () => {
+  it("radio-telescope-array has a radio telescope array working in Daylight out past a Plant's reach, with a second water-processing plant's Components and two antenna fields'", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "radio-telescope-array",
     );
@@ -139,7 +139,16 @@ describe("what npm run try can start the game in", () => {
     const plant = catalogue.structureTypes.find(
       ({ id }) => id === "water-processing-plant",
     );
-    for (const { componentId, count } of plant?.components ?? []) {
+    const field = catalogue.structureTypes.find(
+      ({ id }) => id === "antenna-field",
+    );
+    for (const { componentId, count } of [
+      ...(plant?.components ?? []),
+      ...(field?.components ?? []).map((needed) => ({
+        ...needed,
+        count: needed.count * 2,
+      })),
+    ]) {
       expect(
         state.stockpile.components.find(
           (stock) => stock.componentId === componentId,

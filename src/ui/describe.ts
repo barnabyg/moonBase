@@ -225,7 +225,12 @@ export function describeStructure(type: StructureType): string {
     ...(type.radioArray === undefined
       ? []
       : [
-          `listens to the sky through Daylight and Night for the ${type.radioArray.label}, a standing survey of its own, completing a round for ${formatScience(type.radioArray.science)} every ${formatHours(type.radioArray.lengthHours)} it works with its one antenna field`,
+          `listens to the sky through Daylight and Night for the ${type.radioArray.label}, a standing survey of its own, completing a round for ${formatScience(type.radioArray.science)} every ${formatHours(type.radioArray.lengthHours)} it works with its own antenna field, sooner with each antenna field that joins it`,
+        ]),
+    ...(type.antennaField === undefined
+      ? []
+      : [
+          `joins the ${arrayName()} it is built beside, adding another antenna field's work to its round once commissioned, as much again as the array's own field`,
         ]),
     ...(type.telescope === true
       ? [
@@ -261,7 +266,12 @@ export function describeStructure(type: StructureType): string {
     ...(type.radioArray === undefined
       ? []
       : [
-          `${type.keepClear === undefined ? "" : `${describeKeepClear(type.keepClear, "work")}, though it still draws its power: build it away from the base, at the end of a long cable. `}It isn't a Plant, so arrays never stop each other. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round, with a notification, and it starts a new one by itself. More of them earn more, each with its own round.`,
+          `${type.keepClear === undefined ? "" : `${describeKeepClear(type.keepClear, "work")}, though it still draws its power: build it away from the base, at the end of a long cable. `}It isn't a Plant, so arrays never stop each other. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round, with a notification, and it starts a new one by itself. More of them earn more, each with its own round. A Plant within the quiet radius of an antenna field joining it stops it too, and it can't be dismantled while one joins it: dismantle the fields first.`,
+        ]),
+    ...(type.antennaField === undefined
+      ? []
+      : [
+          `It can only be built beside a commissioned ${arrayName()}, within ${type.antennaField.besideWithinMetres} m of it or of one of its antenna fields.${type.keepClear === undefined ? "" : ` A Plant within ${type.keepClear.radiusMetres} m of it, its quiet radius, stops the whole array, as one within the array's own does.`} It isn't a Plant itself. A Broken field, or one without power, adds nothing, but loses the array no round. Dismantling a field slows the array again, and the array can't be dismantled while an antenna field joins it.`,
         ]),
     ...(type.storageTank === undefined
       ? []
@@ -512,5 +522,13 @@ export function formatComponentsMade(
       ({ componentId, count }) =>
         `${count} ${componentInSentence(componentId)}${count === 1 ? "" : "s"}`,
     ),
+  );
+}
+
+/** What the player calls a radio telescope array, in a sentence. */
+function arrayName(): string {
+  return inSentence(
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.label ?? "Radio telescope array",
   );
 }

@@ -575,6 +575,7 @@ function campaignFrom(state: CampaignState): Campaign {
         workedMinutes: 0,
         componentsTaken: false,
         failedCommissionings: 0,
+        arrayId: check.arrayId,
       });
       state.nextPlanNumber += 1;
       return deepFreeze({ ok: true, constructionId: id });

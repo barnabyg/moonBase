@@ -300,7 +300,7 @@ The long-game play guide doesn't build one yet: `design-has-a-purpose` has an ex
 
 ## The radio telescope array
 
-ADR-0009's third Structure for Act 4 is a radio telescope array (#262), the Radio astronomy Design, past Optical telescopes and Precision optics, at data catalogue version 86. It works through Daylight and Night alike, on rounds of its own Radio sky survey, and can't work while a Plant stands within 120 m of it, its quiet radius. It is built with one antenna field; antenna fields that join it later (#263) will raise its rate.
+ADR-0009's third Structure for Act 4 is a radio telescope array (#262), the Radio astronomy Design, past Optical telescopes and Precision optics, at data catalogue version 86. It works through Daylight and Night alike, on rounds of its own Radio sky survey, and can't work while a Plant stands within 120 m of it, its quiet radius. It is built with one antenna field; antenna fields that join it later raise its rate (below).
 
 | For each array, with one antenna field, powered all through a Lunation | Figure                                                        |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -318,6 +318,22 @@ So one field earns about three-quarters of what a Greenhouse does, for no water 
 The Design costs 1 Science, the least a Design beyond the starting ones may cost. Research alone had 23 Science to spare when the Optics grinding line is unlocked, on Earth Day 2,394, and Automated experiments and Infrared astronomy had taken all of it (20 and 3), so Infrared astronomy now costs 2 and Radio astronomy 1: together they still come to 23, every Design's date in the pacing report stays where it was, and the Designs still cost 22,548 Science in all. A dearer price either moves the Optics grinding line, and with it the Grinding line yield survey and everything after it, beyond what research reaches, or needs a Design past the grinding line, which comes too late in Act 4 for the array to shorten it. Its price is in Components, cable and the Robot's time instead. No Research Task pays for it and no Research Task changed. One of every Launch item now comes to $13,457M, 90 Launches of circuit boards.
 
 The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played. The Tech Tree now has 51 Designs, and the catalogue test's bound on them rose from 50 to 60.
+
+### Antenna fields
+
+An array grows by antenna fields (#263), at data catalogue version 87, with no new Design: each is a Structure of its own of the Radio astronomy Design, placed beside a commissioned array or one of its fields (footprints within 10 m), which it joins. It is the lever a late base can keep pulling: more building, faster Science.
+
+| For each antenna field, commissioned, powered all through a Lunation | Figure                                                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| What it adds                                                         | a whole field's work, at its own Condition: the array's round goes as fast again     |
+| Science a Lunation                                                   | 88.5 more, as much as the array earns with its own field                             |
+| Its power                                                            | a steady 0.5 kW: 354 kWh a Lunation, 4 kWh for each Science; 114 kWh through a Night |
+| Its Components, by Launch                                            | 950 kg and $1,000M, one Launch: sixteen antenna tiles and a field receiver           |
+| Its Construction                                                     | 52 hours, 30 of them Assembly, and a short cable to the array                        |
+
+So an array with n fields in all earns 88.5 × n Science a Lunation: one with three fields beside it, four in all, earns 354, three Greenhouses' worth, for no water or propellant. A field costs less than the array ($1,000M against $1,300M, as it needs no correlator) and a quarter of its draw, and it needs no long cable of its own, so after the first array each field is the cheapest Science the late base can build: Funding, which the late base has idle (see below), and the Robot's time. A Broken field, or one without power, adds nothing but loses the array no round. Each field carries the array's 120 m quiet radius, so a big array needs a wide stretch of ground away from the Plants. The array can't be dismantled while a field joins it.
+
+These figures are worked out from the numbers, not played: #265 builds them in the long-game play guide. One of every Launch item now comes to $13,657M, 92 Launches of circuit boards.
 
 ## Still to watch
 

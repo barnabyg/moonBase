@@ -282,6 +282,11 @@ export interface StructureSnapshot {
    * field. Always 0 for any other Structure.
    */
   readonly observedMinutes: number;
+  /**
+   * The id of the radio telescope array it joins, if it is an antenna field;
+   * undefined for anything else.
+   */
+  readonly arrayId: string | undefined;
 }
 
 /**

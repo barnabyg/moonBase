@@ -879,7 +879,8 @@ export const RADIO_TELESCOPE_ARRAY_SITES = [
  * A base with a radio telescope array working in Daylight, an hour into its
  * round, out past the quiet radius of a water-processing plant by the battery
  * banks, on two solar arrays and two large battery banks, with a second
- * water-processing plant's Components in stock to place within it. The Habitat is
+ * water-processing plant's Components in stock to place within it, and two
+ * antenna fields' to grow it. The Habitat is
  * left out, so that the Mission Director's stay aboard the Lander leaves the
  * battery banks to the array.
  */
@@ -897,6 +898,8 @@ export function radioTelescopeArraySave(): string {
       addComponents(state, [
         ...RADIO_TELESCOPE_ARRAY_SITES.flatMap(([id]) => componentsOf(id)),
         ...componentsOf("water-processing-plant"),
+        ...componentsOf("antenna-field"),
+        ...componentsOf("antenna-field"),
         { componentId: catalogue.maintenance.spareComponentId, count: 30 },
       ]);
     }),
@@ -1505,14 +1508,16 @@ export const tryScenarios: readonly TryScenario[] = [
   {
     id: "radio-telescope-array",
     title:
-      "A base with a radio telescope array working in Daylight, out past the quiet radius of a water-processing plant by the battery banks, with a second water-processing plant's Components in stock",
+      "A base with a radio telescope array working in Daylight, out past the quiet radius of a water-processing plant by the battery banks, with a second water-processing plant's Components and two antenna fields' in stock",
     steps: [
       "Pause the game. The status panel's Research section has a Radio line, the Radio sky survey, with 1 radio telescope array working and the time left of its round. Its Base panel entry says it is working, with 1 antenna field, about 89 Science a Lunation.",
       "Click the array on the map: a square field of sixteen antenna tiles with crossed dipoles, and a correlator cabinet beside it. Its pop-up has a Round line, an Antenna fields line, and a Quiet radius line saying there is no Plant within 120 m.",
       "Pick Radio telescope array in the build menu and move it over the base: a pale disc of 120 m radius follows the pointer, the water-processing plant gets a red ring, and the hint says it won't work there, naming it. Out past its reach the ring goes and the hint says nothing stops it. Press Esc.",
       "Pick Water-processing plant and place it within 120 m of the array, then set the game to 20x. Once it is commissioned the array stops: its Base panel entry says a Plant is within its quiet radius, a notification says its round was lost to it, and its pop-up names the water-processing plant. Switch the new plant off and the array starts a new round.",
       "Let the game run into the Night: the array goes on working on the battery banks, and completes a round every 24 hours, a notification saying what it earned.",
-      "Open the Guide: Structures has the array's card, and Science and technologies says what it needs. The Launch manifest has its antenna tiles and correlator, under Industry.",
+      "Pick Antenna field in the build menu and move it about near the Lander: the hint says it can only be built beside a commissioned radio telescope array. Move it beside the array, within 10 m of its footprint, and place it, then a second beside that one. Set the game to 20x: once the first is commissioned the array's Base panel entry says 2 antenna fields, about 177 Science a Lunation, and its rounds come twice as fast; the field's pop-up has an Array line saying it adds a field's work.",
+      "Press Dismantle beside the array: the game refuses, saying its antenna fields join it and must be dismantled first. Dismantle a field and, once the Robot starts taking it apart, the array's count and rate fall again.",
+      "Open the Guide: Structures has the array's card and the antenna field's, and Science and technologies says what they need. The Launch manifest has their antenna tiles, correlator and field receiver, under Industry.",
     ],
     save: radioTelescopeArraySave,
   },

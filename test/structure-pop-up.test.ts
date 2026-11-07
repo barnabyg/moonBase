@@ -47,6 +47,7 @@ function structure(
     switchedOff: false,
     growingMinutes: 0,
     observedMinutes: 0,
+    arrayId: undefined,
     ...changes,
   };
 }

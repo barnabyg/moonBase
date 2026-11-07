@@ -20,9 +20,11 @@ import {
 // Structure does (see `supplyPower`), so the forecasts count it with no more code.
 // What it has that no other Structure does is here: rounds of its own survey,
 // worked through Daylight and Night alike, faster for each antenna field it has,
-// which a shortage of power or a Plant within its quiet radius loses (see
-// `rounds.ts` and `keep-clear.ts`). It keeps its round's progress where an
-// infrared telescope does, as `observedMinutes`.
+// which a shortage of power or a Plant within its quiet radius, or within that of
+// any antenna field joining it, loses (see `rounds.ts` and `keep-clear.ts`). It
+// keeps its round's progress where an infrared telescope does, as
+// `observedMinutes`. An antenna field is a Structure of its own that joins the
+// array it was placed beside (`arrayId`), and adds its work once commissioned.
 
 /** Whether a Structure is a radio telescope array. */
 export function isRadioArray(
@@ -31,36 +33,60 @@ export function isRadioArray(
   return findStructureType(structure.structureTypeId)?.radioArray !== undefined;
 }
 
+/** The commissioned antenna fields that join a radio telescope array. */
+function fieldsOf(
+  state: Pick<CampaignState, "structures">,
+  array: Pick<StructureState, "id">,
+): StructureState[] {
+  return state.structures.filter((other) => other.arrayId === array.id);
+}
+
 /**
- * How many antenna fields a radio telescope array works with, none for any other
- * Structure: each adds its performance's share of a game-minute to the round for
- * each game-minute it works. An array is built with one, its own, and for now
- * has only that.
+ * Whether a commissioned antenna field adds its work to its array: not while it
+ * is Broken or without power.
  */
-export function antennaFields(
-  array: Pick<StructureState, "structureTypeId">,
-): number {
-  return isRadioArray(array) ? 1 : 0;
+function isAdding(field: StructureState): boolean {
+  return !isBroken(field) && field.powered;
 }
 
 /**
  * The share of a game-minute a radio telescope array adds to its round for each
- * game-minute it works: its performance for each antenna field.
+ * game-minute it works: its performance, for its own antenna field, and each
+ * commissioned antenna field's that joins it, unless that field is Broken or
+ * without power.
  */
-function rateOf(array: StructureState): number {
-  return structurePerformance(array) * antennaFields(array);
+function rateOf(
+  state: Pick<CampaignState, "structures">,
+  array: StructureState,
+): number {
+  return fieldsOf(state, array)
+    .filter(isAdding)
+    .reduce(
+      (rate, field) => rate + structurePerformance(field),
+      structurePerformance(array),
+    );
 }
 
-/** Whether something an array is kept clear of stands within its radius. */
-function isCrowded(state: CampaignState, array: StructureState): boolean {
-  return (
-    structuresInTheWay(
-      array.structureTypeId,
-      array.position,
-      state.structures,
-      array.id,
-    ).length > 0
+/**
+ * The commissioned Plants that stop a radio telescope array: those within its
+ * quiet radius, or within that of any commissioned antenna field joining it, each
+ * once, in the order they were commissioned.
+ */
+function plantsInTheWay(
+  state: Pick<CampaignState, "structures">,
+  array: StructureState,
+): StructureState[] {
+  const found = new Set(
+    [array, ...fieldsOf(state, array)].flatMap((part) =>
+      structuresInTheWay(
+        part.structureTypeId,
+        part.position,
+        state.structures,
+        part.id,
+      ),
+    ),
   );
+  return state.structures.filter((other) => found.has(other));
 }
 
 /**
@@ -75,18 +101,19 @@ export function runRadioArrays(state: CampaignState): GameEvent[] {
   return state.structures.flatMap((structure): GameEvent[] => {
     const rounds = findStructureType(structure.structureTypeId)?.radioArray;
     if (rounds === undefined || isBroken(structure)) return [];
-    const reason: RadioRoundLoss | undefined = isCrowded(state, structure)
-      ? "plant"
-      : structure.powered
-        ? undefined
-        : "power";
+    const reason: RadioRoundLoss | undefined =
+      plantsInTheWay(state, structure).length > 0
+        ? "plant"
+        : structure.powered
+          ? undefined
+          : "power";
     if (reason === undefined) {
       const completed = workRound(
         state,
         structure,
         rounds,
         "observedMinutes",
-        rateOf(structure),
+        rateOf(state, structure),
       );
       return completed
         ? [
@@ -137,10 +164,23 @@ export interface RadioArraySnapshot {
   readonly minutesLeft: number | undefined;
   /** Why it didn't work during the latest game-minute; undefined while it did. */
   readonly stoppedFor: RadioArrayStop | undefined;
-  /** The ids of the Plants within its quiet radius, which stop it working. */
+  /**
+   * The ids of the Plants within its quiet radius, or within that of an antenna
+   * field joining it, which stop it working.
+   */
   readonly inTheWay: readonly string[];
-  /** How many antenna fields it works with. */
+  /**
+   * How many antenna fields it has: its own, and each commissioned one that joins
+   * it, whether or not that one adds anything.
+   */
   readonly antennaFields: number;
+  /**
+   * How many of the antenna fields joining it add nothing, being Broken or
+   * without power.
+   */
+  readonly antennaFieldsAddingNothing: number;
+  /** The ids of the commissioned antenna fields joining it, in the order they were commissioned. */
+  readonly fieldIds: readonly string[];
   /** The Science it earns a Lunation at its rate, working all through. */
   readonly sciencePerLunation: number;
 }
@@ -151,12 +191,8 @@ export function readRadioArrays(state: CampaignState): RadioArraySnapshot[] {
   return state.structures.flatMap((structure) => {
     const rounds = findStructureType(structure.structureTypeId)?.radioArray;
     if (rounds === undefined) return [];
-    const inTheWay = structuresInTheWay(
-      structure.structureTypeId,
-      structure.position,
-      state.structures,
-      structure.id,
-    ).map((other) => other.id);
+    const inTheWay = plantsInTheWay(state, structure).map((other) => other.id);
+    const fields = fieldsOf(state, structure);
     const stoppedFor: RadioArrayStop | undefined = isBroken(structure)
       ? "broken"
       : inTheWay.length > 0
@@ -164,7 +200,7 @@ export function readRadioArrays(state: CampaignState): RadioArraySnapshot[] {
         : structure.powered
           ? undefined
           : "power";
-    const rate = rateOf(structure);
+    const rate = rateOf(state, structure);
     return [
       {
         structureId: structure.id,
@@ -173,7 +209,10 @@ export function readRadioArrays(state: CampaignState): RadioArraySnapshot[] {
         minutesLeft: roundMinutesLeft(structure.observedMinutes, rounds, rate),
         stoppedFor,
         inTheWay,
-        antennaFields: antennaFields(structure),
+        antennaFields: 1 + fields.length,
+        antennaFieldsAddingNothing: fields.filter((field) => !isAdding(field))
+          .length,
+        fieldIds: fields.map((field) => field.id),
         sciencePerLunation:
           (rounds.science * rate * lunationHours) / rounds.lengthHours,
       },

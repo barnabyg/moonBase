@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { materials, part, roundedBox, setStatusLight } from "./materials";
 import type { StructureModel } from "./models";
 
-// The radio telescope array.
+// The radio telescope array and the antenna fields that join it.
 
 /** How many antenna tiles a side its field has. */
 const TILES_A_SIDE = 4;
@@ -49,29 +49,34 @@ function createTile(): THREE.Group {
 /**
  * A radio telescope array: one antenna field of sixteen tiles in a square, each
  * a ground mat with two crossed dipoles on a short mast, and beside them the
- * correlator's cabinet, with its radiator and status light. It has no moving
- * parts. During Assembly the cabinet goes down first, then the tiles a row at a
- * time.
+ * correlator's cabinet, with its radiator and status light. An antenna field
+ * that joins an array is the same square of tiles with a smaller receiver's
+ * cabinet in place of the correlator's. It has no moving parts. During Assembly
+ * the cabinet goes down first, then the tiles a row at a time.
  */
-export function createRadioTelescopeArrayModel(): StructureModel {
+export function createRadioTelescopeArrayModel(
+  kind: "array" | "field" = "array",
+): StructureModel {
   const group = new THREE.Group();
-  group.name = "Radio telescope array";
+  group.name = kind === "array" ? "Radio telescope array" : "Antenna field";
   const statusLightMaterial = materials.statusOff.clone();
+  // The field receiver's cabinet is half the correlator's width.
+  const width = kind === "array" ? 1.6 : 0.8;
 
   const correlator = new THREE.Group();
   correlator.position.set(0, 0, CORRELATOR_Z);
   correlator.add(
-    part(roundedBox(1.6, 1.1, 0.9, 0.05), materials.foil, [0, 0.55, 0]),
+    part(roundedBox(width, 1.1, 0.9, 0.05), materials.foil, [0, 0.55, 0]),
     part(
-      new THREE.BoxGeometry(1.4, 0.04, 0.5),
+      new THREE.BoxGeometry(width - 0.2, 0.04, 0.5),
       materials.radiator,
       [0, 1.12, 0],
     ),
-    part(
-      new THREE.SphereGeometry(0.07, 8, 6),
-      statusLightMaterial,
-      [0.6, 0.9, -0.47],
-    ),
+    part(new THREE.SphereGeometry(0.07, 8, 6), statusLightMaterial, [
+      width / 2 - 0.2,
+      0.9,
+      -0.47,
+    ]),
   );
   group.add(correlator);
 

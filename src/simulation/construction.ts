@@ -47,6 +47,11 @@ export type PlacementRefusal =
   | "not-on-buried-habitat"
   /** A Buried Habitat is under the Regolith already, and neither goes over it. */
   | "habitat-buried"
+  /**
+   * An antenna field must go beside a commissioned radio telescope array, not to
+   * be dismantled, or beside an antenna field joining one.
+   */
+  | "not-beside-radio-array"
   | "campaign-ended";
 
 export type PlacementCheck =
@@ -57,6 +62,11 @@ export type PlacementCheck =
        * Regolith shielding stands centred on the Habitat it goes over.
        */
       readonly position: GroundPosition;
+      /**
+       * The id of the radio telescope array it would join, if it is an antenna
+       * field; left out for anything else.
+       */
+      readonly arrayId?: string;
     }
   | {
       readonly ok: false;
@@ -80,6 +90,11 @@ export interface ConstructionState {
   /** Whether the Components have been taken from the base's stock. */
   componentsTaken: boolean;
   failedCommissionings: number;
+  /**
+   * The id of the radio telescope array it joins, if it is an antenna field;
+   * undefined for anything else.
+   */
+  arrayId: string | undefined;
 }
 
 export interface StructureState {
@@ -129,6 +144,11 @@ export interface StructureState {
    * other Structure.
    */
   observedMinutes: number;
+  /**
+   * The id of the radio telescope array it joins, if it is an antenna field;
+   * undefined for anything else.
+   */
+  arrayId: string | undefined;
 }
 
 /**
@@ -226,7 +246,9 @@ export function hazardShare(
  * commissioned Regolith shielding over it and no water wall yet, standing
  * centred on them, and may overlap them but nothing else. Neither goes over
  * a Buried Habitat, which needs them no more. A vault cistern is a water wall
- * that goes round a commissioned Buried Habitat and nothing else.
+ * that goes round a commissioned Buried Habitat and nothing else. An antenna
+ * field goes beside a commissioned radio telescope array, or beside an antenna
+ * field joining one, and joins that array.
  */
 export function checkPlacement(
   site: Site,
@@ -241,6 +263,14 @@ export function checkPlacement(
   }
   if (type.waterWall !== undefined) {
     return checkWaterWallPlacement(site, type, plan.position);
+  }
+  if (type.antennaField !== undefined) {
+    return checkAntennaFieldPlacement(
+      site,
+      type,
+      plan.position,
+      type.antennaField.besideWithinMetres,
+    );
   }
   if (!type.shieldsHabitat) return checkFooting(site, type, plan.position);
   const habitat = site.structures.find(
@@ -334,6 +364,50 @@ function checkWaterWallPlacement(
     );
   }
   return checkFooting(site, type, habitat.position, [habitat.id, shielding.id]);
+}
+
+/**
+ * Checks an antenna field's placement (see `checkPlacement`): its footprint must
+ * come within the given distance of the footprint of a commissioned radio
+ * telescope array, not to be dismantled, or of an antenna field, commissioned or
+ * being built, joining one. It joins the array whose footprints it comes nearest.
+ */
+function checkAntennaFieldPlacement(
+  site: Site,
+  type: StructureType,
+  position: GroundPosition,
+  withinMetres: number,
+): PlacementCheck {
+  const gapTo = (other: Footing) =>
+    distance(position, other.position) -
+    type.footprintRadiusMetres -
+    footprintRadius(other.structureTypeId);
+  const joined = [...site.structures, ...site.constructions];
+  const nearest = site.structures
+    .filter(
+      (array) =>
+        findStructureType(array.structureTypeId)?.radioArray !== undefined &&
+        !site.dismantlings.some((planned) => planned.id === array.id),
+    )
+    .map((array) => ({
+      array,
+      gap: Math.min(
+        gapTo(array),
+        ...joined
+          .filter((other) => other.arrayId === array.id)
+          .map((other) => gapTo(other)),
+      ),
+    }))
+    .filter(({ gap }) => gap <= withinMetres)
+    .sort((a, b) => a.gap - b.gap)[0];
+  if (nearest === undefined) {
+    return refuse(
+      "not-beside-radio-array",
+      `An ${inSentence(type.label)} can only be built beside a commissioned radio telescope array, within ${withinMetres} m of it or of one of its ${inSentence(type.label)}s.`,
+    );
+  }
+  const check = checkFooting(site, type, position);
+  return check.ok ? { ...check, arrayId: nearest.array.id } : check;
 }
 
 /** Checks a vault cistern's placement, round the Buried Habitat given, if any (see `checkPlacement`). */

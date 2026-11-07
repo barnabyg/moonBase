@@ -160,6 +160,9 @@ export function createStructureModel(
   if (structureTypeId === "radio-telescope-array") {
     return createRadioTelescopeArrayModel();
   }
+  if (structureTypeId === "antenna-field") {
+    return createRadioTelescopeArrayModel("field");
+  }
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
   if (structureTypeId === "experiments-lab") {
     return createExperimentsLabModel();

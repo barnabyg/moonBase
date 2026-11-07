@@ -235,6 +235,7 @@ export function structureDetails(
       ...(type.radioArray === undefined
         ? []
         : radioArrayLines(snapshot, type, structure)),
+      ...(type.antennaField === undefined ? [] : [antennaFieldLine(structure)]),
       ...(type.keepClear === undefined
         ? []
         : [clearanceLine(snapshot, type, footing.position, structure)]),
@@ -599,13 +600,44 @@ function radioArrayLines(
     {
       label: "Round",
       stat: {
-        value: `${Math.floor(array.progress * 100)}% of ${formatHours(lengthHours)} with one antenna field`,
+        value:
+          array.antennaFields === 1 || array.minutesLeft === undefined
+            ? `${Math.floor(array.progress * 100)}% of ${formatHours(lengthHours)} with one antenna field`
+            : `${Math.floor(array.progress * 100)}%, ${formatShortDuration(array.minutesLeft)} left at its rate`,
         note: `${survey}, pays ${formatScience(science)}; a shortage of power, or ${kept}, loses it`,
       },
       fraction: array.progress,
     },
     { label: "Antenna fields", stat: { value: formatAntennaFields(array) } },
   ];
+}
+
+/**
+ * Whether an antenna field adds its work to the radio telescope array it joins,
+ * or why not.
+ */
+function antennaFieldLine(
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Array";
+  if (structure === undefined) return { label, stat: NOT_YET };
+  const joins = "its radio telescope array";
+  const why =
+    structure.conditionPercent <= 0
+      ? "Broken"
+      : structure.powered
+        ? undefined
+        : "no power";
+  return {
+    label,
+    stat: {
+      value:
+        why === undefined
+          ? `adds a field's work to ${joins}`
+          : `adds nothing to ${joins}: ${why}`,
+    },
+    warning: why !== undefined,
+  };
 }
 
 /**

@@ -183,11 +183,11 @@ A field of antenna tiles whose signals a correlator combines: a Structure, not a
 _Avoid_: radio telescope, dish, antenna farm
 
 **Antenna field**:
-A square of antenna tiles that a radio telescope array works with; an array is built with one. Each field adds to how fast the array works its round.
+A square of antenna tiles that a radio telescope array works with; an array is built with one. More are Structures of their own, each placed beside a commissioned array or one of its fields, which it joins: once commissioned, each adds a field's work to how fast the array works its round, and nothing while Broken or without power. A Plant within a field's quiet radius stops the whole array. The array can't be dismantled while a field joins it, so its fields are dismantled first.
 _Avoid_: antenna, station
 
 **Quiet radius**:
-How near a radio telescope array a Plant, commissioned, not Broken and not switched off, may stand before it stops the array working. Another array isn't a Plant, so arrays never stop each other.
+How near a radio telescope array, or any antenna field joining it, a Plant, commissioned, not Broken and not switched off, may stand before it stops the array working. Another array isn't a Plant, so arrays never stop each other.
 _Avoid_: radio-quiet zone, exclusion zone
 
 **Round of growing**:
