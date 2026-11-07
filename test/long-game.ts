@@ -820,9 +820,20 @@ function seeToPurchase(
 }
 
 /**
+ * The oxygen below which, while an automated experiments lab runs, the guide sets
+ * its large extraction plant to oxygen, and above which it sets it back. The lab
+ * takes 2.4 kg an Earth Day down to the reserve, about 12 kg, nearly three times
+ * what the Mission Director breathes, more than the first extraction plant makes
+ * running all Daylight: with only that plant, the stock fell to 4.7 kg on Earth
+ * Day 1,800.6 at version 88, under six Earth Days of breathing.
+ */
+const OXYGEN_FOR_THE_LAB_KILOGRAMS = { low: 40, high: 80 } as const;
+
+/**
  * Sets a large extraction plant to metals and silicon, as what the base has it for,
  * but to oxygen while a Large-scale Crew Habitat is to be stocked and the base has
- * the tanks to hold it and too little.
+ * the tanks to hold it and too little, or while an automated experiments lab runs
+ * and the oxygen is short of what it and the Mission Director take.
  */
 function runLargeExtractionPlant(play: Play): void {
   const { state } = play;
@@ -833,11 +844,25 @@ function runLargeExtractionPlant(play: Play): void {
   const oxygenTanks = state.structures.filter(
     ({ structureTypeId }) => structureTypeId === "oxygen-tank",
   ).length;
+  const oxygen =
+    state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
+    0;
+  const labWanted =
+    !everythingResearched(state) &&
+    state.structures.some(
+      ({ structureTypeId }) => structureTypeId === "experiments-lab",
+    );
+  const forTheLab =
+    labWanted &&
+    oxygen <
+      (plant.recipeId === "oxygen"
+        ? OXYGEN_FOR_THE_LAB_KILOGRAMS.high
+        : OXYGEN_FOR_THE_LAB_KILOGRAMS.low);
   const recipeId =
-    crewHabitatToStock(state) &&
-    oxygenTanks >= 2 &&
-    (state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
-      0) < OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS
+    (crewHabitatToStock(state) &&
+      oxygenTanks >= 2 &&
+      oxygen < OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS) ||
+    forTheLab
       ? "oxygen"
       : "metals-and-silicon";
   if (plant.recipeId === recipeId) return;
@@ -1163,31 +1188,52 @@ function waterTheGreenhouse(play: Play): void {
   }
 }
 
+/** Whether every Research Task is completed, so that an automated experiments lab has nothing to speed up. */
+function everythingResearched(state: Snapshot): boolean {
+  return catalogue.researchTasks.every(({ id }) =>
+    state.completedResearchTaskIds.includes(id),
+  );
+}
+
 /**
- * Switches the late science off once it has nothing left to do: the automated
- * experiments lab once every Research Task is completed, as it speeds up only the
- * one running, and the infrared telescope, with the Greenhouses, once Vault
- * cistern is unlocked, so that it boils off no more propellant for Science with
- * nothing left to buy. The radio telescope array isn't a Plant, so it can't be
- * switched off, and goes on earning what it costs only power.
+ * The oxygen below which the guide switches its automated experiments lab off,
+ * and above which it switches it on again, so that the lab doesn't leave the
+ * Mission Director living on the reserve: at version 88, with the lab taking
+ * the stock down to it, a gap in what the Plants made took it to 7.6 kg on
+ * Earth Day 2,063, under the reserve of about 12 kg.
+ */
+const LAB_OXYGEN_KILOGRAMS = { off: 25, on: 40 } as const;
+
+/**
+ * Runs the late science: the automated experiments lab while there is research
+ * left and oxygen enough to spare, and the infrared telescope until Vault cistern
+ * is unlocked, when it is switched off with the Greenhouses, so that it boils
+ * off no more propellant for Science with nothing left to buy. The radio
+ * telescope array isn't a Plant, so it can't be switched off, and goes on
+ * earning what it costs only power.
  */
 function runLateScience(play: Play): void {
   const { state } = play;
-  const researched = catalogue.researchTasks.every(({ id }) =>
-    state.completedResearchTaskIds.includes(id),
-  );
+  const researched = everythingResearched(state);
   const nothingToBuy = state.unlockedDesignIds.includes("vault-cistern");
+  const oxygen =
+    state.lifeSupport.find(({ stockId }) => stockId === "oxygen")?.kilograms ??
+    0;
   for (const plant of state.structures) {
-    const done =
+    const setting =
       plant.structureTypeId === "experiments-lab"
-        ? researched
-        : plant.structureTypeId === "infrared-telescope"
-          ? nothingToBuy
-          : false;
-    if (done && !plant.switchedOff) {
+        ? researched || oxygen < LAB_OXYGEN_KILOGRAMS.off
+          ? "off"
+          : oxygen > LAB_OXYGEN_KILOGRAMS.on
+            ? "on"
+            : undefined
+        : plant.structureTypeId === "infrared-telescope" && nothingToBuy
+          ? "off"
+          : undefined;
+    if (setting !== undefined && (setting === "off") !== plant.switchedOff) {
       succeed(
-        play.campaign.switchPlant(plant.id, "off"),
-        `Switching the ${plant.structureTypeId} off, with nothing left for it to do`,
+        play.campaign.switchPlant(plant.id, setting),
+        `Switching the ${plant.structureTypeId} ${setting}`,
       );
     }
   }
@@ -1236,7 +1282,7 @@ export const longGameSteps: readonly PlayStep[] = [
   ...referenceSteps,
   {
     milestoneId: undefined,
-    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, a bucket-wheel digger, a Regolith bin, an optics works and a grinding line, running the digger only at Night, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants, a Greenhouse and a third Workshop, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. Once Automated experiments is unlocked, ship and build a large battery bank and an automated experiments lab west of the landing site, holding the optics back a further ${WATER_FOR_THE_LAB_AT_NIGHT_KILOGRAMS} kg of water while it runs, then a large battery bank and an infrared telescope far to the north-west, away from the lights, two more large battery banks, and a radio telescope array far to the north, away from the Plants, with ${ANTENNA_FIELD_SITES.length} antenna fields round it once it is commissioned. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a fourth Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse, growing hall and infrared telescope off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over. Once every Research Task is completed, switch the lab off.`,
+    description: `Keep the base going as the reference Campaign's last step does, with a Research Task always running and the cheapest Design unlocked as soon as it can be, until Earth Day ${LONG_GAME_END_EARTH_DAY}. From Earth Day ${ACT_2_EARTH_DAY}, ship and build in turn, as the Science and Funding allow, a Workshop, a third solar array, a large extraction plant set to metals and silicon, a second Workshop, an array works that makes two more solar arrays, a concentrator tower and a cold-trap ice line. Once the Workshop runs stop bringing spare Components by Launch, switching them off while more than ${SPARES_HELD} are in stock, and fill what the circuit boards leave of each Return Mass with metals, or with propellant once it has more than it means to burn. As their Designs are unlocked, ship and build a propellant plant, a propellant tank, a large propellant plant, a bucket-wheel digger, a Regolith bin, an optics works and a grinding line, running the digger only at Night, and load the optics and circuit boards first, burning propellant to lift all there are. Once, make up a tripled Return Mass with metals. From Earth Day ${BURIED_HABITAT_EARTH_DAY}, send for a Buried Habitat over several Launches, build it early in a Daylight, move the Mission Director in as soon as it has power, and dismantle the old Habitat, with its water wall and shielding, before Night falls. From Earth Day ${GREENHOUSE_EARTH_DAY}, ship a second Robot, then ship and build a large battery bank, two more water-processing plants, a Greenhouse and a third Workshop, and once it stands keep the Rover going for water ice while under ${ICE_HELD_KILOGRAMS} kg is in stock, and switch the optics off below ${WATER_FOR_THE_NIGHT_KILOGRAMS} kg of water, on again above ${WATER_TO_SPARE_KILOGRAMS} kg. Once Automated experiments is unlocked, ship and build a large battery bank and an automated experiments lab west of the landing site, holding the optics back a further ${WATER_FOR_THE_LAB_AT_NIGHT_KILOGRAMS} kg of water while it runs and setting the large extraction plant to oxygen below ${OXYGEN_FOR_THE_LAB_KILOGRAMS.low} kg of oxygen, back above ${OXYGEN_FOR_THE_LAB_KILOGRAMS.high} kg, then a large battery bank and an infrared telescope far to the north-west, away from the lights, two more large battery banks, and a radio telescope array far to the north, away from the Plants, with ${ANTENNA_FIELD_SITES.length} antenna fields round it once it is commissioned. From Earth Day ${TANKS_EARTH_DAY}, ship and build a water tank and an oxygen tank. Once Growing halls is unlocked, ship and build a fourth Workshop, a large battery bank, three more water-processing plants, four more cold-trap ice lines and a growing hall, holding its optics back below ${WATER_FOR_THE_NIGHT_WITH_A_HALL_KILOGRAMS} kg of water. Once Large-scale Crew Habitats is unlocked, ship and build two more water tanks and a second oxygen tank, set the large extraction plant to oxygen until there is ${OXYGEN_FOR_THE_CREW_HABITAT_KILOGRAMS} kg, then ship and build a Large-scale Crew Habitat over as many Launches as the Funding allows, holding the optics back once it is planned until there is ${WATER_FOR_THE_CREW_HABITAT_KILOGRAMS} kg of water to stock it. Once Vault cistern is unlocked, with nothing left for Science to buy, switch the Greenhouse, growing hall and infrared telescope off, ship and build a second water tank and a vault cistern round the Buried Habitat, holding the optics back until there is ${WATER_FOR_THE_CISTERN_KILOGRAMS} kg of water to fill it, then let them have what is over. Switch the lab off below ${LAB_OXYGEN_KILOGRAMS.off} kg of oxygen, on again above ${LAB_OXYGEN_KILOGRAMS.on} kg, and off for good once every Research Task is completed.`,
     play(play) {
       keepTheBaseGoing(play);
       playOnUntil(play, LONG_GAME_END_EARTH_DAY);
