@@ -114,6 +114,29 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 150,
       priceMillionDollars: 500,
     },
+    // An infrared telescope's worth comes to 1,500 kg and $2,200M, one Launch:
+    // three mirror segments, a camera and a mount, for a late base's Funding.
+    {
+      id: "infrared-mirror-segment",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "infrared-mirror-segment" },
+      massKilograms: 250,
+      priceMillionDollars: 400,
+    },
+    {
+      id: "infrared-camera",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "infrared-camera" },
+      massKilograms: 150,
+      priceMillionDollars: 500,
+    },
+    {
+      id: "heavy-telescope-mount",
+      designId: "infrared-astronomy",
+      brings: { kind: "component", componentId: "heavy-telescope-mount" },
+      massKilograms: 600,
+      priceMillionDollars: 500,
+    },
     {
       id: "habitat-core",
       designId: "inflatable-habitat",

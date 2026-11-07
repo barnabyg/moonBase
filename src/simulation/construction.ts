@@ -122,6 +122,12 @@ export interface StructureState {
    * any other Structure.
    */
   growingMinutes: number;
+  /**
+   * The game-minutes observed on its current round, if it is an infrared
+   * telescope, at full performance: less for each game-minute at a lower
+   * Condition. Always 0 for any other Structure.
+   */
+  observedMinutes: number;
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   waterWallOver,
   type ConstructionSnapshot,
   type DismantlingSnapshot,
+  type GroundPosition,
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
@@ -32,6 +33,7 @@ import {
   resourceRefLabel,
   structureLabel,
 } from "./labels";
+import { formatInTheWay, radiusName } from "./keep-clear-text";
 import type { Stat } from "./stat";
 import {
   formatObservingProgramme,
@@ -222,6 +224,12 @@ export function structureDetails(
       ...(type.speedsResearch === undefined
         ? []
         : [speedUpLine(snapshot, structure)]),
+      ...(type.observingRounds === undefined
+        ? []
+        : [surveyLine(type, structure)]),
+      ...(type.keepClear === undefined
+        ? []
+        : [clearanceLine(snapshot, type, footing.position, structure)]),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -526,6 +534,54 @@ function roundLine(
     },
     fraction,
   };
+}
+
+/** How far an infrared telescope's round of its survey has got, and what it pays. */
+function surveyLine(
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const label = "Round";
+  if (structure === undefined || type.observingRounds === undefined) {
+    return { label, stat: NOT_YET };
+  }
+  const { lengthHours, science, label: survey } = type.observingRounds;
+  const fraction = Math.min(structure.observedMinutes / (lengthHours * 60), 1);
+  return {
+    label,
+    stat: {
+      value: `${Math.floor(fraction * 100)}% of ${formatHours(lengthHours)} of Night`,
+      note: `${survey}, pays ${formatScience(science)}; a shortage of propellant or power, or a light within its dark radius, loses it`,
+    },
+    fraction,
+  };
+}
+
+/**
+ * What stops a Structure that is kept clear of something working where it stands,
+ * for example "1 lit Structure within its dark radius of 80 m: light mast".
+ */
+function clearanceLine(
+  snapshot: Snapshot,
+  type: StructureType,
+  position: GroundPosition,
+  structure: StructureSnapshot | undefined,
+): DetailLine {
+  const rule = type.keepClear;
+  const label =
+    rule === undefined ? "Clearance" : capitalised(radiusName(rule));
+  return {
+    label,
+    stat: {
+      value:
+        formatInTheWay(type.id, position, snapshot.structures, structure?.id) ??
+        "",
+    },
+  };
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** What an automated experiments lab is doing for the Research Task running. */

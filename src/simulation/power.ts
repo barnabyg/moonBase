@@ -26,6 +26,7 @@ import {
 import type { GameEvent } from "./events";
 import { isExperimentsLab } from "./experiments-labs";
 import { isGreenhouse } from "./greenhouses";
+import { isInfraredTelescope } from "./infrared-telescopes";
 import { partsAhead, readLunation } from "./lunation";
 import { livesIn } from "./mission-director";
 import {
@@ -508,9 +509,11 @@ export function consumptionKilowatts(
  * Night and the data catalogue's reserve after it (see
  * `nightReserveHours`): otherwise it stays off to save power, so that no
  * Night load ever leaves the Habitat, or anything else, without power.
- * A Greenhouse, or an automated experiments lab, is a Plant that draws as a
- * Structure and a Night load do, in those turns, and works while they have power,
- * rather than on what is to spare (see `runGreenhouses` and `researchSpeedUp`).
+ * A Greenhouse, an automated experiments lab or an infrared telescope is a Plant
+ * that draws as a Structure and a Night load do, in those turns, and works while
+ * they have power, rather than on what is to spare (see `runGreenhouses`,
+ * `researchSpeedUp` and `runInfraredTelescopes`); an infrared telescope only at
+ * Night.
  * Any other Plant comes last of all, in the order they
  * were commissioned: each that can run (see `plantCantRun`) has power only
  * if the energy to spare covers all it draws in the game-minute. In
@@ -583,7 +586,10 @@ export function supplyPower(state: CampaignState, daylight: boolean): void {
     );
     for (const plant of plants) {
       const drawn = plantDrawKilowatts(plant) / 60;
-      const cantRun = plantCantRun(state, plant, claims);
+      const cantRun =
+        daylight && isInfraredTelescope(plant)
+          ? { reason: "daylight" as const }
+          : plantCantRun(state, plant, claims);
       const greenhouse = drawsAsAStructure(plant);
       plant.powered =
         cantRun === undefined &&
@@ -960,18 +966,25 @@ function drawKilowatts(
 
 /**
  * Whether a Plant draws its power as a Structure and a Night load do, rather than
- * as a recipe does: a Greenhouse or an automated experiments lab.
+ * as a recipe does: a Greenhouse, an automated experiments lab or an infrared
+ * telescope.
  */
 function drawsAsAStructure(
   structure: Pick<StructureState, "structureTypeId">,
 ): boolean {
-  return isGreenhouse(structure) || isExperimentsLab(structure);
+  return (
+    isGreenhouse(structure) ||
+    isExperimentsLab(structure) ||
+    isInfraredTelescope(structure)
+  );
 }
 
 /**
- * Whether a Plant that draws as a Structure does has finished its last batch and
- * starts no other, so that it draws no power: it is switched off, or it is an
- * automated experiments lab that has found no Research Task running to speed up.
+ * Whether a Plant that draws as a Structure does draws no power for now: something
+ * it is kept clear of is near, or it has finished its last batch and starts no
+ * other, as it is switched off, or it is an automated experiments lab that has
+ * found no Research Task running to speed up, or an infrared telescope that has
+ * found too little propellant for a batch. It looks again each game-minute.
  */
 function isIdle(
   structure: Pick<
@@ -979,11 +992,14 @@ function isIdle(
     "structureTypeId" | "switchedOff" | "batch" | "plantStop"
   >,
 ): boolean {
+  if (!drawsAsAStructure(structure)) return false;
+  const reason = structure.plantStop?.reason;
+  if (reason === "too-close") return true;
   return (
     structure.batch === undefined &&
     (structure.switchedOff ||
-      structure.plantStop?.reason === "no-research-task") &&
-    drawsAsAStructure(structure)
+      reason === "no-research-task" ||
+      (reason === "no-input" && isInfraredTelescope(structure)))
   );
 }
 

@@ -20,6 +20,13 @@ export { researchTaskMinutes } from "./research";
 export { roundMinutes } from "./observing";
 export { isGreenhouse } from "./greenhouses";
 export { isExperimentsLab } from "./experiments-labs";
+export { isInfraredTelescope } from "./infrared-telescopes";
+export type {
+  InfraredStop,
+  InfraredTelescopeSnapshot,
+} from "./infrared-telescopes";
+export { isOfKind, keepClearOf, structuresInTheWay } from "./keep-clear";
+export type { StandingStructure } from "./keep-clear";
 export type {
   ExperimentsLabShortage,
   ExperimentsLabsSnapshot,

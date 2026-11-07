@@ -19,6 +19,8 @@ import {
   kilogramsAboveReserve,
   reserveKilograms,
 } from "./life-support-reserve";
+import { propellantKeptForTheLander } from "./exports";
+import { structuresInTheWay } from "./keep-clear";
 import { readLunation } from "./lunation";
 import { recordLifeSupport, recordSpareComponents } from "./self-sufficiency";
 import { addToStock, inStock } from "./stockpile";
@@ -83,7 +85,18 @@ export type PlantStop =
    * Task is running for it to speed up: it starts none, and draws no power, until
    * one is.
    */
-  | { readonly reason: "no-research-task" };
+  | { readonly reason: "no-research-task" }
+  /**
+   * It works only at Night, as an infrared telescope does, and it is Daylight: a
+   * batch it has started waits for the Night.
+   */
+  | { readonly reason: "daylight" }
+  /**
+   * A Structure of the kind it is kept clear of stands within its radius (see
+   * `structuresInTheWay`): it does nothing, and draws no power, until there is
+   * none. A batch it has started waits.
+   */
+  | { readonly reason: "too-close" };
 
 /** Why a Plant isn't running, as the player sees it. */
 export type PlantStopSnapshot =
@@ -346,13 +359,17 @@ function spaceClaimKey(resource: ResourceRef): string {
 
 /**
  * How many kilograms of a resource a Plant may take as it starts a batch: all
- * there is of a bulk resource, and of a life support stock what is above the
- * Mission Director's reserve.
+ * there is of a bulk resource but propellant, of propellant what is above what the
+ * Lander needs for the Exports set to load (see `propellantKeptForTheLander`), and
+ * of a life support stock what is above the Mission Director's reserve.
  */
 function amountToTake(state: CampaignState, resource: ResourceRef): number {
-  return resource.kind === "bulk-resource"
-    ? amountOf(state, resource)
-    : kilogramsAboveReserve(state, resource.stockId);
+  if (resource.kind === "life-support") {
+    return kilogramsAboveReserve(state, resource.stockId);
+  }
+  return resource.resourceId === catalogue.lander.propellant.resourceId
+    ? amountOf(state, resource) - propellantKeptForTheLander(state)
+    : amountOf(state, resource);
 }
 
 /**
@@ -430,7 +447,8 @@ function fullOutput(
 
 /**
  * Why a commissioned Plant couldn't run whatever power it had, if it
- * couldn't: it is Broken, or it has no batch started and is switched off,
+ * couldn't: it is Broken, or something it is kept clear of is near, or it has
+ * no batch started and is switched off,
  * or is an automated experiments lab with no Research Task running to speed
  * up, or has too little of an input to start one, beyond what other Plants
  * have claimed this game-minute and any reserve kept of it, or has no room for
@@ -444,6 +462,16 @@ export function plantCantRun(
   const recipe = recipeOf(structure);
   if (recipe === undefined) return undefined;
   if (isBroken(structure)) return { reason: "broken" };
+  if (
+    structuresInTheWay(
+      structure.structureTypeId,
+      structure.position,
+      state.structures,
+      structure.id,
+    ).length > 0
+  ) {
+    return { reason: "too-close" };
+  }
   if (structure.batch !== undefined) return undefined;
   if (structure.switchedOff) return { reason: "switched-off" };
   if (
@@ -885,7 +913,10 @@ function readStop(
     resource: { ...stop.resource },
     // A Plant later in the game-minute may have made enough since, for it
     // to start a batch in the next one.
-    kilograms: Math.min(amountOf(state, stop.resource), needed),
+    kilograms: Math.min(
+      Math.max(amountToTake(state, stop.resource), 0),
+      needed,
+    ),
     kilogramsNeeded: needed,
   };
 }

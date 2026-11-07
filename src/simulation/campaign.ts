@@ -113,6 +113,7 @@ import {
   type RemoveQueuedResearchTaskResult,
 } from "./research";
 import { runObservingProgramme } from "./observing";
+import { runInfraredTelescopes } from "./infrared-telescopes";
 import { runGreenhouses } from "./greenhouses";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {
@@ -793,6 +794,7 @@ function advanceOneTick(state: CampaignState, run: TickRun): GameEvent[] {
   );
   runPlants(state);
   events.push(...runGreenhouses(state));
+  events.push(...runInfraredTelescopes(state));
   events.push(...runResearch(state));
   events.push(...runObservingProgramme(state));
   const partAfter = readLunation(state.elapsedMinutes, catalogue.lunation).part;

@@ -1036,6 +1036,27 @@ export const migrations: readonly Migration[] = [
   // experiments labs speed up the Research Task running, so the game-minutes done of
   // it may be a fraction, and a Plant may be saved as waiting for a Research Task.
   (document) => ({ ...document }),
+  // 47 to 48: infrared telescopes, each on a round of its own, kept as
+  // `observedMinutes` on its Structure. There were none before, so every Structure
+  // gets 0. A Plant may now also be saved as waiting for the Night, or for
+  // something it is kept clear of to go.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state) || !Array.isArray(state["structures"])) {
+      return { ...document };
+    }
+    return {
+      ...document,
+      state: {
+        ...state,
+        structures: (state["structures"] as unknown[]).map((structure) =>
+          isRecord(structure)
+            ? { ...structure, observedMinutes: 0 }
+            : structure,
+        ),
+      },
+    };
+  },
 ];
 
 /**

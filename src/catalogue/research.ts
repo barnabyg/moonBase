@@ -914,6 +914,23 @@ export const designs: Catalogue["designs"] = [
     scienceCost: 20,
     prerequisiteDesignIds: ["precision-optics"],
   },
+  // Act 4's second way to earn Science by building and supplying (ADR-0009): an
+  // infrared telescope, past Optical telescopes and Precision optics, whose mirror
+  // the optics works could figure. Like Automated experiments, its price is in
+  // Funding, power and propellant rather than Science: 3 is all that research
+  // alone has to spare once Automated experiments has its 20, so that it moves no
+  // Design's date for a player who unlocks it and never builds one. No Research
+  // Task pays for it, as research already fills the Campaign to Earth Day 3,000.
+  {
+    id: "infrared-astronomy",
+    label: "Infrared astronomy",
+    description:
+      "An infrared telescope: a 2 m segmented mirror whose camera is cooled by boiling off the base's propellant. It observes at Night for a survey of its own, paying several times the Night-sky survey, but only far from any light, at the end of a long cable.",
+    category: "industry",
+    starting: false,
+    scienceCost: 3,
+    prerequisiteDesignIds: ["optical-telescopes", "precision-optics"],
+  },
   {
     id: "landing-pads",
     label: "Landing pads",

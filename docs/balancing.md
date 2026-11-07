@@ -278,6 +278,26 @@ The Design costs 20 Science, so that it moves no Design's date: the pacing repor
 
 The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played.
 
+## The infrared telescope
+
+ADR-0009's second Structure for Act 4 is an infrared telescope (#261), the Infrared astronomy Design, past Optical telescopes and Precision optics, at data catalogue version 85. It observes at Night only, on rounds of its own Deep infrared survey, cooled by boiling off propellant, and can't observe while a lit Structure stands within 80 m of it, its dark radius. The optical telescope and its Night-sky survey are unchanged.
+
+| For each telescope, supplied all through a Night | Figure                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| A round                                          | 48 hours of Night for 24 Science, four times the Night-sky survey's 6       |
+| Rounds a Lunation (228 hours of Night)           | 4.75                                                                        |
+| Science a Lunation                               | 114, a Greenhouse 118, an automated experiments lab about 100               |
+| Propellant it boils off                          | 2 kg an hour, 456 kg a Lunation: 4 kg for each Science                      |
+| What that propellant would sell for              | $4.8M for each Science, $547M a Lunation                                    |
+| Through a Night                                  | 4 kW, 912 kWh, more than a large battery bank's 800 kWh                     |
+| Its Components, by Launch                        | 1,500 kg and $2,200M: three mirror segments, an infrared camera and a mount |
+
+So it earns about what a Greenhouse does, for propellant and power rather than water. A Lunation of it takes about what a small propellant plant makes in a Daylight, so a base that sells all its propellant has to build more, or choose between Science and Funding; it never takes what is set to load as Exports. Its 4 kW at Night needs another large battery bank or a thermal store for each telescope. The dark radius puts it 80 m from the nearest Light Mast, at the end of a cable that takes the Robot over 13 hours to lay at 6 m an hour, unless the base's lights come down. A shortage of propellant or power, or a light within its dark radius, loses the round it is on; Daylight only pauses it, as a round doesn't fit in a Night.
+
+The Design costs 3 Science, so that it moves no Design's date: research alone has 23 Science to spare when the Optics grinding line is unlocked, and Automated experiments takes 20 of it. At 40, the pacing report's research no longer reaches the Optics grinding line, the Grinding line yield survey or anything after them. Its price is in Funding, propellant and power instead. No Research Task pays for it and no Research Task changed. One of every Launch item now comes to $12,907M, 87 Launches of circuit boards.
+
+The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played.
+
 ## Still to watch
 
 - **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end, and at version 78 about $7,500M.

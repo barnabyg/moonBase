@@ -8,6 +8,10 @@ import type { PlumeEjectaDamage } from "./plume-ejecta";
 /** What cost a Greenhouse its round. */
 export type GreenhouseRoundLoss = "water" | "power" | "switched-off";
 
+/** What an infrared telescope lost its round to. */
+export type InfraredRoundLoss =
+  "propellant" | "power" | "light" | "switched-off";
+
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
  * simulation until one of these happens.
@@ -388,6 +392,31 @@ export type GameEvent =
       /** Which type it is, a Greenhouse or a growing hall, for its name. */
       readonly structureTypeId: string;
       readonly reason: GreenhouseRoundLoss;
+    }
+  | {
+      /**
+       * An infrared telescope has observed a whole round of its survey: the
+       * Science it pays has been added to the base's, and its next round has begun.
+       */
+      readonly kind: "infrared-round-completed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
+       * An infrared telescope has lost what it had observed of its round, for want
+       * of propellant or power, as a lit Structure stands within its dark radius,
+       * or as the player switched it off. It says nothing of a round only just
+       * begun, as a Greenhouse doesn't.
+       */
+      readonly kind: "infrared-round-lost";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      readonly reason: InfraredRoundLoss;
     }
   | {
       /**

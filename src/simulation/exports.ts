@@ -200,6 +200,29 @@ function propellantToLift(massKilograms: number): number {
   );
 }
 
+/**
+ * The propellant in stock that nothing else may take: what the Exports to load
+ * will sell of it, until they are out of the stock, and what the Lander will burn
+ * lifting them and those aboard, until it takes off. An infrared telescope boils
+ * off only what is above it, so its Science never costs the base a sale it has set.
+ */
+export function propellantKeptForTheLander(state: CampaignState): number {
+  const { resourceId } = catalogue.lander.propellant;
+  const toSell =
+    state.exportLoading?.collected === true
+      ? 0
+      : massOf(
+          state.exportsToLoad.filter((line) => line.resourceId === resourceId),
+        );
+  const toBurn =
+    state.lander.trip !== undefined
+      ? 0
+      : propellantToLift(
+          massOf(state.exportsToLoad) + massOf(state.lander.exports),
+        );
+  return toSell + toBurn;
+}
+
 /** Burns the propellant it takes to lift what is aboard, as the Lander takes off. */
 export function burnPropellant(state: CampaignState): void {
   const { resourceId } = catalogue.lander.propellant;

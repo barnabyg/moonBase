@@ -14,6 +14,7 @@ import {
   TALL_LIGHT_MAST,
 } from "./light-mast-model";
 import { createTelescopeModel } from "./telescope-model";
+import { createInfraredTelescopeModel } from "./infrared-telescope-model";
 import {
   createBuriedHabitatModel,
   createHabitatModel,
@@ -152,6 +153,9 @@ export function createStructureModel(
     return createSinteredLandingPadModel();
   }
   if (structureTypeId === "telescope") return createTelescopeModel();
+  if (structureTypeId === "infrared-telescope") {
+    return createInfraredTelescopeModel();
+  }
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
   if (structureTypeId === "experiments-lab") {
     return createExperimentsLabModel();

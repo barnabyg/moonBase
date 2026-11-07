@@ -582,12 +582,12 @@ describe("the pacing report on today's catalogue", () => {
 
   it("gives the Research Tasks' length and the Designs' cost", () => {
     expect(report).toContain("2979 Earth Days");
-    expect(report).toContain("22545 Science");
+    expect(report).toContain("22548 Science");
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$11507M");
-    expect(report).toMatch(/Circuit boards.*77 Launches/);
+    expect(report).toContain("$12907M");
+    expect(report).toMatch(/Circuit boards.*87 Launches/);
   });
 
   it("says what limits each Export, and they differ", () => {

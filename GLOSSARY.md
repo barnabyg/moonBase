@@ -170,6 +170,14 @@ _Avoid_: farm, large Greenhouse
 A pressure module of experiment racks tended by robotic arms: a Plant that takes water and oxygen from the base's stocks an hour's worth at a time and draws power day and night, and while it has all three makes the Research Task running advance faster, by the same again for each lab. It changes no Research Task, and a shortage only stops the speed-up. It never takes water or oxygen below the reserve, takes and draws nothing while no Research Task is running, and gives up its power before anything else goes without.
 _Avoid_: research lab, science lab, laboratory
 
+**Infrared telescope**:
+A large telescope whose near-infrared camera is cooled by boiling off the base's propellant: a Plant that takes its propellant an hour's worth at a time and draws power as a Night load, and earns Science by rounds of its own survey, at Night only. It can't observe while a lit Structure is within its dark radius. A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round. It never takes the propellant the Lander needs for the Exports set to load. The telescope, the optical one, is a different Structure.
+_Avoid_: IR scope, cryogenic telescope
+
+**Dark radius**:
+How near an infrared telescope a lit Structure, one with a light radius such as a Light Mast, may stand before it stops the telescope observing. It is one kind of radius a Structure can be kept clear within; a Plant could be another.
+_Avoid_: light exclusion zone, no-light zone
+
 **Round of growing**:
 What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.
 _Avoid_: harvest, crop cycle

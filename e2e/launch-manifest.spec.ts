@@ -362,10 +362,10 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
   }
 
   // By what it is called, in any case.
-  await find.fill("MADE-UP PART 13");
+  await find.fill("MADE-UP PART 7");
   await expect(shown).toHaveText(`Showing 1 of ${CROWDED_LAUNCH_ITEMS} items`);
   await expect(
-    screen.getByRole("row", { name: /^Made-up part 13\b/ }),
+    screen.getByRole("row", { name: /^Made-up part 7\b/ }),
   ).toBeVisible();
 
   // By what it is for: an array pack doesn't say "solar" in its name, only
@@ -417,7 +417,7 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
   await expect(find).toBeHidden();
   await screen.getByRole("tab", { name: "Imports" }).click();
   await expect(find).toHaveValue("telescope");
-  await expect(shown).toHaveText(`Showing 2 of ${CROWDED_LAUNCH_ITEMS} items`);
+  await expect(shown).toHaveText(`Showing 5 of ${CROWDED_LAUNCH_ITEMS} items`);
 });
 
 test("at the fastest game speed, what the player types to find an item stays as it is, with the caret where they left it", async ({

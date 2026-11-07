@@ -556,6 +556,41 @@ export interface ResearchSpeedUp {
 }
 
 /**
+ * The kinds of Structure that another can't work near: `lit`, any Structure
+ * with a light radius, such as a Light Mast, and `plants`, any Plant. Only one
+ * commissioned, not Broken and not switched off counts.
+ */
+export type KeepClearOf = "lit" | "plants";
+
+/**
+ * What a Structure can't work near: while a Structure of the given kind stands
+ * with any part of its footprint within the radius of its centre, it does nothing
+ * (an infrared telescope's dark radius, for one).
+ */
+export interface KeepClear {
+  readonly of: KeepClearOf;
+  readonly radiusMetres: number;
+}
+
+/**
+ * An infrared telescope's standing observing programme, which each one works on
+ * by itself, a round at a time, at Night: every game-minute it observes adds its
+ * performance's share of a game-minute, and the round's Science comes once it has
+ * its length. Daylight only pauses a round, but a shortage of its coolant or its
+ * power, or something it is kept clear of coming near, loses what it has observed.
+ */
+export interface ObservingRounds {
+  readonly label: string;
+  /**
+   * How long a round takes at full performance, in game-hours of Night. Must
+   * come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete, a whole amount. */
+  readonly science: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -1124,6 +1159,18 @@ export interface StructureType {
    * `ObservingProgramme`). Leaving it out is the same as false.
    */
   readonly telescope?: boolean;
+  /**
+   * If it can't work while a kind of Structure is near it: how near, and which
+   * kind (see `KeepClear`). Leaving it out means nothing stops it.
+   */
+  readonly keepClear?: KeepClear;
+  /**
+   * If it is an infrared telescope: a Plant that takes its coolant a batch at a
+   * time, observes only at Night, while its Night load has power and nothing it
+   * is kept clear of is near, and earns Science by rounds of its own standing
+   * programme (see `ObservingRounds`).
+   */
+  readonly observingRounds?: ObservingRounds;
   /**
    * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
    * crop grows a round at a time while it has water and power, day and night, and

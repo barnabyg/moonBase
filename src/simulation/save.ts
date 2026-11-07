@@ -380,6 +380,8 @@ const plantStop: Decoder<PlantStop> = tagged("reason", {
   "switched-off": object({ reason: exactly("switched-off") }),
   "switched-on": object({ reason: exactly("switched-on") }),
   "no-research-task": object({ reason: exactly("no-research-task") }),
+  daylight: object({ reason: exactly("daylight") }),
+  "too-close": object({ reason: exactly("too-close") }),
 } satisfies Record<PlantStop["reason"], unknown>);
 
 /**
@@ -402,6 +404,7 @@ const structure: Decoder<StructureState> = (() => {
     plantStop: optional(plantStop),
     switchedOff: boolean,
     growingMinutes: amount,
+    observedMinutes: amount,
   });
   return (value, path) => {
     const decoded = fields(value, path);
@@ -453,6 +456,17 @@ const structure: Decoder<StructureState> = (() => {
       throw refuse(
         at(path, "growingMinutes"),
         "isn't 0, though the Structure isn't a Greenhouse",
+      );
+    }
+    if (
+      decoded.observedMinutes > 0 &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.observingRounds === undefined
+    ) {
+      throw refuse(
+        at(path, "observedMinutes"),
+        "isn't 0, though the Structure isn't an infrared telescope",
       );
     }
     return decoded;

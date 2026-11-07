@@ -58,6 +58,10 @@ import {
   readExperimentsLabs,
   type ExperimentsLabsSnapshot,
 } from "./experiments-labs";
+import {
+  readInfraredTelescopes,
+  type InfraredTelescopeSnapshot,
+} from "./infrared-telescopes";
 import type { RobotActivity } from "./robot";
 import { roverPerformance, type RoverActivity } from "./rovers";
 import {
@@ -271,6 +275,11 @@ export interface StructureSnapshot {
    * performance. Always 0 for any other Structure.
    */
   readonly growingMinutes: number;
+  /**
+   * The game-minutes observed on its current round, if it is an infrared
+   * telescope, at full performance. Always 0 for any other Structure.
+   */
+  readonly observedMinutes: number;
 }
 
 /**
@@ -378,6 +387,8 @@ export interface Snapshot {
   readonly observingProgramme: ObservingProgrammeSnapshot;
   /** The automated experiments labs that speed up the Research Task running. */
   readonly experimentsLabs: ExperimentsLabsSnapshot;
+  /** The infrared telescopes, each on a round of its own survey, in the order they were commissioned. */
+  readonly infraredTelescopes: readonly InfraredTelescopeSnapshot[];
   /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
@@ -465,6 +476,7 @@ export function readSnapshot(state: CampaignState): Snapshot {
     completedResearchTaskIds: [...state.completedResearchTaskIds],
     observingProgramme: readObservingProgramme(state),
     experimentsLabs: readExperimentsLabs(state),
+    infraredTelescopes: readInfraredTelescopes(state),
     unlockedDesignIds: [...state.unlockedDesignIds],
     milestones: readMilestones(state),
     exports: readExports(state),

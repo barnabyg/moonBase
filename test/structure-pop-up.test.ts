@@ -46,6 +46,7 @@ function structure(
     recipeId: undefined,
     switchedOff: false,
     growingMinutes: 0,
+    observedMinutes: 0,
     ...changes,
   };
 }

@@ -25,6 +25,8 @@ import {
   type LifeSupportForecast,
   type LifeSupportSnapshot,
   type MissionDirectorResidence,
+  type InfraredStop,
+  type InfraredTelescopeSnapshot,
   type ObservingProgrammeSnapshot,
   type PowerForecast,
   type PowerNetworkSnapshot,
@@ -1019,6 +1021,49 @@ export function formatObservingProgramme(
     case undefined:
       return { value, note: "waits for Night" };
   }
+}
+
+/** Why an infrared telescope isn't observing, in a few words. */
+const INFRARED_STOPS: Record<InfraredStop, string> = {
+  daylight: "waits for Night",
+  light: "a lit Structure within its dark radius",
+  propellant: "short of propellant",
+  power: "no power to observe",
+  "switched-off": "switched off",
+  broken: "Broken",
+};
+
+/**
+ * Says how the base's infrared telescopes are getting on with their survey, for
+ * example "2 infrared telescopes observing, 1d 4h left" with the least time left
+ * of any round, or why the first of them isn't observing, for example "a lit
+ * Structure within its dark radius"; undefined while the base has none.
+ */
+export function formatInfraredSurvey(
+  telescopes: readonly InfraredTelescopeSnapshot[],
+): Stat | undefined {
+  const [first] = telescopes;
+  if (first === undefined) return undefined;
+  const value =
+    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
+      ?.observingRounds?.label ?? "Infrared survey";
+  const observing = telescopes.filter((telescope) => telescope.observing);
+  if (observing.length > 0) {
+    const left = Math.min(
+      ...observing.map(({ minutesLeft }) => minutesLeft ?? Infinity),
+    );
+    return {
+      value,
+      note: `${plural(observing.length, "infrared telescope")} observing, ${formatShortDuration(left)} left`,
+    };
+  }
+  const stopped = telescopes.find(
+    ({ stoppedFor }) => stoppedFor !== "daylight",
+  );
+  return {
+    value,
+    note: INFRARED_STOPS[(stopped ?? first).stoppedFor ?? "daylight"],
+  };
 }
 
 /**

@@ -633,6 +633,7 @@ function finishCommissioning(
     plantStop: undefined,
     switchedOff: false,
     growingMinutes: 0,
+    observedMinutes: 0,
   });
   return [
     {

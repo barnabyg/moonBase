@@ -89,6 +89,35 @@ describe("what npm run try can start the game in", () => {
     }
   });
 
+  it("infrared-telescope has an infrared telescope observing at Night out past a Light Mast's reach, with propellant and a second set of its Components", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "infrared-telescope",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("night");
+    expect(state.infraredTelescopes).toEqual([
+      expect.objectContaining({ observing: true, inTheWay: [] }),
+    ]);
+    expect(
+      state.bulkResources.find(({ resourceId }) => resourceId === "propellant")
+        ?.kilograms,
+    ).toBeGreaterThan(500);
+    const telescope = catalogue.structureTypes.find(
+      ({ id }) => id === "infrared-telescope",
+    );
+    for (const { componentId, count } of telescope?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
+  });
+
   it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "late-game",

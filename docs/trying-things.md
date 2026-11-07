@@ -31,6 +31,7 @@ It prepares a Campaign, starts the game at <http://localhost:5173> in Firefox wi
 | `regolith-digger`     | A base with a propellant plant, a bucket-wheel digger and a Regolith bin, 4,800 of 5,000 kg of Regolith, a few hours before Night                  |
 | `greenhouse`          | A base with a Greenhouse growing a few hours before Night on a day's water above the reserve, and a water-processing plant switched off            |
 | `experiments-lab`     | A base with an automated experiments lab speeding up a long Research Task in Daylight, and a second lab's Components in stock                      |
+| `infrared-telescope`  | A base with an infrared telescope observing at Night, out past a Light Mast's dark radius, with propellant and a second telescope's Components     |
 | `late-game`           | Late in a Campaign, in a Buried Habitat at 570 mSv, a Greenhouse growing, Growing halls unlocked, the Science for a Vault cistern, and $20,000M    |
 | `crowded`             | A base with two Plants running, on a catalogue crowded with made-up items, with every bulk resource and silicon about to run out                   |
 

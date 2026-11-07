@@ -5,6 +5,7 @@ import {
   nextSolarArray,
   SOLAR_ARRAY_ID,
   solarArraysInStock,
+  structuresInTheWay,
   type Campaign,
   type GroundPosition,
   type Snapshot,
@@ -12,6 +13,7 @@ import {
 import { describeBuild, describeStructure, designOf } from "./describe";
 import { onClick } from "./click";
 import { setText } from "./dom";
+import { formatInTheWay } from "./keep-clear-text";
 import { inSentence } from "./labels";
 
 export interface BuildMenu {
@@ -49,6 +51,8 @@ export function createBuildMenu(
   let placing: StructureType | undefined;
   /** Where the next take-off or landing blasts Plume Ejecta, as of the latest snapshot. */
   let plumeEjecta: Snapshot["plumeEjecta"];
+  /** The commissioned Structures, as of the latest snapshot. */
+  let structures: Snapshot["structures"] = [];
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
   // A solar array is planned as one, and its parts decide its kind.
@@ -119,6 +123,18 @@ export function createBuildMenu(
       : "";
   }
 
+  /**
+   * Says what, within the radius a Structure must be kept clear within, would
+   * stop it working here, or that nothing would.
+   */
+  function keepClearWarning(type: StructureType, at: GroundPosition): string {
+    const words = formatInTheWay(type.id, at, structures);
+    if (words === undefined) return "";
+    return structuresInTheWay(type.id, at, structures).length === 0
+      ? ` Nothing stops it working here: ${words}.`
+      : ` It won't work here: ${words}.`;
+  }
+
   function stopPlacing(message: string): void {
     placing = undefined;
     showPlacing();
@@ -142,16 +158,34 @@ export function createBuildMenu(
       position,
     });
     // Shown where it would stand, such as centred on the Habitat it shields.
+    const at = check.ok ? check.position : position;
+    const rule = placing.keepClear;
     renderer.showPlacementPreview({
       structureTypeId: placing.id,
-      position: check.ok ? check.position : position,
+      position: at,
       allowed: check.ok,
       plumeEjecta,
+      ...(rule === undefined
+        ? {}
+        : {
+            keepClear: {
+              radiusMetres: rule.radiusMetres,
+              inTheWay: structuresInTheWay(placing.id, at, structures).map(
+                (other) => ({
+                  position: other.position,
+                  footprintRadiusMetres:
+                    catalogue.structureTypes.find(
+                      ({ id }) => id === other.structureTypeId,
+                    )?.footprintRadiusMetres ?? 1,
+                }),
+              ),
+            },
+          }),
     });
     setText(
       hint,
       check.ok
-        ? `Click to place the ${inSentence(placing.label)} here.${plumeWarning(placing, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(placing.label)} here.${keepClearWarning(placing, at)}${plumeWarning(placing, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(placing)}`
         : check.message,
     );
     return { type: placing, position };
@@ -200,7 +234,7 @@ export function createBuildMenu(
       return placing !== undefined;
     },
     update(snapshot) {
-      ({ plumeEjecta } = snapshot);
+      ({ plumeEjecta, structures } = snapshot);
       for (const { type, button, stock, count, meaning } of buttons) {
         // Not offered until its Design is unlocked.
         button.hidden = !snapshot.unlockedDesignIds.includes(type.designId);

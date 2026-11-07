@@ -46,8 +46,13 @@ const generates = (kilowatts: number) =>
   `generates ${kilowatts} kW in Daylight`;
 const stores = (kilowattHours: number) => `stores ${kilowattHours} kWh`;
 /** What a Night load draws: a light while it is on, or a telescope while it observes. */
-const drawsAtNight = ({ power, telescope, speedsResearch }: StructureType) =>
-  telescope === true
+const drawsAtNight = ({
+  power,
+  telescope,
+  speedsResearch,
+  observingRounds,
+}: StructureType) =>
+  telescope === true || observingRounds !== undefined
     ? `draws ${power.nightDrawKilowatts} kW at Night while it observes, and nothing in Daylight`
     : speedsResearch !== undefined
       ? `draws ${power.nightDrawKilowatts} kW at Night while it runs`
@@ -207,10 +212,15 @@ export function describeStructure(type: StructureType): string {
             (recipe) =>
               `runs day and night while a Research Task is running, using ${flows(recipe.inputs)} an hour, and makes that Research Task advance ${plural(type.speedsResearch?.addedMinutesPerMinute ?? 0, "game-minute")} more for every game-minute it runs, adding the same again for each lab`,
           )
-        : (type.recipes ?? []).map(
-            (recipe) =>
-              `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
-          )),
+        : type.observingRounds !== undefined
+          ? (type.recipes ?? []).map(
+              (recipe) =>
+                `observes the sky at Night for the ${type.observingRounds?.label ?? ""}, a standing survey of its own, boiling off ${flows(recipe.inputs)} an hour to cool its camera, and completes a round for ${formatScience(type.observingRounds?.science ?? 0)} every ${formatHours(type.observingRounds?.lengthHours ?? 0)} it observes`,
+            )
+          : (type.recipes ?? []).map(
+              (recipe) =>
+                `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
+            )),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
@@ -234,11 +244,13 @@ export function describeStructure(type: StructureType): string {
     ...(type.recipes?.[0] === undefined
       ? []
       : [
-          type.speedsResearch !== undefined
-            ? "Unlike most Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night, and gives it up before anything else goes without. It takes its water and oxygen an hour's worth at a time, never below the Mission Director's reserve, and none while no Research Task is running, when it draws no power either. A shortage of any of them only stops the speed-up until it is supplied again: no Research Task is lost or changed."
-            : type.growing === undefined
-              ? plantsAtNight(batchHoursOf(type.recipes[0]))
-              : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+          type.observingRounds !== undefined
+            ? `Unlike most Plants, it draws its power as a Night load, in its turn after the heaters, and gives it up before anything else goes without. It takes its propellant an hour's worth at a time, never what the Lander needs to lift and sell the Exports set to load. It can't observe while a lit Structure, such as a Light Mast, stands within ${type.keepClear?.radiusMetres ?? 0} m of it, its dark radius, and then draws no power: build it away from the base, at the end of a long cable. A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round, with a notification, and it starts a new one by itself; Daylight only pauses it. Switching it off gives up the round too. More of them earn more, each with its own round.`
+            : type.speedsResearch !== undefined
+              ? "Unlike most Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night, and gives it up before anything else goes without. It takes its water and oxygen an hour's worth at a time, never below the Mission Director's reserve, and none while no Research Task is running, when it draws no power either. A shortage of any of them only stops the speed-up until it is supplied again: no Research Task is lost or changed."
+              : type.growing === undefined
+                ? plantsAtNight(batchHoursOf(type.recipes[0]))
+                : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
         ]),
     ...(type.storageTank === undefined
       ? []

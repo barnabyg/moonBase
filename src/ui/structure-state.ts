@@ -9,6 +9,7 @@ import {
 } from "../catalogue";
 import {
   isExperimentsLab,
+  isInfraredTelescope,
   isGreenhouse,
   recipeOf,
   workingRecipeOf,
@@ -94,6 +95,7 @@ export function structureStatus(
     return structure.powered ? "commissioned" : "no power";
   }
   if (isGreenhouse(structure)) return formatGreenhouse(structure);
+  if (isInfraredTelescope(structure)) return formatInfraredTelescope(structure);
   if (
     isExperimentsLab(structure) &&
     structure.plant.running &&
@@ -143,6 +145,53 @@ export function formatGreenhouse(
   return plant === undefined
     ? "commissioned"
     : (formatPlant(plant, structure.switchedOff) ?? "commissioned");
+}
+
+/**
+ * Says what an infrared telescope is doing, for example "observing, 1d 8h left of
+ * this round", or why it isn't. Its batches of propellant are its own business: it
+ * is the round that the player has at stake.
+ */
+export function formatInfraredTelescope(
+  structure: Pick<
+    StructureSnapshot,
+    | "structureTypeId"
+    | "plant"
+    | "observedMinutes"
+    | "performance"
+    | "switchedOff"
+  >,
+): string {
+  const { plant } = structure;
+  const rounds = catalogue.structureTypes.find(
+    (type) => type.id === structure.structureTypeId,
+  )?.observingRounds;
+  const left = Math.max(
+    Math.ceil(
+      ((rounds?.lengthHours ?? 0) * 60 - structure.observedMinutes) /
+        structure.performance,
+    ),
+    0,
+  );
+  if (plant?.running === true) {
+    if (structure.switchedOff) return "observing to the end of its last batch";
+    return `observing, ${formatShortDuration(left)} left of this round`;
+  }
+  switch (plant?.stoppedFor?.reason) {
+    case "daylight":
+      return structure.observedMinutes > 0
+        ? `waiting for Night, ${formatShortDuration(left)} left of this round`
+        : "waiting for Night";
+    case "too-close":
+      return "can't observe: a lit Structure is within its dark radius";
+    case "no-power":
+    case "night":
+      return "no power: starts a new round once it has some";
+    default:
+      return plant === undefined
+        ? "commissioned"
+        : (formatPlant(plant, structure.switchedOff) ?? "commissioned");
+  }
 }
 
 /**
@@ -315,6 +364,12 @@ export function formatPlantRates(
   if (isExperimentsLab(structure)) {
     return `using ${flows(recipe.inputs, structure.performance)} an hour`;
   }
+  const observing = catalogue.structureTypes.find(
+    (type) => type.id === structure.structureTypeId,
+  )?.observingRounds;
+  if (observing !== undefined) {
+    return `boiling off ${flows(recipe.inputs, structure.performance)} an hour, for ${formatScience(observing.science)} a round`;
+  }
   const components = componentOutputs(recipe);
   if (components.length > 0) {
     const hours = batchHoursOf(recipe);
@@ -380,6 +435,10 @@ export function formatPlant(
       return "switched on: starts a batch as soon as it can";
     case "no-research-task":
       return "idle: no Research Task running to speed up";
+    case "daylight":
+      return `idle in Daylight: works only at Night${left}`;
+    case "too-close":
+      return "idle: too near a Structure it must be kept clear of";
   }
 }
 

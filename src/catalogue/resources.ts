@@ -151,6 +151,9 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "telescope-mount", label: "Telescope mount" },
   { id: "lab-module", label: "Lab module" },
   { id: "experiment-rack", label: "Experiment rack" },
+  { id: "infrared-mirror-segment", label: "Infrared mirror segment" },
+  { id: "infrared-camera", label: "Infrared camera" },
+  { id: "heavy-telescope-mount", label: "Heavy telescope mount" },
   ...solarArrayComponentTypes,
 ];
 

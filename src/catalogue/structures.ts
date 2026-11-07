@@ -21,7 +21,11 @@ import {
   thermalStore,
 } from "./structures-power";
 import { lightMast, tallLightMast } from "./structures-lights";
-import { telescope, experimentsLab } from "./structures-science";
+import {
+  telescope,
+  experimentsLab,
+  infraredTelescope,
+} from "./structures-science";
 import {
   habitat,
   hardenedHabitat,
@@ -79,6 +83,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
   tallLightMast,
   telescope,
   experimentsLab,
+  infraredTelescope,
   habitat,
   hardenedHabitat,
   regolithShielding,
