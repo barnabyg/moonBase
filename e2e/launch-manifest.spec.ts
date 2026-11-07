@@ -417,7 +417,7 @@ test("on a catalogue of 80 Launch items, the player can find an item by what it 
   await expect(find).toBeHidden();
   await screen.getByRole("tab", { name: "Imports" }).click();
   await expect(find).toHaveValue("telescope");
-  await expect(shown).toHaveText(`Showing 5 of ${CROWDED_LAUNCH_ITEMS} items`);
+  await expect(shown).toHaveText(`Showing 7 of ${CROWDED_LAUNCH_ITEMS} items`);
 });
 
 test("at the fastest game speed, what the player types to find an item stays as it is, with the caret where they left it", async ({

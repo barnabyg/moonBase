@@ -27,6 +27,8 @@ import {
   type MissionDirectorResidence,
   type InfraredStop,
   type InfraredTelescopeSnapshot,
+  type RadioArrayStop,
+  type RadioArraySnapshot,
   type ObservingProgrammeSnapshot,
   type PowerForecast,
   type PowerNetworkSnapshot,
@@ -1064,6 +1066,40 @@ export function formatInfraredSurvey(
     value,
     note: INFRARED_STOPS[(stopped ?? first).stoppedFor ?? "daylight"],
   };
+}
+
+/** Why a radio telescope array isn't working, in a few words. */
+const RADIO_STOPS: Record<RadioArrayStop, string> = {
+  plant: "a Plant within its quiet radius",
+  power: "no power to work",
+  broken: "Broken",
+};
+
+/**
+ * Says how the base's radio telescope arrays are getting on with their survey,
+ * for example "2 radio telescope arrays working, 14h left" with the least time
+ * left of any round, or why the first of them isn't working, for example "a
+ * Plant within its quiet radius"; undefined while the base has none.
+ */
+export function formatRadioSurvey(
+  arrays: readonly RadioArraySnapshot[],
+): Stat | undefined {
+  const [first] = arrays;
+  if (first === undefined) return undefined;
+  const value =
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.radioArray?.label ?? "Radio survey";
+  const working = arrays.filter((array) => array.working);
+  if (working.length > 0) {
+    const left = Math.min(
+      ...working.map(({ minutesLeft }) => minutesLeft ?? Infinity),
+    );
+    return {
+      value,
+      note: `${plural(working.length, "radio telescope array")} working, ${formatShortDuration(left)} left`,
+    };
+  }
+  return { value, note: RADIO_STOPS[first.stoppedFor ?? "power"] };
 }
 
 /**

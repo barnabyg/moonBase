@@ -19,6 +19,7 @@ import {
   type Snapshot,
 } from "../simulation";
 import { formatScience, listInWords, plural } from "./format";
+import { describeKeepClear } from "./keep-clear-text";
 import {
   componentInSentence,
   componentLabel,
@@ -221,6 +222,11 @@ export function describeStructure(type: StructureType): string {
               (recipe) =>
                 `runs for ${inSentence(recipe.label)}, ${describeRecipeFlows(recipe)}, and ${drawsWhileRunning(recipe.drawKilowatts)}`,
             )),
+    ...(type.radioArray === undefined
+      ? []
+      : [
+          `listens to the sky through Daylight and Night for the ${type.radioArray.label}, a standing survey of its own, completing a round for ${formatScience(type.radioArray.science)} every ${formatHours(type.radioArray.lengthHours)} it works with its one antenna field`,
+        ]),
     ...(type.telescope === true
       ? [
           `observes the sky at Night for the ${catalogue.observingProgramme.label}, the base's standing Research Task, completing a round for ${formatScience(catalogue.observingProgramme.science)} every ${formatHours(catalogue.observingProgramme.lengthHours)} it observes, switching itself off to save power once the battery banks hold only enough for everything else through the Night and ${formatHours(catalogue.nightReserveHours)} more`,
@@ -245,12 +251,17 @@ export function describeStructure(type: StructureType): string {
       ? []
       : [
           type.observingRounds !== undefined
-            ? `Unlike most Plants, it draws its power as a Night load, in its turn after the heaters, and gives it up before anything else goes without. It takes its propellant an hour's worth at a time, never what the Lander needs to lift and sell the Exports set to load. It can't observe while a lit Structure, such as a Light Mast, stands within ${type.keepClear?.radiusMetres ?? 0} m of it, its dark radius, and then draws no power: build it away from the base, at the end of a long cable. A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round, with a notification, and it starts a new one by itself; Daylight only pauses it. Switching it off gives up the round too. More of them earn more, each with its own round.`
+            ? `Unlike most Plants, it draws its power as a Night load, in its turn after the heaters, and gives it up before anything else goes without. It takes its propellant an hour's worth at a time, never what the Lander needs to lift and sell the Exports set to load.${type.keepClear === undefined ? "" : ` ${describeKeepClear(type.keepClear, "observe")}, and then draws no power: build it away from the base, at the end of a long cable.`} A shortage of propellant or power, or a light within its dark radius, loses what it has observed of its round, with a notification, and it starts a new one by itself; Daylight only pauses it. Switching it off gives up the round too. More of them earn more, each with its own round.`
             : type.speedsResearch !== undefined
               ? "Unlike most Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night, and gives it up before anything else goes without. It takes its water and oxygen an hour's worth at a time, never below the Mission Director's reserve, and none while no Research Task is running, when it draws no power either. A shortage of any of them only stops the speed-up until it is supplied again: no Research Task is lost or changed."
               : type.growing === undefined
                 ? plantsAtNight(batchHoursOf(type.recipes[0]))
                 : "Unlike other Plants, it draws its power in its turn among the Structures, not on what is left over, as it has to go on through the Night. It takes its water an hour's worth at a time. A shortage of either loses what it has grown of its round, with a notification, and it starts a new one by itself once it is supplied. Switching it off gives up the round too. More of them earn more, each with its own round.",
+        ]),
+    ...(type.radioArray === undefined
+      ? []
+      : [
+          `${type.keepClear === undefined ? "" : `${describeKeepClear(type.keepClear, "work")}, though it still draws its power: build it away from the base, at the end of a long cable. `}It isn't a Plant, so arrays never stop each other. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round, with a notification, and it starts a new one by itself. More of them earn more, each with its own round.`,
         ]),
     ...(type.storageTank === undefined
       ? []

@@ -12,6 +12,9 @@ export type GreenhouseRoundLoss = "water" | "power" | "switched-off";
 export type InfraredRoundLoss =
   "propellant" | "power" | "light" | "switched-off";
 
+/** What a radio telescope array lost its round to. */
+export type RadioRoundLoss = "power" | "plant";
+
 /**
  * A notable event in the Campaign. "Advance to next event" runs the
  * simulation until one of these happens.
@@ -417,6 +420,30 @@ export type GameEvent =
       readonly structureId: string;
       readonly structureTypeId: string;
       readonly reason: InfraredRoundLoss;
+    }
+  | {
+      /**
+       * A radio telescope array has done a whole round of its survey: the Science
+       * it pays has been added to the base's, and its next round has begun.
+       */
+      readonly kind: "radio-round-completed";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      /** The Science it earned. */
+      readonly science: number;
+    }
+  | {
+      /**
+       * A radio telescope array has lost what it had done of its round, for want
+       * of power or as a Plant stands within its quiet radius. It says nothing of
+       * a round no more than an hour old.
+       */
+      readonly kind: "radio-round-lost";
+      readonly atMinute: number;
+      readonly structureId: string;
+      readonly structureTypeId: string;
+      readonly reason: RadioRoundLoss;
     }
   | {
       /**

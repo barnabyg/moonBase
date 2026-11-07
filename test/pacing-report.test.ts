@@ -586,8 +586,8 @@ describe("the pacing report on today's catalogue", () => {
   });
 
   it("gives how many Launches' profit buys one of every Launch item", () => {
-    expect(report).toContain("$12907M");
-    expect(report).toMatch(/Circuit boards.*87 Launches/);
+    expect(report).toContain("$13457M");
+    expect(report).toMatch(/Circuit boards.*90 Launches/);
   });
 
   it("says what limits each Export, and they differ", () => {

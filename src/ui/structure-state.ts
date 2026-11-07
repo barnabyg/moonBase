@@ -15,6 +15,7 @@ import {
   workingRecipeOf,
   type MaintenanceSnapshot,
   type PlantSnapshot,
+  type RadioArraySnapshot,
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
@@ -26,7 +27,9 @@ import {
   formatScience,
   formatShortDuration,
   listInWords,
+  plural,
 } from "./format";
+import { formatKeptClearOf } from "./keep-clear-text";
 import { inSentence, resourceRefLabel } from "./labels";
 import type { Stat } from "./stat";
 
@@ -83,15 +86,21 @@ export function isHabitat(structureTypeId: string): boolean {
 
 /**
  * What state a Structure is in, in a few words: to be dismantled, Broken,
- * what a Plant is doing, or else whether it has power.
+ * what a Plant or a radio telescope array is doing, or else whether it has
+ * power. A radio telescope array is found among the given ones.
  */
 export function structureStatus(
   structure: StructureSnapshot,
   toBeDismantled: boolean,
+  radioArrays: readonly RadioArraySnapshot[] = [],
 ): string {
   if (toBeDismantled) return "to be dismantled";
   if (structure.conditionPercent <= 0) return "Broken";
   if (structure.plant === undefined) {
+    const array = radioArrays.find(
+      ({ structureId }) => structureId === structure.id,
+    );
+    if (array !== undefined) return formatRadioArray(structure, array);
     return structure.powered ? "commissioned" : "no power";
   }
   if (isGreenhouse(structure)) return formatGreenhouse(structure);
@@ -183,7 +192,7 @@ export function formatInfraredTelescope(
         ? `waiting for Night, ${formatShortDuration(left)} left of this round`
         : "waiting for Night";
     case "too-close":
-      return "can't observe: a lit Structure is within its dark radius";
+      return `can't observe: ${formatKeptClearOf(structure.structureTypeId) ?? "something is too near"}`;
     case "no-power":
     case "night":
       return "no power: starts a new round once it has some";
@@ -195,6 +204,39 @@ export function formatInfraredTelescope(
 }
 
 /**
+ * Says what a radio telescope array is doing, for example "working, 18h left of
+ * this round", or why it isn't, for example "can't work: a Plant is within its
+ * quiet radius".
+ */
+export function formatRadioArray(
+  structure: Pick<StructureSnapshot, "structureTypeId">,
+  array: Pick<RadioArraySnapshot, "stoppedFor" | "minutesLeft">,
+): string {
+  switch (array.stoppedFor) {
+    case undefined:
+      return array.minutesLeft === undefined
+        ? "working"
+        : `working, ${formatShortDuration(array.minutesLeft)} left of this round`;
+    case "plant":
+      return `can't work: ${formatKeptClearOf(structure.structureTypeId) ?? "something is too near"}`;
+    case "power":
+      return "no power: starts a new round once it has some";
+    case "broken":
+      return "Broken";
+  }
+}
+
+/**
+ * How many antenna fields a radio telescope array has and what it earns with
+ * them, for example "1 antenna field, about 89 Science a Lunation".
+ */
+export function formatAntennaFields(
+  array: Pick<RadioArraySnapshot, "antennaFields" | "sciencePerLunation">,
+): string {
+  return `${plural(array.antennaFields, "antenna field")}, about ${formatScience(Math.round(array.sciencePerLunation))} a Lunation`;
+}
+
+/**
  * Anything out of the ordinary about a commissioned Structure, each in a
  * few words, or undefined where there is nothing to say.
  */
@@ -203,6 +245,8 @@ export interface StructureNotes {
   readonly plantRates: string | undefined;
   /** Whether a telescope is observing. */
   readonly observing: string | undefined;
+  /** A radio telescope array's antenna fields and what it earns with them. */
+  readonly antennaFields: string | undefined;
   /** What a storage tank holds and draws. */
   readonly tank: string | undefined;
   /** Whether its light is on, or its Night load off to save power. */
@@ -226,6 +270,7 @@ export function structureNotes(
   return {
     plantRates: formatPlantRates(structure),
     observing: structure.observing ? "observing" : undefined,
+    antennaFields: radioArrayNote(snapshot, structure),
     tank: formatTank(structure, snapshot.lunation.part === "night"),
     light: structure.lit
       ? "lit"
@@ -267,10 +312,15 @@ export function describeStructureEntry(
   structure: StructureSnapshot,
   toBeDismantled: boolean,
 ): Stat {
-  const state = structureStatus(structure, toBeDismantled);
+  const state = structureStatus(
+    structure,
+    toBeDismantled,
+    snapshot.radioArrays,
+  );
   const {
     plantRates,
     observing,
+    antennaFields,
     tank,
     light,
     shielding,
@@ -283,6 +333,7 @@ export function describeStructureEntry(
   const notes = [
     plantRates,
     observing,
+    antennaFields,
     tank,
     light,
     shielding,
@@ -466,4 +517,15 @@ function isDug(resource: ResourceRef): boolean {
     resource.kind === "bulk-resource" &&
     resource.resourceId === catalogue.digging.resourceId
   );
+}
+
+/** What the Base panel notes of a radio telescope array's antenna fields, if it is one. */
+function radioArrayNote(
+  snapshot: Pick<Snapshot, "radioArrays">,
+  structure: Pick<StructureSnapshot, "id">,
+): string | undefined {
+  const array = snapshot.radioArrays.find(
+    ({ structureId }) => structureId === structure.id,
+  );
+  return array === undefined ? undefined : formatAntennaFields(array);
 }

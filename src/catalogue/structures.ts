@@ -25,6 +25,7 @@ import {
   telescope,
   experimentsLab,
   infraredTelescope,
+  radioTelescopeArray,
 } from "./structures-science";
 import {
   habitat,
@@ -84,6 +85,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
   telescope,
   experimentsLab,
   infraredTelescope,
+  radioTelescopeArray,
   habitat,
   hardenedHabitat,
   regolithShielding,

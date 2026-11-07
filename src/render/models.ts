@@ -15,6 +15,7 @@ import {
 } from "./light-mast-model";
 import { createTelescopeModel } from "./telescope-model";
 import { createInfraredTelescopeModel } from "./infrared-telescope-model";
+import { createRadioTelescopeArrayModel } from "./radio-telescope-array-model";
 import {
   createBuriedHabitatModel,
   createHabitatModel,
@@ -155,6 +156,9 @@ export function createStructureModel(
   if (structureTypeId === "telescope") return createTelescopeModel();
   if (structureTypeId === "infrared-telescope") {
     return createInfraredTelescopeModel();
+  }
+  if (structureTypeId === "radio-telescope-array") {
+    return createRadioTelescopeArrayModel();
   }
   if (structureTypeId === "greenhouse") return createGreenhouseModel();
   if (structureTypeId === "experiments-lab") {

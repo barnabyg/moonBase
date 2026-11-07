@@ -294,9 +294,30 @@ ADR-0009's second Structure for Act 4 is an infrared telescope (#261), the Infra
 
 So it earns about what a Greenhouse does, for propellant and power rather than water. A Lunation of it takes about what a small propellant plant makes in a Daylight, so a base that sells all its propellant has to build more, or choose between Science and Funding; it never takes what is set to load as Exports. Its 4 kW at Night needs another large battery bank or a thermal store for each telescope. The dark radius puts it 80 m from the nearest Light Mast, at the end of a cable that takes the Robot over 13 hours to lay at 6 m an hour, unless the base's lights come down. A shortage of propellant or power, or a light within its dark radius, loses the round it is on; Daylight only pauses it, as a round doesn't fit in a Night.
 
-The Design costs 3 Science, so that it moves no Design's date: research alone has 23 Science to spare when the Optics grinding line is unlocked, and Automated experiments takes 20 of it. At 40, the pacing report's research no longer reaches the Optics grinding line, the Grinding line yield survey or anything after them. Its price is in Funding, propellant and power instead. No Research Task pays for it and no Research Task changed. One of every Launch item now comes to $12,907M, 87 Launches of circuit boards.
+The Design costs 2 Science, so that it moves no Design's date: research alone has 23 Science to spare when the Optics grinding line is unlocked, and Automated experiments takes 20 of it and Radio astronomy 1 (below). It cost 3 at version 85, before the radio telescope array took the last of it. At 40, the pacing report's research no longer reaches the Optics grinding line, the Grinding line yield survey or anything after them. Its price is in Funding, propellant and power instead. No Research Task pays for it and no Research Task changed. One of every Launch item came to $12,907M, 87 Launches of circuit boards, at version 85.
 
 The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played.
+
+## The radio telescope array
+
+ADR-0009's third Structure for Act 4 is a radio telescope array (#262), the Radio astronomy Design, past Optical telescopes and Precision optics, at data catalogue version 86. It works through Daylight and Night alike, on rounds of its own Radio sky survey, and can't work while a Plant stands within 120 m of it, its quiet radius. It is built with one antenna field; antenna fields that join it later (#263) will raise its rate.
+
+| For each array, with one antenna field, powered all through a Lunation | Figure                                                        |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------- |
+| A round                                                                | 24 hours, by day or at Night, for 3 Science                   |
+| Rounds a Lunation (708 hours)                                          | 29.5                                                          |
+| Science a Lunation                                                     | 88.5, a Greenhouse 118, an infrared telescope 114             |
+| Its power                                                              | a steady 2 kW: 1,416 kWh a Lunation, 16 kWh for each Science  |
+| Through a Night (228 hours)                                            | 456 kWh, a little over half of a large battery bank's 800 kWh |
+| Its Components, by Launch                                              | 1,100 kg and $1,300M: sixteen antenna tiles and a correlator  |
+| Its Construction                                                       | 62 hours, 36 of them Assembly, before the cable               |
+| Its cable                                                              | from 120 m, 20 hours of the Robot's time at 6 m an hour       |
+
+So one field earns about three-quarters of what a Greenhouse does, for no water and no propellant: what it costs is Components, cable and the Robot's time, with a modest steady draw that a base with a concentrator tower barely notices by day, and that needs a little more Night storage. It takes nothing from the stocks, so it never competes with what the base sells. Its quiet radius puts it 120 m from the nearest Plant, and a late base's Plants are its centre, so its cable is the longest any Structure needs. It isn't a Plant itself, so arrays never stop each other, and a base can build several side by side. A shortage of power, or a Plant within its quiet radius, loses the round it is on, though a round is only a day; it goes on drawing while a Plant stands too near, as its receivers stay warm.
+
+The Design costs 1 Science, the least a Design beyond the starting ones may cost. Research alone had 23 Science to spare when the Optics grinding line is unlocked, on Earth Day 2,394, and Automated experiments and Infrared astronomy had taken all of it (20 and 3), so Infrared astronomy now costs 2 and Radio astronomy 1: together they still come to 23, every Design's date in the pacing report stays where it was, and the Designs still cost 22,548 Science in all. A dearer price either moves the Optics grinding line, and with it the Grinding line yield survey and everything after it, beyond what research reaches, or needs a Design past the grinding line, which comes too late in Act 4 for the array to shorten it. Its price is in Components, cable and the Robot's time instead. No Research Task pays for it and no Research Task changed. One of every Launch item now comes to $13,457M, 90 Launches of circuit boards.
+
+The long-game play guide doesn't build one yet: `design-has-a-purpose` has an exemption for the Design until the guide's play does (#265), and these figures are worked out from the numbers, not played. The Tech Tree now has 51 Designs, and the catalogue test's bound on them rose from 50 to 60.
 
 ## Still to watch
 

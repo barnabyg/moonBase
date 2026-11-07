@@ -21,6 +21,7 @@ import {
   formatMissionDirector,
   formatNextMilestone,
   formatInfraredSurvey,
+  formatRadioSurvey,
   formatObservingProgramme,
   formatPower,
   formatRadiationDose,
@@ -249,11 +250,13 @@ export function createStatusPanel(
   const researchQueue = createStatLine("Queued", "Research queue");
   const observing = createStatLine("Observing", "Observing programme");
   const infrared = createStatLine("Infrared", "Infrared survey");
+  const radio = createStatLine("Radio", "Radio survey");
   researchSection.body.append(
     researchTask.element,
     researchQueue.element,
     observing.element,
     infrared.element,
+    radio.element,
   );
 
   const sections = [
@@ -519,6 +522,15 @@ export function createStatusPanel(
           Math.max(
             ...snapshot.infraredTelescopes.map(({ progress }) => progress),
           ),
+        );
+      }
+
+      const radioSurvey = formatRadioSurvey(snapshot.radioArrays);
+      radio.element.hidden = radioSurvey === undefined;
+      if (radioSurvey !== undefined) {
+        radio.show(radioSurvey);
+        radio.fill(
+          Math.max(...snapshot.radioArrays.map(({ progress }) => progress)),
         );
       }
 

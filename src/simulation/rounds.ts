@@ -4,8 +4,8 @@ import type { StructureState } from "./construction";
 import { recipeOf } from "./plants";
 
 // Rounds that a Structure works towards by itself, each earning Science as it is
-// complete: a Greenhouse's rounds of growing and an infrared telescope's rounds
-// of its survey. Each keeps how far its round has got on its Structure, works it
+// complete: a Greenhouse's rounds of growing, and an infrared telescope's and a
+// radio telescope array's rounds of their surveys. Each keeps how far its round has got on its Structure, works it
 // a share of a game-minute at a time, and loses it to a shortage. What differs between them is when they work and what loses a round,
 // which their own modules decide.
 

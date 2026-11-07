@@ -1,7 +1,7 @@
 import type { StructureType } from "./types";
 
-// The telescope, the automated experiments lab and the infrared telescope.
-// structures.ts lists them in catalogue order.
+// The telescope, the automated experiments lab, the infrared telescope and the
+// radio telescope array. structures.ts lists them in catalogue order.
 
 // An optical telescope: a half-metre mirror in an open tube on a
 // fork mount, which observes the sky only at Night, when the sun is
@@ -188,5 +188,60 @@ export const infraredTelescope: StructureType = {
     label: "Deep infrared survey",
     lengthHours: 48,
     science: 24,
+  },
+};
+
+// Act 4: a field of sixteen antenna tiles, whose signals a correlator combines
+// (ADR-0009). It works through Daylight and Night alike, on rounds of its own
+// Radio sky survey, each round 24 hours paying 3 Science, so one working all
+// through the 708 hours of a Lunation earns 29.5 rounds, about 88 Science a
+// Lunation, three-quarters of a Greenhouse's 118. It is built with one antenna
+// field; each round's work is its performance's share of a game-minute for each
+// field it has, so more fields earn faster. What it costs is Components, cable
+// and the Robot's time rather than power: its receivers and correlator draw a
+// steady 2 kW, by day and at Night, as a Structure does, 456 kWh through a
+// Night, a little over half of a large battery bank. It can't work while a Plant
+// stands within 120 m of it, its quiet radius, as their pumps, motors and power
+// converters drown the sky's faint signals, so it is built away from the base at
+// the end of a long cable: 20 hours of the Robot's time at 6 m an hour. It isn't
+// a Plant itself, so arrays never stop each other. A shortage of power, or a
+// Plant within its quiet radius, loses the round it is on.
+export const radioTelescopeArray: StructureType = {
+  id: "radio-telescope-array",
+  label: "Radio telescope array",
+  designId: "radio-astronomy",
+  listGroup: "science",
+  footprintRadiusMetres: 8,
+  components: [
+    { componentId: "antenna-tile", count: 16 },
+    { componentId: "array-correlator", count: 1 },
+  ],
+  dismantlingSpareComponents: 3,
+  stageHours: {
+    sitePreparation: 12,
+    componentDelivery: 8,
+    // Laying out and connecting sixteen tiles, one at a time.
+    assembly: 36,
+    commissioning: 6,
+  },
+  stageMachines: { sitePreparation: "excavator" },
+  commissioningFailureChance: 0.1,
+  dustWearPercentPerHour: 0.02,
+  hazardMultipliers: { dustCoating: 1, micrometeorites: 1, plumeEjecta: 1 },
+  power: {
+    generationKilowatts: 0,
+    storageKilowattHours: 0,
+    drawKilowatts: 2,
+    nightDrawKilowatts: 0,
+  },
+  lightRadiusMetres: 0,
+  habitat: false,
+  shieldsHabitat: false,
+  landingPad: false,
+  keepClear: { of: "plants", radiusMetres: 120 },
+  radioArray: {
+    label: "Radio sky survey",
+    lengthHours: 24,
+    science: 3,
   },
 };

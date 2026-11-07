@@ -33,7 +33,11 @@ import {
   resourceRefLabel,
   structureLabel,
 } from "./labels";
-import { formatInTheWay, radiusName } from "./keep-clear-text";
+import {
+  formatInTheWay,
+  formatKeptClearOf,
+  radiusName,
+} from "./keep-clear-text";
 import type { Stat } from "./stat";
 import {
   formatObservingProgramme,
@@ -41,6 +45,7 @@ import {
   formatResearchRate,
 } from "./status-panel-text";
 import {
+  formatAntennaFields,
   isHome,
   isToBeDismantled,
   structureNotes,
@@ -205,7 +210,7 @@ export function structureDetails(
     description: designOf(type.designId)?.description ?? "",
     lines: [
       stageLine(phase),
-      stateLine(phase),
+      stateLine(snapshot, phase),
       conditionLine(snapshot, structure),
       {
         label: "Rated",
@@ -227,6 +232,9 @@ export function structureDetails(
       ...(type.observingRounds === undefined
         ? []
         : [surveyLine(type, structure)]),
+      ...(type.radioArray === undefined
+        ? []
+        : radioArrayLines(snapshot, type, structure)),
       ...(type.keepClear === undefined
         ? []
         : [clearanceLine(snapshot, type, footing.position, structure)]),
@@ -284,7 +292,7 @@ function stageLine(phase: Phase): DetailLine {
 }
 
 /** What state it is in, in a few words, as the Base panel says it once it is commissioned. */
-function stateLine(phase: Phase): DetailLine {
+function stateLine(snapshot: Snapshot, phase: Phase): DetailLine {
   const label = "State";
   switch (phase.kind) {
     case "construction":
@@ -292,7 +300,13 @@ function stateLine(phase: Phase): DetailLine {
     case "commissioned":
       return {
         label,
-        stat: { value: structureStatus(phase.structure, phase.toBeDismantled) },
+        stat: {
+          value: structureStatus(
+            phase.structure,
+            phase.toBeDismantled,
+            snapshot.radioArrays,
+          ),
+        },
         warning: phase.structure.conditionPercent <= 0,
       };
     case "dismantling":
@@ -555,6 +569,43 @@ function surveyLine(
     },
     fraction,
   };
+}
+
+/**
+ * How far a radio telescope array's round of its survey has got and what it pays,
+ * and how many antenna fields it has and what it earns with them.
+ */
+function radioArrayLines(
+  snapshot: Snapshot,
+  type: StructureType,
+  structure: StructureSnapshot | undefined,
+): DetailLine[] {
+  const array = snapshot.radioArrays.find(
+    ({ structureId }) => structureId === structure?.id,
+  );
+  if (
+    structure === undefined ||
+    type.radioArray === undefined ||
+    array === undefined
+  ) {
+    return [
+      { label: "Round", stat: NOT_YET },
+      { label: "Antenna fields", stat: NOT_YET },
+    ];
+  }
+  const { lengthHours, science, label: survey } = type.radioArray;
+  const kept = formatKeptClearOf(type.id, "none") ?? "something too near";
+  return [
+    {
+      label: "Round",
+      stat: {
+        value: `${Math.floor(array.progress * 100)}% of ${formatHours(lengthHours)} with one antenna field`,
+        note: `${survey}, pays ${formatScience(science)}; a shortage of power, or ${kept}, loses it`,
+      },
+      fraction: array.progress,
+    },
+    { label: "Antenna fields", stat: { value: formatAntennaFields(array) } },
+  ];
 }
 
 /**

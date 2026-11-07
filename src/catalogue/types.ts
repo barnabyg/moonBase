@@ -591,6 +591,25 @@ export interface ObservingRounds {
 }
 
 /**
+ * A radio telescope array's standing survey, which each array works on by itself,
+ * a round at a time, through Daylight and Night alike: every game-minute it has
+ * power and nothing it is kept clear of is near adds its performance's share of a
+ * game-minute for each antenna field it has, and the round's Science comes once it
+ * has its length. A shortage of power, or something it is kept clear of coming
+ * near, loses what it has done of the round. It is built with one antenna field.
+ */
+export interface RadioArray {
+  readonly label: string;
+  /**
+   * How long a round takes with one antenna field at full performance, in
+   * game-hours. Must come to a whole number of game-minutes.
+   */
+  readonly lengthHours: number;
+  /** The Science a round earns as it is complete, a whole amount. */
+  readonly science: number;
+}
+
+/**
  * A standing Research Task: an observing programme that the base's
  * telescopes carry out at Night, a round at a time. Each round earns its
  * Science as it is completed, and the next starts straight after, so,
@@ -1171,6 +1190,12 @@ export interface StructureType {
    * programme (see `ObservingRounds`).
    */
   readonly observingRounds?: ObservingRounds;
+  /**
+   * If it is a radio telescope array: a Structure that draws its power steadily,
+   * by day and at Night, and earns Science by rounds of its own standing survey
+   * while it has power and nothing it is kept clear of is near (see `RadioArray`).
+   */
+  readonly radioArray?: RadioArray;
   /**
    * If it is a Greenhouse: a Plant that takes its water a batch at a time, whose
    * crop grows a round at a time while it has water and power, day and night, and

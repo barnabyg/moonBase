@@ -861,6 +861,78 @@ export function infraredTelescopeSave(): string {
   return campaign.save();
 }
 
+/**
+ * Where `radioTelescopeArraySave` puts what it builds: the array out past the
+ * quiet radius of the water-processing plant among the battery banks, at the end
+ * of a long cable.
+ */
+export const RADIO_TELESCOPE_ARRAY_SITES = [
+  ["solar-array", { x: 20, y: 12 }],
+  ["solar-array", { x: 18, y: 28 }],
+  ["large-battery-bank", { x: 30, y: 25 }],
+  ["large-battery-bank", { x: 30, y: 36 }],
+  ["water-processing-plant", { x: 40, y: 12 }],
+  ["radio-telescope-array", { x: 175, y: 25 }],
+] as const;
+
+/**
+ * A base with a radio telescope array working in Daylight, an hour into its
+ * round, out past the quiet radius of a water-processing plant by the battery
+ * banks, on two solar arrays and two large battery banks, with a second
+ * water-processing plant's Components in stock to place within it. The Habitat is
+ * left out, so that the Mission Director's stay aboard the Lander leaves the
+ * battery banks to the array.
+ */
+export function radioTelescopeArraySave(): string {
+  const componentsOf = (id: string) =>
+    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const loaded = loadCampaign(
+    freshSaveWith((state) => {
+      state.unlockedDesignIds.push(
+        "large-battery-banks",
+        "precision-optics",
+        "optical-telescopes",
+        "radio-astronomy",
+      );
+      addComponents(state, [
+        ...RADIO_TELESCOPE_ARRAY_SITES.flatMap(([id]) => componentsOf(id)),
+        ...componentsOf("water-processing-plant"),
+        { componentId: catalogue.maintenance.spareComponentId, count: 30 },
+      ]);
+    }),
+  );
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (const [structureTypeId, position] of RADIO_TELESCOPE_ARRAY_SITES) {
+    const planned = campaign.planConstruction({ structureTypeId, position });
+    if (!planned.ok) throw new Error(planned.message);
+  }
+  for (let hours = 0; campaign.snapshot().constructions.length > 0; hours++) {
+    if (hours > 40 * 24) throw new Error("The base was never finished.");
+    campaign.advance(60);
+  }
+  for (
+    let hours = 0;
+    campaign.snapshot().lunation.part !== "daylight";
+    hours++
+  ) {
+    if (hours > 40 * 24) throw new Error("Daylight never came.");
+    campaign.advance(60);
+  }
+  // A round started afresh an hour ago, so that it is working from the moment
+  // it loads.
+  for (
+    let minutes = 0;
+    (campaign.snapshot().radioArrays[0]?.progress ?? 0) > 0;
+    minutes++
+  ) {
+    if (minutes > 48 * 60) throw new Error("The round never ended.");
+    campaign.advance(1);
+  }
+  campaign.advance(60);
+  return campaign.save();
+}
+
 /** Where `lateGameSave` puts what it builds. */
 const LATE_GAME_SITES = [
   ["solar-array", { x: 40, y: 25 }],
@@ -1429,6 +1501,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Structures has the telescope's card, and Science and technologies says what it needs. The Launch manifest has its mirror segments, camera and mount, under Industry.",
     ],
     save: infraredTelescopeSave,
+  },
+  {
+    id: "radio-telescope-array",
+    title:
+      "A base with a radio telescope array working in Daylight, out past the quiet radius of a water-processing plant by the battery banks, with a second water-processing plant's Components in stock",
+    steps: [
+      "Pause the game. The status panel's Research section has a Radio line, the Radio sky survey, with 1 radio telescope array working and the time left of its round. Its Base panel entry says it is working, with 1 antenna field, about 89 Science a Lunation.",
+      "Click the array on the map: a square field of sixteen antenna tiles with crossed dipoles, and a correlator cabinet beside it. Its pop-up has a Round line, an Antenna fields line, and a Quiet radius line saying there is no Plant within 120 m.",
+      "Pick Radio telescope array in the build menu and move it over the base: a pale disc of 120 m radius follows the pointer, the water-processing plant gets a red ring, and the hint says it won't work there, naming it. Out past its reach the ring goes and the hint says nothing stops it. Press Esc.",
+      "Pick Water-processing plant and place it within 120 m of the array, then set the game to 20x. Once it is commissioned the array stops: its Base panel entry says a Plant is within its quiet radius, a notification says its round was lost to it, and its pop-up names the water-processing plant. Switch the new plant off and the array starts a new round.",
+      "Let the game run into the Night: the array goes on working on the battery banks, and completes a round every 24 hours, a notification saying what it earned.",
+      "Open the Guide: Structures has the array's card, and Science and technologies says what it needs. The Launch manifest has its antenna tiles and correlator, under Industry.",
+    ],
+    save: radioTelescopeArraySave,
   },
   {
     id: "late-game",

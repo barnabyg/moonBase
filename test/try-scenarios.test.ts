@@ -118,6 +118,36 @@ describe("what npm run try can start the game in", () => {
     }
   });
 
+  it("radio-telescope-array has a radio telescope array working in Daylight out past a Plant's reach, with a second water-processing plant's Components", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "radio-telescope-array",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("daylight");
+    expect(state.radioArrays).toEqual([
+      expect.objectContaining({
+        working: true,
+        inTheWay: [],
+        antennaFields: 1,
+      }),
+    ]);
+    expect(state.radioArrays[0]?.progress).toBeGreaterThan(0);
+    const plant = catalogue.structureTypes.find(
+      ({ id }) => id === "water-processing-plant",
+    );
+    for (const { componentId, count } of plant?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
+  });
+
   it("late-game has the Mission Director in a Buried Habitat, a Greenhouse growing, and the Science and Components for what comes after", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "late-game",

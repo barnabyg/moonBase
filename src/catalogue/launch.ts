@@ -137,6 +137,22 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 600,
       priceMillionDollars: 500,
     },
+    // A radio telescope array's worth comes to 1,100 kg and $1,300M, one Launch:
+    // sixteen antenna tiles, light but many, and the correlator that combines them.
+    {
+      id: "antenna-tile",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "antenna-tile" },
+      massKilograms: 50,
+      priceMillionDollars: 50,
+    },
+    {
+      id: "array-correlator",
+      designId: "radio-astronomy",
+      brings: { kind: "component", componentId: "array-correlator" },
+      massKilograms: 300,
+      priceMillionDollars: 500,
+    },
     {
       id: "habitat-core",
       designId: "inflatable-habitat",

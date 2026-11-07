@@ -51,7 +51,7 @@ The standing Research Task the base's telescopes carry out at Night, a round at 
 _Avoid_: passive science, science income
 
 **Science**:
-The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme and the rounds of growing of Greenhouses and growing halls.
+The currency spent to unlock Designs in the Tech Tree, earned through Research Tasks, the observing programme, the rounds of growing of Greenhouses and growing halls, and the rounds of infrared telescopes and radio telescope arrays.
 _Avoid_: research points, RP, knowledge
 
 **Tech Tree**:
@@ -175,8 +175,20 @@ A large telescope whose near-infrared camera is cooled by boiling off the base's
 _Avoid_: IR scope, cryogenic telescope
 
 **Dark radius**:
-How near an infrared telescope a lit Structure, one with a light radius such as a Light Mast, may stand before it stops the telescope observing. It is one kind of radius a Structure can be kept clear within; a Plant could be another.
+How near an infrared telescope a lit Structure, one with a light radius such as a Light Mast, may stand before it stops the telescope observing. It is one kind of radius a Structure can be kept clear within; a quiet radius is another.
 _Avoid_: light exclusion zone, no-light zone
+
+**Radio telescope array**:
+A field of antenna tiles whose signals a correlator combines: a Structure, not a Plant, that draws a steady power by day and at Night, takes nothing from the base's stocks, and earns Science by rounds of its own survey, through Daylight and Night alike. It is built with one antenna field, and works its round faster for each field it has. It can't work while a Plant is within its quiet radius. A shortage of power, or a Plant within its quiet radius, loses what it has done of its round.
+_Avoid_: radio telescope, dish, antenna farm
+
+**Antenna field**:
+A square of antenna tiles that a radio telescope array works with; an array is built with one. Each field adds to how fast the array works its round.
+_Avoid_: antenna, station
+
+**Quiet radius**:
+How near a radio telescope array a Plant, commissioned, not Broken and not switched off, may stand before it stops the array working. Another array isn't a Plant, so arrays never stop each other.
+_Avoid_: radio-quiet zone, exclusion zone
 
 **Round of growing**:
 What a Greenhouse or growing hall grows towards, a set time of having its water and power, which earns its Science as it is complete. Each grows its own.

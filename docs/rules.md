@@ -77,7 +77,7 @@ Solar arrays generate only in Daylight. Battery banks store any surplus and cove
 When a network can't cover everything, power goes in this order:
 
 1. The Habitat. It works only with all the power it draws; part of it is the same as none.
-2. Other Structures, which lose power in the order they were commissioned. A storage tank is one of these, at Night only (see [Plants](#plants), under storage limits), and a Greenhouse or an automated experiments lab, in Daylight only.
+2. Other Structures, which lose power in the order they were commissioned. A storage tank is one of these, at Night only (see [Plants](#plants), under storage limits), a Greenhouse or an automated experiments lab, in Daylight only, and a radio telescope array, by day and at Night (see [Research and the Tech Tree](#research-and-the-tech-tree)).
 3. Heaters of Machines and Rovers plugged in to the network, at Night.
 4. Lights, telescopes, Greenhouses' lamps, automated experiments labs and infrared telescopes, at Night, in the order they were commissioned (see below, and [Research and the Tech Tree](#research-and-the-tech-tree)). Like lights, telescopes and Greenhouses keep the battery banks' reserve.
 5. Plants other than a Greenhouse, an automated experiments lab or an infrared telescope, which run only on power that nothing else needs: in Daylight while the battery banks would still be full 24 hours before Night falls, if what is generated and drawn stays as it is, so that with surplus enough they run as the banks charge, and otherwise wait until the banks are far enough ahead (within those 24 hours, only once the banks are full); and at Night while the battery banks hold more than everything else needs through the rest of the Night and the same reserve the lights keep, counting the heater of every Machine and Rover that isn't yet plugged in, as it may be parked before morning. A heater not plugged in draws nothing, so as the Night goes on that frees a little: once the Plants have used all there is to spare, the one that draws least runs for a game-minute each time that much has built up, and the Base panel says it is running on and off, with little stored power to spare. Any other stays idle. Battery banks beyond what the Night needs keep the Plants running into it.
@@ -304,6 +304,14 @@ Once the base has a Plant that makes spare Components, it shows the same for the
 
 **An infrared telescope** earns Science by rounds of its own survey at Night, far from the base's lights and cooled by its propellant (see [Plants](#plants)), so a late base can turn Funding, propellant and power into Science.
 
+**A radio telescope array** (the Radio astronomy Design, past Optical telescopes and Precision optics) earns Science by rounds of its own standing survey, the Radio sky survey, as a Greenhouse does. It isn't a Plant: it takes nothing from the base's stocks.
+
+- **Through Daylight and Night.** Each round is a set time of working, and the array works whenever it has power and no Plant is within its quiet radius. Each array works its own round, so two earn twice what one does.
+- **Its antenna fields.** It is built with one antenna field, and each round's work goes as fast as its fields allow: the Base panel and its pop-up show how many it has and what it earns a Lunation at that rate.
+- **Its quiet radius.** It can't work while a Plant that is commissioned, not Broken and not switched off has any part of its footprint within 120 m of it, as the Plants' machinery drowns the sky's faint signals. The Base panel, its pop-up and the status panel say why, naming what is in the way. Placing one shows the radius as a pale disc, rings each Plant within it, and the hint says whether anything would stop it there. So it is built away from the base, at the end of a long cable. Another array isn't a Plant, so arrays never stop each other. It is the same `keepClear` rule as an infrared telescope's dark radius, kept clear of Plants rather than lights.
+- **Its power** is a steady draw, by day and at Night, which it takes in its turn among the Structures (see [Power](#power)), and goes on drawing while a Plant stands too near. A Night of it is a little over half of what a large battery bank stores.
+- **A shortage of power, or a Plant within its quiet radius,** loses all the current round has done, with a notification, and it starts a new round by itself once it can work again. A round no more than an hour old goes without a notification. **Broken**, it keeps what it has done for its repair.
+
 **The Tech Tree** spends Science on Designs. Its screen has a tab for each category (Power, Construction, Protection, Life Support, Industry and Mobility), with each Design's cost, what unlocking it brings, the Designs it needs first and whether it can be unlocked now. Everything available at the start belongs to a starting Design.
 
 Unlocking a Design is permission, not the thing itself: its items appear on the Launch manifest and in the build menu, but still have to be shipped and built. Nothing already in stock, on its way or planned is affected, and Structures already built keep their old behaviour.
@@ -312,43 +320,44 @@ Unlocking a Design is permission, not the thing itself: its items appear on the 
 
 The Designs beyond the starting ones:
 
-| Category     | Design                       | Unlocks                                                                                                                            |
-| ------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                                                          |
-| Power        | Thin-film solar cells        | Thin-film panels on every solar array shipped from now on: more power from a lighter array                                         |
-| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                                                    |
-| Power        | Concentrator towers          | A concentrator tower: as much power as ten solar arrays, with far less to clean and repair, far dearer                             |
-| Power        | Thermal storage              | A thermal store: as much as a row of large battery banks in one Launch, with less to keep warm, far dearer                         |
-| Construction | Prefabricated solar arrays   | Solar arrays shipped from now on come as one pack with the best Components: quicker to build and less likely to fail Commissioning |
-| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                                              |
-| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                                                   |
-| Protection   | Dust-sealed solar arrays     | Sealed masts on solar arrays shipped from now on, which wear down more slowly                                                      |
-| Protection   | Electrodynamic dust screens  | Screened panels on solar arrays shipped from now on, which gather Dust coating more slowly                                         |
-| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                                             |
-| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                                                         |
-| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                                                       |
-| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation))                              |
-| Protection   | Vault cistern                | A vault cistern, which cuts a Buried Habitat's dose rate to a fifth (see [Radiation](#radiation))                                  |
-| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                                                      |
-| Life Support | Bulk supply tanks            | A water tank and an oxygen tank, which raise the storage limits (see [Plants](#plants))                                            |
-| Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))                                 |
-| Life Support | Lunar greenhouses            | A Greenhouse, which earns Science day and night for water and power (see [Plants](#plants))                                        |
-| Life Support | Growing halls                | A growing hall, which earns more Science for its water, far dearer (see [Plants](#plants))                                         |
-| Life Support | Large-scale Crew Habitats    | A Large-scale Crew Habitat, whose commissioning is the last Milestone (see [The last Milestone](#the-last-milestone))              |
-| Industry     | Molten regolith electrolysis | A large extraction plant                                                                                                           |
-| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                                                    |
-| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                                                       |
-| Industry     | Array fabrication            | An array works, which makes solar panels and array masts at the base (see [Plants](#plants))                                       |
-| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                                                       |
-| Industry     | Propellant production        | A propellant plant and a propellant tank, which raises what the base can hold (see [Plants](#plants))                              |
-| Industry     | Large propellant production  | A large propellant plant, which makes three times as much (see [Plants](#plants))                                                  |
-| Industry     | Continuous excavation        | A bucket-wheel digger and a Regolith bin (see [Bulk resources](#bulk-resources-digging-and-expeditions))                           |
-| Industry     | Automated experiments        | An automated experiments lab, which speeds up the Research Task running for power, water and oxygen (see [Plants](#plants))        |
-| Industry     | Infrared astronomy           | An infrared telescope, which observes at Night away from lights, cooled by propellant (see [Plants](#plants))                      |
-| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                                                        |
-| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded                                    |
-| Mobility     | Survey Expeditions           | A Survey: an Expedition that earns Science                                                                                         |
-| Mobility     | Prospecting Expeditions      | Prospecting: Expeditions for metals or silicon                                                                                     |
+| Category     | Design                       | Unlocks                                                                                                                                          |
+| ------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Power        | Large battery banks          | A large battery bank: much more storage, less mass and money for each kWh                                                                        |
+| Power        | Thin-film solar cells        | Thin-film panels on every solar array shipped from now on: more power from a lighter array                                                       |
+| Power        | Tall Light Masts             | A tall Light Mast: lights four times the ground, for more power                                                                                  |
+| Power        | Concentrator towers          | A concentrator tower: as much power as ten solar arrays, with far less to clean and repair, far dearer                                           |
+| Power        | Thermal storage              | A thermal store: as much as a row of large battery banks in one Launch, with less to keep warm, far dearer                                       |
+| Construction | Prefabricated solar arrays   | Solar arrays shipped from now on come as one pack with the best Components: quicker to build and less likely to fail Commissioning               |
+| Construction | Regolith sintering           | A sintered landing pad, printed from Regolith with no Components, but slower to build                                                            |
+| Construction | Microwave sintering          | Sintered Regolith shielding, printed much faster                                                                                                 |
+| Protection   | Dust-sealed solar arrays     | Sealed masts on solar arrays shipped from now on, which wear down more slowly                                                                    |
+| Protection   | Electrodynamic dust screens  | Screened panels on solar arrays shipped from now on, which gather Dust coating more slowly                                                       |
+| Protection   | Whipple shielding            | A Whipple-shielded battery bank, which takes less from Micrometeorites                                                                           |
+| Protection   | Hardened Habitat             | A hardened Habitat, which takes less from Micrometeorites and Plume Ejecta                                                                       |
+| Protection   | Water-wall shielding         | The water wall (see [Radiation](#radiation))                                                                                                     |
+| Protection   | Buried Habitat               | A Buried Habitat, which cuts the dose rate to a tenth of a water wall's (see [Radiation](#radiation))                                            |
+| Protection   | Vault cistern                | A vault cistern, which cuts a Buried Habitat's dose rate to a fifth (see [Radiation](#radiation))                                                |
+| Life Support | Water electrolysis           | An electrolysis plant (see [Plants](#plants))                                                                                                    |
+| Life Support | Bulk supply tanks            | A water tank and an oxygen tank, which raise the storage limits (see [Plants](#plants))                                                          |
+| Life Support | Cold-trap mining             | A cold-trap ice line, so that no Robot has to go off the map for water ice (see [Plants](#plants))                                               |
+| Life Support | Lunar greenhouses            | A Greenhouse, which earns Science day and night for water and power (see [Plants](#plants))                                                      |
+| Life Support | Growing halls                | A growing hall, which earns more Science for its water, far dearer (see [Plants](#plants))                                                       |
+| Life Support | Large-scale Crew Habitats    | A Large-scale Crew Habitat, whose commissioning is the last Milestone (see [The last Milestone](#the-last-milestone))                            |
+| Industry     | Molten regolith electrolysis | A large extraction plant                                                                                                                         |
+| Industry     | Integrated fabrication       | An integrated fabrication plant                                                                                                                  |
+| Industry     | Parts machining              | A Workshop, which makes spare Components from metals (see [Plants](#plants))                                                                     |
+| Industry     | Array fabrication            | An array works, which makes solar panels and array masts at the base (see [Plants](#plants))                                                     |
+| Industry     | Optical telescopes           | A telescope, which observes at Night for the observing programme (see above)                                                                     |
+| Industry     | Propellant production        | A propellant plant and a propellant tank, which raises what the base can hold (see [Plants](#plants))                                            |
+| Industry     | Large propellant production  | A large propellant plant, which makes three times as much (see [Plants](#plants))                                                                |
+| Industry     | Continuous excavation        | A bucket-wheel digger and a Regolith bin (see [Bulk resources](#bulk-resources-digging-and-expeditions))                                         |
+| Industry     | Automated experiments        | An automated experiments lab, which speeds up the Research Task running for power, water and oxygen (see [Plants](#plants))                      |
+| Industry     | Infrared astronomy           | An infrared telescope, which observes at Night away from lights, cooled by propellant (see [Plants](#plants))                                    |
+| Industry     | Radio astronomy              | A radio telescope array, which works through Daylight and Night away from Plants (see [Research and the Tech Tree](#research-and-the-tech-tree)) |
+| Mobility     | Robots                       | Extra Robots on the Launch manifest (see [Robots](#robots))                                                                                      |
+| Mobility     | Landing pad lights           | A lit landing pad, whose lights come on at Night so you can see the Lander land and be unloaded                                                  |
+| Mobility     | Survey Expeditions           | A Survey: an Expedition that earns Science                                                                                                       |
+| Mobility     | Prospecting Expeditions      | Prospecting: Expeditions for metals or silicon                                                                                                   |
 
 A hardened Structure does the same job as the one it is based on, on the same footprint, but wears down more slowly, and the Mission Director can move into a hardened Habitat and shield it as usual. Unlocking some Designs also offers new Research Tasks.
 

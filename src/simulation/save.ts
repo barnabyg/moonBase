@@ -462,11 +462,14 @@ const structure: Decoder<StructureState> = (() => {
       decoded.observedMinutes > 0 &&
       catalogue.structureTypes.find(
         (type) => type.id === decoded.structureTypeId,
-      )?.observingRounds === undefined
+      )?.observingRounds === undefined &&
+      catalogue.structureTypes.find(
+        (type) => type.id === decoded.structureTypeId,
+      )?.radioArray === undefined
     ) {
       throw refuse(
         at(path, "observedMinutes"),
-        "isn't 0, though the Structure isn't an infrared telescope",
+        "isn't 0, though the Structure isn't an infrared telescope or a radio telescope array",
       );
     }
     return decoded;

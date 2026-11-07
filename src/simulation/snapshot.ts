@@ -62,6 +62,7 @@ import {
   readInfraredTelescopes,
   type InfraredTelescopeSnapshot,
 } from "./infrared-telescopes";
+import { readRadioArrays, type RadioArraySnapshot } from "./radio-arrays";
 import type { RobotActivity } from "./robot";
 import { roverPerformance, type RoverActivity } from "./rovers";
 import {
@@ -277,7 +278,8 @@ export interface StructureSnapshot {
   readonly growingMinutes: number;
   /**
    * The game-minutes observed on its current round, if it is an infrared
-   * telescope, at full performance. Always 0 for any other Structure.
+   * telescope or a radio telescope array, at full performance with one antenna
+   * field. Always 0 for any other Structure.
    */
   readonly observedMinutes: number;
 }
@@ -389,6 +391,8 @@ export interface Snapshot {
   readonly experimentsLabs: ExperimentsLabsSnapshot;
   /** The infrared telescopes, each on a round of its own survey, in the order they were commissioned. */
   readonly infraredTelescopes: readonly InfraredTelescopeSnapshot[];
+  /** The radio telescope arrays, each on a round of its own survey, in the order they were commissioned. */
+  readonly radioArrays: readonly RadioArraySnapshot[];
   /**
    * The ids of the Designs unlocked in the Tech Tree: the starting ones,
    * then the others in the order they were unlocked.
@@ -477,6 +481,7 @@ export function readSnapshot(state: CampaignState): Snapshot {
     observingProgramme: readObservingProgramme(state),
     experimentsLabs: readExperimentsLabs(state),
     infraredTelescopes: readInfraredTelescopes(state),
+    radioArrays: readRadioArrays(state),
     unlockedDesignIds: [...state.unlockedDesignIds],
     milestones: readMilestones(state),
     exports: readExports(state),

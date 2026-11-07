@@ -43,6 +43,7 @@ export function createNotificationList(
           event.kind === "life-support-warning" ||
           event.kind === "greenhouse-round-lost" ||
           event.kind === "infrared-round-lost" ||
+          event.kind === "radio-round-lost" ||
           event.kind === "lost-on-landing" ||
           event.kind === "storage-tank-lost" ||
           event.kind === "storage-tank-without-power" ||
