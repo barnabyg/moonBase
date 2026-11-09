@@ -3,6 +3,14 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
+/** A Robot, Machine or Rover in a save, as far as these tests edit it. */
+interface SavedWorker {
+  conditionPercent: number;
+}
+
+/** Which of the base's workers a save has low on Condition. */
+type Worn = "robots" | "machines" | "rovers";
+
 interface SavedStructure {
   id: string;
   structureTypeId: string;
@@ -29,9 +37,13 @@ const ADDED: readonly [string, { x: number; y: number }][] = [
  * extraction plant and a vacuum fabrication plant, and in its stock the
  * Components for another solar array and a battery bank. The second solar
  * array is made Broken, and the extraction plant low on Condition. With
- * `more`, it has lights and Habitats too.
+ * `more`, it has lights and Habitats too, and with `worn`, its Robot, its
+ * Machines or its Rover are low on Condition.
  */
-function brokenArraySave({ more = false } = {}): {
+function brokenArraySave({
+  more = false,
+  worn,
+}: { more?: boolean; worn?: Worn | undefined } = {}): {
   name: string;
   mimeType: string;
   buffer: Buffer;
@@ -42,8 +54,17 @@ function brokenArraySave({ more = false } = {}): {
       "utf8",
     ),
   ) as {
-    state: { structures: SavedStructure[]; nextStructureNumber: number };
+    state: {
+      structures: SavedStructure[];
+      nextStructureNumber: number;
+      robots: SavedWorker[];
+      machines: SavedWorker[];
+      rovers: SavedWorker[];
+    };
   };
+  if (worn !== undefined) {
+    for (const worker of save.state[worn]) worker.conditionPercent = 30;
+  }
   const { structures } = save.state;
   const conditionOf = (id: string, percent: number) => {
     const structure = structures.find((each) => each.id === id);
@@ -77,7 +98,11 @@ function brokenArraySave({ more = false } = {}): {
  */
 async function loadBrokenArrayBase(
   page: Page,
-  { inPlace = false, more = false } = {},
+  {
+    inPlace = false,
+    more = false,
+    worn,
+  }: { inPlace?: boolean; more?: boolean; worn?: Worn } = {},
 ): Promise<void> {
   if (!inPlace) {
     await page.goto("/?seed=1");
@@ -85,7 +110,7 @@ async function loadBrokenArrayBase(
   }
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
-  await (await chooser).setFiles(brokenArraySave({ more }));
+  await (await chooser).setFiles(brokenArraySave({ more, worn }));
   await expect(entriesOf(structuresList(page))).toHaveCount(
     4 + (more ? ADDED.length : 0),
   );
@@ -100,6 +125,25 @@ function groupOf(page: Page, label: string): Locator {
         hasText: new RegExp(String.raw`^${label}\s*\d+$`),
       }),
     });
+}
+
+/** A section of the Base panel, by its title, folded or not. */
+function sectionOf(page: Page, title: string): Locator {
+  return page
+    .getByRole("complementary", { name: "Base" })
+    .locator("details")
+    .filter({
+      has: page.locator("summary", {
+        hasText: new RegExp(String.raw`^${title}\s*\d+$`),
+      }),
+    });
+}
+
+/** The mark beside a section's own title, and not those of the groups in it. */
+function markOf(section: Locator): Locator {
+  return section
+    .locator(":scope > summary")
+    .getByTitle("Something here needs attention");
 }
 
 /** A group's entries, folded away or not. */
@@ -184,6 +228,44 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   await expect(first).toBeVisible();
   await first.getByRole("button", { name: "Dismantle" }).click();
   await expect(first).toContainText("to be dismantled");
+});
+
+test("the Structures section shows when a Structure is Broken or low on Condition, folded or not, and Robots & Machines when a Machine or the Rover is, but not for a worn Robot", async ({
+  page,
+}) => {
+  // A Broken solar array and a worn extraction plant, with Lights to show
+  // that a group with neither stays unmarked.
+  await loadBrokenArrayBase(page, { more: true });
+  const structures = sectionOf(page, "Structures");
+  const fleet = sectionOf(page, "Robots & Machines");
+  await expect(markOf(structures)).toBeVisible();
+  await expect(markOf(groupOf(page, "Lights"))).toBeHidden();
+  await expect(markOf(fleet)).toBeHidden();
+
+  // Folded, its groups' marks are out of sight, and its own is not.
+  await structures.locator(":scope > summary").click();
+  await expect(markOf(groupOf(page, "Power"))).toBeHidden();
+  await expect(markOf(structures)).toBeVisible();
+  await structures.locator(":scope > summary").click();
+
+  // A Robot wears down to 10% before it repairs itself, so at 30% it is
+  // as it should be.
+  await loadBrokenArrayBase(page, { inPlace: true, worn: "robots" });
+  await expect(fleet.getByRole("listitem").first()).toContainText(
+    "Condition 30%",
+  );
+  await expect(markOf(fleet)).toBeHidden();
+
+  // Maintenance starts at 70%, so a Machine or the Rover at 30% has been
+  // left waiting.
+  for (const worn of ["machines", "rovers"] as const) {
+    await loadBrokenArrayBase(page, { inPlace: true, worn });
+    await expect(markOf(fleet)).toBeVisible();
+    await fleet.locator(":scope > summary").click();
+    await expect(fleet.getByRole("listitem").first()).toBeHidden();
+    await expect(markOf(fleet)).toBeVisible();
+    await fleet.locator(":scope > summary").click();
+  }
 });
 
 test("building a Structure puts it in its place in its group, folded or not, or in a new group in its place, open; dismantling the last of a group takes it away, and loading a Campaign lists its own", async ({
