@@ -235,9 +235,12 @@ body {
   scrollbar-width: thin;
 }
 
+/* It keeps the height its work needs, up to its limit, and scrolls past
+   that. When the column runs out of room it is the Base panel below, far the
+   longer of the two, that gives way: sharing the squeeze cut the Work panel
+   through a row while it had only two or three. */
 .construction-panel {
-  flex: 0 1 auto;
-  min-height: 0;
+  flex: none;
   max-height: 40%;
   font-variant-numeric: tabular-nums;
   overflow-y: auto;
@@ -481,8 +484,11 @@ body {
   border-radius: 2px;
 }
 
-/* Bulk resources, a line each, in columns of a set width that don't shift
-   sideways as the figures change. */
+/* Bulk resources, a line each. The notes' column has a set width, and each
+   amount takes the width it needs and ends against it, so the amounts end in
+   line and nothing shifts sideways as the figures change. One shown against
+   its limit, such as "1916.0 of 2000 kg", is over twice as wide as the rest,
+   and takes its room from its own name's, which wraps if it must. */
 
 .resources {
   display: grid;
@@ -494,7 +500,7 @@ body {
 
 .resources__cell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 4.1em 9.4em;
+  grid-template-columns: minmax(0, 1fr) max-content 9.4em;
   column-gap: 4px;
   align-content: start;
   align-items: baseline;

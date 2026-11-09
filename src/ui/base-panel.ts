@@ -262,15 +262,14 @@ export function createBasePanel(
           groups.delete(groupId);
         } else {
           group.section.count(count);
-          group.section.warn(
-            group.list.querySelector(
-              ".entry--broken, .entry__condition--low",
-            ) !== null,
-          );
+          group.section.warn(needsAttention(group.list));
         }
       }
       structuresSection.element.hidden = structureEntries.size === 0;
       structuresSection.count(structureEntries.size);
+      // Its groups mark their own titles, which are out of sight while it
+      // is folded.
+      structuresSection.warn(needsAttention(structures));
 
       for (const robot of snapshot.robots) {
         entryFor(
@@ -310,6 +309,13 @@ export function createBasePanel(
           snapshot.machines.length +
           snapshot.rovers.length,
       );
+      // A Robot is only repaired once it is nearly worn out, so one low on
+      // Condition is as it should be, and nothing the player can act on.
+      fleetSection.warn(
+        robots.querySelector(BROKEN) !== null ||
+          needsAttention(machines) ||
+          needsAttention(rovers),
+      );
     },
     startAfresh() {
       for (const group of groups.values()) group.section.element.remove();
@@ -321,6 +327,18 @@ export function createBasePanel(
       }
     },
   };
+}
+
+/** An entry that is Broken. */
+const BROKEN = ".entry--broken";
+
+/**
+ * Whether anything listed is Broken or low on Condition. Maintenance starts
+ * well above that, so one that low has been left waiting, for a Robot or for
+ * spare Components.
+ */
+function needsAttention(list: HTMLElement): boolean {
+  return list.querySelector(`${BROKEN}, .entry__condition--low`) !== null;
 }
 
 /** Where a group comes in the Base panel: the catalogue's order. */
