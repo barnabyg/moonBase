@@ -235,9 +235,12 @@ body {
   scrollbar-width: thin;
 }
 
+/* It keeps the height its work needs, up to its limit, and scrolls past
+   that. When the column runs out of room it is the Base panel below, far the
+   longer of the two, that gives way: sharing the squeeze cut the Work panel
+   through a row while it had only two or three. */
 .construction-panel {
-  flex: 0 1 auto;
-  min-height: 0;
+  flex: none;
   max-height: 40%;
   font-variant-numeric: tabular-nums;
   overflow-y: auto;

@@ -98,6 +98,27 @@ test("cancelling a Construction removes it and frees its Components", async ({
   await expect(solarArray).toContainText("1 available");
 });
 
+test("in a window too short for the Work and Base panels, the Base panel scrolls and the Work panel keeps its work in sight", async ({
+  page,
+}) => {
+  await planSolarArray(page);
+  const work = page.getByRole("complementary", { name: "Work" });
+  const base = page.getByRole("complementary", { name: "Base" });
+  await expect(work).toContainText("Site Preparation");
+  await expect(work.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  await page.setViewportSize({ width: 1920, height: 520 });
+
+  /** How much of a panel is out of sight, to be scrolled to, in pixels. */
+  const outOfSight = (panel: typeof work): Promise<number> =>
+    panel.evaluate((element) => element.scrollHeight - element.clientHeight);
+  await expect.poll(() => outOfSight(base)).toBeGreaterThan(0);
+  expect(await outOfSight(work)).toBe(0);
+  await expect(work.getByRole("button", { name: "Cancel" })).toBeInViewport({
+    ratio: 1,
+  });
+});
+
 test("dismantling a Structure has the Robot take it apart and return a spare Component", async ({
   page,
 }) => {
