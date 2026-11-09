@@ -481,26 +481,36 @@ body {
   border-radius: 2px;
 }
 
-/* Bulk resources, a line each, in columns of a set width that don't shift
-   sideways as the figures change. */
+/* Bulk resources, a line each, in columns every line shares, so that they
+   don't shift sideways as the figures change. The amounts' column is as wide
+   as the longest of them, which one shown against its limit, such as
+   "1916.0 of 2000 kg", makes twice as wide as the others need. The names'
+   column keeps the longest name on one line, and the notes' column gives up
+   the room for both: a note too long for what is left takes another line. */
 
 .resources {
   display: grid;
+  grid-template-columns: minmax(max-content, 1fr) max-content minmax(7em, 9.4em);
+  column-gap: 4px;
   margin: 2px 0;
   line-height: 1.3;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
 
+.resources > * {
+  grid-column: 1 / -1;
+}
+
 .resources__cell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 4.1em 9.4em;
-  column-gap: 4px;
+  grid-template-columns: subgrid;
   align-content: start;
   align-items: baseline;
 }
 
 .resources__amount {
+  min-width: 4.1em;
   text-align: right;
   white-space: nowrap;
 }

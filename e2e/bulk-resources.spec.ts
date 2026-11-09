@@ -56,6 +56,28 @@ test("15 bulk resources stay readable, a line each, and fold away to their headl
     expect(size.height).toBeLessThan(20);
     expect(size.overflow).toBeLessThanOrEqual(0);
   }
+  // One with a limit shows its amount against it, which is longer, and still
+  // keeps clear of how fast it is changing beside it.
+  const regolith = rows.filter({ hasText: "Regolith" });
+  await expect(regolith).toHaveText(
+    /^Regolith\s*\d+\.\d of 2000 kg\s*−\d+\.\d kg\/day/,
+  );
+  for (const row of await rows.all()) {
+    const amount = row.locator(".resources__amount");
+    expect(
+      await amount.evaluate(
+        (element) => element.scrollWidth - element.clientWidth,
+      ),
+      `the amount of ${(await row.textContent()) ?? ""}`,
+    ).toBeLessThanOrEqual(0);
+  }
+  // The amounts still end in line, one above the other.
+  const ends = await rows
+    .locator(".resources__amount")
+    .evaluateAll((amounts) =>
+      amounts.map((amount) => Math.round(amount.getBoundingClientRect().right)),
+    );
+  expect(new Set(ends).size).toBe(1);
 
   // With the sections above folded, all 15 are in sight without scrolling.
   const title = (name: string) => panel.getByText(name, { exact: true });
