@@ -48,30 +48,42 @@ export interface StructureStack {
 }
 
 /**
+ * The states out of the ordinary that the one row for several Structures
+ * counts, in the order it gives them, worst first. A Structure counts once,
+ * under the first that is so of it: a Broken one is due Maintenance too,
+ * which goes without saying.
+ */
+const STACK_STATES = [
+  "Broken",
+  "no power",
+  "to be dismantled",
+  "undergoing Maintenance",
+  "awaiting Maintenance",
+];
+
+/**
  * Sums up several Structures of one type for the row that stands for them
  * all: how many there are, the lowest Condition among them, and how many
  * are Broken, without power, to be dismantled or due Maintenance.
  */
 export function describeStructureStack(
-  snapshot: Pick<Snapshot, "dismantlings" | "maintenance" | "radioArrays">,
+  snapshot: Pick<Snapshot, "dismantlings" | "maintenance">,
   members: readonly StructureSnapshot[],
 ): StructureStack {
-  const states = new Map<string, number>();
-  const count = (state: string | undefined): void => {
-    if (state !== undefined) states.set(state, (states.get(state) ?? 0) + 1);
-  };
-  for (const member of members) {
-    const status = structureStatus(
-      member,
-      isToBeDismantled(snapshot, member.id),
-      snapshot.radioArrays,
-    );
-    count(status === "commissioned" ? undefined : status);
-    count(maintenanceState(maintenanceOf(snapshot, member.id)));
-  }
-  const line = [...states]
-    .map(([state, number]) => `${number} ${state}`)
-    .join(", ");
+  const states = members.map((member) => {
+    const toBeDismantled = isToBeDismantled(snapshot, member.id);
+    const soOfIt = [
+      // Broken or not, one to be dismantled says only that.
+      structureStatus({ ...member, conditionPercent: 100 }, toBeDismantled),
+      structureStatus(member, false),
+      maintenanceState(maintenanceOf(snapshot, member.id)),
+    ];
+    return STACK_STATES.find((state) => soOfIt.includes(state));
+  });
+  const line = STACK_STATES.flatMap((state) => {
+    const number = states.filter((each) => each === state).length;
+    return number === 0 ? [] : [`${number} ${state}`];
+  }).join(", ");
   return {
     name: `${structureLabel(members[0]?.structureTypeId ?? "")} ×${members.length}`,
     lowestConditionPercent: Math.min(

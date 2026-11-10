@@ -139,3 +139,30 @@ function maintenanceLike(): Snapshot["maintenance"][number] {
     waiting: undefined,
   };
 }
+
+describe("counting the states of the Structures that share a row", () => {
+  it("counts each of them once, by the worst of what is so of it, in a fixed order", () => {
+    const order = (structureId: string): Snapshot["maintenance"][number] => ({
+      ...maintenanceLike(),
+      target: {
+        kind: "structure",
+        structureId,
+        structureTypeId: "solar-array",
+      },
+    });
+    const withOrders: Snapshot = {
+      ...state,
+      dismantlings: [],
+      // The Broken one is due Maintenance too, as every Broken thing is.
+      maintenance: [order("b"), order("c")],
+    };
+
+    expect(
+      describeStructureStack(withOrders, [
+        array("a", 100),
+        array("b", 60),
+        array("c", 0),
+      ]).line,
+    ).toBe("1 Broken, 1 awaiting Maintenance");
+  });
+});

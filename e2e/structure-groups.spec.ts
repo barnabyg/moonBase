@@ -253,7 +253,7 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   await dismantle(page, first);
   await expect(first).toContainText("to be dismantled");
   await expect(arrays.locator("summary")).toContainText(
-    "1 to be dismantled, 1 Broken",
+    "1 Broken, 1 to be dismantled",
   );
 });
 
