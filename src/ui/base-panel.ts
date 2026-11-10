@@ -24,6 +24,12 @@ import {
   type StructureChoices,
   type StructureControls,
 } from "./structure-controls";
+import {
+  describeStructureStack,
+  stacksInList,
+  summariseStructureGroup,
+  type StructureStack,
+} from "./structure-list-text";
 import { describeStructureEntry, isToBeDismantled } from "./structure-state";
 
 export interface BasePanel {
@@ -101,17 +107,8 @@ function createEntry(
       map.pointOut(undefined);
     });
   }
-  const condition = document.createElement("span");
-  condition.className = "entry__condition";
-  condition.title = `Condition. ${repair}`;
-  const meter = createMeter();
-  // The bar shows it is a Condition; screen readers need the word.
-  const conditionWord = document.createElement("span");
-  conditionWord.className = "visually-hidden";
-  conditionWord.textContent = "Condition ";
-  const percent = document.createElement("span");
-  condition.append(meter.element, conditionWord, percent);
-  head.append(title, " ", condition);
+  const condition = createCondition(repair);
+  head.append(title, " ", condition.element);
   const state = document.createElement("span");
   state.className = "entry__state";
   const actions = document.createElement("span");
@@ -142,13 +139,100 @@ function createEntry(
             ? FINDS[subject.kind]
             : `${more.charAt(0).toUpperCase()}${more.slice(1)}. ${FINDS[subject.kind]}`;
       }
+      condition.show(conditionPercent);
+      item.classList.toggle("entry--broken", conditionPercent <= 0);
+    },
+  };
+}
+
+/**
+ * A bar and figure for a Condition, with a tooltip saying how it is
+ * repaired, picked out while it is low. Given a word to go before the
+ * figure, it says which Condition it is, such as the lowest of several.
+ */
+function createCondition(
+  repair: string,
+  which = "",
+): { readonly element: HTMLElement; show(conditionPercent: number): void } {
+  const element = document.createElement("span");
+  element.className = "entry__condition";
+  element.title = `Condition. ${repair}`;
+  const meter = createMeter();
+  // The bar shows it is a Condition; screen readers need the word.
+  const conditionWord = document.createElement("span");
+  conditionWord.className = "visually-hidden";
+  conditionWord.textContent = "Condition ";
+  const percent = document.createElement("span");
+  element.append(meter.element, conditionWord, which, percent);
+  return {
+    element,
+    show(conditionPercent) {
       setText(percent, formatCondition(conditionPercent));
       meter.fill(conditionPercent / 100);
-      item.classList.toggle("entry--broken", conditionPercent <= 0);
-      condition.classList.toggle(
+      element.classList.toggle(
         "entry__condition--low",
         conditionPercent > 0 && conditionPercent < 40,
       );
+    },
+  };
+}
+
+/**
+ * The one row that stands for several Structures of a type, which opens to
+ * show a row for each.
+ */
+interface Stack {
+  readonly item: HTMLLIElement;
+  /** Where the rows of its Structures go. */
+  readonly list: HTMLUListElement;
+  show(stack: StructureStack): void;
+}
+
+/**
+ * A row for several Structures of a type: its name with how many there
+ * are, the lowest Condition among them, and a line below only while some of
+ * them are in a state out of the ordinary. It starts closed, which is what
+ * saves the room, and opens from its name, by mouse or keyboard, to show
+ * each of them.
+ */
+function createStack(structureTypeId: string): Stack {
+  const label = structureLabel(structureTypeId);
+  const item = document.createElement("li");
+  item.className = "entry entry--stack";
+  item.dataset["row"] = `stack:${structureTypeId}`;
+  const fold = document.createElement("details");
+  fold.className = "stack";
+  const head = document.createElement("summary");
+  head.className = "stack__head";
+  head.title = "Click to show each of them";
+  const top = document.createElement("span");
+  top.className = "entry__head";
+  const name = document.createElement("span");
+  name.className = "entry__name stack__name";
+  const condition = createCondition(describeRepair("maintained"), "lowest ");
+  top.append(name, " ", condition.element);
+  const state = document.createElement("span");
+  state.className = "entry__state";
+  head.append(top, " ", state);
+  const list = document.createElement("ul");
+  list.className = "entries stack__members";
+  list.setAttribute("aria-label", `${label}, each`);
+  fold.append(head, list);
+  item.append(fold);
+  // Held as its line comes and goes, and let go as it is opened or closed.
+  holdHeight(item, "closed");
+  fold.addEventListener("toggle", () => {
+    holdHeight(item, fold.open ? "open" : "closed");
+  });
+  return {
+    item,
+    list,
+    show(stack) {
+      setText(name, stack.name);
+      setText(state, stack.line ?? "");
+      state.hidden = stack.line === undefined;
+      condition.show(stack.lowestConditionPercent);
+      item.classList.toggle("entry--broken", stack.lowestConditionPercent <= 0);
     },
   };
 }
@@ -205,6 +289,16 @@ export function createBasePanel(
       readonly controls: StructureControls;
     }
   >();
+  // The rows that stand for several Structures of a type, by the type.
+  const stacks = new Map<string, Stack>();
+  const stackFor = (structureTypeId: string): Stack => {
+    let stack = stacks.get(structureTypeId);
+    if (stack === undefined) {
+      stack = createStack(structureTypeId);
+      stacks.set(structureTypeId, stack);
+    }
+    return stack;
+  };
   const createStructureEntry = (structure: StructureSnapshot) => {
     const entry = createEntry(
       structureLabel(structure.structureTypeId),
@@ -295,6 +389,9 @@ export function createBasePanel(
         entry.item.classList.toggle("entry--cover", habitat !== undefined);
         inGroup.push({
           item: entry.item,
+          structure,
+          stacks:
+            habitat === undefined && stacksInList(structure.structureTypeId),
           key: [
             typePlace(anchor.structureTypeId),
             habitat === undefined
@@ -316,21 +413,58 @@ export function createBasePanel(
           structureEntries.delete(id);
         }
       }
+      const stacked = new Set<string>();
       for (const [groupId, inGroup] of listed) {
         inGroup.sort((a, b) => compareKeys(a.key, b.key));
-        placeInOrder(
-          groupFor(groupId).list,
-          inGroup.map(({ item }) => item),
+        // Those of a type that share a row, once there are two of them.
+        const together = new Map<string, ListedStructure[]>();
+        for (const each of inGroup) {
+          if (!each.stacks) continue;
+          const typeId = each.structure.structureTypeId;
+          together.set(typeId, [...(together.get(typeId) ?? []), each]);
+        }
+        const rows: HTMLElement[] = [];
+        for (const each of inGroup) {
+          const typeId = each.structure.structureTypeId;
+          const sharing = each.stacks ? (together.get(typeId) ?? []) : [];
+          if (sharing.length < 2) {
+            rows.push(each.item);
+          } else if (sharing[0] === each) {
+            // Their row goes where the first of them would.
+            const stack = stackFor(typeId);
+            placeInOrder(
+              stack.list,
+              sharing.map(({ item }) => item),
+            );
+            stack.show(
+              describeStructureStack(
+                snapshot,
+                sharing.map(({ structure }) => structure),
+              ),
+            );
+            rows.push(stack.item);
+            stacked.add(typeId);
+          }
+        }
+        const group = groupFor(groupId);
+        placeInOrder(group.list, rows);
+        group.section.count(inGroup.length);
+        group.section.summarise(
+          summariseStructureGroup(inGroup.map(({ structure }) => structure)),
         );
+        group.section.warn(needsAttention(group.list));
+      }
+      // A type down to one Structure, whose row has gone back to its group.
+      for (const [typeId, stack] of stacks) {
+        if (!stacked.has(typeId)) {
+          stack.item.remove();
+          stacks.delete(typeId);
+        }
       }
       for (const [groupId, group] of groups) {
-        const count = group.list.childElementCount;
-        if (count === 0) {
+        if (!listed.has(groupId)) {
           group.section.element.remove();
           groups.delete(groupId);
-        } else {
-          group.section.count(count);
-          group.section.warn(needsAttention(group.list));
         }
       }
       structuresSection.element.hidden = structureEntries.size === 0;
@@ -392,6 +526,7 @@ export function createBasePanel(
       map.pointOut(undefined);
       for (const group of groups.values()) group.section.element.remove();
       groups.clear();
+      stacks.clear();
       structureEntries.clear();
       for (const entries of [robotEntries, machineEntries, roverEntries]) {
         for (const entry of entries.values()) entry.item.remove();
@@ -437,6 +572,9 @@ function listGroupOf(structureTypeId: string): StructureListGroup {
  */
 interface ListedStructure {
   readonly item: HTMLLIElement;
+  readonly structure: StructureSnapshot;
+  /** Whether it shares one row with the others of its type. */
+  readonly stacks: boolean;
   readonly key: readonly number[];
 }
 
@@ -468,9 +606,10 @@ interface StructureGroup {
 }
 
 /**
- * A group of Structures, by what they are for, headed by its label and how
- * many there are, and marked while any of them is Broken or low on
- * Condition, so that it shows even when folded. It stays folded on the next
+ * A group of Structures, by what they are for, headed by its label, how
+ * many there are and what matters about them, such as how many are Broken
+ * or switched off, and marked while any of them is Broken or low on
+ * Condition, so that it reports even when folded. It stays folded on the next
  * visit, as sections do, and starts open for a group the player hasn't
  * folded.
  */

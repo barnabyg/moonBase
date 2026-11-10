@@ -21,7 +21,7 @@ async function loadBase(page: Page): Promise<void> {
       new URL("../test/saves/version-35.moonbase", import.meta.url),
     ),
   );
-  await expect(structureEntry(page, "Solar array")).toHaveCount(2);
+  await expect(structureEntry(page, "Solar array ×2")).toBeVisible();
 }
 
 /** The id a row of the Base panel stands for. */
@@ -59,9 +59,10 @@ test("choosing a row of the Base panel by its name, with the mouse or the keyboa
   const map = page.locator("canvas");
   await expect(map).not.toHaveAttribute("data-marked");
 
-  // The second of two rows with the same name.
-  const arrays = structureEntry(page, "Solar array");
-  const second = arrays.nth(1);
+  // The second of two with the same name, in the row they share, opened.
+  const arrays = structureEntry(page, "Solar array ×2");
+  await arrays.locator("summary").click();
+  const second = arrays.getByRole("listitem").nth(1);
   await second.getByRole("button", { name: "Solar array" }).click();
   const arrayPopUp = page.getByRole("dialog", { name: "Solar array" });
   await expect(arrayPopUp).toBeVisible();

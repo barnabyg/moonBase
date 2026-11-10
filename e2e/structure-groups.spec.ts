@@ -111,8 +111,9 @@ async function loadBrokenArrayBase(
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(brokenArraySave({ more, worn }));
+  // Each Structure's row, and the row the two solar arrays share.
   await expect(entriesOf(structuresList(page))).toHaveCount(
-    4 + (more ? ADDED.length : 0),
+    4 + 1 + (more ? ADDED.length : 0),
   );
 }
 
@@ -122,9 +123,14 @@ function groupOf(page: Page, label: string): Locator {
     .locator("details")
     .filter({
       has: page.locator("summary", {
-        hasText: new RegExp(String.raw`^${label}\s*\d+$`),
+        hasText: new RegExp(String.raw`^${label}\s*\d+(?!\d|%)`),
       }),
     });
+}
+
+/** The heading of a group or section, and not those of the rows in it. */
+function headingOf(group: Locator): Locator {
+  return group.locator(":scope > summary");
 }
 
 /** A section of the Base panel, by its title, folded or not. */
@@ -162,12 +168,13 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   const industry = groupOf(page, "Industry");
 
   // The groups in their own order, wherever their Structures came in the
-  // build, each with how many it holds.
-  await expect(structures.locator("summary")).toHaveText([
+  // build, each with how many it holds and what matters about them.
+  const headings = structures.locator(":scope > details > summary");
+  await expect(headings).toHaveText([
     /^Habitats\s*4$/,
-    /^Power\s*2$/,
+    /^Power\s*2\s*1 Broken · lowest 97%$/,
     /^Lights\s*2$/,
-    /^Industry\s*2$/,
+    /^Industry\s*2\s*lowest 30%$/,
   ]);
   // The Inflatable Habitat's shielding and water wall straight after it,
   // though the Hardened Habitat was built between them.
@@ -190,10 +197,22 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
     /^Light mast/,
     /^Tall Light Mast/,
   ]);
+  // The two solar arrays share a row, which says what is out of the
+  // ordinary among them. The light masts are of two types, and each Plant
+  // has its own switch, so those keep a row each.
+  const arrays = power.getByRole("listitem").filter({ hasText: "×2" });
   await expect(power.getByRole("listitem")).toHaveText([
-    /^Solar array Condition 97%/,
-    /^Solar array Condition 0%/,
+    /^Solar array ×2 Condition lowest 0% 1 Broken/,
   ]);
+  // It opens from the keyboard to show each, and closes again.
+  await arrays.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(arrays.getByRole("listitem")).toHaveText([
+    /^Solar array Condition 97% Dust coating/,
+    /^Solar array Condition 0% Broken/,
+  ]);
+  await arrays.locator("summary").click();
+  await expect(arrays.getByRole("listitem")).toHaveCount(0);
   await expect(industry.getByRole("listitem")).toHaveText([
     /^Extraction plant Condition 30%/,
     /^Vacuum fabrication plant/,
@@ -206,14 +225,17 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
 
   // Folded from the keyboard, the solar arrays are out of sight, but not
   // the Broken one's warning, and the other groups stay open.
-  await power.locator("summary").focus();
+  await headingOf(power).focus();
   await page.keyboard.press("Enter");
-  await expect(entriesOf(power)).toHaveCount(2);
+  await expect(entriesOf(power)).toHaveCount(3);
   for (const entry of await entriesOf(power).all()) {
     await expect(entry).toBeHidden();
   }
   await expect(needsAttention(power)).toBeVisible();
-  await expect(power.locator("summary")).toHaveText(/^Power\s*2$/);
+  // Folded, its heading still says what matters in it.
+  await expect(headingOf(power)).toHaveText(
+    /^Power\s*2\s*1 Broken · lowest 97%$/,
+  );
   await expect(lights.getByRole("listitem").first()).toBeVisible();
 
   // Still folded on the next visit.
@@ -221,13 +243,18 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   await expect(entriesOf(power).first()).toBeHidden();
   await expect(lights.getByRole("listitem").first()).toBeVisible();
 
-  // Opened again, its controls still work.
-  await power.locator("summary").focus();
+  // Opened again, a solar array can still be dismantled, and their row
+  // says that one of them is to be.
+  await headingOf(power).focus();
   await page.keyboard.press(" ");
-  const first = power.getByRole("listitem").first();
-  await expect(first).toBeVisible();
+  await expect(arrays).toBeVisible();
+  await arrays.locator("summary").click();
+  const first = arrays.getByRole("listitem").first();
   await dismantle(page, first);
   await expect(first).toContainText("to be dismantled");
+  await expect(arrays.locator("summary")).toContainText(
+    "1 to be dismantled, 1 Broken",
+  );
 });
 
 test("Robots & Machines comes above Structures, which shows when a Structure is Broken or low on Condition, folded or not, as Robots & Machines does when a Machine or the Rover is, but not for a worn Robot", async ({
@@ -289,7 +316,7 @@ test("building a Structure puts it in its place in its group, folded or not, or 
     }
     await expect(target).toBeVisible();
   };
-  await power.locator("summary").click();
+  await headingOf(power).click();
   await expect(entriesOf(power).first()).toBeHidden();
 
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
@@ -304,14 +331,18 @@ test("building a Structure puts it in its place in its group, folded or not, or 
   // The lights come between Power and Industry, open.
   const lights = groupOf(page, "Lights");
   await skipUntil(lights.getByRole("listitem"));
-  await expect(lights.locator("summary")).toHaveText(/^Lights\s*1$/);
-  await skipUntil(power.locator("summary", { hasText: /4$/ }));
-  // The new solar array went in with the others, ahead of the battery
-  // bank built before it, in its folded group, which stayed folded.
+  await expect(headingOf(lights)).toHaveText(/^Lights\s*1$/);
+  await skipUntil(
+    power.locator(":scope > summary", { hasText: /^Power\s*4(?!\d)/ }),
+  );
+  // The new solar array went in with the others, in the row they share,
+  // ahead of the battery bank built before it, in its folded group, which
+  // stayed folded.
   await expect(entriesOf(power)).toHaveText([
-    /^Solar array/,
-    /^Solar array/,
-    /^Solar array/,
+    /^Solar array ×3/,
+    /^Solar array Condition/,
+    /^Solar array Condition/,
+    /^Solar array Condition/,
     /^Battery bank/,
   ]);
   await expect(entriesOf(power).last()).toBeHidden();
@@ -319,17 +350,15 @@ test("building a Structure puts it in its place in its group, folded or not, or 
   for (let skips = 0; skips < 40 && (await industry.count()) > 0; skips++) {
     await skip.click();
   }
-  await expect(structures.locator("summary")).toHaveText([
-    /^Power\s*4$/,
-    /^Lights\s*1$/,
-  ]);
+  const headings = structures.locator(":scope > details > summary");
+  await expect(headings).toHaveText([/^Power\s*4(?!\d)/, /^Lights\s*1(?!\d)/]);
 
   // Loaded in place, the save's own Structures replace them, the solar
   // arrays still folded.
   await loadBrokenArrayBase(page, { inPlace: true });
-  await expect(structures.locator("summary")).toHaveText([
-    /^Power\s*2$/,
-    /^Industry\s*2$/,
+  await expect(headings).toHaveText([
+    /^Power\s*2\s*1 Broken/,
+    /^Industry\s*2\s*lowest/,
   ]);
   await expect(entriesOf(power).first()).toBeHidden();
 });

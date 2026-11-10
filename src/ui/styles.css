@@ -201,6 +201,7 @@ body {
 .top-bar button:focus-visible,
 .panel-button:focus-visible,
 .entry__name:focus-visible,
+.stack__head:focus-visible,
 .construction-panel__cancel:focus-visible,
 .build-menu__options button:focus-visible,
 .milestone-hint__toggle:focus-visible,
@@ -646,6 +647,15 @@ body {
   padding: 0 0 2px 11px;
 }
 
+/* What matters in a group stays beside its title, open or folded. */
+.structure-group[open] > .panel-section__title > .panel-section__summary {
+  display: block;
+}
+
+.structure-group > .panel-section__title > .panel-section__summary {
+  color: var(--text-muted);
+}
+
 .structure-group + .structure-group {
   border-top-color: rgb(255 255 255 / 6%);
 }
@@ -723,6 +733,48 @@ body {
 .entry--broken .entry__state,
 .entry--broken .entry__condition {
   color: var(--warning);
+}
+
+/* The one row for several Structures of a type, which opens to show each. */
+
+.entry--stack {
+  display: block;
+}
+
+.stack__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  list-style: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.stack__head::-webkit-details-marker {
+  display: none;
+}
+
+.stack__name::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 6px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.stack[open] .stack__name::before {
+  transform: rotate(90deg);
+}
+
+.stack__members {
+  margin-top: 5px;
+  padding-left: 11px;
+  border-top: 1px solid rgb(255 255 255 / 6%);
 }
 
 .entry__state {
