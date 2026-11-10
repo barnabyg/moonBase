@@ -58,7 +58,7 @@ test("Dust wears a solar array down until a Maintenance Work Order is raised for
   await skipUntil(needed);
 
   await expect(array).toHaveText(
-    /Condition \d+% \w+ · (working at \d+%, )?Dust coating \d+%, (awaiting|undergoing) Maintenance/,
+    /Condition \d+% (working at \d+%, )?Dust coating \d+%, (awaiting|undergoing) Maintenance/,
   );
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
     "Maintaining the solar array",

@@ -102,7 +102,7 @@ test("cancelling a Construction removes it and frees its Components", async ({
 test("in a window too short for the Work and Base panels, the Base panel scrolls and the Work panel keeps its work in sight", async ({
   page,
 }) => {
-  // A base with four Structures to list, and a solar array's Components.
+  // A base with Structures enough to list, and a solar array's Components.
   await page.goto("/?seed=1");
   await page.getByRole("button", { name: "Pause" }).click();
   const chooser = page.waitForEvent("filechooser");
@@ -114,7 +114,8 @@ test("in a window too short for the Work and Base panels, the Base panel scrolls
       new URL("../test/saves/version-35.moonbase", import.meta.url),
     ),
   );
-  await expect(structureEntries(page)).toHaveCount(4);
+  // Two Plants, and the row its two solar arrays share.
+  await expect(structureEntries(page)).toHaveCount(3);
   await page
     .getByRole("complementary", { name: "Build menu" })
     .getByRole("button", { name: /Solar array/ })

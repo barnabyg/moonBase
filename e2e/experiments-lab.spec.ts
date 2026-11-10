@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -37,7 +37,10 @@ test("the Research Tasks screen and the Base panel say how fast an automated exp
   const lab = structureEntry(page, "Automated experiments lab");
 
   await expect(lab).toContainText("speeding up the Research Task running");
-  await expect(lab).toContainText("0.5 kg of water and 0.1 kg of oxygen");
+  await expect(doing(lab)).toHaveAttribute(
+    "title",
+    /0\.5 kg of water and 0\.1 kg of oxygen/,
+  );
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
   const research = page.getByRole("dialog", { name: "Research Tasks" });
