@@ -5,8 +5,13 @@ import {
   type Campaign,
   type Forecasts,
   type Snapshot,
-  type StructureSnapshot,
 } from "../simulation";
+import { createAttentionList } from "./attention-list";
+import {
+  ATTENTION_ORDER,
+  listAttention,
+  type StatusLine,
+} from "./attention-text";
 import { setText } from "./dom";
 import { stockLabel } from "./labels";
 import {
@@ -48,10 +53,17 @@ import {
   makesSpareComponents,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
+import type { MapFinder } from "./map-finder";
 import { createMilestoneHint } from "./milestone-hint";
-import { createPanelSection } from "./panel-section";
+import { createPanelSection, type PanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine, type Stat, type StatLine } from "./stat";
+import {
+  warnsOfHabitatPower,
+  warnsOfLifeSupport,
+  warnsOfRadiationDose,
+  warnsOfSpareComponents,
+} from "./status-warnings";
 import { designsToUnlock } from "./tech-tree-text";
 
 /**
@@ -76,17 +88,25 @@ function createStatusBlock(
 }
 
 export interface StatusPanel {
-  update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets which bulk resources have shown, and that an Expedition, a
-   * queue or Science being earned has, for a Campaign loaded in place of the
-   * last.
+   * Shows the latest snapshot and forecasts, given the real time the frame
+   * counted, in milliseconds, which times how long a line of the
+   * needs-attention list stays once what it reported is over.
+   */
+  update(snapshot: Snapshot, forecasts: Forecasts, frameMs: number): void;
+  /**
+   * Forgets which bulk resources have shown, what needed attention, and that
+   * an Expedition, a queue or Science being earned has shown, for a Campaign
+   * loaded in place of the last.
    */
   startAfresh(): void;
 }
 
 /**
- * The HTML status panel, in sections the player can fold away: the current
+ * The HTML status panel: at its top, while anything needs the player, a list
+ * of what does, most urgent first, each line leading to where it is dealt
+ * with, on the base map or further down the panel; then sections the player
+ * can fold away: the current
  * Act, the Milestone to aim for now, with its hint folded to its first lines
  * until the player asks for the rest, and the one after it, how the Mission
  * Director is keeping, the base's power, its stock, its bulk resources, the Lander
@@ -101,10 +121,38 @@ export function createStatusPanel(
   campaign: Pick<Campaign, "sendLander">,
   showResult: (result: ChoiceResult) => void,
   openExpeditions: () => void,
+  map: MapFinder,
 ): StatusPanel {
   const panel = document.createElement("aside");
   panel.className = "status-panel";
   panel.setAttribute("aria-label", "Status panel");
+
+  // The lines of the panel that show as warnings, and the section each is
+  // in, for the needs-attention list to lead to.
+  const warningLines = new Map<
+    StatusLine,
+    { readonly section: PanelSection; readonly line: HTMLElement }
+  >();
+  // What needs the player now, above everything else.
+  const attention = createAttentionList(
+    ATTENTION_ORDER,
+    (target) => {
+      if (target.kind === "map") {
+        showResult(map.find(target.subject));
+        return;
+      }
+      const warning = warningLines.get(target.line);
+      if (warning === undefined) return;
+      warning.section.element.open = true;
+      warning.line.scrollIntoView({ block: "nearest" });
+      pointOut(warning.line);
+    },
+    // Marked on the map, without moving the camera, as the Base panel's
+    // rows are.
+    (target) => {
+      map.pointOut(target?.kind === "map" ? target.subject : undefined);
+    },
+  );
 
   // The Act the Campaign is in and what it asks, the Milestone to aim for now,
   // what to do to reach it, and the one after.
@@ -189,6 +237,22 @@ export function createStatusPanel(
     selfSufficiencyLine,
     radiationDose.element,
   );
+  const inMissionDirector = (line: HTMLElement) => ({
+    section: missionDirectorSection,
+    line,
+  });
+  warningLines.set(
+    "solar-particle-event",
+    inMissionDirector(solarParticleEvent.element),
+  );
+  warningLines.set("habitat-power", inMissionDirector(residence.element));
+  for (const { type, line } of stocks) {
+    warningLines.set(
+      `life-support:${type.id}`,
+      inMissionDirector(line.element),
+    );
+  }
+  warningLines.set("radiation-dose", inMissionDirector(radiationDose.element));
 
   const powerSection = createPanelSection("power", "Power");
   const power = createStatLine("Power");
@@ -234,6 +298,10 @@ export function createStatusPanel(
     { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
   stockSection.body.append(components, spareComponents.element);
+  warningLines.set("spare-components", {
+    section: stockSection,
+    line: spareComponents.element,
+  });
   bulkSection.body.append(bulkResources);
 
   // The Lander and any Expedition under way, each beside the button that
@@ -300,11 +368,16 @@ export function createStatusPanel(
     travelSection,
     researchSection,
   ];
-  panel.append(...sections.map((section) => section.element));
+  panel.append(
+    attention.element,
+    ...sections.map((section) => section.element),
+  );
   container.append(panel);
 
   return {
-    update(snapshot, forecasts) {
+    update(snapshot, forecasts, frameMs) {
+      attention.show(listAttention(snapshot, forecasts), frameMs);
+
       const { currentId } = snapshot.milestones;
       const act = formatAct(snapshot.milestones);
       setText(actLine, act.label);
@@ -340,13 +413,7 @@ export function createStatusPanel(
         ),
       );
       // Shown as a warning from the first warning on, and once it has failed.
-      const powerWarnFrom =
-        Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
-      residence.warn(
-        homeHabitat(snapshot)?.powered === false ||
-          (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
-            powerWarnFrom,
-      );
+      residence.warn(warnsOfHabitatPower(snapshot, forecasts.habitatPower));
 
       for (const { type, line } of stocks) {
         const stock = snapshot.lifeSupport.find(
@@ -376,11 +443,7 @@ export function createStatusPanel(
             : undefined,
         );
         // Shown as a warning from the first warning on, and once it has run out.
-        const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
-        line.warn(
-          stock.kilograms === 0 ||
-            (forecast?.minutesUntilEmpty ?? Infinity) <= warnFrom,
-        );
+        line.warn(warnsOfLifeSupport(type, stock, forecast));
       }
 
       for (const { type, chip } of selfSufficiency) {
@@ -418,12 +481,11 @@ export function createStatusPanel(
       const limit = catalogue.radiation.doseLimitMillisieverts;
       radiationDose.fill(snapshot.radiationDoseMillisieverts / limit);
       // Shown as a warning from the first warning on, and once it is reached.
-      const doseWarnFrom =
-        Math.max(...catalogue.radiation.warningEarthDaysLeft) * 24 * 60;
       radiationDose.warn(
-        snapshot.radiationDoseMillisieverts >= limit ||
-          (forecasts.radiationDose.minutesUntilLimit ?? Infinity) <=
-            doseWarnFrom,
+        warnsOfRadiationDose(
+          snapshot.radiationDoseMillisieverts,
+          forecasts.radiationDose,
+        ),
       );
 
       solarParticleEvent.show(
@@ -518,12 +580,7 @@ export function createStatusPanel(
         ),
       );
       // Shown as a warning from the first warning on.
-      const sparesWarnFrom =
-        Math.max(...catalogue.spareComponentWarningEarthDaysLeft) * 24 * 60;
-      spareComponents.warn(
-        (forecasts.spareComponents.minutesUntilEmpty ?? Infinity) <=
-          sparesWarnFrom,
-      );
+      spareComponents.warn(warnsOfSpareComponents(forecasts.spareComponents));
 
       lander.show(
         formatLander(
@@ -614,6 +671,7 @@ export function createStatusPanel(
       for (const section of sections) section.refreshWarning();
     },
     startAfresh() {
+      attention.startAfresh();
       bulkResources.replaceChildren(noneInStock);
       resourceCells.clear();
       expedition.element.hidden = true;
@@ -708,12 +766,20 @@ function createMeasureLines(): {
   };
 }
 
-/** The Habitat the Mission Director lives in, if they have moved into one. */
-function homeHabitat(snapshot: Snapshot): StructureSnapshot | undefined {
-  const { missionDirector } = snapshot;
-  return missionDirector.residence === "habitat"
-    ? snapshot.structures.find(
-        (structure) => structure.id === missionDirector.habitatId,
-      )
-    : undefined;
+/**
+ * Picks a line of the panel out for a moment, for the needs-attention list,
+ * which has just brought it into view.
+ */
+function pointOut(line: HTMLElement): void {
+  line.classList.remove("stat--pointed-out");
+  // Read between the two, so that picking out a line again starts afresh.
+  line.getBoundingClientRect();
+  line.classList.add("stat--pointed-out");
+  line.addEventListener(
+    "animationend",
+    () => {
+      line.classList.remove("stat--pointed-out");
+    },
+    { once: true },
+  );
 }

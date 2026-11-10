@@ -140,9 +140,21 @@ const topBar = createTopBar(
     guide.open();
   },
 );
-const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
-  expeditions.open();
-});
+// Its needs-attention list finds things on the map too, made further down.
+const statusPanel = createStatusPanel(
+  leftColumn,
+  campaign,
+  showResult,
+  () => {
+    expeditions.open();
+  },
+  {
+    find: (subject) => mapFinder.find(subject),
+    pointOut: (subject) => {
+      mapFinder.pointOut(subject);
+    },
+  },
+);
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(
   container,
@@ -186,7 +198,7 @@ function frame(time: number): void {
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
   topBar.update(snapshot);
-  statusPanel.update(snapshot, campaign.forecasts());
+  statusPanel.update(snapshot, campaign.forecasts(), loop.frameMs);
   basePanel.update(snapshot);
   constructionPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);

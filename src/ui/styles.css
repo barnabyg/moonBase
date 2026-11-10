@@ -200,6 +200,7 @@ body {
 
 .top-bar button:focus-visible,
 .panel-button:focus-visible,
+.attention__line:focus-visible,
 .entry__name:focus-visible,
 .stack__head:focus-visible,
 .construction-panel__cancel:focus-visible,
@@ -283,6 +284,68 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* What needs the player now, at the top of the status panel: a line each,
+   most urgent first, each a button that leads to where it is dealt with. */
+
+.attention {
+  padding: 5px 12px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.attention__title {
+  margin: 0 0 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warning);
+}
+
+.attention__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention__line {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 2px 0 2px 13px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.attention__line::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  background: var(--warning);
+  border-radius: 50%;
+}
+
+.attention__line:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+/* A line whose cause is over, for the few seconds it stays. */
+.attention__item--over .attention__line {
+  opacity: 0.45;
 }
 
 /* Sections the player can fold away. */
@@ -433,6 +496,22 @@ body {
 
 .stat--warning .meter__fill {
   background: var(--warning);
+}
+
+/* A line the needs-attention list has just led to, picked out for a moment. */
+.stat--pointed-out {
+  border-radius: 3px;
+  animation: pointed-out 1.6s ease-out;
+}
+
+@keyframes pointed-out {
+  from {
+    background: rgb(242 193 78 / 45%);
+  }
+
+  to {
+    background: transparent;
+  }
 }
 
 /* A line that points out something worth doing, which is no warning. */
