@@ -26,9 +26,8 @@ test("an Expedition started from the Expeditions screen comes back with water ic
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
-  await expect(panel.getByRole("status", { name: "Expedition" })).toHaveText(
-    "Expedition none under way",
-  );
+  // With none sent yet, there is no line for one.
+  await expect(panel.getByRole("status", { name: "Expedition" })).toBeHidden();
 
   await panel.getByRole("button", { name: "Expeditions" }).click();
   const screen = page.getByRole("dialog", { name: "Expeditions" });

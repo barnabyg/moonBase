@@ -1,4 +1,4 @@
-import type { Design } from "../catalogue";
+import { catalogue, type Design } from "../catalogue";
 import { designLabel, type Snapshot } from "../simulation";
 
 // Whether a Design can be unlocked, in words, for the Tech Tree screen and
@@ -35,4 +35,17 @@ export function describeDesignState(
     };
   }
   return { state: "unlockable", text: "Can be unlocked now" };
+}
+
+/**
+ * The Designs the base's Science would unlock now: those not yet unlocked
+ * whose cost it covers and whose prerequisites are unlocked, in catalogue
+ * order.
+ */
+export function designsToUnlock(
+  snapshot: Pick<Snapshot, "science" | "unlockedDesignIds">,
+): Design[] {
+  return catalogue.designs.filter(
+    (design) => describeDesignState(design, snapshot).state === "unlockable",
+  );
 }

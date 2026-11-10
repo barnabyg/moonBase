@@ -2,6 +2,7 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type Design,
   type ResourceRef,
   type PlantRecipe,
 } from "../catalogue";
@@ -24,6 +25,7 @@ import {
   type LanderSnapshot,
   type LifeSupportForecast,
   type LifeSupportSnapshot,
+  type MilestoneMeasure,
   type MissionDirectorResidence,
   type InfraredStop,
   type InfraredTelescopeSnapshot,
@@ -34,6 +36,8 @@ import {
   type PowerNetworkSnapshot,
   type RadiationDoseForecast,
   type ResearchTaskSnapshot,
+  type ScienceForecast,
+  type ScienceSource,
   type SelfSufficiencySnapshot,
   type Snapshot,
   type SolarParticleEventSnapshot,
@@ -53,7 +57,7 @@ import {
   signed,
 } from "./format";
 import {
-  formatComponents,
+  componentsInWords,
   inSentence,
   formatExportLines,
   machineLabel,
@@ -87,20 +91,66 @@ function sumNetworks(
   return power.networks.reduce((sum, network) => sum + pick(network), 0);
 }
 
-/** Sums the base's power networks, for example "10.00 kW made" and "0.30 kW used". */
-export function formatPower(power: Snapshot["power"]): Stat {
-  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
-    sumNetworks(power, pick);
+/** The power the base makes and uses across its networks, in kilowatts. */
+function basePower(power: Snapshot["power"]): {
+  readonly made: number;
+  readonly used: number;
+} {
   return {
-    value: `${kilowatts(total((network) => network.generationKilowatts))} made`,
-    note: `${kilowatts(total((network) => network.consumptionKilowatts))} used`,
+    made: sumNetworks(power, (network) => network.generationKilowatts),
+    used: sumNetworks(power, (network) => network.consumptionKilowatts),
   };
 }
 
 /**
+ * The power the base has to spare across its networks, or how far short it
+ * falls, as it does at Night when its solar arrays make none, for example
+ * "+9.7 kW" or "−36.5 kW". One decimal place is enough to steer by.
+ */
+function powerToSpare(power: Snapshot["power"]): string {
+  const { made, used } = basePower(power);
+  return signed(made - used, 1, "kW");
+}
+
+/**
+ * Says how much power the base has to spare, then what it makes and uses,
+ * in the same kilowatts, for example "+9.7 kW" and "10.0 made, 0.3 used",
+ * short enough to stay on one line.
+ */
+export function formatBasePower(power: Snapshot["power"]): Stat {
+  const { made, used } = basePower(power);
+  return {
+    value: powerToSpare(power),
+    note: `${made.toFixed(1)} made, ${used.toFixed(1)} used`,
+  };
+}
+
+/**
+ * Sums power networks to the hundredth of a kilowatt, for a Structure's
+ * pop-up, where one network's small loads show, for example "10.00 kW made"
+ * and "0.30 kW used".
+ */
+export function formatPower(power: Snapshot["power"]): Stat {
+  const { made, used } = basePower(power);
+  return {
+    value: `${kilowatts(made)} made`,
+    note: `${kilowatts(used)} used`,
+  };
+}
+
+/**
+ * What a network's stored energy does when the forecast finds it doesn't run
+ * out. The forecast follows the Daylight and Night ahead (see
+ * `PowerForecast`), so that is what it means, in Daylight as much as at
+ * Night, where "doesn't run out" read as being about now.
+ */
+const LASTS_THE_NIGHT = "lasts the Night";
+
+/**
  * Says how much energy the base has stored and when it will run out, for
- * example "42.0 / 60.0 kWh" and "lasts 8d 8h", with how full its battery
- * banks are, from 0 to 1, or undefined if it has none.
+ * example "42.0 / 60.0 kWh" and "lasts 8d 8h", or "lasts the Night" when it
+ * doesn't, with how full its battery banks are, from 0 to 1, or undefined if
+ * it has none.
  */
 export function formatStoredPower(
   power: Snapshot["power"],
@@ -123,7 +173,7 @@ export function formatStoredPower(
   }
   return {
     value,
-    note: storedKilowattHours > 0 ? "doesn't run out" : "empty",
+    note: storedKilowattHours > 0 ? LASTS_THE_NIGHT : "empty",
     fraction,
   };
 }
@@ -172,8 +222,8 @@ export function habitatNetworkApart(
 /**
  * Says how much energy the Habitat's own network has stored and when it will
  * run out, for example "115.3 / 200.0 kWh" and "own network, lasts 3d 18h",
- * with how full its battery banks are, from 0 to 1, or undefined if it has
- * none.
+ * or "own network, lasts the Night" when it doesn't, with how full its
+ * battery banks are, from 0 to 1, or undefined if it has none.
  */
 export function formatHabitatNetworkPower(
   network: PowerNetworkSnapshot,
@@ -196,7 +246,7 @@ export function formatHabitatNetworkPower(
     minutesUntilEmpty !== undefined
       ? `lasts ${formatShortDuration(minutesUntilEmpty)}`
       : stored > 0
-        ? "doesn't run out"
+        ? LASTS_THE_NIGHT
         : "empty";
   return {
     value: formatCharge(stored, capacity),
@@ -208,9 +258,9 @@ export function formatHabitatNetworkPower(
 /**
  * Sums up the base's power for its folded section: the power to spare
  * across its networks, and how full its battery banks are if it has any,
- * for example "+9.70 kW · 78%". With the Habitat's network apart from some
+ * for example "+9.7 kW · 78%". With the Habitat's network apart from some
  * of the base's power (see `habitatNetworkApart`), it also says how full
- * the Habitat's own battery banks are, for example "+9.70 kW · 78% ·
+ * the Habitat's own battery banks are, for example "+9.7 kW · 78% ·
  * Habitat 58%".
  */
 export function summarisePower(
@@ -219,12 +269,7 @@ export function summarisePower(
 ): string {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
-  const spare = signed(
-    total((network) => network.generationKilowatts) -
-      total((network) => network.consumptionKilowatts),
-    2,
-    "kW",
-  );
+  const spare = powerToSpare(power);
   const capacity = total((network) => network.storageCapacityKilowattHours);
   const parts = [spare];
   if (capacity > 0) {
@@ -242,37 +287,33 @@ export function summarisePower(
   return parts.join(" · ");
 }
 
-/** Says where the Mission Director lives, for example "aboard the Lander". */
-export function formatMissionDirector(
-  missionDirector: MissionDirectorResidence,
-  structures: Snapshot["structures"],
-): string {
-  if (missionDirector.residence === "lander") return "aboard the Lander";
-  const { habitatId } = missionDirector;
-  const habitat = structures.find((structure) => structure.id === habitatId);
-  return `in the ${structureLabel(habitat?.structureTypeId ?? "habitat")}`;
-}
-
 /**
- * Says whether the Habitat the Mission Director lives in has power and when
- * it will lose it, for example "on" and "fails in 1d 16h", or undefined
- * while they live aboard the Lander.
+ * Says where the Mission Director lives and, in a Habitat, whether it has
+ * power and when it will lose it, on one line, for example "in the Buried
+ * Habitat" and "powered", "power fails in 1d 16h" or "power failed". Aboard
+ * the Lander, which needs none from the base, it is just "aboard the Lander".
  */
-export function formatHabitatPower(
+export function formatResidence(
   missionDirector: MissionDirectorResidence,
-  structures: Snapshot["structures"],
-  forecast: HabitatPowerForecast | undefined,
-): Stat | undefined {
-  if (missionDirector.residence !== "habitat") return undefined;
+  structures: readonly Pick<
+    StructureSnapshot,
+    "id" | "structureTypeId" | "powered"
+  >[],
+  forecast: Pick<HabitatPowerForecast, "minutesUntilPowerLost"> | undefined,
+): Stat {
+  if (missionDirector.residence === "lander") {
+    return { value: "aboard the Lander" };
+  }
   const { habitatId } = missionDirector;
   const habitat = structures.find((structure) => structure.id === habitatId);
-  if (habitat?.powered !== true) return { value: "failed" };
+  const value = `in the ${structureLabel(habitat?.structureTypeId ?? "habitat")}`;
+  if (habitat?.powered !== true) return { value, note: "power failed" };
   return {
-    value: "on",
+    value,
     note:
       forecast?.minutesUntilPowerLost === undefined
-        ? "doesn't fail"
-        : `fails in ${formatShortDuration(forecast.minutesUntilPowerLost)}`,
+        ? "powered"
+        : `power fails in ${formatShortDuration(forecast.minutesUntilPowerLost)}`,
   };
 }
 
@@ -280,7 +321,8 @@ export function formatHabitatPower(
  * Says what state the Lander is in, any Exports aboard and, while it is
  * away, when it next arrives or leaves, for example "landed on the landing
  * pad with 40 kg of wafers aboard" and "free to fly", or "travelling to
- * Earth with 40 kg of wafers" and "arrives in 2d 23h".
+ * Earth with 40 kg of wafers" and "arrives in 2d 23h". On its way back it
+ * says when it lands, not where, which the map shows.
  */
 export function formatLander(
   lander: LanderSnapshot,
@@ -317,11 +359,9 @@ export function formatLander(
         lander.state === "travelling-to-earth" && exportsAboard.length > 0
           ? ` with ${formatExportLines(exportsAboard)}`
           : "";
-      // Where it lands matters only on the way back to the Moon.
-      const where = lander.state === "travelling-to-moon" ? onPad : "";
       return {
         value: `${words.doing}${carrying}`,
-        note: `${words.next}${where} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
+        note: `${words.next} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
       };
     }
   }
@@ -387,7 +427,8 @@ export function summariseTravel(
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
  * day", and when it will run out even so, if the Plants standing idle at
- * Night leave it too little to last the Night. The amount is shown against what
+ * Night leave it too little to last the Night, with the reason kept for
+ * hovering over the line. The amount is shown against what
  * the base can hold, for example "399.5 of 400 kg", and while the Plants are
  * holding it there the line says so, whatever else it might have said.
  */
@@ -407,7 +448,9 @@ export function formatLifeSupport(
       ? { value, note: rising }
       : {
           value,
-          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
+          note: `${rising}, lasts ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+          explanation:
+            "It is rising now, but lasts only that long: the Plants that make it may stand idle at Night.",
         };
   }
   if (stock.kilograms === 0) return { value, note: "ran out" };
@@ -443,11 +486,7 @@ export function formatSelfSufficiency(
       explanation: "Nothing is used aboard the Lander.",
     };
   }
-  const { windowLunations } = catalogue.selfSufficiency;
-  const window =
-    windowLunations === 1
-      ? "the last Lunation"
-      : `the last ${windowLunations} Lunations`;
+  const window = selfSufficiencyWindow();
   const share =
     selfSufficiency.coveredShare === undefined
       ? undefined
@@ -468,6 +507,14 @@ export function formatSelfSufficiency(
     share,
     explanation: `${made} over ${window}.`,
   };
+}
+
+/** The window self-sufficiency is judged over, in words, for example "the last Lunation". */
+function selfSufficiencyWindow(): string {
+  const { windowLunations } = catalogue.selfSufficiency;
+  return windowLunations === 1
+    ? "the last Lunation"
+    : `the last ${windowLunations} Lunations`;
 }
 
 /** The chemical formulas of the life support stocks, short enough for a section's title. */
@@ -518,7 +565,7 @@ function summariseLifeSupport(
  * at the current rate of wear, for example "6 in stock" and "last 9d 4h", or,
  * while the base's Plants make more than is used, how fast they are rising,
  * and when they will run out even so, if the Plants standing idle at Night
- * leave too few to last it.
+ * leave too few to last it, with the reason kept for hovering over the line.
  */
 export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const pending =
@@ -529,15 +576,20 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const net = forecast.madePerEarthDay - forecast.perEarthDay;
   if (net > 0) {
     const rising = `rising ${net.toFixed(1)} a day`;
-    return {
-      value,
-      note:
-        forecast.minutesUntilEmpty === undefined
-          ? rising
-          : forecast.minutesUntilEmpty === 0
-            ? `${rising}, but too few for the wear until a batch finishes`
-            : `${rising}, but last only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
-    };
+    if (forecast.minutesUntilEmpty === undefined) {
+      return { value, note: rising };
+    }
+    return forecast.minutesUntilEmpty === 0
+      ? {
+          value,
+          note: `${rising}, but too few for the wear until a batch finishes`,
+        }
+      : {
+          value,
+          note: `${rising}, last ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+          explanation:
+            "They are rising now, but last only that long: the Plants that make them may stand idle at Night.",
+        };
   }
   if (forecast.minutesUntilEmpty === undefined) {
     return {
@@ -653,12 +705,20 @@ export function formatSolarParticleEvent(
 }
 
 /**
- * Lists the Components in the base's stock, for example "2 solar panels and
- * 4 mast poles".
+ * Lists the Components in the base's stock, each with how many there are and
+ * its name in the plural where there are several, for example 2 "solar
+ * panels" and 1 "array mast", in catalogue order, leaving out those there are
+ * none of.
  */
-export function formatStock(stockpile: Snapshot["stockpile"]): string {
-  const held = stockpile.components.filter((stock) => stock.count > 0);
-  return held.length === 0 ? "no Components" : formatComponents(held);
+export function listStock(
+  stockpile: Snapshot["stockpile"],
+): { readonly count: number; readonly name: string }[] {
+  return stockpile.components
+    .filter((stock) => stock.count > 0)
+    .map(({ componentId, count }) => ({
+      count,
+      name: componentsInWords(componentId, count),
+    }));
 }
 
 /**
@@ -976,16 +1036,85 @@ export function formatResearchRate(rate: number): string {
 /**
  * Says what is queued behind the Research Task running, in the order they will
  * start, for the status panel, for example "1. Seismic monitoring, 2. Ice
- * volatiles assay", or that none is.
+ * volatiles assay", or that none is. With none queued, it also says when the
+ * base's Science would unlock a Design, by name if there is one and how many
+ * otherwise, for example "Science for 3 Designs", as unspent Science is easy
+ * to overlook.
  */
-export function formatResearchQueue(queue: readonly string[]): Stat {
+export function formatResearchQueue(
+  queue: readonly string[],
+  toUnlock: readonly Pick<Design, "label">[] = [],
+): Stat {
+  if (queue.length > 0) {
+    return {
+      value: queue
+        .map((id, index) => `${index + 1}. ${researchTaskLabel(id)}`)
+        .join(", "),
+    };
+  }
+  const [only] = toUnlock;
+  if (only === undefined) return { value: "none" };
   return {
-    value:
-      queue.length === 0
-        ? "none"
-        : queue
-            .map((id, index) => `${index + 1}. ${researchTaskLabel(id)}`)
-            .join(", "),
+    value: "none",
+    note: `Science for ${toUnlock.length === 1 ? only.label : `${toUnlock.length} Designs`}`,
+  };
+}
+
+/** A rate of Science an Earth Day, to the hundredth below a tenth, which the slow sources earn. */
+function sciencePerEarthDay(perEarthDay: number): string {
+  return perEarthDay.toFixed(perEarthDay < 0.1 ? 2 : 1);
+}
+
+/** The sources of Science that work only at Night, which the forecast averages over a Lunation. */
+const NIGHT_ONLY: readonly ScienceSource[] = [
+  "observing-programme",
+  "infrared-survey",
+];
+
+/** Names where Science comes from, the way a sentence would. */
+function scienceSourceLabel(source: ScienceSource): string {
+  switch (source) {
+    case "research-task":
+      return "the Research Task running";
+    case "observing-programme":
+      return inSentence(catalogue.observingProgramme.label);
+    case "infrared-survey":
+      return inSentence(infraredSurveyLabel());
+    case "radio-survey":
+      return inSentence(radioSurveyLabel());
+    case "growing":
+      return "growing";
+  }
+}
+
+/**
+ * Says how much Science the base earns an Earth Day as things stand, for
+ * example "+3.0 a day", as the panel's other rates are worded, or that none
+ * is being earned, with where it comes from kept for hovering over the line. Science comes a round at a time, so
+ * this is what the rounds under way would earn spread over the time they
+ * take (see `ScienceForecast`).
+ */
+export function formatScienceRate(forecast: ScienceForecast): Stat {
+  const earning = forecast.sources.filter((source) => source.perEarthDay > 0);
+  if (earning.length === 0) {
+    return {
+      value: "none being earned",
+      explanation:
+        "A Research Task, a telescope or a Greenhouse earns Science.",
+    };
+  }
+  return {
+    value: `+${sciencePerEarthDay(forecast.perEarthDay)} a day`,
+    explanation: `As things stand: ${listInWords(
+      earning.map(
+        ({ source, perEarthDay }) =>
+          `${scienceSourceLabel(source)} ${sciencePerEarthDay(perEarthDay)}`,
+      ),
+    )} Science an Earth Day.${
+      earning.some(({ source }) => NIGHT_ONLY.includes(source))
+        ? " What works only at Night is averaged over a Lunation."
+        : ""
+    }`,
   };
 }
 
@@ -1025,6 +1154,22 @@ export function formatObservingProgramme(
   }
 }
 
+/** The name of the infrared telescopes' survey. */
+function infraredSurveyLabel(): string {
+  return (
+    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
+      ?.observingRounds?.label ?? "Infrared survey"
+  );
+}
+
+/** The name of the radio telescope arrays' survey. */
+function radioSurveyLabel(): string {
+  return (
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.radioArray?.label ?? "Radio survey"
+  );
+}
+
 /** Why an infrared telescope isn't observing, in a few words. */
 const INFRARED_STOPS: Record<InfraredStop, string> = {
   daylight: "waits for Night",
@@ -1046,9 +1191,7 @@ export function formatInfraredSurvey(
 ): Stat | undefined {
   const [first] = telescopes;
   if (first === undefined) return undefined;
-  const value =
-    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
-      ?.observingRounds?.label ?? "Infrared survey";
+  const value = infraredSurveyLabel();
   const observing = telescopes.filter((telescope) => telescope.observing);
   if (observing.length > 0) {
     const left = Math.min(
@@ -1086,9 +1229,7 @@ export function formatRadioSurvey(
 ): Stat | undefined {
   const [first] = arrays;
   if (first === undefined) return undefined;
-  const value =
-    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
-      ?.radioArray?.label ?? "Radio survey";
+  const value = radioSurveyLabel();
   const working = arrays.filter((array) => array.working);
   if (working.length > 0) {
     const left = Math.min(
@@ -1153,23 +1294,101 @@ export function formatAct(milestones: Snapshot["milestones"]): {
 /**
  * Names the Milestone after the current one, with its Act if that is a later
  * one, for example "Lander departs" or "Workshop running, in Act 2:
- * Independence", or says that none is left. The line stays when there is
- * none, so that the lines below it don't move up.
+ * Independence"; undefined when none is left, and the line has nothing to say.
  */
 export function formatNextMilestone(
   milestones: Snapshot["milestones"],
-): string {
+): string | undefined {
   const { nextId, currentActId } = milestones;
-  if (nextId === undefined) return "none left";
+  if (nextId === undefined) return undefined;
   const actId = milestoneActId(nextId);
   return actId === currentActId
     ? milestoneLabel(nextId)
     : `${milestoneLabel(nextId)}, in ${actLabel(actId)}`;
 }
 
+/**
+ * Says where the current Milestone comes among its Act's, for example
+ * "Milestone 3 of 5"; undefined once every one is reached.
+ */
+export function formatMilestonePlace(
+  milestones: Pick<Snapshot["milestones"], "place">,
+): string | undefined {
+  const { place } = milestones;
+  return place === undefined
+    ? undefined
+    : `Milestone ${place.number} of ${place.of}`;
+}
+
+/**
+ * Says how far along the current Milestone is by one of its measures, as a
+ * line of its own with a bar, from 0 to 1: for example "Return Mass", "212
+ * of 300 kg", or "Oxygen", "45 of 612 kg" and "room for only 400 kg" where
+ * the base can't yet hold what a Structure is stocked with. An amount short
+ * of what it has to reach is rounded down, and that is rounded up, so that
+ * the line never says it is there before it is.
+ */
+export function formatMilestoneMeasure(
+  measure: MilestoneMeasure,
+): Stat & { readonly label: string; readonly fraction: number } {
+  const amounts = (kilograms: number, targetKilograms: number) => {
+    const target = Math.ceil(targetKilograms);
+    const amount =
+      kilograms >= targetKilograms
+        ? Math.max(Math.floor(kilograms), target)
+        : Math.floor(kilograms);
+    return {
+      value: `${amount} of ${target} kg`,
+      fraction: Math.min(Math.max(kilograms / targetKilograms, 0), 1),
+    };
+  };
+  switch (measure.kind) {
+    case "life-support-made":
+    case "spare-components-made":
+      return {
+        label: "Made here",
+        value:
+          measure.share === undefined
+            ? "none used yet"
+            : `${Math.round(measure.share * 100)}% of use`,
+        note: measure.windowComplete
+          ? `needs 100% over ${selfSufficiencyWindow()}`
+          : "judged once a whole Lunation is recorded",
+        fraction: Math.min(measure.share ?? 0, 1),
+      };
+    case "return-mass":
+      return {
+        label: "Return Mass",
+        ...amounts(measure.kilograms, measure.targetKilograms),
+      };
+    case "exports-loaded":
+      return {
+        label: "Exports",
+        ...amounts(measure.kilograms, measure.targetKilograms),
+        note: "aboard or to load",
+      };
+    case "stocked-with": {
+      const { limitKilograms, targetKilograms } = measure;
+      const shown = {
+        label: stockLabel(measure.stockId),
+        ...amounts(measure.kilograms, targetKilograms),
+      };
+      // Nothing to say of the room once there is enough of it in stock.
+      return limitKilograms === undefined ||
+        limitKilograms >= targetKilograms ||
+        measure.kilograms >= targetKilograms
+        ? shown
+        : {
+            ...shown,
+            note: `room for only ${formatKilograms(limitKilograms)}`,
+          };
+    }
+  }
+}
+
 /** Sums up the Milestones for their folded section: the one to aim for now. */
 export function summariseMilestones(
-  milestones: Snapshot["milestones"],
+  milestones: Pick<Snapshot["milestones"], "currentId">,
 ): string {
   return milestones.currentId === undefined
     ? "every Milestone reached"

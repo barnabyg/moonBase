@@ -53,9 +53,37 @@ test("clicking a Structure on the map shows what it is doing beside it, until Es
   await expect(popUp.getByRole("status", { name: "Stage" })).toHaveText(
     /^Stage Site Preparation: \d+%/,
   );
-  await expect(popUp.getByRole("status", { name: "State" })).toHaveText(
-    "State under Construction",
+  const state = popUp.getByRole("status", { name: "State" });
+  await expect(state).toHaveText("State under Construction");
+  // Hovering over a line shows it in full, and that isn't taken away and put
+  // back as the game runs, which would make it flicker.
+  await expect(state).toHaveAttribute("title", "under Construction");
+  const rewrites = await state.evaluate(
+    (line) =>
+      new Promise<number>((resolve) => {
+        let count = 0;
+        const observer = new MutationObserver((records) => {
+          count += records.length;
+        });
+        observer.observe(line, {
+          attributes: true,
+          attributeFilter: ["title"],
+        });
+        let frames = 0;
+        const tick = (): void => {
+          frames += 1;
+          if (frames < 10) {
+            requestAnimationFrame(tick);
+            return;
+          }
+          count += observer.takeRecords().length;
+          observer.disconnect();
+          resolve(count);
+        };
+        requestAnimationFrame(tick);
+      }),
   );
+  expect(rewrites).toBe(0);
   // Nothing to choose until it is commissioned.
   await expect(popUp.getByRole("button", { name: "Dismantle" })).toBeHidden();
 

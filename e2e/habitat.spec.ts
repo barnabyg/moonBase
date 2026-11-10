@@ -36,7 +36,9 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 
-  await expect(missionDirector).toHaveText("Living in the Inflatable Habitat");
+  await expect(missionDirector).toHaveText(
+    /^Living in the Inflatable Habitat · power fails in \d+d \d+h$/,
+  );
   await expect(lander).toHaveText("Lander landed · free to fly");
   await expect(structures.getByRole("listitem")).toHaveText([
     /, the Mission Director's home/,

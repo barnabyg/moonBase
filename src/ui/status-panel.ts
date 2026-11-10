@@ -15,26 +15,28 @@ import {
   formatAct,
   formatBulkResources,
   formatHabitatNetworkPower,
-  formatHabitatPower,
   formatLander,
   formatLifeSupport,
-  formatMissionDirector,
+  formatMilestoneMeasure,
+  formatMilestonePlace,
   formatNextMilestone,
   formatInfraredSurvey,
   formatRadioSurvey,
   formatObservingProgramme,
-  formatPower,
+  formatBasePower,
   formatRadiationDose,
+  formatResidence,
   formatResearchQueue,
   formatResearchTask,
+  formatScienceRate,
   formatSelfSufficiency,
   formatSolarParticleEvent,
   formatSpareComponents,
-  formatStock,
   formatStoredPower,
   summariseMilestones,
   summariseMissionDirector,
   habitatNetworkApart,
+  listStock,
   summarisePower,
   summariseResearch,
   summariseBulkResources,
@@ -46,37 +48,50 @@ import {
   makesSpareComponents,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
+import { createMilestoneHint } from "./milestone-hint";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
-import { createStatLine } from "./stat";
+import { createStatLine, type Stat, type StatLine } from "./stat";
+import { designsToUnlock } from "./tech-tree-text";
 
 /**
- * A line of words in the Milestones section, a status like any other line of
- * the panel, that keeps its height when its words get shorter.
+ * A block of the panel that isn't a labelled figure, such as a line of words
+ * in the Milestones section: a status like any other line, named for screen
+ * readers and not announced as it changes, that keeps its height when what
+ * it shows gets shorter.
  */
-function createMilestoneText(className: string, name: string): HTMLElement {
-  const line = document.createElement("p");
-  line.className = className;
-  line.setAttribute("role", "status");
-  line.setAttribute("aria-label", name);
-  line.setAttribute("aria-live", "off");
-  line.dataset["row"] = name;
-  holdHeight(line);
-  return line;
+function createStatusBlock(
+  tag: "p" | "div",
+  className: string,
+  name: string,
+): HTMLElement {
+  const block = document.createElement(tag);
+  block.className = className;
+  block.setAttribute("role", "status");
+  block.setAttribute("aria-label", name);
+  block.setAttribute("aria-live", "off");
+  block.dataset["row"] = name;
+  holdHeight(block);
+  return block;
 }
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
-  /** Forgets which bulk resources have shown, for a Campaign loaded in place of the last. */
+  /**
+   * Forgets which bulk resources have shown, and that an Expedition, a
+   * queue or Science being earned has, for a Campaign loaded in place of the
+   * last.
+   */
   startAfresh(): void;
 }
 
 /**
  * The HTML status panel, in sections the player can fold away: the current
- * Act, the Milestone to aim for now and the one after it, how the Mission
+ * Act, the Milestone to aim for now, with its hint folded to its first lines
+ * until the player asks for the rest, and the one after it, how the Mission
  * Director is keeping, the base's power, its stock, its bulk resources, the Lander
- * and Expeditions, and the Research Task running, with the observing
- * programme once the base has a telescope. A folded section keeps its
+ * and Expeditions, and the Research Task running, with how fast the base
+ * earns Science and the observing programme once it has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
  * which decides whether it is allowed and says why not.
@@ -94,19 +109,29 @@ export function createStatusPanel(
   // The Act the Campaign is in and what it asks, the Milestone to aim for now,
   // what to do to reach it, and the one after.
   const milestonesSection = createPanelSection("milestones", "Milestones");
-  const actLine = createMilestoneText("milestone-act", "Current Act");
-  const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
-  const currentMilestone = createStatLine("Now", "Current Milestone");
-  const milestoneHintLine = createMilestoneText(
-    "milestone-hint",
-    "Milestone hint",
+  const actLine = createStatusBlock("p", "milestone-act", "Current Act");
+  // Which of the Act's Milestones the current one is, beside the Act's name.
+  const placeLine = createStatusBlock(
+    "p",
+    "milestone-place",
+    "Place in the Act",
   );
+  const heading = document.createElement("div");
+  heading.className = "milestone-heading";
+  heading.append(actLine, placeLine);
+  const actAsksLine = createStatusBlock("p", "milestone-act-asks", "Act asks");
+  const currentMilestone = createStatLine("Now", "Current Milestone");
+  const milestoneHintLine = createMilestoneHint();
+  // How far along the current Milestone is, a line for each of its measures,
+  // between its name and its hint. Most have none.
+  const milestoneMeasures = createMeasureLines();
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
-    actLine,
+    heading,
     actAsksLine,
     currentMilestone.element,
-    milestoneHintLine,
+    milestoneMeasures.element,
+    milestoneHintLine.element,
     nextMilestone.element,
   );
 
@@ -115,8 +140,8 @@ export function createStatusPanel(
     "mission-director",
     "Mission Director",
   );
+  // Where they live and, in a Habitat, whether it has power.
   const residence = createStatLine("Living", "Mission Director");
-  const habitatPower = createStatLine("Habitat power");
   // How much oxygen and water is left, and when it will run out.
   const stocks = catalogue.lifeSupportStocks.map((type) => ({
     type,
@@ -134,40 +159,32 @@ export function createStatusPanel(
   selfSufficiencyLine.dataset["row"] = "Self-sufficient";
   holdHeight(selfSufficiencyLine);
   const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
-    const chip = document.createElement("span");
-    chip.className = "stat-chip";
-    chip.setAttribute("role", "status");
     // Not starting with the stock's name, which labels its own line.
-    chip.setAttribute(
-      "aria-label",
+    const chip = createSufficiencyChip(
+      stockLabel(type.id),
       `Self-sufficiency in ${type.label.toLowerCase()}`,
     );
-    chip.setAttribute("aria-live", "off");
-    selfSufficiencyBody.append(chip, " ");
+    selfSufficiencyBody.append(chip.element, " ");
     return { type, chip };
   });
-  const spareSufficiencyChip = document.createElement("span");
-  spareSufficiencyChip.className = "stat-chip";
-  spareSufficiencyChip.setAttribute("role", "status");
-  spareSufficiencyChip.setAttribute(
-    "aria-label",
+  const spareSufficiencyChip = createSufficiencyChip(
+    "Spares",
     "Self-sufficiency in spare Components",
   );
-  spareSufficiencyChip.setAttribute("aria-live", "off");
   // Until the base has a Plant that makes them, there is nothing to judge.
-  spareSufficiencyChip.hidden = true;
-  selfSufficiencyBody.append(spareSufficiencyChip, " ");
+  spareSufficiencyChip.element.hidden = true;
+  selfSufficiencyBody.append(spareSufficiencyChip.element, " ");
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = createStatLine("Radiation", "Radiation Dose");
   // A Solar Particle Event that is coming or under way, as a warning, or
   // that none is, so that the lines below stay where they are as one comes
-  // and goes. Its name is too long to sit beside it.
+  // and goes. Its name is too long for the label column, so what it says
+  // follows it on the same line while that is short.
   const solarParticleEvent = createStatLine("Solar Particle Event");
   solarParticleEvent.element.classList.add("stat--wide");
   missionDirectorSection.body.append(
     solarParticleEvent.element,
     residence.element,
-    habitatPower.element,
     ...stocks.map(({ line }) => line.element),
     selfSufficiencyLine,
     radiationDose.element,
@@ -192,7 +209,11 @@ export function createStatusPanel(
   // The base's stock: Components at the stockpile, and spare Components and
   // how long they will last.
   const stockSection = createPanelSection("stock", "Stock");
-  const components = createStatLine("Components", "Base's stock");
+  // Two to a row, each with how many there are, which reads faster than
+  // a sentence of them.
+  const components = createStatusBlock("div", "components", "Base's stock");
+  /** What the list shows, to change it only when the stock does. */
+  let componentsShown: string | undefined;
   const spareComponents = createStatLine("Spares", "Spare Components");
 
   // The bulk resources the base has had, such as Regolith, a line each. One
@@ -212,7 +233,7 @@ export function createStatusPanel(
     string,
     { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
-  stockSection.body.append(components.element, spareComponents.element);
+  stockSection.body.append(components, spareComponents.element);
   bulkSection.body.append(bulkResources);
 
   // The Lander and any Expedition under way, each beside the button that
@@ -228,7 +249,10 @@ export function createStatusPanel(
   sendLander.addEventListener("click", () => {
     showResult(campaign.sendLander());
   });
+  // No line until the first Expedition is under way; from then on it
+  // stays, so that the lines below move only that once.
   const expedition = createStatLine("Expedition");
+  expedition.element.hidden = true;
   const expeditions = document.createElement("button");
   expeditions.type = "button";
   expeditions.className = "panel-button";
@@ -247,13 +271,21 @@ export function createStatusPanel(
   // Night, so that the player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
   const researchTask = createStatLine("Task", "Research Task");
+  // How fast the base earns Science. No line until it first earns some;
+  // from then on it stays, as the Expedition's does.
+  const scienceRate = createStatLine("Science", "Earned an Earth Day");
+  scienceRate.element.hidden = true;
+  // No line until something is first queued, or the base's Science would
+  // first unlock a Design with nothing queued; from then on it stays too.
   const researchQueue = createStatLine("Queued", "Research queue");
+  researchQueue.element.hidden = true;
   const observing = createStatLine("Observing", "Observing programme");
   const infrared = createStatLine("Infrared", "Infrared survey");
   const radio = createStatLine("Radio", "Radio survey");
   researchSection.body.append(
     researchTask.element,
     researchQueue.element,
+    scienceRate.element,
     observing.element,
     infrared.element,
     radio.element,
@@ -277,36 +309,40 @@ export function createStatusPanel(
       const act = formatAct(snapshot.milestones);
       setText(actLine, act.label);
       setText(actAsksLine, act.asks);
+      const place = formatMilestonePlace(snapshot.milestones);
+      placeLine.hidden = place === undefined;
+      setText(placeLine, place ?? "");
       currentMilestone.show({
         value:
           currentId === undefined
             ? "Every Milestone reached"
             : milestoneLabel(currentId),
       });
-      setText(
-        milestoneHintLine,
+      milestoneMeasures.show(
+        snapshot.milestones.measures.map(formatMilestoneMeasure),
+      );
+      milestoneHintLine.show(
         currentId === undefined
           ? "The Campaign carries on: keep the base running and growing."
           : milestoneHint(currentId),
       );
-      nextMilestone.show({ value: formatNextMilestone(snapshot.milestones) });
+      // With none left, the line would say nothing.
+      const next = formatNextMilestone(snapshot.milestones);
+      nextMilestone.element.hidden = next === undefined;
+      if (next !== undefined) nextMilestone.show({ value: next });
 
       const { missionDirector } = snapshot;
-      residence.show({
-        value: formatMissionDirector(missionDirector, snapshot.structures),
-      });
-
-      const habitatPowerStat = formatHabitatPower(
-        missionDirector,
-        snapshot.structures,
-        forecasts.habitatPower,
+      residence.show(
+        formatResidence(
+          missionDirector,
+          snapshot.structures,
+          forecasts.habitatPower,
+        ),
       );
-      habitatPower.element.hidden = habitatPowerStat === undefined;
-      if (habitatPowerStat !== undefined) habitatPower.show(habitatPowerStat);
       // Shown as a warning from the first warning on, and once it has failed.
       const powerWarnFrom =
         Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
-      habitatPower.warn(
+      residence.warn(
         homeHabitat(snapshot)?.powered === false ||
           (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
             powerWarnFrom,
@@ -333,6 +369,12 @@ export function createStatusPanel(
             forecast?.minutesUntilReserve,
           ),
         );
+        // How full the base's store of it is, on a bar that warns with the line.
+        line.fill(
+          stock.limitKilograms > 0
+            ? stock.kilograms / stock.limitKilograms
+            : undefined,
+        );
         // Shown as a warning from the first warning on, and once it has run out.
         const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
         line.warn(
@@ -345,43 +387,25 @@ export function createStatusPanel(
         const judged = snapshot.selfSufficiency.find(
           (candidate) => candidate.stockId === type.id,
         );
-        chip.hidden = judged === undefined;
+        chip.element.hidden = judged === undefined;
         if (judged === undefined) continue;
-        const { value, share, explanation } = formatSelfSufficiency(
-          judged,
-          missionDirector,
-        );
-        setText(
-          chip,
-          `${stockLabel(type.id)} ${value}${share === undefined ? "" : ` ${share}`}`,
-        );
-        if (chip.title !== explanation) chip.title = explanation;
-        chip.classList.toggle("stat-chip--good", value === "yes");
+        chip.show(formatSelfSufficiency(judged, missionDirector));
       }
       // Once it has shown, it stays, so that nothing beside it moves.
       if (
-        !spareSufficiencyChip.hidden ||
+        !spareSufficiencyChip.element.hidden ||
         snapshot.structures.some(makesSpareComponents)
       ) {
-        spareSufficiencyChip.hidden = false;
-        const { value, share, explanation } = formatSelfSufficiency(
-          snapshot.spareComponentSufficiency,
-          missionDirector,
-        );
-        setText(
-          spareSufficiencyChip,
-          `Spares ${value}${share === undefined ? "" : ` ${share}`}`,
-        );
-        if (spareSufficiencyChip.title !== explanation) {
-          spareSufficiencyChip.title = explanation;
-        }
-        spareSufficiencyChip.classList.toggle(
-          "stat-chip--good",
-          value === "yes",
+        spareSufficiencyChip.element.hidden = false;
+        spareSufficiencyChip.show(
+          formatSelfSufficiency(
+            snapshot.spareComponentSufficiency,
+            missionDirector,
+          ),
         );
       }
       selfSufficiencyLine.hidden = selfSufficiency.every(
-        ({ chip }) => chip.hidden,
+        ({ chip }) => chip.element.hidden,
       );
 
       radiationDose.show(
@@ -414,7 +438,7 @@ export function createStatusPanel(
 
       // Nothing generates or stores power until the first Structure stands.
       powerSection.element.hidden = snapshot.structures.length === 0;
-      power.show(formatPower(snapshot.power));
+      power.show(formatBasePower(snapshot.power));
       const stored = formatStoredPower(snapshot.power, forecasts.power);
       storedPower.show(stored);
       storedPower.fill(stored.fraction);
@@ -433,7 +457,25 @@ export function createStatusPanel(
         habitatNetworkPower.fill(habitatStored.fraction);
       }
 
-      components.show({ value: formatStock(snapshot.stockpile) });
+      const held = listStock(snapshot.stockpile);
+      const holding = held.map(({ count, name }) => `${count} ${name}`).join();
+      if (holding !== componentsShown) {
+        componentsShown = holding;
+        components.replaceChildren(
+          ...(held.length === 0
+            ? ["no Components"]
+            : held.flatMap(({ count, name }, index) => {
+                const item = document.createElement("span");
+                item.className = "components__item";
+                const number = document.createElement("span");
+                number.className = "components__count";
+                number.textContent = String(count);
+                item.append(number, " ", name);
+                // A space between them, for what reads the list as text.
+                return index === 0 ? [item] : [" ", item];
+              })),
+        );
+      }
       // The line before each, so that a new one goes in its place in the list.
       let above: HTMLElement | undefined;
       for (const resource of formatBulkResources(
@@ -492,6 +534,7 @@ export function createStatusPanel(
         ),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
+      if (snapshot.expedition !== undefined) expedition.element.hidden = false;
       expedition.show({
         value: describeExpedition(
           snapshot.expedition,
@@ -501,18 +544,27 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
-      researchQueue.show(formatResearchQueue(snapshot.researchQueue));
+      const queued = formatResearchQueue(
+        snapshot.researchQueue,
+        designsToUnlock(snapshot),
+      );
+      // Science left unspent with nothing queued is picked out.
+      const unspent = queued.note !== undefined;
+      if (snapshot.researchQueue.length > 0 || unspent) {
+        researchQueue.element.hidden = false;
+      }
+      researchQueue.show(queued);
+      researchQueue.element.classList.toggle("stat--nudge", unspent);
+      if (forecasts.science.perEarthDay > 0) scienceRate.element.hidden = false;
+      scienceRate.show(formatScienceRate(forecasts.science));
       const programme = formatObservingProgramme(snapshot.observingProgramme);
       observing.element.hidden = programme === undefined;
       if (programme !== undefined) {
-        observing.show(programme);
+        observing.show({
+          ...programme,
+          explanation: explainObservingProgramme(snapshot.observingProgramme),
+        });
         observing.fill(snapshot.observingProgramme.progress);
-        const explanation = explainObservingProgramme(
-          snapshot.observingProgramme,
-        );
-        if (observing.element.title !== explanation) {
-          observing.element.title = explanation;
-        }
       }
       const survey = formatInfraredSurvey(snapshot.infraredTelescopes);
       infrared.element.hidden = survey === undefined;
@@ -564,6 +616,94 @@ export function createStatusPanel(
     startAfresh() {
       bulkResources.replaceChildren(noneInStock);
       resourceCells.clear();
+      expedition.element.hidden = true;
+      researchQueue.element.hidden = true;
+      scienceRate.element.hidden = true;
+    },
+  };
+}
+
+/**
+ * One of the Self-sufficient line's chips: what it judges, the verdict and
+ * the share made at the base, for example "Oxygen no 62%", with the whole
+ * story on hovering over it. A "yes" is left for a screen reader alone, as
+ * the chip's colour and its share already say it.
+ */
+function createSufficiencyChip(
+  name: string,
+  ariaLabel: string,
+): {
+  readonly element: HTMLElement;
+  show(judged: ReturnType<typeof formatSelfSufficiency>): void;
+} {
+  const element = document.createElement("span");
+  element.className = "stat-chip";
+  element.setAttribute("role", "status");
+  element.setAttribute("aria-label", ariaLabel);
+  element.setAttribute("aria-live", "off");
+  const verdict = document.createElement("span");
+  const share = document.createElement("span");
+  element.append(name, " ", verdict, " ", share);
+  return {
+    element,
+    show(judged) {
+      const good = judged.value === "yes";
+      setText(verdict, judged.value);
+      verdict.classList.toggle("visually-hidden", good);
+      setText(share, judged.share ?? "");
+      if (element.title !== judged.explanation) {
+        element.title = judged.explanation;
+      }
+      element.classList.toggle("stat-chip--good", good);
+    },
+  };
+}
+
+/**
+ * The lines that say how far along the current Milestone is, one for each of
+ * its measures, in the order the Milestone gives them, each named by its
+ * label and made the first time a Milestone has one. Most Milestones have
+ * none, and their lines go with a Milestone that had some, but the room they
+ * took stays, as any line's does, so that the lines below don't move up and
+ * back down as the Milestones go by.
+ */
+function createMeasureLines(): {
+  readonly element: HTMLElement;
+  show(
+    measures: readonly (Stat & {
+      readonly label: string;
+      readonly fraction: number;
+    })[],
+  ): void;
+} {
+  const element = document.createElement("div");
+  holdHeight(element);
+  const lines = new Map<string, StatLine>();
+  /** The labels of the lines in place, to change them only with the Milestone. */
+  let inPlace = "";
+  const lineOf = (label: string): StatLine => {
+    let line = lines.get(label);
+    if (line === undefined) {
+      line = createStatLine(label, `Milestone progress, ${label}`);
+      lines.set(label, line);
+    }
+    return line;
+  };
+  return {
+    element,
+    show(measures) {
+      const labels = measures.map(({ label }) => label).join(" | ");
+      if (labels !== inPlace) {
+        inPlace = labels;
+        element.replaceChildren(
+          ...measures.map(({ label }) => lineOf(label).element),
+        );
+      }
+      for (const { label, fraction, ...stat } of measures) {
+        const line = lineOf(label);
+        line.show(stat);
+        line.fill(fraction);
+      }
     },
   };
 }

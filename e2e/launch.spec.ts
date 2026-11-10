@@ -4,14 +4,14 @@ import { structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 const grant = catalogue.programmeGrantMillionDollars;
-/** The starting stock's battery modules and cabinets, as the status panel lists them. */
+/** The starting stock's battery modules and cabinets, as the status panel lists them, one after the other. */
 const batteries = (() => {
   const count = (id: string) =>
     catalogue.startingStock.find((stock) => stock.componentId === id)?.count ??
     0;
   const plural = (n: number, word: string) =>
     `${n} ${word}${n === 1 ? "" : "s"}`;
-  return `${plural(count("battery-module"), "battery module")}, ${plural(count("battery-cabinet"), "battery cabinet")}`;
+  return `${plural(count("battery-module"), "battery module")} ${plural(count("battery-cabinet"), "battery cabinet")}`;
 })();
 const fee = catalogue.launch.feeMillionDollars;
 /** The Launch fee, and two solar panels and an array mast. */
@@ -62,14 +62,14 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   await structures.getByRole("button", { name: "Move in" }).click();
   await expect(
     page.getByRole("status", { name: "Mission Director" }),
-  ).toHaveText("Living in the Inflatable Habitat");
+  ).toContainText("Living in the Inflatable Habitat");
 
   const stock = page.getByRole("status", { name: "Base's stock" });
   // The Machines' Maintenance after the cold of Night has used some or all
   // of the spare Components.
   await expect(stock).toHaveText(
     new RegExp(
-      String.raw`^Components ${batteries}, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$`,
+      String.raw`^${batteries} 4 mast poles 4 light heads( \d+ spare components)?$`,
     ),
   );
   await page.getByRole("button", { name: "Launch manifest" }).click();
@@ -98,7 +98,7 @@ test("the Lander brings a paid-for manifest from Earth, and its cargo joins the 
   // Maintenance may have used more spare Components meanwhile.
   await expect(stock).toHaveText(
     new RegExp(
-      String.raw`^Components 2 solar panels, 1 array mast, ${batteries}, 4 mast poles(, 4 light heads and \d+ spare components| and 4 light heads)$`,
+      String.raw`^2 solar panels 1 array mast ${batteries} 4 mast poles 4 light heads( \d+ spare components)?$`,
     ),
   );
   await expect(page.getByRole("log", { name: "Notifications" })).toContainText(

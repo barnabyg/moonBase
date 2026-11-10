@@ -91,7 +91,8 @@ test("with the last Milestone reached, the panel shows the last Act, and says so
   await expect(section.current).toHaveText(
     "Now Power storage before the first Night",
   );
-  await expect(section.next).toHaveText("Next none left");
+  // With none left, there is no line for the next.
+  await expect(section.next).toBeHidden();
   const before = await section.living.boundingBox();
 
   await section.skip.click();
@@ -108,7 +109,8 @@ test("with the last Milestone reached, the panel shows the last Act, and says so
   );
   await expect(section.current).toHaveText("Now Every Milestone reached");
   await expect(section.hint).toContainText("The Campaign carries on");
-  await expect(section.next).toHaveText("Next none left");
+  // With none left, there is no line for the next.
+  await expect(section.next).toBeHidden();
   const after = await section.living.boundingBox();
   expect(after?.y).toBeGreaterThanOrEqual(before?.y ?? Infinity);
 
@@ -200,5 +202,6 @@ test("with several Acts, a loaded save shows the Act its reached Milestones impl
     "Everything this Act asks of you is done.",
   );
   await expect(section.current).toHaveText("Now Every Milestone reached");
-  await expect(section.next).toHaveText("Next none left");
+  // With none left, there is no line for the next.
+  await expect(section.next).toBeHidden();
 });

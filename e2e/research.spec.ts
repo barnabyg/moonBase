@@ -102,7 +102,8 @@ test("three Research Tasks queue behind the one running, start in order by thems
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
-  await expect(panelQueue).toHaveText("Queued none");
+  // With nothing queued yet, there is no line for the queue.
+  await expect(panelQueue).toBeHidden();
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
   const screen = page.getByRole("dialog", { name: "Research Tasks" });
@@ -164,7 +165,8 @@ test("three Research Tasks queue behind the one running, start in order by thems
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
-  await expect(panelQueue).toHaveText("Queued none");
+  // With nothing queued yet, there is no line for the queue.
+  await expect(panelQueue).toBeHidden();
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(saved);
@@ -247,4 +249,54 @@ test("the Research section shows the observing programme a telescope works on at
   await expect(observing).toHaveText(
     "Observing Night-sky survey · observing, 2d left",
   );
+});
+
+test("the Research section says how fast the base earns Science, and points out Science left unspent with nothing queued", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  const earned = panel.getByRole("status", { name: "Earned an Earth Day" });
+  const queue = panel.getByRole("status", { name: "Research queue" });
+  // A new Campaign earns none, and has none to spend.
+  await expect(earned).toBeHidden();
+  await expect(queue).toBeHidden();
+
+  // A Research Task running earns its Science over its length: 5 in 6 hours.
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  const screen = page.getByRole("dialog", { name: "Research Tasks" });
+  await screen
+    .getByRole("button", { name: "Start Regolith sample analysis" })
+    .click();
+  await screen.getByRole("button", { name: "Close" }).click();
+  await expect(earned).toHaveText("Science +20.0 a day");
+  await expect(earned).toHaveAttribute(
+    "title",
+    "As things stand: the Research Task running 20.0 Science an Earth Day.",
+  );
+  await expect(queue).toBeHidden();
+
+  // The sample has 70 Science in hand, a Research Task running and nothing
+  // queued behind it.
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (await chooser).setFiles(telescopeSave);
+  await expect(queue).toHaveText(
+    /^Queued none · Science for (\d+ Designs|[A-Z].+)$/,
+  );
+  await expect(queue).toHaveClass(/stat--nudge/);
+
+  // With a Research Task queued, the line lists it instead.
+  await page.getByRole("button", { name: "Research Tasks" }).click();
+  await screen
+    .getByRole("button", { name: /^Queue / })
+    .first()
+    .click();
+  await screen.getByRole("button", { name: "Close" }).click();
+  await expect(queue).toHaveText(/^Queued 1\. \S.*$/);
+  await expect(queue).not.toHaveClass(/stat--nudge/);
 });

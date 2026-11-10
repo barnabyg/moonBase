@@ -130,10 +130,10 @@ describe("the status panel's line for the Habitat's network", () => {
     });
   });
 
-  it("says when it doesn't run out", () => {
+  it("names the Night it lasts when it doesn't run out", () => {
     expect(
       formatHabitatNetworkPower(habitatsNetwork, forecast(undefined)),
-    ).toMatchObject({ note: "own network, doesn't run out" });
+    ).toMatchObject({ note: "own network, lasts the Night" });
   });
 
   it("says when it has no battery banks", () => {
@@ -157,7 +157,7 @@ describe("the status panel's line for the Habitat's network", () => {
 describe("a folded Power section with the Habitat on a network of its own", () => {
   it("also says how full the Habitat's battery banks are", () => {
     expect(summarisePower(split, habitatsNetwork)).toBe(
-      "−1.39 kW · 76% · Habitat 58%",
+      "−1.4 kW · 76% · Habitat 58%",
     );
   });
 
@@ -165,6 +165,6 @@ describe("a folded Power section with the Habitat on a network of its own", () =
     const unstored = network({ structureIds: ["habitat"] });
     expect(
       summarisePower({ networks: [otherNetwork, unstored] }, unstored),
-    ).toBe("−0.12 kW · 95% · Habitat no storage");
+    ).toBe("−0.1 kW · 95% · Habitat no storage");
   });
 });

@@ -269,11 +269,9 @@ describe("the water forecast", () => {
     if (stock === undefined || forecast === undefined) {
       throw new Error("expected water");
     }
-    expect(
-      formatLifeSupport(stock, forecast, state.missionDirector).note,
-    ).toMatch(
-      /^rising .* kg a day, but lasts only .*: Plants may stand idle at Night$/,
-    );
+    const line = formatLifeSupport(stock, forecast, state.missionDirector);
+    expect(line.note).toMatch(/^rising .* kg a day, lasts \d+d \d+h$/);
+    expect(line.explanation).toContain("may stand idle at Night");
     expect(forecast.minutesUntilEmpty).toBeCloseTo(
       toNight + (atNightfall / use) * 24 * 60,
       -1,
