@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { catalogue } from "../src/catalogue";
 import type {
   LanderSnapshot,
   PowerNetworkSnapshot,
+  ScienceForecast,
+  ScienceSource,
   SpareComponentsForecast,
 } from "../src/simulation";
 import {
+  designsToUnlock,
   formatBasePower,
   formatLander,
   formatLifeSupport,
+  formatResearchQueue,
   formatResidence,
+  formatScienceRate,
   formatSpareComponents,
   formatStoredPower,
   listStock,
@@ -227,5 +233,117 @@ describe("the Components in the base's stock", () => {
       { count: 1, name: "solar panel" },
       { count: 36, name: "spare components" },
     ]);
+  });
+});
+
+describe("the Science line", () => {
+  const forecast = (
+    rates: Partial<Record<ScienceSource, number>>,
+  ): ScienceForecast => {
+    const sources = (
+      [
+        "research-task",
+        "observing-programme",
+        "infrared-survey",
+        "radio-survey",
+        "growing",
+      ] as const
+    ).map((source) => ({ source, perEarthDay: rates[source] ?? 0 }));
+    return {
+      perEarthDay: sources.reduce(
+        (sum, { perEarthDay }) => sum + perEarthDay,
+        0,
+      ),
+      sources,
+    };
+  };
+
+  it("says how much Science the base earns an Earth Day, and where it comes from on hovering over it", () => {
+    expect(
+      formatScienceRate(
+        forecast({
+          "research-task": 2.5,
+          "observing-programme": 0.43,
+          growing: 0.04,
+        }),
+      ),
+    ).toEqual({
+      value: "+3.0 a day",
+      explanation:
+        "As things stand, over a Lunation: the Research Task running 2.5, Night-sky survey 0.4 and growing 0.04 Science a day.",
+    });
+  });
+
+  it("says when none is being earned", () => {
+    expect(formatScienceRate(forecast({}))).toEqual({
+      value: "none being earned",
+      explanation:
+        "A Research Task, a telescope or a Greenhouse earns Science.",
+    });
+  });
+});
+
+describe("the Queued line", () => {
+  const starting = catalogue.designs
+    .filter((design) => design.starting)
+    .map((design) => design.id);
+  const cheapest = Math.min(
+    ...catalogue.designs
+      .filter((design) => !design.starting)
+      .map((design) => design.scienceCost),
+  );
+
+  it("finds no Design to unlock without the Science for the cheapest", () => {
+    expect(
+      designsToUnlock({ science: cheapest - 1, unlockedDesignIds: starting }),
+    ).toEqual([]);
+  });
+
+  it("finds the Designs whose cost the Science covers and whose prerequisites are unlocked", () => {
+    const found = designsToUnlock({
+      science: 1e6,
+      unlockedDesignIds: starting,
+    });
+
+    expect(found.length).toBeGreaterThan(0);
+    for (const design of found) {
+      expect(starting).not.toContain(design.id);
+      expect(
+        design.prerequisiteDesignIds.every((id) => starting.includes(id)),
+      ).toBe(true);
+    }
+    // One whose prerequisite is locked is out of reach, whatever the Science.
+    const beyond = catalogue.designs.filter((design) =>
+      design.prerequisiteDesignIds.some((id) => !starting.includes(id)),
+    );
+    expect(beyond.length).toBeGreaterThan(0);
+    for (const design of beyond) expect(found).not.toContain(design);
+  });
+
+  it("lists what is queued, in order, whatever the Science would unlock", () => {
+    const [first, second] = catalogue.researchTasks;
+    if (first === undefined || second === undefined) {
+      throw new Error("expected two Research Tasks");
+    }
+    expect(
+      formatResearchQueue([first.id, second.id], catalogue.designs),
+    ).toEqual({ value: `1. ${first.label}, 2. ${second.label}` });
+  });
+
+  it("says, with nothing queued, that the Science would unlock a Design, by name, or how many", () => {
+    const [one, two] = catalogue.designs.filter((design) => !design.starting);
+    if (one === undefined || two === undefined) {
+      throw new Error("expected two Designs");
+    }
+
+    expect(formatResearchQueue([], [])).toEqual({ value: "none" });
+    expect(formatResearchQueue([], [one])).toEqual({
+      value: "none",
+      note: `enough Science to unlock ${one.label}`,
+    });
+    expect(formatResearchQueue([], [one, two])).toEqual({
+      value: "none",
+      note: "enough Science to unlock 2 Designs",
+    });
   });
 });

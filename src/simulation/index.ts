@@ -103,6 +103,7 @@ export type { BulkResourceForecast } from "./bulk-forecast";
 export type { DiggingHold } from "./digging";
 export type { SelfSufficiencySnapshot } from "./self-sufficiency";
 export type { MilestoneMeasure, MilestonesSnapshot } from "./milestones";
+export type { ScienceForecast, ScienceSource } from "./science-forecast";
 export type {
   ExpeditionReward,
   ExpeditionSnapshot,

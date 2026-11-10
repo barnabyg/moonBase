@@ -11,6 +11,7 @@ import { setText } from "./dom";
 import { stockLabel } from "./labels";
 import {
   describeExpedition,
+  designsToUnlock,
   explainObservingProgramme,
   formatAct,
   formatBulkResources,
@@ -28,6 +29,7 @@ import {
   formatResidence,
   formatResearchQueue,
   formatResearchTask,
+  formatScienceRate,
   formatSelfSufficiency,
   formatSolarParticleEvent,
   formatSpareComponents,
@@ -70,8 +72,9 @@ function createMilestoneText(className: string, name: string): HTMLElement {
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
   /**
-   * Forgets which bulk resources have shown, and that an Expedition or a
-   * queue has, for a Campaign loaded in place of the last.
+   * Forgets which bulk resources have shown, and that an Expedition, a
+   * queue or Science being earned has, for a Campaign loaded in place of the
+   * last.
    */
   startAfresh(): void;
 }
@@ -81,8 +84,8 @@ export interface StatusPanel {
  * Act, the Milestone to aim for now, with its hint folded to its first lines
  * until the player asks for the rest, and the one after it, how the Mission
  * Director is keeping, the base's power, its stock, its bulk resources, the Lander
- * and Expeditions, and the Research Task running, with the observing
- * programme once the base has a telescope. A folded section keeps its
+ * and Expeditions, and the Research Task running, with how fast the base
+ * earns Science and the observing programme once it has a telescope. A folded section keeps its
  * headline figures in sight beside its title. It reads simulation snapshots
  * and forecasts, and sends a choice to send the Lander to the Campaign,
  * which decides whether it is allowed and says why not.
@@ -263,8 +266,12 @@ export function createStatusPanel(
   // Night, so that the player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
   const researchTask = createStatLine("Task", "Research Task");
-  // No line until something is first queued; from then on it stays, as
-  // the Expedition's does.
+  // How fast the base earns Science. No line until it first earns some;
+  // from then on it stays, as the Expedition's does.
+  const scienceRate = createStatLine("Science", "Earned a day");
+  scienceRate.element.hidden = true;
+  // No line until something is first queued, or the base's Science would
+  // first unlock a Design with nothing queued; from then on it stays too.
   const researchQueue = createStatLine("Queued", "Research queue");
   researchQueue.element.hidden = true;
   const observing = createStatLine("Observing", "Observing programme");
@@ -273,6 +280,7 @@ export function createStatusPanel(
   researchSection.body.append(
     researchTask.element,
     researchQueue.element,
+    scienceRate.element,
     observing.element,
     infrared.element,
     radio.element,
@@ -531,10 +539,19 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
-      if (snapshot.researchQueue.length > 0) {
+      const queued = formatResearchQueue(
+        snapshot.researchQueue,
+        designsToUnlock(snapshot),
+      );
+      // Science left unspent with nothing queued is picked out.
+      const unspent = queued.note !== undefined;
+      if (snapshot.researchQueue.length > 0 || unspent) {
         researchQueue.element.hidden = false;
       }
-      researchQueue.show(formatResearchQueue(snapshot.researchQueue));
+      researchQueue.show(queued);
+      researchQueue.element.classList.toggle("stat--nudge", unspent);
+      if (forecasts.science.perEarthDay > 0) scienceRate.element.hidden = false;
+      scienceRate.show(formatScienceRate(forecasts.science));
       const programme = formatObservingProgramme(snapshot.observingProgramme);
       observing.element.hidden = programme === undefined;
       if (programme !== undefined) {
@@ -596,6 +613,7 @@ export function createStatusPanel(
       resourceCells.clear();
       expedition.element.hidden = true;
       researchQueue.element.hidden = true;
+      scienceRate.element.hidden = true;
     },
   };
 }

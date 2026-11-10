@@ -2,6 +2,7 @@ import {
   catalogue,
   componentOutputs,
   resourceOutputs,
+  type Design,
   type ResourceRef,
   type PlantRecipe,
 } from "../catalogue";
@@ -35,6 +36,8 @@ import {
   type PowerNetworkSnapshot,
   type RadiationDoseForecast,
   type ResearchTaskSnapshot,
+  type ScienceForecast,
+  type ScienceSource,
   type SelfSufficiencySnapshot,
   type Snapshot,
   type SolarParticleEventSnapshot,
@@ -66,6 +69,7 @@ import {
   structureLabel,
 } from "./labels";
 import type { Stat } from "./stat";
+import { describeDesignState } from "./tech-tree-text";
 
 // The status panel's figures in words, and the summaries beside its folded
 // sections' titles.
@@ -1021,18 +1025,90 @@ export function formatResearchRate(rate: number): string {
 }
 
 /**
+ * The Designs the base's Science would unlock now: those not yet unlocked
+ * whose cost it covers and whose prerequisites are unlocked, in catalogue
+ * order.
+ */
+export function designsToUnlock(
+  snapshot: Pick<Snapshot, "science" | "unlockedDesignIds">,
+): Design[] {
+  return catalogue.designs.filter(
+    (design) => describeDesignState(design, snapshot).state === "unlockable",
+  );
+}
+
+/**
  * Says what is queued behind the Research Task running, in the order they will
  * start, for the status panel, for example "1. Seismic monitoring, 2. Ice
- * volatiles assay", or that none is.
+ * volatiles assay", or that none is. With none queued, it also says when the
+ * base's Science would unlock a Design, by name if there is one and how many
+ * otherwise, for example "enough Science to unlock 3 Designs", as unspent
+ * Science is easy to overlook.
  */
-export function formatResearchQueue(queue: readonly string[]): Stat {
+export function formatResearchQueue(
+  queue: readonly string[],
+  toUnlock: readonly Pick<Design, "label">[] = [],
+): Stat {
+  if (queue.length > 0) {
+    return {
+      value: queue
+        .map((id, index) => `${index + 1}. ${researchTaskLabel(id)}`)
+        .join(", "),
+    };
+  }
+  const [only] = toUnlock;
+  if (only === undefined) return { value: "none" };
   return {
-    value:
-      queue.length === 0
-        ? "none"
-        : queue
-            .map((id, index) => `${index + 1}. ${researchTaskLabel(id)}`)
-            .join(", "),
+    value: "none",
+    note: `enough Science to unlock ${toUnlock.length === 1 ? only.label : `${toUnlock.length} Designs`}`,
+  };
+}
+
+/** A rate of Science an Earth Day, to the hundredth below a tenth, which the slow sources earn. */
+function sciencePerDay(perEarthDay: number): string {
+  return perEarthDay.toFixed(perEarthDay < 0.1 ? 2 : 1);
+}
+
+/** Names where Science comes from, the way a sentence would. */
+function scienceSourceLabel(source: ScienceSource): string {
+  switch (source) {
+    case "research-task":
+      return "the Research Task running";
+    case "observing-programme":
+      return catalogue.observingProgramme.label;
+    case "infrared-survey":
+      return infraredSurveyLabel();
+    case "radio-survey":
+      return radioSurveyLabel();
+    case "growing":
+      return "growing";
+  }
+}
+
+/**
+ * Says how much Science the base earns an Earth Day as things stand, for
+ * example "+3.0 a day", or that none is being earned, with where it comes
+ * from kept for hovering over the line. Science comes a round at a time, so
+ * this is what the rounds under way would earn spread over the time they
+ * take (see `ScienceForecast`).
+ */
+export function formatScienceRate(forecast: ScienceForecast): Stat {
+  const earning = forecast.sources.filter((source) => source.perEarthDay > 0);
+  if (earning.length === 0) {
+    return {
+      value: "none being earned",
+      explanation:
+        "A Research Task, a telescope or a Greenhouse earns Science.",
+    };
+  }
+  return {
+    value: `+${sciencePerDay(forecast.perEarthDay)} a day`,
+    explanation: `As things stand, over a Lunation: ${listInWords(
+      earning.map(
+        ({ source, perEarthDay }) =>
+          `${scienceSourceLabel(source)} ${sciencePerDay(perEarthDay)}`,
+      ),
+    )} Science a day.`,
   };
 }
 
@@ -1072,6 +1148,22 @@ export function formatObservingProgramme(
   }
 }
 
+/** The name of the infrared telescopes' survey. */
+function infraredSurveyLabel(): string {
+  return (
+    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
+      ?.observingRounds?.label ?? "Infrared survey"
+  );
+}
+
+/** The name of the radio telescope arrays' survey. */
+function radioSurveyLabel(): string {
+  return (
+    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
+      ?.radioArray?.label ?? "Radio survey"
+  );
+}
+
 /** Why an infrared telescope isn't observing, in a few words. */
 const INFRARED_STOPS: Record<InfraredStop, string> = {
   daylight: "waits for Night",
@@ -1093,9 +1185,7 @@ export function formatInfraredSurvey(
 ): Stat | undefined {
   const [first] = telescopes;
   if (first === undefined) return undefined;
-  const value =
-    catalogue.structureTypes.find((type) => type.observingRounds !== undefined)
-      ?.observingRounds?.label ?? "Infrared survey";
+  const value = infraredSurveyLabel();
   const observing = telescopes.filter((telescope) => telescope.observing);
   if (observing.length > 0) {
     const left = Math.min(
@@ -1133,9 +1223,7 @@ export function formatRadioSurvey(
 ): Stat | undefined {
   const [first] = arrays;
   if (first === undefined) return undefined;
-  const value =
-    catalogue.structureTypes.find((type) => type.radioArray !== undefined)
-      ?.radioArray?.label ?? "Radio survey";
+  const value = radioSurveyLabel();
   const working = arrays.filter((array) => array.working);
   if (working.length > 0) {
     const left = Math.min(

@@ -153,6 +153,7 @@ import { startingStockpile, type StockpileState } from "./stockpile";
 import { workRobot, type RobotState } from "./robot";
 import { idleRovers, startingRovers, type RoverState } from "./rovers";
 import { planUnloading, type UnloadingState } from "./unloading";
+import { forecastScience, type ScienceForecast } from "./science-forecast";
 import { readSnapshot, type Snapshot } from "./snapshot";
 
 /** Why every command is refused once the Campaign has ended. */
@@ -178,6 +179,8 @@ export interface Forecasts {
   readonly spareComponents: SpareComponentsForecast;
   /** How long each of the base's bulk resources will last, in catalogue order. */
   readonly bulkResources: readonly BulkResourceForecast[];
+  /** How fast the base earns Science, as things stand, and where from. */
+  readonly science: ScienceForecast;
 }
 
 /** The Mission Director's death, which ends the Campaign. */
@@ -719,6 +722,7 @@ function campaignFrom(state: CampaignState): Campaign {
         radiationDose: forecastRadiationDose(state),
         spareComponents: forecastSpareComponents(state),
         bulkResources: forecastBulkResources(state),
+        science: forecastScience(state),
       });
     },
     snapshot() {

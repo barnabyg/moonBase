@@ -101,6 +101,19 @@ export function readObservingProgramme(
   };
 }
 
+/**
+ * The share of a game-minute the base's telescopes add to the round in a
+ * game-minute of Night, as things stand: at Night, what those that observed
+ * added in the latest; in Daylight, when none observes, what they all would
+ * at their performance, as nothing says yet which will have power to spare.
+ */
+export function nightObservingRate(state: CampaignState): number {
+  const telescopes = state.structures.filter(isTelescope);
+  return observingRate(
+    latestMinuteWasNight(state) ? telescopes.filter(observes) : telescopes,
+  );
+}
+
 /** How long a round of the observing programme takes one telescope at full performance, in game-minutes. */
 export function roundMinutes(): number {
   return Math.round(catalogue.observingProgramme.lengthHours * 60);
