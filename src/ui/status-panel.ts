@@ -114,12 +114,13 @@ export function createStatusPanel(
   const milestoneHintLine = createMilestoneHint();
   // How far along the current Milestone is, a line for each of its measures,
   // between its name and its hint. Most have none.
-  const milestoneMeasures = createMeasureLines(milestoneHintLine.element);
+  const milestoneMeasures = createMeasureLines();
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
     heading,
     actAsksLine,
     currentMilestone.element,
+    milestoneMeasures.element,
     milestoneHintLine.element,
     nextMilestone.element,
   );
@@ -656,11 +657,14 @@ function createSufficiencyChip(
 
 /**
  * The lines that say how far along the current Milestone is, one for each of
- * its measures, each named by its label and made the first time a Milestone
- * has one. They go above the line given, in the order the Milestone gives
- * them, and one the current Milestone has no use for is hidden.
+ * its measures, in the order the Milestone gives them, each named by its
+ * label and made the first time a Milestone has one. Most Milestones have
+ * none, and their lines go with a Milestone that had some, but the room they
+ * took stays, as any line's does, so that the lines below don't move up and
+ * back down as the Milestones go by.
  */
-function createMeasureLines(below: HTMLElement): {
+function createMeasureLines(): {
+  readonly element: HTMLElement;
   show(
     measures: readonly (Stat & {
       readonly label: string;
@@ -668,28 +672,33 @@ function createMeasureLines(below: HTMLElement): {
     })[],
   ): void;
 } {
+  const element = document.createElement("div");
+  holdHeight(element);
   const lines = new Map<string, StatLine>();
+  /** The labels of the lines in place, to change them only with the Milestone. */
+  let inPlace = "";
+  const lineOf = (label: string): StatLine => {
+    let line = lines.get(label);
+    if (line === undefined) {
+      line = createStatLine(label, `Milestone progress, ${label}`);
+      lines.set(label, line);
+    }
+    return line;
+  };
   return {
+    element,
     show(measures) {
+      const labels = measures.map(({ label }) => label).join(" | ");
+      if (labels !== inPlace) {
+        inPlace = labels;
+        element.replaceChildren(
+          ...measures.map(({ label }) => lineOf(label).element),
+        );
+      }
       for (const { label, fraction, ...stat } of measures) {
-        let line = lines.get(label);
-        if (line === undefined) {
-          line = createStatLine(label, `Milestone progress, ${label}`);
-          line.element.hidden = true;
-          lines.set(label, line);
-        }
-        // Put in its place only as it comes into use, not every frame.
-        if (line.element.hidden) {
-          below.before(line.element);
-          line.element.hidden = false;
-        }
+        const line = lineOf(label);
         line.show(stat);
         line.fill(fraction);
-      }
-      for (const [label, line] of lines) {
-        if (!measures.some((measure) => measure.label === label)) {
-          line.element.hidden = true;
-        }
       }
     },
   };

@@ -101,9 +101,23 @@ test("a Milestone with something to measure shows how far along it is, under its
   expect(await top("Current Milestone")).toBeLessThan(
     await top(/^Milestone progress, /),
   );
-  expect(await top(/^Milestone progress, /)).toBeLessThan(
-    await top("Milestone hint"),
-  );
+  const hintTop = await top("Milestone hint");
+  expect(await top(/^Milestone progress, /)).toBeLessThan(hintTop);
+
+  // Reached, the Milestone takes its measures with it but not their room,
+  // so that nothing below them moves up.
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "20x" })
+    .click();
+  const celebration = page.getByRole("dialog", { name: "Ready for Crew" });
+  await expect(celebration).toBeVisible();
+  await celebration.getByRole("button", { name: "Carry on" }).click();
+  await expect(
+    panel.getByRole("status", { name: "Current Milestone" }),
+  ).toHaveText("Now Every Milestone reached");
+  await expect(progress).toHaveCount(0);
+  expect(await top("Milestone hint")).toBeGreaterThanOrEqual(hintTop - 1);
 });
 
 test("a long Milestone hint shows its first two lines until the player asks for the rest, by keyboard or by mouse", async ({
