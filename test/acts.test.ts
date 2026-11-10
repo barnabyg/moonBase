@@ -280,13 +280,13 @@ describe("the status panel's words for the Acts", () => {
     ).toBe("Habitat shielded, in Act 2: Made-up");
   });
 
-  it("say none is left after the last Milestone, and once every one is reached", () => {
+  it("have no next Milestone to name after the last, or once every one is reached", () => {
     expect(
       formatNextMilestone(milestones(withReached(allBut("moved-in")).state)),
-    ).toBe("none left");
-    expect(formatNextMilestone(milestones(withReached(allBut()).state))).toBe(
-      "none left",
-    );
+    ).toBeUndefined();
+    expect(
+      formatNextMilestone(milestones(withReached(allBut()).state)),
+    ).toBeUndefined();
   });
 
   it("keep the folded section's headline to the Milestone to aim for now", () => {

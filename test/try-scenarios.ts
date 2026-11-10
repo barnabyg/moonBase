@@ -1223,10 +1223,10 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "An hour into a Campaign with every Milestone reached but power storage, the quickest to reach",
     steps: [
-      'Look at the status panel\'s Milestones: it says "Act 1" and what the Act asks, then "Now" with Power storage before the first Night and its hint, then "Next" with "none left".',
+      'Look at the status panel\'s Milestones: it says "Act 1" and what the Act asks, then "Now" with Power storage before the first Night and the first two lines of its hint, with no "Next" line as none is left. Press "Show all" under the hint, or Tab to it and press Enter: the whole hint shows, and "Show less" folds it again.',
       "Pick the Battery bank in the build menu, place it on clear ground beside the Lander, and set the game to 20x. In a few real seconds the Robot has built it.",
       'A notification says "Milestone reached: Power storage before the first Night", and another that Act 4: Permanence begins, the last Act there is.',
-      'The panel now says "Act 4: Permanence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and "Next" still says "none left". None of the lines below has moved up.',
+      'The panel now says "Act 4: Permanence" and what it asks, with "Everything this Act asks of you is done." Then "Now" says "Every Milestone reached", with a hint that the Campaign carries on, and still no "Next" line. None of the lines below has moved up.',
       'A "Ready for Crew" message opens over everything, as every Milestone is now reached, with the game paused. Press Carry on: the game runs at 20x again.',
       "Leave the game running: it carries on, and nothing ends.",
       'Click the Milestones title to fold it: beside the title it says "every Milestone reached".',

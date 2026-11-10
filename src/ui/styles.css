@@ -202,6 +202,7 @@ body {
 .panel-button:focus-visible,
 .construction-panel__cancel:focus-visible,
 .build-menu__options button:focus-visible,
+.milestone-hint__toggle:focus-visible,
 .panel-section__title:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -447,6 +448,33 @@ body {
   font-size: 0.78rem;
   line-height: 1.3;
   color: var(--text-muted);
+}
+
+.milestone-hint__text {
+  margin: 0;
+}
+
+/* Its first lines only, ending in an ellipsis where the rest is cut off. */
+.milestone-hint__text--folded {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--folded-lines);
+}
+
+.milestone-hint__toggle {
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.milestone-hint__toggle:hover {
+  color: var(--accent);
 }
 
 .stat__chips {

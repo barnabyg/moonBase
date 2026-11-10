@@ -46,6 +46,7 @@ import {
   makesSpareComponents,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
+import { createMilestoneHint } from "./milestone-hint";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine } from "./stat";
@@ -73,7 +74,8 @@ export interface StatusPanel {
 
 /**
  * The HTML status panel, in sections the player can fold away: the current
- * Act, the Milestone to aim for now and the one after it, how the Mission
+ * Act, the Milestone to aim for now, with its hint folded to its first lines
+ * until the player asks for the rest, and the one after it, how the Mission
  * Director is keeping, the base's power, its stock, its bulk resources, the Lander
  * and Expeditions, and the Research Task running, with the observing
  * programme once the base has a telescope. A folded section keeps its
@@ -97,16 +99,13 @@ export function createStatusPanel(
   const actLine = createMilestoneText("milestone-act", "Current Act");
   const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
   const currentMilestone = createStatLine("Now", "Current Milestone");
-  const milestoneHintLine = createMilestoneText(
-    "milestone-hint",
-    "Milestone hint",
-  );
+  const milestoneHintLine = createMilestoneHint();
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
     actLine,
     actAsksLine,
     currentMilestone.element,
-    milestoneHintLine,
+    milestoneHintLine.element,
     nextMilestone.element,
   );
 
@@ -283,13 +282,15 @@ export function createStatusPanel(
             ? "Every Milestone reached"
             : milestoneLabel(currentId),
       });
-      setText(
-        milestoneHintLine,
+      milestoneHintLine.show(
         currentId === undefined
           ? "The Campaign carries on: keep the base running and growing."
           : milestoneHint(currentId),
       );
-      nextMilestone.show({ value: formatNextMilestone(snapshot.milestones) });
+      // With none left, the line would say nothing.
+      const next = formatNextMilestone(snapshot.milestones);
+      nextMilestone.element.hidden = next === undefined;
+      if (next !== undefined) nextMilestone.show({ value: next });
 
       const { missionDirector } = snapshot;
       residence.show({

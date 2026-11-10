@@ -52,3 +52,47 @@ test("a fresh game shows power storage as the current Milestone, and commissioni
   await expect(hint).toContainText("inflatable Habitat");
   await expect(next).toHaveText("Next Lander departs");
 });
+
+test("a long Milestone hint shows its first two lines until the player asks for the rest, by keyboard or by mouse", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  const hint = panel.getByRole("status", { name: "Milestone hint" });
+  const showAll = panel.getByRole("button", { name: "Show all" });
+  const showLess = panel.getByRole("button", { name: "Show less" });
+  const height = async (): Promise<number> =>
+    (await hint.boundingBox())?.height ?? 0;
+  const twoLines =
+    2 *
+    (await hint.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).lineHeight),
+    ));
+
+  // All of it is there to be read aloud, though only two lines show.
+  await expect(hint).toContainText(
+    "the Habitat needs all of them to get through one.",
+  );
+  await expect(showAll).toHaveAttribute("aria-expanded", "false");
+  expect(await height()).toBeLessThanOrEqual(twoLines + 1);
+  const below = panel.getByRole("status", { name: "Next Milestone" });
+  const foldedTop = (await below.boundingBox())?.y ?? 0;
+
+  await showAll.focus();
+  await page.keyboard.press("Enter");
+  await expect(showLess).toHaveAttribute("aria-expanded", "true");
+  await expect(showLess).toBeFocused();
+  expect(await height()).toBeGreaterThan(twoLines + 1);
+
+  // Folded again, it gives back the room the rest of it took.
+  await showLess.click();
+  await expect(showAll).toBeVisible();
+  expect(await height()).toBeLessThanOrEqual(twoLines + 1);
+  await expect
+    .poll(async () => (await below.boundingBox())?.y)
+    .toBeCloseTo(foldedTop, 0);
+});

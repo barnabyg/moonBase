@@ -1153,14 +1153,13 @@ export function formatAct(milestones: Snapshot["milestones"]): {
 /**
  * Names the Milestone after the current one, with its Act if that is a later
  * one, for example "Lander departs" or "Workshop running, in Act 2:
- * Independence", or says that none is left. The line stays when there is
- * none, so that the lines below it don't move up.
+ * Independence"; undefined when none is left, and the line has nothing to say.
  */
 export function formatNextMilestone(
   milestones: Snapshot["milestones"],
-): string {
+): string | undefined {
   const { nextId, currentActId } = milestones;
-  if (nextId === undefined) return "none left";
+  if (nextId === undefined) return undefined;
   const actId = milestoneActId(nextId);
   return actId === currentActId
     ? milestoneLabel(nextId)
