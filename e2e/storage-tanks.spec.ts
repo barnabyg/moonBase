@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { storageTanksSave, tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { dismantle, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 async function speed(page: Page, name: string): Promise<void> {
@@ -103,9 +103,7 @@ test("a dismantled oxygen tank takes what no longer fits with it, with a notific
 }) => {
   await loadTankBase(page);
 
-  await structureEntry(page, "Oxygen tank")
-    .getByRole("button", { name: "Dismantle" })
-    .click();
+  await dismantle(page, structureEntry(page, "Oxygen tank"));
   await speed(page, "20x");
 
   await expect(stockLine(page, "Oxygen")).toHaveText(

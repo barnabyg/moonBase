@@ -164,7 +164,7 @@ test("clicking a Structure while placing another places it rather than opening t
   await expect(page.getByRole("dialog", { name: "Solar array" })).toBeHidden();
 });
 
-test("the pop-up's Dismantle does what the Base panel's does, and the pop-up closes once the Structure is gone", async ({
+test("the pop-up's Dismantle has the Robot take the Structure apart, and the pop-up closes once the Structure is gone", async ({
   page,
 }) => {
   const site = await planSolarArray(page);
@@ -172,7 +172,7 @@ test("the pop-up's Dismantle does what the Base panel's does, and the pop-up clo
   const structures = structuresList(page);
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array Condition \d+% commissioned/,
+    /^Solar array Condition \d+% Dust coating/,
   ]);
 
   await page.mouse.click(site.x, site.y);

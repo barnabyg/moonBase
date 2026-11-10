@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { structuresList } from "./base-panel";
+import { dismantle, structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 test("the Mission Director moves from the Lander into a commissioned Habitat, which then can't be dismantled", async ({
@@ -31,8 +31,8 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
   // Dust has worn the solar array down a little since it was commissioned.
   // Habitats are listed first.
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Inflatable Habitat Condition 100% commissioned · unshielded(?!,)/,
-    /^Solar array Condition 9\d% commissioned · Dust coating \d+%(?!,)/,
+    /^Inflatable Habitat Condition 100% unshielded(?!,)/,
+    /^Solar array Condition 9\d% Dust coating \d+%(?!,)/,
   ]);
   await structures.getByRole("button", { name: "Move in" }).click();
 
@@ -48,11 +48,10 @@ test("the Mission Director moves from the Lander into a commissioned Habitat, wh
     structures.getByRole("button", { name: "Move in" }),
   ).toBeHidden();
 
-  await structures
-    .getByRole("listitem")
-    .filter({ hasText: "Inflatable Habitat" })
-    .getByRole("button", { name: "Dismantle" })
-    .click();
+  await dismantle(
+    page,
+    structures.getByRole("listitem").filter({ hasText: "Inflatable Habitat" }),
+  );
   await expect(page.getByRole("alert")).toHaveText(
     "The Mission Director lives in it. Move them to another Habitat first.",
   );

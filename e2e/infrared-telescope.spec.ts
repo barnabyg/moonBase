@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -38,7 +38,8 @@ test("the status panel and the Base panel say an infrared telescope is observing
   const telescope = structureEntry(page, "Infrared telescope");
 
   await expect(telescope).toContainText("observing,");
-  await expect(telescope).toContainText(
+  await expect(doing(telescope)).toHaveAttribute(
+    "title",
     "boiling off 2 kg of propellant an hour, for 24 Science a round",
   );
   await expect(

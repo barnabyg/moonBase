@@ -25,9 +25,34 @@ export const HIGHEST_IN_VIEW =
   THREE.MathUtils.degToRad(FIELD_OF_VIEW_DEGREES / 2) -
   (Math.PI / 2 - LOWEST_VIEW_ANGLE);
 
+/**
+ * How far off the camera stays when it is brought to something from
+ * further away, in metres: near enough to tell one Structure from the next.
+ */
+export const SHOWN_FROM_METRES = 90;
+
+/**
+ * Where to put the camera, and the point on the ground it looks at, to
+ * show something on the base map: looking at the ground under it from the
+ * same side and as steeply as now, and from as far, or from
+ * {@link SHOWN_FROM_METRES} if it is further off than that.
+ */
+export function viewOf(
+  position: THREE.Vector3,
+  focus: THREE.Vector3,
+  point: THREE.Vector3,
+): { readonly position: THREE.Vector3; readonly focus: THREE.Vector3 } {
+  const onGround = new THREE.Vector3(point.x, 0, point.z);
+  const back = position.clone().sub(focus);
+  if (back.length() > SHOWN_FROM_METRES) back.setLength(SHOWN_FROM_METRES);
+  return { position: onGround.clone().add(back), focus: onGround };
+}
+
 export interface CameraControls {
   /** The point on the ground the camera looks at. */
   readonly focus: THREE.Vector3;
+  /** Moves the camera to show a point in the scene, as {@link viewOf} places it. */
+  lookAt(point: THREE.Vector3): void;
   /** Applies the player's latest input. Call once a frame, before drawing. */
   update(): void;
 }
@@ -53,6 +78,11 @@ export function createCameraControls(
 
   return {
     focus: controls.target,
+    lookAt(point) {
+      const view = viewOf(camera.position, controls.target, point);
+      controls.target.copy(view.focus);
+      camera.position.copy(view.position);
+    },
     update() {
       controls.update();
       // Keep the focus on the map's ground by sliding the whole camera back,

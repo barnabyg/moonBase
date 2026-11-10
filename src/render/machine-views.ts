@@ -59,6 +59,10 @@ export function createMachineViews(scene: THREE.Scene) {
       }
       views.clear();
     },
+    /** Where a Machine was last drawn in the scene, or undefined if it isn't drawn. */
+    positionOf(id: string): THREE.Vector3 | undefined {
+      return views.get(id)?.machine.model.group.position;
+    },
     update(frame: Frame, realSeconds: number): void {
       for (const machine of frame.current.machines) {
         let view = views.get(machine.id);

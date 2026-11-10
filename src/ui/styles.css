@@ -200,6 +200,9 @@ body {
 
 .top-bar button:focus-visible,
 .panel-button:focus-visible,
+.attention__line:focus-visible,
+.entry__name:focus-visible,
+.stack__head:focus-visible,
 .construction-panel__cancel:focus-visible,
 .build-menu__options button:focus-visible,
 .milestone-hint__toggle:focus-visible,
@@ -281,6 +284,68 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* What needs the player now, at the top of the status panel: a line each,
+   most urgent first, each a button that leads to where it is dealt with. */
+
+.attention {
+  padding: 5px 12px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.attention__title {
+  margin: 0 0 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warning);
+}
+
+.attention__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention__line {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 2px 0 2px 13px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.attention__line::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  background: var(--warning);
+  border-radius: 50%;
+}
+
+.attention__line:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+/* A line whose cause is over, for the few seconds it stays. */
+.attention__item--over .attention__line {
+  opacity: 0.45;
 }
 
 /* Sections the player can fold away. */
@@ -431,6 +496,22 @@ body {
 
 .stat--warning .meter__fill {
   background: var(--warning);
+}
+
+/* A line the needs-attention list has just led to, picked out for a moment. */
+.stat--pointed-out {
+  border-radius: 3px;
+  animation: pointed-out 1.6s ease-out;
+}
+
+@keyframes pointed-out {
+  from {
+    background: rgb(242 193 78 / 45%);
+  }
+
+  to {
+    background: transparent;
+  }
 }
 
 /* A line that points out something worth doing, which is no warning. */
@@ -622,13 +703,6 @@ body {
 
 /* The base's Structures, Robots, Machines and Rovers. */
 
-.entries-hint {
-  margin: 0 0 6px;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--text-muted);
-}
-
 .entries {
   margin: 0;
   padding: 0;
@@ -650,6 +724,15 @@ body {
 
 .structure-group > .panel-section__body {
   padding: 0 0 2px 11px;
+}
+
+/* What matters in a group stays beside its title, open or folded. */
+.structure-group[open] > .panel-section__title > .panel-section__summary {
+  display: block;
+}
+
+.structure-group > .panel-section__title > .panel-section__summary {
+  color: var(--text-muted);
 }
 
 .structure-group + .structure-group {
@@ -684,8 +767,23 @@ body {
   gap: 8px;
 }
 
+/* Its name, a button that finds it on the map, looking like the name it is. */
 .entry__name {
+  padding: 0;
+  font: inherit;
   font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.entry__name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
 }
 
 .entry__condition {
@@ -710,10 +808,56 @@ body {
   background: var(--accent);
 }
 
-.entry--broken .entry__name,
-.entry--broken .entry__state,
-.entry--broken .entry__condition {
+/* Its own, and not those of the rows inside a row that several share. */
+.entry--broken > .entry__head > .entry__name,
+.entry--broken > .entry__state,
+.entry--broken > .entry__head > .entry__condition,
+.stack__head--broken .entry__name,
+.stack__head--broken .entry__state,
+.stack__head--broken .entry__condition {
   color: var(--warning);
+}
+
+/* The one row for several Structures of a type, which opens to show each. */
+
+.entry--stack {
+  display: block;
+}
+
+.stack__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  list-style: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.stack__head::-webkit-details-marker {
+  display: none;
+}
+
+.stack__name::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 6px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.stack[open] .stack__name::before {
+  transform: rotate(90deg);
+}
+
+.stack__members {
+  margin-top: 5px;
+  padding-left: 11px;
+  border-top: 1px solid rgb(255 255 255 / 6%);
 }
 
 .entry__state {

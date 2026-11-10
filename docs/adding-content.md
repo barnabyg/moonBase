@@ -30,6 +30,7 @@ Words for the player:
 - `src/ui/describe.ts`: a line in `describeStructure` for any new field. The Guide's cards for Structures and Components are built from this and the catalogue. Nothing catches it.
 - `src/ui/guide.ts`: the Guide's topics, where it changes how to play. Nothing catches it.
 - `src/ui/structure-state.ts` and `structure-details.ts`: what the Base panel and pop-up say of its state. Nothing catches it.
+- `stacksInList` in `src/ui/structure-list-text.ts`: whether several of it share one row of the Base panel, as Structures that only stand and work do. One with something of its own to report or choose, as a Plant has, needs a row each, so leave it out there. Nothing catches it: a type it doesn't rule out shares a row.
 - `inSentence` in `src/catalogue/labels.ts`, which `src/ui/labels.ts` passes on: add a name `GLOSSARY.md` always capitalises, or it comes out in lower case. `test/labels-in-sentence.test.ts` only knows the names already there, so nothing catches a new one. `build-menu.ts`, `construction-panel-text.ts` and others use it, so don't lowercase a label by hand.
 - `src/ui/base-panel-text.ts`, `construction-panel-text.ts`, `status-panel-text.ts` and `notifications-text.ts`: any sentence it makes untrue, as "Ship more on the Launch manifest" gained "or make them in a Workshop". Search for it, as nothing catches it. The type check does catch a new kind of event with no words in `formatEvent`.
 

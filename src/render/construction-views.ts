@@ -91,6 +91,10 @@ export function createConstructionViews(
     positionOf(id: string): THREE.Vector3 | undefined {
       return views.get(id)?.group.position;
     },
+    /** How far a Construction or Structure's site reaches from its middle, in metres, or undefined if it isn't drawn. */
+    radiusOf(id: string): number | undefined {
+      return views.get(id)?.site.radiusMetres;
+    },
     /**
      * Forgets every Construction and Structure drawn, for a Campaign loaded
      * in place of the last, which may give the same ids to others.

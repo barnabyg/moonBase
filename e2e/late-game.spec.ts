@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LATE_GAME_SCIENCE, tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 async function speed(page: Page, name: string): Promise<void> {
@@ -83,12 +83,13 @@ test("a growing hall, built on the late base, says what it is doing and earns it
   // stays paused and skips from event to event.
   const skip = page.getByRole("button", { name: "Skip to next event" });
   const hall = structureEntry(page, "Growing hall");
-  const growing = hall.filter({ hasText: "using 2 kg of water an hour" });
+  const growing = hall.filter({ hasText: "left of this round" });
   for (let skips = 0; skips < 60 && (await growing.count()) === 0; skips++) {
     await skip.click();
   }
   await expect(hall).toContainText("growing");
-  await expect(hall).toContainText(
+  await expect(doing(hall)).toHaveAttribute(
+    "title",
     "using 2 kg of water an hour, for 100 Science a round",
   );
   const round = page.getByText("Growing hall: a round of growing complete");

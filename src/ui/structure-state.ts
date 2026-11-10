@@ -31,7 +31,6 @@ import {
 } from "./format";
 import { formatKeptClearOf } from "./keep-clear-text";
 import { inSentence, resourceRefLabel } from "./labels";
-import type { Stat } from "./stat";
 
 // What state a commissioned Structure is in, in words, for the Base panel's
 // entry for it and the pop-up shown when it is clicked on the map.
@@ -309,23 +308,41 @@ export function structureNotes(
   };
 }
 
+/** What the Base panel's entry for a Structure says of it. */
+export interface StructureEntry {
+  /**
+   * The state it is in, such as Broken or what a Plant is doing, or
+   * undefined for one that is commissioned and working, which needs no
+   * saying.
+   */
+  readonly value: string | undefined;
+  /** Anything out of the ordinary about it, to follow its state. */
+  readonly note?: string;
+  /**
+   * What the entry leaves to its tooltip: what a running Plant makes and
+   * uses, which is fixed for its recipe.
+   */
+  readonly more?: string;
+}
+
 /**
- * What the Base panel's entry for a Structure says of it: its status, and
- * as notes anything out of the
- * ordinary, such as being Broken, a Plant's running and what it makes and
- * uses, a telescope observing, the Mission Director living in it or its
- * Dust coating, or that it is commissioned if nothing else.
+ * What the Base panel's entry for a Structure says of it: the state it is
+ * in, unless it is simply commissioned and working, and as notes anything
+ * out of the ordinary, such as a telescope observing, the Mission Director
+ * living in it or its Dust coating. What a running Plant makes and uses is
+ * left to the entry's tooltip, and to its pop-up.
  */
 export function describeStructureEntry(
   snapshot: Snapshot,
   structure: StructureSnapshot,
   toBeDismantled: boolean,
-): Stat {
-  const state = structureStatus(
+): StructureEntry {
+  const status = structureStatus(
     structure,
     toBeDismantled,
     snapshot.radioArrays,
   );
+  const value = status === "commissioned" ? undefined : status;
   const {
     plantRates,
     observing,
@@ -340,7 +357,6 @@ export function describeStructureEntry(
     maintenance,
   } = structureNotes(snapshot, structure);
   const notes = [
-    plantRates,
     observing,
     antennaFields,
     tank,
@@ -352,9 +368,11 @@ export function describeStructureEntry(
     dustCoating,
     maintenance,
   ].filter((note) => note !== undefined);
-  return notes.length === 0
-    ? { value: state }
-    : { value: state, note: notes.join(", ") };
+  return {
+    value,
+    ...(notes.length === 0 ? {} : { note: notes.join(", ") }),
+    ...(plantRates === undefined ? {} : { more: plantRates }),
+  };
 }
 
 /**

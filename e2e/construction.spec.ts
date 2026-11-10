@@ -1,5 +1,6 @@
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { structureEntries, structuresList } from "./base-panel";
+import { dismantle, structureEntries, structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 test("the Robot carries out the Construction of a solar array placed on the map, and a second one waits for Components", async ({
@@ -34,7 +35,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
     .click();
 
   await expect(structureEntries(page)).toHaveText([
-    /^Solar array Condition 100% commissioned · Dust coating \d+%(?!,)/,
+    /^Solar array Condition 100% Dust coating \d+%(?!,)/,
   ]);
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
@@ -101,7 +102,25 @@ test("cancelling a Construction removes it and frees its Components", async ({
 test("in a window too short for the Work and Base panels, the Base panel scrolls and the Work panel keeps its work in sight", async ({
   page,
 }) => {
-  await planSolarArray(page);
+  // A base with Structures enough to list, and a solar array's Components.
+  await page.goto("/?seed=1");
+  await page.getByRole("button", { name: "Pause" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles(
+    fileURLToPath(
+      new URL("../test/saves/version-35.moonbase", import.meta.url),
+    ),
+  );
+  // Two Plants, and the row its two solar arrays share.
+  await expect(structureEntries(page)).toHaveCount(3);
+  await page
+    .getByRole("complementary", { name: "Build menu" })
+    .getByRole("button", { name: /Solar array/ })
+    .click();
+  await placeOnClearGround(page);
   const work = page.getByRole("complementary", { name: "Work" });
   const base = page.getByRole("complementary", { name: "Base" });
   await expect(work).toContainText("Site Preparation");
@@ -127,10 +146,10 @@ test("dismantling a Structure has the Robot take it apart and return a spare Com
   const structures = structuresList(page);
   await skip.click();
   await expect(structures.getByRole("listitem")).toHaveText([
-    /^Solar array Condition \d+% commissioned/,
+    /^Solar array Condition \d+% Dust coating/,
   ]);
 
-  await structures.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, structures.getByRole("listitem"));
 
   const work = page.getByRole("complementary", { name: "Work" });
   await expect(work).toContainText("Dismantling the solar array");

@@ -13,6 +13,7 @@ import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
 import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
+import { createMapFinder, type MapFinder } from "./ui/map-finder";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
@@ -73,7 +74,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   statusPanel.startAfresh();
   constructionPanel.startAfresh();
   basePanel.startAfresh();
-  structurePopUp?.startAfresh();
+  structurePopUp.startAfresh();
   renderer?.startAfresh();
 });
 // The top bar across the screen; below it, the status panel above the build
@@ -99,7 +100,15 @@ const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
 const guide = createGuideScreen(container);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
-const basePanel = createBasePanel(rightColumn, campaign, showResult);
+// Finds on the map what a panel lists. The panels are made before the map
+// and the pop-up it needs, so it asks for them only once it is used.
+const findOnMap: MapFinder = {
+  find: (subject) => mapFinder.find(subject),
+  pointOut: (subject) => {
+    mapFinder.pointOut(subject);
+  },
+};
+const basePanel = createBasePanel(rightColumn, campaign, showResult, findOnMap);
 const notifications = createNotificationList(rightColumn, campaign);
 // A Design unlocking is the one notification that doesn't come from
 // advance(): the unlockDesign command returns it in its result, so the Tech
@@ -133,9 +142,15 @@ const topBar = createTopBar(
     guide.open();
   },
 );
-const statusPanel = createStatusPanel(leftColumn, campaign, showResult, () => {
-  expeditions.open();
-});
+const statusPanel = createStatusPanel(
+  leftColumn,
+  campaign,
+  showResult,
+  () => {
+    expeditions.open();
+  },
+  findOnMap,
+);
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(
   container,
@@ -150,13 +165,16 @@ const buildMenu =
   renderer === undefined
     ? undefined
     : createBuildMenu(leftColumn, campaign, renderer);
-// Clicking a Structure on the map shows what it is doing beside it.
-const structurePopUp =
-  renderer === undefined || buildMenu === undefined
-    ? undefined
-    : createStructurePopUp(container, campaign, showResult, renderer, () =>
-        buildMenu.isPlacing(),
-      );
+// Clicking a Structure on the map, or its name in the Base panel, shows
+// what it is doing beside it.
+const structurePopUp = createStructurePopUp(
+  container,
+  campaign,
+  showResult,
+  renderer,
+  () => buildMenu?.isPlacing() ?? false,
+);
+const mapFinder = createMapFinder(renderer, structurePopUp);
 
 // `npm run try` starts the development server with a save to begin from (see
 // docs/trying-things.md). The production build leaves this out.
@@ -176,7 +194,7 @@ function frame(time: number): void {
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
   topBar.update(snapshot);
-  statusPanel.update(snapshot, campaign.forecasts());
+  statusPanel.update(snapshot, campaign.forecasts(), loop.frameMs);
   basePanel.update(snapshot);
   constructionPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);
@@ -193,7 +211,7 @@ function frame(time: number): void {
     tickProgress: loop.tickProgress,
   });
   // Beside where the Structure has just been drawn.
-  structurePopUp?.update(snapshot);
+  structurePopUp.update(snapshot);
   // Once every panel and the pop-up have updated, so that they are
   // measured together.
   holds.refresh();

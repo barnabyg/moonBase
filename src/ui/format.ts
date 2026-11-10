@@ -114,6 +114,14 @@ export function signed(value: number, digits: number, unit: string): string {
 }
 
 /**
+ * Below this Condition, something is low on it: Maintenance starts well
+ * above, so one this low has been left waiting, for a Robot or for spare
+ * Components. The Base panel picks it out, and the status panel lists it
+ * as needing attention.
+ */
+export const LOW_CONDITION_PERCENT = 40;
+
+/**
  * Formats a Condition to the whole percent, for example "73%". Only a
  * Broken one shows as 0%, and one that has worn down at all shows below
  * 100% once it is half a percentage point down.

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { dismantle, structureEntry } from "./base-panel";
 
 /**
  * Starts a base with the Mission Director behind a water wall at a high dose
@@ -141,17 +141,15 @@ test("the Mission Director moves from behind a water wall into a Buried Habitat:
   await expect(popUp).toBeHidden();
 
   // It can't be dismantled now, and the old one can, its shielding first.
-  await buried.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, buried);
   await expect(page.getByRole("alert")).toHaveText(
     "The Mission Director lives in it. Move them to another Habitat first.",
   );
-  await home.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, home);
   await expect(page.getByRole("alert")).toHaveText(
     "Its Regolith shielding is over it, and must be dismantled first.",
   );
-  await structureEntry(page, /^Water wall/)
-    .getByRole("button", { name: "Dismantle" })
-    .click();
+  await dismantle(page, structureEntry(page, /^Water wall/));
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
     "Dismantling the water wall",
   );

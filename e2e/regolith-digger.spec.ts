@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 // The smallest screen the status panel is laid out for.
@@ -52,7 +52,10 @@ test("the status panel shows Regolith against the heap's and the bin's limit, an
   await expect(bin).not.toContainText("kW");
 
   await speed(page, "5x");
-  await expect(structureEntry(page, "Bucket-wheel digger")).toContainText(
+  await expect(
+    doing(structureEntry(page, "Bucket-wheel digger")),
+  ).toHaveAttribute(
+    "title",
     "making 30 kg of Regolith an hour from the ground",
   );
   await expect(regolithRow(page)).toContainText(/\+\d+\.\d kg\/day/);

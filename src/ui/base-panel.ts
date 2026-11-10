@@ -1,4 +1,5 @@
 import { catalogue, type StructureListGroup } from "../catalogue";
+import type { MapSubject } from "../render/renderer";
 import {
   habitatUnder,
   type Snapshot,
@@ -11,9 +12,9 @@ import {
   formatRover,
   describeRepair,
 } from "./base-panel-text";
-import { formatCondition } from "./format";
+import { formatCondition, LOW_CONDITION_PERCENT } from "./format";
 import { machineLabel, robotLabel, structureLabel } from "./labels";
-import type { Stat } from "./stat";
+import type { MapFinder } from "./map-finder";
 import { holdHeight } from "./hold";
 import { createPanelSection, type PanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
@@ -23,6 +24,12 @@ import {
   type StructureChoices,
   type StructureControls,
 } from "./structure-controls";
+import {
+  describeStructureStack,
+  stacksInList,
+  summariseStructureGroup,
+  type StructureStack,
+} from "./structure-list-text";
 import { describeStructureEntry, isToBeDismantled } from "./structure-state";
 
 export interface BasePanel {
@@ -38,68 +45,207 @@ export interface BasePanel {
 /** One entry in a list of the base's Structures, Robots, Machines or Rovers. */
 interface Entry {
   readonly item: HTMLLIElement;
-  /** Shows what it is doing, or what state it is in, and its Condition. */
-  show(stat: Stat, conditionPercent: number): void;
+  /**
+   * Shows what it is doing, or what state it is in, if there is anything
+   * to say, and its Condition.
+   */
+  show(doing: EntryText, conditionPercent: number): void;
 }
 
 /**
+ * What an entry says under its name: a state and a note, either of which
+ * it may lack, and more for its tooltip.
+ */
+interface EntryText {
+  readonly value: string | undefined;
+  readonly note?: string;
+  readonly more?: string;
+}
+
+/** What the name of an entry does when chosen, for its tooltip. */
+const FINDS = {
+  structure: "Click to show it on the map, with what it is doing.",
+  robot: "Click to show it on the map.",
+  machine: "Click to show it on the map.",
+  rover: "Click to show it on the map.",
+};
+
+/**
  * An entry with a name, a bar and figure for its Condition, with a tooltip
- * saying how it is repaired, and a line below saying what it is doing,
- * with room for buttons after it.
+ * saying how it is repaired, and, where there is anything to say or
+ * choose, a line below saying what it is doing, with room for buttons
+ * after it. Its name is a button that finds it on
+ * the base map, where rows of the same name can be told apart, and
+ * pointing at the entry, or moving the focus into it, marks it there.
  */
 function createEntry(
   name: string,
   repair: string,
+  subject: MapSubject,
+  map: MapFinder,
+  showResult: (result: ChoiceResult) => void,
 ): Entry & { readonly actions: HTMLElement } {
   const item = document.createElement("li");
   item.className = "entry";
   const head = document.createElement("span");
   head.className = "entry__head";
-  const title = document.createElement("span");
+  const title = document.createElement("button");
+  title.type = "button";
   title.className = "entry__name";
   title.textContent = name;
-  const condition = document.createElement("span");
-  condition.className = "entry__condition";
-  condition.title = `Condition. ${repair}`;
+  title.title = FINDS[subject.kind];
+  title.addEventListener("click", () => {
+    showResult(map.find(subject));
+  });
+  for (const pointing of ["pointerenter", "focusin"]) {
+    item.addEventListener(pointing, () => {
+      map.pointOut(subject);
+    });
+  }
+  for (const leaving of ["pointerleave", "focusout"]) {
+    item.addEventListener(leaving, () => {
+      map.pointOut(undefined);
+    });
+  }
+  const condition = createCondition(repair);
+  head.append(title, " ", condition.element);
+  const state = document.createElement("span");
+  state.className = "entry__state";
+  const actions = document.createElement("span");
+  actions.className = "entry__actions";
+  // Until it is given something to choose.
+  actions.hidden = true;
+  item.append(head, " ", state, actions);
+  // What it is doing can take more lines or fewer as it changes, such as a
+  // Plant between Batches, so the entries below it hold still meanwhile.
+  holdHeight(item);
+  /** What the tooltips last said more of. */
+  let more: string | undefined;
+  return {
+    item,
+    actions,
+    show(doing, conditionPercent) {
+      const text = [doing.value, doing.note]
+        .filter((part) => part !== undefined)
+        .join(" · ");
+      setText(state, text);
+      // With nothing to say, it takes no room.
+      state.hidden = text === "";
+      if (doing.more !== more) {
+        more = doing.more;
+        state.title = more ?? "";
+        title.title =
+          more === undefined
+            ? FINDS[subject.kind]
+            : `${more.charAt(0).toUpperCase()}${more.slice(1)}. ${FINDS[subject.kind]}`;
+      }
+      condition.show(conditionPercent);
+      item.classList.toggle("entry--broken", conditionPercent <= 0);
+    },
+  };
+}
+
+/**
+ * A bar and figure for a Condition, with a tooltip saying how it is
+ * repaired, picked out while it is low. Given a word to go before the
+ * figure, it says which Condition it is, such as the lowest of several.
+ */
+function createCondition(
+  repair: string,
+  which = "",
+): { readonly element: HTMLElement; show(conditionPercent: number): void } {
+  const element = document.createElement("span");
+  element.className = "entry__condition";
+  element.title = `Condition. ${repair}`;
   const meter = createMeter();
   // The bar shows it is a Condition; screen readers need the word.
   const conditionWord = document.createElement("span");
   conditionWord.className = "visually-hidden";
   conditionWord.textContent = "Condition ";
   const percent = document.createElement("span");
-  condition.append(meter.element, conditionWord, percent);
-  head.append(title, " ", condition);
-  const state = document.createElement("span");
-  state.className = "entry__state";
-  const actions = document.createElement("span");
-  actions.className = "entry__actions";
-  item.append(head, " ", state, actions);
-  // What it is doing can take more lines or fewer as it changes, such as a
-  // Plant between Batches, so the entries below it hold still meanwhile.
-  holdHeight(item);
+  element.append(meter.element, conditionWord, which, percent);
   return {
-    item,
-    actions,
-    show(stat, conditionPercent) {
-      setText(
-        state,
-        stat.note === undefined ? stat.value : `${stat.value} · ${stat.note}`,
-      );
+    element,
+    show(conditionPercent) {
       setText(percent, formatCondition(conditionPercent));
       meter.fill(conditionPercent / 100);
-      item.classList.toggle("entry--broken", conditionPercent <= 0);
-      condition.classList.toggle(
+      element.classList.toggle(
         "entry__condition--low",
-        conditionPercent > 0 && conditionPercent < 40,
+        conditionPercent > 0 && conditionPercent < LOW_CONDITION_PERCENT,
       );
     },
   };
 }
 
 /**
- * The Base panel, beside the Work panel: the base's Structures, with what
- * state each is in and its Condition, and its Robots, Machines and Rovers,
- * with what each is doing. It sends a choice to dismantle a Structure, to
+ * The one row that stands for several Structures of a type, which opens to
+ * show a row for each.
+ */
+interface Stack {
+  readonly item: HTMLLIElement;
+  /** Where the rows of its Structures go. */
+  readonly list: HTMLUListElement;
+  show(stack: StructureStack): void;
+}
+
+/**
+ * A row for several Structures of a type: its name with how many there
+ * are, the lowest Condition among them, and a line below only while some of
+ * them are in a state out of the ordinary. It starts closed, which is what
+ * saves the room, and opens from its name, by mouse or keyboard, to show
+ * each of them.
+ */
+function createStack(structureTypeId: string): Stack {
+  const label = structureLabel(structureTypeId);
+  const item = document.createElement("li");
+  item.className = "entry entry--stack";
+  item.dataset["row"] = `stack:${structureTypeId}`;
+  const fold = document.createElement("details");
+  fold.className = "stack";
+  const head = document.createElement("summary");
+  head.className = "stack__head";
+  head.title = "Click to show each of them";
+  const top = document.createElement("span");
+  top.className = "entry__head";
+  const name = document.createElement("span");
+  name.className = "entry__name stack__name";
+  const condition = createCondition(describeRepair("maintained"), "lowest ");
+  top.append(name, " ", condition.element);
+  const state = document.createElement("span");
+  state.className = "entry__state";
+  head.append(top, " ", state);
+  const list = document.createElement("ul");
+  list.className = "entries stack__members";
+  list.setAttribute("aria-label", `${label}, each`);
+  fold.append(head, list);
+  item.append(fold);
+  // Held as its line comes and goes, and let go as it is opened or closed.
+  holdHeight(item, "closed");
+  fold.addEventListener("toggle", () => {
+    holdHeight(item, fold.open ? "open" : "closed");
+  });
+  return {
+    item,
+    list,
+    show(stack) {
+      setText(name, stack.name);
+      setText(state, stack.line ?? "");
+      state.hidden = stack.line === undefined;
+      condition.show(stack.lowestConditionPercent);
+      // Picked out on its own heading, so that the rows inside it aren't.
+      head.classList.toggle(
+        "stack__head--broken",
+        stack.lowestConditionPercent <= 0,
+      );
+    },
+  };
+}
+
+/**
+ * The Base panel, beside the Work panel: the base's Robots, Machines and
+ * Rovers, with what each is doing and its Condition, and below them its
+ * Structures, with what state each is in. Choosing one by its name finds it
+ * on the base map. It sends a choice to dismantle a Structure, to
  * choose a Plant's recipe, to switch a Plant off or on, or to move the
  * Mission Director into a Habitat to the Campaign, which decides whether
  * it is allowed and says why not.
@@ -108,10 +254,22 @@ export function createBasePanel(
   container: HTMLElement,
   campaign: StructureChoices,
   showResult: (result: ChoiceResult) => void,
+  onMap: MapFinder,
 ): BasePanel {
   const panel = document.createElement("aside");
   panel.className = "base-panel";
   panel.setAttribute("aria-label", "Base");
+  // Whether a row is being pointed out on the map. A row taken from under
+  // the pointer, as its Structure goes or it joins a closed row that
+  // several share, can't say the pointer has left, so each update checks.
+  let pointingOut = false;
+  const map: MapFinder = {
+    find: (subject) => onMap.find(subject),
+    pointOut(subject) {
+      pointingOut = subject !== undefined;
+      onMap.pointOut(subject);
+    },
+  };
 
   // The Structures, listed by what they are for, each group one the player
   // can fold away on its own. The groups always come in the catalogue's
@@ -121,10 +279,7 @@ export function createBasePanel(
   structures.className = "structure-groups";
   structures.setAttribute("role", "group");
   structures.setAttribute("aria-label", "Structures");
-  structuresSection.body.append(
-    createRepairHint(describeRepair("maintained")),
-    structures,
-  );
+  structuresSection.body.append(structures);
   const groups = new Map<StructureListGroup, StructureGroup>();
   const groupFor = (id: StructureListGroup): StructureGroup => {
     let group = groups.get(id);
@@ -144,14 +299,33 @@ export function createBasePanel(
   };
   const structureEntries = new Map<
     string,
-    Entry & { readonly controls: StructureControls }
+    Entry & {
+      readonly actions: HTMLElement;
+      readonly controls: StructureControls;
+    }
   >();
+  // The rows that stand for several Structures of a type, by the type.
+  const stacks = new Map<string, Stack>();
+  const stackFor = (structureTypeId: string): Stack => {
+    let stack = stacks.get(structureTypeId);
+    if (stack === undefined) {
+      stack = createStack(structureTypeId);
+      stacks.set(structureTypeId, stack);
+    }
+    return stack;
+  };
   const createStructureEntry = (structure: StructureSnapshot) => {
     const entry = createEntry(
       structureLabel(structure.structureTypeId),
       describeRepair("maintained"),
+      { kind: "structure", id: structure.id },
+      map,
+      showResult,
     );
-    const controls = createStructureControls(structure, campaign, showResult);
+    // Dismantle is in its pop-up, which its name opens.
+    const controls = createStructureControls(structure, campaign, showResult, {
+      withDismantle: false,
+    });
     entry.actions.append(...controls.elements);
     return { ...entry, controls };
   };
@@ -167,27 +341,21 @@ export function createBasePanel(
   const rovers = document.createElement("ul");
   rovers.className = "entries";
   rovers.setAttribute("aria-label", "Rovers");
-  fleetSection.body.append(
-    createRepairHint(
-      `${describeRepair("maintained")} ${describeRepair("robot")}`,
-    ),
-    robots,
-    machines,
-    rovers,
-  );
+  fleetSection.body.append(robots, machines, rovers);
   const robotEntries = new Map<string, Entry>();
   const machineEntries = new Map<string, Entry>();
   const roverEntries = new Map<string, Entry>();
   const entryFor = (
     entries: Map<string, Entry>,
     list: HTMLElement,
+    kind: MapSubject["kind"],
     id: string,
     name: string,
     repair: string,
   ): Entry => {
     let entry = entries.get(id);
     if (entry === undefined) {
-      entry = createEntry(name, repair);
+      entry = createEntry(name, repair, { kind, id }, map, showResult);
       list.append(entry.item);
       entry.item.dataset["row"] = id;
       entries.set(id, entry);
@@ -195,7 +363,9 @@ export function createBasePanel(
     return entry;
   };
 
-  panel.append(structuresSection.element, fleetSection.element);
+  // The short list first: it changes little, while the Structures grow all
+  // through a Campaign and scroll.
+  panel.append(fleetSection.element, structuresSection.element);
   container.append(panel);
 
   return {
@@ -219,6 +389,9 @@ export function createBasePanel(
           structure.conditionPercent,
         );
         entry.controls.update(snapshot, structure);
+        entry.actions.hidden = entry.controls.elements.every(
+          (control) => control.hidden,
+        );
         // A Habitat's shielding, water wall or vault cistern goes under it.
         const habitat = habitatUnder(snapshot, structure);
         const anchor = habitat ?? structure;
@@ -231,6 +404,9 @@ export function createBasePanel(
         entry.item.classList.toggle("entry--cover", habitat !== undefined);
         inGroup.push({
           item: entry.item,
+          structure,
+          stacks:
+            habitat === undefined && stacksInList(structure.structureTypeId),
           key: [
             typePlace(anchor.structureTypeId),
             habitat === undefined
@@ -248,21 +424,58 @@ export function createBasePanel(
           structureEntries.delete(id);
         }
       }
+      const stacked = new Set<string>();
       for (const [groupId, inGroup] of listed) {
         inGroup.sort((a, b) => compareKeys(a.key, b.key));
-        placeInOrder(
-          groupFor(groupId).list,
-          inGroup.map(({ item }) => item),
+        // Those of a type that share a row, once there are two of them.
+        const together = new Map<string, ListedStructure[]>();
+        for (const each of inGroup) {
+          if (!each.stacks) continue;
+          const typeId = each.structure.structureTypeId;
+          together.set(typeId, [...(together.get(typeId) ?? []), each]);
+        }
+        const rows: HTMLElement[] = [];
+        for (const each of inGroup) {
+          const typeId = each.structure.structureTypeId;
+          const sharing = each.stacks ? (together.get(typeId) ?? []) : [];
+          if (sharing.length < 2) {
+            rows.push(each.item);
+          } else if (sharing[0] === each) {
+            // Their row goes where the first of them would.
+            const stack = stackFor(typeId);
+            placeInOrder(
+              stack.list,
+              sharing.map(({ item }) => item),
+            );
+            stack.show(
+              describeStructureStack(
+                snapshot,
+                sharing.map(({ structure }) => structure),
+              ),
+            );
+            rows.push(stack.item);
+            stacked.add(typeId);
+          }
+        }
+        const group = groupFor(groupId);
+        placeInOrder(group.list, rows);
+        group.section.count(inGroup.length);
+        group.section.summarise(
+          summariseStructureGroup(inGroup.map(({ structure }) => structure)),
         );
+        group.section.warn(needsAttention(group.list));
+      }
+      // A type down to one Structure, whose row has gone back to its group.
+      for (const [typeId, stack] of stacks) {
+        if (!stacked.has(typeId)) {
+          stack.item.remove();
+          stacks.delete(typeId);
+        }
       }
       for (const [groupId, group] of groups) {
-        const count = group.list.childElementCount;
-        if (count === 0) {
+        if (!listed.has(groupId)) {
           group.section.element.remove();
           groups.delete(groupId);
-        } else {
-          group.section.count(count);
-          group.section.warn(needsAttention(group.list));
         }
       }
       structuresSection.element.hidden = structureEntries.size === 0;
@@ -275,6 +488,7 @@ export function createBasePanel(
         entryFor(
           robotEntries,
           robots,
+          "robot",
           robot.id,
           robotLabel(robot.id, snapshot.robots),
           describeRepair("robot"),
@@ -284,6 +498,7 @@ export function createBasePanel(
         entryFor(
           machineEntries,
           machines,
+          "machine",
           machine.id,
           machineLabel(machine.machineTypeId),
           describeRepair("maintained"),
@@ -296,6 +511,7 @@ export function createBasePanel(
         entryFor(
           roverEntries,
           rovers,
+          "rover",
           rover.id,
           catalogue.rover.label,
           describeRepair("maintained"),
@@ -303,6 +519,9 @@ export function createBasePanel(
           formatRover(rover, snapshot.maintenance),
           rover.conditionPercent,
         );
+      }
+      if (pointingOut && panel.querySelector(POINTED_AT) === null) {
+        map.pointOut(undefined);
       }
       fleetSection.count(
         snapshot.robots.length +
@@ -318,8 +537,10 @@ export function createBasePanel(
       );
     },
     startAfresh() {
+      map.pointOut(undefined);
       for (const group of groups.values()) group.section.element.remove();
       groups.clear();
+      stacks.clear();
       structureEntries.clear();
       for (const entries of [robotEntries, machineEntries, roverEntries]) {
         for (const entry of entries.values()) entry.item.remove();
@@ -328,6 +549,10 @@ export function createBasePanel(
     },
   };
 }
+
+/** A row for one thing, and not one that several share, with the pointer or the focus on it. */
+const POINTED_AT =
+  ".entry:not(.entry--stack):hover, .entry:not(.entry--stack):focus-within";
 
 /** An entry that is Broken. */
 const BROKEN = ".entry--broken";
@@ -365,6 +590,9 @@ function listGroupOf(structureTypeId: string): StructureListGroup {
  */
 interface ListedStructure {
   readonly item: HTMLLIElement;
+  readonly structure: StructureSnapshot;
+  /** Whether it shares one row with the others of its type. */
+  readonly stacks: boolean;
   readonly key: readonly number[];
 }
 
@@ -396,9 +624,10 @@ interface StructureGroup {
 }
 
 /**
- * A group of Structures, by what they are for, headed by its label and how
- * many there are, and marked while any of them is Broken or low on
- * Condition, so that it shows even when folded. It stays folded on the next
+ * A group of Structures, by what they are for, headed by its label, how
+ * many there are and what matters about them, such as how many are Broken
+ * or switched off, and marked while any of them is Broken or low on
+ * Condition, so that it reports even when folded. It stays folded on the next
  * visit, as sections do, and starts open for a group the player hasn't
  * folded.
  */
@@ -413,12 +642,4 @@ function createStructureGroup(id: StructureListGroup): StructureGroup {
   list.setAttribute("aria-label", label);
   section.body.append(list);
   return { id, section, list };
-}
-
-/** A line at the top of a section saying how what it lists is repaired. */
-function createRepairHint(text: string): HTMLElement {
-  const hint = document.createElement("p");
-  hint.className = "entries-hint";
-  hint.textContent = text;
-  return hint;
 }

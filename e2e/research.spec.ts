@@ -32,7 +32,7 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await page.goto("/?seed=1");
   const panel = page.getByRole("complementary", { name: "Status panel" });
   const notifications = page.getByRole("log", { name: "Notifications" });
-  const science = page.getByRole("status", { name: "Science" });
+  const science = page.getByRole("status", { name: "Science", exact: true });
   const running = panel.getByRole("status", { name: "Research Task" });
   await page
     .getByRole("group", { name: "Game speed" })
@@ -203,7 +203,7 @@ test("the Research section shows the observing programme a telescope works on at
     .click();
   const panel = page.getByRole("complementary", { name: "Status panel" });
   const observing = panel.getByRole("status", { name: "Observing programme" });
-  const science = page.getByRole("status", { name: "Science" });
+  const science = page.getByRole("status", { name: "Science", exact: true });
   // A new Campaign has no telescope, so the line isn't shown.
   await expect(observing).toBeHidden();
 

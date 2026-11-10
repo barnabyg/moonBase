@@ -1365,7 +1365,7 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "Early in a Campaign with a Workshop running on two solar arrays and a battery bank, with metals for two more batches and the Components of a second Workshop in stock",
     steps: [
-      'Look at the Base panel\'s Structures: the Workshop says "running", how long this batch has left, and "making 1 spare Component every 24 hours from 3.6 kg of metals". Look at the status panel\'s Stock: Spares says how many are in stock and "rising" so many a day.',
+      'Look at the Base panel\'s Structures: the Workshop says "running" and how long this batch has left, and hovering over that says "making 1 spare Component every 24 hours from 3.6 kg of metals". Look at the status panel\'s Stock: Spares says how many are in stock and "rising" so many a day.',
       "Click the Workshop on the map, to the north-east of the Lander: the pop-up says the same, with its recipe. Close it.",
       'Press "Switch off" beside it: it says this is its last batch, and Spares now says how long they last and that the Workshop is switched off. Press "Switch on": it says "rising" again.',
       'Set the game to 20x. About every 12 real seconds a batch finishes: Spares goes up by one, and Metals in Bulk resources down by 3.6 kg as the next starts. After two more, there is too little: the Workshop says "waiting for Metals" with how much there is, and Spares says how long they last.',
@@ -1383,7 +1383,7 @@ export const tryScenarios: readonly TryScenario[] = [
       'Click the bare Habitat beside it: the pop-up\'s Dose rate says "30.00 mSv a day", and warns that moving here raises it and how soon the limit would come. Close it.',
       'Press "Move here" beside the Buried Habitat. Set the game going: a suited figure walks across to its hatch, which lights up with a flag above. Living says "in the Buried Habitat", Radiation stays at 568.0 and now says "+0.015 a day", with a limit years away. The old Habitat now shows a "Move here" button.',
       'Set the game to 20x and wait for a notification that a Solar Particle Event is under way: Radiation says "+0.1 a day" while it lasts, then "+0.015 a day" again.',
-      'Press "Dismantle" beside the old Inflatable Habitat: it says its Regolith shielding must go first. Dismantle the water wall, then the shielding, then the Habitat, each as the last goes. Press "Dismantle" beside the Buried Habitat: it says to move them first.',
+      'Click the old Inflatable Habitat\'s name in the Base panel and press "Dismantle" in its pop-up: it says its Regolith shielding must go first. Dismantle the water wall, then the shielding, then the Habitat, each as the last goes, each from its own pop-up. Press "Dismantle" in the Buried Habitat\'s pop-up: it says to move them first.',
       "Open the Guide: Keeping the Mission Director alive says what a Buried Habitat is for, and the Structures tab has it under Protection. Open the Launch manifest: the vault section and deep life support core are under Protection.",
     ],
     save: buriedHabitatSave,
@@ -1404,7 +1404,7 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "A base with an optics works running on six batches' water above the Mission Director's reserve, and a water-processing plant switched off with water ice to use",
     steps: [
-      'Pause the game. Look at the Base panel\'s Structures: the Optics works says "running" and "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water". The status panel\'s Water says how long it lasts, "optics works using 24 kg a day", and that the water-processing plant is switched off.',
+      'Pause the game. Look at the Base panel\'s Structures: the Optics works says "running", and hovering over that says "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water". The status panel\'s Water says how long it lasts, "optics works using 24 kg a day", and that the water-processing plant is switched off.',
       'Set the game to 20x. In a few real seconds the Optics works says "waiting for Water", how much there is of the 50 kg it needs, and that this is to leave the Mission Director\'s reserve of 49 kg. Water now falls only as they drink: it lasts about 14 days, and says "optics works waiting at the reserve".',
       'Pause. Press "Switch on" beside the Water-processing plant and set the game going: Water rises, and each time there is a batch\'s worth above the reserve, the Optics works runs again.',
       "Open the Guide: the Optics works' card under Structures says it takes water and leaves the reserve, and Power and Night says what the reserve is. Hover over Water beside Self-sufficient: it speaks only of the Mission Director's use, as what the Optics works uses doesn't count against it.",
@@ -1431,7 +1431,7 @@ export const tryScenarios: readonly TryScenario[] = [
       'Pause the game. The status panel says "Water 700.0 of 1400 kg" and "Oxygen 200.0 of 400 kg". In the Base panel the Water tank says "holds 500 of 1000 kg of water, draws 0.05 kW at Night". Find the two tanks on the map: a long capsule on saddles and a gold sphere on legs with a white radiator on top, each with half the lights lit on the post beside it.',
       'Set the game to 5x until Night falls: the tanks say "drawing 0.05 kW" and "drawing 0.15 kW", and the power line uses that much more.',
       "Pick the Water tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 2400 kg, and no water has appeared, as a tank comes empty.",
-      "Press Dismantle beside the Oxygen tank. When the Robot starts on it the limit falls to 100 kg, and a notification says 100 kg of oxygen with no room left was lost.",
+      "Click the Oxygen tank's name in the Base panel and press Dismantle in its pop-up. When the Robot starts on it the limit falls to 100 kg, and a notification says 100 kg of oxygen with no room left was lost.",
       "Open the Launch manifest and the Guide: a Launch can bring tank parts, under Life Support, but no oxygen or water behind Bulk supply tanks.",
     ],
     save: () => storageTanksSave(),
@@ -1446,7 +1446,7 @@ export const tryScenarios: readonly TryScenario[] = [
       'Carry on until Night falls: the tank says "drawing 0.2 kW", and the power line uses that much more.',
       "Pick the Propellant tank in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 1650 kg, and in Daylight the Plant starts again by itself, as a tank comes empty.",
       "Open the Launch manifest's Exports tab: the Return Mass is 400 kg, however much more than 600 kg there is. Set 300 kg of propellant to load: it stops being counted, but the 750 kg left is still more than the 600 kg the ceiling takes, so the Return Mass stays at 400 kg. Propellant can't be brought by Launch: there is no such item on the Imports tab, only the tank's parts, under Industry.",
-      "Press Dismantle beside the Propellant plant. When the Robot starts on it the limit falls by 450 kg, the stock doesn't, and no notification says anything was lost. Press Dismantle beside a Propellant tank: when the Robot starts on it, a notification says what no longer fits was lost.",
+      "Click the Propellant plant's name in the Base panel and press Dismantle in its pop-up. When the Robot starts on it the limit falls by 450 kg, the stock doesn't, and no notification says anything was lost. Do the same for a Propellant tank: when the Robot starts on it, a notification says what no longer fits was lost.",
     ],
     save: propellantTanksSave,
   },
@@ -1456,7 +1456,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "A base with a propellant plant, a bucket-wheel digger and a Regolith bin, 4,800 of 5,000 kg of Regolith, a few hours before Night, on three solar arrays and two battery banks, and a second bin's Components in stock",
     steps: [
       'Pause the game. The status panel\'s Bulk resources say "Regolith 4800.0 of 5000 kg". In the Base panel the Regolith bin says "holds 2880 of 3000 kg of Regolith", with nothing about power. Find it on the map: an open square bay of metal walls, filled with Regolith, and the digger, a Plant with a conveyor running back to a skid where it digs.',
-      'Set the game to 5x. The digger says "making 30 kg of Regolith an hour from the ground", and the Regolith rises, faster than the propellant plant uses it. The excavator stays where it is: with the bin, digging starts only below 4000 kg.',
+      'Set the game to 5x. The digger says "running", and on hovering over that "making 30 kg of Regolith an hour from the ground", and the Regolith rises, faster than the propellant plant uses it. The excavator stays where it is: with the bin, digging starts only below 4000 kg.',
       'Carry on until Night falls. The Robot parks the excavator, but once the propellant plant has drawn the Regolith down a batch, the digger runs again on the battery banks\' spare power, and the Regolith stays near full. Once the banks have no more to spare, the digger says "idle at Night: no stored power to spare", and the Regolith falls as it did before.',
       "Pick the Regolith bin in the build menu and place it. Set the game to 20x: once it is commissioned the status panel's limit is 8000 kg, and in Daylight the excavator digs to fill it. The bin needs no cable.",
       "Open the Launch manifest: the digger's head and conveyors and the bin's walls are under Industry, behind Continuous excavation. Open the Guide's Structures for their cards.",
@@ -1468,7 +1468,7 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "A base with a Greenhouse growing on a solar array and a large battery bank, a few hours before Night, on a day's water above the reserve, with a water-processing plant switched off and a second Greenhouse's Components in stock",
     steps: [
-      'Pause the game. In the Base panel the Greenhouse says "growing" and how long is left of this round, and "using 1 kg of water an hour, for 20 Science a round". The status panel\'s Water says "Greenhouse using 24 kg a day" and when it will be down to the reserve. Click it on the map: a glass dome over green racks. Its pop-up has a Round line, with how far the round has got.',
+      'Pause the game. In the Base panel the Greenhouse says "growing" and how long is left of this round, and on hovering over that "using 1 kg of water an hour, for 20 Science a round". The status panel\'s Water says "Greenhouse using 24 kg a day" and when it will be down to the reserve. Click it on the map: a glass dome over green racks. Its pop-up has a Round line, with how far the round has got.',
       "Set the game to 5x until Night falls: the dome lights up from inside and lights the ground round it, and the Greenhouse goes on drinking. The power line uses 1.5 kW more for its lamps, against 0.5 kW by day.",
       'Set the game to 20x. About a day into the Night, a notification says the round of growing was lost for want of water, the Greenhouse says "waiting for Water" and that this is to leave the Mission Director\'s reserve of 49 kg, and Water stops falling, as they are still aboard the Lander.',
       'Press "Switch on" beside the Water-processing plant. It has water ice, but it runs only on power to spare: in the next Daylight, once the large battery bank is full, Water rises, and as soon as there is a batch\'s worth above the reserve the Greenhouse starts a new round by itself. Leave it for 5 Earth Days: a notification says a round is complete, and Science in the top bar is 20 higher.',
@@ -1516,7 +1516,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Pick Water-processing plant and place it within 120 m of the array, then set the game to 20x. Once it is commissioned the array stops: its Base panel entry says a Plant is within its quiet radius, a notification says its round was lost to it, and its pop-up names the water-processing plant. Switch the new plant off and the array starts a new round.",
       "Let the game run into the Night: the array goes on working on the battery banks, and completes a round every 24 hours, a notification saying what it earned.",
       "Pick Antenna field in the build menu and move it about near the Lander: the hint says it can only be built beside a commissioned radio telescope array. Move it beside the array, within 10 m of its footprint, and place it, then a second beside that one. Set the game to 20x: once the first is commissioned the array's Base panel entry says 2 antenna fields, about 177 Science a Lunation, and its rounds come twice as fast; the field's pop-up has an Array line saying it adds a field's work.",
-      "Press Dismantle beside the array: the game refuses, saying its antenna fields join it and must be dismantled first. Dismantle a field and, once the Robot starts taking it apart, the array's count and rate fall again.",
+      "Click the array's name in the Base panel and press Dismantle in its pop-up: the game refuses, saying its antenna fields join it and must be dismantled first. Dismantle a field and, once the Robot starts taking it apart, the array's count and rate fall again.",
       "Open the Guide: Structures has the array's card and the antenna field's, and Science and technologies says what they need. The Launch manifest has their antenna tiles, correlator and field receiver, under Industry.",
     ],
     save: radioTelescopeArraySave,
@@ -1530,7 +1530,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Keeping the Mission Director alive and Science and technologies say what these are for. Both have cards under Structures. The Launch manifest has their parts, dear ones, under Life Support and Protection.",
       "In the build menu, pick Vault cistern and move it over the Buried Habitat's low mound: click to place it there. Anywhere else it says it can only be built round a commissioned Buried Habitat. Set the game to 5x. Its Work panel line soon says it is waiting for more water, and that the base can hold only 1400 kg, so build another water tank.",
       "Pick Water tank in the build menu and place it. Once it is commissioned, Water reads against a limit of 2400 kg, and the vault cistern's line no longer speaks of what the base can hold.",
-      'Pick Growing hall and place it on clear ground. Once it is commissioned, click it: a long glazed vault with light pipes along its ridge. The Base panel says "growing" and "using 2 kg of water an hour, for 100 Science a round". Its round takes 10 Earth Days, longer than a Night, so a Night short of water loses a whole one. Now choose: with both it and the Greenhouse growing, Water hardly rises.',
+      'Pick Growing hall and place it on clear ground. Once it is commissioned, click it: a long glazed vault with light pipes along its ridge. The Base panel says "growing", and on hovering over that "using 2 kg of water an hour, for 100 Science a round". Its round takes 10 Earth Days, longer than a Night, so a Night short of water loses a whole one. Now choose: with both it and the Greenhouse growing, Water hardly rises.',
       'Press "Switch off" beside the Growing hall and the Greenhouse: within the hour notifications say their rounds were given up. Set the game to 20x: the Water-processing plants bring Water up, and once it passes about 2,050 kg the cistern takes 2,000 kg of it all at once, as its Assembly starts.',
       "Once it is commissioned, click the mound: the Buried Habitat's pop-up says Shielding buried under the Regolith and a vault cistern, and Dose rate 0.003 mSv a day. The status panel's Radiation limit moves thousands of Earth Days off.",
     ],

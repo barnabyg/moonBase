@@ -25,6 +25,11 @@ const EDGE_PX = 12;
 const TOP_PX = 76;
 
 export interface StructurePopUp {
+  /**
+   * Opens it for a Structure, or switches it to that one, as clicking the
+   * Structure on the map does.
+   */
+  open(structureId: string): void;
   /** Shows the latest snapshot, beside where the Structure was last drawn. Call after drawing the frame. */
   update(snapshot: Snapshot): void;
   /** Closes it, for a Campaign loaded in place of the last, which may give the same ids to other Structures. */
@@ -42,18 +47,23 @@ interface BuiltPopUp {
 /**
  * The pop-up beside a Structure the player clicks on the map, commissioned,
  * under Construction or being dismantled: what it is and does, the state
- * it is in, and the same controls as its entry in the Base panel. It
+ * it is in, and the same controls as its entry in the Base panel, with
+ * "Dismantle", which only it has. It
  * updates live while open. Clicking another Structure switches to it;
  * clicking empty ground, pressing Esc or its close button closes it, and
  * so does the Structure going, once dismantled. Dragging to move the
  * camera isn't a click, and while a Structure is being placed, a click
- * places it rather than opening the pop-up.
+ * places it rather than opening the pop-up. Without a view of the map, as
+ * when the browser can't draw it, it opens only when asked to, and stands
+ * in the middle of the screen.
  */
 export function createStructurePopUp(
   container: HTMLElement,
   campaign: StructureChoices,
   showResult: (result: ChoiceResult) => void,
-  view: Pick<Renderer, "canvas" | "pickStructure" | "structureOnScreen">,
+  view:
+    | Pick<Renderer, "canvas" | "pickStructure" | "structureOnScreen">
+    | undefined,
   isPlacing: () => boolean,
 ): StructurePopUp {
   const popUp = document.createElement("section");
@@ -199,6 +209,7 @@ export function createStructurePopUp(
         commissioned,
         campaign,
         showResult,
+        { withDismantle: true },
       );
       actions.append(...built.controls.elements);
     }
@@ -211,11 +222,16 @@ export function createStructurePopUp(
 
   /** Places the pop-up beside where the Structure is drawn, on the screen. */
   function place(structureId: string): void {
-    const at = view.structureOnScreen(structureId);
-    if (at === undefined) return;
     const bounds = container.getBoundingClientRect();
     const width = popUp.offsetWidth;
     const height = popUp.offsetHeight;
+    if (view === undefined) {
+      const middle = `translate(${Math.round((bounds.width - width) / 2)}px, ${TOP_PX}px)`;
+      if (popUp.style.transform !== middle) popUp.style.transform = middle;
+      return;
+    }
+    const at = view.structureOnScreen(structureId);
+    if (at === undefined) return;
     const x = at.x - bounds.left;
     const y = at.y - bounds.top;
     // To the right of it, or to the left where there is no room.
@@ -241,22 +257,25 @@ export function createStructurePopUp(
       hide();
     }
   });
-  onClick(
-    view.canvas,
-    (event) => {
-      if (event.button !== 0) return;
-      const clicked = view.pickStructure(event.clientX, event.clientY);
-      if (clicked === undefined) {
-        hide();
-        return;
-      }
-      open(latest === undefined ? clicked : popUpFor(latest, clicked));
-    },
-    // A click while placing a Structure places it.
-    () => !isPlacing(),
-  );
+  if (view !== undefined) {
+    onClick(
+      view.canvas,
+      (event) => {
+        if (event.button !== 0) return;
+        const clicked = view.pickStructure(event.clientX, event.clientY);
+        if (clicked === undefined) {
+          hide();
+          return;
+        }
+        open(latest === undefined ? clicked : popUpFor(latest, clicked));
+      },
+      // A click while placing a Structure places it.
+      () => !isPlacing(),
+    );
+  }
 
   return {
+    open,
     update(snapshot) {
       latest = snapshot;
       show(snapshot);
