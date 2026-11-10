@@ -8,7 +8,6 @@ import type {
   SpareComponentsForecast,
 } from "../src/simulation";
 import {
-  designsToUnlock,
   formatBasePower,
   formatLander,
   formatLifeSupport,
@@ -19,6 +18,7 @@ import {
   formatStoredPower,
   listStock,
 } from "../src/ui/status-panel-text";
+import { designsToUnlock } from "../src/ui/tech-tree-text";
 import { toGameMinutes } from "./scenario";
 
 // The status panel's lines, worded to say what matters in as little room as

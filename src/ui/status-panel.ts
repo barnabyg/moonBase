@@ -11,7 +11,6 @@ import { setText } from "./dom";
 import { stockLabel } from "./labels";
 import {
   describeExpedition,
-  designsToUnlock,
   explainObservingProgramme,
   formatAct,
   formatBulkResources,
@@ -53,20 +52,27 @@ import { createMilestoneHint } from "./milestone-hint";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
 import { createStatLine, type Stat, type StatLine } from "./stat";
+import { designsToUnlock } from "./tech-tree-text";
 
 /**
- * A line of words in the Milestones section, a status like any other line of
- * the panel, that keeps its height when its words get shorter.
+ * A block of the panel that isn't a labelled figure, such as a line of words
+ * in the Milestones section: a status like any other line, named for screen
+ * readers and not announced as it changes, that keeps its height when what
+ * it shows gets shorter.
  */
-function createMilestoneText(className: string, name: string): HTMLElement {
-  const line = document.createElement("p");
-  line.className = className;
-  line.setAttribute("role", "status");
-  line.setAttribute("aria-label", name);
-  line.setAttribute("aria-live", "off");
-  line.dataset["row"] = name;
-  holdHeight(line);
-  return line;
+function createStatusBlock(
+  tag: "p" | "div",
+  className: string,
+  name: string,
+): HTMLElement {
+  const block = document.createElement(tag);
+  block.className = className;
+  block.setAttribute("role", "status");
+  block.setAttribute("aria-label", name);
+  block.setAttribute("aria-live", "off");
+  block.dataset["row"] = name;
+  holdHeight(block);
+  return block;
 }
 
 export interface StatusPanel {
@@ -103,13 +109,17 @@ export function createStatusPanel(
   // The Act the Campaign is in and what it asks, the Milestone to aim for now,
   // what to do to reach it, and the one after.
   const milestonesSection = createPanelSection("milestones", "Milestones");
-  const actLine = createMilestoneText("milestone-act", "Current Act");
+  const actLine = createStatusBlock("p", "milestone-act", "Current Act");
   // Which of the Act's Milestones the current one is, beside the Act's name.
-  const placeLine = createMilestoneText("milestone-place", "Place in the Act");
+  const placeLine = createStatusBlock(
+    "p",
+    "milestone-place",
+    "Place in the Act",
+  );
   const heading = document.createElement("div");
   heading.className = "milestone-heading";
   heading.append(actLine, placeLine);
-  const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
+  const actAsksLine = createStatusBlock("p", "milestone-act-asks", "Act asks");
   const currentMilestone = createStatLine("Now", "Current Milestone");
   const milestoneHintLine = createMilestoneHint();
   // How far along the current Milestone is, a line for each of its measures,
@@ -201,13 +211,7 @@ export function createStatusPanel(
   const stockSection = createPanelSection("stock", "Stock");
   // Two to a row, each with how many there are, which reads faster than
   // a sentence of them.
-  const components = document.createElement("div");
-  components.className = "components";
-  components.setAttribute("role", "status");
-  components.setAttribute("aria-label", "Base's stock");
-  components.setAttribute("aria-live", "off");
-  components.dataset["row"] = "Base's stock";
-  holdHeight(components);
+  const components = createStatusBlock("div", "components", "Base's stock");
   /** What the list shows, to change it only when the stock does. */
   let componentsShown: string | undefined;
   const spareComponents = createStatLine("Spares", "Spare Components");

@@ -68,7 +68,6 @@ import {
   structureLabel,
 } from "./labels";
 import type { Stat } from "./stat";
-import { describeDesignState } from "./tech-tree-text";
 
 // The status panel's figures in words, and the summaries beside its folded
 // sections' titles.
@@ -1032,19 +1031,6 @@ export function formatExperimentsLabs(
  */
 export function formatResearchRate(rate: number): string {
   return `×${String(Math.round(rate * 10) / 10)}`;
-}
-
-/**
- * The Designs the base's Science would unlock now: those not yet unlocked
- * whose cost it covers and whose prerequisites are unlocked, in catalogue
- * order.
- */
-export function designsToUnlock(
-  snapshot: Pick<Snapshot, "science" | "unlockedDesignIds">,
-): Design[] {
-  return catalogue.designs.filter(
-    (design) => describeDesignState(design, snapshot).state === "unlockable",
-  );
 }
 
 /**
