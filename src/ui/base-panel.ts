@@ -232,7 +232,11 @@ function createStack(structureTypeId: string): Stack {
       setText(state, stack.line ?? "");
       state.hidden = stack.line === undefined;
       condition.show(stack.lowestConditionPercent);
-      item.classList.toggle("entry--broken", stack.lowestConditionPercent <= 0);
+      // Picked out on its own heading, so that the rows inside it aren't.
+      head.classList.toggle(
+        "stack__head--broken",
+        stack.lowestConditionPercent <= 0,
+      );
     },
   };
 }

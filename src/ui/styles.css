@@ -808,9 +808,13 @@ body {
   background: var(--accent);
 }
 
-.entry--broken .entry__name,
-.entry--broken .entry__state,
-.entry--broken .entry__condition {
+/* Its own, and not those of the rows inside a row that several share. */
+.entry--broken > .entry__head > .entry__name,
+.entry--broken > .entry__state,
+.entry--broken > .entry__head > .entry__condition,
+.stack__head--broken .entry__name,
+.stack__head--broken .entry__state,
+.stack__head--broken .entry__condition {
   color: var(--warning);
 }
 
