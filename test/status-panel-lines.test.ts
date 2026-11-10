@@ -10,6 +10,7 @@ import {
   formatLifeSupport,
   formatResidence,
   formatSpareComponents,
+  formatStoredPower,
   listStock,
 } from "../src/ui/status-panel-text";
 import { toGameMinutes } from "./scenario";
@@ -58,25 +59,72 @@ describe("the Living line", () => {
   });
 });
 
-describe("the Power line", () => {
-  it("shows power made and used to one decimal place, across the base's networks", () => {
-    const network = (
-      generationKilowatts: number,
-      consumptionKilowatts: number,
-    ): PowerNetworkSnapshot => ({
-      structureIds: [],
-      generationKilowatts,
-      consumptionKilowatts,
-      storedKilowattHours: 0,
-      storageCapacityKilowattHours: 0,
-      powered: true,
-    });
+/** A power network as the status panel reads it, with nothing in it unless given. */
+function network(figures: Partial<PowerNetworkSnapshot>): PowerNetworkSnapshot {
+  return {
+    structureIds: [],
+    generationKilowatts: 0,
+    consumptionKilowatts: 0,
+    storedKilowattHours: 0,
+    storageCapacityKilowattHours: 0,
+    powered: true,
+    ...figures,
+  };
+}
 
+describe("the Power line", () => {
+  it("shows the power to spare first, then power made and used, to one decimal place, across the base's networks", () => {
     expect(
       formatBasePower({
-        networks: [network(100, 30.25), network(37.57, 6.26)],
+        networks: [
+          network({ generationKilowatts: 100, consumptionKilowatts: 30.25 }),
+          network({ generationKilowatts: 37.57, consumptionKilowatts: 6.26 }),
+        ],
       }),
-    ).toEqual({ value: "137.6 kW made", note: "36.5 kW used" });
+    ).toEqual({ value: "+101.1 kW", note: "137.6 kW made, 36.5 kW used" });
+  });
+
+  it("shows a shortfall, as at Night, when the solar arrays make none", () => {
+    expect(
+      formatBasePower({
+        networks: [network({ consumptionKilowatts: 36.51 })],
+      }),
+    ).toEqual({ value: "−36.5 kW", note: "0.0 kW made, 36.5 kW used" });
+  });
+});
+
+describe("the Stored line", () => {
+  const stored = {
+    networks: [
+      network({ storedKilowattHours: 42, storageCapacityKilowattHours: 60 }),
+    ],
+  };
+  const forecast = (minutesUntilEmpty: number | undefined) => ({
+    minutesUntilEmpty,
+    networks: [],
+  });
+
+  it("names the Night that the stored power lasts, as the forecast follows the Daylight and Night ahead", () => {
+    expect(formatStoredPower(stored, forecast(undefined))).toEqual({
+      value: "42.0 / 60.0 kWh",
+      note: "lasts the Night",
+      fraction: 0.7,
+    });
+  });
+
+  it("says how long it lasts when it runs out, and that it is empty once it has", () => {
+    expect(
+      formatStoredPower(
+        stored,
+        forecast(toGameMinutes({ earthDays: 8, hours: 8 })),
+      ),
+    ).toMatchObject({ note: "lasts 8d 8h" });
+    expect(
+      formatStoredPower(
+        { networks: [network({ storageCapacityKilowattHours: 60 })] },
+        forecast(undefined),
+      ),
+    ).toMatchObject({ value: "0.0 / 60.0 kWh", note: "empty" });
   });
 });
 

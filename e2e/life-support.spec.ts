@@ -38,6 +38,14 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(water).toHaveText(
     "Water 108.0 of 400 kg · safe aboard the Lander",
   );
+  // Each has a bar showing how full the base's store of it is, in percent.
+  const filled = (line: Locator) =>
+    line
+      .locator(".meter__fill")
+      .evaluate((bar) => Number.parseFloat((bar as HTMLElement).style.width));
+  await expect(oxygen.locator(".meter")).toBeVisible();
+  expect(await filled(oxygen)).toBe(25);
+  expect(await filled(water)).toBe(27);
   await expect(living).toHaveText("Living aboard the Lander");
   await expect(radiationDose).toHaveText(
     "Radiation 0.0 / 600 mSv · none aboard the Lander",

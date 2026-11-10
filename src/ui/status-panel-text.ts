@@ -90,9 +90,10 @@ function sumNetworks(
 }
 
 /**
- * Says how much power the base makes and uses across its networks, to one
- * decimal place, which is enough to steer by, for example "10.0 kW made, 0.3
- * kW used".
+ * Says how much power the base has to spare across its networks, or how far
+ * short it falls, as it does at Night when its solar arrays make none, then
+ * what it makes and uses, for example "+9.7 kW" and "10.0 kW made, 0.3 kW
+ * used". One decimal place is enough to steer by.
  */
 export function formatBasePower(power: Snapshot["power"]): Stat {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
@@ -100,8 +101,8 @@ export function formatBasePower(power: Snapshot["power"]): Stat {
   const made = total((network) => network.generationKilowatts);
   const used = total((network) => network.consumptionKilowatts);
   return {
-    value: `${kilowattsRounded(made)} made`,
-    note: `${kilowattsRounded(used)} used`,
+    value: signed(made - used, 1, "kW"),
+    note: `${kilowattsRounded(made)} made, ${kilowattsRounded(used)} used`,
   };
 }
 
@@ -120,9 +121,18 @@ export function formatPower(power: Snapshot["power"]): Stat {
 }
 
 /**
+ * What a network's stored energy does when the forecast finds it doesn't run
+ * out. The forecast follows the Daylight and Night ahead (see
+ * `PowerForecast`), so that is what it means, in Daylight as much as at
+ * Night, where "doesn't run out" read as being about now.
+ */
+const LASTS_THE_NIGHT = "lasts the Night";
+
+/**
  * Says how much energy the base has stored and when it will run out, for
- * example "42.0 / 60.0 kWh" and "lasts 8d 8h", with how full its battery
- * banks are, from 0 to 1, or undefined if it has none.
+ * example "42.0 / 60.0 kWh" and "lasts 8d 8h", or "lasts the Night" when it
+ * doesn't, with how full its battery banks are, from 0 to 1, or undefined if
+ * it has none.
  */
 export function formatStoredPower(
   power: Snapshot["power"],
@@ -145,7 +155,7 @@ export function formatStoredPower(
   }
   return {
     value,
-    note: storedKilowattHours > 0 ? "doesn't run out" : "empty",
+    note: storedKilowattHours > 0 ? LASTS_THE_NIGHT : "empty",
     fraction,
   };
 }
@@ -194,8 +204,8 @@ export function habitatNetworkApart(
 /**
  * Says how much energy the Habitat's own network has stored and when it will
  * run out, for example "115.3 / 200.0 kWh" and "own network, lasts 3d 18h",
- * with how full its battery banks are, from 0 to 1, or undefined if it has
- * none.
+ * or "own network, lasts the Night" when it doesn't, with how full its
+ * battery banks are, from 0 to 1, or undefined if it has none.
  */
 export function formatHabitatNetworkPower(
   network: PowerNetworkSnapshot,
@@ -218,7 +228,7 @@ export function formatHabitatNetworkPower(
     minutesUntilEmpty !== undefined
       ? `lasts ${formatShortDuration(minutesUntilEmpty)}`
       : stored > 0
-        ? "doesn't run out"
+        ? LASTS_THE_NIGHT
         : "empty";
   return {
     value: formatCharge(stored, capacity),

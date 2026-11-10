@@ -356,6 +356,12 @@ export function createStatusPanel(
             forecast?.minutesUntilReserve,
           ),
         );
+        // How full the base's store of it is, on a bar that warns with the line.
+        line.fill(
+          stock.limitKilograms > 0
+            ? stock.kilograms / stock.limitKilograms
+            : undefined,
+        );
         // Shown as a warning from the first warning on, and once it has run out.
         const warnFrom = Math.max(...type.warningEarthDaysLeft) * 24 * 60;
         line.warn(

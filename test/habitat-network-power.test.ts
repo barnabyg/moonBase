@@ -130,10 +130,10 @@ describe("the status panel's line for the Habitat's network", () => {
     });
   });
 
-  it("says when it doesn't run out", () => {
+  it("names the Night it lasts when it doesn't run out", () => {
     expect(
       formatHabitatNetworkPower(habitatsNetwork, forecast(undefined)),
-    ).toMatchObject({ note: "own network, doesn't run out" });
+    ).toMatchObject({ note: "own network, lasts the Night" });
   });
 
   it("says when it has no battery banks", () => {
