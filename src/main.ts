@@ -13,7 +13,7 @@ import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
 import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
-import { createMapFinder } from "./ui/map-finder";
+import { createMapFinder, type MapFinder } from "./ui/map-finder";
 import { createNotificationList } from "./ui/notifications";
 import { createRefusal } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
@@ -100,13 +100,15 @@ const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
 const guide = createGuideScreen(container);
 const constructionPanel = createConstructionPanel(rightColumn, campaign);
-// Choosing a row finds it on the map, which is made further down.
-const basePanel = createBasePanel(rightColumn, campaign, showResult, {
+// Finds on the map what a panel lists. The panels are made before the map
+// and the pop-up it needs, so it asks for them only once it is used.
+const findOnMap: MapFinder = {
   find: (subject) => mapFinder.find(subject),
   pointOut: (subject) => {
     mapFinder.pointOut(subject);
   },
-});
+};
+const basePanel = createBasePanel(rightColumn, campaign, showResult, findOnMap);
 const notifications = createNotificationList(rightColumn, campaign);
 // A Design unlocking is the one notification that doesn't come from
 // advance(): the unlockDesign command returns it in its result, so the Tech
@@ -140,7 +142,6 @@ const topBar = createTopBar(
     guide.open();
   },
 );
-// Its needs-attention list finds things on the map too, made further down.
 const statusPanel = createStatusPanel(
   leftColumn,
   campaign,
@@ -148,12 +149,7 @@ const statusPanel = createStatusPanel(
   () => {
     expeditions.open();
   },
-  {
-    find: (subject) => mapFinder.find(subject),
-    pointOut: (subject) => {
-      mapFinder.pointOut(subject);
-    },
-  },
+  findOnMap,
 );
 // A new Campaign starts the page afresh, keeping any ?seed= in the address.
 const gameOver = createGameOverScreen(

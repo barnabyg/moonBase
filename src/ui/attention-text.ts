@@ -2,6 +2,7 @@ import { catalogue } from "../catalogue";
 import type { MapSubject } from "../render/renderer";
 import type { Forecasts, Snapshot } from "../simulation";
 import {
+  LOW_CONDITION_PERCENT,
   formatCondition,
   formatShortDuration,
   listInWords,
@@ -26,13 +27,6 @@ import { isToBeDismantled } from "./structure-state";
 // What needs the player now, in words, for the list at the top of the status
 // panel: what still stands, most urgent first, where the notifications say
 // what happened as it happens.
-
-/**
- * Below this Condition, something is low on it: Maintenance starts well
- * above, so one this low has been left waiting, for a Robot or for spare
- * Components. The Base panel marks a row by the same figure.
- */
-export const LOW_CONDITION_PERCENT = 40;
 
 /**
  * A line of the status panel that shows as a warning, which a line of the

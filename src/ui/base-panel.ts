@@ -12,7 +12,7 @@ import {
   formatRover,
   describeRepair,
 } from "./base-panel-text";
-import { formatCondition } from "./format";
+import { formatCondition, LOW_CONDITION_PERCENT } from "./format";
 import { machineLabel, robotLabel, structureLabel } from "./labels";
 import type { MapFinder } from "./map-finder";
 import { holdHeight } from "./hold";
@@ -171,7 +171,7 @@ function createCondition(
       meter.fill(conditionPercent / 100);
       element.classList.toggle(
         "entry__condition--low",
-        conditionPercent > 0 && conditionPercent < 40,
+        conditionPercent > 0 && conditionPercent < LOW_CONDITION_PERCENT,
       );
     },
   };
