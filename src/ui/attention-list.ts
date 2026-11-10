@@ -113,6 +113,14 @@ export function createAttentionList(
         standing.add(line.id);
         const row = rows.get(line.id) ?? createRow(line);
         over.revive(line.id);
+        // Pointed at while what it leads to changes, as the first of several
+        // is repaired, it points out the next.
+        if (
+          !sameTarget(row.leadsTo, line.leadsTo) &&
+          row.item.matches(":hover, :focus-within")
+        ) {
+          pointOut(line.leadsTo);
+        }
         row.leadsTo = line.leadsTo;
         setText(row.button, line.text);
         row.item.classList.remove("attention__item--over");
@@ -134,6 +142,15 @@ export function createAttentionList(
       element.hidden = true;
     },
   };
+}
+
+/** Whether two lines lead to the same place. */
+function sameTarget(a: AttentionTarget, b: AttentionTarget): boolean {
+  return a.kind === "map"
+    ? b.kind === "map" &&
+        a.subject.kind === b.subject.kind &&
+        a.subject.id === b.subject.id
+    : b.kind === "status" && a.line === b.line;
 }
 
 /** What a line's button says it does, on hovering over it, by where it leads. */

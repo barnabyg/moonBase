@@ -254,11 +254,22 @@ export function createBasePanel(
   container: HTMLElement,
   campaign: StructureChoices,
   showResult: (result: ChoiceResult) => void,
-  map: MapFinder,
+  onMap: MapFinder,
 ): BasePanel {
   const panel = document.createElement("aside");
   panel.className = "base-panel";
   panel.setAttribute("aria-label", "Base");
+  // Whether a row is being pointed out on the map. A row taken from under
+  // the pointer, as its Structure goes or it joins a closed row that
+  // several share, can't say the pointer has left, so each update checks.
+  let pointingOut = false;
+  const map: MapFinder = {
+    find: (subject) => onMap.find(subject),
+    pointOut(subject) {
+      pointingOut = subject !== undefined;
+      onMap.pointOut(subject);
+    },
+  };
 
   // The Structures, listed by what they are for, each group one the player
   // can fold away on its own. The groups always come in the catalogue's
@@ -409,10 +420,6 @@ export function createBasePanel(
       }
       for (const [id, entry] of structureEntries) {
         if (!seen.has(id)) {
-          // Gone from under the pointer, it can't say the pointer has left.
-          if (entry.item.matches(":hover, :focus-within")) {
-            map.pointOut(undefined);
-          }
           entry.item.remove();
           structureEntries.delete(id);
         }
@@ -513,6 +520,9 @@ export function createBasePanel(
           rover.conditionPercent,
         );
       }
+      if (pointingOut && panel.querySelector(POINTED_AT) === null) {
+        map.pointOut(undefined);
+      }
       fleetSection.count(
         snapshot.robots.length +
           snapshot.machines.length +
@@ -539,6 +549,10 @@ export function createBasePanel(
     },
   };
 }
+
+/** A row for one thing, and not one that several share, with the pointer or the focus on it. */
+const POINTED_AT =
+  ".entry:not(.entry--stack):hover, .entry:not(.entry--stack):focus-within";
 
 /** An entry that is Broken. */
 const BROKEN = ".entry--broken";
