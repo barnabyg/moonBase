@@ -104,6 +104,10 @@ test("a Milestone with something to measure shows how far along it is, under its
   const hintTop = await top("Milestone hint");
   expect(await top(/^Milestone progress, /)).toBeLessThan(hintTop);
 
+  // Its long hint, shown whole.
+  await panel.getByRole("button", { name: "Show all" }).click();
+  await expect(panel.getByRole("button", { name: "Show less" })).toBeVisible();
+
   // Reached, the Milestone takes its measures with it but not their room,
   // so that nothing below them moves up.
   await page
@@ -118,6 +122,20 @@ test("a Milestone with something to measure shows how far along it is, under its
   ).toHaveText("Now Every Milestone reached");
   await expect(progress).toHaveCount(0);
   expect(await top("Milestone hint")).toBeGreaterThanOrEqual(hintTop - 1);
+  // The hint that follows is short, so it is folded again with no button,
+  // and gives back the room the long one took.
+  const hint = panel.getByRole("status", { name: "Milestone hint" });
+  await expect(hint).toContainText("The Campaign carries on");
+  await expect(panel.getByRole("button", { name: "Show less" })).toBeHidden();
+  await expect(panel.getByRole("button", { name: "Show all" })).toBeHidden();
+  const twoLines =
+    2 *
+    (await hint.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).lineHeight),
+    ));
+  await expect
+    .poll(async () => (await hint.locator("xpath=..").boundingBox())?.height)
+    .toBeLessThanOrEqual(twoLines + 1);
 });
 
 test("a long Milestone hint shows its first two lines until the player asks for the rest, by keyboard or by mouse", async ({

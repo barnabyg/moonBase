@@ -19,7 +19,8 @@ const SHOW_FOLDED = "Show less";
  * the panel, so it is folded to its first lines, with a button under it that
  * shows the rest, by mouse or by keyboard, and folds it again. The button is
  * there only while there is more to show. The player's choice stays as the
- * Milestones go by, so that the line changes height only when they ask. The
+ * Milestones go by, so that the line changes height only when they ask,
+ * until a hint short enough to show whole in those lines folds it again. The
  * whole hint is always there for a screen reader, folded or not. It is a
  * status like any other line of the panel, and keeps its height when its
  * words get shorter.
@@ -46,17 +47,22 @@ export function createMilestoneHint(): MilestoneHint {
 
   let whole = false;
   const refresh = (): void => {
+    const foldedPx =
+      FOLDED_LINES * Number.parseFloat(getComputedStyle(text).lineHeight);
+    // A hint that fits in the lines it folds to has no more to show, so it
+    // counts as folded: otherwise the room a longer one took whole would
+    // stay, with no button to give it back. Its height can't be told while
+    // its section is folded away and it has no size.
+    if (whole) {
+      text.classList.remove("milestone-hint__text--folded");
+      const { clientHeight } = text;
+      if (clientHeight > 0 && clientHeight <= foldedPx + 1) whole = false;
+    }
     text.classList.toggle("milestone-hint__text--folded", !whole);
     toggle.setAttribute("aria-expanded", String(whole));
     setText(toggle, whole ? SHOW_FOLDED : SHOW_WHOLE);
-    // It needs the button only if it is longer than the lines it folds to,
-    // which can't be told while its section is folded away and it has no
-    // size: folded, if some of it is cut off, and whole, by its height.
-    const foldedPx =
-      FOLDED_LINES * Number.parseFloat(getComputedStyle(text).lineHeight);
-    toggle.hidden = whole
-      ? text.clientHeight <= foldedPx + 1
-      : text.scrollHeight <= text.clientHeight + 1;
+    // Folded, it needs the button only if some of it is cut off.
+    toggle.hidden = !whole && text.scrollHeight <= text.clientHeight + 1;
     // Folding it gives back the room the whole of it took.
     holdHeight(element, whole ? "whole" : "folded");
   };
