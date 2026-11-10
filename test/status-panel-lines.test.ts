@@ -87,7 +87,7 @@ describe("the Power line", () => {
           network({ generationKilowatts: 37.57, consumptionKilowatts: 6.26 }),
         ],
       }),
-    ).toEqual({ value: "+101.1 kW", note: "137.6 kW made, 36.5 kW used" });
+    ).toEqual({ value: "+101.1 kW", note: "137.6 made, 36.5 used" });
   });
 
   it("shows a shortfall, as at Night, when the solar arrays make none", () => {
@@ -95,7 +95,7 @@ describe("the Power line", () => {
       formatBasePower({
         networks: [network({ consumptionKilowatts: 36.51 })],
       }),
-    ).toEqual({ value: "−36.5 kW", note: "0.0 kW made, 36.5 kW used" });
+    ).toEqual({ value: "−36.5 kW", note: "0.0 made, 36.5 used" });
   });
 });
 
@@ -339,11 +339,11 @@ describe("the Queued line", () => {
     expect(formatResearchQueue([], [])).toEqual({ value: "none" });
     expect(formatResearchQueue([], [one])).toEqual({
       value: "none",
-      note: `enough Science to unlock ${one.label}`,
+      note: `Science for ${one.label}`,
     });
     expect(formatResearchQueue([], [one, two])).toEqual({
       value: "none",
-      note: "enough Science to unlock 2 Designs",
+      note: "Science for 2 Designs",
     });
   });
 });

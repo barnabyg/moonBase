@@ -286,7 +286,7 @@ test("the Research section says how fast the base earns Science, and points out 
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(telescopeSave);
   await expect(queue).toHaveText(
-    /^Queued none · enough Science to unlock (\d+ Designs|[A-Z].+)$/,
+    /^Queued none · Science for (\d+ Designs|[A-Z].+)$/,
   );
   await expect(queue).toHaveClass(/stat--nudge/);
 

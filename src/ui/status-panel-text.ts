@@ -51,7 +51,6 @@ import {
   formatScience,
   formatShortDuration,
   kilowatts,
-  kilowattsRounded,
   listInWords,
   millisieverts,
   plural,
@@ -93,20 +92,37 @@ function sumNetworks(
   return power.networks.reduce((sum, network) => sum + pick(network), 0);
 }
 
+/** The power the base makes and uses across its networks, in kilowatts. */
+function basePower(power: Snapshot["power"]): {
+  readonly made: number;
+  readonly used: number;
+} {
+  return {
+    made: sumNetworks(power, (network) => network.generationKilowatts),
+    used: sumNetworks(power, (network) => network.consumptionKilowatts),
+  };
+}
+
 /**
- * Says how much power the base has to spare across its networks, or how far
- * short it falls, as it does at Night when its solar arrays make none, then
- * what it makes and uses, for example "+9.7 kW" and "10.0 kW made, 0.3 kW
- * used". One decimal place is enough to steer by.
+ * The power the base has to spare across its networks, or how far short it
+ * falls, as it does at Night when its solar arrays make none, for example
+ * "+9.7 kW" or "−36.5 kW". One decimal place is enough to steer by.
+ */
+function powerToSpare(power: Snapshot["power"]): string {
+  const { made, used } = basePower(power);
+  return signed(made - used, 1, "kW");
+}
+
+/**
+ * Says how much power the base has to spare, then what it makes and uses,
+ * in the same kilowatts, for example "+9.7 kW" and "10.0 made, 0.3 used",
+ * short enough to stay on one line.
  */
 export function formatBasePower(power: Snapshot["power"]): Stat {
-  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
-    sumNetworks(power, pick);
-  const made = total((network) => network.generationKilowatts);
-  const used = total((network) => network.consumptionKilowatts);
+  const { made, used } = basePower(power);
   return {
-    value: signed(made - used, 1, "kW"),
-    note: `${kilowattsRounded(made)} made, ${kilowattsRounded(used)} used`,
+    value: powerToSpare(power),
+    note: `${made.toFixed(1)} made, ${used.toFixed(1)} used`,
   };
 }
 
@@ -116,11 +132,10 @@ export function formatBasePower(power: Snapshot["power"]): Stat {
  * and "0.30 kW used".
  */
 export function formatPower(power: Snapshot["power"]): Stat {
-  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
-    sumNetworks(power, pick);
+  const { made, used } = basePower(power);
   return {
-    value: `${kilowatts(total((network) => network.generationKilowatts))} made`,
-    note: `${kilowatts(total((network) => network.consumptionKilowatts))} used`,
+    value: `${kilowatts(made)} made`,
+    note: `${kilowatts(used)} used`,
   };
 }
 
@@ -255,12 +270,7 @@ export function summarisePower(
 ): string {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
-  const spare = signed(
-    total((network) => network.generationKilowatts) -
-      total((network) => network.consumptionKilowatts),
-    1,
-    "kW",
-  );
+  const spare = powerToSpare(power);
   const capacity = total((network) => network.storageCapacityKilowattHours);
   const parts = [spare];
   if (capacity > 0) {
@@ -1042,8 +1052,8 @@ export function designsToUnlock(
  * start, for the status panel, for example "1. Seismic monitoring, 2. Ice
  * volatiles assay", or that none is. With none queued, it also says when the
  * base's Science would unlock a Design, by name if there is one and how many
- * otherwise, for example "enough Science to unlock 3 Designs", as unspent
- * Science is easy to overlook.
+ * otherwise, for example "Science for 3 Designs", as unspent Science is easy
+ * to overlook.
  */
 export function formatResearchQueue(
   queue: readonly string[],
@@ -1060,7 +1070,7 @@ export function formatResearchQueue(
   if (only === undefined) return { value: "none" };
   return {
     value: "none",
-    note: `enough Science to unlock ${toUnlock.length === 1 ? only.label : `${toUnlock.length} Designs`}`,
+    note: `Science for ${toUnlock.length === 1 ? only.label : `${toUnlock.length} Designs`}`,
   };
 }
 
