@@ -97,9 +97,9 @@ function createEntry(
 }
 
 /**
- * The Base panel, beside the Work panel: the base's Structures, with what
- * state each is in and its Condition, and its Robots, Machines and Rovers,
- * with what each is doing. It sends a choice to dismantle a Structure, to
+ * The Base panel, beside the Work panel: the base's Robots, Machines and
+ * Rovers, with what each is doing and its Condition, and below them its
+ * Structures, with what state each is in. It sends a choice to dismantle a Structure, to
  * choose a Plant's recipe, to switch a Plant off or on, or to move the
  * Mission Director into a Habitat to the Campaign, which decides whether
  * it is allowed and says why not.
@@ -195,7 +195,9 @@ export function createBasePanel(
     return entry;
   };
 
-  panel.append(structuresSection.element, fleetSection.element);
+  // The short list first: it changes little, while the Structures grow all
+  // through a Campaign and scroll.
+  panel.append(fleetSection.element, structuresSection.element);
   container.append(panel);
 
   return {

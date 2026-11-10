@@ -230,7 +230,7 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   await expect(first).toContainText("to be dismantled");
 });
 
-test("the Structures section shows when a Structure is Broken or low on Condition, folded or not, and Robots & Machines when a Machine or the Rover is, but not for a worn Robot", async ({
+test("Robots & Machines comes above Structures, which shows when a Structure is Broken or low on Condition, folded or not, as Robots & Machines does when a Machine or the Rover is, but not for a worn Robot", async ({
   page,
 }) => {
   // A Broken solar array and a worn extraction plant, with Lights to show
@@ -238,6 +238,12 @@ test("the Structures section shows when a Structure is Broken or low on Conditio
   await loadBrokenArrayBase(page, { more: true });
   const structures = sectionOf(page, "Structures");
   const fleet = sectionOf(page, "Robots & Machines");
+  // The short list first, so that it shows however many Structures follow.
+  await expect(
+    page
+      .getByRole("complementary", { name: "Base" })
+      .locator(":scope > details > summary"),
+  ).toHaveText([/^Robots & Machines\s*\d+$/, /^Structures\s*\d+$/]);
   await expect(markOf(structures)).toBeVisible();
   await expect(markOf(groupOf(page, "Lights"))).toBeHidden();
   await expect(markOf(fleet)).toBeHidden();
