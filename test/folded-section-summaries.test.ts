@@ -50,13 +50,13 @@ describe("a folded Power section", () => {
           }),
         ],
       }),
-    ).toBe("+11.20 kW · 76%");
+    ).toBe("+11.2 kW · 76%");
   });
 
   it("shows power falling short, without battery banks to fill", () => {
     expect(
       summarisePower({ networks: [network({ consumptionKilowatts: 0.3 })] }),
-    ).toBe("−0.30 kW");
+    ).toBe("−0.3 kW");
   });
 });
 

@@ -21,7 +21,7 @@ async function loadBase(page: Page): Promise<void> {
     mimeType: "application/json",
     buffer: Buffer.from(scenario.save()),
   });
-  await expect(missionDirector(page)).toHaveText(
+  await expect(missionDirector(page)).toContainText(
     "Living in the Inflatable Habitat",
   );
 }
@@ -128,7 +128,7 @@ test("the Mission Director moves from behind a water wall into a Buried Habitat:
 
   await buried.getByRole("button", { name: "Move here" }).click();
 
-  await expect(missionDirector(page)).toHaveText(
+  await expect(missionDirector(page)).toContainText(
     "Living in the Buried Habitat",
   );
   await expect(radiation(page)).toContainText("568.0 / 600 mSv");
@@ -197,7 +197,7 @@ test("the Mission Director can move into a bare Habitat, where the pop-up, the s
 
   await bare.getByRole("button", { name: "Move here" }).click();
 
-  await expect(missionDirector(page)).toHaveText(
+  await expect(missionDirector(page)).toContainText(
     "Living in the Inflatable Habitat",
   );
   await expect(radiation(page)).toContainText(/\+30\.0 a day, limit in 1d 2h/);

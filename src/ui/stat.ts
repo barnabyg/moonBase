@@ -8,6 +8,11 @@ import { holdHeight } from "./hold";
 export interface Stat {
   readonly value: string;
   readonly note?: string;
+  /**
+   * The reason behind the figures, where they need one, kept off the line
+   * and shown on hovering over it.
+   */
+  readonly explanation?: string;
 }
 
 export interface StatLine {
@@ -59,6 +64,8 @@ export function createStatLine(label: string, name = label): StatLine {
       // Left empty without a note, so that the line reads as a whole.
       setText(separator, stat.note === undefined ? "" : " · ");
       setText(note, stat.note ?? "");
+      const explanation = stat.explanation ?? "";
+      if (element.title !== explanation) element.title = explanation;
     },
     fill(fraction) {
       meter.fill(fraction);

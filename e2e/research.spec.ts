@@ -102,7 +102,8 @@ test("three Research Tasks queue behind the one running, start in order by thems
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
-  await expect(panelQueue).toHaveText("Queued none");
+  // With nothing queued yet, there is no line for the queue.
+  await expect(panelQueue).toBeHidden();
 
   await page.getByRole("button", { name: "Research Tasks" }).click();
   const screen = page.getByRole("dialog", { name: "Research Tasks" });
@@ -164,7 +165,8 @@ test("three Research Tasks queue behind the one running, start in order by thems
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: "Pause" })
     .click();
-  await expect(panelQueue).toHaveText("Queued none");
+  // With nothing queued yet, there is no line for the queue.
+  await expect(panelQueue).toBeHidden();
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await (await chooser).setFiles(saved);

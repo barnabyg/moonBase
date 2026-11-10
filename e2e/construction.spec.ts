@@ -38,7 +38,7 @@ test("the Robot carries out the Construction of a solar array placed on the map,
   ]);
   await expect(
     page.getByRole("status", { name: "Power", exact: true }),
-  ).toHaveText(/^Power [1-9]\d*\.\d\d kW made · \d+\.\d\d kW used$/);
+  ).toHaveText(/^Power [1-9]\d*\.\d kW made · \d+\.\d kW used$/);
   await expect(page.getByRole("status", { name: "Stored power" })).toHaveText(
     "Stored no battery banks",
   );

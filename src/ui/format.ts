@@ -93,6 +93,9 @@ export function formatDuration(minutes: number): string {
 
 /** Formats power and energy, for example "0.30 kW" and "42.0 kWh". */
 export const kilowatts = (value: number): string => `${value.toFixed(2)} kW`;
+/** Formats power to one decimal place, where that is enough, for example "36.5 kW". */
+export const kilowattsRounded = (value: number): string =>
+  `${value.toFixed(1)} kW`;
 const kilowattHours = (value: number): string => `${value.toFixed(1)} kWh`;
 
 /** Says how much energy is stored out of how much there is room for, for example "42.0 / 60.0 kWh". */

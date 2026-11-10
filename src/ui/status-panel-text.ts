@@ -48,13 +48,14 @@ import {
   formatScience,
   formatShortDuration,
   kilowatts,
+  kilowattsRounded,
   listInWords,
   millisieverts,
   plural,
   signed,
 } from "./format";
 import {
-  formatComponents,
+  componentsInWords,
   inSentence,
   formatExportLines,
   machineLabel,
@@ -88,7 +89,27 @@ function sumNetworks(
   return power.networks.reduce((sum, network) => sum + pick(network), 0);
 }
 
-/** Sums the base's power networks, for example "10.00 kW made" and "0.30 kW used". */
+/**
+ * Says how much power the base makes and uses across its networks, to one
+ * decimal place, which is enough to steer by, for example "10.0 kW made, 0.3
+ * kW used".
+ */
+export function formatBasePower(power: Snapshot["power"]): Stat {
+  const total = (pick: (network: PowerNetworkSnapshot) => number) =>
+    sumNetworks(power, pick);
+  const made = total((network) => network.generationKilowatts);
+  const used = total((network) => network.consumptionKilowatts);
+  return {
+    value: `${kilowattsRounded(made)} made`,
+    note: `${kilowattsRounded(used)} used`,
+  };
+}
+
+/**
+ * Sums power networks to the hundredth of a kilowatt, for a Structure's
+ * pop-up, where one network's small loads show, for example "10.00 kW made"
+ * and "0.30 kW used".
+ */
 export function formatPower(power: Snapshot["power"]): Stat {
   const total = (pick: (network: PowerNetworkSnapshot) => number) =>
     sumNetworks(power, pick);
@@ -209,9 +230,9 @@ export function formatHabitatNetworkPower(
 /**
  * Sums up the base's power for its folded section: the power to spare
  * across its networks, and how full its battery banks are if it has any,
- * for example "+9.70 kW · 78%". With the Habitat's network apart from some
+ * for example "+9.7 kW · 78%". With the Habitat's network apart from some
  * of the base's power (see `habitatNetworkApart`), it also says how full
- * the Habitat's own battery banks are, for example "+9.70 kW · 78% ·
+ * the Habitat's own battery banks are, for example "+9.7 kW · 78% ·
  * Habitat 58%".
  */
 export function summarisePower(
@@ -223,7 +244,7 @@ export function summarisePower(
   const spare = signed(
     total((network) => network.generationKilowatts) -
       total((network) => network.consumptionKilowatts),
-    2,
+    1,
     "kW",
   );
   const capacity = total((network) => network.storageCapacityKilowattHours);
@@ -243,37 +264,33 @@ export function summarisePower(
   return parts.join(" · ");
 }
 
-/** Says where the Mission Director lives, for example "aboard the Lander". */
-export function formatMissionDirector(
-  missionDirector: MissionDirectorResidence,
-  structures: Snapshot["structures"],
-): string {
-  if (missionDirector.residence === "lander") return "aboard the Lander";
-  const { habitatId } = missionDirector;
-  const habitat = structures.find((structure) => structure.id === habitatId);
-  return `in the ${structureLabel(habitat?.structureTypeId ?? "habitat")}`;
-}
-
 /**
- * Says whether the Habitat the Mission Director lives in has power and when
- * it will lose it, for example "on" and "fails in 1d 16h", or undefined
- * while they live aboard the Lander.
+ * Says where the Mission Director lives and, in a Habitat, whether it has
+ * power and when it will lose it, on one line, for example "in the Buried
+ * Habitat" and "powered", "power fails in 1d 16h" or "power failed". Aboard
+ * the Lander, which needs none from the base, it is just "aboard the Lander".
  */
-export function formatHabitatPower(
+export function formatResidence(
   missionDirector: MissionDirectorResidence,
-  structures: Snapshot["structures"],
-  forecast: HabitatPowerForecast | undefined,
-): Stat | undefined {
-  if (missionDirector.residence !== "habitat") return undefined;
+  structures: readonly Pick<
+    StructureSnapshot,
+    "id" | "structureTypeId" | "powered"
+  >[],
+  forecast: Pick<HabitatPowerForecast, "minutesUntilPowerLost"> | undefined,
+): Stat {
+  if (missionDirector.residence === "lander") {
+    return { value: "aboard the Lander" };
+  }
   const { habitatId } = missionDirector;
   const habitat = structures.find((structure) => structure.id === habitatId);
-  if (habitat?.powered !== true) return { value: "failed" };
+  const value = `in the ${structureLabel(habitat?.structureTypeId ?? "habitat")}`;
+  if (habitat?.powered !== true) return { value, note: "power failed" };
   return {
-    value: "on",
+    value,
     note:
       forecast?.minutesUntilPowerLost === undefined
-        ? "doesn't fail"
-        : `fails in ${formatShortDuration(forecast.minutesUntilPowerLost)}`,
+        ? "powered"
+        : `power fails in ${formatShortDuration(forecast.minutesUntilPowerLost)}`,
   };
 }
 
@@ -281,7 +298,8 @@ export function formatHabitatPower(
  * Says what state the Lander is in, any Exports aboard and, while it is
  * away, when it next arrives or leaves, for example "landed on the landing
  * pad with 40 kg of wafers aboard" and "free to fly", or "travelling to
- * Earth with 40 kg of wafers" and "arrives in 2d 23h".
+ * Earth with 40 kg of wafers" and "arrives in 2d 23h". On its way back it
+ * says when it lands, not where, which the map shows.
  */
 export function formatLander(
   lander: LanderSnapshot,
@@ -318,11 +336,9 @@ export function formatLander(
         lander.state === "travelling-to-earth" && exportsAboard.length > 0
           ? ` with ${formatExportLines(exportsAboard)}`
           : "";
-      // Where it lands matters only on the way back to the Moon.
-      const where = lander.state === "travelling-to-moon" ? onPad : "";
       return {
         value: `${words.doing}${carrying}`,
-        note: `${words.next}${where} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
+        note: `${words.next} in ${formatShortDuration(minutesUntil(lander.legEndsAtMinute, elapsedMinutes))}`,
       };
     }
   }
@@ -388,7 +404,8 @@ export function summariseTravel(
  * for example "24.2 kg" and "lasts 28d 19h", or how fast it is rising while
  * the base's Plants make more than is used, for example "rising 2.8 kg a
  * day", and when it will run out even so, if the Plants standing idle at
- * Night leave it too little to last the Night. The amount is shown against what
+ * Night leave it too little to last the Night, with the reason kept for
+ * hovering over the line. The amount is shown against what
  * the base can hold, for example "399.5 of 400 kg", and while the Plants are
  * holding it there the line says so, whatever else it might have said.
  */
@@ -408,7 +425,9 @@ export function formatLifeSupport(
       ? { value, note: rising }
       : {
           value,
-          note: `${rising}, but lasts only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
+          note: `${rising}, lasts ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+          explanation:
+            "It is rising now, but lasts only that long: the Plants that make it may stand idle at Night.",
         };
   }
   if (stock.kilograms === 0) return { value, note: "ran out" };
@@ -523,7 +542,7 @@ function summariseLifeSupport(
  * at the current rate of wear, for example "6 in stock" and "last 9d 4h", or,
  * while the base's Plants make more than is used, how fast they are rising,
  * and when they will run out even so, if the Plants standing idle at Night
- * leave too few to last it.
+ * leave too few to last it, with the reason kept for hovering over the line.
  */
 export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const pending =
@@ -534,15 +553,20 @@ export function formatSpareComponents(forecast: SpareComponentsForecast): Stat {
   const net = forecast.madePerEarthDay - forecast.perEarthDay;
   if (net > 0) {
     const rising = `rising ${net.toFixed(1)} a day`;
-    return {
-      value,
-      note:
-        forecast.minutesUntilEmpty === undefined
-          ? rising
-          : forecast.minutesUntilEmpty === 0
-            ? `${rising}, but too few for the wear until a batch finishes`
-            : `${rising}, but last only ${formatShortDuration(forecast.minutesUntilEmpty)}: Plants may stand idle at Night`,
-    };
+    if (forecast.minutesUntilEmpty === undefined) {
+      return { value, note: rising };
+    }
+    return forecast.minutesUntilEmpty === 0
+      ? {
+          value,
+          note: `${rising}, but too few for the wear until a batch finishes`,
+        }
+      : {
+          value,
+          note: `${rising}, last ${formatShortDuration(forecast.minutesUntilEmpty)}`,
+          explanation:
+            "They are rising now, but last only that long: the Plants that make them may stand idle at Night.",
+        };
   }
   if (forecast.minutesUntilEmpty === undefined) {
     return {
@@ -658,12 +682,20 @@ export function formatSolarParticleEvent(
 }
 
 /**
- * Lists the Components in the base's stock, for example "2 solar panels and
- * 4 mast poles".
+ * Lists the Components in the base's stock, each with how many there are and
+ * its name in the plural where there are several, for example 2 "solar
+ * panels" and 1 "array mast", in catalogue order, leaving out those there are
+ * none of.
  */
-export function formatStock(stockpile: Snapshot["stockpile"]): string {
-  const held = stockpile.components.filter((stock) => stock.count > 0);
-  return held.length === 0 ? "no Components" : formatComponents(held);
+export function listStock(
+  stockpile: Snapshot["stockpile"],
+): { readonly count: number; readonly name: string }[] {
+  return stockpile.components
+    .filter((stock) => stock.count > 0)
+    .map(({ componentId, count }) => ({
+      count,
+      name: componentsInWords(componentId, count),
+    }));
 }
 
 /**

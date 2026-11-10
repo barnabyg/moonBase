@@ -77,13 +77,21 @@ export function componentInSentence(componentId: string): string {
   return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
 
+/**
+ * Names so many of a Component the way a sentence would, in the plural unless
+ * there is one, for example "solar panels" or "array mast".
+ */
+export function componentsInWords(componentId: string, count: number): string {
+  return `${componentLabel(componentId).toLowerCase()}${count === 1 ? "" : "s"}`;
+}
+
 /** Lists Components the way a sentence would, for example "2 solar panels and 1 array mast". */
 export function formatComponents(counts: readonly ComponentCount[]): string {
   return listInWords(
-    counts.map(({ componentId, count }) => {
-      const label = componentLabel(componentId).toLowerCase();
-      return `${count} ${label}${count === 1 ? "" : "s"}`;
-    }),
+    counts.map(
+      ({ componentId, count }) =>
+        `${count} ${componentsInWords(componentId, count)}`,
+    ),
   );
 }
 

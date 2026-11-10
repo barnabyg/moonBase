@@ -1393,7 +1393,7 @@ export const tryScenarios: readonly TryScenario[] = [
     title:
       "The starting base with the Mission Director moved in, but with the Habitat and one battery bank on a network of their own, apart from the solar array and the other battery banks",
     steps: [
-      'Pause the game. Look at the status panel\'s Power: Stored says about "337 / 600 kWh" for the whole base, and the Habitat line below it says how little of that the Habitat can draw on, about "112 / 200 kWh", and "own network, lasts 3d 17h". The Mission Director\'s Habitat power says it "fails in" the same time.',
+      'Pause the game. Look at the status panel\'s Power: Stored says about "337 / 600 kWh" for the whole base, and the Habitat line below it says how little of that the Habitat can draw on, about "112 / 200 kWh", and "own network, lasts 3d 17h". The Mission Director\'s Living line says the Habitat\'s "power fails in" the same time.',
       'Click the Power title to fold it: beside the title it says the power to spare, how full the base\'s battery banks are, and "Habitat 56%".',
       "Open it again and set the game to 20x: the Habitat line falls while the base's solar array keeps the other battery banks full, and the warnings that Habitat power will fail come as it runs down.",
     ],

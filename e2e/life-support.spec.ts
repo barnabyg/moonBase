@@ -29,7 +29,8 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await speeds.getByRole("button", { name: "Pause" }).click();
   const oxygen = panel.getByRole("status", { name: "Oxygen", exact: true });
   const water = panel.getByRole("status", { name: "Water", exact: true });
-  const habitatPower = panel.getByRole("status", { name: "Habitat power" });
+  // The Living line, which says whether the Habitat has power.
+  const living = panel.getByRole("status", { name: "Mission Director" });
   const radiationDose = panel.getByRole("status", { name: "Radiation Dose" });
   await expect(oxygen).toHaveText(
     "Oxygen 25.0 of 100 kg · safe aboard the Lander",
@@ -37,7 +38,7 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(water).toHaveText(
     "Water 108.0 of 400 kg · safe aboard the Lander",
   );
-  await expect(habitatPower).toBeHidden();
+  await expect(living).toHaveText("Living aboard the Lander");
   await expect(radiationDose).toHaveText(
     "Radiation 0.0 / 600 mSv · none aboard the Lander",
   );
@@ -70,7 +71,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await structuresList(page).getByRole("button", { name: "Move in" }).click();
   await expect(oxygen).toHaveText(/^Oxygen 2\d\.\d of 100 kg · lasts 2[89]d/);
   await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · lasts (29|30)d/);
-  await expect(habitatPower).toHaveText(/^Habitat power on · fails in \d+d/);
+  await expect(living).toHaveText(
+    /^Living in the Inflatable Habitat · power fails in \d+d/,
+  );
   await expect(radiationDose).toHaveText(
     /^Radiation \d+\.\d \/ 600 mSv · \+30\.0 a day, limit in (19|20)d/,
   );
@@ -95,7 +98,9 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(gameOver).toContainText(
     /Habitat power failed on Earth Day \d+, \d{2}:\d{2}, and the Mission Director died at once\./,
   );
-  await expect(habitatPower).toHaveText("Habitat power failed");
+  await expect(living).toHaveText(
+    "Living in the Inflatable Habitat · power failed",
+  );
   const diedAt = await clock.textContent();
   await page.waitForTimeout(1_000);
   await expect(clock).toHaveText(diedAt ?? "");
@@ -110,5 +115,5 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(oxygen).toHaveText(
     "Oxygen 25.0 of 100 kg · safe aboard the Lander",
   );
-  await expect(habitatPower).toBeHidden();
+  await expect(living).toHaveText("Living aboard the Lander");
 });

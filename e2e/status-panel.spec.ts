@@ -94,8 +94,11 @@ test("with the Habitat on a network of its own, the Power section says what the 
   const lasts = /lasts (\d+d \d+h)$/.exec(
     (await habitatNetwork.textContent()) ?? "",
   )?.[1];
-  await expect(panel.getByRole("status", { name: "Habitat power" })).toHaveText(
-    `Habitat power on · fails in ${lasts ?? ""}`,
+  // The Living line says when the Habitat's power fails.
+  await expect(
+    panel.getByRole("status", { name: "Mission Director" }),
+  ).toHaveText(
+    `Living in the Inflatable Habitat · power fails in ${lasts ?? ""}`,
   );
 
   await panel
@@ -103,6 +106,6 @@ test("with the Habitat on a network of its own, the Power section says what the 
     .getByText("Power", { exact: true })
     .click();
   await expect(panel.getByRole("status", { name: "Power summary" })).toHaveText(
-    /^[+−]\d+\.\d\d kW · \d+% · Habitat \d+%$/,
+    /^[+−]\d+\.\d kW · \d+% · Habitat \d+%$/,
   );
 });

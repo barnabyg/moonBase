@@ -15,28 +15,27 @@ import {
   formatAct,
   formatBulkResources,
   formatHabitatNetworkPower,
-  formatHabitatPower,
   formatLander,
   formatLifeSupport,
   formatMilestoneMeasure,
   formatMilestonePlace,
-  formatMissionDirector,
   formatNextMilestone,
   formatInfraredSurvey,
   formatRadioSurvey,
   formatObservingProgramme,
-  formatPower,
+  formatBasePower,
   formatRadiationDose,
+  formatResidence,
   formatResearchQueue,
   formatResearchTask,
   formatSelfSufficiency,
   formatSolarParticleEvent,
   formatSpareComponents,
-  formatStock,
   formatStoredPower,
   summariseMilestones,
   summariseMissionDirector,
   habitatNetworkApart,
+  listStock,
   summarisePower,
   summariseResearch,
   summariseBulkResources,
@@ -70,7 +69,10 @@ function createMilestoneText(className: string, name: string): HTMLElement {
 
 export interface StatusPanel {
   update(snapshot: Snapshot, forecasts: Forecasts): void;
-  /** Forgets which bulk resources have shown, for a Campaign loaded in place of the last. */
+  /**
+   * Forgets which bulk resources have shown, and that an Expedition or a
+   * queue has, for a Campaign loaded in place of the last.
+   */
   startAfresh(): void;
 }
 
@@ -124,8 +126,8 @@ export function createStatusPanel(
     "mission-director",
     "Mission Director",
   );
+  // Where they live and, in a Habitat, whether it has power.
   const residence = createStatLine("Living", "Mission Director");
-  const habitatPower = createStatLine("Habitat power");
   // How much oxygen and water is left, and when it will run out.
   const stocks = catalogue.lifeSupportStocks.map((type) => ({
     type,
@@ -143,40 +145,32 @@ export function createStatusPanel(
   selfSufficiencyLine.dataset["row"] = "Self-sufficient";
   holdHeight(selfSufficiencyLine);
   const selfSufficiency = catalogue.lifeSupportStocks.map((type) => {
-    const chip = document.createElement("span");
-    chip.className = "stat-chip";
-    chip.setAttribute("role", "status");
     // Not starting with the stock's name, which labels its own line.
-    chip.setAttribute(
-      "aria-label",
+    const chip = createSufficiencyChip(
+      stockLabel(type.id),
       `Self-sufficiency in ${type.label.toLowerCase()}`,
     );
-    chip.setAttribute("aria-live", "off");
-    selfSufficiencyBody.append(chip, " ");
+    selfSufficiencyBody.append(chip.element, " ");
     return { type, chip };
   });
-  const spareSufficiencyChip = document.createElement("span");
-  spareSufficiencyChip.className = "stat-chip";
-  spareSufficiencyChip.setAttribute("role", "status");
-  spareSufficiencyChip.setAttribute(
-    "aria-label",
+  const spareSufficiencyChip = createSufficiencyChip(
+    "Spares",
     "Self-sufficiency in spare Components",
   );
-  spareSufficiencyChip.setAttribute("aria-live", "off");
   // Until the base has a Plant that makes them, there is nothing to judge.
-  spareSufficiencyChip.hidden = true;
-  selfSufficiencyBody.append(spareSufficiencyChip, " ");
+  spareSufficiencyChip.element.hidden = true;
+  selfSufficiencyBody.append(spareSufficiencyChip.element, " ");
   // How much radiation the Mission Director has absorbed, and how fast.
   const radiationDose = createStatLine("Radiation", "Radiation Dose");
   // A Solar Particle Event that is coming or under way, as a warning, or
   // that none is, so that the lines below stay where they are as one comes
-  // and goes. Its name is too long to sit beside it.
+  // and goes. Its name is too long for the label column, so what it says
+  // follows it on the same line while that is short.
   const solarParticleEvent = createStatLine("Solar Particle Event");
   solarParticleEvent.element.classList.add("stat--wide");
   missionDirectorSection.body.append(
     solarParticleEvent.element,
     residence.element,
-    habitatPower.element,
     ...stocks.map(({ line }) => line.element),
     selfSufficiencyLine,
     radiationDose.element,
@@ -201,7 +195,17 @@ export function createStatusPanel(
   // The base's stock: Components at the stockpile, and spare Components and
   // how long they will last.
   const stockSection = createPanelSection("stock", "Stock");
-  const components = createStatLine("Components", "Base's stock");
+  // Two to a row, each with how many there are, which reads faster than
+  // a sentence of them.
+  const components = document.createElement("div");
+  components.className = "components";
+  components.setAttribute("role", "status");
+  components.setAttribute("aria-label", "Base's stock");
+  components.setAttribute("aria-live", "off");
+  components.dataset["row"] = "Base's stock";
+  holdHeight(components);
+  /** What the list shows, to change it only when the stock does. */
+  let componentsShown: string | undefined;
   const spareComponents = createStatLine("Spares", "Spare Components");
 
   // The bulk resources the base has had, such as Regolith, a line each. One
@@ -221,7 +225,7 @@ export function createStatusPanel(
     string,
     { cell: HTMLElement; amount: HTMLElement; note: HTMLElement }
   >();
-  stockSection.body.append(components.element, spareComponents.element);
+  stockSection.body.append(components, spareComponents.element);
   bulkSection.body.append(bulkResources);
 
   // The Lander and any Expedition under way, each beside the button that
@@ -237,7 +241,10 @@ export function createStatusPanel(
   sendLander.addEventListener("click", () => {
     showResult(campaign.sendLander());
   });
+  // No line until the first Expedition is under way; from then on it
+  // stays, so that the lines below move only that once.
   const expedition = createStatLine("Expedition");
+  expedition.element.hidden = true;
   const expeditions = document.createElement("button");
   expeditions.type = "button";
   expeditions.className = "panel-button";
@@ -256,7 +263,10 @@ export function createStatusPanel(
   // Night, so that the player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
   const researchTask = createStatLine("Task", "Research Task");
+  // No line until something is first queued; from then on it stays, as
+  // the Expedition's does.
   const researchQueue = createStatLine("Queued", "Research queue");
+  researchQueue.element.hidden = true;
   const observing = createStatLine("Observing", "Observing programme");
   const infrared = createStatLine("Infrared", "Infrared survey");
   const radio = createStatLine("Radio", "Radio survey");
@@ -309,21 +319,17 @@ export function createStatusPanel(
       if (next !== undefined) nextMilestone.show({ value: next });
 
       const { missionDirector } = snapshot;
-      residence.show({
-        value: formatMissionDirector(missionDirector, snapshot.structures),
-      });
-
-      const habitatPowerStat = formatHabitatPower(
-        missionDirector,
-        snapshot.structures,
-        forecasts.habitatPower,
+      residence.show(
+        formatResidence(
+          missionDirector,
+          snapshot.structures,
+          forecasts.habitatPower,
+        ),
       );
-      habitatPower.element.hidden = habitatPowerStat === undefined;
-      if (habitatPowerStat !== undefined) habitatPower.show(habitatPowerStat);
       // Shown as a warning from the first warning on, and once it has failed.
       const powerWarnFrom =
         Math.max(...catalogue.habitatPowerWarningHoursLeft) * 60;
-      habitatPower.warn(
+      residence.warn(
         homeHabitat(snapshot)?.powered === false ||
           (forecasts.habitatPower?.minutesUntilPowerLost ?? Infinity) <=
             powerWarnFrom,
@@ -362,43 +368,25 @@ export function createStatusPanel(
         const judged = snapshot.selfSufficiency.find(
           (candidate) => candidate.stockId === type.id,
         );
-        chip.hidden = judged === undefined;
+        chip.element.hidden = judged === undefined;
         if (judged === undefined) continue;
-        const { value, share, explanation } = formatSelfSufficiency(
-          judged,
-          missionDirector,
-        );
-        setText(
-          chip,
-          `${stockLabel(type.id)} ${value}${share === undefined ? "" : ` ${share}`}`,
-        );
-        if (chip.title !== explanation) chip.title = explanation;
-        chip.classList.toggle("stat-chip--good", value === "yes");
+        chip.show(formatSelfSufficiency(judged, missionDirector));
       }
       // Once it has shown, it stays, so that nothing beside it moves.
       if (
-        !spareSufficiencyChip.hidden ||
+        !spareSufficiencyChip.element.hidden ||
         snapshot.structures.some(makesSpareComponents)
       ) {
-        spareSufficiencyChip.hidden = false;
-        const { value, share, explanation } = formatSelfSufficiency(
-          snapshot.spareComponentSufficiency,
-          missionDirector,
-        );
-        setText(
-          spareSufficiencyChip,
-          `Spares ${value}${share === undefined ? "" : ` ${share}`}`,
-        );
-        if (spareSufficiencyChip.title !== explanation) {
-          spareSufficiencyChip.title = explanation;
-        }
-        spareSufficiencyChip.classList.toggle(
-          "stat-chip--good",
-          value === "yes",
+        spareSufficiencyChip.element.hidden = false;
+        spareSufficiencyChip.show(
+          formatSelfSufficiency(
+            snapshot.spareComponentSufficiency,
+            missionDirector,
+          ),
         );
       }
       selfSufficiencyLine.hidden = selfSufficiency.every(
-        ({ chip }) => chip.hidden,
+        ({ chip }) => chip.element.hidden,
       );
 
       radiationDose.show(
@@ -431,7 +419,7 @@ export function createStatusPanel(
 
       // Nothing generates or stores power until the first Structure stands.
       powerSection.element.hidden = snapshot.structures.length === 0;
-      power.show(formatPower(snapshot.power));
+      power.show(formatBasePower(snapshot.power));
       const stored = formatStoredPower(snapshot.power, forecasts.power);
       storedPower.show(stored);
       storedPower.fill(stored.fraction);
@@ -450,7 +438,25 @@ export function createStatusPanel(
         habitatNetworkPower.fill(habitatStored.fraction);
       }
 
-      components.show({ value: formatStock(snapshot.stockpile) });
+      const held = listStock(snapshot.stockpile);
+      const holding = held.map(({ count, name }) => `${count} ${name}`).join();
+      if (holding !== componentsShown) {
+        componentsShown = holding;
+        components.replaceChildren(
+          ...(held.length === 0
+            ? ["no Components"]
+            : held.flatMap(({ count, name }, index) => {
+                const item = document.createElement("span");
+                item.className = "components__item";
+                const number = document.createElement("span");
+                number.className = "components__count";
+                number.textContent = String(count);
+                item.append(number, " ", name);
+                // A space between them, for what reads the list as text.
+                return index === 0 ? [item] : [" ", item];
+              })),
+        );
+      }
       // The line before each, so that a new one goes in its place in the list.
       let above: HTMLElement | undefined;
       for (const resource of formatBulkResources(
@@ -509,6 +515,7 @@ export function createStatusPanel(
         ),
       );
       sendLander.hidden = snapshot.lander.legEndsAtMinute !== undefined;
+      if (snapshot.expedition !== undefined) expedition.element.hidden = false;
       expedition.show({
         value: describeExpedition(
           snapshot.expedition,
@@ -518,18 +525,18 @@ export function createStatusPanel(
 
       researchTask.show(formatResearchTask(snapshot.researchTask));
       researchTask.fill(snapshot.researchTask?.progress);
+      if (snapshot.researchQueue.length > 0) {
+        researchQueue.element.hidden = false;
+      }
       researchQueue.show(formatResearchQueue(snapshot.researchQueue));
       const programme = formatObservingProgramme(snapshot.observingProgramme);
       observing.element.hidden = programme === undefined;
       if (programme !== undefined) {
-        observing.show(programme);
+        observing.show({
+          ...programme,
+          explanation: explainObservingProgramme(snapshot.observingProgramme),
+        });
         observing.fill(snapshot.observingProgramme.progress);
-        const explanation = explainObservingProgramme(
-          snapshot.observingProgramme,
-        );
-        if (observing.element.title !== explanation) {
-          observing.element.title = explanation;
-        }
       }
       const survey = formatInfraredSurvey(snapshot.infraredTelescopes);
       infrared.element.hidden = survey === undefined;
@@ -581,6 +588,44 @@ export function createStatusPanel(
     startAfresh() {
       bulkResources.replaceChildren(noneInStock);
       resourceCells.clear();
+      expedition.element.hidden = true;
+      researchQueue.element.hidden = true;
+    },
+  };
+}
+
+/**
+ * One of the Self-sufficient line's chips: what it judges, the verdict and
+ * the share made at the base, for example "Oxygen no 62%", with the whole
+ * story on hovering over it. A "yes" is left for a screen reader alone, as
+ * the chip's colour and its share already say it.
+ */
+function createSufficiencyChip(
+  name: string,
+  ariaLabel: string,
+): {
+  readonly element: HTMLElement;
+  show(judged: ReturnType<typeof formatSelfSufficiency>): void;
+} {
+  const element = document.createElement("span");
+  element.className = "stat-chip";
+  element.setAttribute("role", "status");
+  element.setAttribute("aria-label", ariaLabel);
+  element.setAttribute("aria-live", "off");
+  const verdict = document.createElement("span");
+  const share = document.createElement("span");
+  element.append(name, " ", verdict, " ", share);
+  return {
+    element,
+    show(judged) {
+      const good = judged.value === "yes";
+      setText(verdict, judged.value);
+      verdict.classList.toggle("visually-hidden", good);
+      setText(share, judged.share ?? "");
+      if (element.title !== judged.explanation) {
+        element.title = judged.explanation;
+      }
+      element.classList.toggle("stat-chip--good", good);
     },
   };
 }
