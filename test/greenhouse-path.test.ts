@@ -160,7 +160,7 @@ describe("from unlocking Lunar greenhouses to earning Science and losing a round
       false,
     );
     expect(entry.value).toMatch(/^growing, .* left of this round$/);
-    expect(entry.note).toContain(
+    expect(entry.more).toBe(
       `using 1 kg of water an hour, for ${growing.science} Science a round`,
     );
     const details = structureDetails(wet.state, id);

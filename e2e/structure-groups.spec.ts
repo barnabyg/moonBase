@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { structuresList } from "./base-panel";
+import { dismantle, structuresList } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 /** A Robot, Machine or Rover in a save, as far as these tests edit it. */
@@ -226,7 +226,7 @@ test("the Base panel lists Structures by what they are for, in a fixed order, wi
   await page.keyboard.press(" ");
   const first = power.getByRole("listitem").first();
   await expect(first).toBeVisible();
-  await first.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, first);
   await expect(first).toContainText("to be dismantled");
 });
 
@@ -298,7 +298,7 @@ test("building a Structure puts it in its place in its group, folded or not, or 
     await placeOnClearGround(page);
   }
   for (const entry of await industry.getByRole("listitem").all()) {
-    await entry.getByRole("button", { name: "Dismantle" }).click();
+    await dismantle(page, entry);
   }
 
   // The lights come between Power and Industry, open.
@@ -332,4 +332,47 @@ test("building a Structure puts it in its place in its group, folded or not, or 
     /^Industry\s*2$/,
   ]);
   await expect(entriesOf(power).first()).toBeHidden();
+});
+
+test("a commissioned Structure with nothing to report takes one line, and what its row leaves out can be reached from the keyboard", async ({
+  page,
+}) => {
+  await loadBrokenArrayBase(page, { more: true });
+  const base = page.getByRole("complementary", { name: "Base" });
+  const mast = groupOf(page, "Lights").getByRole("listitem").first();
+  const plant = groupOf(page, "Industry").getByRole("listitem").first();
+
+  // Its name and Condition, and nothing under them: no state, no buttons.
+  await expect(mast).toHaveText(/^Light mast\s+Condition\s+100%$/, {
+    useInnerText: true,
+  });
+  const name = await mast.getByRole("button").boundingBox();
+  const row = await mast.boundingBox();
+  if (name === null || row === null) throw new Error("The row isn't shown.");
+  expect(row.height).toBeLessThan(name.height * 2);
+  await expect(mast.getByRole("button")).toHaveCount(1);
+
+  // How things are repaired is on each Condition, not above the lists.
+  await expect(base).not.toContainText("Repairs are automatic");
+  await expect(
+    mast.getByTitle(/^Condition\. Repairs are automatic/),
+  ).toHaveText("Condition 100%");
+
+  // A Plant keeps what it is doing and its switch, but not Dismantle.
+  await expect(plant).toContainText("running");
+  await expect(plant.getByRole("button", { name: "Switch off" })).toBeVisible();
+  await expect(plant.getByRole("button", { name: "Dismantle" })).toHaveCount(0);
+
+  // From the keyboard, its name opens its pop-up, which has its recipe and
+  // Dismantle.
+  await plant.getByRole("button", { name: "Extraction plant" }).focus();
+  await page.keyboard.press("Enter");
+  const popUp = page.getByRole("dialog", { name: "Extraction plant" });
+  await expect(popUp.getByRole("status", { name: "Output" })).toContainText(
+    // Less than its recipe says, as it is low on Condition.
+    /^Output making .* an hour from 2\.4 kg of Regolith/,
+  );
+  await popUp.getByRole("button", { name: "Dismantle" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(plant).toContainText("to be dismantled");
 });

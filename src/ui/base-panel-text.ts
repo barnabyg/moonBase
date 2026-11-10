@@ -69,12 +69,14 @@ function plugState(driven: {
 /**
  * Says how something is repaired, which the Robot always does by itself:
  * Maintenance for a Structure, Machine or Rover, or a Robot's repair of
- * itself.
+ * itself. Each stands alone, as the tooltip of a Condition.
  */
 export function describeRepair(kind: "maintained" | "robot"): string {
+  const spares =
+    "using spare Components from the base's stock. Ship more on the Launch manifest, or make them in a Workshop.";
   return kind === "maintained"
-    ? `Repairs are automatic: the Robot repairs anything below ${catalogue.maintenance.thresholdPercent}% Condition, or Broken, using spare Components from the base's stock. Ship more on the Launch manifest, or make them in a Workshop.`
-    : `A Robot below ${catalogue.robot.selfRepairThresholdPercent}% repairs itself, using spare Components too.`;
+    ? `Repairs are automatic: the Robot repairs anything below ${catalogue.maintenance.thresholdPercent}% Condition, or Broken, ${spares}`
+    : `Repairs are automatic: a Robot below ${catalogue.robot.selfRepairThresholdPercent}% Condition repairs itself, ${spares}`;
 }
 
 /** Whether a Maintenance Work Order is waiting or under way, if there is one. */

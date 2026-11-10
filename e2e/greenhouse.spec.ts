@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -44,7 +44,8 @@ test("the Base panel and status panel say what a Greenhouse is doing, and it goe
 
   await expect(greenhouse).toContainText("growing");
   await expect(greenhouse).toContainText("left of this round");
-  await expect(greenhouse).toContainText(
+  await expect(doing(greenhouse)).toHaveAttribute(
+    "title",
     "using 1 kg of water an hour, for 20 Science a round",
   );
   await expect(waterLine(page)).toContainText("Greenhouse using 24 kg a day");

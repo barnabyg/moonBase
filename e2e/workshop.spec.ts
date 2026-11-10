@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios, type EditableSaveState } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 function workshopScenarioSave(): string {
@@ -76,7 +76,11 @@ test("the Base panel and the forecast say what a Workshop is making, and follow 
     .getByRole("status", { name: "Spare Components", exact: true });
 
   await expect(workshop).toContainText(
-    /Condition \d+% running, \d+[dh]( \d+h)? left of this batch · making 1 spare Component every 24 hours from 3\.6 kg of metals/,
+    /Condition \d+% running, \d+[dh]( \d+h)? left of this batch/,
+  );
+  await expect(doing(workshop)).toHaveAttribute(
+    "title",
+    "making 1 spare Component every 24 hours from 3.6 kg of metals",
   );
   await expect(spares).toHaveText(/^Spares \d+ in stock · rising 0\.\d a day$/);
 

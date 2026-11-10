@@ -18,3 +18,29 @@ export function structureEntries(page: Page): Locator {
 export function structureEntry(page: Page, label: string | RegExp): Locator {
   return structureEntries(page).filter({ hasText: label });
 }
+
+/**
+ * The line of a Base panel entry that says what it is doing, if it says
+ * anything. Its tooltip, the `title` attribute, says what a running Plant
+ * makes and uses.
+ */
+export function doing(entry: Locator): Locator {
+  return entry.locator(".entry__state");
+}
+
+/** The pop-up of the Structure it is open for. */
+export function structurePopUp(page: Page): Locator {
+  return page.locator('section[role="dialog"]:not([hidden])');
+}
+
+/**
+ * Has the Robot dismantle the Structure a Base panel entry lists, as a
+ * player does: its name opens its pop-up, which has Dismantle. The pop-up
+ * is closed again, as it may stand over what the test uses next.
+ */
+export async function dismantle(page: Page, entry: Locator): Promise<void> {
+  await entry.getByRole("button").first().click();
+  const popUp = structurePopUp(page);
+  await popUp.getByRole("button", { name: "Dismantle" }).click();
+  await popUp.getByRole("button", { name: "Close" }).click();
+}

@@ -15,7 +15,6 @@ import {
 import { formatCondition } from "./format";
 import { machineLabel, robotLabel, structureLabel } from "./labels";
 import type { MapFinder } from "./map-finder";
-import type { Stat } from "./stat";
 import { holdHeight } from "./hold";
 import { createPanelSection, type PanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
@@ -40,14 +39,36 @@ export interface BasePanel {
 /** One entry in a list of the base's Structures, Robots, Machines or Rovers. */
 interface Entry {
   readonly item: HTMLLIElement;
-  /** Shows what it is doing, or what state it is in, and its Condition. */
-  show(stat: Stat, conditionPercent: number): void;
+  /**
+   * Shows what it is doing, or what state it is in, if there is anything
+   * to say, and its Condition.
+   */
+  show(doing: EntryText, conditionPercent: number): void;
 }
 
 /**
+ * What an entry says under its name: a state and a note, either of which
+ * it may lack, and more for its tooltip.
+ */
+interface EntryText {
+  readonly value: string | undefined;
+  readonly note?: string;
+  readonly more?: string;
+}
+
+/** What the name of an entry does when chosen, for its tooltip. */
+const FINDS = {
+  structure: "Click to show it on the map, with what it is doing.",
+  robot: "Click to show it on the map.",
+  machine: "Click to show it on the map.",
+  rover: "Click to show it on the map.",
+};
+
+/**
  * An entry with a name, a bar and figure for its Condition, with a tooltip
- * saying how it is repaired, and a line below saying what it is doing,
- * with room for buttons after it. Its name is a button that finds it on
+ * saying how it is repaired, and, where there is anything to say or
+ * choose, a line below saying what it is doing, with room for buttons
+ * after it. Its name is a button that finds it on
  * the base map, where rows of the same name can be told apart, and
  * pointing at the entry, or moving the focus into it, marks it there.
  */
@@ -66,10 +87,7 @@ function createEntry(
   title.type = "button";
   title.className = "entry__name";
   title.textContent = name;
-  title.title =
-    subject.kind === "structure"
-      ? "Show it on the map, with what it is doing"
-      : "Show it on the map";
+  title.title = FINDS[subject.kind];
   title.addEventListener("click", () => {
     showResult(map.find(subject));
   });
@@ -98,18 +116,32 @@ function createEntry(
   state.className = "entry__state";
   const actions = document.createElement("span");
   actions.className = "entry__actions";
+  // Until it is given something to choose.
+  actions.hidden = true;
   item.append(head, " ", state, actions);
   // What it is doing can take more lines or fewer as it changes, such as a
   // Plant between Batches, so the entries below it hold still meanwhile.
   holdHeight(item);
+  /** What the tooltips last said more of. */
+  let more: string | undefined;
   return {
     item,
     actions,
-    show(stat, conditionPercent) {
-      setText(
-        state,
-        stat.note === undefined ? stat.value : `${stat.value} · ${stat.note}`,
-      );
+    show(doing, conditionPercent) {
+      const text = [doing.value, doing.note]
+        .filter((part) => part !== undefined)
+        .join(" · ");
+      setText(state, text);
+      // With nothing to say, it takes no room.
+      state.hidden = text === "";
+      if (doing.more !== more) {
+        more = doing.more;
+        state.title = more ?? "";
+        title.title =
+          more === undefined
+            ? FINDS[subject.kind]
+            : `${more.charAt(0).toUpperCase()}${more.slice(1)}. ${FINDS[subject.kind]}`;
+      }
       setText(percent, formatCondition(conditionPercent));
       meter.fill(conditionPercent / 100);
       item.classList.toggle("entry--broken", conditionPercent <= 0);
@@ -148,10 +180,7 @@ export function createBasePanel(
   structures.className = "structure-groups";
   structures.setAttribute("role", "group");
   structures.setAttribute("aria-label", "Structures");
-  structuresSection.body.append(
-    createRepairHint(describeRepair("maintained")),
-    structures,
-  );
+  structuresSection.body.append(structures);
   const groups = new Map<StructureListGroup, StructureGroup>();
   const groupFor = (id: StructureListGroup): StructureGroup => {
     let group = groups.get(id);
@@ -171,7 +200,10 @@ export function createBasePanel(
   };
   const structureEntries = new Map<
     string,
-    Entry & { readonly controls: StructureControls }
+    Entry & {
+      readonly actions: HTMLElement;
+      readonly controls: StructureControls;
+    }
   >();
   const createStructureEntry = (structure: StructureSnapshot) => {
     const entry = createEntry(
@@ -181,7 +213,10 @@ export function createBasePanel(
       map,
       showResult,
     );
-    const controls = createStructureControls(structure, campaign, showResult);
+    // Dismantle is in its pop-up, which its name opens.
+    const controls = createStructureControls(structure, campaign, showResult, {
+      withDismantle: false,
+    });
     entry.actions.append(...controls.elements);
     return { ...entry, controls };
   };
@@ -197,14 +232,7 @@ export function createBasePanel(
   const rovers = document.createElement("ul");
   rovers.className = "entries";
   rovers.setAttribute("aria-label", "Rovers");
-  fleetSection.body.append(
-    createRepairHint(
-      `${describeRepair("maintained")} ${describeRepair("robot")}`,
-    ),
-    robots,
-    machines,
-    rovers,
-  );
+  fleetSection.body.append(robots, machines, rovers);
   const robotEntries = new Map<string, Entry>();
   const machineEntries = new Map<string, Entry>();
   const roverEntries = new Map<string, Entry>();
@@ -252,6 +280,9 @@ export function createBasePanel(
           structure.conditionPercent,
         );
         entry.controls.update(snapshot, structure);
+        entry.actions.hidden = entry.controls.elements.every(
+          (control) => control.hidden,
+        );
         // A Habitat's shielding, water wall or vault cistern goes under it.
         const habitat = habitatUnder(snapshot, structure);
         const anchor = habitat ?? structure;
@@ -454,12 +485,4 @@ function createStructureGroup(id: StructureListGroup): StructureGroup {
   list.setAttribute("aria-label", label);
   section.body.append(list);
   return { id, section, list };
-}
-
-/** A line at the top of a section saying how what it lists is repaired. */
-function createRepairHint(text: string): HTMLElement {
-  const hint = document.createElement("p");
-  hint.className = "entries-hint";
-  hint.textContent = text;
-  return hint;
 }

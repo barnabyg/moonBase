@@ -25,14 +25,18 @@ export interface StructureControls {
  * The controls for a commissioned Structure, as the Base panel's entry
  * for it and its pop-up on the map both show them: a recipe list for a
  * Plant with more than one recipe, a switch for every Plant, "Move in"
- * for a Habitat while the Mission Director lives aboard the Lander, "Move
- * here" for any Habitat but the one they live in, and "Dismantle". Each sends the choice to the Campaign, which decides
- * whether it is allowed, and passes the result on to say why not.
+ * for a Habitat while the Mission Director lives aboard the Lander, and
+ * "Move here" for any Habitat but the one they live in. The pop-up has
+ * "Dismantle" too, which is rare and can't be undone once the Robot starts,
+ * so the Base panel's entry leaves it out. Each sends the choice to the
+ * Campaign, which decides whether it is allowed, and passes the result on to
+ * say why not.
  */
 export function createStructureControls(
   structure: Pick<StructureSnapshot, "id" | "structureTypeId" | "switchedOff">,
   campaign: StructureChoices,
   showResult: (result: ChoiceResult) => void,
+  { withDismantle }: { readonly withDismantle: boolean },
 ): StructureControls {
   const structureId = structure.id;
   // The recipes of a Plant that has more than one, to choose from.
@@ -105,7 +109,7 @@ export function createStructureControls(
       ...(recipe === undefined ? [] : [recipe]),
       ...(switcher === undefined ? [] : [switcher]),
       moveIn,
-      dismantle,
+      ...(withDismantle ? [dismantle] : []),
     ],
     update(snapshot, current) {
       const toBeDismantled = isToBeDismantled(snapshot, current.id);

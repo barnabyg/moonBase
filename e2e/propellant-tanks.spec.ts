@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { dismantle, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
 // The smallest screen the status panel is laid out for.
@@ -93,9 +93,7 @@ test("a dismantled Propellant plant lowers the limit and loses nothing, with no 
 }) => {
   await loadBase(page);
 
-  await structureEntry(page, "Propellant plant")
-    .getByRole("button", { name: "Dismantle" })
-    .click();
+  await dismantle(page, structureEntry(page, "Propellant plant"));
   await speed(page, "20x");
 
   await expect(propellantRow(page)).toContainText("of 600 kg");

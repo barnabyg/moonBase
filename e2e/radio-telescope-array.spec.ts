@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loadCampaign } from "../src/simulation";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { dismantle, structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -184,13 +184,11 @@ test("a radio telescope array with an antenna field says it has two, and can't b
     "2 antenna fields, about 177 Science a Lunation",
   );
 
-  await array.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, array);
   await expect(page.getByRole("alert")).toHaveText(
     "Its antenna fields join it, and must be dismantled first.",
   );
-  await structureEntry(page, /^Antenna field/)
-    .getByRole("button", { name: "Dismantle" })
-    .click();
+  await dismantle(page, structureEntry(page, /^Antenna field/));
   await expect(page.getByRole("complementary", { name: "Work" })).toContainText(
     "Dismantling the antenna field",
   );

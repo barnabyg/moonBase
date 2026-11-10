@@ -60,7 +60,7 @@ test("a water wall built over a shielded Habitat shows it as water-walled and cu
     "shielded, water-walled, the Mission Director's home",
   );
   await expect(structureEntries(page)).toContainText([
-    /^Water wall Condition 100% commissioned/,
+    /^Water wall Condition 100%(?! [a-z])/,
   ]);
   await expect(radiationDose).toContainText(
     perDay(doseRates.waterWalledHabitat),

@@ -47,7 +47,8 @@ interface BuiltPopUp {
 /**
  * The pop-up beside a Structure the player clicks on the map, commissioned,
  * under Construction or being dismantled: what it is and does, the state
- * it is in, and the same controls as its entry in the Base panel. It
+ * it is in, and the same controls as its entry in the Base panel, with
+ * "Dismantle", which only it has. It
  * updates live while open. Clicking another Structure switches to it;
  * clicking empty ground, pressing Esc or its close button closes it, and
  * so does the Structure going, once dismantled. Dragging to move the
@@ -208,6 +209,7 @@ export function createStructurePopUp(
         commissioned,
         campaign,
         showResult,
+        { withDismantle: true },
       );
       actions.append(...built.controls.elements);
     }

@@ -1,6 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { structureEntries, structureEntry } from "./base-panel";
+import {
+  dismantle,
+  doing,
+  structureEntries,
+  structureEntry,
+} from "./base-panel";
 
 /**
  * A sample save of a Campaign with an extraction plant half way through a
@@ -22,9 +27,14 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
 
   const plants = structureEntry(page, /plant/);
   await expect(plants).toHaveText([
-    /^Extraction plant Condition \d+% running, 30 min left of this batch · making 0\.15 kg of oxygen, 0\.04 kg of metals and 0\.02 kg of silicon an hour from 4 kg of Regolith/,
+    /^Extraction plant Condition \d+% running, 30 min left of this batch(?! ·)/,
     /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.35 kg(?! ·)/,
   ]);
+  // What it makes and uses is fixed for its recipe, so it is in the tooltip.
+  await expect(doing(plants.first())).toHaveAttribute(
+    "title",
+    "making 0.15 kg of oxygen, 0.04 kg of metals and 0.02 kg of silicon an hour from 4 kg of Regolith",
+  );
 });
 
 /**
@@ -63,7 +73,11 @@ test("the Base panel switches a Plant off and on, the setting is saved, and the 
     /^Oxygen \d+\.\d of 100 kg · lasts .*, extraction plant switched off$/,
   );
   await expect(waterPlant).toContainText(
-    /Condition \d+% running, 40 min left of this batch · making 0\.9 kg of water an hour/,
+    /Condition \d+% running, 40 min left of this batch/,
+  );
+  await expect(doing(waterPlant)).toHaveAttribute(
+    "title",
+    /^making 0\.9 kg of water an hour/,
   );
   await expect(water).toHaveText(/^Water \d+\.\d of 400 kg · rising /);
 
@@ -142,8 +156,10 @@ test("a Plant to be dismantled can no longer be switched off or on", async ({
     waterPlant.getByRole("button", { name: "Switch off" }),
   ).toBeVisible();
 
-  await waterPlant.getByRole("button", { name: "Dismantle" }).click();
+  await dismantle(page, waterPlant);
 
   await expect(waterPlant).toContainText(/Condition \d+% to be dismantled/);
-  await expect(waterPlant.getByRole("button")).toHaveCount(0);
+  // Only its name is left to choose, which finds it on the map.
+  await expect(waterPlant.getByRole("button")).toHaveCount(1);
+  await expect(waterPlant.getByRole("combobox")).toHaveCount(0);
 });

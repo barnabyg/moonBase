@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
-import { structureEntry } from "./base-panel";
+import { doing, structureEntry } from "./base-panel";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -39,7 +39,8 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
     .getByRole("complementary", { name: "Status panel" })
     .getByRole("status", { name: "Water", exact: true });
 
-  await expect(works).toContainText(
+  await expect(doing(works)).toHaveAttribute(
+    "title",
     "making 0.2 kg of precision optics an hour from 0.8 kg of silicon, 0.2 kg of metals and 1 kg of water",
   );
   await expect(water).toHaveText(
@@ -59,7 +60,10 @@ test("an optics works says it uses water, stops at the Mission Director's reserv
     .getByRole("button", { name: "Switch on" })
     .click();
   await speed(page, "20x");
-  await expect(works).toContainText("from 0.8 kg of silicon");
+  await expect(doing(works)).toHaveAttribute(
+    "title",
+    /from 0\.8 kg of silicon/,
+  );
 });
 
 test("the Guide says an optics works takes water and leaves the reserve", async ({
