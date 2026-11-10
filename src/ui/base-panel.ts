@@ -1,4 +1,5 @@
 import { catalogue, type StructureListGroup } from "../catalogue";
+import type { MapSubject } from "../render/renderer";
 import {
   habitatUnder,
   type Snapshot,
@@ -13,6 +14,7 @@ import {
 } from "./base-panel-text";
 import { formatCondition } from "./format";
 import { machineLabel, robotLabel, structureLabel } from "./labels";
+import type { MapFinder } from "./map-finder";
 import type { Stat } from "./stat";
 import { holdHeight } from "./hold";
 import { createPanelSection, type PanelSection } from "./panel-section";
@@ -45,19 +47,42 @@ interface Entry {
 /**
  * An entry with a name, a bar and figure for its Condition, with a tooltip
  * saying how it is repaired, and a line below saying what it is doing,
- * with room for buttons after it.
+ * with room for buttons after it. Its name is a button that finds it on
+ * the base map, where rows of the same name can be told apart, and
+ * pointing at the entry, or moving the focus into it, marks it there.
  */
 function createEntry(
   name: string,
   repair: string,
+  subject: MapSubject,
+  map: MapFinder,
+  showResult: (result: ChoiceResult) => void,
 ): Entry & { readonly actions: HTMLElement } {
   const item = document.createElement("li");
   item.className = "entry";
   const head = document.createElement("span");
   head.className = "entry__head";
-  const title = document.createElement("span");
+  const title = document.createElement("button");
+  title.type = "button";
   title.className = "entry__name";
   title.textContent = name;
+  title.title =
+    subject.kind === "structure"
+      ? "Show it on the map, with what it is doing"
+      : "Show it on the map";
+  title.addEventListener("click", () => {
+    showResult(map.find(subject));
+  });
+  for (const pointing of ["pointerenter", "focusin"]) {
+    item.addEventListener(pointing, () => {
+      map.pointOut(subject);
+    });
+  }
+  for (const leaving of ["pointerleave", "focusout"]) {
+    item.addEventListener(leaving, () => {
+      map.pointOut(undefined);
+    });
+  }
   const condition = document.createElement("span");
   condition.className = "entry__condition";
   condition.title = `Condition. ${repair}`;
@@ -99,7 +124,8 @@ function createEntry(
 /**
  * The Base panel, beside the Work panel: the base's Robots, Machines and
  * Rovers, with what each is doing and its Condition, and below them its
- * Structures, with what state each is in. It sends a choice to dismantle a Structure, to
+ * Structures, with what state each is in. Choosing one by its name finds it
+ * on the base map. It sends a choice to dismantle a Structure, to
  * choose a Plant's recipe, to switch a Plant off or on, or to move the
  * Mission Director into a Habitat to the Campaign, which decides whether
  * it is allowed and says why not.
@@ -108,6 +134,7 @@ export function createBasePanel(
   container: HTMLElement,
   campaign: StructureChoices,
   showResult: (result: ChoiceResult) => void,
+  map: MapFinder,
 ): BasePanel {
   const panel = document.createElement("aside");
   panel.className = "base-panel";
@@ -150,6 +177,9 @@ export function createBasePanel(
     const entry = createEntry(
       structureLabel(structure.structureTypeId),
       describeRepair("maintained"),
+      { kind: "structure", id: structure.id },
+      map,
+      showResult,
     );
     const controls = createStructureControls(structure, campaign, showResult);
     entry.actions.append(...controls.elements);
@@ -181,13 +211,14 @@ export function createBasePanel(
   const entryFor = (
     entries: Map<string, Entry>,
     list: HTMLElement,
+    kind: MapSubject["kind"],
     id: string,
     name: string,
     repair: string,
   ): Entry => {
     let entry = entries.get(id);
     if (entry === undefined) {
-      entry = createEntry(name, repair);
+      entry = createEntry(name, repair, { kind, id }, map, showResult);
       list.append(entry.item);
       entry.item.dataset["row"] = id;
       entries.set(id, entry);
@@ -246,6 +277,10 @@ export function createBasePanel(
       }
       for (const [id, entry] of structureEntries) {
         if (!seen.has(id)) {
+          // Gone from under the pointer, it can't say the pointer has left.
+          if (entry.item.matches(":hover, :focus-within")) {
+            map.pointOut(undefined);
+          }
           entry.item.remove();
           structureEntries.delete(id);
         }
@@ -277,6 +312,7 @@ export function createBasePanel(
         entryFor(
           robotEntries,
           robots,
+          "robot",
           robot.id,
           robotLabel(robot.id, snapshot.robots),
           describeRepair("robot"),
@@ -286,6 +322,7 @@ export function createBasePanel(
         entryFor(
           machineEntries,
           machines,
+          "machine",
           machine.id,
           machineLabel(machine.machineTypeId),
           describeRepair("maintained"),
@@ -298,6 +335,7 @@ export function createBasePanel(
         entryFor(
           roverEntries,
           rovers,
+          "rover",
           rover.id,
           catalogue.rover.label,
           describeRepair("maintained"),
@@ -320,6 +358,7 @@ export function createBasePanel(
       );
     },
     startAfresh() {
+      map.pointOut(undefined);
       for (const group of groups.values()) group.section.element.remove();
       groups.clear();
       structureEntries.clear();

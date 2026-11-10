@@ -22,6 +22,11 @@ export function createRoverViews(scene: THREE.Scene) {
       for (const view of views.values()) scene.remove(view.model.group);
       views.clear();
     },
+    /** Where a Rover was last drawn in the scene, or undefined if it isn't on the map. */
+    positionOf(id: string): THREE.Vector3 | undefined {
+      const group = views.get(id)?.model.group;
+      return group?.visible === true ? group.position : undefined;
+    },
     update(frame: Frame): void {
       for (const rover of frame.current.rovers) {
         let view = views.get(rover.id);

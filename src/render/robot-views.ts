@@ -39,6 +39,11 @@ export function createRobotViews(scene: THREE.Scene) {
       for (const view of views.values()) scene.remove(view.model.group);
       views.clear();
     },
+    /** Where a Robot was last drawn in the scene, or undefined if it isn't on the map. */
+    positionOf(id: string): THREE.Vector3 | undefined {
+      const group = views.get(id)?.model.group;
+      return group?.visible === true ? group.position : undefined;
+    },
     update(frame: Frame, realSeconds: number): void {
       for (const robot of frame.current.robots) {
         let view = views.get(robot.id);

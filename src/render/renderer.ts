@@ -11,6 +11,7 @@ import { createConstructionViews } from "./construction-views";
 import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
 import { createMachineViews } from "./machine-views";
+import { createMapMarker, type MapSubject, type Marked } from "./map-marker";
 import { createMissionDirectorView } from "./mission-director-view";
 import { pickStructure } from "./picking";
 import { createLanderView } from "./lander-view";
@@ -26,7 +27,7 @@ import { createRoverViews } from "./rover-views";
 import { createEarth, createGround } from "./scenery";
 import { createStars } from "./stars";
 
-export type { Frame, PlacementPreview };
+export type { Frame, MapSubject, PlacementPreview };
 
 /** A point on the screen, in client pixels. */
 export interface ScreenPoint {
@@ -56,6 +57,18 @@ export interface Renderer {
    * drawn, or undefined if it isn't drawn or is behind the camera.
    */
   structureOnScreen(structureId: string): ScreenPoint | undefined;
+  /**
+   * Moves the camera to look at something on the base map, from the side
+   * and as steeply as it looks now, and marks it there for a few seconds.
+   * Returns whether it is on the map: a Robot or the Rover away on an
+   * Expedition isn't, and then nothing changes.
+   */
+  showOnMap(subject: MapSubject): boolean;
+  /**
+   * Marks something on the base map for as long as it is pointed out,
+   * without moving the camera, or stops when undefined.
+   */
+  pointOut(subject: MapSubject | undefined): void;
   /** Shows a Structure the player is about to place, or hides it when undefined. */
   showPlacementPreview(preview: PlacementPreview | undefined): void;
   /**
@@ -145,6 +158,31 @@ export function createRenderer(
   const cables = createCableViews(scene);
   const constructions = createConstructionViews(scene, ground.material);
   const placementPreview = createPlacementPreview(scene);
+  const marker = createMapMarker(scene);
+
+  /** How far the mark goes round a Robot, a Machine and a Rover, in metres. */
+  const MARK_RADIUS_METRES = { robot: 1.2, machine: 3, rover: 2.5 };
+
+  /** Where something on the base map was last drawn, if it is on it. */
+  function where(subject: MapSubject): Marked | undefined {
+    if (subject.kind === "structure") {
+      const position = constructions.positionOf(subject.id);
+      const radiusMetres = constructions.radiusOf(subject.id);
+      return position === undefined || radiusMetres === undefined
+        ? undefined
+        : { position, radiusMetres };
+    }
+    const position = (
+      subject.kind === "robot"
+        ? robots
+        : subject.kind === "machine"
+          ? machines
+          : rovers
+    ).positionOf(subject.id);
+    return position === undefined
+      ? undefined
+      : { position, radiusMetres: MARK_RADIUS_METRES[subject.kind] };
+  }
 
   function resize(): void {
     const width = container.clientWidth;
@@ -216,6 +254,12 @@ export function createRenderer(
           ? current.missionDirector.habitatId
           : undefined;
       constructions.update(frame, realSeconds, lighting.sunFacing, home);
+      // What is marked, on the element too, for anything that reads the page
+      // rather than the picture, as the end-to-end tests do.
+      const marked = marker.update(realSeconds, where, camera.position)?.id;
+      const { dataset } = webgl.domElement;
+      if (marked === undefined) delete dataset["marked"];
+      else if (dataset["marked"] !== marked) dataset["marked"] = marked;
       webgl.render(scene, camera);
     },
     pickGround(clientX, clientY) {
@@ -242,6 +286,16 @@ export function createRenderer(
         y: bounds.top + ((1 - projected.y) / 2) * bounds.height,
       };
     },
+    showOnMap(subject) {
+      const marked = where(subject);
+      if (marked === undefined) return false;
+      cameraControls.lookAt(marked.position);
+      marker.show(subject, performance.now() / 1000);
+      return true;
+    },
+    pointOut(subject) {
+      marker.pointOut(subject);
+    },
     showPlacementPreview(preview) {
       placementPreview.show(preview);
     },
@@ -252,6 +306,7 @@ export function createRenderer(
       rovers.clear();
       cables.clear();
       constructions.clear();
+      marker.clear();
     },
   };
 }

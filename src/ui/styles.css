@@ -200,6 +200,7 @@ body {
 
 .top-bar button:focus-visible,
 .panel-button:focus-visible,
+.entry__name:focus-visible,
 .construction-panel__cancel:focus-visible,
 .build-menu__options button:focus-visible,
 .milestone-hint__toggle:focus-visible,
@@ -684,8 +685,23 @@ body {
   gap: 8px;
 }
 
+/* Its name, a button that finds it on the map, looking like the name it is. */
 .entry__name {
+  padding: 0;
+  font: inherit;
   font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.entry__name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
 }
 
 .entry__condition {
