@@ -50,6 +50,11 @@ export interface MapMarker {
   clear(): void;
 }
 
+/**
+ * The mark on the base map: a ring on the ground round what the player has
+ * asked to be shown, or is pointing out in a panel, drawn over whatever
+ * stands there and pulsing so that it catches the eye.
+ */
 export function createMapMarker(scene: THREE.Scene): MapMarker {
   const material = new THREE.MeshBasicMaterial({
     color: 0xf2c14e,
