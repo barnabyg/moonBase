@@ -18,6 +18,8 @@ import {
   formatHabitatPower,
   formatLander,
   formatLifeSupport,
+  formatMilestoneMeasure,
+  formatMilestonePlace,
   formatMissionDirector,
   formatNextMilestone,
   formatInfraredSurvey,
@@ -49,7 +51,7 @@ import { holdHeight } from "./hold";
 import { createMilestoneHint } from "./milestone-hint";
 import { createPanelSection } from "./panel-section";
 import type { ChoiceResult } from "./refusal";
-import { createStatLine } from "./stat";
+import { createStatLine, type Stat, type StatLine } from "./stat";
 
 /**
  * A line of words in the Milestones section, a status like any other line of
@@ -97,12 +99,20 @@ export function createStatusPanel(
   // what to do to reach it, and the one after.
   const milestonesSection = createPanelSection("milestones", "Milestones");
   const actLine = createMilestoneText("milestone-act", "Current Act");
+  // Which of the Act's Milestones the current one is, beside the Act's name.
+  const placeLine = createMilestoneText("milestone-place", "Place in the Act");
+  const heading = document.createElement("div");
+  heading.className = "milestone-heading";
+  heading.append(actLine, placeLine);
   const actAsksLine = createMilestoneText("milestone-act-asks", "Act asks");
   const currentMilestone = createStatLine("Now", "Current Milestone");
   const milestoneHintLine = createMilestoneHint();
+  // How far along the current Milestone is, a line for each of its measures,
+  // between its name and its hint. Most have none.
+  const milestoneMeasures = createMeasureLines(milestoneHintLine.element);
   const nextMilestone = createStatLine("Next", "Next Milestone");
   milestonesSection.body.append(
-    actLine,
+    heading,
     actAsksLine,
     currentMilestone.element,
     milestoneHintLine.element,
@@ -276,12 +286,18 @@ export function createStatusPanel(
       const act = formatAct(snapshot.milestones);
       setText(actLine, act.label);
       setText(actAsksLine, act.asks);
+      const place = formatMilestonePlace(snapshot.milestones);
+      placeLine.hidden = place === undefined;
+      setText(placeLine, place ?? "");
       currentMilestone.show({
         value:
           currentId === undefined
             ? "Every Milestone reached"
             : milestoneLabel(currentId),
       });
+      milestoneMeasures.show(
+        snapshot.milestones.measures.map(formatMilestoneMeasure),
+      );
       milestoneHintLine.show(
         currentId === undefined
           ? "The Campaign carries on: keep the base running and growing."
@@ -565,6 +581,47 @@ export function createStatusPanel(
     startAfresh() {
       bulkResources.replaceChildren(noneInStock);
       resourceCells.clear();
+    },
+  };
+}
+
+/**
+ * The lines that say how far along the current Milestone is, one for each of
+ * its measures, each named by its label and made the first time a Milestone
+ * has one. They go above the line given, in the order the Milestone gives
+ * them, and one the current Milestone has no use for is hidden.
+ */
+function createMeasureLines(below: HTMLElement): {
+  show(
+    measures: readonly (Stat & {
+      readonly label: string;
+      readonly fraction: number;
+    })[],
+  ): void;
+} {
+  const lines = new Map<string, StatLine>();
+  return {
+    show(measures) {
+      for (const { label, fraction, ...stat } of measures) {
+        let line = lines.get(label);
+        if (line === undefined) {
+          line = createStatLine(label, `Milestone progress, ${label}`);
+          line.element.hidden = true;
+          lines.set(label, line);
+        }
+        // Put in its place only as it comes into use, not every frame.
+        if (line.element.hidden) {
+          below.before(line.element);
+          line.element.hidden = false;
+        }
+        line.show(stat);
+        line.fill(fraction);
+      }
+      for (const [label, line] of lines) {
+        if (!measures.some((measure) => measure.label === label)) {
+          line.element.hidden = true;
+        }
+      }
     },
   };
 }

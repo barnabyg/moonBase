@@ -76,6 +76,19 @@ export function fillWaterWall(
 }
 
 /**
+ * Whether a Construction is past the start of its Assembly, when one that is
+ * filled or stocked takes what it needs from the base's life support stocks.
+ */
+export function hasTakenItsFills(
+  construction: Pick<ConstructionState, "stage" | "workedMinutes">,
+): boolean {
+  return (
+    construction.stage === "commissioning" ||
+    (construction.stage === "assembly" && construction.workedMinutes > 0)
+  );
+}
+
+/**
  * What filling a water wall, or stocking a Structure, takes, while it is about
  * to start its Assembly: none of the Assembly worked yet, so not taken yet.
  */

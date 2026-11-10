@@ -85,7 +85,7 @@ describe("the Milestones", () => {
   it("start a fresh Campaign with power storage as the current Milestone and moving in as the next, none reached", () => {
     const { milestones } = scenario().state;
 
-    expect(milestones).toEqual({
+    expect(milestones).toMatchObject({
       reachedIds: [],
       currentId: "power-storage",
       nextId: "moved-in",
@@ -112,7 +112,7 @@ describe("the Milestones", () => {
       (event) => event.kind === "milestone-reached",
     );
     expect(milestone).toBeGreaterThan(commissioned);
-    expect(game.state.milestones).toEqual({
+    expect(game.state.milestones).toMatchObject({
       reachedIds: ["power-storage"],
       currentId: "moved-in",
       nextId: "lander-departs",
@@ -145,7 +145,7 @@ describe("the Milestones", () => {
     const events = game.campaign.advance(1);
 
     expect(reached(events)).toEqual(["moved-in"]);
-    expect(game.state.milestones).toEqual({
+    expect(game.state.milestones).toMatchObject({
       reachedIds: ["moved-in"],
       currentId: "power-storage",
       nextId: "lander-departs",
@@ -158,7 +158,7 @@ describe("the Milestones", () => {
     );
 
     expect(reached(later)).toEqual(["power-storage"]);
-    expect(game.state.milestones).toEqual({
+    expect(game.state.milestones).toMatchObject({
       reachedIds: ["moved-in", "power-storage"],
       currentId: "lander-departs",
       nextId: "habitat-shielded",
@@ -211,7 +211,7 @@ describe("the Milestones", () => {
     expect(
       game.state.structures.some((structure) => structure.id === bankId),
     ).toBe(false);
-    expect(game.state.milestones).toEqual({
+    expect(game.state.milestones).toMatchObject({
       reachedIds: ["power-storage"],
       currentId: "moved-in",
       nextId: "lander-departs",
@@ -329,7 +329,7 @@ describe("the later Milestones", () => {
   it("leave no current or next Milestone once all are reached, and the Campaign carries on", () => {
     const game = withAllReached(scenario());
 
-    expect(game.state.milestones).toEqual({
+    expect(game.state.milestones).toMatchObject({
       reachedIds: catalogue.milestones.map((milestone) => milestone.id),
       currentId: undefined,
       nextId: undefined,

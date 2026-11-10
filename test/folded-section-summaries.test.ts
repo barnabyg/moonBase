@@ -345,21 +345,11 @@ describe("a folded Research section", () => {
 
 describe("a folded Milestones section", () => {
   it("shows the Milestone to aim for now", () => {
-    expect(
-      summariseMilestones({
-        reachedIds: ["power-storage"],
-        currentId: "moved-in",
-        nextId: "lander-departs",
-        currentActId: "act-1",
-      }),
-    ).toBe("Habitat commissioned, Mission Director moved in");
-    expect(
-      summariseMilestones({
-        reachedIds: [],
-        currentId: undefined,
-        nextId: undefined,
-        currentActId: "act-1",
-      }),
-    ).toBe("every Milestone reached");
+    expect(summariseMilestones({ currentId: "moved-in" })).toBe(
+      "Habitat commissioned, Mission Director moved in",
+    );
+    expect(summariseMilestones({ currentId: undefined })).toBe(
+      "every Milestone reached",
+    );
   });
 });

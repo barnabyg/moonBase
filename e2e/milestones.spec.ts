@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { tryScenarios } from "../test/try-scenarios";
 import { placeOnClearGround } from "./placement";
 
 test("a fresh game shows power storage as the current Milestone, and commissioning the battery bank from the starting stock reaches it and makes moving in current", async ({
@@ -12,7 +13,11 @@ test("a fresh game shows power storage as the current Milestone, and commissioni
   const current = page.getByRole("status", { name: "Current Milestone" });
   const hint = page.getByRole("status", { name: "Milestone hint" });
   const next = page.getByRole("status", { name: "Next Milestone" });
+  const place = page.getByRole("status", {
+    name: "Place in the Act",
+  });
   await expect(current).toHaveText("Now Power storage before the first Night");
+  await expect(place).toHaveText("Milestone 1 of 9");
   await expect(hint).toContainText("battery banks from the starting stock");
   await expect(next).toHaveText(
     "Next Habitat commissioned, Mission Director moved in",
@@ -49,8 +54,56 @@ test("a fresh game shows power storage as the current Milestone, and commissioni
   await expect(current).toHaveText(
     "Now Habitat commissioned, Mission Director moved in",
   );
+  await expect(place).toHaveText("Milestone 2 of 9");
   await expect(hint).toContainText("inflatable Habitat");
   await expect(next).toHaveText("Next Lander departs");
+});
+
+test("a Milestone with something to measure shows how far along it is, under its name", async ({
+  page,
+}) => {
+  const scenario = tryScenarios.find(({ id }) => id === "crew-habitat");
+  if (scenario === undefined) throw new Error("expected the scenario");
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  const panel = page.getByRole("complementary", { name: "Status panel" });
+  const progress = panel.getByRole("status", { name: /^Milestone progress, / });
+  // Power storage is either there or not.
+  await expect(progress).toHaveCount(0);
+
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "crew-habitat.moonbase",
+    mimeType: "application/json",
+    buffer: Buffer.from(scenario.save()),
+  });
+
+  await expect(
+    panel.getByRole("status", { name: "Current Milestone" }),
+  ).toHaveText("Now Large-scale Crew Habitat commissioned");
+  await expect(
+    panel.getByRole("status", { name: "Place in the Act" }),
+  ).toHaveText("Milestone 3 of 3");
+  // The Large-scale Crew Habitat being commissioned has been stocked.
+  await expect(progress).toHaveText([
+    "Oxygen 612 of 612 kg",
+    "Water 2549 of 2549 kg",
+  ]);
+  // They sit between the Milestone's name and its hint.
+  const top = async (name: string | RegExp): Promise<number> =>
+    (await panel.getByRole("status", { name }).first().boundingBox())?.y ?? 0;
+  expect(await top("Current Milestone")).toBeLessThan(
+    await top(/^Milestone progress, /),
+  );
+  expect(await top(/^Milestone progress, /)).toBeLessThan(
+    await top("Milestone hint"),
+  );
 });
 
 test("a long Milestone hint shows its first two lines until the player asks for the rest, by keyboard or by mouse", async ({

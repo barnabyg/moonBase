@@ -9,11 +9,15 @@ import { bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import { findStructureType, isShielded } from "./construction";
 import type { GameEvent } from "./events";
+import { readExports } from "./exports";
+import { earthDaysOfUseKilograms } from "./life-support-reserve";
 import { isPlant, recipeOf } from "./plants";
 import {
   readSelfSufficiency,
   readSpareComponentSufficiency,
 } from "./self-sufficiency";
+import { storageLimitKilograms } from "./storage-limits";
+import { hasTakenItsFills } from "./water-wall";
 
 /** Which Milestones are reached, and which to aim for now and next. */
 export interface MilestonesSnapshot {
@@ -31,7 +35,72 @@ export interface MilestonesSnapshot {
    * reached. It is worked out from the Milestones reached rather than saved.
    */
   readonly currentActId: string;
+  /**
+   * Where the current Milestone comes among its Act's, in catalogue order
+   * whatever has been reached, counted from 1, and how many the Act has;
+   * undefined once every one is reached.
+   */
+  readonly place: { readonly number: number; readonly of: number } | undefined;
+  /**
+   * How far along the current Milestone is, for one with something to
+   * measure; none for the many that are simply done or not, or once every
+   * one is reached.
+   */
+  readonly measures: readonly MilestoneMeasure[];
 }
+
+/**
+ * Something that shows how far along a Milestone is. It is guidance only:
+ * what reaches the Milestone is its condition (see `MilestoneCondition`).
+ */
+export type MilestoneMeasure =
+  /**
+   * The share of what the Mission Director used of a life support stock
+   * that the base's Plants made, as self-sufficiency is judged: it is
+   * reached at 1 or more over a whole window.
+   */
+  | {
+      readonly kind: "life-support-made";
+      readonly stockId: string;
+      /** Undefined while they have used none. */
+      readonly share: number | undefined;
+      /** Whether a whole window has passed, so that it can be judged. */
+      readonly windowComplete: boolean;
+    }
+  /** The same for the spare Components repairs used. */
+  | {
+      readonly kind: "spare-components-made";
+      readonly share: number | undefined;
+      readonly windowComplete: boolean;
+    }
+  /**
+   * The Return Mass as things stand, against the mass of Exports the Lander
+   * has to take off with.
+   */
+  | {
+      readonly kind: "return-mass";
+      readonly kilograms: number;
+      readonly targetKilograms: number;
+    }
+  /** The Exports aboard the Lander and to load, against the same mass. */
+  | {
+      readonly kind: "exports-loaded";
+      readonly kilograms: number;
+      readonly targetKilograms: number;
+    }
+  /**
+   * A life support stock that a Structure is stocked with as its Assembly
+   * starts, against what that takes with the Mission Director's reserve
+   * left over. Once one being built has taken it, the stock counts as there.
+   */
+  | {
+      readonly kind: "stocked-with";
+      readonly stockId: string;
+      readonly kilograms: number;
+      readonly targetKilograms: number;
+      /** What the base can hold of it, or undefined if there is no limit. */
+      readonly limitKilograms: number | undefined;
+    };
 
 /** Names a Milestone, for example "Lander departs". */
 export function milestoneLabel(milestoneId: string): string {
@@ -68,15 +137,99 @@ function findAct(id: string): Act | undefined {
 
 /** The Milestones reached, and the ones to aim for now and next. */
 export function readMilestones(state: CampaignState): MilestonesSnapshot {
-  const [currentId, nextId] = notReached(state).map(
-    (milestone) => milestone.id,
-  );
+  const [current, next] = notReached(state);
   return {
     reachedIds: [...state.reachedMilestoneIds],
-    currentId,
-    nextId,
+    currentId: current?.id,
+    nextId: next?.id,
     currentActId: currentActId(state),
+    place: current === undefined ? undefined : placeOf(current),
+    measures: current === undefined ? [] : measuresOf(state, current.condition),
   };
+}
+
+/** Where a Milestone comes among its Act's, counted from 1, and how many the Act has. */
+function placeOf(milestone: Milestone): { number: number; of: number } {
+  const inAct = catalogue.milestones.filter(
+    (other) => other.actId === milestone.actId,
+  );
+  return { number: inAct.indexOf(milestone) + 1, of: inAct.length };
+}
+
+/** What there is to measure of a Milestone that isn't reached, from its condition. */
+function measuresOf(
+  state: CampaignState,
+  condition: MilestoneCondition,
+): MilestoneMeasure[] {
+  switch (condition.kind) {
+    case "self-sufficient":
+      return readSelfSufficiency(state)
+        .filter((judged) => judged.stockId === condition.stockId)
+        .map((judged) => ({
+          kind: "life-support-made",
+          stockId: judged.stockId,
+          share: judged.coveredShare,
+          windowComplete: judged.windowComplete,
+        }));
+    case "self-sufficient-in-spare-components": {
+      const judged = readSpareComponentSufficiency(state);
+      return [
+        {
+          kind: "spare-components-made",
+          share: judged.coveredShare,
+          windowComplete: judged.windowComplete,
+        },
+      ];
+    }
+    case "exports-carried": {
+      const exports = readExports(state);
+      const aboard = exports.aboard.reduce(
+        (mass, line) => mass + line.kilograms,
+        0,
+      );
+      return [
+        {
+          kind: "return-mass",
+          kilograms: exports.returnMassKilograms,
+          targetKilograms: condition.kilograms,
+        },
+        {
+          kind: "exports-loaded",
+          kilograms: exports.massKilograms + aboard,
+          targetKilograms: condition.kilograms,
+        },
+      ];
+    }
+    case "structure-commissioned": {
+      const fills =
+        findStructureType(condition.structureTypeId)?.stockedWith ?? [];
+      const taken = state.constructions.some(
+        (construction) =>
+          construction.structureTypeId === condition.structureTypeId &&
+          hasTakenItsFills(construction),
+      );
+      return fills.map((fill) => {
+        const targetKilograms =
+          fill.kilograms +
+          earthDaysOfUseKilograms(fill.stockId, fill.reserveEarthDays);
+        const inStock =
+          state.lifeSupport.find((stock) => stock.stockId === fill.stockId)
+            ?.kilograms ?? 0;
+        return {
+          kind: "stocked-with",
+          stockId: fill.stockId,
+          kilograms: taken ? targetKilograms : inStock,
+          targetKilograms,
+          limitKilograms: storageLimitKilograms(state, {
+            kind: "life-support",
+            stockId: fill.stockId,
+          }),
+        };
+      });
+    }
+    default:
+      return [];
+  }
 }
 
 function notReached(state: CampaignState): readonly Milestone[] {
