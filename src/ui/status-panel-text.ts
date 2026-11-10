@@ -1350,7 +1350,7 @@ export function formatMilestoneMeasure(
         value:
           measure.share === undefined
             ? "none used yet"
-            : `${Math.floor(measure.share * 100)}% of use`,
+            : `${Math.round(measure.share * 100)}% of use`,
         note: measure.windowComplete
           ? `needs 100% over ${selfSufficiencyWindow()}`
           : "judged once a whole Lunation is recorded",

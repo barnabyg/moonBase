@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMilestoneMeasure,
+  formatSelfSufficiency,
   formatMilestonePlace,
 } from "../src/ui/status-panel-text";
 
@@ -131,5 +132,29 @@ describe("a measure of the current Milestone, in the status panel", () => {
         limitKilograms: 2900,
       }),
     ).toEqual({ label: "Water", value: "2600 of 2549 kg", fraction: 1 });
+  });
+});
+
+describe("a share made at the base, as a measure and on the Self-sufficient line", () => {
+  it("is rounded the same way in both, so that the two never disagree", () => {
+    expect(
+      formatMilestoneMeasure({
+        kind: "life-support-made",
+        stockId: "oxygen",
+        share: 0.996,
+        windowComplete: true,
+      }).value,
+    ).toBe("100% of use");
+    expect(
+      formatSelfSufficiency(
+        {
+          stockId: "oxygen",
+          selfSufficient: false,
+          coveredShare: 0.996,
+          windowComplete: true,
+        },
+        { residence: "habitat", habitatId: "habitat-1", movedInAtMinute: 0 },
+      ).share,
+    ).toBe("100%");
   });
 });
