@@ -1075,9 +1075,15 @@ export function formatResearchQueue(
 }
 
 /** A rate of Science an Earth Day, to the hundredth below a tenth, which the slow sources earn. */
-function sciencePerDay(perEarthDay: number): string {
+function sciencePerEarthDay(perEarthDay: number): string {
   return perEarthDay.toFixed(perEarthDay < 0.1 ? 2 : 1);
 }
+
+/** The sources of Science that work only at Night, which the forecast averages over a Lunation. */
+const NIGHT_ONLY: readonly ScienceSource[] = [
+  "observing-programme",
+  "infrared-survey",
+];
 
 /** Names where Science comes from, the way a sentence would. */
 function scienceSourceLabel(source: ScienceSource): string {
@@ -1085,11 +1091,11 @@ function scienceSourceLabel(source: ScienceSource): string {
     case "research-task":
       return "the Research Task running";
     case "observing-programme":
-      return catalogue.observingProgramme.label;
+      return inSentence(catalogue.observingProgramme.label);
     case "infrared-survey":
-      return infraredSurveyLabel();
+      return inSentence(infraredSurveyLabel());
     case "radio-survey":
-      return radioSurveyLabel();
+      return inSentence(radioSurveyLabel());
     case "growing":
       return "growing";
   }
@@ -1097,8 +1103,8 @@ function scienceSourceLabel(source: ScienceSource): string {
 
 /**
  * Says how much Science the base earns an Earth Day as things stand, for
- * example "+3.0 a day", or that none is being earned, with where it comes
- * from kept for hovering over the line. Science comes a round at a time, so
+ * example "+3.0 a day", as the panel's other rates are worded, or that none
+ * is being earned, with where it comes from kept for hovering over the line. Science comes a round at a time, so
  * this is what the rounds under way would earn spread over the time they
  * take (see `ScienceForecast`).
  */
@@ -1112,13 +1118,17 @@ export function formatScienceRate(forecast: ScienceForecast): Stat {
     };
   }
   return {
-    value: `+${sciencePerDay(forecast.perEarthDay)} a day`,
-    explanation: `As things stand, over a Lunation: ${listInWords(
+    value: `+${sciencePerEarthDay(forecast.perEarthDay)} a day`,
+    explanation: `As things stand: ${listInWords(
       earning.map(
         ({ source, perEarthDay }) =>
-          `${scienceSourceLabel(source)} ${sciencePerDay(perEarthDay)}`,
+          `${scienceSourceLabel(source)} ${sciencePerEarthDay(perEarthDay)}`,
       ),
-    )} Science a day.`,
+    )} Science an Earth Day.${
+      earning.some(({ source }) => NIGHT_ONLY.includes(source))
+        ? " What works only at Night is averaged over a Lunation."
+        : ""
+    }`,
   };
 }
 

@@ -270,7 +270,7 @@ describe("the Science line", () => {
     ).toEqual({
       value: "+3.0 a day",
       explanation:
-        "As things stand, over a Lunation: the Research Task running 2.5, Night-sky survey 0.4 and growing 0.04 Science a day.",
+        "As things stand: the Research Task running 2.5, night-sky survey 0.4 and growing 0.04 Science an Earth Day. What works only at Night is averaged over a Lunation.",
     });
   });
 

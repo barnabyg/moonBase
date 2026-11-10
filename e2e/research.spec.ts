@@ -260,7 +260,7 @@ test("the Research section says how fast the base earns Science, and points out 
     .getByRole("button", { name: "Pause" })
     .click();
   const panel = page.getByRole("complementary", { name: "Status panel" });
-  const earned = panel.getByRole("status", { name: "Earned a day" });
+  const earned = panel.getByRole("status", { name: "Earned an Earth Day" });
   const queue = panel.getByRole("status", { name: "Research queue" });
   // A new Campaign earns none, and has none to spend.
   await expect(earned).toBeHidden();
@@ -276,7 +276,7 @@ test("the Research section says how fast the base earns Science, and points out 
   await expect(earned).toHaveText("Science +20.0 a day");
   await expect(earned).toHaveAttribute(
     "title",
-    "As things stand, over a Lunation: the Research Task running 20.0 Science a day.",
+    "As things stand: the Research Task running 20.0 Science an Earth Day.",
   );
   await expect(queue).toBeHidden();
 

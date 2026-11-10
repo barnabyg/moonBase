@@ -269,7 +269,7 @@ export function createStatusPanel(
   const researchTask = createStatLine("Task", "Research Task");
   // How fast the base earns Science. No line until it first earns some;
   // from then on it stays, as the Expedition's does.
-  const scienceRate = createStatLine("Science", "Earned a day");
+  const scienceRate = createStatLine("Science", "Earned an Earth Day");
   scienceRate.element.hidden = true;
   // No line until something is first queued, or the base's Science would
   // first unlock a Design with nothing queued; from then on it stays too.
