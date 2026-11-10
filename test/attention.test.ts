@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Forecasts, Snapshot, StructureSnapshot } from "../src/simulation";
-import { ATTENTION_ORDER, listAttention } from "../src/ui/attention-text";
+import {
+  ATTENTION_ORDER,
+  listAttention,
+  nextInOrder,
+} from "../src/ui/attention-text";
 import { loadSample } from "./sample-saves";
 import { scenario, toGameMinutes } from "./scenario";
 
@@ -400,5 +404,20 @@ describe("the needs-attention list", () => {
         },
       }),
     ).toEqual([]);
+  });
+});
+
+describe("where a new line goes in the needs-attention list", () => {
+  const order = ["event", "broken", "waiting", "low", "off"];
+
+  it("goes straight before the most urgent of the lines less urgent than it, in whatever order they came", () => {
+    // Listed in the order they arose: least urgent first.
+    expect(nextInOrder(order, ["off", "waiting"], "broken")).toBe("waiting");
+    expect(nextInOrder(order, ["off", "low", "event"], "waiting")).toBe("low");
+  });
+
+  it("goes last when none listed is less urgent", () => {
+    expect(nextInOrder(order, ["event", "broken"], "off")).toBeUndefined();
+    expect(nextInOrder(order, [], "broken")).toBeUndefined();
   });
 });

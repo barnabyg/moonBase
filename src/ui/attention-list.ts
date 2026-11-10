@@ -1,4 +1,8 @@
-import type { AttentionLine, AttentionTarget } from "./attention-text";
+import {
+  nextInOrder,
+  type AttentionLine,
+  type AttentionTarget,
+} from "./attention-text";
 import { setText } from "./dom";
 import { createLingering, holdHeight } from "./hold";
 
@@ -63,10 +67,6 @@ export function createAttentionList(
   // A line whose cause is over stays a while, so that one raised again soon
   // after takes the same row.
   const over = createLingering<string>();
-  const place = (id: string): number => {
-    const at = order.indexOf(id);
-    return at === -1 ? order.length : at;
-  };
   const createRow = (line: AttentionLine): Row => {
     const item = document.createElement("li");
     item.className = "attention__item";
@@ -90,8 +90,11 @@ export function createAttentionList(
       });
     }
     // In its place by urgency, among the lines already there.
-    const next = [...rows].find(([other]) => place(other) > place(line.id));
-    list.insertBefore(item, next?.[1].item ?? null);
+    const next = nextInOrder(order, rows.keys(), line.id);
+    list.insertBefore(
+      item,
+      (next === undefined ? undefined : rows.get(next))?.item ?? null,
+    );
     holdHeight(item);
     rows.set(line.id, row);
     return row;

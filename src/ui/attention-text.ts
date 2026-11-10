@@ -54,6 +54,26 @@ export const ATTENTION_ORDER: readonly string[] = [
   "plants-switched-off",
 ];
 
+/**
+ * Which of the lines already listed a new one goes straight before, to
+ * keep the list most urgent first whatever order its lines arose in: the
+ * most urgent of those less urgent than it, or undefined if it goes last.
+ * A line of a kind the order doesn't know goes last.
+ */
+export function nextInOrder(
+  order: readonly string[],
+  listed: Iterable<string>,
+  id: string,
+): string | undefined {
+  const place = (other: string): number => {
+    const at = order.indexOf(other);
+    return at === -1 ? order.length : at;
+  };
+  return [...listed]
+    .filter((other) => place(other) > place(id))
+    .sort((a, b) => place(a) - place(b))[0];
+}
+
 /** Where a line of the needs-attention list leads: where what it reports is dealt with. */
 export type AttentionTarget =
   /** A line of the status panel, which says more. */
