@@ -69,8 +69,15 @@ export default defineConfig({
       dependencies: ["desktop-build"],
     },
     {
+      // The packaged app that npm run package:win unpacks into
+      // release/win-unpacked/, the files the installer installs. Its test is
+      // skipped until that has been built (see docs/desktop-release.md).
+      name: "packaged",
+      testDir: "e2e/packaged",
+    },
+    {
       name: "firefox",
-      testIgnore: "desktop/**",
+      testIgnore: ["desktop/**", "packaged/**"],
       use: {
         ...devices["Desktop Firefox"],
         launchOptions: {
@@ -89,7 +96,7 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testIgnore: "desktop/**",
+      testIgnore: ["desktop/**", "packaged/**"],
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
