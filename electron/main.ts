@@ -76,7 +76,13 @@ app
         app.getPath("documents"),
       ),
     );
-    createMainWindow(startUrl, join(import.meta.dirname, "preload.cjs"));
+    // The window opens where and as the player left it, kept in the
+    // user-data folder.
+    return createMainWindow(
+      startUrl,
+      join(import.meta.dirname, "preload.cjs"),
+      join(app.getPath("userData"), "window-state.json"),
+    );
   })
   .catch((error: unknown) => {
     console.error("Moon Base could not start:", error);

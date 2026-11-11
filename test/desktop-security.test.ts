@@ -31,17 +31,23 @@ describe("the desktop window's options", () => {
     });
   });
 
-  it("keep the window at least 1366 × 768", () => {
+  it("keep the page at least 1366 px wide, and no taller than a maximised window's on a 1366 × 768 laptop", () => {
+    expect(options.useContentSize).toBe(true);
     expect(options.minWidth).toBe(1366);
-    expect(options.minHeight).toBe(768);
+    expect(options.minHeight).toBe(660);
     const small = mainWindowOptions("preload.cjs", {
       width: 1280,
       height: 720,
     });
     expect(small.width).toBe(minimumWindowSize.width);
     expect(small.height).toBe(minimumWindowSize.height);
-    expect(options.width).toBeGreaterThanOrEqual(1366);
-    expect(options.height).toBeGreaterThanOrEqual(768);
+  });
+
+  it("open the page at 1600 × 900 where the screen has room for it and its frame", () => {
+    expect(options).toMatchObject({ width: 1600, height: 900 });
+    expect(
+      mainWindowOptions("preload.cjs", { width: 1600, height: 900 }),
+    ).toMatchObject({ width: 1584, height: 836 });
   });
 });
 
