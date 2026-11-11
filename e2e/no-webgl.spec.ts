@@ -1,10 +1,29 @@
 import { expect, test } from "@playwright/test";
 
-// A Firefox whose WebGL is switched off, such as one with graphics
+// A browser whose WebGL is switched off, such as one with graphics
 // acceleration blocked, cannot draw the base map. The status panel must still
 // work, and the player must be told why the map is missing.
 test.use({
-  launchOptions: { firefoxUserPrefs: { "webgl.disabled": true } },
+  launchOptions: [
+    async ({ browserName, launchOptions }, use) => {
+      // Each browser has its own way to switch WebGL off.
+      await use(
+        browserName === "firefox"
+          ? {
+              ...launchOptions,
+              firefoxUserPrefs: {
+                ...launchOptions.firefoxUserPrefs,
+                "webgl.disabled": true,
+              },
+            }
+          : {
+              ...launchOptions,
+              args: [...(launchOptions.args ?? []), "--disable-webgl"],
+            },
+      );
+    },
+    { scope: "worker" },
+  ],
 });
 
 test("without WebGL the clock still runs and the player is told why the map is missing", async ({

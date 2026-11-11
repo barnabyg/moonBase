@@ -35,7 +35,7 @@ The Milestones in the status panel guide you through the Campaign, each with a h
 
 ## Verification
 
-Before the first run on a machine, install Playwright's Firefox once with `npx.cmd playwright install firefox`. Then run every check (formatting, lint, type check, unit and end-to-end tests, audit and secret scan, production build) from the repository's root folder:
+Before the first run on a machine, install Playwright's Firefox and Chromium once with `npx.cmd playwright install firefox chromium`. Then run every check (formatting, lint, type check, unit and end-to-end tests, audit and secret scan, production build) from the repository's root folder:
 
 ```powershell
 npm.cmd run verify
@@ -50,5 +50,5 @@ npm.cmd run verify
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, `test/catalogue-rules.ts` holds the catalogue's consistency rules, the `test/catalogue-*.test.ts` files test the catalogue with a file for each domain (and `test/catalogue-*-designs.test.ts` for the later Designs) sharing `test/catalogue-helpers.ts`, and the `test/sample-saves-*.test.ts` files test the old saves in `test/saves/`, sharing `test/sample-saves.ts`.
 - `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`) and starting the game in a prepared state (`try.mjs`).
-- `e2e/`: Playwright end-to-end tests in Firefox.
+- `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium.
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.

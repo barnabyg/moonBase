@@ -5,6 +5,8 @@
 //
 // CI runs the end-to-end tests in a job of their own, beside the other
 // checks, so it passes --skip-e2e to one job and --e2e-only to the other.
+// --project=firefox or --project=chromium runs the end-to-end tests in that
+// browser alone, as CI sets each up differently; without it they run in both.
 import { spawnSync } from "node:child_process";
 
 const e2e = "test:e2e";
@@ -16,19 +18,23 @@ const allSteps = [
   ],
   ["Type check (tsc --noEmit, strict)", "typecheck"],
   ["Unit and scenario tests (Vitest)", "test"],
-  ["End-to-end tests (Playwright, Firefox)", e2e],
+  ["End-to-end tests (Playwright)", e2e],
   ["Dependency audit (npm audit)", "audit"],
   ["Secret scan (secretlint)", "secrets"],
   ["Production build (Vite)", "build"],
 ];
 
-const [option, ...extra] = process.argv.slice(2);
 const filters = {
   "--skip-e2e": ([, script]) => script !== e2e,
   "--e2e-only": ([, script]) => script === e2e,
 };
+const args = process.argv.slice(2);
+const project = args.find((arg) => /^--project=(firefox|chromium)$/.test(arg));
+const [option, ...extra] = args.filter((arg) => arg !== project);
 if (extra.length > 0 || (option !== undefined && !(option in filters))) {
-  console.error("Usage: node scripts/verify.mjs [--skip-e2e | --e2e-only]");
+  console.error(
+    "Usage: node scripts/verify.mjs [--skip-e2e | --e2e-only] [--project=firefox | --project=chromium]",
+  );
   process.exit(2);
 }
 const steps =
@@ -37,8 +43,10 @@ const steps =
 for (const [index, [title, script]] of steps.entries()) {
   console.log(`\n=== ${index + 1}/${steps.length} ${title} ===`);
   // One command string (rather than an argument list) so the shell can find
-  // npm.cmd on Windows; the script names are fixed above.
-  const result = spawnSync(`npm run --silent ${script}`, {
+  // npm.cmd on Windows; the script names and the project are fixed above.
+  const forward =
+    script === e2e && project !== undefined ? ` -- ${project}` : "";
+  const result = spawnSync(`npm run --silent ${script}${forward}`, {
     stdio: "inherit",
     shell: true,
   });

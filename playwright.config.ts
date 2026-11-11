@@ -49,7 +49,8 @@ export default defineConfig({
     // Beside the page snapshot a failure leaves anyway, as CI keeps them.
     screenshot: "only-on-failure",
   },
-  // Desktop Firefox is the only supported target (ADR-0004).
+  // Firefox until the browser version is dropped, and Chromium, the engine of
+  // the desktop app that replaces it (ADR-0010). Pick one with --project.
   projects: [
     {
       name: "firefox",
@@ -66,6 +67,21 @@ export default defineConfig({
             // spares CI an apt-get install. No effect on Windows.
             "gfx.x11-egl.force-disabled": true,
           },
+        },
+      },
+    },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          // Headless Chromium draws WebGL in software (SwiftShader) unless
+          // told to use the GPU, and on a developer's PC that made tests up
+          // to five times slower than Firefox's. CI has no GPU, so it keeps
+          // SwiftShader, which Playwright enables with
+          // --enable-unsafe-swiftshader: headless, with no display needed.
+          // Set CI=1 to draw in software locally as CI does.
+          args: process.env["CI"] ? [] : ["--enable-gpu"],
         },
       },
     },
