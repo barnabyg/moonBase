@@ -18,6 +18,26 @@ Add `?seed=<number>` to the address (for example <http://localhost:5173/?seed=42
 
 The Milestones in the status panel guide you through the Campaign, each with a hint saying what to do next.
 
+### In the desktop app
+
+The desktop app (Windows only) is being built. To play it while developing, run this from the repository's root folder:
+
+```powershell
+npm.cmd ci
+npm.cmd run desktop
+```
+
+It starts the Vite dev server and opens the game from it in an Electron window, which reloads when you change the game, as the browser does. A change to `electron/` needs the command run again. Closing the window, or pressing `Ctrl+C` where you ran it, stops both.
+
+To play the production build instead, which opens the built game from disk with no dev server:
+
+```powershell
+npm.cmd run build:desktop
+npm.cmd run desktop:start
+```
+
+Run `build:desktop` again after changing the game or `electron/`, as `desktop:start` only opens what was built last.
+
 ## Documentation
 
 - [`docs/rules.md`](docs/rules.md): how the game works, system by system.
@@ -49,7 +69,8 @@ npm.cmd run verify
 - `src/game/`: the game loop, which turns real time into simulation ticks at the chosen speed, and the Campaign slot and save files, which load a Campaign from a file in place of the one being played.
 - `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
+- `electron/`: the desktop app's Electron main process and preload script, in strict TypeScript with its own `tsconfig.json` (Node types, no DOM), compiled to the ignored `dist-electron/`. `main.ts` starts the app; `window.ts` and `window-options.ts` open the game's window; `security.ts` holds the Content Security Policy and stops the page navigating away, opening windows or getting permissions; `app-protocol.ts` and `app-files.ts` serve the production build from `dist/` at `app://moonbase/`; `preload.cts` is where the page's narrow bridge to the main process goes.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, `test/catalogue-rules.ts` holds the catalogue's consistency rules, the `test/catalogue-*.test.ts` files test the catalogue with a file for each domain (and `test/catalogue-*-designs.test.ts` for the later Designs) sharing `test/catalogue-helpers.ts`, and the `test/sample-saves-*.test.ts` files test the old saves in `test/saves/`, sharing `test/sample-saves.ts`.
-- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
+- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`), playing it in the desktop app during development (`desktop.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
 - `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium.
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.
