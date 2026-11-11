@@ -1,0 +1,15 @@
+{
+  "//": "Electron's main process and preload script: Node types and no DOM (the page's code is checked by ../tsconfig.json). npm run build:electron compiles them to dist-electron/. verbatimModuleSyntax is off so that the sandboxed preload script (preload.cts, compiled to CommonJS) can use import syntax, which tsc turns into require().",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "verbatimModuleSyntax": false,
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "../dist-electron"
+  },
+  "include": ["."]
+}

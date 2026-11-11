@@ -1,4 +1,5 @@
 dist/
+dist-electron/
 coverage/
 playwright-report/
 test-results/
