@@ -1,8 +1,5 @@
-import {
-  bridgeName,
-  type UnsavedProgressBridge,
-} from "../../electron/desktop-bridge";
 import type { SaveFiles } from "../game/save-files";
+import { bridgeFunctions } from "./desktop-bridge-lookup";
 
 /**
  * In the desktop app, answers the main process's question, as the window is
@@ -15,20 +12,10 @@ export function answerUnsavedProgressFor(
   scope: object,
   saveFiles: Pick<SaveFiles, "unsaved">,
 ): void {
-  const bridge: unknown = Reflect.get(scope, bridgeName);
-  if (!isUnsavedProgressBridge(bridge)) return;
+  const bridge = bridgeFunctions(scope, ["answerUnsavedProgress"]);
+  if (bridge === undefined) return;
   bridge.answerUnsavedProgress(() => {
     const unsaved = saveFiles.unsaved();
     return unsaved === undefined ? null : { ...unsaved };
   });
-}
-
-function isUnsavedProgressBridge(
-  value: unknown,
-): value is UnsavedProgressBridge {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof Reflect.get(value, "answerUnsavedProgress") === "function"
-  );
 }

@@ -1,7 +1,5 @@
-import {
-  bridgeName,
-  type FullScreenBridge,
-} from "../../electron/desktop-bridge";
+import type { FullScreenBridge } from "../../electron/desktop-bridge";
+import { bridgeFunctions } from "./desktop-bridge-lookup";
 
 /**
  * The window's fullscreen, which the top bar's Full screen button toggles.
@@ -24,18 +22,12 @@ export interface FullScreen {
  * none in a browser.
  */
 export function fullScreenFor(scope: object): FullScreen | undefined {
-  const bridge: unknown = Reflect.get(scope, bridgeName);
-  return isFullScreenBridge(bridge) ? createFullScreen(bridge) : undefined;
-}
-
-function isFullScreenBridge(value: unknown): value is FullScreenBridge {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    ["toggleFullScreen", "isFullScreen", "onFullScreenChange"].every(
-      (name) => typeof Reflect.get(value, name) === "function",
-    )
-  );
+  const bridge = bridgeFunctions(scope, [
+    "toggleFullScreen",
+    "isFullScreen",
+    "onFullScreenChange",
+  ]);
+  return bridge === undefined ? undefined : createFullScreen(bridge);
 }
 
 function createFullScreen(bridge: FullScreenBridge): FullScreen {
