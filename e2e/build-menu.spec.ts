@@ -105,14 +105,6 @@ test("with every Design unlocked the build menu lists them by what they are for,
   await powerHeading.click();
   await expect(power.getByRole("button").first()).toBeHidden();
   await expect(summary).toHaveText(/^(\d+|none|all) can be built now$/);
-  // The fold is kept when the browser's toggle event follows the click, a
-  // task of its own. On CI's software renderer the main thread was busy
-  // enough that a reload straight after the click sometimes came first.
-  await expect
-    .poll(() =>
-      page.evaluate(() => localStorage.getItem("moonBase.foldedSections")),
-    )
-    .toContain('"build:power"');
 
   await page.reload();
   await expect(

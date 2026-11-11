@@ -76,12 +76,18 @@ export function createPanelSection(id: string, title: string): PanelSection {
   const warn = (on: boolean): void => {
     warning.hidden = !on;
   };
-  element.addEventListener("toggle", () => {
+  const keep = (): void => {
     const folded = readFolded();
     if (element.open) folded.delete(id);
     else folded.add(id);
     writeFolded(folded);
-  });
+  };
+  element.addEventListener("toggle", keep);
+  // The toggle event follows a click as a task of its own, so a page closed
+  // or reloaded straight after it, before that task ran, came back with the
+  // section open; on a busy main thread, such as CI's software renderer,
+  // that happened. Keep it once more as the page goes.
+  window.addEventListener("pagehide", keep);
   return {
     element,
     body,
