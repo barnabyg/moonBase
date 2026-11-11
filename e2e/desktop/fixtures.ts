@@ -44,14 +44,19 @@ export function gameUrl(query = ""): string {
 // which overlap, and Chromium on Windows stops drawing a window that others
 // cover, or that is in the background, which would stop the game's clock, as
 // the game advances in animation frames. The tests turn that off. CI's
-// Windows runner has no GPU, so there WebGL draws in software, with
-// SwiftShader, which Chromium only allows when told to.
+// Windows runner has no GPU; there E2E_GL=warp has the app draw with WARP,
+// Windows' own software renderer, through Direct3D 11, which Chromium refuses
+// unless told to ignore its GPU blocklist. It drew the game at 10 frames a
+// second on the runner, against 2.5 for SwiftShader, Chromium's fallback (see
+// playwright.config.ts).
 const chromiumSwitches = [
   "--disable-features=CalculateNativeWinOcclusion",
   "--disable-backgrounding-occluded-windows",
   "--disable-renderer-backgrounding",
   "--disable-background-timer-throttling",
-  ...(process.env["CI"] ? ["--enable-unsafe-swiftshader"] : []),
+  ...(process.env["E2E_GL"] === "warp"
+    ? ["--use-angle=d3d11", "--ignore-gpu-blocklist"]
+    : []),
 ];
 
 export interface LaunchOptions {

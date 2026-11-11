@@ -60,11 +60,17 @@ jobs:
       - if: steps.browser-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium
         timeout-minutes: 3
-      # The runner has no GPU and no display. Chromium needs neither: headless,
-      # it draws WebGL2 with its own software renderer (SwiftShader), which
-      # Playwright enables.
-      - run: npm run verify -- --e2e-only --project=chromium
+      # The runner has no GPU. Chromium's own software renderer, SwiftShader,
+      # drew the game at under 2 frames a second here, too slow for its clock
+      # to keep up, so E2E_GL=mesa has Chromium draw with Mesa's llvmpipe,
+      # which drew it at about 7. That needs a display: Chromium runs headed,
+      # one window at a time (two halve each other's frames), in a virtual X
+      # display. Xvfb and Mesa come with the runner image. See
+      # playwright.config.ts and docs/verification.md.
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run verify -- --e2e-only --project=chromium
         env:
+          E2E_GL: mesa
+          PLAYWRIGHT_HEADED: "1"
           E2E_SHARD: ${{ matrix.shard }}/4
       # A failing end-to-end test leaves the page as it was, as an
       # accessibility snapshot and a screenshot, in test-results. CI can't
@@ -80,14 +86,14 @@ jobs:
     name: End-to-end tests, desktop app (Electron)
     # Windows, as the desktop app is Windows only (ADR-0010): this tests the
     # Electron build on the platform players run it on. The runner has no
-    # GPU; Electron draws WebGL there in software (SwiftShader, which the
-    # tests allow in CI; see e2e/desktop/fixtures.ts), and needs no virtual
+    # GPU; Electron draws WebGL there in software, with WARP, Windows' own
+    # (E2E_GL=warp; see e2e/desktop/fixtures.ts), and needs no virtual
     # display, unlike Electron on Linux, which would also need its sandbox
     # turned off.
     runs-on: windows-2025
     # The tests take about 15 seconds on a developer's PC with a GPU; drawing
     # in software is several times slower. See docs/verification.md.
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -109,6 +115,8 @@ jobs:
       - run: npm ci
         timeout-minutes: 6
       - run: npm run verify -- --e2e-only --project=electron
+        env:
+          E2E_GL: warp
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

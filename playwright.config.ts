@@ -9,6 +9,16 @@ const port = Number(process.env["E2E_PORT"] ?? 4173);
 const host = "127.0.0.1";
 // PLAYWRIGHT_HEADED=1 shows the browser's windows, to watch a test.
 const headed = process.env["PLAYWRIGHT_HEADED"] === "1";
+// E2E_GL names the software renderer a GPU-less CI runner draws with, so
+// each project can pick the fastest one there: "mesa" for Chromium on Linux
+// (Mesa's llvmpipe through ANGLE's OpenGL back end, which needs a display, so
+// CI runs it headed in a virtual X display), and "warp" for the desktop app on
+// Windows (see e2e/desktop/fixtures.ts). Measured on the runners in November
+// 2026, SwiftShader, Chromium's own, drew the game at 1.9 frames a second on
+// Linux and 2.5 on Windows; llvmpipe drew 6.9 and WARP 10. Below 4 a second
+// the game's clock falls behind real time (src/game/loop.ts), and tests that
+// wait on it ran out of time. See docs/verification.md.
+const softwareGl = process.env["E2E_GL"];
 // E2E_SHARD, such as "2/4", runs that share of the tests, so CI can spread them
 // over several runners (see docs/verification.md).
 const shard = /^(\d+)\/(\d+)$/.exec(process.env["E2E_SHARD"] ?? "");
@@ -58,6 +68,10 @@ export default defineConfig({
       // Each test launches its own app with its own user-data folder, so the
       // tests in a file can run side by side too.
       fullyParallel: true,
+      // On CI's GPU-less Windows runner two apps drawing in software at once
+      // each got about half the frames one got alone (5.3 a second against
+      // 10), too few for the game's clock to keep up, so CI runs one at a time.
+      ...(softwareGl === "warp" ? { workers: 1 } : {}),
       dependencies: ["desktop-build"],
     },
     {
@@ -75,11 +89,16 @@ export default defineConfig({
         launchOptions: {
           // Headless Chromium draws WebGL in software (SwiftShader) unless
           // told to use the GPU, and on a developer's PC that made tests up
-          // to five times slower. CI has no GPU, so it keeps
-          // SwiftShader, which Playwright enables with
-          // --enable-unsafe-swiftshader: headless, with no display needed.
-          // Set CI=1 to draw in software locally as CI does.
-          args: process.env["CI"] ? [] : ["--enable-gpu"],
+          // to five times slower. CI has no GPU: there E2E_GL=mesa has
+          // Chromium draw with Mesa's llvmpipe instead, which is over three
+          // times faster than SwiftShader on the runner (see softwareGl).
+          // Set CI=1 alone to draw with SwiftShader locally.
+          args:
+            softwareGl === "mesa"
+              ? ["--use-gl=angle", "--use-angle=gl", "--ignore-gpu-blocklist"]
+              : process.env["CI"]
+                ? []
+                : ["--enable-gpu"],
         },
       },
     },

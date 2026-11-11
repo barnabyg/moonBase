@@ -65,7 +65,7 @@ The fixtures also set `MOONBASE_E2E=1`, under which the main process logs an unc
 
 The windows are real and show on the desktop while the tests run, as Electron has no headless mode. Several open at once and overlap, and Chromium stops drawing a window that is covered or in the background, which would stop the game's clock, so the tests launch Electron with switches that turn that off.
 
-On the maintainer's PC (four workers, on the GPU) the twenty-six tests take about 40 seconds. Some briefly fill the screen. CI runs them in the `desktop` job of `.github/workflows/end-to-end.yml`, on Windows, as the desktop app is Windows only. The runner has no GPU, so there (`CI` set) the tests let Electron draw WebGL in software with SwiftShader; locally, `CI=1` doesn't make it draw in software, as the windows always have the GPU. The job keeps Electron's download in GitHub's cache, keyed on its pinned version. Its CI times are not yet measured.
+On the maintainer's PC (four workers, on the GPU) the twenty-six tests take about 40 seconds. Some briefly fill the screen. CI runs them in the `desktop` job of `.github/workflows/end-to-end.yml`, on Windows, as the desktop app is Windows only. The runner has no GPU, so there `E2E_GL=warp` has Electron draw WebGL in software with WARP, Windows' own software renderer, through Direct3D 11, and the tests run one at a time (see [Software rendering in CI](#software-rendering-in-ci)). Locally the windows always have the GPU. The job keeps Electron's download in GitHub's cache, keyed on its pinned version. Its CI times are not yet measured.
 
 ### The installer
 
@@ -92,10 +92,23 @@ npm.cmd run test:e2e -- --project=chromium
 
 On the maintainer's PC (20 cores, four workers, on the GPU) they take about 3 minutes (2.8 in November 2026).
 
-- In CI Chromium runs headless, with no display, drawing WebGL2 with its own software renderer, SwiftShader, which Playwright allows with `--enable-unsafe-swiftshader`. Each page draws on its own, so it runs headless runs' usual number of workers: two on a four-CPU runner. On a developer's PC, held to four CPUs with two workers and drawing in software, all the tests took 30 minutes, so a share of four should take about 8 minutes on a runner as fast. Its CI times are not yet measured; the job limit is 30 minutes.
-- Headless Chromium draws in software on a developer's PC too, unless told to use the GPU, and that made the first tests up to five times slower. `playwright.config.ts` therefore starts it with `--enable-gpu` outside CI. To draw in software as CI does, set `$env:CI = "1"` first; that also stops at the first failure, which `--max-failures=0` undoes.
+- In CI Chromium runs headed, one window at a time, in a virtual X display, drawing WebGL2 in software with Mesa's llvmpipe (`E2E_GL=mesa`; see [Software rendering in CI](#software-rendering-in-ci)). Its CI times are not yet measured; the job limit is 30 minutes.
+- Headless Chromium draws in software on a developer's PC too, unless told to use the GPU, and that made the first tests up to five times slower. `playwright.config.ts` therefore starts it with `--enable-gpu` outside CI. To draw in software, with SwiftShader, set `$env:CI = "1"` first; that also stops at the first failure, which `--max-failures=0` undoes.
 - The game turns off anisotropic filtering and multisampling when WebGL is drawn in software: the first slowed every frame several times over, the second by over half again. Chromium hides the renderer's name behind "WebKit WebGL", so `src/render/renderer.ts` reads it from the `WEBGL_debug_renderer_info` extension.
 - To reproduce a CI-only failure, draw in software as above. The runner's fonts are also wider than Windows', which can wrap text that fits locally: setting `font-family: Verdana` for a run in `src/ui/styles.css` reproduces that.
+
+## Software rendering in CI
+
+CI's runners have no GPU, so the game is drawn in software, and how fast matters: below 4 frames a second the game's clock falls behind real time (`src/game/loop.ts` counts at most 250 ms a frame), and Playwright waits for frames before each click. The first CI run of the Chromium and Electron tests drew with SwiftShader, Chromium's own software renderer, and failed with clicks and clocks that ran out of time. A probe on the runners in November 2026 (4 CPUs each; the game at 1280 × 720) measured, in frames a second:
+
+| Runner       | Renderer                                       | One window | Two at once |
+| ------------ | ---------------------------------------------- | ---------- | ----------- |
+| Ubuntu 24.04 | SwiftShader, headless                          | 1.9        | 1.1         |
+| Ubuntu 24.04 | Mesa llvmpipe, through ANGLE's OpenGL, in Xvfb | 6.9        | 4.0         |
+| Windows 2025 | SwiftShader                                    | 2.5        | 1.3         |
+| Windows 2025 | WARP, through ANGLE's Direct3D 11              | 10.0       | 5.3         |
+
+So CI sets `E2E_GL`: `mesa` for Chromium on Linux, which starts it with `--use-gl=angle --use-angle=gl --ignore-gpu-blocklist` and runs it headed in a virtual display, and `warp` for Electron on Windows, which starts it with `--use-angle=d3d11 --ignore-gpu-blocklist` (Chromium otherwise refuses a software Direct3D device and falls back to SwiftShader). Both run one test at a time, as two windows at once each got about half the frames. Halving the page's resolution raised each by a half to nearly double, but would make a machine without a GPU draw a coarser picture than the one the tests check, so it isn't used.
 
 ## The long game
 
