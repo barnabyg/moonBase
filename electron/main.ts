@@ -13,6 +13,19 @@ import {
 } from "./security.js";
 import { createMainWindow } from "./window.js";
 
+// Under the end-to-end tests (MOONBASE_E2E=1), an uncaught exception in the
+// main process is logged, where the test reports it, and the app exits with
+// code 1. Electron's default is a modal error dialog, which would wait on the
+// developer's desktop, or a CI runner's, with no one to close it, until the
+// test timed out. A player still gets the dialog, which at least says what
+// went wrong. Set first, so it covers everything below.
+if (!app.isPackaged && process.env["MOONBASE_E2E"] === "1") {
+  process.on("uncaughtException", (error) => {
+    console.error("Moon Base's main process failed:", error);
+    app.exit(1);
+  });
+}
+
 // An installed app ignores the variable, so only a development run can point
 // the window at a dev server.
 const devServerUrl = app.isPackaged
@@ -20,6 +33,17 @@ const devServerUrl = app.isPackaged
   : process.env["MOONBASE_DEV_SERVER_URL"];
 const startUrl = devServerUrl ?? appUrl;
 const policy = contentSecurityPolicy(devServerUrl);
+
+// The end-to-end tests give each run of the app a folder of its own for what
+// Electron keeps between runs (localStorage, caches, and the lock that keeps
+// one instance running), so tests running side by side can't share it, and a
+// test can launch the app again with the same folder. It must be set before
+// the app is ready. As with the dev server, an installed app ignores it.
+const userDataDir = app.isPackaged
+  ? undefined
+  : process.env["MOONBASE_USER_DATA_DIR"];
+if (userDataDir !== undefined && userDataDir !== "")
+  app.setPath("userData", userDataDir);
 
 registerAppScheme();
 
