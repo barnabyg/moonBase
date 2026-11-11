@@ -15,6 +15,12 @@ import { onClick } from "./click";
 import { setText } from "./dom";
 import { formatInTheWay } from "./keep-clear-text";
 import { inSentence } from "./labels";
+import { createPanelSection } from "./panel-section";
+import {
+  groupBuildOptions,
+  summariseBuildGroup,
+  type BuildOptionStock,
+} from "./build-menu-text";
 
 export interface BuildMenu {
   update(snapshot: Snapshot): void;
@@ -23,11 +29,15 @@ export interface BuildMenu {
 }
 
 /**
- * The build menu. Hovering over a Structure says what it does. The player
- * picks one, moves its translucent preview over the map, and clicks to plan
- * a Construction there. A Structure whose Design isn't unlocked isn't
- * offered until it is. The menu only sends the plan to the Campaign; the
- * simulation decides whether it is allowed.
+ * The build menu. It lists the Structures in the groups the Base panel
+ * uses, by what they are for, each of which the player can fold away, and
+ * dims one whose Components aren't in the base's stock, so that what can be
+ * built now stands out. Hovering over a Structure says what it does. The
+ * player picks one, moves its translucent preview over the map, and clicks
+ * to plan a Construction there. A Structure whose Design isn't unlocked
+ * isn't offered until it is, nor a group until it offers one. The menu only
+ * sends the plan to the Campaign; the simulation decides whether it is
+ * allowed.
  */
 export function createBuildMenu(
   container: HTMLElement,
@@ -40,7 +50,7 @@ export function createBuildMenu(
   const heading = document.createElement("h2");
   heading.textContent = "Build";
   const options = document.createElement("div");
-  options.className = "build-menu__options";
+  options.className = "build-menu__groups";
   const hint = document.createElement("p");
   hint.className = "build-menu__hint";
   hint.setAttribute("role", "status");
@@ -55,39 +65,56 @@ export function createBuildMenu(
   let structures: Snapshot["structures"] = [];
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
+  /** What each Structure's badge shows, as of the latest snapshot. */
+  const stocks = new Map<string, BuildOptionStock>();
   // A solar array is planned as one, and its parts decide its kind.
   const offered = catalogue.structureTypes.filter(isPlannedAsItself);
   /** What the next solar array will be, as of the latest snapshot. */
   let nextArray = "";
-  const buttons = offered.map((type) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    // What it does, on hover, so that the choice needs no other screen.
-    button.title = [
-      designOf(type.designId)?.description,
-      describeStructure(type),
-      describeBuild(type),
-    ]
-      .filter((text) => text !== undefined)
-      .join(" ");
-    const name = document.createElement("span");
-    name.textContent = type.label;
-    // How many the stock can supply, as a badge; the words are for screen
-    // readers.
-    const stock = document.createElement("span");
-    stock.className = "build-menu__stock";
-    const count = document.createElement("span");
-    const meaning = document.createElement("span");
-    meaning.className = "visually-hidden";
-    stock.append(count, meaning);
-    button.append(name, " ", stock);
-    button.addEventListener("click", () => {
-      if (placing === type) stopPlacing("");
-      else startPlacing(type);
-    });
-    options.append(button);
-    return { type, button, stock, count, meaning };
+  // Each group keeps its place and each Structure its place in it, whatever
+  // the stock, so that a button never moves under the pointer.
+  const groups = groupBuildOptions(offered).map((group) => {
+    const section = createPanelSection(`build:${group.id}`, group.label);
+    section.element.classList.add("build-group");
+    const grid = document.createElement("div");
+    grid.className = "build-menu__options";
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", group.label);
+    section.body.append(grid);
+    options.append(section.element);
+    return { section, grid, types: group.types };
   });
+  const buttons = groups.flatMap(({ grid, types }) =>
+    types.map((type) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      // What it does, on hover, so that the choice needs no other screen.
+      button.title = [
+        designOf(type.designId)?.description,
+        describeStructure(type),
+        describeBuild(type),
+      ]
+        .filter((text) => text !== undefined)
+        .join(" ");
+      const name = document.createElement("span");
+      name.textContent = type.label;
+      // How many the stock can supply, as a badge; the words are for screen
+      // readers.
+      const stock = document.createElement("span");
+      stock.className = "build-menu__stock";
+      const count = document.createElement("span");
+      const meaning = document.createElement("span");
+      meaning.className = "visually-hidden";
+      stock.append(count, meaning);
+      button.append(name, " ", stock);
+      button.addEventListener("click", () => {
+        if (placing === type) stopPlacing("");
+        else startPlacing(type);
+      });
+      grid.append(button);
+      return { type, button, stock, count, meaning };
+    }),
+  );
 
   function showPlacing(): void {
     for (const { type, button } of buttons) {
@@ -263,11 +290,30 @@ export function createBuildMenu(
         const unlimited = type.components.length === 0;
         setText(count, unlimited ? "–" : String(sets));
         setText(meaning, unlimited ? " no Components needed" : " available");
-        stock.classList.toggle(
-          "build-menu__stock--none",
-          !unlimited && sets === 0,
-        );
+        // Dimmed, while the badge's "0" says so in words.
+        const short = !unlimited && sets === 0;
+        stock.classList.toggle("build-menu__stock--none", short);
+        button.classList.toggle("build-menu__option--short", short);
         stock.title = unlimited ? "No Components needed" : `${sets} available`;
+        stocks.set(type.id, { sets, unlimited });
+      }
+      // A group shows only while it offers something, and says how many of
+      // those could be built now, for while it is folded.
+      for (const { section, types } of groups) {
+        const shown = types.filter((type) =>
+          snapshot.unlockedDesignIds.includes(type.designId),
+        );
+        section.element.hidden = shown.length === 0;
+        section.count(shown.length);
+        section.summarise(
+          shown.length === 0
+            ? undefined
+            : summariseBuildGroup(
+                shown.map(
+                  ({ id }) => stocks.get(id) ?? { sets: 0, unlimited: false },
+                ),
+              ),
+        );
       }
     },
   };
