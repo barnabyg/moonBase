@@ -143,7 +143,14 @@ describe("the pop-up for a Structure clicked on the map", () => {
       "Stage: Component delivery: 42% · Waiting: 2 solar panels aren't in the base's stock",
     );
     expect(details?.lines[0]?.fraction).toBeCloseTo(0.42);
+    // Work done is neither good nor bad.
+    expect(details?.lines[0]?.meter).toBe("progress");
     expect(line(details, "Condition")).toBe("Condition: –");
+    // Its bar means the same before it has a Condition as after, as the
+    // pop-up keeps its lines from Construction to Commissioning.
+    expect(
+      details?.lines.find(({ label }) => label === "Condition")?.meter,
+    ).toBe("level");
     expect(details?.commissioned).toBeUndefined();
   });
 
@@ -218,6 +225,11 @@ describe("the pop-up for a Structure clicked on the map", () => {
       "Dust coating: 12%",
     ]);
     expect(details?.lines[2]?.fraction).toBeCloseTo(0.374);
+    // More Condition is better; more Dust is worse, up to all it can take.
+    expect(details?.lines[2]?.meter).toBe("level");
+    expect(details?.lines[5]?.meter).toBe("limit");
+    // Below the low-Condition figure, as the Base panel marks it.
+    expect(details?.lines[2]?.low).toBe(true);
   });
 
   it("warns of a Broken Structure", () => {
@@ -231,6 +243,10 @@ describe("the pop-up for a Structure clicked on the map", () => {
     expect(
       details?.lines.find(({ label }) => label === "Condition")?.warning,
     ).toBe(true);
+    // Broken is a warning, not merely low.
+    expect(details?.lines.find(({ label }) => label === "Condition")?.low).toBe(
+      false,
+    );
   });
 
   it("shows how much a battery bank holds, as its Condition allows", () => {
@@ -249,6 +265,9 @@ describe("the pop-up for a Structure clicked on the map", () => {
     expect(
       details?.lines.find(({ label }) => label === "Battery")?.fraction,
     ).toBeCloseTo(0.5);
+    expect(details?.lines.find(({ label }) => label === "Battery")?.meter).toBe(
+      "level",
+    );
   });
 
   it("shows a Plant's recipe, its batch, and that it is switched off", () => {
@@ -407,6 +426,9 @@ describe("the pop-up for a telescope", () => {
     expect(
       details?.lines.find(({ label }) => label === "Programme")?.fraction,
     ).toBeCloseTo(0.42);
+    expect(
+      details?.lines.find(({ label }) => label === "Programme")?.meter,
+    ).toBe("progress");
   });
 
   it("says when it isn't observing, to save power", () => {
@@ -478,6 +500,10 @@ describe("the pop-up for a parking area", () => {
     expect(
       details?.lines.find(({ label }) => label === "Bays")?.fraction,
     ).toBeCloseTo(0.5);
+    // Once they are all taken, there is no room for another.
+    expect(details?.lines.find(({ label }) => label === "Bays")?.meter).toBe(
+      "limit",
+    );
   });
 
   it("shows no bays taken until it is commissioned", () => {

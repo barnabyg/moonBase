@@ -18,6 +18,9 @@ import {
   formatParkingPlace,
   formatStage,
   hasComponents,
+  isConstructionHeldUp,
+  isMaintenanceHeldUp,
+  summariseHeldUp,
 } from "./construction-panel-text";
 import { formatStageProgress } from "./format";
 import {
@@ -27,8 +30,9 @@ import {
   structureLabel,
   subjectLabel,
 } from "./labels";
-import { setText } from "./dom";
+import { placeInOrder, setText } from "./dom";
 import { createLingering, holdHeight } from "./hold";
+import { createPanelSection } from "./panel-section";
 
 export interface ConstructionPanel {
   /** Shows the snapshot, with the real time the frame counted, to time the rows that stay once their work is done. */
@@ -77,7 +81,11 @@ interface Row {
  * Construction, each Structure being dismantled and any unloading of the
  * Lander or loading of Exports onto it, with its current stage, its
  * progress, and what is happening on it, or that there is no work under
- * way. Work that is done stays a few seconds, saying so, before its row
+ * way. Work that is held up, until the base has the Components, spare
+ * Components or water it needs, a Broken Machine has been maintained or
+ * the Robot is back from an Expedition, is marked and listed below the
+ * rest, and the title counts the Work Orders and how many are held up.
+ * Work that is done stays a few seconds, saying so, before its row
  * goes, and the panel stays in place and keeps its height, so that work
  * coming and going at high game speed doesn't move the rows below it, or
  * the Base panel. The player can cancel a
@@ -91,18 +99,30 @@ export function createConstructionPanel(
   const panel = document.createElement("aside");
   panel.className = "construction-panel";
   panel.setAttribute("aria-label", "Work");
-  const heading = document.createElement("h2");
-  heading.textContent = "Work";
+  // Folds away like the sections of the other panels, its title saying how
+  // many Work Orders there are and how many of them are held up.
+  const section = createPanelSection("work", "Work");
   const list = document.createElement("ul");
   // In place of the rows while there are none, so that the panel stays.
   const idle = document.createElement("p");
   idle.className = "construction-panel__idle";
   idle.textContent = "No work under way";
-  panel.append(heading, list, idle);
+  section.body.append(list, idle);
+  panel.append(section.element);
   container.append(panel);
-  holdHeight(panel);
+  // Held while open, and giving its room back while folded.
+  holdHeight(section.body);
 
   const rows = new Map<string, Row>();
+  /**
+   * The rows' keys in the order Work Orders are claimed: Maintenance in
+   * the order it was raised, then parking, then the rest in the order they
+   * were planned. Rows are listed in this order, those held up below the
+   * rest, so that a row moves only as it is held up or freed.
+   */
+  const order: string[] = [];
+  /** The rows whose work is held up, as of the last update. */
+  const heldUp = new Set<string>();
   // A row whose work is done stays a while, so that a Work Order raised
   // again soon after takes the same row and the rows below don't jump.
   // One whose work stopped for another reason, such as a Construction
@@ -151,10 +171,26 @@ export function createConstructionPanel(
     holdHeight(item);
     return { item, stage, progress, work, cancel };
   };
-  /** Lists a new row by its key, which it carries as a stable name for the row. */
-  const keepRow = (key: string, row: Row) => {
+  /**
+   * Lists a new row by its key, which it carries as a stable name for the
+   * row, before the first row that the given test says comes after it, or
+   * else last.
+   */
+  const keepRow = (
+    key: string,
+    row: Row,
+    before: (other: string) => boolean = () => false,
+  ) => {
     row.item.dataset["row"] = key;
     rows.set(key, row);
+    const place = order.findIndex(before);
+    order.splice(place === -1 ? order.length : place, 0, key);
+  };
+  /** Marks a row as held up, or not, as the update finds it. */
+  const holdUp = (key: string, row: Row, held: boolean) => {
+    if (held) heldUp.add(key);
+    else heldUp.delete(key);
+    row.item.classList.toggle("construction-panel__row--held-up", held);
   };
   /** Finds a row by its key, taking it back if its work was done. */
   const rowFor = (key: string): Row | undefined => {
@@ -197,11 +233,7 @@ export function createConstructionPanel(
           );
           // Maintenance comes before every other Work Order, so it is listed
           // first, in the order it was raised.
-          const firstOther = [...rows].find(
-            ([other]) => !other.startsWith(MAINTENANCE_ROW),
-          )?.[1];
-          list.insertBefore(row.item, firstOther?.item ?? null);
-          keepRow(key, row);
+          keepRow(key, row, (other) => !other.startsWith(MAINTENANCE_ROW));
         }
         showStage(
           row,
@@ -209,6 +241,7 @@ export function createConstructionPanel(
           maintenance.stageProgress,
         );
         showWork(row, () => describeMaintenance(maintenance, snapshot));
+        holdUp(key, row, away || isMaintenanceHeldUp(maintenance));
       }
       for (const parking of snapshot.parking) {
         const key = `${PARKING_ROW}${subjectId(parking.subject)}`;
@@ -225,18 +258,19 @@ export function createConstructionPanel(
           );
           // Parking comes after Maintenance and before every other Work
           // Order, so it is listed in between.
-          const firstOther = [...rows].find(
-            ([other]) =>
+          keepRow(
+            key,
+            row,
+            (other) =>
               !other.startsWith(MAINTENANCE_ROW) &&
               !other.startsWith(PARKING_ROW),
-          )?.[1];
-          list.insertBefore(row.item, firstOther?.item ?? null);
-          keepRow(key, row);
+          );
         }
         // How far it has to go isn't known, so it shows no progress.
         showProgress(row.progress, undefined, "Parking progress");
         setText(row.stage, `Parking ${formatParkingPlace(parking)}`);
         showWork(row, () => describeParking(parking, snapshot));
+        holdUp(key, row, away);
       }
       for (const construction of snapshot.constructions) {
         seen.add(construction.id);
@@ -254,6 +288,11 @@ export function createConstructionPanel(
           construction.stageProgress,
         );
         showWork(row, () => describeWork(construction, snapshot));
+        holdUp(
+          construction.id,
+          row,
+          away || isConstructionHeldUp(construction, snapshot),
+        );
         if (row.cancel !== undefined) {
           row.cancel.title = describeCancelling(construction);
         }
@@ -275,6 +314,7 @@ export function createConstructionPanel(
           dismantling.stageProgress,
         );
         showWork(row, () => describeDismantling(dismantling, snapshot));
+        holdUp(key, row, away);
       }
       const { unloading } = snapshot;
       if (unloading !== undefined) {
@@ -292,6 +332,7 @@ export function createConstructionPanel(
           unloading.stageProgress,
         );
         showWork(row, () => describeUnloading(unloading, snapshot));
+        holdUp(UNLOADING_ROW, row, away);
       }
       const { exportLoading } = snapshot;
       if (exportLoading !== undefined) {
@@ -309,11 +350,15 @@ export function createConstructionPanel(
           exportLoading.stageProgress,
         );
         showWork(row, () => describeExportLoading(exportLoading, snapshot));
+        holdUp(LOADING_ROW, row, away);
       }
       const remove = (id: string) => {
         rows.get(id)?.item.remove();
         rows.delete(id);
         parked.delete(id);
+        heldUp.delete(id);
+        const place = order.indexOf(id);
+        if (place !== -1) order.splice(place, 1);
       };
       for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {
@@ -333,13 +378,26 @@ export function createConstructionPanel(
         showProgress(row.progress, 1, "Done");
         setText(row.work, "");
         if (row.cancel !== undefined) row.cancel.hidden = true;
+        // Its work went on until it was done, so it is held up no longer.
+        holdUp(id, row, false);
       }
       finished.clear();
+      placeInOrder(
+        list,
+        [
+          ...order.filter((key) => !heldUp.has(key)),
+          ...order.filter((key) => heldUp.has(key)),
+        ].flatMap((key) => rows.get(key)?.item ?? []),
+      );
       idle.hidden = rows.size > 0;
+      section.count(seen.size === 0 ? undefined : seen.size);
+      section.summarise(summariseHeldUp(heldUp.size));
     },
     startAfresh() {
       for (const row of rows.values()) row.item.remove();
       rows.clear();
+      order.length = 0;
+      heldUp.clear();
       finished.clear();
       parked.clear();
       done.startAfresh();

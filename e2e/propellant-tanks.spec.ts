@@ -3,7 +3,7 @@ import { tryScenarios } from "../test/try-scenarios";
 import { dismantle, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
 
-// The smallest screen the status panel is laid out for.
+// A full HD screen, with room for the status panel to show the lines checked.
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 async function speed(page: Page, name: string): Promise<void> {

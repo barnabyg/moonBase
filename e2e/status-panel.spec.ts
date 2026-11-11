@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
 
-// The smallest screen the status panel is laid out for.
+// A full HD screen, with room for the status panel to show the lines checked.
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 test("a folded status section shows its headline figures beside its title, and Research stays in sight with the others folded", async ({

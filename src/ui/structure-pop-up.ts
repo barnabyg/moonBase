@@ -155,8 +155,9 @@ export function createStructurePopUp(
     // it as its lines change at high game speed; its lines are held too.
     holdHeight(popUp, structureId);
     const statLines = new Map<string, StatLine>();
-    for (const { label } of detailLines) {
-      const line = createStatLine(label);
+    // A line's bar means the same whatever stage the Structure is at.
+    for (const { label, meter } of detailLines) {
+      const line = createStatLine(label, label, meter);
       statLines.set(label, line);
       lines.append(line.element);
     }
@@ -195,6 +196,7 @@ export function createStructurePopUp(
       statLine.show(line.stat);
       statLine.fill(line.fraction);
       statLine.warn(line.warning === true);
+      statLine.element.classList.toggle("stat--low", line.low === true);
       // In full on hover, for when it is too long for the pop-up.
       const text =
         line.stat.note === undefined

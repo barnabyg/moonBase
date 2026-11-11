@@ -1,6 +1,6 @@
 import { setText } from "./dom";
 import { holdHeight } from "./hold";
-import { createMeter } from "./stat";
+import { createMeter, limitState } from "./stat";
 
 /**
  * The frame of a screen that opens over the map, such as the Research Tasks
@@ -43,7 +43,8 @@ export interface ScreenTab {
 
 /**
  * A figure such as the Payload Mass, in words a screen reader reads out as
- * it changes, over a bar showing how much of its limit it takes.
+ * it changes, over a bar showing how much of its limit it takes, picked out
+ * as it nears the limit and marked as a warning at it.
  */
 export interface Gauge {
   readonly element: HTMLElement;
@@ -60,16 +61,17 @@ export function createGauge(name: string): Gauge {
   text.className = "gauge__text";
   text.setAttribute("role", "status");
   text.setAttribute("aria-label", name);
-  const meter = createMeter();
+  const meter = createMeter("limit");
   element.append(text, meter.element);
   return {
     element,
     show(shown, fraction) {
       setText(text, shown);
       meter.fill(fraction);
+      // At its limit, its words are marked as a warning, as its bar is.
       element.classList.toggle(
         "gauge--full",
-        fraction !== undefined && fraction >= 0.95,
+        fraction !== undefined && limitState(fraction) === "full",
       );
     },
   };

@@ -10,9 +10,22 @@
   --good: #6fd08c;
   --warning: #ff8a70;
   --science: #8fd0ff;
+  /* Work done, neither good nor bad; well apart from the track behind it. */
+  --progress: #a7b4c4;
   --meter-track: rgb(255 255 255 / 10%);
   --gutter: 12px;
   --top-bar-height: 52px;
+  --left-column-width: 340px;
+  --right-column-width: 300px;
+}
+
+/* On a narrower window, such as a 1366 px laptop's, the smallest the game is
+   laid out for (ADR-0004), the columns give the map more of it. */
+@media (width <= 1600px) {
+  :root {
+    --left-column-width: 290px;
+    --right-column-width: 260px;
+  }
 }
 
 * {
@@ -99,12 +112,12 @@ body {
 
 .left-column {
   left: var(--gutter);
-  width: 340px;
+  width: var(--left-column-width);
 }
 
 .right-column {
   right: var(--gutter);
-  width: 300px;
+  width: var(--right-column-width);
 }
 
 /* The bar across the top. */
@@ -217,7 +230,10 @@ body {
   position: absolute;
   top: calc(var(--gutter) * 2 + var(--top-bar-height));
   left: 50%;
-  max-width: min(520px, calc(100% - 660px));
+  max-width: min(
+    520px,
+    calc(100% - var(--left-column-width) - var(--right-column-width) - 20px)
+  );
   margin: 0;
   padding: 8px 14px;
   transform: translateX(-50%);
@@ -248,8 +264,16 @@ body {
   max-height: 40%;
   font-variant-numeric: tabular-nums;
   overflow-y: auto;
-  padding: 10px 14px;
+  padding: 4px 0;
   scrollbar-width: thin;
+}
+
+/* The status panel above it keeps the height it needs, up to its limit, and
+   the build menu gives way first, so that grouping the build menu's
+   Structures doesn't cut the status panel's figures short. */
+.left-column > .status-panel {
+  flex-shrink: 0;
+  max-height: 65%;
 }
 
 /* With every Design unlocked it is taller than the window has room for, so it
@@ -276,7 +300,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.construction-panel h2,
 .build-menu h2 {
   margin: 0 0 8px;
   font-size: 0.72rem;
@@ -494,8 +517,22 @@ body {
   color: var(--warning);
 }
 
-.stat--warning .meter__fill {
-  background: var(--warning);
+/* Not by its colour alone: a sign goes before the figure, as it does on a
+   line whose bar is at its limit, or whose figure is low. */
+.stat--warning .stat__value::before,
+.stat:has(> .meter--full) .stat__value::before,
+.stat--low .stat__value::before,
+.gauge--full .gauge__text::before {
+  content: "\26A0\FE0E\00A0";
+}
+
+/* Low, short of a warning, as the Base panel shows a low Condition. */
+.stat--low .stat__value::before {
+  color: var(--accent);
+}
+
+.stat--low:not(.stat--warning) .meter .meter__fill {
+  background: var(--accent);
 }
 
 /* A line the needs-attention list has just led to, picked out for a moment. */
@@ -612,12 +649,29 @@ body {
   border-radius: 2px;
 }
 
+/* A bar's colour says what its figure means, so that no colour means both
+   good and bad: green where more is better, a neutral blue-grey for work
+   done, and for a figure against a limit, neutral while clear of it, amber
+   near it and the warning colour at it. */
 .meter__fill {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: var(--progress);
   border-radius: 2px;
+}
+
+.meter--level .meter__fill {
+  background: var(--good);
+}
+
+.meter--near .meter__fill {
+  background: var(--accent);
+}
+
+.meter--full .meter__fill,
+.stat--warning .meter .meter__fill {
+  background: var(--warning);
 }
 
 /* The Components in the base's stock, two to a row, each count ending in
@@ -800,12 +854,15 @@ body {
   width: 52px;
 }
 
-.entry__condition .meter__fill {
-  background: var(--good);
-}
-
+/* A low Condition's bar turns amber, and a sign follows its figure, so that
+   it isn't told by colour alone. */
 .entry__condition--low .meter__fill {
   background: var(--accent);
+}
+
+.entry__condition--low::after {
+  content: "\26A0\FE0E";
+  color: var(--accent);
 }
 
 /* Its own, and not those of the rows inside a row that several share. */
@@ -879,7 +936,27 @@ body {
   font-size: 0.75rem;
 }
 
-/* The build menu: a grid of Structures to place. */
+/* The build menu: a grid of Structures to place in each group, by what they
+   are for, under a heading that folds them away. */
+
+.build-group > .panel-section__title {
+  padding: 4px 0;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.build-group > .panel-section__body {
+  padding: 0 0 6px;
+}
+
+.build-group + .build-group {
+  border-top-color: rgb(255 255 255 / 6%);
+}
+
+.build-group > .panel-section__title > .panel-section__summary {
+  color: var(--text-muted);
+}
 
 .build-menu__options {
   display: grid;
@@ -906,6 +983,20 @@ body {
 
 .build-menu__options button:hover {
   border-color: var(--text-muted);
+}
+
+/* One whose Components aren't in the base's stock, set back so that those
+   that can be built now stand out. Its badge's "0" says so too. */
+.build-menu__options
+  button.build-menu__option--short:not([aria-pressed="true"]) {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.build-menu__options
+  button.build-menu__option--short:not([aria-pressed="true"]):hover {
+  color: var(--text);
 }
 
 .build-menu__options button[aria-pressed="true"] {
@@ -972,12 +1063,36 @@ body {
   width: 100%;
   height: 5px;
   margin: 3px 0;
-  accent-color: var(--accent);
+  accent-color: var(--progress);
 }
 
 .construction-panel__work {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+/* Work that can't go on, listed below the rest: a bar down its side, as well
+   as the warning colour, so that it shows at a glance without telling
+   colours apart. */
+.construction-panel__row--held-up {
+  padding-left: 7px;
+  border-left: 3px solid var(--warning);
+}
+
+.construction-panel__row--held-up .construction-panel__work {
+  color: var(--warning);
+}
+
+/* How many are held up, beside the title, open or folded. */
+.construction-panel .panel-section__summary {
+  color: var(--warning);
+}
+
+.construction-panel
+  .panel-section[open]
+  > .panel-section__title
+  > .panel-section__summary:not([hidden]) {
+  display: inline;
 }
 
 .construction-panel__idle {
@@ -1365,8 +1480,8 @@ body {
   border-radius: 3px;
 }
 
-.gauge--full .meter__fill {
-  background: var(--warning);
+.gauge--full .gauge__text {
+  color: var(--warning);
 }
 
 /* A table of things to choose, row by row. */

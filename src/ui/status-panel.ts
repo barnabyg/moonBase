@@ -193,7 +193,7 @@ export function createStatusPanel(
   // How much oxygen and water is left, and when it will run out.
   const stocks = catalogue.lifeSupportStocks.map((type) => ({
     type,
-    line: createStatLine(type.label),
+    line: createStatLine(type.label, type.label, "level"),
   }));
   // Whether the base is self-sufficient in oxygen and water, side by side.
   const selfSufficiencyLine = document.createElement("p");
@@ -223,7 +223,7 @@ export function createStatusPanel(
   spareSufficiencyChip.element.hidden = true;
   selfSufficiencyBody.append(spareSufficiencyChip.element, " ");
   // How much radiation the Mission Director has absorbed, and how fast.
-  const radiationDose = createStatLine("Radiation", "Radiation Dose");
+  const radiationDose = createStatLine("Radiation", "Radiation Dose", "limit");
   // A Solar Particle Event that is coming or under way, as a warning, or
   // that none is, so that the lines below stay where they are as one comes
   // and goes. Its name is too long for the label column, so what it says
@@ -256,12 +256,13 @@ export function createStatusPanel(
 
   const powerSection = createPanelSection("power", "Power");
   const power = createStatLine("Power");
-  const storedPower = createStatLine("Stored", "Stored power");
+  const storedPower = createStatLine("Stored", "Stored power", "level");
   // What the Habitat's own network holds, shown only when some of the
   // base's power is on another network, where the Habitat can't draw on it.
   const habitatNetworkPower = createStatLine(
     "Habitat",
     "Habitat's network power",
+    "level",
   );
   habitatNetworkPower.element.hidden = true;
   powerSection.body.append(
@@ -338,7 +339,7 @@ export function createStatusPanel(
   // observing programme, the standing Research Task its telescopes work on at
   // Night, so that the player can see where that Science comes from.
   const researchSection = createPanelSection("research", "Research");
-  const researchTask = createStatLine("Task", "Research Task");
+  const researchTask = createStatLine("Task", "Research Task", "progress");
   // How fast the base earns Science. No line until it first earns some;
   // from then on it stays, as the Expedition's does.
   const scienceRate = createStatLine("Science", "Earned an Earth Day");
@@ -347,9 +348,13 @@ export function createStatusPanel(
   // first unlock a Design with nothing queued; from then on it stays too.
   const researchQueue = createStatLine("Queued", "Research queue");
   researchQueue.element.hidden = true;
-  const observing = createStatLine("Observing", "Observing programme");
-  const infrared = createStatLine("Infrared", "Infrared survey");
-  const radio = createStatLine("Radio", "Radio survey");
+  const observing = createStatLine(
+    "Observing",
+    "Observing programme",
+    "progress",
+  );
+  const infrared = createStatLine("Infrared", "Infrared survey", "progress");
+  const radio = createStatLine("Radio", "Radio survey", "progress");
   researchSection.body.append(
     researchTask.element,
     researchQueue.element,
@@ -742,7 +747,7 @@ function createMeasureLines(): {
   const lineOf = (label: string): StatLine => {
     let line = lines.get(label);
     if (line === undefined) {
-      line = createStatLine(label, `Milestone progress, ${label}`);
+      line = createStatLine(label, `Milestone progress, ${label}`, "progress");
       lines.set(label, line);
     }
     return line;
