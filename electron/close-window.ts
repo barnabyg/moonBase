@@ -72,11 +72,12 @@ function askPage(contents: WebContents): Promise<PageAnswer> {
  * Holds `window`'s close until the player has been asked, if there is
  * unsaved progress, whether to save it first, saving with the save dialog in
  * the folder `lastFolder` keeps. Closing again while the question is open
- * does nothing more.
+ * does nothing more. `onStay` is called when the player keeps the window open.
  */
 export function askBeforeClosing(
   window: BrowserWindow,
   lastFolder: LastFolder,
+  onStay: () => void = () => undefined,
 ): void {
   let asking = false;
   let decided = false;
@@ -97,7 +98,9 @@ export function askBeforeClosing(
       save: (name, text) => saveWithDialog(window, lastFolder, name, text),
     })
       .then((decision) => {
-        if (decision === "close" && !window.isDestroyed()) {
+        if (decision === "stay") {
+          onStay();
+        } else if (!window.isDestroyed()) {
           decided = true;
           window.close();
         }
@@ -105,6 +108,7 @@ export function askBeforeClosing(
       .catch((error: unknown) => {
         // The window stays open, rather than lose the progress.
         console.error("Moon Base couldn't ask before closing:", error);
+        onStay();
       })
       .finally(() => {
         asking = false;

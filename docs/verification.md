@@ -69,7 +69,7 @@ On the maintainer's PC (four workers, on the GPU) the twenty-six tests take abou
 
 ### The installer
 
-`npm.cmd run package:win` builds the desktop app's Windows installer into the ignored `release/` folder. `npm run verify` doesn't build it, as it takes longer than the rest of the build and downloads electron-builder's tools; the `Installer` workflow (`.github/workflows/installer.yml`) builds it in CI instead, on pushes to `main` and on pull requests that change what it is built from, and runs the packaged app's smoke test, the Playwright project `packaged`. That test is skipped when `release/win-unpacked/` hasn't been built, so it passes in `npm run verify` without it. [`docs/desktop-release.md`](desktop-release.md) has how to build and test the installer by hand.
+`npm.cmd run package:win` builds the desktop app's Windows installer into the ignored `release/` folder. `npm run verify` doesn't build it, as it takes longer than the rest of the build and downloads electron-builder's tools; the `Installer` workflow (`.github/workflows/installer.yml`) builds it in CI instead, on pushes to `main` and on pull requests that change what it is built from, and runs the packaged app's smoke test, the Playwright project `packaged`. That test is skipped when `release/win-unpacked/` hasn't been built, so it passes in `npm run verify` without it. Pushing a version tag publishes the installer to GitHub Releases with the `Release` workflow (`.github/workflows/release.yml`), which runs the same smoke test first. [`docs/desktop-release.md`](desktop-release.md) has how to build and test the installer and an update by hand, and how to release.
 
 ## Running one test
 
