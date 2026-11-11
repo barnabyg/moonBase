@@ -9,18 +9,22 @@ import { createBuildMenu } from "./ui/build-menu";
 import { createCelebrationScreen } from "./ui/celebration";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
+import { fullScreenFor } from "./ui/full-screen";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
 import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createMapFinder, type MapFinder } from "./ui/map-finder";
 import { createNotificationList } from "./ui/notifications";
-import { createRefusal } from "./ui/refusal";
+import { createRefusal, type ChoiceResult } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
+import { createSaveButtons } from "./ui/save-buttons";
+import { saveFileStoreFor } from "./ui/save-file-store";
 import { createStatusPanel } from "./ui/status-panel";
 import { createStructurePopUp } from "./ui/structure-pop-up";
 import { createTechTreeScreen } from "./ui/tech-tree";
 import { createTopBar } from "./ui/top-bar";
+import { answerUnsavedProgressFor } from "./ui/unsaved-progress";
 
 /**
  * A valid `?seed=` in the address replays a Campaign exactly; otherwise, or if
@@ -58,8 +62,8 @@ function startRenderer(
     message.className = "renderer-unavailable";
     message.setAttribute("role", "alert");
     message.textContent =
-      "Moon Base couldn't start the 3D view, because Firefox couldn't create a WebGL2 context. " +
-      "Check that hardware acceleration is turned on in Firefox's settings, then reload the page.";
+      "Moon Base couldn't start the 3D view, because the browser couldn't create a WebGL2 context. " +
+      "Check that hardware acceleration is turned on in the browser's settings, then reload the page.";
     container.append(message);
     return undefined;
   }
@@ -77,6 +81,14 @@ const saveFiles = createSaveFiles(campaign, () => {
   structurePopUp.startAfresh();
   renderer?.startAfresh();
 });
+// Save and Load, in the top bar and on the game-over screen, keep save files
+// with the desktop app's dialogs, or the browser's download and file picker.
+const saveFileStore = saveFileStoreFor(window);
+// The desktop app asks for the Campaign's unsaved progress as its window is
+// about to close, to ask the player whether to save it first.
+answerUnsavedProgressFor(window, saveFiles);
+const saveButtons = (showResult: (result: ChoiceResult) => void) =>
+  createSaveButtons(saveFiles, saveFileStore, showResult);
 // The top bar across the screen; below it, the status panel above the build
 // menu on the left, and the Work and Base panels above the notifications on
 // the right. Each column scrolls its longest panel rather than running
@@ -127,7 +139,7 @@ const celebration = createCelebrationScreen(container, loop, campaign);
 const topBar = createTopBar(
   topBarSlot,
   loop,
-  saveFiles,
+  saveButtons,
   showResult,
   () => {
     launchManifest.open();
@@ -141,6 +153,9 @@ const topBar = createTopBar(
   () => {
     guide.open();
   },
+  // The desktop app's window fills the screen with F11 or this button; a
+  // browser has no button.
+  fullScreenFor(window),
 );
 const statusPanel = createStatusPanel(
   leftColumn,
@@ -157,7 +172,7 @@ const gameOver = createGameOverScreen(
   () => {
     window.location.reload();
   },
-  saveFiles,
+  saveButtons,
 );
 const renderer = startRenderer(container, campaign.snapshot());
 // Placing a Structure needs the 3D view to point at the map.
@@ -212,8 +227,8 @@ function frame(time: number): void {
   });
   // Beside where the Structure has just been drawn.
   structurePopUp.update(snapshot);
-  // Once every panel and the pop-up have updated, so that they are
-  // measured together.
+  // Once every panel and the pop-up have updated, so that it finds every
+  // held line they show; their heights come once the page is laid out.
   holds.refresh();
   requestAnimationFrame(frame);
 }

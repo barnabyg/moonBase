@@ -1,12 +1,13 @@
 // Starts the game in a prepared state, to try a change by hand (`npm run try --
 // <scenario>`). See docs/trying-things.md. It prepares the scenario's save with
 // Vite's module runner, as the play guides do, writes it to the ignored `.try/`
-// folder, then starts the dev server with the address that makes the game load it.
+// folder, then opens the game in the desktop app from the dev server, at the
+// address that makes the game load it (scripts/desktop-launcher.mjs).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createServer, runnerImport } from "vite";
+import { runnerImport } from "vite";
+import { openInDesktop } from "./desktop-launcher.mjs";
 
-const PORT = 5173;
 const CATALOGUE_MODULE = /\/src\/catalogue\/catalogue\.ts$/;
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -65,20 +66,12 @@ if (process.argv.includes("--keep") && existsSync(saveFile)) {
   writeFileSync(saveFile, save);
 }
 
-// Firefox is the only supported browser, as in run.bat.
-const firefox = `${process.env.ProgramFiles ?? "C:\\Program Files"}\\Mozilla Firefox\\firefox.exe`;
-process.env.BROWSER ??= firefox;
-const address = `/?try=${chosen.id}`;
-const server = await createServer({
-  root,
-  plugins,
-  server: { port: PORT, strictPort: true, open: address },
-});
-await server.listen();
+// The page fetches the prepared save from the dev server (src/main.ts).
+const url = await openInDesktop({ plugins, path: `/?try=${chosen.id}` });
 
 console.log(`\n${chosen.title}`);
-console.log(`http://localhost:${PORT}${address}\n`);
+console.log(`${url}\n`);
 chosen.steps.forEach((step, index) => {
   console.log(`  ${index + 1}. ${step}`);
 });
-console.log("\nPress Ctrl+C here to stop the game.");
+console.log("\nClose the window, or press Ctrl+C here, to stop the game.");

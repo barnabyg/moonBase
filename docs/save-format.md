@@ -2,6 +2,12 @@
 
 A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field, and `src/simulation/save-migrations.ts` holds the migrations. Saves are files the player manages; nothing is kept in the browser (ADR-0006).
 
+## Where save files go
+
+In the desktop app, the way to play, Save and Load open the operating system's save and open dialogs, filtered to `.moonbase` files and starting in the folder last used (kept as `save-folder.json` in the app's user-data folder, or Documents until a file has been saved or opened). In a browser, which only the end-to-end tests and development use (the dev server), Save downloads the file and Load opens a file picker. The file is the same either way, with the same name, format and version, so a save from one loads in the other, and older saves load through their migrations in both.
+
+The page chooses between the two once, as it starts, behind one seam: a `SaveFileStore` (`src/ui/save-file-store.ts`), the desktop app's when its preload script has exposed the bridge `window.moonbase`, else the browser's (`src/ui/browser-save-file-store.ts`). The bridge (`electron/desktop-bridge.ts`, `electron/preload.cts`) has two functions for this, `saveFile(suggestedName, contents)` and `openSaveFile()`, beside those for fullscreen; the main process (`electron/save-dialogs.ts`) answers only the game's own page, refuses arguments that aren't a save file's name and contents of at most 16 MB, shows the dialog and writes or reads only the file chosen. A save is written beside the file and then moved into its place, so a write that fails leaves the old save whole. A file that can't be written or read, or that the game refuses, is reported as a refused file is in the browser. Cancelling either dialog changes nothing.
+
 ## Changing the format
 
 Each released format version is a compatibility contract:

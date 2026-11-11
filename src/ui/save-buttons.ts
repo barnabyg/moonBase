@@ -3,14 +3,17 @@ import {
   type LoadFileResult,
   type SaveFiles,
 } from "../game/save-files";
+import type { SaveFileStore } from "./save-file-store";
 
 /**
- * "Save", which downloads the Campaign as a save file, and "Load", which
- * opens a file picker and loads the file chosen. The result of loading goes
- * to `showResult`, which tells the player why a file was refused.
+ * "Save", which keeps the Campaign as a save file, and "Load", which asks
+ * for a save file and loads it, both through `store`: the desktop app's
+ * dialogs or the browser's download and file picker. Why a file couldn't be
+ * saved, or was refused, goes to `showResult`, which tells the player.
  */
 export function createSaveButtons(
   saveFiles: SaveFiles,
+  store: SaveFileStore,
   showResult: (result: LoadFileResult) => void,
 ): HTMLElement {
   const group = document.createElement("div");
@@ -21,37 +24,15 @@ export function createSaveButtons(
   const save = document.createElement("button");
   save.type = "button";
   save.textContent = "Save";
-  save.title = `Download the Campaign as a ${SAVE_FILE_EXTENSION} file.`;
+  save.title = `Save the Campaign as a ${SAVE_FILE_EXTENSION} file.`;
   save.addEventListener("click", () => {
     const { name, text } = saveFiles.save();
-    const url = URL.createObjectURL(
-      new Blob([text], { type: "application/json" }),
-    );
-    // Firefox only downloads from a link in the page, and inside the
-    // game-over screen, only from one in that screen.
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    link.hidden = true;
-    group.append(link);
-    link.click();
-    link.remove();
-    // Not at once, in case Firefox hasn't yet read the file to download it.
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 10_000);
-  });
-
-  const picker = document.createElement("input");
-  picker.type = "file";
-  picker.accept = SAVE_FILE_EXTENSION;
-  picker.hidden = true;
-  picker.addEventListener("change", () => {
-    const file = picker.files?.[0];
-    // Cleared, so that choosing the same file again loads it again.
-    picker.value = "";
-    if (file === undefined) return;
-    void saveFiles.load(file).then(showResult);
+    void store.save(name, text).then((result) => {
+      if (result.outcome === "saved") saveFiles.saved(text);
+      if (result.outcome === "failed") {
+        showResult({ ok: false, message: result.message });
+      }
+    });
   });
 
   const load = document.createElement("button");
@@ -59,9 +40,20 @@ export function createSaveButtons(
   load.textContent = "Load";
   load.title = `Load a Campaign from a ${SAVE_FILE_EXTENSION} file in place of this one.`;
   load.addEventListener("click", () => {
-    picker.click();
+    void store.open().then(async (result) => {
+      switch (result.outcome) {
+        case "chosen":
+          showResult(await saveFiles.load(result.file));
+          return;
+        case "failed":
+          showResult({ ok: false, message: result.message });
+          return;
+        case "cancelled":
+          return;
+      }
+    });
   });
 
-  group.append(save, load, picker);
+  group.append(save, load);
   return group;
 }

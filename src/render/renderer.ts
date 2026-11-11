@@ -80,11 +80,16 @@ export interface Renderer {
 
 /**
  * Whether WebGL is drawn by the CPU, as on a machine without a usable GPU,
- * such as the CI runner. Firefox names the renderer, tidied, in RENDERER.
+ * such as the CI runner (SwiftShader) or Windows without a graphics driver
+ * (Microsoft Basic Render Driver). Chromium puts "WebKit WebGL" in RENDERER
+ * and the real name in the debug extension's UNMASKED_RENDERER_WEBGL.
  */
 function drawsInSoftware(webgl: THREE.WebGLRenderer): boolean {
   const context = webgl.getContext();
-  const name: unknown = context.getParameter(context.RENDERER);
+  const debug = context.getExtension("WEBGL_debug_renderer_info");
+  const name: unknown = context.getParameter(
+    debug === null ? context.RENDERER : debug.UNMASKED_RENDERER_WEBGL,
+  );
   return (
     typeof name === "string" &&
     /llvmpipe|softpipe|swiftshader|basic render driver/i.test(name)
@@ -95,7 +100,17 @@ export function createRenderer(
   container: HTMLElement,
   initial: Snapshot,
 ): Renderer {
-  const webgl = new THREE.WebGLRenderer({ antialias: true });
+  let webgl = new THREE.WebGLRenderer({ antialias: true });
+  const software = drawsInSoftware(webgl);
+  if (software) {
+    // Multisampling smooths edges at almost no cost on a GPU, but drawn in
+    // software it cut the frame rate from 8.7 to 5.4 a second (SwiftShader
+    // in Chromium, at 1280 × 720). A context can't turn it off once made, so
+    // make another; machines with a GPU still make only one.
+    webgl.dispose();
+    webgl.forceContextLoss();
+    webgl = new THREE.WebGLRenderer({ antialias: false });
+  }
   webgl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   webgl.outputColorSpace = THREE.SRGBColorSpace;
   webgl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -127,7 +142,7 @@ export function createRenderer(
     // Anisotropic filtering keeps the ground sharp towards the horizon at
     // almost no cost on a GPU, but drawn in software it slows every frame
     // several times over.
-    drawsInSoftware(webgl) ? 1 : webgl.capabilities.getMaxAnisotropy(),
+    software ? 1 : webgl.capabilities.getMaxAnisotropy(),
   );
   const stars = createStars();
   scene.add(

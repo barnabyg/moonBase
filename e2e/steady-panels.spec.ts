@@ -76,6 +76,41 @@ async function nextFrame(page: Page): Promise<void> {
   );
 }
 
+/** The page's window, with the texts recorded by {@link recordTexts}. */
+type Recording = Window & { recordedTexts?: string[] };
+
+/**
+ * Records every text an element shows while the game clock is from one
+ * game-hour up to another, as each frame changes either. The test's own loop
+ * can take several frames to go round where WebGL is drawn in software, and
+ * miss a text shown only briefly.
+ */
+async function recordTexts(
+  element: Locator,
+  fromHour: number,
+  toHour: number,
+): Promise<void> {
+  await element.evaluate(
+    (watched, { from, to }) => {
+      const clock = document.querySelector('[aria-label="Game clock"]');
+      if (clock === null) throw new Error("The game clock isn't shown.");
+      const texts: string[] = [];
+      (window as Recording).recordedTexts = texts;
+      const record = () => {
+        const match = /Earth Day (\d+), (\d+):00/.exec(clock.textContent);
+        if (match === null) return;
+        const hours = Number(match[1]) * 24 + Number(match[2]);
+        if (hours >= from && hours < to) texts.push(watched.textContent);
+      };
+      const options = { subtree: true, childList: true, characterData: true };
+      const observer = new MutationObserver(record);
+      observer.observe(watched, options);
+      observer.observe(clock, options);
+    },
+    { from: fromHour, to: toHour },
+  );
+}
+
 /** A row's place on the page, or "gone" while it isn't shown. */
 type Place = number | "gone";
 
@@ -89,8 +124,9 @@ const samePlace = (a: Place | undefined, b: Place): boolean =>
  * Loads a sample save, or starts a new Campaign, and runs it at the fastest
  * game speed with the player doing nothing, checking once a frame that no
  * row goes back to a place it has left, or comes back after going, over
- * some game-hours. It is all counted in game time, so that a slow machine
- * plays the same game. Returns every text the row to watch showed
+ * some game-hours. It is all counted in game time from the paused game, so
+ * that a slow machine plays and, where the player does nothing first,
+ * watches the same game. Returns every text the row to watch showed
  * meanwhile.
  */
 async function watchRows(
@@ -106,7 +142,12 @@ async function watchRows(
 ): Promise<Set<string>> {
   await page.goto("/?seed=1");
   await page.getByRole("button", { name: "Pause" }).click();
+  const clock = page.getByRole("status", { name: "Game clock" });
+  await expect(clock).toHaveText(/^Earth Day \d+, \d+:00$/);
   if (save !== undefined) {
+    // A frame after pausing, when the clock shows where it stopped.
+    await nextFrame(page);
+    const before = (await clock.textContent()) ?? "";
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Load", exact: true }).click();
     await (
@@ -116,19 +157,31 @@ async function watchRows(
         ? fileURLToPath(new URL(`../test/saves/${save}`, import.meta.url))
         : save,
     );
+    // Its clock is later than the paused new Campaign's, and counting from
+    // the new one's would take the watch past the game-hours watched.
+    await expect(clock).not.toHaveText(before);
   }
-  await expect(page.getByRole("status", { name: "Game clock" })).toHaveText(
-    /^Earth Day \d+, \d+:00$/,
-  );
 
+  const start = await gameHours(page);
+  const record = () =>
+    recordTexts(
+      watched(page),
+      start + WARM_UP_HOURS,
+      start + WARM_UP_HOURS + WATCHED_HOURS,
+    );
+  // Before the game runs where the player does nothing first, so that a slow
+  // machine records from the same game-hour as a fast one.
+  if (prepare === undefined) await record();
   await page
     .getByRole("group", { name: "Game speed" })
     .getByRole("button", { name: /^\d+x$/ })
     .last()
     .click();
-  await prepare?.(page);
+  if (prepare !== undefined) {
+    await prepare(page);
+    await record();
+  }
   await expect(watched(page)).toBeVisible();
-  const start = await gameHours(page);
   await expect
     .poll(() => gameHours(page))
     .toBeGreaterThanOrEqual(start + WARM_UP_HOURS);
@@ -154,6 +207,12 @@ async function watchRows(
     await nextFrame(page);
   }
   expect(places.size).toBeGreaterThan(15);
+  // With those recorded in the page, in case the element watched there was
+  // replaced by another.
+  for (const text of await page.evaluate(
+    () => (window as Recording).recordedTexts ?? [],
+  ))
+    texts.add(text);
   return texts;
 }
 

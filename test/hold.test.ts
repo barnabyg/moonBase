@@ -4,6 +4,9 @@ import {
   createLingering,
   nextHeldHeight,
   type HeldRoot,
+  type HeldSize,
+  type Holds,
+  type WatchSizes,
 } from "../src/ui/hold";
 
 /** Holds a line through a run of frames, each showing it at a height, or not at all. */
@@ -60,89 +63,178 @@ class FakeLine {
   needed: number | undefined = 0;
   readonly dataset: Record<string, string> = { hold: "" };
   readonly style = { minHeight: "" };
-  getClientRects(): unknown[] {
-    return this.needed === undefined ? [] : [{}];
-  }
-  getBoundingClientRect(): { height: number } {
+  /** Its height as laid out: what it needs, or what it is held at if more. */
+  height(): number | undefined {
+    if (this.needed === undefined) return undefined;
     const held = Number.parseFloat(this.style.minHeight);
-    const needed = this.needed ?? 0;
-    return { height: Number.isNaN(held) ? needed : Math.max(held, needed) };
+    return Number.isNaN(held) ? this.needed : Math.max(held, this.needed);
   }
 }
 
-/** A stand-in for the page, with the held lines under it. */
-function fakeRoot(lines: FakeLine[]): HeldRoot {
-  return {
-    querySelectorAll: () => lines as unknown as NodeListOf<never>,
+/**
+ * A stand-in for the page, with the held lines under it, that lays them out
+ * as a browser does and tells the holds of each watched line whose height
+ * changed, as a ResizeObserver does: a line only just watched counts as
+ * having no height, so it is reported once it is shown.
+ */
+class FakePage implements HeldRoot {
+  readonly lines: FakeLine[];
+  readonly watched = new Map<FakeLine, number | undefined>();
+  private report: (sizes: readonly HeldSize[]) => void = () => undefined;
+
+  constructor(lines: FakeLine[]) {
+    this.lines = lines;
+  }
+
+  querySelectorAll<E extends Element = Element>(): NodeListOf<E> {
+    return this.lines as unknown as NodeListOf<E>;
+  }
+
+  readonly watch: WatchSizes = (report) => {
+    this.report = report;
+    return {
+      observe: (line) => {
+        this.watched.set(line as unknown as FakeLine, undefined);
+      },
+      unobserve: (line) => {
+        this.watched.delete(line as unknown as FakeLine);
+      },
+    };
   };
+
+  /** Lays the page out, until no watched line changes height. */
+  layOut(): void {
+    for (let round = 0; round < 10; round++) {
+      const changed: HeldSize[] = [];
+      for (const [line, last] of this.watched) {
+        const height = line.height();
+        if (height !== last) {
+          this.watched.set(line, height);
+          changed.push({
+            line: line as unknown as HTMLElement,
+            heightPx: height,
+          });
+        }
+      }
+      if (changed.length === 0) return;
+      this.report(changed);
+    }
+    throw new Error("The held lines never settled.");
+  }
+}
+
+/** A frame: the panels have updated, then the page is laid out. */
+function frame(holds: Holds, page: FakePage): void {
+  holds.refresh();
+  page.layOut();
+}
+
+function holdsOn(...lines: FakeLine[]): { holds: Holds; page: FakePage } {
+  const page = new FakePage(lines);
+  return { holds: createHolds(page, page.watch), page };
 }
 
 describe("the holds on the page", () => {
   it("keeps a line that got shorter at the tallest it has been, frame after frame", () => {
     const line = new FakeLine();
-    const holds = createHolds(fakeRoot([line]));
+    const { holds, page } = holdsOn(line);
     line.needed = 40;
-    holds.refresh();
+    frame(holds, page);
     line.needed = 20;
 
-    for (let frame = 0; frame < 1000; frame++) holds.refresh();
+    for (let frames = 0; frames < 1000; frames++) frame(holds, page);
 
-    expect(line.getBoundingClientRect().height).toBe(40);
+    expect(line.height()).toBe(40);
   });
 
   it("grows a held line at once when it needs more", () => {
     const line = new FakeLine();
-    const holds = createHolds(fakeRoot([line]));
+    const { holds, page } = holdsOn(line);
     line.needed = 40;
-    holds.refresh();
+    frame(holds, page);
     line.needed = 60;
 
-    holds.refresh();
+    frame(holds, page);
 
     expect(line.style.minHeight).toBe("60px");
   });
 
   it("lets a line go once it is hidden, so that it is shown again at the height it needs", () => {
     const line = new FakeLine();
-    const holds = createHolds(fakeRoot([line]));
+    const { holds, page } = holdsOn(line);
     line.needed = 40;
-    holds.refresh();
+    frame(holds, page);
 
     line.needed = undefined;
-    holds.refresh();
+    frame(holds, page);
     line.needed = 20;
-    holds.refresh();
+    frame(holds, page);
 
-    expect(line.getBoundingClientRect().height).toBe(20);
+    expect(line.height()).toBe(20);
   });
 
   it("lets a line go once it is given something else to show, such as a pop-up switched to another Structure", () => {
     const line = new FakeLine();
     line.dataset["hold"] = "structure-1";
-    const holds = createHolds(fakeRoot([line]));
+    const { holds, page } = holdsOn(line);
     line.needed = 40;
-    holds.refresh();
+    frame(holds, page);
     line.needed = 20;
-    holds.refresh();
-    expect(line.getBoundingClientRect().height).toBe(40);
+    frame(holds, page);
+    expect(line.height()).toBe(40);
 
     line.dataset["hold"] = "structure-2";
-    holds.refresh();
+    frame(holds, page);
+    line.needed = 10;
+    frame(holds, page);
 
-    expect(line.getBoundingClientRect().height).toBe(20);
+    expect(line.height()).toBe(20);
   });
 
   it("lets every line go when it starts afresh, for a Campaign loaded in place of the last", () => {
     const line = new FakeLine();
-    const holds = createHolds(fakeRoot([line]));
+    const { holds, page } = holdsOn(line);
     line.needed = 40;
-    holds.refresh();
+    frame(holds, page);
     line.needed = 20;
 
     holds.startAfresh();
-    holds.refresh();
+    frame(holds, page);
+    line.needed = 10;
+    frame(holds, page);
 
-    expect(line.getBoundingClientRect().height).toBe(20);
+    expect(line.height()).toBe(20);
+  });
+
+  it("holds a line put on the page after the first frame, and stops watching one taken off it", () => {
+    const first = new FakeLine();
+    const { holds, page } = holdsOn(first);
+    first.needed = 30;
+    frame(holds, page);
+
+    const added = new FakeLine();
+    added.needed = 40;
+    page.lines.splice(0, 1, added);
+    frame(holds, page);
+    added.needed = 20;
+    frame(holds, page);
+
+    expect(added.height()).toBe(40);
+    expect([...page.watched.keys()]).toEqual([added]);
+  });
+
+  it("measures nothing in a frame where no line changed, as measuring forces the page to be laid out", () => {
+    const line = new FakeLine();
+    const { holds, page } = holdsOn(line);
+    line.needed = 40;
+    frame(holds, page);
+
+    // The FakeLine has no getClientRects or getBoundingClientRect: the holds
+    // learn its height only from what the page reports once laid out.
+    expect(() => {
+      holds.refresh();
+    }).not.toThrow();
+    expect(line.style.minHeight).toBe("40px");
   });
 });
 

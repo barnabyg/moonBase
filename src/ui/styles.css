@@ -211,6 +211,10 @@ body {
   margin-left: 4px;
 }
 
+.top-bar__full-screen[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
 .top-bar button:focus-visible,
 .panel-button:focus-visible,
 .attention__line:focus-visible,

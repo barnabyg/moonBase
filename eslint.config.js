@@ -9,6 +9,8 @@ export default tseslint.config(
   {
     ignores: [
       "dist/",
+      "dist-electron/",
+      "release/",
       "coverage/",
       "playwright-report/",
       "test-results/",
@@ -18,7 +20,7 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    files: ["**/*.ts"],
+    files: ["**/*.ts", "**/*.cts"],
     extends: [tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: {

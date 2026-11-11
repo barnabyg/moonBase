@@ -1,5 +1,4 @@
 import type { GameLoop } from "../game/loop";
-import type { SaveFiles } from "../game/save-files";
 import type { Snapshot } from "../simulation";
 import { setText } from "./dom";
 import {
@@ -8,8 +7,8 @@ import {
   formatFunding,
   formatLunation,
 } from "./format";
+import type { FullScreen } from "./full-screen";
 import type { ChoiceResult } from "./refusal";
-import { createSaveButtons } from "./save-buttons";
 
 export interface TopBar {
   update(snapshot: Snapshot): void;
@@ -20,18 +19,20 @@ export interface TopBar {
  * Lunation, the game speed and skipping to the next event, the Funding
  * balance beside the button that opens the Launch manifest screen, the
  * Science balance beside the buttons that open the Research Tasks and Tech
- * Tree screens, the button that opens the Guide, and saving and loading.
- * It sends the player's speed choices to the game loop.
+ * Tree screens, the button that opens the Guide, saving and loading, and,
+ * in the desktop app (`fullScreen`), the Full screen button. It sends the
+ * player's speed choices to the game loop.
  */
 export function createTopBar(
   container: HTMLElement,
   loop: GameLoop,
-  saveFiles: SaveFiles,
+  saveButtons: (showResult: (result: ChoiceResult) => void) => HTMLElement,
   showResult: (result: ChoiceResult) => void,
   openLaunchManifest: () => void,
   openResearchTasks: () => void,
   openTechTree: () => void,
   openGuide: () => void,
+  fullScreen: FullScreen | undefined,
 ): TopBar {
   const bar = document.createElement("section");
   bar.className = "top-bar";
@@ -143,8 +144,9 @@ export function createTopBar(
     funding,
     science,
     guide,
-    createSaveButtons(saveFiles, showResult),
+    saveButtons(showResult),
   );
+  if (fullScreen !== undefined) bar.append(fullScreenButton(fullScreen));
   container.append(bar);
   showSelectedSpeed();
 
@@ -164,4 +166,29 @@ export function createTopBar(
       setText(scienceValue, String(snapshot.science));
     },
   };
+}
+
+/**
+ * Fills the screen with the window, or goes back to a window, as F11 does. It
+ * shows pressed while the window fills the screen, however it got there. It
+ * stays in the top bar in fullscreen, as the obvious way out: Escape doesn't
+ * leave fullscreen, as it closes the game's screens (see electron/full-screen.ts).
+ */
+function fullScreenButton(fullScreen: FullScreen): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "top-bar__full-screen";
+  button.textContent = "Full screen";
+  button.setAttribute("aria-pressed", "false");
+  button.title = "Fill the screen (F11).";
+  button.addEventListener("click", () => {
+    fullScreen.toggle();
+  });
+  fullScreen.watch((filled) => {
+    button.setAttribute("aria-pressed", String(filled));
+    button.title = filled
+      ? "Go back to a window (F11)."
+      : "Fill the screen (F11).";
+  });
+  return button;
 }

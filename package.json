@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "A construction and management game about building a base at the lunar south pole.",
+  "author": "Barnaby Golden",
   "type": "module",
+  "main": "dist-electron/main.js",
   "engines": {
     "node": ">=24"
   },
@@ -11,23 +13,27 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "build:electron": "node -e \"require('node:fs').rmSync('dist-electron', { recursive: true, force: true })\" && tsc -p electron/tsconfig.json",
+    "build:desktop": "vite build && npm run build:electron",
+    "desktop": "node scripts/desktop.mjs",
+    "desktop:start": "electron .",
+    "package:win": "npm run build:desktop && electron-builder --win --publish never",
     "format": "prettier --write .",
     "format:check": "prettier --check --log-level warn .",
     "lint": "eslint --max-warnings 0 .",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.simulation.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.simulation.json && tsc --noEmit -p electron/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:desktop": "playwright test --project=electron",
     "reference-campaign": "node scripts/reference-campaign.mjs",
     "pacing-report": "node scripts/pacing-report.mjs",
     "long-game": "node scripts/long-game.mjs",
     "try": "node scripts/try.mjs",
+    "frame-time": "node scripts/frame-time.mjs",
     "audit": "npm audit",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"
-  },
-  "dependencies": {
-    "three": "0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -35,10 +41,13 @@
     "@secretlint/secretlint-rule-preset-recommend": "13.0.6",
     "@types/node": "24.19.1",
     "@types/three": "0.186.0",
+    "electron": "45.3.0",
+    "electron-builder": "26.18.1",
     "eslint": "10.12.0",
     "globals": "17.13.0",
     "prettier": "3.9.9",
     "secretlint": "13.0.6",
+    "three": "0.186.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
     "vite": "8.3.4",
@@ -46,5 +55,45 @@
   },
   "overrides": {
     "minimatch": "11.0.3"
+  },
+  "build": {
+    "appId": "io.github.barnabyg.moonbase",
+    "productName": "Moon Base",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets/installer"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/icon/icon.ico",
+      "package.json"
+    ],
+    "electronLanguages": [
+      "en-US",
+      "en-GB"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createStartMenuShortcut": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Moon Base",
+      "deleteAppDataOnUninstall": false,
+      "include": "assets/installer/installer.nsh",
+      "artifactName": "Moon-Base-Setup-${version}.${ext}"
+    }
   }
 }

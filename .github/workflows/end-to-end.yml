@@ -20,11 +20,12 @@ concurrency:
 
 jobs:
   e2e:
-    name: End-to-end tests (${{ matrix.shard }}/4)
+    name: End-to-end tests, chromium (${{ matrix.shard }}/4)
     runs-on: ubuntu-24.04
-    # Each runner has a virtual display and CPUs of its own, so unlike two
-    # workers on one runner they can't starve each other's animation frames. A
-    # failure on one leaves the others running, to report their failures too.
+    # The tests in e2e/ run in Chromium, the desktop app's engine, against the
+    # dev server, as a quick stand-in for the desktop window (ADR-0010), shared
+    # out over four runners. A failure on one leaves the others running, to
+    # report their failures too.
     strategy:
       fail-fast: false
       matrix:
@@ -40,30 +41,35 @@ jobs:
           cache: npm
       - run: npm ci
         timeout-minutes: 3
-      # Playwright's Firefox is kept in GitHub's cache, keyed on the pinned
+      # Playwright's Chromium is kept in GitHub's cache, keyed on the pinned
       # Playwright version, so most runs download nothing. The runner image
-      # already has every library Firefox needs; Playwright's --with-deps would
+      # already has every library it needs; Playwright's --with-deps would
       # also fetch fonts and video codecs the tests never use from Ubuntu's
       # mirrors, which have stalled CI runs for up to 24 minutes.
       - name: Read the Playwright version
         id: playwright
         run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright's Firefox
-        id: firefox-cache
+      - name: Restore Playwright's chromium
+        id: browser-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-firefox-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: steps.firefox-cache.outputs.cache-hit != 'true'
-        run: npx playwright install firefox
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # Chromium's headless runs use Playwright's separate headless shell,
+      # which installing chromium fetches too.
+      - if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
         timeout-minutes: 3
-      # The runner has no GPU. Mesa's software OpenGL (llvmpipe) gives Firefox
-      # the WebGL2 context the renderer needs, but only with a display, so the
-      # end-to-end tests run Firefox with a window in a virtual X display.
-      # Mesa's GLX libraries and Xvfb come with the runner image, and
-      # playwright.config.ts has Firefox use GLX, so nothing is installed.
-      - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npm run verify -- --e2e-only
+      # The runner has no GPU. Chromium's own software renderer, SwiftShader,
+      # drew the game at under 2 frames a second here, too slow for its clock
+      # to keep up, so E2E_GL=mesa has Chromium draw with Mesa's llvmpipe,
+      # which drew it at about 7. That needs a display: Chromium runs headed,
+      # one window at a time (two halve each other's frames), in a virtual X
+      # display. Xvfb and Mesa come with the runner image. See
+      # playwright.config.ts and docs/verification.md.
+      - run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" npm run verify -- --e2e-only --project=chromium
         env:
+          E2E_GL: mesa
           PLAYWRIGHT_HEADED: "1"
           E2E_SHARD: ${{ matrix.shard }}/4
       # A failing end-to-end test leaves the page as it was, as an
@@ -72,6 +78,59 @@ jobs:
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-test-results-${{ matrix.shard }}
+          name: playwright-test-results-chromium-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 14
+
+  desktop:
+    name: End-to-end tests, desktop app (Electron)
+    # Windows, as the desktop app is Windows only (ADR-0010): this tests the
+    # Electron build on the platform players run it on. The runner has no
+    # GPU; Electron draws WebGL there in software, with WARP, Windows' own
+    # (E2E_GL=warp; see e2e/desktop/fixtures.ts), and needs no virtual
+    # display, unlike Electron on Linux, which would also need its sandbox
+    # turned off.
+    runs-on: windows-2025
+    # The tests take about 15 seconds on a developer's PC with a GPU; drawing
+    # in software is several times slower. See docs/verification.md.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # npm ci downloads Electron's binary (over 100 MB) as it installs it,
+      # unless it is already in Electron's download cache. That is kept in
+      # GitHub's cache, keyed on the pinned Electron version.
+      - name: Read the Electron version
+        id: electron
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').devDependencies.electron")" >> "$GITHUB_OUTPUT"
+      - name: Restore Electron's download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/electron/Cache
+          key: electron-${{ runner.os }}-${{ steps.electron.outputs.version }}
+      - run: npm ci
+        timeout-minutes: 6
+      # The runner's screen is 1024 x 768, smaller than the 1366 x 768 the
+      # game supports (ADR-0010), so a fullscreen window couldn't shrink its
+      # page to fit it. Set it to a common laptop's full HD first; the step
+      # fails if the screen still reports another size.
+      - name: Set the screen to 1920 x 1080
+        shell: pwsh
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          $video = Get-CimInstance Win32_VideoController | Select-Object -First 1
+          "Screen: $($video.CurrentHorizontalResolution) x $($video.CurrentVerticalResolution)"
+          if ($video.CurrentHorizontalResolution -ne 1920 -or $video.CurrentVerticalResolution -ne 1080) { exit 1 }
+      - run: npm run verify -- --e2e-only --project=electron
+        env:
+          E2E_GL: warp
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-test-results-electron
           path: test-results/
           retention-days: 14

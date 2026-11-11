@@ -1,8 +1,7 @@
-import type { SaveFiles } from "../game/save-files";
 import type { Snapshot } from "../simulation";
 import { setText } from "./dom";
+import type { ChoiceResult } from "./refusal";
 import { formatDeath } from "./game-over-text";
-import { createSaveButtons } from "./save-buttons";
 
 export interface GameOverScreen {
   update(snapshot: Snapshot): void;
@@ -17,7 +16,7 @@ export interface GameOverScreen {
 export function createGameOverScreen(
   container: HTMLElement,
   startNewCampaign: () => void,
-  saveFiles: SaveFiles,
+  saveButtons: (showResult: (result: ChoiceResult) => void) => HTMLElement,
 ): GameOverScreen {
   const dialog = document.createElement("dialog");
   dialog.className = "game-over";
@@ -41,14 +40,14 @@ export function createGameOverScreen(
   refusal.className = "game-over__refusal";
   refusal.setAttribute("role", "alert");
   refusal.hidden = true;
-  const saveButtons = createSaveButtons(saveFiles, (result) => {
+  const buttons = saveButtons((result) => {
     refusal.hidden = result.ok;
     setText(refusal, result.ok ? "" : result.message);
   });
 
   const actions = document.createElement("div");
   actions.className = "game-over__actions";
-  actions.append(restart, saveButtons);
+  actions.append(restart, buttons);
 
   dialog.append(title, death, ended, actions, refusal);
   // Escape would close a modal dialog, but nothing can go on after a death.
@@ -65,7 +64,8 @@ export function createGameOverScreen(
         return;
       }
       setText(death, formatDeath(snapshot.ended));
-      // Firefox closes it anyway on a second Escape with no click between.
+      // Chromium closes it anyway on a second Escape with no click between,
+      // so open it again.
       if (!dialog.open) dialog.showModal();
     },
   };
