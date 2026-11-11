@@ -78,7 +78,7 @@ jobs:
       # installs (e2e/packaged/packaged.spec.ts).
       - run: npx playwright test --project=packaged
         timeout-minutes: 5
-      # Unsigned until signed releases are set up (#311). Kept 30 days from
+      # Unsigned (#311); releases are published by release.yml. Kept 30 days from
       # main and 7 from a pull request, which only needs it while under review.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

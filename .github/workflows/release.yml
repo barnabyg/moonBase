@@ -1,0 +1,97 @@
+name: Release
+
+# Publishes a release of the desktop app to GitHub Releases when a version tag
+# (v0.2.0) is pushed: builds the Windows installer, checks the packaged app
+# starts, and uploads the installer with what electron-updater reads to find
+# and download it (latest.yml and the installer's .blockmap). Installed games
+# check for it on start (electron/updates.ts). See "Releasing" in
+# docs/desktop-release.md.
+#
+# The installer is unsigned (#311): Windows SmartScreen shows "Unknown
+# publisher" when a player first installs it.
+on:
+  push:
+    tags: ["v*"]
+
+# Creating the release and uploading its files.
+permissions:
+  contents: write
+
+# One release at a time for a tag, and never cancelled part way.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish the Windows installer
+    runs-on: windows-2025
+    # As installer.yml: several times what building the installer should
+    # take on a slow runner, so a hang fails in minutes.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, to check the tagged commit is on main.
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # The tag must name package.json's version, which the installer, the
+      # installed game and latest.yml all carry; and it must be on main, which
+      # CI has checked, so a release is never built from an unmerged branch.
+      - name: Check the tag
+        id: tag
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME doesn't match package.json's version, $version. Tag v$version instead."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME isn't on main. Tag a commit on main."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "electron=$(node -p "require('./package.json').devDependencies.electron")" >> "$GITHUB_OUTPUT"
+          echo "builder=$(node -p "require('./package.json').devDependencies['electron-builder']")" >> "$GITHUB_OUTPUT"
+      - name: Restore Electron's download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/electron/Cache
+          key: electron-${{ runner.os }}-${{ steps.tag.outputs.electron }}
+      - name: Restore electron-builder's tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/electron-builder/Cache
+          key: electron-builder-${{ runner.os }}-${{ steps.tag.outputs.builder }}
+      - run: npm ci
+        timeout-minutes: 6
+      - run: npm run package:win
+        timeout-minutes: 10
+      - run: npx playwright test --project=packaged
+        timeout-minutes: 5
+      # A full release, not a draft or pre-release, as electron-updater only
+      # offers the latest full release.
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "release/Moon-Base-Setup-$VERSION.exe" \
+            "release/Moon-Base-Setup-$VERSION.exe.blockmap" \
+            release/latest.yml \
+            --verify-tag \
+            --title "Moon Base $VERSION" \
+            --generate-notes
+        timeout-minutes: 10
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-test-results-packaged
+          path: test-results/
+          retention-days: 14
