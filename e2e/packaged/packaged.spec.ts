@@ -40,6 +40,8 @@ test("the packaged app starts, draws the game and ignores the development variab
     // e2e/desktop/fixtures.ts.
     args: [
       `--user-data-dir=${userDataDir}`,
+      // Never download, or install on quit, a newer release than this build.
+      "--moonbase-no-update-check",
       ...(process.env["CI"] ? ["--enable-unsafe-swiftshader"] : []),
     ],
     env: {

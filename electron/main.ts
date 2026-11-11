@@ -13,6 +13,11 @@ import { handleFullScreen } from "./full-screen.js";
 import { createLastFolder } from "./last-folder.js";
 import { handleSaveFiles } from "./save-dialogs.js";
 import {
+  checkForUpdates,
+  checksForUpdates,
+  installUpdateAndRestart,
+} from "./updates.js";
+import {
   applyContentSecurityPolicy,
   contentSecurityPolicy,
   denyPermissions,
@@ -90,9 +95,15 @@ function start(): void {
     });
   });
 
-  // Windows only (ADR-0010): closing the last window quits.
+  // Set when the player chose to restart for a downloaded update, and the
+  // window is closing for it; cleared if they keep the window open after all.
+  let restartForUpdate = false;
+
+  // Windows only (ADR-0010): closing the last window quits, or, for an
+  // update, installs it and starts the game again (updates.ts).
   app.on("window-all-closed", () => {
-    app.quit();
+    if (restartForUpdate) installUpdateAndRestart();
+    else app.quit();
   });
 
   app
@@ -132,7 +143,18 @@ function start(): void {
         gameWindow = window;
         // Closing with unsaved progress, or quitting, asks whether to save it
         // first (close-window.ts).
-        askBeforeClosing(window, lastFolder);
+        askBeforeClosing(window, lastFolder, () => {
+          restartForUpdate = false;
+        });
+        // An installed game checks GitHub Releases for a newer version, and
+        // restarting for it closes the window as above, so the Campaign can be
+        // saved first.
+        if (checksForUpdates()) {
+          checkForUpdates(window, () => {
+            restartForUpdate = true;
+            window.close();
+          });
+        }
       });
     })
     .catch((error: unknown) => {

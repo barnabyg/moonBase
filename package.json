@@ -59,6 +59,13 @@
   "build": {
     "appId": "io.github.barnabyg.moonbase",
     "productName": "Moon Base",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "barnabyg",
+        "repo": "moonBase"
+      }
+    ],
     "directories": {
       "output": "release",
       "buildResources": "assets/installer"
@@ -95,5 +102,8 @@
       "include": "assets/installer/installer.nsh",
       "artifactName": "Moon-Base-Setup-${version}.${ext}"
     }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.12"
   }
 }
