@@ -10,6 +10,7 @@ export default tseslint.config(
     ignores: [
       "dist/",
       "dist-electron/",
+      "release/",
       "coverage/",
       "playwright-report/",
       "test-results/",

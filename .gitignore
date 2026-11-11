@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 dist-electron/
+# The Windows installer and the unpacked app, from npm run package:win
+release/
 build/
 out/
 coverage/
