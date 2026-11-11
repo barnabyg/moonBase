@@ -1,6 +1,8 @@
 # Rendering performance
 
-How long the game takes to draw a frame in Firefox and in Chromium, the engine of the desktop app ([ADR-0010](adr/0010-electron-desktop-app-for-windows.md)), and what was tried to make Chromium draw faster (#304). The figures are from when they were measured; measure again before relying on one.
+How long the game takes to draw a frame in Chromium, the engine of the desktop app ([ADR-0010](adr/0010-electron-desktop-app-for-windows.md)), and what was tried to make it draw faster (#304). The figures are from when they were measured; measure again before relying on one.
+
+The Firefox figures below are historical. They were measured while the game still ran in Firefox, to compare the two engines; the browser version has since been dropped, and `npm run frame-time` now measures Chromium alone.
 
 ## Measuring
 
@@ -10,9 +12,9 @@ From the repository's root folder:
 npm.cmd run frame-time
 ```
 
-`scripts/frame-time.mjs` builds the game for production, serves the build, and opens it in Playwright's Firefox and Chromium, each with a window, so that WebGL is drawn on the GPU as a player's is rather than in software as headless Chromium would. Each browser draws as fast as it can rather than at the screen's refresh rate (Firefox's `layout.frame_rate` 0; Chromium's `--disable-gpu-vsync --disable-frame-rate-limit`), so a frame time is what the frame costs, not the refresh interval; `--vsync` measures at the refresh rate instead. The window is 1920 × 1080 CSS pixels at a device pixel ratio of 1.5, the maintainer's own Windows scaling, so the 3D view is drawn at about 2880 × 1620.
+`scripts/frame-time.mjs` builds the game for production, serves the build, and opens it in Playwright's Chromium with a window, so that WebGL is drawn on the GPU as a player's is rather than in software as headless Chromium would. Chromium draws as fast as it can rather than at the screen's refresh rate (`--disable-gpu-vsync --disable-frame-rate-limit`), so a frame time is what the frame costs, not the refresh interval; `--vsync` measures at the refresh rate instead. The window is 1920 × 1080 CSS pixels at a device pixel ratio of 1.5, the maintainer's own Windows scaling, so the 3D view is drawn at about 2880 × 1620.
 
-Each scene is loaded from a save with the game paused, zoomed out by the same wheel events in both browsers, warmed up for 3 seconds, then timed by the gaps between animation frames for 8 seconds. Each repeat opens each browser afresh and draws every scene, so that a drift in the machine's speed spreads over them alike. The report gives, for each browser and scene, the median over the repeats of each repeat's median and 95th percentile frame time, with their range. The results, with a screenshot of each scene in each browser, go to the ignored `.frame-time/<label>/` folder.
+Each scene is loaded from a save with the game paused, zoomed out by wheel events made in the page, warmed up for 3 seconds, then timed by the gaps between animation frames for 8 seconds. Each repeat opens the browser afresh and draws every scene, so that a drift in the machine's speed spreads over them alike. The report gives, for each scene, the median over the repeats of each repeat's median and 95th percentile frame time, with their range. The results, with a screenshot of each scene, go to the ignored `.frame-time/<label>/` folder.
 
 | Scene        | What it draws                                                                                                                                                                                    |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -20,11 +22,11 @@ Each scene is loaded from a save with the game paused, zoomed out by the same wh
 | `late-day`   | The long-game play guide's base from `npm run try -- act-4-end`, 59 Structures, with eight light masts added round the Lander, 6 game-hours after sunrise, with the sun low and the shadows long |
 | `late-night` | The same base 6 game-hours into the Night, lit by the light masts                                                                                                                                |
 
-Options: `--browser firefox` or `chromium`, `--scene <id>` (each may be given more than once), `--repeats 3`, `--seconds 8`, `--label <name>` for the results folder, and `--keep` to reuse the saves prepared last time. Preparing the late base plays the long-game play guide to Earth Day 2,850, which takes about 20 minutes of one core; `--keep` skips that, but its saves are what that code and catalogue made, so leave it out after changing them. The rest of a run takes about a minute and a half for each repeat.
+Options: `--scene <id>` (may be given more than once), `--repeats 3`, `--seconds 8`, `--label <name>` for the results folder, and `--keep` to reuse the saves prepared last time. Preparing the late base plays the long-game play guide to Earth Day 2,850, which takes about 20 minutes of one core; `--keep` skips that, but its saves are what that code and catalogue made, so leave it out after changing them. The rest of a run takes about a minute and a half for each repeat.
 
 Run it on a quiet machine, and don't lower its priority: the frame time depends on how much of the CPU the browser gets. The preparation alone can run at low priority, as it doesn't time anything.
 
-The browser windows have to stay on screen. The script turns off Firefox's tracking of windows hidden behind others, which would draw them less often; Playwright does the same for Chromium.
+The browser window has to stay on screen. Playwright turns off Chromium's tracking of windows hidden behind others, which would draw them less often.
 
 ## The machine
 
