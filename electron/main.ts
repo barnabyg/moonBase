@@ -5,6 +5,10 @@ import { app, session } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
+import {
+  askBeforeClosing,
+  handleUnsavedProgressAnswers,
+} from "./close-window.js";
 import { handleFullScreen } from "./full-screen.js";
 import { createLastFolder } from "./last-folder.js";
 import { handleSaveFiles } from "./save-dialogs.js";
@@ -69,14 +73,15 @@ app
       applyContentSecurityPolicy(session.defaultSession, policy);
     }
     // The save and load dialogs start in the folder last used, kept in the
-    // user-data folder, or in the player's Documents until one has been.
-    handleSaveFiles(
-      startUrl,
-      createLastFolder(
-        join(app.getPath("userData"), "save-folder.json"),
-        app.getPath("documents"),
-      ),
+    // user-data folder, or in the player's Documents until one has been: the
+    // Save and Load buttons' dialogs, and the save dialog of the question
+    // before closing.
+    const lastFolder = createLastFolder(
+      join(app.getPath("userData"), "save-folder.json"),
+      app.getPath("documents"),
     );
+    handleSaveFiles(startUrl, lastFolder);
+    handleUnsavedProgressAnswers(startUrl);
     // F11 and the top bar's Full screen button (full-screen.ts).
     handleFullScreen(startUrl);
     // The window opens where and as the player left it, kept in the
@@ -85,7 +90,11 @@ app
       startUrl,
       join(import.meta.dirname, "preload.cjs"),
       join(app.getPath("userData"), "window-state.json"),
-    );
+    ).then((window) => {
+      // Closing with unsaved progress, or quitting, asks whether to save it
+      // first (close-window.ts).
+      askBeforeClosing(window, lastFolder);
+    });
   })
   .catch((error: unknown) => {
     console.error("Moon Base could not start:", error);

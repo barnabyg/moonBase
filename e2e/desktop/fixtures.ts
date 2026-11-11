@@ -7,6 +7,9 @@
 // run side by side, and `launchApp` can launch the app again with the same
 // folder, to test what it keeps from one run to the next. `electronApp` and
 // `window` are the app a test starts with and its game window.
+//
+// No real dialog ever opens: each app launched starts with the main process's
+// dialogs stubbed (`stubDialogsToClose`), and a test stubs the one it tests.
 import type { ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -124,6 +127,8 @@ export const test = base.extend<DesktopFixtures>({
           consoleErrors.push(`main process: ${message.text()}`);
         }
       });
+      logDialogCalls(app);
+      await stubDialogsToClose(app);
       const watch = (page: Page): void => {
         page.on("console", (message) => {
           if (message.type() === "error") consoleErrors.push(message.text());
@@ -202,10 +207,13 @@ export async function closeWindow(app: ElectronApplication): Promise<void> {
 async function closeOrKill(app: ElectronApplication): Promise<void> {
   if (hasExited(app)) return;
   const { child } = launchedProcess(app);
-  const closed = app.close().then(
-    () => true,
-    () => false,
-  );
+  // Whatever the test answered the question before closing, it now closes.
+  const closed = stubDialogsToClose(app)
+    .then(() => app.close())
+    .then(
+      () => true,
+      () => false,
+    );
   const timedOut = new Promise<false>((resolve) => {
     setTimeout(resolve, 10_000, false).unref();
   });
@@ -217,37 +225,136 @@ async function closeOrKill(app: ElectronApplication): Promise<void> {
 type DialogMethod = "showSaveDialog" | "showOpenDialog" | "showMessageBox";
 
 /**
- * Has the main process's `dialog.<method>` answer `result` at once, rather
- * than showing the operating system's dialog, which a test can't click. The
- * options each call was given are kept beside it, for `dialogCalls`; a second
- * stub of the same method starts a new list. It only catches
- * calls made through the `dialog` object (`dialog.showSaveDialog(...)`), not
- * through a reference to the function taken before the stub.
+ * The calls to the stubbed dialogs that each app has logged to its main
+ * process's console, so that a test can read them once the app has exited.
+ */
+const dialogLogs = new WeakMap<ElectronApplication, Map<string, unknown[]>>();
+const dialogLogMarker = "moonbase-e2e-dialog ";
+
+function logDialogCalls(app: ElectronApplication): void {
+  const log = new Map<string, unknown[]>();
+  dialogLogs.set(app, log);
+  app.on("console", (message) => {
+    const text = message.text();
+    if (!text.startsWith(dialogLogMarker)) return;
+    const entry = JSON.parse(text.slice(dialogLogMarker.length)) as {
+      method: string;
+      options?: unknown;
+    };
+    if (!("options" in entry)) log.set(entry.method, []);
+    else log.get(entry.method)?.push(entry.options);
+  });
+}
+
+/** What a stubbed dialog answers. */
+type StubAnswer =
+  /** Always this. */
+  | { readonly result: unknown }
+  /**
+   * The message box's button that closes without saving: "Don't save", or
+   * "Close" when the page couldn't be asked.
+   */
+  | { readonly closing: true };
+
+async function stubDialogs(
+  app: ElectronApplication,
+  stubs: readonly {
+    readonly method: DialogMethod;
+    readonly answer: StubAnswer;
+    readonly delayMs?: number | undefined;
+  }[],
+): Promise<void> {
+  await app.evaluate(
+    ({ dialog }, { stubs, marker }) => {
+      const log = (entry: object) => {
+        console.info(`${marker}${JSON.stringify(entry)}`);
+      };
+      for (const { method, answer, delayMs } of stubs) {
+        const calls: unknown[] = [];
+        log({ method });
+        Reflect.set(dialog, method, (...args: unknown[]) => {
+          // The options come last, after the window if one is given.
+          const options = args.at(-1);
+          calls.push(options);
+          log({ method, options });
+          let result: unknown;
+          if ("result" in answer) {
+            result = answer.result;
+          } else {
+            const buttons: unknown = Reflect.get(Object(options), "buttons");
+            const labels: unknown[] = Array.isArray(buttons) ? buttons : [];
+            result = {
+              response: labels.findIndex(
+                (label) => label === "Don't save" || label === "Close",
+              ),
+              checkboxChecked: false,
+            };
+          }
+          return new Promise((resolve) => {
+            setTimeout(resolve, delayMs ?? 0, result);
+          });
+        });
+        Reflect.set(dialog, `${method}Calls`, calls);
+      }
+    },
+    { stubs, marker: dialogLogMarker },
+  );
+}
+
+/**
+ * Stubs every dialog the main process opens, so that none waits on the
+ * desktop: the question before closing answers the button that closes
+ * without saving, and the save and open dialogs are cancelled. Each launch
+ * starts this way, so a test that closes the app with unsaved progress, or
+ * quits it, closes it, and the fixture closes each app this way as the test
+ * ends, whatever the test stubbed. Their calls are kept for `dialogCalls`,
+ * as `stubDialog`'s are.
+ */
+export async function stubDialogsToClose(
+  app: ElectronApplication,
+): Promise<void> {
+  await stubDialogs(app, [
+    { method: "showMessageBox", answer: { closing: true } },
+    {
+      method: "showSaveDialog",
+      answer: { result: { canceled: true, filePath: "" } },
+    },
+    {
+      method: "showOpenDialog",
+      answer: { result: { canceled: true, filePaths: [] } },
+    },
+  ]);
+}
+
+/**
+ * Has the main process's `dialog.<method>` answer `result` at once, or after
+ * `delayMs`, as a player takes a moment to, rather than showing the
+ * operating system's dialog, which a test can't click. The options each call
+ * was given are kept, for `dialogCalls`; a second stub of the same method
+ * starts a new list. It only catches calls made through the `dialog` object
+ * (`dialog.showSaveDialog(...)`), not through a reference to the function
+ * taken before the stub.
  */
 export async function stubDialog<M extends DialogMethod>(
   app: ElectronApplication,
   method: M,
   result: Awaited<ReturnType<Dialog[M]>>,
+  options: { readonly delayMs?: number } = {},
 ): Promise<void> {
-  await app.evaluate(
-    ({ dialog }, stub) => {
-      const calls: unknown[] = [];
-      Reflect.set(dialog, stub.method, (...args: unknown[]) => {
-        // The options come last, after the window if one is given.
-        calls.push(args.at(-1));
-        return Promise.resolve(stub.result);
-      });
-      Reflect.set(dialog, `${stub.method}Calls`, calls);
-    },
-    { method, result },
-  );
+  await stubDialogs(app, [
+    { method, answer: { result }, delayMs: options.delayMs },
+  ]);
 }
 
-/** The options of each call to a dialog that `stubDialog` stubbed, in order. */
+/**
+ * The options of each call to a dialog that `stubDialog` stubbed, in order,
+ * or, once the app has exited, those it logged.
+ */
 export async function dialogCalls(
   app: ElectronApplication,
   method: DialogMethod,
 ): Promise<unknown[]> {
+  if (hasExited(app)) return dialogLogs.get(app)?.get(method) ?? [];
   return app.evaluate(({ dialog }, name) => {
     const calls: unknown = Reflect.get(dialog, `${name}Calls`);
     return Array.isArray(calls) ? (calls as unknown[]) : [];

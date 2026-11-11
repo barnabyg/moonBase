@@ -271,6 +271,7 @@ test("the page gets only the bridge's functions, and the main process refuses wh
   });
   expect(exposed).toEqual({
     keys: [
+      "answerUnsavedProgress",
       "isFullScreen",
       "onFullScreenChange",
       "openSaveFile",

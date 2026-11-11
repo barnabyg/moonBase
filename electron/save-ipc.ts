@@ -16,7 +16,10 @@ import { isAllowedNavigation } from "./security.js";
  * Whether a message came from the game's own page: the window's main frame,
  * not a frame inside it, showing a page from where the game started.
  */
-export function isFromGame(event: IpcMainInvokeEvent, appUrl: string): boolean {
+export function isFromGame(
+  event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">,
+  appUrl: string,
+): boolean {
   const frame = event.senderFrame;
   if (frame === null) return false;
   return (

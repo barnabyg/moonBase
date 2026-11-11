@@ -24,6 +24,7 @@ import { createStatusPanel } from "./ui/status-panel";
 import { createStructurePopUp } from "./ui/structure-pop-up";
 import { createTechTreeScreen } from "./ui/tech-tree";
 import { createTopBar } from "./ui/top-bar";
+import { answerUnsavedProgressFor } from "./ui/unsaved-progress";
 
 /**
  * A valid `?seed=` in the address replays a Campaign exactly; otherwise, or if
@@ -83,6 +84,9 @@ const saveFiles = createSaveFiles(campaign, () => {
 // Save and Load, in the top bar and on the game-over screen, keep save files
 // with the desktop app's dialogs, or the browser's download and file picker.
 const saveFileStore = saveFileStoreFor(window);
+// The desktop app asks for the Campaign's unsaved progress as its window is
+// about to close, to ask the player whether to save it first.
+answerUnsavedProgressFor(window, saveFiles);
 const saveButtons = (showResult: (result: ChoiceResult) => void) =>
   createSaveButtons(saveFiles, saveFileStore, showResult);
 // The top bar across the screen; below it, the status panel above the build

@@ -10,8 +10,10 @@
 export const bridgeName = "moonbase";
 
 /**
- * The IPC channel of each thing the page may ask the main process for, and of
- * what the main process tells the page unasked (`fullScreenChanged`).
+ * The IPC channel of each thing the page may ask the main process for, of
+ * what the main process tells the page unasked (`fullScreenChanged`), and of
+ * what it asks the page (`unsavedProgressAsked`) and the page answers
+ * (`unsavedProgressAnswered`).
  */
 export interface BridgeChannels {
   readonly saveFile: "moonbase:save-file";
@@ -19,6 +21,8 @@ export interface BridgeChannels {
   readonly toggleFullScreen: "moonbase:toggle-full-screen";
   readonly isFullScreen: "moonbase:is-full-screen";
   readonly fullScreenChanged: "moonbase:full-screen-changed";
+  readonly unsavedProgressAsked: "moonbase:unsaved-progress-asked";
+  readonly unsavedProgressAnswered: "moonbase:unsaved-progress-answered";
 }
 
 /** The extension of a save file, without its dot, as dialog filters give it. */
@@ -60,6 +64,14 @@ export type OpenSaveFileResult =
       readonly reason: "unreadable" | "too-large";
     };
 
+/** A save of the Campaign, as the Save button would save it. */
+export interface UnsavedSave {
+  /** The file name to suggest. */
+  readonly name: string;
+  /** The save file's contents. */
+  readonly text: string;
+}
+
 /**
  * What the preload script exposes to the page as `window.moonbase`. The page
  * gets these functions and nothing else: no file system, no ipcRenderer.
@@ -85,10 +97,23 @@ export interface DesktopBridge {
    * `toggleFullScreen` or anything else.
    */
   onFullScreenChange(listener: (fullScreen: boolean) => void): void;
+  /**
+   * Has the main process call `unsaved` when the window is about to close, or
+   * the app to quit, for the Campaign's unsaved progress: a save to offer the
+   * player, or null if there is none. Until the page has called this, the
+   * game hasn't started, so there is none.
+   */
+  answerUnsavedProgress(unsaved: () => UnsavedSave | null): void;
 }
 
 /** The bridge's saving and loading, which the page's save file store uses. */
 export type SaveBridge = Pick<DesktopBridge, "saveFile" | "openSaveFile">;
+
+/** The bridge's question before closing, which the page answers. */
+export type UnsavedProgressBridge = Pick<
+  DesktopBridge,
+  "answerUnsavedProgress"
+>;
 
 /** The bridge's fullscreen, which the top bar's Full screen button uses. */
 export type FullScreenBridge = Pick<

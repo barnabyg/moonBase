@@ -15,6 +15,7 @@ import type {
   OpenSaveFileResult,
   BridgeChannels,
   SaveFileResult,
+  UnsavedSave,
   bridgeName as BridgeName,
 } from "./desktop-bridge.js";
 
@@ -24,11 +25,26 @@ const channels: BridgeChannels = {
   toggleFullScreen: "moonbase:toggle-full-screen",
   isFullScreen: "moonbase:is-full-screen",
   fullScreenChanged: "moonbase:full-screen-changed",
+  unsavedProgressAsked: "moonbase:unsaved-progress-asked",
+  unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
 };
 const bridgeName: typeof BridgeName = "moonbase";
 
-// Save and load, with the operating system's dialogs (save-dialogs.ts), and
-// the window's fullscreen (full-screen.ts).
+// Before the window closes, the main process asks for the Campaign's unsaved
+// progress (close-window.ts), by a number it answers with. Until the page
+// says how to find it, the game hasn't started, so there is none. If finding
+// it fails, no answer is sent, and the main process asks the player whether to
+// close anyway.
+let unsavedProgress: (() => UnsavedSave | null) | undefined;
+ipcRenderer.on(channels.unsavedProgressAsked, (_event, id: unknown) => {
+  if (typeof id !== "number") return;
+  const answer = unsavedProgress === undefined ? null : unsavedProgress();
+  ipcRenderer.send(channels.unsavedProgressAnswered, id, answer);
+});
+
+// Save and load, with the operating system's dialogs (save-dialogs.ts), the
+// window's fullscreen (full-screen.ts), and the Campaign's unsaved progress,
+// for the question before closing (close-window.ts).
 const bridge: DesktopBridge = {
   saveFile: (suggestedName, contents) =>
     ipcRenderer.invoke(
@@ -51,6 +67,9 @@ const bridge: DesktopBridge = {
         if (typeof fullScreen === "boolean") listener(fullScreen);
       },
     );
+  },
+  answerUnsavedProgress: (unsaved) => {
+    unsavedProgress = unsaved;
   },
 };
 
