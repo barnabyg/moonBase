@@ -23,11 +23,11 @@ It takes about 35 seconds on the maintainer's PC. The first run downloads Electr
 
 At version 0.1.0 (Electron 45.3.0, electron-builder 26.18.1):
 
-| What                                       | Size                             |
-| ------------------------------------------ | -------------------------------- |
-| The installer, `Moon-Base-Setup-0.1.0.exe` | 112,850,998 bytes (about 108 MB) |
-| The installed app                          | about 311 MB                     |
-| The game's own files, `app.asar`           | about 1.3 MB                     |
+| What                                       | Size                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| The installer, `Moon-Base-Setup-0.1.0.exe` | 112,850,998 bytes (113 MB, 108 MiB); builds differ by a few hundred bytes |
+| The installed app                          | about 311 MB                                                              |
+| The game's own files, `app.asar`           | about 1.3 MB                                                              |
 
 Nearly all of it is Electron's Chromium. Only the English locales are packed (`electronLanguages`), which saves about 48 MB installed.
 
@@ -42,7 +42,7 @@ The configuration is `package.json`'s `build` field:
 - `nsis`: a one-click installer that installs for the current user, without administrator rights, into `%LOCALAPPDATA%\Programs\moon-base`, with a Start menu shortcut and a desktop shortcut, both "Moon Base". It adds an entry to Settings > Apps > Installed apps (the registry key `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\0379db2f-4bc6-5d87-824b-3532c7a593ad`) and starts the game when it finishes (not when run silently with `/S`).
 - `assets/installer/installer.nsh` (`nsis.include`) adds one step to the uninstaller (below).
 
-The installer also keeps a copy of itself, about 108 MB, in `%LOCALAPPDATA%\moon-base-updater\installer.exe`, which electron-updater uses for differential downloads.
+The installer also keeps a copy of itself, about 113 MB, in `%LOCALAPPDATA%\moon-base-updater\installer.exe`, which electron-updater uses for differential downloads.
 
 ### Uninstalling, and what it leaves
 
