@@ -6,7 +6,8 @@
 // CI runs the end-to-end tests in a job of their own, beside the other
 // checks, so it passes --skip-e2e to one job and --e2e-only to the other.
 // --project=firefox or --project=chromium runs the end-to-end tests in that
-// browser alone, as CI sets each up differently; without it they run in both.
+// browser alone, and --project=electron runs the desktop app's against its
+// production build, as CI sets each up differently; without it they all run.
 import { spawnSync } from "node:child_process";
 
 const e2e = "test:e2e";
@@ -18,7 +19,10 @@ const allSteps = [
   ],
   ["Type check (tsc --noEmit, strict)", "typecheck"],
   ["Unit and scenario tests (Vitest)", "test"],
-  ["End-to-end tests (Playwright)", e2e],
+  [
+    "End-to-end tests (Playwright: Firefox, Chromium, and the Electron build)",
+    e2e,
+  ],
   ["Dependency audit (npm audit)", "audit"],
   ["Secret scan (secretlint)", "secrets"],
   [
@@ -32,11 +36,13 @@ const filters = {
   "--e2e-only": ([, script]) => script === e2e,
 };
 const args = process.argv.slice(2);
-const project = args.find((arg) => /^--project=(firefox|chromium)$/.test(arg));
+const project = args.find((arg) =>
+  /^--project=(firefox|chromium|electron)$/.test(arg),
+);
 const [option, ...extra] = args.filter((arg) => arg !== project);
 if (extra.length > 0 || (option !== undefined && !(option in filters))) {
   console.error(
-    "Usage: node scripts/verify.mjs [--skip-e2e | --e2e-only] [--project=firefox | --project=chromium]",
+    "Usage: node scripts/verify.mjs [--skip-e2e | --e2e-only] [--project=firefox | --project=chromium | --project=electron]",
   );
   process.exit(2);
 }
