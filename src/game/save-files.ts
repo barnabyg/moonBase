@@ -1,5 +1,6 @@
 import { loadCampaign, type LoadResult } from "../simulation";
 import type { CampaignSlot } from "./campaign-slot";
+import { hasUnsavedProgress } from "./unsaved-progress";
 
 /** The extension of a Moon Base save file. */
 export const SAVE_FILE_EXTENSION = ".moonbase";
@@ -25,6 +26,17 @@ export interface SaveFiles {
    * being played carries on.
    */
   load(file: File): Promise<LoadFileResult>;
+  /**
+   * Tells it that `text`, a save from `save()`, has been kept in a file, so
+   * the Campaign as it was then is no longer unsaved progress.
+   */
+  saved(text: string): void;
+  /**
+   * The Campaign as a save file, as `save()` gives it, if it has unsaved
+   * progress since it started, or was last saved or loaded
+   * (unsaved-progress.ts); otherwise undefined.
+   */
+  unsaved(): { readonly name: string; readonly text: string } | undefined;
 }
 
 /**
@@ -35,14 +47,28 @@ export function createSaveFiles(
   slot: CampaignSlot,
   loaded: () => void,
 ): SaveFiles {
+  // The save last kept: the Campaign as it started, until one is saved or
+  // loaded.
+  let lastKept = slot.save();
+  const save = (): { name: string; text: string } => {
+    const { earthDay, hour, minute } = slot.snapshot().clock;
+    const time = `${twoDigits(hour)}${twoDigits(minute)}`;
+    return {
+      name: `moon-base-earth-day-${earthDay}-${time}${SAVE_FILE_EXTENSION}`,
+      text: slot.save(),
+    };
+  };
   return {
-    save() {
-      const { earthDay, hour, minute } = slot.snapshot().clock;
-      const time = `${twoDigits(hour)}${twoDigits(minute)}`;
-      return {
-        name: `moon-base-earth-day-${earthDay}-${time}${SAVE_FILE_EXTENSION}`,
-        text: slot.save(),
-      };
+    save,
+    saved(text) {
+      lastKept = text;
+    },
+    unsaved() {
+      const current = save();
+      const ended = slot.snapshot().ended !== undefined;
+      return hasUnsavedProgress({ ended, save: current.text, lastKept })
+        ? current
+        : undefined;
     },
     async load(file) {
       let text: string;
@@ -72,6 +98,7 @@ export function createSaveFiles(
         };
       }
       slot.replace(result.campaign);
+      lastKept = slot.save();
       loaded();
       return { ok: true };
     },

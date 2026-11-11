@@ -32,6 +32,10 @@ _Avoid_: golden run, benchmark, test game
 A scripted list of steps that plays a Campaign as a player would, by sending commands and reading the snapshot. The reference Campaign is one, and the long-game play guide carries it on to Earth Day 3,000.
 _Avoid_: bot, walkthrough, script
 
+**Unsaved progress**:
+What has happened in the Campaign since its save was last kept: since it was last saved to a file or loaded from one, or since it started. Each game-minute that passes is progress, as is each command that changes the Campaign; a refused command, the game speed and what the screen shows are not. There is none once the Campaign has ended. The desktop app asks whether to save before it closes only when there is some.
+_Avoid_: dirty state, unsaved changes
+
 **Data catalogue**:
 The game's data, in `src/catalogue/`: every rate, mass, price, threshold, duration and Science cost, and every Structure, Design and Launch item they belong to. Every balancing change is made here.
 _Avoid_: config, game data, database

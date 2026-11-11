@@ -28,6 +28,7 @@ export function createSaveButtons(
   save.addEventListener("click", () => {
     const { name, text } = saveFiles.save();
     void store.save(name, text, group).then((result) => {
+      if (result.outcome === "saved") saveFiles.saved(text);
       if (result.outcome === "failed") {
         showResult({ ok: false, message: result.message });
       }
