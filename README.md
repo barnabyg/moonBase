@@ -40,6 +40,14 @@ Run `build:desktop` again after changing the game or `electron/`, as `desktop:st
 
 F11, or the Full screen button in the top bar, fills the screen with the game, and either again goes back to a window; Esc doesn't leave fullscreen. The window opens next time at the size and place you left it, maximised or in fullscreen if it was. Closing it, or quitting, with unsaved progress asks whether to save first. Starting it again while it runs brings the running game to the front. Developer tools are there only in `npm.cmd run desktop`, with F12 or Ctrl+Shift+I, as the window has no menu bar.
 
+To build the Windows installer, `releaseMoon-Base-Setup-<version>.exe`, which installs the game for the current user with a Start menu entry:
+
+```powershell
+npm.cmd run package:win
+```
+
+[`docs/desktop-release.md`](docs/desktop-release.md) says what it installs, what uninstalling leaves, and how to test it. CI builds it on every push to `main`.
+
 ## Documentation
 
 - [`docs/rules.md`](docs/rules.md): how the game works, system by system.
@@ -50,6 +58,7 @@ F11, or the Full screen button in the top bar, fills the screen with the game, a
 - [`docs/reference-campaign.md`](docs/reference-campaign.md): the scripted playthroughs and how to run them (`npm.cmd run reference-campaign` prints the timeline of the one the tests play, `npm.cmd run pacing-report` how the numbers fit together, and `npm.cmd run long-game` how a longer Campaign holds up).
 - [`docs/adding-content.md`](docs/adding-content.md): the checklists for adding a Structure, a Plant, a type of Expedition, a Milestone or an Act, and when the catalogue's version is raised.
 - [`docs/save-format.md`](docs/save-format.md): the `.moonbase` format and the rules for changing it.
+- [`docs/desktop-release.md`](docs/desktop-release.md): building and testing the desktop app's Windows installer (`npm.cmd run package:win`), and what it installs.
 - [`docs/verification.md`](docs/verification.md): the checks, test timeouts and exceptions.
 - [`docs/verification-history.md`](docs/verification-history.md): the investigations and CI runs behind its limits.
 - [`docs/trying-things.md`](docs/trying-things.md): starting the game in a prepared state to try a change by hand (`npm.cmd run try`).
@@ -73,6 +82,7 @@ npm.cmd run verify
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `electron/`: the desktop app's Electron main process and preload script, in strict TypeScript with its own `tsconfig.json` (Node types, no DOM), compiled to the ignored `dist-electron/`. `main.ts` starts the app; `window.ts` and `window-options.ts` open the game's window, and `window-state.ts` and `window-state-file.ts` put it back where the player left it; `full-screen.ts` toggles fullscreen on F11 and for the top bar's button; `close-window.ts` and `close-prompt.ts` ask before closing with unsaved progress; `security.ts` holds the Content Security Policy and stops the page navigating away, opening windows or getting permissions; `app-protocol.ts` and `app-files.ts` serve the production build from `dist/` at `app://moonbase/`; `preload.cts` exposes the page's narrow bridge to the main process, typed in `desktop-bridge.ts`.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, `test/catalogue-rules.ts` holds the catalogue's consistency rules, the `test/catalogue-*.test.ts` files test the catalogue with a file for each domain (and `test/catalogue-*-designs.test.ts` for the later Designs) sharing `test/catalogue-helpers.ts`, and the `test/sample-saves-*.test.ts` files test the old saves in `test/saves/`, sharing `test/sample-saves.ts`.
-- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`), playing it in the desktop app during development (`desktop.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
-- `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium. Those in `e2e/desktop/` launch the desktop app's production build instead (`npm.cmd run test:desktop`), with their fixtures in `fixtures.ts`.
+- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`), playing it in the desktop app during development (`desktop.mjs`), drawing the desktop app's icon (`make-icon.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
+- `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium. Those in `e2e/desktop/` launch the desktop app's production build instead (`npm.cmd run test:desktop`), with their fixtures in `fixtures.ts`, and the one in `e2e/packaged/` launches the packaged app that `npm.cmd run package:win` builds.
+- `assets/`: the desktop app's icon (`assets/icon/`, drawn by `scripts/make-icon.mjs`) and the installer's NSIS script (`assets/installer/installer.nsh`).
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.
