@@ -15,7 +15,7 @@
 // prepared last time, in the ignored .frame-time folder, which are what that
 // code and catalogue made. The results, and a screenshot of each scene in each
 // browser, go to .frame-time/<label>/.
-/* global document, requestAnimationFrame, window -- in the functions page.evaluate runs in the page */
+/* global document, requestAnimationFrame, WheelEvent, window -- in the functions page.evaluate runs in the page */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -167,20 +167,24 @@ async function openScene(context, scene) {
     .getByRole("status", { name: "Game clock" })
     .filter({ hasText: scene.clock })
     .waitFor();
-  const canvas = await page.locator("canvas").boundingBox();
-  if (canvas === null) throw new Error("The 3D view has no size.");
-  await page.mouse.move(
-    canvas.x + canvas.width / 2,
-    canvas.y + canvas.height / 2,
-  );
-  // In steps, as a wheel turns.
-  for (let turned = 0; turned < scene.zoomOut; turned += 100) {
-    await page.mouse.wheel(0, 100);
-    // Each its own event, as a browser may merge those that come at once.
-    await page.waitForTimeout(50);
-  }
-  // Out of the way, so that nothing is highlighted under the pointer.
-  await page.mouse.move(0, 0);
+  // Wheel events made in the page rather than by Playwright's mouse: Firefox
+  // turned the same mouse.wheel into a smaller zoom than Chromium, which
+  // left it drawing less of the base.
+  await page.locator("canvas").evaluate((canvas, zoomOut) => {
+    const bounds = canvas.getBoundingClientRect();
+    for (let turned = 0; turned < zoomOut; turned += 100) {
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: 100,
+          deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+          clientX: bounds.left + bounds.width / 2,
+          clientY: bounds.top + bounds.height / 2,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }
+  }, scene.zoomOut);
   return { page, errors };
 }
 
