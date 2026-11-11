@@ -41,6 +41,7 @@ describe("what the page may ask the main process to save", () => {
     ["a name with a backslash", ["C:\\a.moonbase", "{}"]],
     ["a name with a drive", ["C:a.moonbase", "{}"]],
     ["a name with a control character", ["a\u0000.moonbase", "{}"]],
+    ["a name with the last control character", ["a\u001f.moonbase", "{}"]],
     ["a name that is only the extension", [".moonbase", "{}"]],
     ["a name too long", [`${"a".repeat(200)}.moonbase`, "{}"]],
   ])("is refused with %s", (_case, args) => {

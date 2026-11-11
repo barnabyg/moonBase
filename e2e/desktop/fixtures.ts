@@ -87,9 +87,10 @@ interface DesktopFixtures {
 }
 
 export const test = base.extend<DesktopFixtures>({
-  // Fixture functions take their dependencies as a destructured object, even
-  // when they need none.
-  // eslint-disable-next-line no-empty-pattern
+  // Playwright reads a fixture's dependencies from its first parameter, and
+  // refuses one that isn't a destructured object, so a fixture that needs none
+  // destructures nothing (docs/verification.md, Exceptions).
+  // eslint-disable-next-line no-empty-pattern -- Playwright requires the pattern
   userDataDir: async ({}, use) => {
     const folder = await mkdtemp(join(tmpdir(), "moonbase-e2e-"));
     await use(folder);
@@ -97,7 +98,7 @@ export const test = base.extend<DesktopFixtures>({
     await rm(folder, { recursive: true, force: true, maxRetries: 10 });
   },
 
-  // eslint-disable-next-line no-empty-pattern
+  // eslint-disable-next-line no-empty-pattern -- as userDataDir's, it needs none
   consoleErrors: async ({}, use) => {
     await use([]);
   },

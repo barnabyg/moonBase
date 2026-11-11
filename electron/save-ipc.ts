@@ -27,9 +27,20 @@ export function isFromGame(
   );
 }
 
-/** A file name with no folder, drive or character Windows doesn't allow. */
-// eslint-disable-next-line no-control-regex -- control characters are what it refuses
-const forbiddenInName = /[<>:"/\\|?*\u0000-\u001f]/;
+/** The printable characters Windows doesn't allow in a file name. */
+const forbiddenInName = /[<>:"/\\|?*]/;
+
+/**
+ * Whether `name` is a file name with no folder, drive or character Windows
+ * doesn't allow: neither those above nor a control character (below U+0020).
+ */
+function isPlainFileName(name: string): boolean {
+  if (forbiddenInName.test(name)) return false;
+  for (let i = 0; i < name.length; i++) {
+    if (name.charCodeAt(i) < 0x20) return false;
+  }
+  return true;
+}
 
 /** The arguments of saveFile, or an error if they aren't what it sends. */
 export function parseSaveFileArgs(args: readonly unknown[]): {
@@ -41,7 +52,7 @@ export function parseSaveFileArgs(args: readonly unknown[]): {
   if (
     typeof suggestedName !== "string" ||
     suggestedName.length > maxSuggestedNameLength ||
-    forbiddenInName.test(suggestedName) ||
+    !isPlainFileName(suggestedName) ||
     !suggestedName.endsWith(`.${saveFileExtension}`) ||
     suggestedName.length <= saveFileExtension.length + 1
   ) {
