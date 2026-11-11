@@ -21,7 +21,10 @@ const allSteps = [
   ["End-to-end tests (Playwright)", e2e],
   ["Dependency audit (npm audit)", "audit"],
   ["Secret scan (secretlint)", "secrets"],
-  ["Production build (Vite)", "build"],
+  [
+    "Production build (Vite, and Electron's main process and preload)",
+    "build:desktop",
+  ],
 ];
 
 const filters = {
