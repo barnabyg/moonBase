@@ -98,7 +98,9 @@ The installer and uninstaller also run silently, for scripted tests: `.\Moon-Bas
 
 ### What has been tested
 
-On 2026-11-11, on the maintainer's development PC (Windows 11 Pro), not a clean machine: the installer for 0.1.0 installed silently with `/S` in about 18 seconds without administrator rights. It added the install folder, the Start menu and desktop shortcuts (pointing at `Moon Base.exe`), the uninstall registry key (`Moon Base 0.1.0`, publisher Barnaby Golden) and the installer's own copy, and nothing else in the user's registry, Start menu, desktop, Documents or `%APPDATA%`. The installed `Moon Base.exe` started both from the Start menu shortcut and under Playwright, where it drew the game at Earth Day 1. The silent uninstall then removed all of those, left `%APPDATA%\moon-base` exactly as the game had left it, and left everything else as it was before the install. Playing, saving and loading in the installed game, and the whole procedure on a clean machine, are still to be done by hand.
+On 2026-11-11, on the maintainer's development PC (Windows 11 Pro), not a clean machine: the installer for 0.1.0 installed silently with `/S` in about 18 seconds without administrator rights. It added the install folder, the Start menu and desktop shortcuts (pointing at `Moon Base.exe`), the uninstall registry key (`Moon Base 0.1.0`, publisher Barnaby Golden) and the installer's own copy, and nothing else in the user's registry, Start menu, desktop, Documents or `%APPDATA%`. The installed `Moon Base.exe` started both from the Start menu shortcut and under Playwright, where it drew the game at Earth Day 1. The silent uninstall then removed all of those, left `%APPDATA%\moon-base` exactly as the game had left it, and left everything else as it was before the install. Playing, saving and loading in the installed game were left to be done by hand.
+
+On 2026-11-11 the maintainer then built the installer, installed it on a clean machine and played the game there by hand, and everything worked. Uninstalling was tested only on the development PC, above.
 
 ## CI
 
