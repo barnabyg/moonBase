@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:desktop": "playwright test --project=electron",
     "reference-campaign": "node scripts/reference-campaign.mjs",
     "pacing-report": "node scripts/pacing-report.mjs",
     "long-game": "node scripts/long-game.mjs",

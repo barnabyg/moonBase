@@ -50,10 +50,27 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   // Firefox until the browser version is dropped, and Chromium, the engine of
-  // the desktop app that replaces it (ADR-0010). Pick one with --project.
+  // the desktop app that replaces it (ADR-0010), run the tests in e2e/ against
+  // the dev server. The electron project runs those in e2e/desktop/ against
+  // the desktop app's production build, which desktop-build makes first. Pick
+  // one with --project.
   projects: [
     {
+      name: "desktop-build",
+      testDir: "e2e/desktop",
+      testMatch: "build.setup.ts",
+    },
+    {
+      name: "electron",
+      testDir: "e2e/desktop",
+      // Each test launches its own app with its own user-data folder, so the
+      // tests in a file can run side by side too.
+      fullyParallel: true,
+      dependencies: ["desktop-build"],
+    },
+    {
       name: "firefox",
+      testIgnore: "desktop/**",
       use: {
         ...devices["Desktop Firefox"],
         launchOptions: {
@@ -72,6 +89,7 @@ export default defineConfig({
     },
     {
       name: "chromium",
+      testIgnore: "desktop/**",
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
