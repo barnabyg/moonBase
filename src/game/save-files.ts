@@ -51,7 +51,7 @@ export function createSaveFiles(
       } catch {
         return {
           ok: false,
-          message: `Couldn't load "${file.name}". Firefox couldn't read the file.`,
+          message: `Couldn't load "${file.name}". The browser couldn't read the file.`,
         };
       }
       let result: LoadResult;

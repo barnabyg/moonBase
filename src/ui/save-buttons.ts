@@ -28,7 +28,8 @@ export function createSaveButtons(
       new Blob([text], { type: "application/json" }),
     );
     // Firefox only downloads from a link in the page, and inside the
-    // game-over screen, only from one in that screen.
+    // game-over screen, only from one in that screen. Chromium downloads from
+    // either; a link in the group serves both.
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
@@ -36,7 +37,7 @@ export function createSaveButtons(
     group.append(link);
     link.click();
     link.remove();
-    // Not at once, in case Firefox hasn't yet read the file to download it.
+    // Not at once, in case the browser hasn't yet read the file to download it.
     setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 10_000);

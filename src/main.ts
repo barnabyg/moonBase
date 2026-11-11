@@ -58,8 +58,8 @@ function startRenderer(
     message.className = "renderer-unavailable";
     message.setAttribute("role", "alert");
     message.textContent =
-      "Moon Base couldn't start the 3D view, because Firefox couldn't create a WebGL2 context. " +
-      "Check that hardware acceleration is turned on in Firefox's settings, then reload the page.";
+      "Moon Base couldn't start the 3D view, because the browser couldn't create a WebGL2 context. " +
+      "Check that hardware acceleration is turned on in the browser's settings, then reload the page.";
     container.append(message);
     return undefined;
   }
