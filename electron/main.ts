@@ -5,6 +5,8 @@ import { app, session } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
+import { createLastFolder } from "./last-folder.js";
+import { handleSaveFiles } from "./save-dialogs.js";
 import {
   applyContentSecurityPolicy,
   contentSecurityPolicy,
@@ -65,6 +67,15 @@ app
     } else {
       applyContentSecurityPolicy(session.defaultSession, policy);
     }
+    // The save and load dialogs start in the folder last used, kept in the
+    // user-data folder, or in the player's Documents until one has been.
+    handleSaveFiles(
+      startUrl,
+      createLastFolder(
+        join(app.getPath("userData"), "save-folder.json"),
+        app.getPath("documents"),
+      ),
+    );
     createMainWindow(startUrl, join(import.meta.dirname, "preload.cjs"));
   })
   .catch((error: unknown) => {
