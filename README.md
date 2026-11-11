@@ -56,7 +56,7 @@ Run `build:desktop` again after changing the game or `electron/`, as `desktop:st
 
 ## Verification
 
-Before the first run on a machine, install Playwright's Firefox and Chromium once with `npx.cmd playwright install firefox chromium`. Then run every check (formatting, lint, type check, unit and end-to-end tests, audit and secret scan, production build) from the repository's root folder:
+Before the first run on a machine, install Playwright's Firefox and Chromium once with `npx.cmd playwright install firefox chromium`. Then run every check (formatting, lint, type check, unit tests, end-to-end tests in both browsers and against the desktop app's build, audit and secret scan, production build) from the repository's root folder:
 
 ```powershell
 npm.cmd run verify
@@ -72,5 +72,5 @@ npm.cmd run verify
 - `electron/`: the desktop app's Electron main process and preload script, in strict TypeScript with its own `tsconfig.json` (Node types, no DOM), compiled to the ignored `dist-electron/`. `main.ts` starts the app; `window.ts` and `window-options.ts` open the game's window; `security.ts` holds the Content Security Policy and stops the page navigating away, opening windows or getting permissions; `app-protocol.ts` and `app-files.ts` serve the production build from `dist/` at `app://moonbase/`; `preload.cts` is where the page's narrow bridge to the main process goes.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, `test/catalogue-rules.ts` holds the catalogue's consistency rules, the `test/catalogue-*.test.ts` files test the catalogue with a file for each domain (and `test/catalogue-*-designs.test.ts` for the later Designs) sharing `test/catalogue-helpers.ts`, and the `test/sample-saves-*.test.ts` files test the old saves in `test/saves/`, sharing `test/sample-saves.ts`.
 - `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`), playing it in the desktop app during development (`desktop.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
-- `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium.
+- `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium. Those in `e2e/desktop/` launch the desktop app's production build instead (`npm.cmd run test:desktop`), with their fixtures in `fixtures.ts`.
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.
