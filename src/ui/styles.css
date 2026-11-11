@@ -916,7 +916,27 @@ body {
   font-size: 0.75rem;
 }
 
-/* The build menu: a grid of Structures to place. */
+/* The build menu: a grid of Structures to place in each group, by what they
+   are for, under a heading that folds them away. */
+
+.build-group > .panel-section__title {
+  padding: 4px 0;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.build-group > .panel-section__body {
+  padding: 0 0 6px;
+}
+
+.build-group + .build-group {
+  border-top-color: rgb(255 255 255 / 6%);
+}
+
+.build-group > .panel-section__title > .panel-section__summary {
+  color: var(--text-muted);
+}
 
 .build-menu__options {
   display: grid;
@@ -943,6 +963,20 @@ body {
 
 .build-menu__options button:hover {
   border-color: var(--text-muted);
+}
+
+/* One whose Components aren't in the base's stock, set back so that those
+   that can be built now stand out. Its badge's "0" says so too. */
+.build-menu__options
+  button.build-menu__option--short:not([aria-pressed="true"]) {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.build-menu__options
+  button.build-menu__option--short:not([aria-pressed="true"]):hover {
+  color: var(--text);
 }
 
 .build-menu__options button[aria-pressed="true"] {
