@@ -31,6 +31,7 @@ The Milestones in the status panel guide you through the Campaign, each with a h
 - [`docs/verification.md`](docs/verification.md): the checks, test timeouts and exceptions.
 - [`docs/verification-history.md`](docs/verification-history.md): the investigations and CI runs behind its limits.
 - [`docs/trying-things.md`](docs/trying-things.md): starting the game in a prepared state to try a change by hand (`npm.cmd run try`).
+- [`docs/rendering-performance.md`](docs/rendering-performance.md): how long a frame takes to draw in Firefox and Chromium, what was tried to speed Chromium up, and where its time goes (`npm.cmd run frame-time` measures it).
 - The [spec](https://github.com/barnabyg/moonBase/issues/1): what the game will be, and its eight phases.
 
 ## Verification
@@ -49,6 +50,6 @@ npm.cmd run verify
 - `src/render/`: the Three.js renderer, which only reads snapshots and the data catalogue (for sizes and timings such as the Lander's footprint and the length of a Lunation, which it converts with the simulation's own `lunationMinutes`). It never changes simulation state.
 - `src/ui/`: the HTML interface, which reads snapshots and sends player choices.
 - `test/`: Vitest scenario tests through the simulation interface; `test/scenario.ts` is the helper for writing them, `test/reference-campaign.ts` is the reference Campaign, `test/pacing-report.ts` is the pacing report, `test/long-game.ts` is the long-game play guide, `test/catalogue-rules.ts` holds the catalogue's consistency rules, the `test/catalogue-*.test.ts` files test the catalogue with a file for each domain (and `test/catalogue-*-designs.test.ts` for the later Designs) sharing `test/catalogue-helpers.ts`, and the `test/sample-saves-*.test.ts` files test the old saves in `test/saves/`, sharing `test/sample-saves.ts`.
-- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`) and starting the game in a prepared state (`try.mjs`).
+- `scripts/`: the verification command (`verify.mjs`), the reference Campaign's timeline (`reference-campaign.mjs`), the pacing report (`pacing-report.mjs`), the long-game play guide (`long-game.mjs`), starting the game in a prepared state (`try.mjs`) and measuring how long a frame takes to draw (`frame-time.mjs`).
 - `e2e/`: Playwright end-to-end tests, run in both Firefox and Chromium.
 - `.claude/launch.json`: tells the Claude desktop app how to start the dev server for its browser preview.
