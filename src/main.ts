@@ -212,8 +212,8 @@ function frame(time: number): void {
   });
   // Beside where the Structure has just been drawn.
   structurePopUp.update(snapshot);
-  // Once every panel and the pop-up have updated, so that they are
-  // measured together.
+  // Once every panel and the pop-up have updated, so that it finds every
+  // held line they show; their heights come once the page is laid out.
   holds.refresh();
   requestAnimationFrame(frame);
 }
