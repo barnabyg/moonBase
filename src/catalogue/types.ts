@@ -172,8 +172,8 @@ export interface Catalogue {
   /** The Structures that can be planned, in the order the build menu offers them. */
   readonly structureTypes: readonly StructureType[];
   /**
-   * The groups the Base panel lists Structures in, by what they are for, in
-   * the order it shows them.
+   * The groups the Base panel lists Structures in, and the build menu offers
+   * them in, by what they are for, in the order they show them.
    */
   readonly structureListGroups: readonly {
     readonly id: StructureListGroup;

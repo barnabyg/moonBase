@@ -1215,6 +1215,7 @@ export const tryScenarios: readonly TryScenario[] = [
       'Type "telescope" in the box: only the telescope\'s two parts stay, under Industry, and it says "Showing 2 of 67 items".',
       "Press + on one of them: the bars and the box stay in sight, and the rows don't move.",
       "Press Clear: all 67 come back, in the same order.",
+      "Close it. The build menu lists its Structures under the Base panel's groups, from Habitats to Science, and those with 0 beside them are dimmed with a dashed border. Fold Power: its heading says how many of its Structures can be built now, and it stays folded after a reload.",
     ],
     save: () => freshSaveWith(unlockEverything),
   },
