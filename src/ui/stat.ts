@@ -31,9 +31,16 @@ export interface StatLine {
  * optional bar showing how full something is. It is a status, named for
  * screen readers, that isn't announced each time it changes. It keeps its
  * height a while when its text gets shorter, so that the lines below don't
- * jump as it changes at high game speed.
+ * jump as it changes at high game speed. Its bar is coloured by what its
+ * figure means, neutral progress unless it says otherwise. Shown as a
+ * warning, it is marked as one, in its colour and with a sign before the
+ * figure.
  */
-export function createStatLine(label: string, name = label): StatLine {
+export function createStatLine(
+  label: string,
+  name = label,
+  meterKind: MeterKind = "progress",
+): StatLine {
   const element = document.createElement("p");
   element.className = "stat";
   element.setAttribute("role", "status");
@@ -52,7 +59,7 @@ export function createStatLine(label: string, name = label): StatLine {
   const note = document.createElement("span");
   note.className = "stat__note";
   body.append(value, separator, note);
-  const meter = createMeter();
+  const meter = createMeter(meterKind);
   meter.element.classList.add("stat__meter");
   element.append(labelText, " ", body, meter.element);
   element.dataset["row"] = name;
@@ -84,16 +91,44 @@ export function createStatLine(label: string, name = label): StatLine {
 }
 
 /**
- * A thin bar showing how full something is, from 0 to 1, or nothing when
- * there is nothing to fill. The figure beside it says the same in words,
- * so screen readers skip it.
+ * What a bar's figure means, which sets its colour, so that no colour means
+ * both good and bad:
+ * - a "level" is a store or a Condition, where more is better, and is green;
+ * - "progress" is work done towards an end, neither good nor bad, and is a
+ *   neutral blue-grey;
+ * - a "limit" is a figure that must stay under a limit, such as a Radiation
+ *   Dose or a Payload Mass: neutral while well clear of it, amber as it
+ *   nears it, and the warning colour at it.
+ * A line shown as a warning has its bar in the warning colour, whatever its
+ * kind.
  */
-export function createMeter(): {
+export type MeterKind = "level" | "progress" | "limit";
+
+/** From this share of its limit on, a figure is near it. */
+const NEAR_LIMIT_FRACTION = 0.8;
+/** From this share of its limit on, a figure is at it, or all but. */
+const FULL_FRACTION = 0.95;
+
+/** How near a figure is to its limit, given as a share of it. */
+export function limitState(fraction: number): "clear" | "near" | "full" {
+  if (fraction >= FULL_FRACTION) return "full";
+  return fraction >= NEAR_LIMIT_FRACTION ? "near" : "clear";
+}
+
+export interface Meter {
   readonly element: HTMLElement;
+  /** Shows how full it is, from 0 to 1, or hides it. */
   fill(fraction: number | undefined): void;
-} {
+}
+
+/**
+ * A thin bar showing how full something is, from 0 to 1, or nothing when
+ * there is nothing to fill, coloured by what its figure means. The figure
+ * beside it says the same in words, so screen readers skip it.
+ */
+export function createMeter(kind: MeterKind): Meter {
   const element = document.createElement("span");
-  element.className = "meter";
+  element.className = `meter meter--${kind}`;
   element.setAttribute("aria-hidden", "true");
   element.hidden = true;
   const bar = document.createElement("span");
@@ -105,6 +140,11 @@ export function createMeter(): {
     fill(fraction) {
       element.hidden = fraction === undefined;
       if (fraction === undefined) return;
+      if (kind === "limit") {
+        const state = limitState(fraction);
+        element.classList.toggle("meter--near", state === "near");
+        element.classList.toggle("meter--full", state === "full");
+      }
       const width = `${(Math.min(Math.max(fraction, 0), 1) * 100).toFixed(1)}%`;
       if (width !== shown) {
         bar.style.width = width;

@@ -10,6 +10,8 @@
   --good: #6fd08c;
   --warning: #ff8a70;
   --science: #8fd0ff;
+  /* Work done, neither good nor bad; well apart from the track behind it. */
+  --progress: #a7b4c4;
   --meter-track: rgb(255 255 255 / 10%);
   --gutter: 12px;
   --top-bar-height: 52px;
@@ -507,8 +509,10 @@ body {
   color: var(--warning);
 }
 
-.stat--warning .meter__fill {
-  background: var(--warning);
+/* Not by its colour alone: a sign goes before the figure. */
+.stat--warning .stat__value::before,
+.gauge--full .gauge__text::before {
+  content: "\26A0\FE0E\00A0";
 }
 
 /* A line the needs-attention list has just led to, picked out for a moment. */
@@ -625,12 +629,29 @@ body {
   border-radius: 2px;
 }
 
+/* A bar's colour says what its figure means, so that no colour means both
+   good and bad: green where more is better, a neutral blue-grey for work
+   done, and for a figure against a limit, neutral while clear of it, amber
+   near it and the warning colour at it. */
 .meter__fill {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: var(--progress);
   border-radius: 2px;
+}
+
+.meter--level .meter__fill {
+  background: var(--good);
+}
+
+.meter--near .meter__fill {
+  background: var(--accent);
+}
+
+.meter--full .meter__fill,
+.stat--warning .meter .meter__fill {
+  background: var(--warning);
 }
 
 /* The Components in the base's stock, two to a row, each count ending in
@@ -813,12 +834,15 @@ body {
   width: 52px;
 }
 
-.entry__condition .meter__fill {
-  background: var(--good);
-}
-
+/* A low Condition's bar turns amber, and a sign follows its figure, so that
+   it isn't told by colour alone. */
 .entry__condition--low .meter__fill {
   background: var(--accent);
+}
+
+.entry__condition--low::after {
+  content: "\26A0\FE0E";
+  color: var(--accent);
 }
 
 /* Its own, and not those of the rows inside a row that several share. */
@@ -985,7 +1009,7 @@ body {
   width: 100%;
   height: 5px;
   margin: 3px 0;
-  accent-color: var(--accent);
+  accent-color: var(--progress);
 }
 
 .construction-panel__work {
@@ -1402,8 +1426,8 @@ body {
   border-radius: 3px;
 }
 
-.gauge--full .meter__fill {
-  background: var(--warning);
+.gauge--full .gauge__text {
+  color: var(--warning);
 }
 
 /* A table of things to choose, row by row. */

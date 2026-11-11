@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { structuresList } from "./base-panel";
+import { fillColour, shownBefore, tokenColour } from "./meters";
 import { placeOnClearGround } from "./placement";
 
 /**
@@ -46,6 +47,16 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
   await expect(oxygen.locator(".meter")).toBeVisible();
   expect(await filled(oxygen)).toBe(25);
   expect(await filled(water)).toBe(27);
+  // Green, as more is better, unlike the Radiation Dose's bar, which is
+  // neutral while it is well clear of its limit.
+  await expect(oxygen.locator(".meter")).toHaveClass(/meter--level/);
+  expect(await fillColour(oxygen.locator(".meter"))).toBe(
+    await tokenColour(page, "--good"),
+  );
+  await expect(radiationDose.locator(".meter")).toHaveClass(/meter--limit/);
+  expect(await fillColour(radiationDose.locator(".meter"))).toBe(
+    await tokenColour(page, "--progress"),
+  );
   await expect(living).toHaveText("Living aboard the Lander");
   await expect(radiationDose).toHaveText(
     "Radiation 0.0 / 600 mSv · none aboard the Lander",
@@ -90,6 +101,10 @@ test("oxygen and water run down in the Habitat, warnings come without pausing th
     notifications.getByText("Habitat power will fail in 1 Earth Day"),
   );
   await expect(twentyTimes).toHaveAttribute("aria-pressed", "true");
+  // The line is shown as a warning, in its colour and with a sign before
+  // its words, so not by colour alone.
+  await expect(living).toHaveClass(/stat--warning/);
+  expect(await shownBefore(living.locator(".stat__value"))).toContain("⚠");
   const clock = page.getByRole("status", { name: "Game clock" });
   const warnedAt = await clock.textContent();
   await expect(clock).not.toHaveText(warnedAt ?? "");
