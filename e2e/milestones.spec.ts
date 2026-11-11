@@ -64,6 +64,10 @@ test("a Milestone with something to measure shows how far along it is, under its
 }) => {
   const scenario = tryScenarios.find(({ id }) => id === "crew-habitat");
   if (scenario === undefined) throw new Error("expected the scenario");
+  // A full HD screen, whose wider status panel holds the short hint that
+  // follows the last Milestone in two lines; on a narrower window's column,
+  // in a wider font such as CI's, it takes three and keeps its button.
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/?seed=1");
   await page
     .getByRole("group", { name: "Game speed" })
