@@ -1,7 +1,7 @@
 // Electron's main process. It opens the game in a window, either from the Vite
 // dev server (`npm run desktop`, which sets MOONBASE_DEV_SERVER_URL) or from
 // the production build in dist/ (`npm run desktop:start`).
-import { app, BrowserWindow, Menu, session } from "electron";
+import { app, BrowserWindow, Menu, session, shell } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
@@ -80,7 +80,13 @@ function start(): void {
   registerAppScheme();
 
   app.on("web-contents-created", (_event, contents) => {
-    hardenWebContents(contents, startUrl);
+    // Outside links open in the player's default browser. Called as
+    // shell.openExternal(...), so the end-to-end tests can stub it.
+    hardenWebContents(contents, startUrl, (url) => {
+      shell.openExternal(url).catch((error: unknown) => {
+        console.warn(`Moon Base couldn't open ${url}:`, error);
+      });
+    });
   });
 
   // Windows only (ADR-0010): closing the last window quits.

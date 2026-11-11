@@ -1,5 +1,6 @@
-// The desktop window behaves like a game rather than a browser: no menu bar,
-// and no developer tools in the production build.
+// The desktop window behaves like a game rather than a browser: no menu bar
+// and no developer tools in the production build, one game at a time, and
+// outside links open in the player's default browser.
 import type { ElectronApplication } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -112,4 +113,74 @@ test("starting the game again while it runs brings the running game's window to 
     window.getByRole("status", { name: "Game clock" }),
   ).toBeVisible();
   expect(consoleErrors).toEqual([]);
+});
+
+test("a link to an outside page opens in the default browser, never in the game's window", async ({
+  electronApp,
+  window,
+  consoleErrors,
+}) => {
+  await expect(
+    window.getByRole("status", { name: "Game clock" }),
+  ).toBeVisible();
+  // No real browser opens: shell.openExternal only notes what it was given.
+  await electronApp.evaluate(({ shell }) => {
+    const opened: string[] = [];
+    Reflect.set(globalThis, "opened", opened);
+    Reflect.set(shell, "openExternal", (url: string) => {
+      opened.push(url);
+      return Promise.resolve();
+    });
+  });
+  const gameAddress = window.url();
+
+  // The game has no outside links yet, so the test adds each in turn, and
+  // clicks it as the player would. It does so from the main process, as
+  // Playwright's page would wait on the navigation the main process stops.
+  for (const [href, newWindow] of [
+    ["https://example.com/moon", true],
+    ["file:///C:/Windows/win.ini", false],
+    ["https://example.com/base", false],
+  ] as const) {
+    await electronApp.evaluate(
+      async ({ BrowserWindow }, { href, newWindow }) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        await contents?.executeJavaScript(
+          `{
+            const link = document.createElement("a");
+            link.href = ${JSON.stringify(href)};
+            ${newWindow ? 'link.target = "_blank";' : ""}
+            document.body.append(link);
+            link.click();
+            link.remove();
+          }`,
+          true,
+        );
+      },
+      { href, newWindow },
+    );
+  }
+
+  await expect
+    .poll(() =>
+      electronApp.evaluate(() => Reflect.get(globalThis, "opened") as unknown),
+    )
+    .toEqual(["https://example.com/moon", "https://example.com/base"]);
+  const after = await electronApp.evaluate(async ({ BrowserWindow }) => {
+    const windows = BrowserWindow.getAllWindows();
+    const contents = windows[0]?.webContents;
+    return {
+      windows: windows.length,
+      url: contents?.getURL(),
+      // The game still runs in it.
+      clock: (await contents?.executeJavaScript(
+        `document.querySelector('[role="status"][aria-label="Game clock"]') !== null`,
+      )) as unknown,
+    };
+  });
+  expect(after).toEqual({ windows: 1, url: gameAddress, clock: true });
+  // Chromium itself refuses the file, before the main process hears of it.
+  expect(consoleErrors).toEqual([
+    "Not allowed to load local resource: file:///C:/Windows/win.ini",
+  ]);
 });

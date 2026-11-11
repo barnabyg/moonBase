@@ -6,6 +6,7 @@ import {
   contentSecurityPolicy,
   hardenWebContents,
   isAllowedNavigation,
+  isOutsidePage,
 } from "../electron/security.js";
 import {
   mainWindowOptions,
@@ -107,17 +108,20 @@ describe("navigation", () => {
 
   it("away from the game is stopped, and new windows are refused", () => {
     const listeners = new Map<string, (...args: unknown[]) => void>();
-    let windowOpenHandler: (() => unknown) | undefined;
+    let windowOpenHandler: ((details: { url: string }) => unknown) | undefined;
+    const opened: string[] = [];
     const contents = {
       on(event: string, listener: (...args: unknown[]) => void) {
         listeners.set(event, listener);
         return contents;
       },
-      setWindowOpenHandler(handler: () => unknown) {
+      setWindowOpenHandler(handler: (details: { url: string }) => unknown) {
         windowOpenHandler = handler;
       },
     };
-    hardenWebContents(contents as unknown as WebContents, appUrl);
+    hardenWebContents(contents as unknown as WebContents, appUrl, (url) => {
+      opened.push(url);
+    });
 
     function prevented(event: string, url?: string): boolean {
       let wasPrevented = false;
@@ -133,7 +137,61 @@ describe("navigation", () => {
     expect(prevented("will-navigate", "app://moonbase/")).toBe(false);
     expect(prevented("will-redirect", "https://example.com/")).toBe(true);
     expect(prevented("will-attach-webview")).toBe(true);
-    expect(windowOpenHandler?.()).toEqual({ action: "deny" });
+    expect(windowOpenHandler?.({ url: "app://moonbase/" })).toEqual({
+      action: "deny",
+    });
+    // Only the link followed, never the redirect.
+    expect(opened).toEqual(["https://example.com/"]);
+  });
+
+  it("to an outside page opens it in the default browser instead, followed or in a new window", () => {
+    const listeners = new Map<string, (...args: unknown[]) => void>();
+    let windowOpenHandler: ((details: { url: string }) => unknown) | undefined;
+    const contents = {
+      on(event: string, listener: (...args: unknown[]) => void) {
+        listeners.set(event, listener);
+        return contents;
+      },
+      setWindowOpenHandler(handler: (details: { url: string }) => unknown) {
+        windowOpenHandler = handler;
+      },
+    };
+    const opened: string[] = [];
+    hardenWebContents(contents as unknown as WebContents, appUrl, (url) => {
+      opened.push(url);
+    });
+    let prevented = false;
+    listeners.get("will-navigate")?.(
+      {
+        preventDefault: () => {
+          prevented = true;
+        },
+      },
+      "https://example.com/moon",
+    );
+    const opening = windowOpenHandler?.({ url: "http://example.com/base" });
+    windowOpenHandler?.({ url: "file:///C:/Windows/" });
+    listeners.get("will-navigate")?.(
+      { preventDefault: () => {} },
+      "mailto:someone@example.com",
+    );
+
+    expect(prevented).toBe(true);
+    expect(opening).toEqual({ action: "deny" });
+    expect(opened).toEqual([
+      "https://example.com/moon",
+      "http://example.com/base",
+    ]);
+  });
+
+  it("is an outside page only over http or https", () => {
+    expect(isOutsidePage("https://example.com/")).toBe(true);
+    expect(isOutsidePage("http://example.com/")).toBe(true);
+    expect(isOutsidePage("file:///C:/Windows/")).toBe(false);
+    expect(isOutsidePage("mailto:someone@example.com")).toBe(false);
+    expect(isOutsidePage("javascript:alert(1)")).toBe(false);
+    expect(isOutsidePage("ms-settings:")).toBe(false);
+    expect(isOutsidePage("not a url")).toBe(false);
   });
 });
 

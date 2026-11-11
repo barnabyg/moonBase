@@ -53,12 +53,34 @@ export function isAllowedNavigation(url: string, appUrl: string): boolean {
 }
 
 /**
- * Locks down a page's web contents: it can't navigate or be redirected away
- * from the game, open new windows or embed a <webview>.
+ * Whether `url` is an outside page that the player's default browser may
+ * open: a web page, over http or https. Nothing else, such as file:, mailto:
+ * or another app's scheme, leaves the game.
  */
-export function hardenWebContents(contents: WebContents, appUrl: string): void {
+export function isOutsidePage(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Locks down a page's web contents: it can't navigate or be redirected away
+ * from the game, open new windows or embed a <webview>. A link to an outside
+ * page, followed or opened in a new window, goes to `openOutside`, which
+ * opens it in the player's default browser, never in the game's window.
+ */
+export function hardenWebContents(
+  contents: WebContents,
+  appUrl: string,
+  openOutside: (url: string) => void,
+): void {
   contents.on("will-navigate", (event, url) => {
-    if (!isAllowedNavigation(url, appUrl)) event.preventDefault();
+    if (isAllowedNavigation(url, appUrl)) return;
+    event.preventDefault();
+    if (isOutsidePage(url)) openOutside(url);
   });
   contents.on("will-redirect", (event, url) => {
     if (!isAllowedNavigation(url, appUrl)) event.preventDefault();
@@ -66,7 +88,10 @@ export function hardenWebContents(contents: WebContents, appUrl: string): void {
   contents.on("will-attach-webview", (event) => {
     event.preventDefault();
   });
-  contents.setWindowOpenHandler(() => ({ action: "deny" }));
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isOutsidePage(url)) openOutside(url);
+    return { action: "deny" };
+  });
 }
 
 /**
