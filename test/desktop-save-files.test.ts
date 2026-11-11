@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createLastFolder } from "../electron/last-folder.js";
-import { maxSaveFileBytes } from "../electron/save-bridge.js";
+import { maxSaveFileBytes } from "../electron/desktop-bridge.js";
 import {
   isFromGame,
   parseOpenSaveFileArgs,

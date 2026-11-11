@@ -1,6 +1,6 @@
 // Saving and loading save files with the operating system's dialogs, which
 // the page asks for through the bridge the preload script exposes
-// (save-bridge.ts). Saves stay files the player manages (ADR-0006): the main
+// (desktop-bridge.ts). Saves stay files the player manages (ADR-0006): the main
 // process writes only the file the player chose in the save dialog, and reads
 // only the one chosen in the open dialog.
 //
@@ -19,9 +19,9 @@ import type { LastFolder } from "./last-folder.js";
 import {
   saveFileExtension,
   type OpenSaveFileResult,
-  type SaveChannels,
+  type BridgeChannels,
   type SaveFileResult,
-} from "./save-bridge.js";
+} from "./desktop-bridge.js";
 import { readSaveFile, writeSaveFile } from "./save-file-io.js";
 import {
   isFromGame,
@@ -96,7 +96,7 @@ export async function openWithDialog(
   return { outcome: "opened", fileName, contents: read.contents };
 }
 
-const channels: SaveChannels = {
+const channels: BridgeChannels = {
   saveFile: "moonbase:save-file",
   openSaveFile: "moonbase:open-save-file",
 };

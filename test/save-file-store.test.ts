@@ -3,7 +3,7 @@ import type {
   DesktopBridge,
   OpenSaveFileResult,
   SaveFileResult,
-} from "../electron/save-bridge";
+} from "../electron/desktop-bridge";
 import {
   createDesktopSaveFileStore,
   saveFileStoreFor,

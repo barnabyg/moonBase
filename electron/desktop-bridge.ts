@@ -1,5 +1,5 @@
 // What the page, the preload script and the main process share about the
-// bridge for saving and loading save files on the desktop: the IPC channels,
+// desktop app's bridge between the page and the main process: the IPC channels,
 // the functions the preload script exposes to the page, and what they
 // answer. It imports nothing, so the page's code (DOM, no Node), the main
 // process (Node, no DOM) and the preload script can all import it. The
@@ -10,7 +10,7 @@
 export const bridgeName = "moonbase";
 
 /** The IPC channel of each thing the page may ask the main process for. */
-export interface SaveChannels {
+export interface BridgeChannels {
   readonly saveFile: "moonbase:save-file";
   readonly openSaveFile: "moonbase:open-save-file";
 }

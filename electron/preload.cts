@@ -7,18 +7,18 @@
 //
 // It is CommonJS (.cts) because a sandboxed preload script can't be an ES
 // module, and it can't load the game's other files at run time either, only
-// Electron's, so it imports only types from save-bridge.ts and spells out
+// Electron's, so it imports only types from desktop-bridge.ts and spells out
 // the names it needs, which those types check.
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   DesktopBridge,
   OpenSaveFileResult,
-  SaveChannels,
+  BridgeChannels,
   SaveFileResult,
   bridgeName as BridgeName,
-} from "./save-bridge.js";
+} from "./desktop-bridge.js";
 
-const channels: SaveChannels = {
+const channels: BridgeChannels = {
   saveFile: "moonbase:save-file",
   openSaveFile: "moonbase:open-save-file",
 };

@@ -1,4 +1,4 @@
-import { bridgeName, type DesktopBridge } from "../../electron/save-bridge";
+import { bridgeName, type DesktopBridge } from "../../electron/desktop-bridge";
 import { createBrowserSaveFileStore } from "./browser-save-file-store";
 
 /** What keeping a save file came to. */

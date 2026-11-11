@@ -1,5 +1,5 @@
 import { open, rename, rm, writeFile } from "node:fs/promises";
-import { maxSaveFileBytes } from "./save-bridge.js";
+import { maxSaveFileBytes } from "./desktop-bridge.js";
 
 /**
  * Writes a save file, replacing any file already there. It writes a file

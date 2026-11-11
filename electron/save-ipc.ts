@@ -1,5 +1,5 @@
 // Checks on what the page asks the main process for through the save bridge
-// (save-bridge.ts), before anything is done with it: who sent it, and that its
+// (desktop-bridge.ts), before anything is done with it: who sent it, and that its
 // arguments are what the bridge sends. A page that has gone wrong, or been
 // made to run code it shouldn't, gets an error rather than a file written
 // where it chose. Only types are imported from Electron, so the unit tests can
@@ -9,7 +9,7 @@ import {
   maxSaveFileBytes,
   maxSuggestedNameLength,
   saveFileExtension,
-} from "./save-bridge.js";
+} from "./desktop-bridge.js";
 import { isAllowedNavigation } from "./security.js";
 
 /**

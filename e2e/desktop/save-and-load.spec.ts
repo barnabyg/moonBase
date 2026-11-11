@@ -11,7 +11,7 @@ import type {
   Page,
   TestInfo,
 } from "@playwright/test";
-import type { DesktopBridge } from "../../electron/save-bridge";
+import type { DesktopBridge } from "../../electron/desktop-bridge";
 import { loadCampaign } from "../../src/simulation";
 import { formatClock } from "../../src/ui/format";
 import {
