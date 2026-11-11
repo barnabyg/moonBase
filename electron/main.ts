@@ -1,7 +1,7 @@
 // Electron's main process. It opens the game in a window, either from the Vite
 // dev server (`npm run desktop`, which sets MOONBASE_DEV_SERVER_URL) or from
 // the production build in dist/ (`npm run desktop:start`).
-import { app, session } from "electron";
+import { app, Menu, session } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
@@ -39,6 +39,11 @@ const devServerUrl = app.isPackaged
   ? undefined
   : process.env["MOONBASE_DEV_SERVER_URL"];
 const startUrl = devServerUrl ?? appUrl;
+// Developer tools come with the dev server only. Not with every unpackaged
+// run: the end-to-end tests and `npm run desktop:start` run the production
+// build unpackaged, and should get what a player gets, as an installed app
+// does.
+const devTools = devServerUrl !== undefined;
 const policy = contentSecurityPolicy(devServerUrl);
 
 // The end-to-end tests give each run of the app a folder of its own for what
@@ -66,6 +71,9 @@ app.on("window-all-closed", () => {
 app
   .whenReady()
   .then(() => {
+    // A game, not a browser: no File, Edit or View menu bar, whose View menu
+    // would also reload the page and open the developer tools.
+    Menu.setApplicationMenu(null);
     denyPermissions(session.defaultSession);
     if (devServerUrl === undefined) {
       serveAppFiles(join(app.getAppPath(), "dist"), policy);
@@ -90,6 +98,7 @@ app
       startUrl,
       join(import.meta.dirname, "preload.cjs"),
       join(app.getPath("userData"), "window-state.json"),
+      devTools,
     ).then((window) => {
       // Closing with unsaved progress, or quitting, asks whether to save it
       // first (close-window.ts).

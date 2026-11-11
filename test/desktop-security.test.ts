@@ -31,6 +31,14 @@ describe("the desktop window's options", () => {
     });
   });
 
+  it("have no developer tools unless asked for, as only a development run is", () => {
+    expect(options.webPreferences?.devTools).toBe(false);
+    expect(
+      mainWindowOptions("preload.cjs", largeScreen, true).webPreferences
+        ?.devTools,
+    ).toBe(true);
+  });
+
   it("keep the page at least 1366 px wide, and no taller than a maximised window's on a 1366 × 768 laptop", () => {
     expect(options.useContentSize).toBe(true);
     expect(options.minWidth).toBe(1366);

@@ -4,7 +4,7 @@ import type { BrowserWindowConstructorOptions } from "electron";
  * The smallest the page inside the window may be: as wide as a common
  * laptop's 1366 x 768 screen, the smallest the game is laid out for
  * (ADR-0010), and a little less tall than the page is in a maximised window
- * there, below the title bar (and a menu bar, if any) and above the taskbar,
+ * there, below the title bar and above the taskbar,
  * about 670 to 690 px at 100% scale. It is the page's size, not the
  * frame's, so that on that laptop the window can be maximised, and the game
  * fills its whole 1366 x 768 screen in fullscreen.
@@ -13,9 +13,10 @@ export const minimumWindowSize = { width: 1366, height: 660 } as const;
 
 /**
  * About what the window's frame adds to the page's size on Windows 11: the
- * title bar, any menu bar, and the invisible borders it is resized by, as
- * measured at 150% scale (15 x 64 px) and rounded up. Only used to judge
- * whether the screen has room for the window and to size it on a first run.
+ * title bar and the invisible borders it is resized by, as measured at 150%
+ * scale (15 x 64 px) and rounded up, when the window still had a menu bar, so
+ * a little more than it adds now. Only used to judge whether the screen has
+ * room for the window and to size it on a first run.
  */
 export const frameAllowance = { width: 16, height: 64 } as const;
 
@@ -31,10 +32,14 @@ const preferredWindowSize = { width: 1600, height: 900 } as const;
  * `workArea` is the screen's usable area. The page is sized to fit in it with
  * the window's frame, but never smaller than the minimum; window.ts then puts
  * the window back where the player left it, if it can.
+ *
+ * Developer tools are off unless `devTools` is set, which main.ts sets only
+ * for a development run, with the page from the Vite dev server.
  */
 export function mainWindowOptions(
   preload: string,
   workArea: { readonly width: number; readonly height: number },
+  devTools = false,
 ): BrowserWindowConstructorOptions {
   return {
     title: "Moon Base",
@@ -69,6 +74,7 @@ export function mainWindowOptions(
       allowRunningInsecureContent: false,
       webviewTag: false,
       spellcheck: false,
+      devTools,
     },
   };
 }
