@@ -5,7 +5,7 @@ import {
   type Snapshot,
   type StructureSnapshot,
 } from "../simulation";
-import { setText } from "./dom";
+import { placeInOrder, setText } from "./dom";
 import {
   formatMachine,
   formatRobot,
@@ -602,17 +602,6 @@ function compareKeys(a: readonly number[], b: readonly number[]): number {
     if (difference !== 0) return difference;
   }
   return 0;
-}
-
-/**
- * Puts a list's entries in order, moving only those out of place, so that
- * an entry the player is using keeps its focus while the order holds.
- */
-function placeInOrder(list: HTMLElement, items: readonly HTMLElement[]): void {
-  for (const [place, item] of items.entries()) {
-    const there = list.children[place];
-    if (there !== item) list.insertBefore(item, there ?? null);
-  }
 }
 
 /** A group of Structures in the Base panel, under a heading that folds them away. */

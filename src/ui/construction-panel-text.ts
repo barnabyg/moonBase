@@ -105,6 +105,58 @@ export function describeWork(
   construction: ConstructionSnapshot,
   snapshot: Pick<Snapshot, "robots" | "machines" | "structures" | "cables">,
 ): string {
+  const work = workOn(construction, snapshot);
+  if (work.length > 0) return work.join("; ");
+  return construction.waiting === undefined
+    ? "Waiting for the Robot"
+    : formatWaiting(construction.waiting);
+}
+
+/**
+ * Whether a Construction is held up: nobody is working on it, and it can't
+ * go on until the base has something it lacks, its Components or water, or
+ * until a Broken Machine has been maintained. Waiting for the Robot, or for
+ * a Machine at work on another site, isn't: the base's own work comes round
+ * to it.
+ */
+export function isConstructionHeldUp(
+  construction: ConstructionSnapshot,
+  snapshot: Pick<Snapshot, "robots" | "machines" | "structures" | "cables">,
+): boolean {
+  switch (construction.waiting?.reason) {
+    case "missing-components":
+    case "water-reserve":
+    case "machine-broken":
+      return workOn(construction, snapshot).length === 0;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Whether a Maintenance Work Order is held up until the base has the spare
+ * Components it needs. Waiting for a Machine to finish its work on a site
+ * isn't.
+ */
+export function isMaintenanceHeldUp(
+  maintenance: Pick<MaintenanceSnapshot, "waiting">,
+): boolean {
+  return maintenance.waiting?.reason === "missing-spare-components";
+}
+
+/**
+ * Sums up, beside the Work panel's title, how many of its Work Orders are
+ * held up, or nothing while none is.
+ */
+export function summariseHeldUp(count: number): string | undefined {
+  return count === 0 ? undefined : `${count} waiting`;
+}
+
+/** What a Machine and each Robot are doing on a Construction, if anything. */
+function workOn(
+  construction: ConstructionSnapshot,
+  snapshot: Pick<Snapshot, "robots" | "machines" | "structures" | "cables">,
+): string[] {
   const machine = snapshot.machines.find(
     (candidate) =>
       candidate.activity.kind === "working" &&
@@ -114,7 +166,7 @@ export function describeWork(
   const robots = snapshot.robots.filter((candidate) =>
     isFor(candidate.activity, construction.id),
   );
-  const work = [
+  return [
     ...(machine === undefined
       ? []
       : [
@@ -122,10 +174,6 @@ export function describeWork(
         ]),
     ...robots.map((robot) => describeRobotWork(construction, robot, snapshot)),
   ];
-  if (work.length > 0) return work.join("; ");
-  return construction.waiting === undefined
-    ? "Waiting for the Robot"
-    : formatWaiting(construction.waiting);
 }
 
 /** What a Machine carrying out a Construction's current stage is doing. */
