@@ -369,4 +369,4 @@ A hardened Structure does the same job as the one it is based on, on the same fo
 
 ## Saving
 
-"Save" in the top bar downloads the Campaign as a `.moonbase` file named after the game clock, and "Load" carries on from a file you choose, in place of the Campaign you're playing. The game-over screen has both. Nothing is kept in the browser, so a Campaign you haven't saved is lost when you close or reload the page (ADR-0006). A file that isn't a Moon Base save, is damaged, or comes from a newer version of the game is refused, and the Campaign you're playing carries on.
+"Save" in the top bar saves the Campaign as a `.moonbase` file named after the game clock (in the desktop app, where you choose in the save dialog, which starts in the folder you last used; in the browser, as a download), and "Load" carries on from a file you choose, in place of the Campaign you're playing. The game-over screen has both. Nothing is kept in the browser, so a Campaign you haven't saved is lost when you close or reload the page (ADR-0006). A file that isn't a Moon Base save, is damaged, or comes from a newer version of the game is refused, and the Campaign you're playing carries on.
