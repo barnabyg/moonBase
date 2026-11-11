@@ -357,7 +357,8 @@ export function createConstructionPanel(
         rows.delete(id);
         parked.delete(id);
         heldUp.delete(id);
-        order.splice(order.indexOf(id), 1);
+        const place = order.indexOf(id);
+        if (place !== -1) order.splice(place, 1);
       };
       for (const id of done.tick(frameMs)) remove(id);
       for (const [id, row] of rows) {

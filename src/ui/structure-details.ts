@@ -26,6 +26,7 @@ import {
   formatShortDuration,
   formatStageProgress,
   listInWords,
+  LOW_CONDITION_PERCENT,
 } from "./format";
 import {
   inSentence,
@@ -69,6 +70,11 @@ export interface DetailLine {
   /** What the bar's figure means, which sets its colour; neutral progress if not given. */
   readonly meter?: MeterKind;
   readonly warning?: boolean;
+  /**
+   * Whether its figure is low enough to watch, short of a warning, such as a
+   * Condition below the low-Condition figure, as the Base panel marks it.
+   */
+  readonly low?: boolean;
 }
 
 export interface StructureDetails {
@@ -342,6 +348,7 @@ function conditionLine(
     fraction: structure.conditionPercent / 100,
     meter: "level",
     warning: broken,
+    low: !broken && structure.conditionPercent < LOW_CONDITION_PERCENT,
   };
 }
 

@@ -196,6 +196,7 @@ export function createStructurePopUp(
       statLine.show(line.stat);
       statLine.fill(line.fraction);
       statLine.warn(line.warning === true);
+      statLine.element.classList.toggle("stat--low", line.low === true);
       // In full on hover, for when it is too long for the pop-up.
       const text =
         line.stat.note === undefined

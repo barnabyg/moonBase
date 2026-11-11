@@ -517,10 +517,22 @@ body {
   color: var(--warning);
 }
 
-/* Not by its colour alone: a sign goes before the figure. */
+/* Not by its colour alone: a sign goes before the figure, as it does on a
+   line whose bar is at its limit, or whose figure is low. */
 .stat--warning .stat__value::before,
+.stat:has(> .meter--full) .stat__value::before,
+.stat--low .stat__value::before,
 .gauge--full .gauge__text::before {
   content: "\26A0\FE0E\00A0";
+}
+
+/* Low, short of a warning, as the Base panel shows a low Condition. */
+.stat--low .stat__value::before {
+  color: var(--accent);
+}
+
+.stat--low:not(.stat--warning) .meter .meter__fill {
+  background: var(--accent);
 }
 
 /* A line the needs-attention list has just led to, picked out for a moment. */

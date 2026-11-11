@@ -228,6 +228,8 @@ describe("the pop-up for a Structure clicked on the map", () => {
     // More Condition is better; more Dust is worse, up to all it can take.
     expect(details?.lines[2]?.meter).toBe("level");
     expect(details?.lines[5]?.meter).toBe("limit");
+    // Below the low-Condition figure, as the Base panel marks it.
+    expect(details?.lines[2]?.low).toBe(true);
   });
 
   it("warns of a Broken Structure", () => {
@@ -241,6 +243,10 @@ describe("the pop-up for a Structure clicked on the map", () => {
     expect(
       details?.lines.find(({ label }) => label === "Condition")?.warning,
     ).toBe(true);
+    // Broken is a warning, not merely low.
+    expect(details?.lines.find(({ label }) => label === "Condition")?.low).toBe(
+      false,
+    );
   });
 
   it("shows how much a battery bank holds, as its Condition allows", () => {
