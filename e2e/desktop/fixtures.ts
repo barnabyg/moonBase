@@ -10,9 +10,10 @@
 //
 // No real dialog ever opens: each app launched starts with the main process's
 // dialogs stubbed (`stubDialogsToClose`), and a test stubs the one it tests.
-import type { ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -67,6 +68,13 @@ interface DesktopFixtures {
    * still running when the test ends is closed, or killed if it won't close.
    */
   launchApp: (options?: LaunchOptions) => Promise<ElectronApplication>;
+  /**
+   * Starts the built app again with this test's user-data folder, as a
+   * player starts it, without Playwright's connection, which an instance that
+   * quits at once would never make. Resolves with its exit code, or rejects
+   * if it hasn't exited within `timeoutMs`, killing it.
+   */
+  startAgain: (timeoutMs: number) => Promise<number | null>;
   /** The app the test starts with, launched by `launchApp`. */
   electronApp: ElectronApplication;
   /** The app's first window, the game, once its page has loaded. */
@@ -97,24 +105,7 @@ export const test = base.extend<DesktopFixtures>({
   launchApp: async ({ userDataDir, consoleErrors }, use) => {
     const launched: ElectronApplication[] = [];
     await use(async (options = {}) => {
-      const env: Record<string, string> = {};
-      for (const [name, value] of Object.entries(process.env)) {
-        if (value !== undefined) env[name] = value;
-      }
-      // Set by some editors' terminals; it would start Electron as plain Node.
-      delete env["ELECTRON_RUN_AS_NODE"];
-      Object.assign(env, options.env, {
-        MOONBASE_USER_DATA_DIR: userDataDir,
-        MOONBASE_E2E: "1",
-      });
-      // Electron answers an app it can't find, or a main.js missing from it,
-      // with a modal "Error launching app" dialog on the desktop, rather than
-      // exiting, so check before launching. The build step makes main.js.
-      if (!existsSync(join(appRoot, "dist-electron", "main.js"))) {
-        throw new Error(
-          `No desktop build in ${appRoot}; run npm run build:desktop, or the electron project without --no-deps.`,
-        );
-      }
+      const env = appEnv(userDataDir, options.env);
       const app = await _electron.launch({
         args: [...chromiumSwitches, appRoot],
         cwd: appRoot,
@@ -142,6 +133,30 @@ export const test = base.extend<DesktopFixtures>({
     await Promise.all(launched.map(closeOrKill));
   },
 
+  startAgain: async ({ userDataDir }, use) => {
+    await use(async (timeoutMs) => {
+      const child = spawn(electronPath, [...chromiumSwitches, appRoot], {
+        cwd: appRoot,
+        env: appEnv(userDataDir),
+        stdio: "ignore",
+      });
+      return new Promise<number | null>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          child.kill();
+          reject(new Error(`The app didn't exit within ${timeoutMs} ms.`));
+        }, timeoutMs);
+        child.once("exit", (code) => {
+          clearTimeout(timer);
+          resolve(code);
+        });
+        child.once("error", (error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+      });
+    });
+  },
+
   electronApp: async ({ launchApp }, use) => {
     await use(await launchApp());
   },
@@ -152,6 +167,37 @@ export const test = base.extend<DesktopFixtures>({
     await use(page);
   },
 });
+
+/**
+ * The environment to launch the app with: this one, with `extra`, and this
+ * test's user-data folder. It checks the build is there first, as Electron
+ * answers an app it can't find, or a main.js missing from it, with a modal
+ * "Error launching app" dialog on the desktop, rather than exiting. The
+ * build step makes main.js.
+ */
+function appEnv(
+  userDataDir: string,
+  extra: Readonly<Record<string, string>> = {},
+): Record<string, string> {
+  if (!existsSync(join(appRoot, "dist-electron", "main.js"))) {
+    throw new Error(
+      `No desktop build in ${appRoot}; run npm run build:desktop, or the electron project without --no-deps.`,
+    );
+  }
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (value !== undefined) env[name] = value;
+  }
+  // Set by some editors' terminals; it would start Electron as plain Node.
+  delete env["ELECTRON_RUN_AS_NODE"];
+  return Object.assign(env, extra, {
+    MOONBASE_USER_DATA_DIR: userDataDir,
+    MOONBASE_E2E: "1",
+  });
+}
+
+/** The Electron executable, as the electron package gives its path to Node. */
+const electronPath = createRequire(import.meta.url)("electron") as string;
 
 interface LaunchedProcess {
   readonly child: ChildProcess;

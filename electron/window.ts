@@ -61,3 +61,13 @@ function togglesDevTools(
     (input.key.toLowerCase() === "i" && input.control && input.shift)
   );
 }
+
+/**
+ * Brings the game window to the front, as when the game is started again
+ * while it runs: shown, no longer minimised, and focused.
+ */
+export function bringToFront(window: BrowserWindow): void {
+  if (window.isMinimized()) window.restore();
+  if (!window.isVisible()) window.show();
+  window.focus();
+}

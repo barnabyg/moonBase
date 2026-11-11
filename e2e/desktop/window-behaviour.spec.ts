@@ -58,3 +58,58 @@ test("the production build has no menu bar and no developer tools", async ({
     .toEqual({ devToolsOpen: false, menuBarVisible: false });
   expect(consoleErrors).toEqual([]);
 });
+
+test("starting the game again while it runs brings the running game's window to the front, and opens no other", async ({
+  electronApp,
+  window,
+  startAgain,
+  consoleErrors,
+}) => {
+  await expect(
+    window.getByRole("status", { name: "Game clock" }),
+  ).toBeVisible();
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    const [game] = BrowserWindow.getAllWindows();
+    if (game === undefined) throw new Error("No window is open.");
+    game.minimize();
+    // Counts the times the window is focused.
+    const focus = game.focus.bind(game);
+    Reflect.set(globalThis, "focused", 0);
+    game.focus = () => {
+      Reflect.set(
+        globalThis,
+        "focused",
+        Number(Reflect.get(globalThis, "focused")) + 1,
+      );
+      focus();
+    };
+  });
+  await expect
+    .poll(() =>
+      electronApp.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMinimized(),
+      ),
+    )
+    .toBe(true);
+
+  // It quits at once, well before a game would have opened.
+  expect(await startAgain(15_000)).toBe(0);
+
+  await expect
+    .poll(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        const windows = BrowserWindow.getAllWindows();
+        return {
+          windows: windows.length,
+          minimized: windows[0]?.isMinimized(),
+          visible: windows[0]?.isVisible(),
+          focused: Reflect.get(globalThis, "focused") as unknown,
+        };
+      }),
+    )
+    .toEqual({ windows: 1, minimized: false, visible: true, focused: 1 });
+  await expect(
+    window.getByRole("status", { name: "Game clock" }),
+  ).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});

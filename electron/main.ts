@@ -1,7 +1,7 @@
 // Electron's main process. It opens the game in a window, either from the Vite
 // dev server (`npm run desktop`, which sets MOONBASE_DEV_SERVER_URL) or from
 // the production build in dist/ (`npm run desktop:start`).
-import { app, Menu, session } from "electron";
+import { app, BrowserWindow, Menu, session } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
@@ -18,7 +18,7 @@ import {
   denyPermissions,
   hardenWebContents,
 } from "./security.js";
-import { createMainWindow } from "./window.js";
+import { bringToFront, createMainWindow } from "./window.js";
 
 // Under the end-to-end tests (MOONBASE_E2E=1), an uncaught exception in the
 // main process is logged, where the test reports it, and the app exits with
@@ -57,55 +57,77 @@ const userDataDir = app.isPackaged
 if (userDataDir !== undefined && userDataDir !== "")
   app.setPath("userData", userDataDir);
 
-registerAppScheme();
-
-app.on("web-contents-created", (_event, contents) => {
-  hardenWebContents(contents, startUrl);
-});
-
-// Windows only (ADR-0010): closing the last window quits.
-app.on("window-all-closed", () => {
+// One game at a time. Starting the game while it runs focuses the window
+// already open, rather than opening a second one, which could save over the
+// first one's files and window state. The lock is kept in the user-data
+// folder, so the end-to-end tests' runs, each with a folder of its own, don't
+// share it.
+if (app.requestSingleInstanceLock()) {
+  start();
+} else {
   app.quit();
-});
+}
 
-app
-  .whenReady()
-  .then(() => {
-    // A game, not a browser: no File, Edit or View menu bar, whose View menu
-    // would also reload the page and open the developer tools.
-    Menu.setApplicationMenu(null);
-    denyPermissions(session.defaultSession);
-    if (devServerUrl === undefined) {
-      serveAppFiles(join(app.getAppPath(), "dist"), policy);
-    } else {
-      applyContentSecurityPolicy(session.defaultSession, policy);
+/** Starts the game: everything the first instance does. */
+function start(): void {
+  let gameWindow: BrowserWindow | undefined;
+  app.on("second-instance", () => {
+    if (gameWindow !== undefined && !gameWindow.isDestroyed()) {
+      bringToFront(gameWindow);
     }
-    // The save and load dialogs start in the folder last used, kept in the
-    // user-data folder, or in the player's Documents until one has been: the
-    // Save and Load buttons' dialogs, and the save dialog of the question
-    // before closing.
-    const lastFolder = createLastFolder(
-      join(app.getPath("userData"), "save-folder.json"),
-      app.getPath("documents"),
-    );
-    handleSaveFiles(startUrl, lastFolder);
-    handleUnsavedProgressAnswers(startUrl);
-    // F11 and the top bar's Full screen button (full-screen.ts).
-    handleFullScreen(startUrl);
-    // The window opens where and as the player left it, kept in the
-    // user-data folder.
-    return createMainWindow(
-      startUrl,
-      join(import.meta.dirname, "preload.cjs"),
-      join(app.getPath("userData"), "window-state.json"),
-      devTools,
-    ).then((window) => {
-      // Closing with unsaved progress, or quitting, asks whether to save it
-      // first (close-window.ts).
-      askBeforeClosing(window, lastFolder);
-    });
-  })
-  .catch((error: unknown) => {
-    console.error("Moon Base could not start:", error);
-    app.exit(1);
   });
+
+  registerAppScheme();
+
+  app.on("web-contents-created", (_event, contents) => {
+    hardenWebContents(contents, startUrl);
+  });
+
+  // Windows only (ADR-0010): closing the last window quits.
+  app.on("window-all-closed", () => {
+    app.quit();
+  });
+
+  app
+    .whenReady()
+    .then(() => {
+      // A game, not a browser: no File, Edit or View menu bar, whose View menu
+      // would also reload the page and open the developer tools.
+      Menu.setApplicationMenu(null);
+      denyPermissions(session.defaultSession);
+      if (devServerUrl === undefined) {
+        serveAppFiles(join(app.getAppPath(), "dist"), policy);
+      } else {
+        applyContentSecurityPolicy(session.defaultSession, policy);
+      }
+      // The save and load dialogs start in the folder last used, kept in the
+      // user-data folder, or in the player's Documents until one has been: the
+      // Save and Load buttons' dialogs, and the save dialog of the question
+      // before closing.
+      const lastFolder = createLastFolder(
+        join(app.getPath("userData"), "save-folder.json"),
+        app.getPath("documents"),
+      );
+      handleSaveFiles(startUrl, lastFolder);
+      handleUnsavedProgressAnswers(startUrl);
+      // F11 and the top bar's Full screen button (full-screen.ts).
+      handleFullScreen(startUrl);
+      // The window opens where and as the player left it, kept in the
+      // user-data folder.
+      return createMainWindow(
+        startUrl,
+        join(import.meta.dirname, "preload.cjs"),
+        join(app.getPath("userData"), "window-state.json"),
+        devTools,
+      ).then((window) => {
+        gameWindow = window;
+        // Closing with unsaved progress, or quitting, asks whether to save it
+        // first (close-window.ts).
+        askBeforeClosing(window, lastFolder);
+      });
+    })
+    .catch((error: unknown) => {
+      console.error("Moon Base could not start:", error);
+      app.exit(1);
+    });
+}
