@@ -121,6 +121,13 @@ test("in fullscreen, Escape closes what it closes, and never leaves fullscreen",
   await expect(
     window.getByRole("status", { name: "Game clock" }),
   ).toBeVisible();
+  // Paused before anything else, and kept paused through the load (a loaded
+  // Campaign keeps the speed): the save below reaches its last Milestone in
+  // its first game-minute played, and that celebration must come only when
+  // the test skips to it, not while a slow step lets game time pass.
+  const pause = window.getByRole("button", { name: "Pause" });
+  await pause.click();
+  await expect(pause).toHaveAttribute("aria-pressed", "true");
   await fullScreenButton(window).click();
   await expect.poll(() => isFullScreen(electronApp)).toBe(true);
 
@@ -129,7 +136,7 @@ test("in fullscreen, Escape closes what it closes, and never leaves fullscreen",
 
   // A base with a battery bank, with every Milestone reached but power
   // storage, which the first game-minute played reaches, so the celebration
-  // that every Milestone is reached comes then.
+  // that every Milestone is reached comes with the skip below.
   const save = JSON.parse(
     await readFile(join(samples, "version-40.moonbase"), "utf8"),
   ) as { state: { reachedMilestoneIds: readonly string[] } };
@@ -140,7 +147,7 @@ test("in fullscreen, Escape closes what it closes, and never leaves fullscreen",
   await writeFile(milestones, JSON.stringify(save));
   await load(electronApp, window, milestones);
   await expect(structureEntries(window).first()).toBeVisible();
-  await window.getByRole("button", { name: "Pause" }).click();
+  await expect(pause).toHaveAttribute("aria-pressed", "true");
 
   // The structure pop-up.
   await structureEntries(window).first().getByRole("button").first().click();
