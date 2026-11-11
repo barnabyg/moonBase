@@ -65,13 +65,38 @@ Each setting was changed on its own, built, and measured with three repeats agai
 | Research Task cards not put back in their groups every frame                                 | 11.50, 12.84             | 17.70, 35.00              | No change. With every task completed, `src/ui/research-tasks.ts` re-appends all the cards every frame, but its screen is closed and so not laid out. Not kept; harmless to fix on its own.            |
 | The held panel lines measured before the 3D view is drawn rather than after                  | 11.52, 12.84             | 17.90, 35.20              | No change, so the measuring isn't slow because it follows the WebGL drawing. Not kept.                                                                                                                |
 
-Nothing was kept, so the final numbers are the baseline's.
+None of these was kept. The time Chromium spends (see below) then pointed at the panels rather than the rendering, and holding the panel lines with a `ResizeObserver` was kept:
 
-The shadow map's type and size were not tried. Drawing 2.25 times fewer pixels made no difference, so the GPU is not what limits either browser, and the shadow map's size and filtering only change the GPU's work; both would also change how the shadows look, which is part of the gameplay. After five attempts without progress the investigation stopped there, with the cause found but not fixed (below).
+| Change                                                                                         | Firefox ms (median, p95) | Chromium ms (median, p95) | Verdict                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Held panel lines reported by a `ResizeObserver` rather than measured each frame (five repeats) | 11.62, 12.96             | 7.40, 8.30                | Kept. Chromium's frame falls by 58%, and its frames twice as long as the rest are gone; Firefox is unchanged. The lines hold still as before (`test/hold.test.ts` and the steady-panels end-to-end tests). |
+
+The shadow map's size and type were then tried against that, three repeats each:
+
+| Attempt                                                        | Firefox ms (median, p95) | Chromium ms (median, p95) | Verdict                                                                                                                                                              |
+| -------------------------------------------------------------- | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New baseline                                                   | 11.62, 12.96             | 7.40, 8.30                |                                                                                                                                                                      |
+| Shadow map 1,024 px square rather than 2,048                   | 11.62, 12.90             | 7.40, 8.30                | No change, and the shadows would be coarser. Not kept.                                                                                                               |
+| `BasicShadowMap` rather than `PCFShadowMap`, with no filtering | 11.60, 12.70             | 7.40, 8.20                | No change, and the shadows' edges would be hard and jagged. Not kept. With fewer pixels making no difference either, the GPU is not what limits either browser here. |
+
+## Final numbers
+
+Five repeats, at commit `60ed1d3`, in the same session as the baseline:
+
+| Browser  | Scene        | Median ms (range)   | 95th percentile ms (range) | Median against the baseline |
+| -------- | ------------ | ------------------- | -------------------------- | --------------------------- |
+| Firefox  | `early-day`  | 3.66 (3.62–3.66)    | 4.32 (4.26–4.60)           | +3%, within noise           |
+| Firefox  | `late-day`   | 11.62 (11.58–11.98) | 12.96 (12.74–13.18)        | unchanged                   |
+| Firefox  | `late-night` | 11.16 (11.04–11.72) | 12.54 (12.20–12.90)        | unchanged                   |
+| Chromium | `early-day`  | 2.10 (2.10–2.10)    | 2.50 (2.50–2.60)           | −5%                         |
+| Chromium | `late-day`   | 7.40 (7.30–7.60)    | 8.30 (8.10–8.40)           | −58%                        |
+| Chromium | `late-night` | 7.10 (7.00–7.10)    | 7.90 (7.90–7.90)           | −59%                        |
+
+Chromium now draws every scene faster than Firefox, with frames as even. The screenshots of the Night and the low sun are the same before and after: the change is to the panels, not the rendering.
 
 ## Where Chromium's time goes
 
-What the attempts and these diagnostics, none of them kept, showed on the late base:
+What the first attempts and these diagnostics showed on the late base, before the held lines were changed:
 
 - **Chromium spends the frame on the main thread, not the GPU.** The game's animation frame callback took a median of 16 to 18 ms of Chromium's 17.8 ms frame, and about 11 ms of Firefox's 11.6 ms. Both browsers issue about 2,700 WebGL draw calls a frame there, against about 500 on the early base.
 - **Most of it is measuring the held panel lines.** A CPU profile of Chromium put 46% of the main thread's time in `getClientRects`, called only by `src/ui/hold.ts`, which measures every panel line marked to hold its height, once a frame. With `holds.refresh()` taken out of the frame, Chromium drew the late base in 7.4 ms (p95 9.3 ms) and the Night in 7.0 ms (p95 8.8 ms), faster than Firefox's 11.2 ms, and its frames that took twice as long were gone; Firefox's times hardly moved, and the early base's not at all.
@@ -79,4 +104,4 @@ What the attempts and these diagnostics, none of them kept, showed on the late b
 - **It isn't the panels writing the same values every frame.** The panels set `hidden`, `disabled`, `title` and classes to the values they already have thousands of times a second, and the Research Tasks screen re-appends its cards. Skipping every such write that changed nothing saved under 4% in Chromium.
 - **Shadows cost Chromium little.** With the shadow map off, Chromium drew the late base in 15.0 ms and Firefox in 7.4 ms: the sun's shadow pass draws most models a second time, which costs Firefox about 4 ms and Chromium about 3 ms.
 
-The next step is to keep the held lines from forcing a layout in Chromium: for example by measuring them with a `ResizeObserver`, which reports sizes after the browser's own layout rather than forcing one, or by measuring only the lines whose content changed. That changes how the panels hold still (`docs/verification.md` and the steady-panels end-to-end tests), so it is a change of its own rather than a rendering setting. Once it lands, run `npm.cmd run frame-time` again and try the shadow map's type and size against the new baseline.
+So `src/ui/hold.ts` no longer measures the held lines itself. A `ResizeObserver` reports a line's height once the browser has laid the page out for the frame, and before it paints, so a line that grows is held at its new height in the same frame, as before. A held line can't get shorter, so it is reported only when it grows or is hidden or shown, and a frame in which nothing changed measures nothing.
