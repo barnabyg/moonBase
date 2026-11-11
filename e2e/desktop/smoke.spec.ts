@@ -1,5 +1,6 @@
 // The desktop app's smoke tests: the production Electron build starts and
-// draws the game, a Structure can be built, time passes, the window closes
+// draws the game, with nothing of Node's on the page and only the bridge's
+// functions (ADR-0010), a Structure can be built, time passes, the window closes
 // cleanly, and what the game keeps between runs is kept in the app's
 // user-data folder.
 import { structureEntries } from "../base-panel";
@@ -67,6 +68,24 @@ test("the app opens the game in its window, which draws with no errors", async (
   ).toBe(false);
   await animationFrames(window, 10);
   expect(consoleErrors).toEqual([]);
+
+  // The page gets no Node, and from the bridge only the functions
+  // desktop-bridge.ts's DesktopBridge documents: no ipcRenderer, no files.
+  const exposed = await window.evaluate(() => ({
+    node: ["require", "process", "module"].filter((name) => name in window),
+    bridge: Object.keys(Reflect.get(window, "moonbase") as object).sort(),
+  }));
+  expect(exposed).toEqual({
+    node: [],
+    bridge: [
+      "answerUnsavedProgress",
+      "isFullScreen",
+      "onFullScreenChange",
+      "openSaveFile",
+      "saveFile",
+      "toggleFullScreen",
+    ],
+  });
 });
 
 test("a Structure placed from the build menu is built", async ({

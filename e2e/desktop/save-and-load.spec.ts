@@ -252,7 +252,8 @@ test("a file that isn't a save is refused with the reason, as is a file that can
   await expect(clock).not.toHaveText(before ?? "");
 });
 
-test("the page gets only the bridge's functions, and the main process refuses what they wouldn't send", async ({
+// smoke.spec.ts checks that the page gets only the bridge's functions.
+test("the main process refuses what the bridge's functions wouldn't send", async ({
   electronApp,
   window,
 }) => {
@@ -260,25 +261,6 @@ test("the page gets only the bridge's functions, and the main process refuses wh
   await stubDialog(electronApp, "showSaveDialog", {
     canceled: true,
     filePath: "",
-  });
-
-  const exposed = await window.evaluate(() => {
-    const bridge = Reflect.get(window, "moonbase") as object;
-    return {
-      keys: Object.keys(bridge).sort(),
-      node: typeof Reflect.get(window, "require"),
-    };
-  });
-  expect(exposed).toEqual({
-    keys: [
-      "answerUnsavedProgress",
-      "isFullScreen",
-      "onFullScreenChange",
-      "openSaveFile",
-      "saveFile",
-      "toggleFullScreen",
-    ],
-    node: "undefined",
   });
 
   const refused = await window.evaluate(async () => {
