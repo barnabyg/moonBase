@@ -114,6 +114,17 @@ jobs:
           key: electron-${{ runner.os }}-${{ steps.electron.outputs.version }}
       - run: npm ci
         timeout-minutes: 6
+      # The runner's screen is 1024 x 768, smaller than the 1366 x 768 the
+      # game supports (ADR-0010), so a fullscreen window couldn't shrink its
+      # page to fit it. Set it to a common laptop's full HD first; the step
+      # fails if the screen still reports another size.
+      - name: Set the screen to 1920 x 1080
+        shell: pwsh
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          $video = Get-CimInstance Win32_VideoController | Select-Object -First 1
+          "Screen: $($video.CurrentHorizontalResolution) x $($video.CurrentVerticalResolution)"
+          if ($video.CurrentHorizontalResolution -ne 1920 -or $video.CurrentVerticalResolution -ne 1080) { exit 1 }
       - run: npm run verify -- --e2e-only --project=electron
         env:
           E2E_GL: warp
