@@ -38,7 +38,7 @@ import {
   formatKeptClearOf,
   radiusName,
 } from "./keep-clear-text";
-import type { Stat } from "./stat";
+import type { MeterKind, Stat } from "./stat";
 import {
   formatObservingProgramme,
   formatPower,
@@ -58,11 +58,16 @@ import {
 // dismantling, so that nothing in the pop-up jumps about as it updates:
 // what doesn't apply yet shows as a dash.
 
-/** One line of the pop-up: a label, a figure with an optional note, and how full a bar under it is, if it has one. */
+/**
+ * One line of the pop-up: a label, a figure with an optional note, and how
+ * full a bar under it is, if it has one, with what that bar's figure means.
+ */
 export interface DetailLine {
   readonly label: string;
   readonly stat: Stat;
   readonly fraction?: number;
+  /** What the bar's figure means, which sets its colour; neutral progress if not given. */
+  readonly meter?: MeterKind;
   readonly warning?: boolean;
 }
 
@@ -269,6 +274,7 @@ function stageLine(phase: Phase): DetailLine {
             ? { value }
             : { value, note: formatWaiting(construction.waiting) },
         fraction: construction.stageProgress,
+        meter: "progress",
       };
     }
     case "commissioned":
@@ -288,6 +294,7 @@ function stageLine(phase: Phase): DetailLine {
           ),
         },
         fraction: phase.dismantling.stageProgress,
+        meter: "progress",
       };
   }
 }
@@ -320,7 +327,7 @@ function conditionLine(
   structure: StructureSnapshot | undefined,
 ): DetailLine {
   const label = "Condition";
-  if (structure === undefined) return { label, stat: NOT_YET };
+  if (structure === undefined) return { label, stat: NOT_YET, meter: "level" };
   const broken = structure.conditionPercent <= 0;
   const { maintenance, performance } = structureNotes(snapshot, structure);
   const notes = [
@@ -333,6 +340,7 @@ function conditionLine(
     label,
     stat: notes.length === 0 ? { value } : { value, note: notes.join(", ") },
     fraction: structure.conditionPercent / 100,
+    meter: "level",
     warning: broken,
   };
 }
@@ -376,12 +384,13 @@ function batteryLine(
   structure: StructureSnapshot | undefined,
 ): DetailLine {
   const label = "Battery";
-  if (structure === undefined) return { label, stat: NOT_YET };
+  if (structure === undefined) return { label, stat: NOT_YET, meter: "level" };
   const capacity = type.power.storageKilowattHours * structure.performance;
   return {
     label,
     stat: { value: formatCharge(structure.storedKilowattHours, capacity) },
     fraction: capacity > 0 ? structure.storedKilowattHours / capacity : 0,
+    meter: "level",
   };
 }
 
@@ -389,7 +398,7 @@ function batteryLine(
 function tankLine(structure: StructureSnapshot | undefined): DetailLine {
   const label = "Tank";
   const tank = structure?.tank;
-  if (tank === undefined) return { label, stat: NOT_YET };
+  if (tank === undefined) return { label, stat: NOT_YET, meter: "level" };
   const value = `${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${inSentence(resourceRefLabel(tank.resource))}`;
   return {
     label,
@@ -397,6 +406,7 @@ function tankLine(structure: StructureSnapshot | undefined): DetailLine {
       ? { value, note: "no power, so losing what it holds" }
       : { value },
     fraction: Math.min(tank.heldKilograms / tank.addsKilograms, 1),
+    meter: "level",
   };
 }
 
@@ -548,6 +558,7 @@ function roundLine(
       note: `pays ${formatScience(science)}; a shortage of water or power loses it`,
     },
     fraction,
+    meter: "progress",
   };
 }
 
@@ -569,6 +580,7 @@ function surveyLine(
       note: `${survey}, pays ${formatScience(science)}; a shortage of propellant or power, or a light within its dark radius, loses it`,
     },
     fraction,
+    meter: "progress",
   };
 }
 
@@ -607,6 +619,7 @@ function radioArrayLines(
         note: `${survey}, pays ${formatScience(science)}; a shortage of power, or ${kept}, loses it`,
       },
       fraction: array.progress,
+      meter: "progress",
     },
     { label: "Antenna fields", stat: { value: formatAntennaFields(array) } },
   ];
@@ -704,6 +717,7 @@ function telescopeLines(
           label: "Programme",
           stat: programme,
           fraction: snapshot.observingProgramme.progress,
+          meter: "progress",
         };
   if (structure === undefined) {
     return [{ label: "Observing", stat: NOT_YET }, programmeLine];
@@ -731,7 +745,7 @@ function baysLine(
   structure: StructureSnapshot | undefined,
 ): DetailLine {
   const label = "Bays";
-  if (structure === undefined) return { label, stat: NOT_YET };
+  if (structure === undefined) return { label, stat: NOT_YET, meter: "limit" };
   const { taken, bays } = baysTaken(structure, [
     ...snapshot.machines.map(({ position }) => position),
     ...snapshot.rovers.map(({ position }) => position),
@@ -740,16 +754,18 @@ function baysLine(
     label,
     stat: { value: `${taken} of ${bays} taken` },
     fraction: bays === 0 ? 0 : taken / bays,
+    meter: "limit",
   };
 }
 
 /** How thickly Dust coats a solar array, cutting what it generates. */
 function dustLine(structure: StructureSnapshot | undefined): DetailLine {
   const label = "Dust coating";
-  if (structure === undefined) return { label, stat: NOT_YET };
+  if (structure === undefined) return { label, stat: NOT_YET, meter: "limit" };
   return {
     label,
     stat: { value: `${Math.round(structure.dustCoatingPercent)}%` },
     fraction: structure.dustCoatingPercent / 100,
+    meter: "limit",
   };
 }

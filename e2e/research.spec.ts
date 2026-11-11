@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { structureEntry } from "./base-panel";
+import { fillColour, tokenColour } from "./meters";
 
 /**
  * A sample save of a Campaign in its first Night, with a telescope ten
@@ -64,6 +65,11 @@ test("a Research Task started from the Research Tasks screen runs for its length
   await expect(firstTask).toContainText("Running");
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(running).toHaveText("Task Regolith sample analysis · 6h left");
+  // Its bar shows work done, which is neither good nor bad.
+  await expect(running.locator(".meter")).toHaveClass(/meter--progress/);
+  expect(await fillColour(running.locator(".meter"))).toBe(
+    await tokenColour(page, "--progress"),
+  );
 
   // Skip from event to event until it is complete.
   const skip = page.getByRole("button", { name: "Skip to next event" });

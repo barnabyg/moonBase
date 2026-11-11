@@ -56,7 +56,7 @@ export function createResearchTasksScreen(
   nowHeading.className = "screen__eyebrow";
   const nowName = document.createElement("p");
   nowName.className = "research-tasks__now-name";
-  const nowMeter = createMeter();
+  const nowMeter = createMeter("progress");
   const nowDetail = document.createElement("p");
   nowDetail.className = "research-tasks__now-detail";
   // What the automated experiments labs are doing for it, if the base has any.
@@ -127,7 +127,7 @@ export function createResearchTasksScreen(
   const standingName = document.createElement("p");
   standingName.className = "research-tasks__now-name";
   standingName.textContent = programme.label;
-  const standingMeter = createMeter();
+  const standingMeter = createMeter("progress");
   const standingDetail = document.createElement("p");
   standingDetail.className = "research-tasks__now-detail";
   standing.append(

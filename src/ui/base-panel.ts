@@ -157,7 +157,7 @@ function createCondition(
   const element = document.createElement("span");
   element.className = "entry__condition";
   element.title = `Condition. ${repair}`;
-  const meter = createMeter();
+  const meter = createMeter("level");
   // The bar shows it is a Condition; screen readers need the word.
   const conditionWord = document.createElement("span");
   conditionWord.className = "visually-hidden";

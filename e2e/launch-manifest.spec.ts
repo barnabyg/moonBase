@@ -11,6 +11,7 @@ import { catalogue } from "../src/catalogue";
 import { CROWDED_LAUNCH_ITEMS } from "../test/crowded-catalogue";
 import { freshSaveWith, tryScenarios } from "../test/try-scenarios";
 import { useCrowdedCatalogue } from "./crowded";
+import { fillColour, shownBefore, tokenColour } from "./meters";
 
 const grant = catalogue.programmeGrantMillionDollars;
 const limit = catalogue.launch.payloadMassLimitKilograms;
@@ -144,6 +145,14 @@ test("the Launch manifest screen refuses an item that would go over the Payload 
   const payloadMass = screen.getByRole("status", { name: "Payload Mass" });
   const addWater = screen.getByRole("button", { name: "Add one Water, 50 kg" });
 
+  // Its bar, neutral while well under the limit, amber near it, and a
+  // warning at it, when its words are marked with a sign too.
+  const gauge = screen.locator(".gauge", {
+    has: page.getByRole("status", { name: "Payload Mass" }),
+  });
+  const meter = gauge.locator(".meter");
+  const colourOf = async (token: string) => tokenColour(page, token);
+
   // As many tanks as fit, which cost far less than the Funding.
   const fit = Math.floor(limit / water.massKilograms);
   expect(fee + fit * water.priceMillionDollars).toBeLessThan(grant);
@@ -152,7 +161,21 @@ test("the Launch manifest screen refuses an item that would go over the Payload 
     await expect(payloadMass).toHaveText(
       `Payload Mass: ${tanks * water.massKilograms} of ${limit} kg`,
     );
+    const share = (tanks * water.massKilograms) / limit;
+    if (share < 0.8) {
+      await expect(meter).toHaveClass(/meter--limit/);
+      await expect(meter).not.toHaveClass(/meter--near|meter--full/);
+      expect(await fillColour(meter)).toBe(await colourOf("--progress"));
+      expect(await shownBefore(payloadMass)).toBe("none");
+    } else if (share < 0.95) {
+      await expect(meter).toHaveClass(/meter--near/);
+      expect(await fillColour(meter)).toBe(await colourOf("--accent"));
+      expect(await shownBefore(payloadMass)).toBe("none");
+    }
   }
+  await expect(meter).toHaveClass(/meter--full/);
+  expect(await fillColour(meter)).toBe(await colourOf("--warning"));
+  expect(await shownBefore(payloadMass)).toContain("⚠");
   await addWater.click();
 
   await expect(screen.getByRole("alert")).toHaveText(
