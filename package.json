@@ -61,7 +61,7 @@
     "productName": "Moon Base",
     "directories": {
       "output": "release",
-      "buildResources": "assets/icon"
+      "buildResources": "assets/installer"
     },
     "files": [
       "dist/**/*",
@@ -92,6 +92,7 @@
       "createDesktopShortcut": true,
       "shortcutName": "Moon Base",
       "deleteAppDataOnUninstall": false,
+      "include": "assets/installer/installer.nsh",
       "artifactName": "Moon-Base-Setup-${version}.${ext}"
     }
   }
