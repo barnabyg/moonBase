@@ -1,6 +1,6 @@
 # Moon Base
 
-A browser-based 3D construction and management game about building a base at the lunar south pole, where nothing appears by magic: everything is shipped from Earth or made on the Moon, and building takes real work and time. Desktop Firefox is the only supported browser.
+A browser-based 3D construction and management game about building a base at the lunar south pole, where nothing appears by magic: everything is shipped from Earth or made on the Moon, and building takes real work and time. Desktop Firefox is the only supported browser for now; the game is becoming a desktop app for Windows, built with Electron, and the browser version will be dropped once it works ([ADR-0010](docs/adr/0010-electron-desktop-app-for-windows.md)).
 
 ## Play it
 
