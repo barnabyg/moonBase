@@ -9,13 +9,14 @@ import { placeWindow } from "./window-state.js";
  * where and as the player left it last time, as kept in `stateFile`, or on
  * the primary screen if that is now off every screen (window-state.ts).
  * With `devTools`, for a development run only, F12 and Ctrl+Shift+I open the
- * developer tools; otherwise there are none.
+ * developer tools; otherwise there are none. `icon` is the window's icon.
  */
 export async function createMainWindow(
   url: string,
   preload: string,
   stateFile: string,
   devTools: boolean,
+  icon: string,
 ): Promise<BrowserWindow> {
   const primary = screen.getPrimaryDisplay();
   const placement = placeWindow(
@@ -24,7 +25,7 @@ export async function createMainWindow(
     primary.workArea,
   );
   const window = new BrowserWindow(
-    mainWindowOptions(preload, primary.workAreaSize, devTools),
+    mainWindowOptions(preload, primary.workAreaSize, devTools, icon),
   );
   // With no menu bar there is no menu shortcut for them.
   if (devTools) {

@@ -125,6 +125,8 @@ function start(): void {
         join(import.meta.dirname, "preload.cjs"),
         join(app.getPath("userData"), "window-state.json"),
         devTools,
+        // The installer packs it with the app (package.json's build.files).
+        join(app.getAppPath(), "assets", "icon", "icon.ico"),
       ).then((window) => {
         gameWindow = window;
         // Closing with unsaved progress, or quitting, asks whether to save it

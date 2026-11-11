@@ -40,6 +40,14 @@ describe("the desktop window's options", () => {
     ).toBe(true);
   });
 
+  it("give the window the game's icon when given one", () => {
+    expect(options.icon).toBeUndefined();
+    expect(
+      mainWindowOptions("preload.cjs", largeScreen, false, "C:/app/icon.ico")
+        .icon,
+    ).toBe("C:/app/icon.ico");
+  });
+
   it("keep the page at least 1366 px wide, and no taller than a maximised window's on a 1366 × 768 laptop", () => {
     expect(options.useContentSize).toBe(true);
     expect(options.minWidth).toBe(1366);

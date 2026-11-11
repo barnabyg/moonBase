@@ -35,14 +35,20 @@ const preferredWindowSize = { width: 1600, height: 900 } as const;
  *
  * Developer tools are off unless `devTools` is set, which main.ts sets only
  * for a development run, with the page from the Vite dev server.
+ *
+ * `icon` is the window's icon, in its title bar and the taskbar. An installed
+ * app shows its .exe's icon, the same one, without it; a development run,
+ * from Electron's own .exe, would show Electron's.
  */
 export function mainWindowOptions(
   preload: string,
   workArea: { readonly width: number; readonly height: number },
   devTools = false,
+  icon?: string,
 ): BrowserWindowConstructorOptions {
   return {
     title: "Moon Base",
+    ...(icon === undefined ? {} : { icon }),
     // The width and height, and the minimums, are the page's, not the
     // frame's.
     useContentSize: true,
