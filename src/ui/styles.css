@@ -13,6 +13,17 @@
   --meter-track: rgb(255 255 255 / 10%);
   --gutter: 12px;
   --top-bar-height: 52px;
+  --left-column-width: 340px;
+  --right-column-width: 300px;
+}
+
+/* On a narrower window, such as a 1366 px laptop's, the smallest the game is
+   laid out for (ADR-0004), the columns give the map more of it. */
+@media (width <= 1600px) {
+  :root {
+    --left-column-width: 290px;
+    --right-column-width: 260px;
+  }
 }
 
 * {
@@ -99,12 +110,12 @@ body {
 
 .left-column {
   left: var(--gutter);
-  width: 340px;
+  width: var(--left-column-width);
 }
 
 .right-column {
   right: var(--gutter);
-  width: 300px;
+  width: var(--right-column-width);
 }
 
 /* The bar across the top. */
@@ -217,7 +228,10 @@ body {
   position: absolute;
   top: calc(var(--gutter) * 2 + var(--top-bar-height));
   left: 50%;
-  max-width: min(520px, calc(100% - 660px));
+  max-width: min(
+    520px,
+    calc(100% - var(--left-column-width) - var(--right-column-width) - 20px)
+  );
   margin: 0;
   padding: 8px 14px;
   transform: translateX(-50%);
