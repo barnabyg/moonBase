@@ -9,7 +9,8 @@ import { placeWindow } from "./window-state.js";
  * where and as the player left it last time, as kept in `stateFile`, or on
  * the primary screen if that is now off every screen (window-state.ts).
  * With `devTools`, for a development run only, F12 and Ctrl+Shift+I open the
- * developer tools; otherwise there are none. `icon` is the window's icon.
+ * developer tools, and F5 and Ctrl+R reload the page, as a `npm run try`
+ * scenario's steps may ask; otherwise there are neither. `icon` is the window's icon.
  */
 export async function createMainWindow(
   url: string,
@@ -33,6 +34,9 @@ export async function createMainWindow(
       if (togglesDevTools(input)) {
         event.preventDefault();
         window.webContents.toggleDevTools();
+      } else if (reloads(input)) {
+        event.preventDefault();
+        window.webContents.reload();
       }
     });
   }
@@ -60,6 +64,18 @@ function togglesDevTools(
   return (
     (input.key === "F12" && !input.control && !input.shift) ||
     (input.key.toLowerCase() === "i" && input.control && input.shift)
+  );
+}
+
+/** Whether a key press reloads the page: F5 or Ctrl+R. */
+function reloads(
+  input: Pick<Input, "type" | "key" | "control" | "shift" | "alt" | "meta">,
+): boolean {
+  if (input.type !== "keyDown" || input.alt || input.meta || input.shift)
+    return false;
+  return (
+    (input.key === "F5" && !input.control) ||
+    (input.key.toLowerCase() === "r" && input.control)
   );
 }
 
