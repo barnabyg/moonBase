@@ -11,6 +11,9 @@ coverage/
 # Prepared by npm run try
 .try/
 
+# Saves, results and screenshots of npm run frame-time
+.frame-time/
+
 # Logs
 *.log
 npm-debug.log*

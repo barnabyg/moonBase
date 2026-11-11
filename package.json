@@ -22,6 +22,7 @@
     "pacing-report": "node scripts/pacing-report.mjs",
     "long-game": "node scripts/long-game.mjs",
     "try": "node scripts/try.mjs",
+    "frame-time": "node scripts/frame-time.mjs",
     "audit": "npm audit",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"
