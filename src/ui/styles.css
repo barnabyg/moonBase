@@ -248,7 +248,7 @@ body {
   max-height: 40%;
   font-variant-numeric: tabular-nums;
   overflow-y: auto;
-  padding: 10px 14px;
+  padding: 4px 0;
   scrollbar-width: thin;
 }
 
@@ -276,7 +276,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.construction-panel h2,
 .build-menu h2 {
   margin: 0 0 8px;
   font-size: 0.72rem;
@@ -978,6 +977,30 @@ body {
 .construction-panel__work {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+/* Work that can't go on, listed below the rest: a bar down its side, as well
+   as the warning colour, so that it shows at a glance without telling
+   colours apart. */
+.construction-panel__row--held-up {
+  padding-left: 7px;
+  border-left: 3px solid var(--warning);
+}
+
+.construction-panel__row--held-up .construction-panel__work {
+  color: var(--warning);
+}
+
+/* How many are held up, beside the title, open or folded. */
+.construction-panel .panel-section__summary {
+  color: var(--warning);
+}
+
+.construction-panel
+  .panel-section[open]
+  > .panel-section__title
+  > .panel-section__summary:not([hidden]) {
+  display: inline;
 }
 
 .construction-panel__idle {
