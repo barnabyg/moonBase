@@ -1,4 +1,4 @@
-import { bridgeName, type DesktopBridge } from "../../electron/desktop-bridge";
+import { bridgeName, type SaveBridge } from "../../electron/desktop-bridge";
 import { createBrowserSaveFileStore } from "./browser-save-file-store";
 
 /** What keeping a save file came to. */
@@ -53,7 +53,7 @@ export function saveFileStoreFor(scope: object): SaveFileStore {
     : createBrowserSaveFileStore();
 }
 
-function isDesktopBridge(value: unknown): value is DesktopBridge {
+function isDesktopBridge(value: unknown): value is SaveBridge {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -63,9 +63,7 @@ function isDesktopBridge(value: unknown): value is DesktopBridge {
 }
 
 /** Saves and loads with the operating system's dialogs, in the desktop app. */
-export function createDesktopSaveFileStore(
-  bridge: DesktopBridge,
-): SaveFileStore {
+export function createDesktopSaveFileStore(bridge: SaveBridge): SaveFileStore {
   return {
     async save(name, text) {
       try {

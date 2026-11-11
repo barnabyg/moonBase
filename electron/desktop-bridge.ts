@@ -9,10 +9,16 @@
 /** The name the preload script exposes the bridge under, on `window`. */
 export const bridgeName = "moonbase";
 
-/** The IPC channel of each thing the page may ask the main process for. */
+/**
+ * The IPC channel of each thing the page may ask the main process for, and of
+ * what the main process tells the page unasked (`fullScreenChanged`).
+ */
 export interface BridgeChannels {
   readonly saveFile: "moonbase:save-file";
   readonly openSaveFile: "moonbase:open-save-file";
+  readonly toggleFullScreen: "moonbase:toggle-full-screen";
+  readonly isFullScreen: "moonbase:is-full-screen";
+  readonly fullScreenChanged: "moonbase:full-screen-changed";
 }
 
 /** The extension of a save file, without its dot, as dialog filters give it. */
@@ -66,4 +72,26 @@ export interface DesktopBridge {
   saveFile(suggestedName: string, contents: string): Promise<SaveFileResult>;
   /** Opens the open dialog, filtered to save files, and reads the file chosen. */
   openSaveFile(): Promise<OpenSaveFileResult>;
+  /**
+   * Has the window fill the screen, or go back to a window if it does. It is
+   * the window's own fullscreen, as F11 gives, not the page's (the HTML
+   * Fullscreen API's), which Escape would leave.
+   */
+  toggleFullScreen(): Promise<void>;
+  /** Whether the window fills the screen. */
+  isFullScreen(): Promise<boolean>;
+  /**
+   * Calls `listener` each time the window enters or leaves fullscreen, by F11,
+   * `toggleFullScreen` or anything else.
+   */
+  onFullScreenChange(listener: (fullScreen: boolean) => void): void;
 }
+
+/** The bridge's saving and loading, which the page's save file store uses. */
+export type SaveBridge = Pick<DesktopBridge, "saveFile" | "openSaveFile">;
+
+/** The bridge's fullscreen, which the top bar's Full screen button uses. */
+export type FullScreenBridge = Pick<
+  DesktopBridge,
+  "toggleFullScreen" | "isFullScreen" | "onFullScreenChange"
+>;

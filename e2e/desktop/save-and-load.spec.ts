@@ -252,7 +252,7 @@ test("a file that isn't a save is refused with the reason, as is a file that can
   await expect(clock).not.toHaveText(before ?? "");
 });
 
-test("the page gets only the bridge's two functions, and the main process refuses what they wouldn't send", async ({
+test("the page gets only the bridge's functions, and the main process refuses what they wouldn't send", async ({
   electronApp,
   window,
 }) => {
@@ -270,7 +270,13 @@ test("the page gets only the bridge's two functions, and the main process refuse
     };
   });
   expect(exposed).toEqual({
-    keys: ["openSaveFile", "saveFile"],
+    keys: [
+      "isFullScreen",
+      "onFullScreenChange",
+      "openSaveFile",
+      "saveFile",
+      "toggleFullScreen",
+    ],
     node: "undefined",
   });
 

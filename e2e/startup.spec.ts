@@ -57,6 +57,10 @@ test("the game loads with no console errors and the clock advances", async ({
     "aria-pressed",
     "true",
   );
+  // Only the desktop app's window can fill the screen.
+  await expect(page.getByRole("button", { name: "Full screen" })).toHaveCount(
+    0,
+  );
   // A game-hour takes 10 real seconds at 1x only while frames come at least
   // every 250 ms; with software rendering in CI they come slower, and the
   // game loop deliberately lets the clock fall behind, so watch it at 20x.

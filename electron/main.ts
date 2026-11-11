@@ -5,6 +5,7 @@ import { app, session } from "electron";
 import { join } from "node:path";
 import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
+import { handleFullScreen } from "./full-screen.js";
 import { createLastFolder } from "./last-folder.js";
 import { handleSaveFiles } from "./save-dialogs.js";
 import {
@@ -76,6 +77,8 @@ app
         app.getPath("documents"),
       ),
     );
+    // F11 and the top bar's Full screen button (full-screen.ts).
+    handleFullScreen(startUrl);
     // The window opens where and as the player left it, kept in the
     // user-data folder.
     return createMainWindow(

@@ -21,10 +21,14 @@ import type {
 const channels: BridgeChannels = {
   saveFile: "moonbase:save-file",
   openSaveFile: "moonbase:open-save-file",
+  toggleFullScreen: "moonbase:toggle-full-screen",
+  isFullScreen: "moonbase:is-full-screen",
+  fullScreenChanged: "moonbase:full-screen-changed",
 };
 const bridgeName: typeof BridgeName = "moonbase";
 
-// Save and load, with the operating system's dialogs (save-dialogs.ts).
+// Save and load, with the operating system's dialogs (save-dialogs.ts), and
+// the window's fullscreen (full-screen.ts).
 const bridge: DesktopBridge = {
   saveFile: (suggestedName, contents) =>
     ipcRenderer.invoke(
@@ -34,6 +38,20 @@ const bridge: DesktopBridge = {
     ) as Promise<SaveFileResult>,
   openSaveFile: () =>
     ipcRenderer.invoke(channels.openSaveFile) as Promise<OpenSaveFileResult>,
+  toggleFullScreen: () =>
+    ipcRenderer.invoke(channels.toggleFullScreen) as Promise<void>,
+  isFullScreen: () =>
+    ipcRenderer.invoke(channels.isFullScreen) as Promise<boolean>,
+  // The listener gets whether the window is full screen and nothing else, not
+  // the IPC event, which would reach ipcRenderer.
+  onFullScreenChange: (listener) => {
+    ipcRenderer.on(
+      channels.fullScreenChanged,
+      (_event, fullScreen: unknown) => {
+        if (typeof fullScreen === "boolean") listener(fullScreen);
+      },
+    );
+  },
 };
 
 contextBridge.exposeInMainWorld(bridgeName, bridge);

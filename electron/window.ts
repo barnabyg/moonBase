@@ -1,4 +1,5 @@
 import { BrowserWindow, screen } from "electron";
+import { controlFullScreen } from "./full-screen.js";
 import { mainWindowOptions } from "./window-options.js";
 import { readWindowState, keepWindowState } from "./window-state-file.js";
 import { placeWindow } from "./window-state.js";
@@ -25,6 +26,7 @@ export async function createMainWindow(
   // The frame's bounds, which the window is resized to while still hidden.
   if (placement.bounds !== undefined) window.setBounds(placement.bounds);
   keepWindowState(window, stateFile);
+  controlFullScreen(window);
   window.once("ready-to-show", () => {
     // Maximised first, so that leaving fullscreen goes back to maximised.
     if (placement.maximized) window.maximize();

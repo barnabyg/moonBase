@@ -96,7 +96,7 @@ export async function openWithDialog(
   return { outcome: "opened", fileName, contents: read.contents };
 }
 
-const channels: BridgeChannels = {
+const channels: Pick<BridgeChannels, "saveFile" | "openSaveFile"> = {
   saveFile: "moonbase:save-file",
   openSaveFile: "moonbase:open-save-file",
 };

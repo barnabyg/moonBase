@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
-  DesktopBridge,
+  SaveBridge,
   OpenSaveFileResult,
   SaveFileResult,
 } from "../electron/desktop-bridge";
@@ -28,7 +28,7 @@ function bridge(
   return {
     saveFile: vi.fn(() => answer(save)),
     openSaveFile: vi.fn(() => answer(open)),
-  } satisfies DesktopBridge;
+  } satisfies SaveBridge;
 }
 
 describe("choosing where save files go", () => {
