@@ -1,5 +1,4 @@
 import type { GameLoop } from "../game/loop";
-import type { SaveFiles } from "../game/save-files";
 import type { Snapshot } from "../simulation";
 import { setText } from "./dom";
 import {
@@ -9,7 +8,6 @@ import {
   formatLunation,
 } from "./format";
 import type { ChoiceResult } from "./refusal";
-import { createSaveButtons } from "./save-buttons";
 
 export interface TopBar {
   update(snapshot: Snapshot): void;
@@ -26,7 +24,7 @@ export interface TopBar {
 export function createTopBar(
   container: HTMLElement,
   loop: GameLoop,
-  saveFiles: SaveFiles,
+  saveButtons: (showResult: (result: ChoiceResult) => void) => HTMLElement,
   showResult: (result: ChoiceResult) => void,
   openLaunchManifest: () => void,
   openResearchTasks: () => void,
@@ -143,7 +141,7 @@ export function createTopBar(
     funding,
     science,
     guide,
-    createSaveButtons(saveFiles, showResult),
+    saveButtons(showResult),
   );
   container.append(bar);
   showSelectedSpeed();

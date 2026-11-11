@@ -15,8 +15,10 @@ import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createMapFinder, type MapFinder } from "./ui/map-finder";
 import { createNotificationList } from "./ui/notifications";
-import { createRefusal } from "./ui/refusal";
+import { createRefusal, type ChoiceResult } from "./ui/refusal";
 import { createResearchTasksScreen } from "./ui/research-tasks";
+import { createSaveButtons } from "./ui/save-buttons";
+import { saveFileStoreFor } from "./ui/save-file-store";
 import { createStatusPanel } from "./ui/status-panel";
 import { createStructurePopUp } from "./ui/structure-pop-up";
 import { createTechTreeScreen } from "./ui/tech-tree";
@@ -77,6 +79,11 @@ const saveFiles = createSaveFiles(campaign, () => {
   structurePopUp.startAfresh();
   renderer?.startAfresh();
 });
+// Save and Load, in the top bar and on the game-over screen, keep save files
+// with the desktop app's dialogs, or the browser's download and file picker.
+const saveFileStore = saveFileStoreFor(window);
+const saveButtons = (showResult: (result: ChoiceResult) => void) =>
+  createSaveButtons(saveFiles, saveFileStore, showResult);
 // The top bar across the screen; below it, the status panel above the build
 // menu on the left, and the Work and Base panels above the notifications on
 // the right. Each column scrolls its longest panel rather than running
@@ -127,7 +134,7 @@ const celebration = createCelebrationScreen(container, loop, campaign);
 const topBar = createTopBar(
   topBarSlot,
   loop,
-  saveFiles,
+  saveButtons,
   showResult,
   () => {
     launchManifest.open();
@@ -157,7 +164,7 @@ const gameOver = createGameOverScreen(
   () => {
     window.location.reload();
   },
-  saveFiles,
+  saveButtons,
 );
 const renderer = startRenderer(container, campaign.snapshot());
 // Placing a Structure needs the 3D view to point at the map.
