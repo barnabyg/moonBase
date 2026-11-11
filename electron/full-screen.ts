@@ -11,17 +11,8 @@ import {
   type Input,
   type IpcMainInvokeEvent,
 } from "electron";
-import type { BridgeChannels } from "./desktop-bridge.js";
-import { isFromGame } from "./save-ipc.js";
-
-const channels: Pick<
-  BridgeChannels,
-  "toggleFullScreen" | "isFullScreen" | "fullScreenChanged"
-> = {
-  toggleFullScreen: "moonbase:toggle-full-screen",
-  isFullScreen: "moonbase:is-full-screen",
-  fullScreenChanged: "moonbase:full-screen-changed",
-};
+import { channels } from "./desktop-bridge.js";
+import { isFromGame } from "./security.js";
 
 /** Whether a key press toggles fullscreen: F11, with no modifier key. */
 function togglesFullScreen(

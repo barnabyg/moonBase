@@ -17,17 +17,14 @@ import {
 import { basename, join } from "node:path";
 import type { LastFolder } from "./last-folder.js";
 import {
+  channels,
   saveFileExtension,
   type OpenSaveFileResult,
-  type BridgeChannels,
   type SaveFileResult,
 } from "./desktop-bridge.js";
 import { readSaveFile, writeSaveFile } from "./save-file-io.js";
-import {
-  isFromGame,
-  parseOpenSaveFileArgs,
-  parseSaveFileArgs,
-} from "./save-ipc.js";
+import { parseOpenSaveFileArgs, parseSaveFileArgs } from "./save-ipc.js";
+import { isFromGame } from "./security.js";
 
 const filters = [
   { name: "Moon Base save files", extensions: [saveFileExtension] },
@@ -95,11 +92,6 @@ export async function openWithDialog(
   await lastFolder.remember(path);
   return { outcome: "opened", fileName, contents: read.contents };
 }
-
-const channels: Pick<BridgeChannels, "saveFile" | "openSaveFile"> = {
-  saveFile: "moonbase:save-file",
-  openSaveFile: "moonbase:open-save-file",
-};
 
 /**
  * Answers the page's requests to save and open files, from the game's own

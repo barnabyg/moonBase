@@ -4,7 +4,8 @@
 // answer. It imports nothing, so the page's code (DOM, no Node), the main
 // process (Node, no DOM) and the preload script can all import it. The
 // sandboxed preload script can't load it at run time, so it imports only its
-// types, and spells the channel names out against them.
+// types, and spells the channel names out against BridgeChannels, which
+// fails type checking if they differ from `channels` here.
 
 /** The name the preload script exposes the bridge under, on `window`. */
 export const bridgeName = "moonbase";
@@ -15,15 +16,18 @@ export const bridgeName = "moonbase";
  * what it asks the page (`unsavedProgressAsked`) and the page answers
  * (`unsavedProgressAnswered`).
  */
-export interface BridgeChannels {
-  readonly saveFile: "moonbase:save-file";
-  readonly openSaveFile: "moonbase:open-save-file";
-  readonly toggleFullScreen: "moonbase:toggle-full-screen";
-  readonly isFullScreen: "moonbase:is-full-screen";
-  readonly fullScreenChanged: "moonbase:full-screen-changed";
-  readonly unsavedProgressAsked: "moonbase:unsaved-progress-asked";
-  readonly unsavedProgressAnswered: "moonbase:unsaved-progress-answered";
-}
+export const channels = {
+  saveFile: "moonbase:save-file",
+  openSaveFile: "moonbase:open-save-file",
+  toggleFullScreen: "moonbase:toggle-full-screen",
+  isFullScreen: "moonbase:is-full-screen",
+  fullScreenChanged: "moonbase:full-screen-changed",
+  unsavedProgressAsked: "moonbase:unsaved-progress-asked",
+  unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
+} as const;
+
+/** The IPC channels' names, which the preload script's copy must match. */
+export type BridgeChannels = typeof channels;
 
 /** The extension of a save file, without its dot, as dialog filters give it. */
 export const saveFileExtension = "moonbase";

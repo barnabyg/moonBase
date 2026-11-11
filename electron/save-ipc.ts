@@ -1,31 +1,14 @@
 // Checks on what the page asks the main process for through the save bridge
-// (desktop-bridge.ts), before anything is done with it: who sent it, and that its
-// arguments are what the bridge sends. A page that has gone wrong, or been
-// made to run code it shouldn't, gets an error rather than a file written
-// where it chose. Only types are imported from Electron, so the unit tests can
-// run this in plain Node.
-import type { IpcMainInvokeEvent } from "electron";
+// (desktop-bridge.ts), before anything is done with it: that its arguments are
+// what the bridge sends (security.ts's isFromGame checks who sent it). A page
+// that has gone wrong, or been made to run code it shouldn't, gets an error
+// rather than a file written where it chose. It imports nothing from
+// Electron, so the unit tests can run it in plain Node.
 import {
   maxSaveFileBytes,
   maxSuggestedNameLength,
   saveFileExtension,
 } from "./desktop-bridge.js";
-import { isAllowedNavigation } from "./security.js";
-
-/**
- * Whether a message came from the game's own page: the window's main frame,
- * not a frame inside it, showing a page from where the game started.
- */
-export function isFromGame(
-  event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">,
-  appUrl: string,
-): boolean {
-  const frame = event.senderFrame;
-  if (frame === null) return false;
-  return (
-    frame === event.sender.mainFrame && isAllowedNavigation(frame.url, appUrl)
-  );
-}
 
 /** The printable characters Windows doesn't allow in a file name. */
 const forbiddenInName = /[<>:"/\\|?*]/;

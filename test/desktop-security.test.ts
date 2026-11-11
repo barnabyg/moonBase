@@ -1,4 +1,4 @@
-import type { WebContents } from "electron";
+import type { IpcMainInvokeEvent, WebContents } from "electron";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appUrl, resolveAppFile } from "../electron/app-files.js";
@@ -6,6 +6,7 @@ import {
   contentSecurityPolicy,
   hardenWebContents,
   isAllowedNavigation,
+  isFromGame,
   isOutsidePage,
 } from "../electron/security.js";
 import {
@@ -200,6 +201,36 @@ describe("navigation", () => {
     expect(isOutsidePage("javascript:alert(1)")).toBe(false);
     expect(isOutsidePage("ms-settings:")).toBe(false);
     expect(isOutsidePage("not a url")).toBe(false);
+  });
+});
+
+describe("who may ask", () => {
+  function event(url: string, mainFrame = true): IpcMainInvokeEvent {
+    const frame = { url };
+    const other = { url };
+    return {
+      senderFrame: frame,
+      sender: { mainFrame: mainFrame ? frame : other },
+    } as unknown as IpcMainInvokeEvent;
+  }
+
+  it("is the game's own page", () => {
+    expect(isFromGame(event("app://moonbase/?seed=1"), appUrl)).toBe(true);
+    expect(
+      isFromGame(event("http://127.0.0.1:5173/"), "http://127.0.0.1:5173/"),
+    ).toBe(true);
+  });
+
+  it("is not a page from anywhere else, a frame inside the page, or a frame gone", () => {
+    expect(isFromGame(event("https://example.com/"), appUrl)).toBe(false);
+    expect(isFromGame(event("app://other/"), appUrl)).toBe(false);
+    expect(isFromGame(event("app://moonbase/", false), appUrl)).toBe(false);
+    expect(
+      isFromGame(
+        { senderFrame: null, sender: {} } as unknown as IpcMainInvokeEvent,
+        appUrl,
+      ),
+    ).toBe(false);
   });
 });
 

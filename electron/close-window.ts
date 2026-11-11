@@ -15,18 +15,10 @@ import {
   parsePageAnswer,
   type PageAnswer,
 } from "./close-prompt.js";
-import type { BridgeChannels } from "./desktop-bridge.js";
+import { channels } from "./desktop-bridge.js";
 import type { LastFolder } from "./last-folder.js";
 import { saveWithDialog } from "./save-dialogs.js";
-import { isFromGame } from "./save-ipc.js";
-
-const channels: Pick<
-  BridgeChannels,
-  "unsavedProgressAsked" | "unsavedProgressAnswered"
-> = {
-  unsavedProgressAsked: "moonbase:unsaved-progress-asked",
-  unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
-};
+import { isFromGame } from "./security.js";
 
 /**
  * How long the page has to answer. It answers between two frames, so within

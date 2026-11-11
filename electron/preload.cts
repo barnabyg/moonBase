@@ -8,7 +8,8 @@
 // It is CommonJS (.cts) because a sandboxed preload script can't be an ES
 // module, and it can't load the game's other files at run time either, only
 // Electron's, so it imports only types from desktop-bridge.ts and spells out
-// the names it needs, which those types check.
+// the names it needs, which those types check: a channel name that differs
+// from desktop-bridge.ts's `channels` fails type checking.
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   DesktopBridge,
@@ -19,7 +20,7 @@ import type {
   bridgeName as BridgeName,
 } from "./desktop-bridge.js";
 
-const channels: BridgeChannels = {
+const channels = {
   saveFile: "moonbase:save-file",
   openSaveFile: "moonbase:open-save-file",
   toggleFullScreen: "moonbase:toggle-full-screen",
@@ -27,7 +28,7 @@ const channels: BridgeChannels = {
   fullScreenChanged: "moonbase:full-screen-changed",
   unsavedProgressAsked: "moonbase:unsaved-progress-asked",
   unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
-};
+} as const satisfies BridgeChannels;
 const bridgeName: typeof BridgeName = "moonbase";
 
 // Before the window closes, the main process asks for the Campaign's unsaved

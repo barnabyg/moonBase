@@ -1,7 +1,8 @@
 // What keeps the page from reaching beyond the game: its Content Security
-// Policy, where it may navigate, and which permissions it gets. Only types are
-// imported from Electron, so the unit tests can run this in plain Node.
-import type { Session, WebContents } from "electron";
+// Policy, where it may navigate, which permissions it gets, and which messages
+// to the main process come from the game itself. Only types are imported from
+// Electron, so the unit tests can run this in plain Node.
+import type { IpcMainInvokeEvent, Session, WebContents } from "electron";
 
 /**
  * The page's Content Security Policy. Everything the game loads comes from its
@@ -50,6 +51,21 @@ export function isAllowedNavigation(url: string, appUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether a message came from the game's own page: the window's main frame,
+ * not a frame inside it, showing a page from where the game started.
+ */
+export function isFromGame(
+  event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">,
+  appUrl: string,
+): boolean {
+  const frame = event.senderFrame;
+  if (frame === null) return false;
+  return (
+    frame === event.sender.mainFrame && isAllowedNavigation(frame.url, appUrl)
+  );
 }
 
 /**

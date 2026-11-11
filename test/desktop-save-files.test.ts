@@ -1,4 +1,3 @@
-import type { IpcMainInvokeEvent } from "electron";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createLastFolder } from "../electron/last-folder.js";
 import { maxSaveFileBytes } from "../electron/desktop-bridge.js";
 import {
-  isFromGame,
   parseOpenSaveFileArgs,
   parseSaveFileArgs,
 } from "../electron/save-ipc.js";
@@ -65,37 +63,6 @@ describe("what the page may ask the main process to save", () => {
     expect(() => {
       parseOpenSaveFileArgs(["C:/secrets.txt"]);
     }).toThrow();
-  });
-});
-
-describe("who may ask", () => {
-  const appUrl = "app://moonbase/";
-  function event(url: string, mainFrame = true): IpcMainInvokeEvent {
-    const frame = { url };
-    const other = { url };
-    return {
-      senderFrame: frame,
-      sender: { mainFrame: mainFrame ? frame : other },
-    } as unknown as IpcMainInvokeEvent;
-  }
-
-  it("is the game's own page", () => {
-    expect(isFromGame(event("app://moonbase/?seed=1"), appUrl)).toBe(true);
-    expect(
-      isFromGame(event("http://127.0.0.1:5173/"), "http://127.0.0.1:5173/"),
-    ).toBe(true);
-  });
-
-  it("is not a page from anywhere else, a frame inside the page, or a frame gone", () => {
-    expect(isFromGame(event("https://example.com/"), appUrl)).toBe(false);
-    expect(isFromGame(event("app://other/"), appUrl)).toBe(false);
-    expect(isFromGame(event("app://moonbase/", false), appUrl)).toBe(false);
-    expect(
-      isFromGame(
-        { senderFrame: null, sender: {} } as unknown as IpcMainInvokeEvent,
-        appUrl,
-      ),
-    ).toBe(false);
   });
 });
 
