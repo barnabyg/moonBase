@@ -4,7 +4,7 @@ import { structureEntry } from "./base-panel";
 import { crowdedSave, useCrowdedCatalogue, type SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
 
-// The smallest screen the panels are laid out for.
+// A full HD screen, with room for the panels to show the rows watched.
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 /** Game-hours to run before watching, so that the base is well under way. */

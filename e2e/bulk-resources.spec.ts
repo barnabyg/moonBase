@@ -7,7 +7,7 @@ import {
   type SaveFile,
 } from "./crowded";
 
-// The smallest screen the status panel is laid out for.
+// A full HD screen, with room for the status panel to show the lines checked.
 test.use({ viewport: { width: 1920, height: 1080 } });
 
 const panelOf = (page: Page): Locator =>
