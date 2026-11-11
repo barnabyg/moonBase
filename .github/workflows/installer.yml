@@ -1,0 +1,96 @@
+name: Installer
+
+# Builds the desktop app's Windows installer (npm run package:win), checks the
+# packaged app starts, and keeps the installer as a downloadable file. See
+# docs/desktop-release.md.
+#
+# On main, every push that can change the app. On a pull request, only one
+# that changes what the installer is built from: the Electron code, the icon
+# and installer script, the dependencies and packaging config in package.json,
+# the packaged app's test, or this workflow. Those are the changes that can
+# break packaging without failing any other check, and the job is a few
+# minutes on one Windows runner, so it is worth running before they merge.
+# Other pull requests leave it to main.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
+  pull_request:
+    paths:
+      - "electron/**"
+      - "assets/**"
+      - "e2e/packaged/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/installer.yml"
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its run that is still going, which
+# checked code that has since changed. Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  installer:
+    name: Windows installer
+    # The desktop app is Windows only (ADR-0010), and electron-builder builds
+    # the NSIS installer there with no extra tools.
+    runs-on: windows-2025
+    # Building the installer takes about 35 seconds on the maintainer's PC,
+    # downloads included; npm ci has its own limit below. The limit is several
+    # times what the whole job should take on a slower runner, so a hang fails
+    # in minutes rather than GitHub's 6 hours. See docs/desktop-release.md.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Electron's binary (over 100 MB), which npm ci and electron-builder
+      # both download unless it is in Electron's download cache, and the NSIS
+      # and 7-Zip tools that electron-builder downloads into its own, are kept
+      # in GitHub's cache, keyed on the pinned versions.
+      - name: Read the Electron and electron-builder versions
+        id: versions
+        shell: bash
+        run: |
+          echo "electron=$(node -p "require('./package.json').devDependencies.electron")" >> "$GITHUB_OUTPUT"
+          echo "builder=$(node -p "require('./package.json').devDependencies['electron-builder']")" >> "$GITHUB_OUTPUT"
+      - name: Restore Electron's download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/electron/Cache
+          key: electron-${{ runner.os }}-${{ steps.versions.outputs.electron }}
+      - name: Restore electron-builder's tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/electron-builder/Cache
+          key: electron-builder-${{ runner.os }}-${{ steps.versions.outputs.builder }}
+      - run: npm ci
+        timeout-minutes: 6
+      - run: npm run package:win
+        timeout-minutes: 10
+      # Launches release/win-unpacked/Moon Base.exe, the files the installer
+      # installs (e2e/packaged/packaged.spec.ts).
+      - run: npx playwright test --project=packaged
+        timeout-minutes: 5
+      # Unsigned until signed releases are set up (#311). Kept 30 days from
+      # main and 7 from a pull request, which only needs it while under review.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: moon-base-setup-windows
+          path: release/Moon-Base-Setup-*.exe
+          if-no-files-found: error
+          retention-days: ${{ github.event_name == 'push' && 30 || 7 }}
+          # The installer is already compressed.
+          compression-level: 0
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-test-results-packaged
+          path: test-results/
+          retention-days: 14
