@@ -5,22 +5,11 @@ import { expect, test } from "@playwright/test";
 // work, and the player must be told why the map is missing.
 test.use({
   launchOptions: [
-    async ({ browserName, launchOptions }, use) => {
-      // Each browser has its own way to switch WebGL off.
-      await use(
-        browserName === "firefox"
-          ? {
-              ...launchOptions,
-              firefoxUserPrefs: {
-                ...launchOptions.firefoxUserPrefs,
-                "webgl.disabled": true,
-              },
-            }
-          : {
-              ...launchOptions,
-              args: [...(launchOptions.args ?? []), "--disable-webgl"],
-            },
-      );
+    async ({ launchOptions }, use) => {
+      await use({
+        ...launchOptions,
+        args: [...(launchOptions.args ?? []), "--disable-webgl"],
+      });
     },
     { scope: "worker" },
   ],
