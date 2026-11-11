@@ -2,25 +2,22 @@ import { SAVE_FILE_EXTENSION } from "../game/save-files";
 import type { SaveFileStore } from "./save-file-store";
 
 /**
- * Saves and loads in the browser: saving downloads the file, and loading
- * opens a file picker. It goes when the browser version does (ADR-0010).
+ * Saves and loads in a browser: saving downloads the file, and loading opens
+ * a file picker. Players have only the desktop app (ADR-0010); this serves the
+ * end-to-end tests that run in Chromium against the dev server, which save
+ * with a download and load through the file picker, and `npm run dev`.
  */
 export function createBrowserSaveFileStore(): SaveFileStore {
   return {
-    save(name, text, host) {
+    save(name, text) {
       const url = URL.createObjectURL(
         new Blob([text], { type: "application/json" }),
       );
-      // Firefox only downloads from a link in the page, and inside the
-      // game-over screen, only from one in that screen. Chromium downloads
-      // from either; a link in the host serves both.
+      // Chromium downloads from a link that isn't in the page.
       const link = document.createElement("a");
       link.href = url;
       link.download = name;
-      link.hidden = true;
-      host.append(link);
       link.click();
-      link.remove();
       // Not at once, in case the browser hasn't yet read the file to download it.
       setTimeout(() => {
         URL.revokeObjectURL(url);
@@ -28,16 +25,13 @@ export function createBrowserSaveFileStore(): SaveFileStore {
       // The browser doesn't say whether the player kept the download.
       return Promise.resolve({ outcome: "saved" });
     },
-    open(host) {
+    open() {
       const picker = document.createElement("input");
       picker.type = "file";
       picker.accept = SAVE_FILE_EXTENSION;
-      picker.hidden = true;
-      host.append(picker);
       return new Promise((resolve) => {
         picker.addEventListener("change", () => {
           const file = picker.files?.[0];
-          picker.remove();
           resolve(
             file === undefined
               ? { outcome: "cancelled" }
@@ -45,7 +39,6 @@ export function createBrowserSaveFileStore(): SaveFileStore {
           );
         });
         picker.addEventListener("cancel", () => {
-          picker.remove();
           resolve({ outcome: "cancelled" });
         });
         picker.click();

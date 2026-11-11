@@ -80,19 +80,16 @@ export interface Renderer {
 
 /**
  * Whether WebGL is drawn by the CPU, as on a machine without a usable GPU,
- * such as the CI runner. Firefox names the renderer, tidied, in RENDERER;
- * Chromium puts "WebKit WebGL" there and the real name in the debug
- * extension's UNMASKED_RENDERER_WEBGL. Firefox warns that the extension is
- * deprecated, so it is only asked for when RENDERER hides the name.
+ * such as the CI runner (SwiftShader) or Windows without a graphics driver
+ * (Microsoft Basic Render Driver). Chromium puts "WebKit WebGL" in RENDERER
+ * and the real name in the debug extension's UNMASKED_RENDERER_WEBGL.
  */
 function drawsInSoftware(webgl: THREE.WebGLRenderer): boolean {
   const context = webgl.getContext();
-  let name: unknown = context.getParameter(context.RENDERER);
-  if (name === "WebKit WebGL") {
-    const debug = context.getExtension("WEBGL_debug_renderer_info");
-    if (debug !== null)
-      name = context.getParameter(debug.UNMASKED_RENDERER_WEBGL);
-  }
+  const debug = context.getExtension("WEBGL_debug_renderer_info");
+  const name: unknown = context.getParameter(
+    debug === null ? context.RENDERER : debug.UNMASKED_RENDERER_WEBGL,
+  );
   return (
     typeof name === "string" &&
     /llvmpipe|softpipe|swiftshader|basic render driver/i.test(name)

@@ -64,8 +64,8 @@ export function createGameOverScreen(
         return;
       }
       setText(death, formatDeath(snapshot.ended));
-      // Firefox and Chromium close it anyway on a second Escape with no click
-      // between, so open it again.
+      // Chromium closes it anyway on a second Escape with no click between,
+      // so open it again.
       if (!dialog.open) dialog.showModal();
     },
   };

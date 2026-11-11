@@ -20,25 +20,15 @@ export type StoreOpenResult =
  * Where save files go and come from: the one seam between the game's Save
  * and Load buttons and how the platform keeps files (ADR-0006). The desktop
  * app uses the operating system's save and open dialogs, through the bridge
- * its preload script exposes; the browser downloads the file and opens a
- * file picker. Which one is chosen once, as the game starts
+ * its preload script exposes; a browser, which only the end-to-end tests and
+ * development use, downloads the file and opens a file picker. Which one is chosen once, as the game starts
  * (`saveFileStoreFor`).
  */
 export interface SaveFileStore {
-  /**
-   * Keeps `text` as a save file, suggesting `name` for it.
-   *
-   * @param host The element the request comes from, which the browser's
-   *   download link goes in.
-   */
-  save(name: string, text: string, host: HTMLElement): Promise<StoreSaveResult>;
-  /**
-   * Asks the player for a save file to load.
-   *
-   * @param host The element the request comes from, which the browser's file
-   *   picker goes in.
-   */
-  open(host: HTMLElement): Promise<StoreOpenResult>;
+  /** Keeps `text` as a save file, suggesting `name` for it. */
+  save(name: string, text: string): Promise<StoreSaveResult>;
+  /** Asks the player for a save file to load. */
+  open(): Promise<StoreOpenResult>;
 }
 
 /**

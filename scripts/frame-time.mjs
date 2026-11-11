@@ -1,25 +1,25 @@
-// Measures how long the game takes to draw a frame, in Firefox and Chromium, on
-// fixed scenes (`npm run frame-time`). See docs/rendering-performance.md.
+// Measures how long the game takes to draw a frame, in Chromium, the desktop
+// app's engine, on fixed scenes (`npm run frame-time`). See
+// docs/rendering-performance.md.
 //
-// It builds the game for production, serves the build, and opens it in each
-// browser with a window, so that WebGL is drawn on the GPU as a player's is,
-// not in software as headless Chromium would. Each browser draws as fast as it
+// It builds the game for production, serves the build, and opens it in
+// Chromium with a window, so that WebGL is drawn on the GPU as a player's is,
+// not in software as headless Chromium would. Chromium draws as fast as it
 // can, not at the screen's refresh rate, so the times are what a frame costs
 // rather than the refresh interval. Each scene is loaded from a save with the
 // game paused, warmed up, then timed by the gaps between animation frames.
 //
-//   npm run frame-time -- [--browser firefox|chromium] [--scene <id>]
+//   npm run frame-time -- [--scene <id>]
 //     [--repeats 3] [--seconds 8] [--label <name>] [--keep] [--vsync]
 //
 // The large base takes several minutes to prepare; --keep reuses the saves
 // prepared last time, in the ignored .frame-time folder, which are what that
-// code and catalogue made. The results, and a screenshot of each scene in each
-// browser, go to .frame-time/<label>/.
+// code and catalogue made. The results, and a screenshot of each scene, go to .frame-time/<label>/.
 /* global document, requestAnimationFrame, WheelEvent, window -- in the functions page.evaluate runs in the page */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { chromium, firefox } from "@playwright/test";
+import { chromium } from "@playwright/test";
 import { build, preview, runnerImport } from "vite";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -32,7 +32,6 @@ const WARM_UP_MS = 3000;
 
 const { values: options } = parseArgs({
   options: {
-    browser: { type: "string", multiple: true },
     scene: { type: "string", multiple: true },
     repeats: { type: "string", default: "3" },
     seconds: { type: "string", default: "8" },
@@ -45,17 +44,6 @@ const repeats = Number(options.repeats);
 const measureMs = Number(options.seconds) * 1000;
 
 const browsers = {
-  firefox: {
-    type: firefox,
-    launch: {
-      firefoxUserPrefs: {
-        // 0 draws as fast as it can; Firefox's default, -1, follows the screen.
-        ...(options.vsync ? {} : { "layout.frame_rate": 0 }),
-        // A window behind another would otherwise be drawn less often.
-        "widget.windows.window_occlusion_tracking.enabled": false,
-      },
-    },
-  },
   chromium: {
     type: chromium,
     launch: {
@@ -74,15 +62,12 @@ const { module: scenes } = await runnerImport("/test/frame-time-scenes.ts", {
 const chosenScenes = scenes.frameTimeScenes.filter(
   ({ id }) => options.scene === undefined || options.scene.includes(id),
 );
-const chosenBrowsers = Object.keys(browsers).filter(
-  (name) => options.browser === undefined || options.browser.includes(name),
-);
-if (chosenScenes.length === 0 || chosenBrowsers.length === 0) {
+const chosenBrowsers = Object.keys(browsers);
+if (chosenScenes.length === 0) {
   console.log("Scenes:");
   for (const scene of scenes.frameTimeScenes) {
     console.log(`  ${scene.id}: ${scene.title}`);
   }
-  console.log(`Browsers: ${Object.keys(browsers).join(", ")}`);
   process.exit(1);
 }
 
@@ -167,9 +152,9 @@ async function openScene(context, scene) {
     .getByRole("status", { name: "Game clock" })
     .filter({ hasText: scene.clock })
     .waitFor();
-  // Wheel events made in the page rather than by Playwright's mouse: Firefox
-  // turned the same mouse.wheel into a smaller zoom than Chromium, which
-  // left it drawing less of the base.
+  // Wheel events made in the page rather than by Playwright's mouse, as for
+  // the measurements recorded in docs/rendering-performance.md, so that each
+  // scene shows as much of the base as it did then.
   await page.locator("canvas").evaluate((canvas, zoomOut) => {
     const bounds = canvas.getBoundingClientRect();
     for (let turned = 0; turned < zoomOut; turned += 100) {
@@ -235,7 +220,7 @@ mkdirSync(outDirectory, { recursive: true });
 const runs = [];
 const about = {};
 try {
-  // Each repeat opens each browser afresh and draws every scene, so that a
+  // Each repeat opens the browser afresh and draws every scene, so that a
   // drift in the machine's speed spreads over all of them alike.
   for (let repeat = 1; repeat <= repeats; repeat++) {
     for (const name of chosenBrowsers) {

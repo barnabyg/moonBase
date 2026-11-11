@@ -16,9 +16,6 @@ vi.mock("../src/ui/browser-save-file-store", () => ({
   createBrowserSaveFileStore: () => browserStore,
 }));
 
-// The desktop store never touches the page.
-const host = {} as HTMLElement;
-
 function bridge(
   save: SaveFileResult | Error,
   open: OpenSaveFileResult | Error = { outcome: "cancelled" },
@@ -36,7 +33,7 @@ describe("choosing where save files go", () => {
     const desktop = bridge({ outcome: "saved", fileName: "a.moonbase" });
     const store = saveFileStoreFor({ moonbase: desktop });
 
-    expect(await store.save("a.moonbase", "{}", host)).toEqual({
+    expect(await store.save("a.moonbase", "{}")).toEqual({
       outcome: "saved",
     });
     expect(desktop.saveFile).toHaveBeenCalledWith("a.moonbase", "{}");
@@ -56,17 +53,17 @@ describe("the desktop app's save and open dialogs", () => {
     const store = createDesktopSaveFileStore(
       bridge({ outcome: "cancelled" }, { outcome: "cancelled" }),
     );
-    expect(await store.save("a.moonbase", "{}", host)).toEqual({
+    expect(await store.save("a.moonbase", "{}")).toEqual({
       outcome: "cancelled",
     });
-    expect(await store.open(host)).toEqual({ outcome: "cancelled" });
+    expect(await store.open()).toEqual({ outcome: "cancelled" });
   });
 
   it("tell the player when the file couldn't be written", async () => {
     const store = createDesktopSaveFileStore(
       bridge({ outcome: "failed", fileName: "b.moonbase" }),
     );
-    expect(await store.save("a.moonbase", "{}", host)).toEqual({
+    expect(await store.save("a.moonbase", "{}")).toEqual({
       outcome: "failed",
       message: `Couldn't save "b.moonbase". The file couldn't be written.`,
     });
@@ -79,7 +76,7 @@ describe("the desktop app's save and open dialogs", () => {
         { outcome: "opened", fileName: "c.moonbase", contents: '{"é":1}' },
       ),
     );
-    const result = await store.open(host);
+    const result = await store.open();
     if (result.outcome !== "chosen") throw new Error(result.outcome);
     expect(result.file.name).toBe("c.moonbase");
     expect(await result.file.text()).toBe('{"é":1}');
@@ -92,7 +89,7 @@ describe("the desktop app's save and open dialogs", () => {
         { outcome: "failed", fileName: "d.moonbase", reason: "unreadable" },
       ),
     );
-    expect(await unreadable.open(host)).toEqual({
+    expect(await unreadable.open()).toEqual({
       outcome: "failed",
       message: `Couldn't load "d.moonbase". The file couldn't be read.`,
     });
@@ -102,7 +99,7 @@ describe("the desktop app's save and open dialogs", () => {
         { outcome: "failed", fileName: "e.moonbase", reason: "too-large" },
       ),
     );
-    expect(await tooLarge.open(host)).toEqual({
+    expect(await tooLarge.open()).toEqual({
       outcome: "failed",
       message: `Couldn't load "e.moonbase". It is too large to be a Moon Base save file.`,
     });
@@ -113,11 +110,11 @@ describe("the desktop app's save and open dialogs", () => {
     const failure = new Error("refused by the main process");
     const store = createDesktopSaveFileStore(bridge(failure, failure));
 
-    expect(await store.save("a.moonbase", "{}", host)).toEqual({
+    expect(await store.save("a.moonbase", "{}")).toEqual({
       outcome: "failed",
       message: `Couldn't save "a.moonbase". Something went wrong while saving it.`,
     });
-    expect(await store.open(host)).toEqual({
+    expect(await store.open()).toEqual({
       outcome: "failed",
       message: "Couldn't load a file. Something went wrong while opening it.",
     });

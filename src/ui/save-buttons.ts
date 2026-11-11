@@ -27,7 +27,7 @@ export function createSaveButtons(
   save.title = `Save the Campaign as a ${SAVE_FILE_EXTENSION} file.`;
   save.addEventListener("click", () => {
     const { name, text } = saveFiles.save();
-    void store.save(name, text, group).then((result) => {
+    void store.save(name, text).then((result) => {
       if (result.outcome === "saved") saveFiles.saved(text);
       if (result.outcome === "failed") {
         showResult({ ok: false, message: result.message });
@@ -40,7 +40,7 @@ export function createSaveButtons(
   load.textContent = "Load";
   load.title = `Load a Campaign from a ${SAVE_FILE_EXTENSION} file in place of this one.`;
   load.addEventListener("click", () => {
-    void store.open(group).then(async (result) => {
+    void store.open().then(async (result) => {
       switch (result.outcome) {
         case "chosen":
           showResult(await saveFiles.load(result.file));
