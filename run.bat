@@ -1,8 +1,9 @@
 @echo off
 rem Starts Moon Base for manual testing: double-click this file, or run it
 rem from any folder. It installs or updates the dependencies when needed,
-rem starts the game at http://localhost:5173 and opens it in Firefox.
-rem Close this window, or press Ctrl+C in it, to stop the game.
+rem then opens the game in the desktop app (npm run desktop), from the
+rem development server, so a change to the game reloads it.
+rem Close the game's window, or press Ctrl+C in this one, to stop it.
 setlocal
 cd /d "%~dp0"
 
@@ -26,8 +27,5 @@ if errorlevel 1 (
   )
 )
 
-rem Open Firefox, the only supported browser, unless BROWSER is already set.
-if not defined BROWSER if exist "%ProgramFiles%\Mozilla Firefox\firefox.exe" set "BROWSER=%ProgramFiles%\Mozilla Firefox\firefox.exe"
-
-echo Starting Moon Base at http://localhost:5173 ...
-call npm.cmd run dev -- --open
+echo Starting Moon Base in the desktop app...
+call npm.cmd run desktop

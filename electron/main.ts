@@ -34,7 +34,8 @@ if (!app.isPackaged && process.env["MOONBASE_E2E"] === "1") {
 }
 
 // An installed app ignores the variable, so only a development run can point
-// the window at a dev server.
+// the window at a dev server. It is the page to open there, which `npm run
+// try` gives a query naming the prepared Campaign to load (src/main.ts).
 const devServerUrl = app.isPackaged
   ? undefined
   : process.env["MOONBASE_DEV_SERVER_URL"];
