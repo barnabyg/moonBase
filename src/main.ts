@@ -9,6 +9,7 @@ import { createBuildMenu } from "./ui/build-menu";
 import { createCelebrationScreen } from "./ui/celebration";
 import { createConstructionPanel } from "./ui/construction-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
+import { exitFor } from "./ui/exit";
 import { fullScreenFor } from "./ui/full-screen";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
@@ -156,6 +157,9 @@ const topBar = createTopBar(
   // The desktop app's window fills the screen with F11 or this button; a
   // browser has no button.
   fullScreenFor(window),
+  // The desktop app closes with this button, as with the window's X, which
+  // fullscreen hides; a browser has no button.
+  exitFor(window),
 );
 const statusPanel = createStatusPanel(
   leftColumn,

@@ -22,6 +22,7 @@ export const channels = {
   toggleFullScreen: "moonbase:toggle-full-screen",
   isFullScreen: "moonbase:is-full-screen",
   fullScreenChanged: "moonbase:full-screen-changed",
+  closeWindow: "moonbase:close-window",
   unsavedProgressAsked: "moonbase:unsaved-progress-asked",
   unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
 } as const;
@@ -102,6 +103,11 @@ export interface DesktopBridge {
    */
   onFullScreenChange(listener: (fullScreen: boolean) => void): void;
   /**
+   * Closes the window, as its close button (the X) does: with unsaved
+   * progress, the player is asked first whether to save it.
+   */
+  closeWindow(): Promise<void>;
+  /**
    * Has the main process call `unsaved` when the window is about to close, or
    * the app to quit, for the Campaign's unsaved progress: a save to offer the
    * player, or null if there is none. Until the page has called this, the
@@ -118,6 +124,9 @@ export type UnsavedProgressBridge = Pick<
   DesktopBridge,
   "answerUnsavedProgress"
 >;
+
+/** The bridge's closing of the window, which the top bar's Exit button uses. */
+export type CloseWindowBridge = Pick<DesktopBridge, "closeWindow">;
 
 /** The bridge's fullscreen, which the top bar's Full screen button uses. */
 export type FullScreenBridge = Pick<

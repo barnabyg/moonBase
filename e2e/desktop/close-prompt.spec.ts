@@ -143,6 +143,41 @@ test("Don't save closes without saving", async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test("the top bar's Exit button closes as the window's X does, in fullscreen too: Cancel keeps the window open, and Don't save closes", async ({
+  electronApp,
+  window,
+  consoleErrors,
+}) => {
+  const exit = window
+    .getByRole("region", { name: "Game controls" })
+    .getByRole("button", { name: "Exit" });
+  await window
+    .getByRole("region", { name: "Game controls" })
+    .getByRole("button", { name: "Full screen" })
+    .click();
+  await expect
+    .poll(() =>
+      electronApp.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isFullScreen(),
+      ),
+    )
+    .toBe(true);
+  await makeProgress(window);
+  await answerQuestion(electronApp, buttons.cancel);
+
+  await exit.click();
+  await asked(electronApp, 1);
+
+  await stillPlaying(electronApp, window);
+  await answerQuestion(electronApp, buttons.dontSave);
+  await exit.click();
+  expect(await exitCode(electronApp)).toBe(0);
+  // Stubbing the question again started its log afresh.
+  await asked(electronApp, 1);
+  expect(await dialogCalls(electronApp, "showSaveDialog")).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("Cancel keeps the window open, and closing again while the question is open asks it once", async ({
   electronApp,
   window,
