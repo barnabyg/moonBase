@@ -44,9 +44,14 @@ test("the app opens the game in its window, which draws with no errors", async (
     BrowserWindow.getAllWindows().map((each) => ({
       title: each.getTitle(),
       visible: each.isVisible(),
+      focused: each.isFocused(),
     })),
   );
-  expect(shown).toEqual([{ title: "Moon Base", visible: true }]);
+  // Shown without focus under the tests (MOONBASE_E2E=1), so the windows they
+  // open don't take the keyboard from the developer.
+  expect(shown).toEqual([
+    { title: "Moon Base", visible: true, focused: false },
+  ]);
   // The folder the fixture gave it, not the player's own.
   expect(await electronApp.evaluate(({ app }) => app.getPath("userData"))).toBe(
     userDataDir,

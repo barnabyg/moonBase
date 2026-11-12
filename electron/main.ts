@@ -142,6 +142,9 @@ function start(): void {
         devTools,
         // The installer packs it with the app (package.json's build.files).
         join(app.getAppPath(), "assets", "icon", "icon.ico"),
+        // The end-to-end tests open many windows; none takes the keyboard
+        // from the developer at work. An installed app ignores the variable.
+        app.isPackaged || process.env["MOONBASE_E2E"] !== "1",
       ).then((window) => {
         gameWindow = window;
         // Closing with unsaved progress, or quitting, asks whether to save it
