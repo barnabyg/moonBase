@@ -63,7 +63,7 @@ They cover what only the desktop app does, starting with a smoke set (`e2e/deskt
 
 The fixtures also set `MOONBASE_E2E=1`, under which the main process logs an uncaught exception and exits with code 1, rather than showing Electron's modal error dialog, which would wait on the desktop with no one to close it. They check that the build exists before launching, as Electron answers a missing app with a dialog too.
 
-The windows are real and show on the desktop while the tests run, as Electron has no headless mode. Several open at once and overlap, and Chromium stops drawing a window that is covered or in the background, which would stop the game's clock, so the tests launch Electron with switches that turn that off.
+The windows are real and show on the desktop while the tests run, as Electron has no headless mode. Under `MOONBASE_E2E=1` they are shown without focus (`showInactive`), so they don't take the keyboard from whatever the developer is typing in; a test that maximises a window, or brings it to the front as a second start does, still takes it. Several open at once and overlap, and Chromium stops drawing a window that is covered or in the background, which would stop the game's clock, so the tests launch Electron with switches that turn that off.
 
 On the maintainer's PC (four workers, on the GPU) the twenty-six tests take about 40 seconds. Some briefly fill the screen. CI runs them in the `desktop` job of `.github/workflows/end-to-end.yml`, on Windows, as the desktop app is Windows only. The runner has no GPU, so there `E2E_GL=warp` has Electron draw WebGL in software with WARP, Windows' own software renderer, through Direct3D 11, and the tests run one at a time (see [Software rendering in CI](#software-rendering-in-ci)). Locally the windows always have the GPU. The runner's screen starts at 1024 × 768, below the supported 1366 × 768, so the job sets it to 1920 × 1080 before the tests. The job keeps Electron's download in GitHub's cache, keyed on its pinned version. Its CI times are not yet measured.
 
@@ -81,6 +81,16 @@ npm.cmd run test:e2e -- e2e/habitat.spec.ts --grep "moves from the Lander"
 ```
 
 The first runs one Vitest test, the second one Playwright test in Chromium. A test in `e2e/desktop/` runs with `--project=electron`, after the build; add `--no-deps` to skip the build. Leave out `-t` or `--grep` to run the whole file.
+
+### Before handing over a change that doesn't touch the desktop app
+
+The desktop app's end-to-end tests open real windows on the developer's screen (see [The desktop app's end-to-end tests](#the-desktop-apps-end-to-end-tests)). A change that doesn't touch the desktop app is handed over after this instead, which runs every check but runs the end-to-end tests in Chromium alone:
+
+```powershell
+npm.cmd run verify -- --project=chromium
+```
+
+CI's `desktop` job still runs the desktop app's tests on every pull request. A change touches the desktop app if it changes `electron/`, `e2e/desktop/`, `e2e/packaged/`, the desktop bridge's page side (`src/ui/desktop-bridge-lookup.ts` and the files that use it: `exit.ts`, `full-screen.ts`, `save-file-store.ts` and `unsaved-progress.ts` in `src/ui/`), the Electron or Playwright version, or `playwright.config.ts`. Then run `npm run verify` in full, or at least `npm run test:desktop`.
 
 ## Chromium against the dev server
 

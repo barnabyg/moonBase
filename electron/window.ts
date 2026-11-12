@@ -11,6 +11,9 @@ import { placeWindow } from "./window-state.js";
  * With `devTools`, for a development run only, F12 and Ctrl+Shift+I open the
  * developer tools, and F5 and Ctrl+R reload the page, as a `npm run try`
  * scenario's steps may ask; otherwise there are neither. `icon` is the window's icon.
+ * With `focus` false, for the end-to-end tests, the window is shown without
+ * taking the keyboard from whatever the developer is typing in; maximising it
+ * still does, as Windows activates a window it maximises.
  */
 export async function createMainWindow(
   url: string,
@@ -18,6 +21,7 @@ export async function createMainWindow(
   stateFile: string,
   devTools: boolean,
   icon: string,
+  focus = true,
 ): Promise<BrowserWindow> {
   const primary = screen.getPrimaryDisplay();
   const placement = placeWindow(
@@ -48,7 +52,9 @@ export async function createMainWindow(
     // Maximised first, so that leaving fullscreen goes back to maximised.
     if (placement.maximized) window.maximize();
     if (placement.fullScreen) window.setFullScreen(true);
-    if (!window.isVisible()) window.show();
+    if (window.isVisible()) return;
+    if (focus) window.show();
+    else window.showInactive();
   });
   window.loadURL(url).catch((error: unknown) => {
     console.error(`Moon Base could not load ${url}:`, error);
