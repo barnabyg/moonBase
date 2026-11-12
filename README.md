@@ -2,6 +2,14 @@
 
 A 3D construction and management game about building a base at the lunar south pole, where nothing appears by magic: everything is shipped from Earth or made on the Moon, and building takes real work and time. It is a desktop app for Windows, built with Electron ([ADR-0010](docs/adr/0010-electron-desktop-app-for-windows.md)); there is no browser version to play.
 
+![An early base at the start of Act 2: the Inflatable Habitat under its Regolith shielding, two solar arrays, Plants and the Lander on its landing pad](docs/images/early-base.png)
+
+_Earth Day 82, the start of Act 2: the Mission Director lives in an Inflatable Habitat under Regolith shielding, beside the Lander, two solar arrays and the first Plants._
+
+![A late base in Act 4: dozens of Structures, with storage tanks, a Greenhouse dome, solar arrays and Plants spread over the plain](docs/images/late-base.png)
+
+_Earth Day 2,851, late in Act 4: 44 Structures, with the Mission Director in a Buried Habitat, a Greenhouse growing and a Large-scale Crew Habitat waiting for water._
+
 ## Play it
 
 You need Windows and [Node.js](https://nodejs.org/) 24 or later. From PowerShell, in the repository's root folder (the one containing `package.json`), install the dependencies and start the game:
