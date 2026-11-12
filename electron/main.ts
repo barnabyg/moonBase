@@ -7,6 +7,7 @@ import { appUrl } from "./app-files.js";
 import { registerAppScheme, serveAppFiles } from "./app-protocol.js";
 import {
   askBeforeClosing,
+  handleCloseRequests,
   handleUnsavedProgressAnswers,
 } from "./close-window.js";
 import { handleFullScreen } from "./full-screen.js";
@@ -128,6 +129,8 @@ function start(): void {
       );
       handleSaveFiles(startUrl, lastFolder);
       handleUnsavedProgressAnswers(startUrl);
+      // The top bar's Exit button, which closes the window as its X does.
+      handleCloseRequests(startUrl);
       // F11 and the top bar's Full screen button (full-screen.ts).
       handleFullScreen(startUrl);
       // The window opens where and as the player left it, kept in the

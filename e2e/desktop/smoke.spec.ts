@@ -79,6 +79,7 @@ test("the app opens the game in its window, which draws with no errors", async (
     node: [],
     bridge: [
       "answerUnsavedProgress",
+      "closeWindow",
       "isFullScreen",
       "onFullScreenChange",
       "openSaveFile",

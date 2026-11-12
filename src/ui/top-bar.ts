@@ -20,7 +20,8 @@ export interface TopBar {
  * balance beside the button that opens the Launch manifest screen, the
  * Science balance beside the buttons that open the Research Tasks and Tech
  * Tree screens, the button that opens the Guide, saving and loading, and,
- * in the desktop app (`fullScreen`), the Full screen button. It sends the
+ * in the desktop app (`fullScreen` and `exit`), the Full screen and Exit
+ * buttons. It sends the
  * player's speed choices to the game loop.
  */
 export function createTopBar(
@@ -33,6 +34,7 @@ export function createTopBar(
   openTechTree: () => void,
   openGuide: () => void,
   fullScreen: FullScreen | undefined,
+  exit: (() => void) | undefined,
 ): TopBar {
   const bar = document.createElement("section");
   bar.className = "top-bar";
@@ -147,6 +149,7 @@ export function createTopBar(
     saveButtons(showResult),
   );
   if (fullScreen !== undefined) bar.append(fullScreenButton(fullScreen));
+  if (exit !== undefined) bar.append(exitButton(exit));
   container.append(bar);
   showSelectedSpeed();
 
@@ -190,5 +193,19 @@ function fullScreenButton(fullScreen: FullScreen): HTMLButtonElement {
       ? "Go back to a window (F11)."
       : "Fill the screen (F11).";
   });
+  return button;
+}
+
+/**
+ * Closes the game, as the window's X does, asking first whether to save any
+ * unsaved progress. In fullscreen the window has no X, so this is the way out.
+ */
+function exitButton(exit: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "top-bar__exit";
+  button.textContent = "Exit";
+  button.title = "Close the game, offering to save first.";
+  button.addEventListener("click", exit);
   return button;
 }

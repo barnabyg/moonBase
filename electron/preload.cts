@@ -26,6 +26,7 @@ const channels = {
   toggleFullScreen: "moonbase:toggle-full-screen",
   isFullScreen: "moonbase:is-full-screen",
   fullScreenChanged: "moonbase:full-screen-changed",
+  closeWindow: "moonbase:close-window",
   unsavedProgressAsked: "moonbase:unsaved-progress-asked",
   unsavedProgressAnswered: "moonbase:unsaved-progress-answered",
 } as const satisfies BridgeChannels;
@@ -44,8 +45,8 @@ ipcRenderer.on(channels.unsavedProgressAsked, (_event, id: unknown) => {
 });
 
 // Save and load, with the operating system's dialogs (save-dialogs.ts), the
-// window's fullscreen (full-screen.ts), and the Campaign's unsaved progress,
-// for the question before closing (close-window.ts).
+// window's fullscreen (full-screen.ts), closing the window, and the Campaign's
+// unsaved progress, for the question before closing (close-window.ts).
 const bridge: DesktopBridge = {
   saveFile: (suggestedName, contents) =>
     ipcRenderer.invoke(
@@ -69,6 +70,7 @@ const bridge: DesktopBridge = {
       },
     );
   },
+  closeWindow: () => ipcRenderer.invoke(channels.closeWindow) as Promise<void>,
   answerUnsavedProgress: (unsaved) => {
     unsavedProgress = unsaved;
   },

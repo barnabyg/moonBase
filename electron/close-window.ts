@@ -47,6 +47,22 @@ export function handleUnsavedProgressAnswers(appUrl: string): void {
   });
 }
 
+/**
+ * Closes the window of the game's own page (started at `appUrl`) when it
+ * asks, for the top bar's Exit button, with no arguments, as the bridge sends
+ * none. It is the window's own close, as its X gives, so `askBeforeClosing`
+ * asks about unsaved progress just the same.
+ */
+export function handleCloseRequests(appUrl: string): void {
+  ipcMain.handle(channels.closeWindow, (event, ...args: unknown[]) => {
+    if (!isFromGame(event, appUrl)) {
+      throw new Error("Only the game's page may close its window.");
+    }
+    if (args.length !== 0) throw new Error("Closing takes no arguments.");
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+}
+
 /** Asks the page for its unsaved progress, waiting `pageAnswerMs` at most. */
 function askPage(contents: WebContents): Promise<PageAnswer> {
   if (contents.isDestroyed() || contents.isCrashed()) {
