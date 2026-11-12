@@ -4,6 +4,8 @@
 
 `npm run verify` runs every check, from the repository's root folder. While working, run one test file or test instead. `docs/verification.md` has the commands for both, and says what each check does.
 
+The desktop app's end-to-end tests open real windows on the developer's screen. Unless a change touches the desktop app, hand it over after `npm run verify -- --project=chromium`, and leave those tests to CI. `docs/verification.md` says which changes touch it.
+
 ## Adding content
 
 A new Structure, Plant, type of Expedition, Milestone or Act touches many files, some of which nothing checks. `docs/adding-content.md` has a checklist for each, and says when the catalogue's version is raised.

@@ -82,6 +82,16 @@ npm.cmd run test:e2e -- e2e/habitat.spec.ts --grep "moves from the Lander"
 
 The first runs one Vitest test, the second one Playwright test in Chromium. A test in `e2e/desktop/` runs with `--project=electron`, after the build; add `--no-deps` to skip the build. Leave out `-t` or `--grep` to run the whole file.
 
+### Before handing over a change that doesn't touch the desktop app
+
+The desktop app's end-to-end tests open real windows on the developer's screen (see [The desktop app's end-to-end tests](#the-desktop-apps-end-to-end-tests)). A change that doesn't touch the desktop app is handed over after this instead, which runs every check but runs the end-to-end tests in Chromium alone:
+
+```powershell
+npm.cmd run verify -- --project=chromium
+```
+
+CI's `desktop` job still runs the desktop app's tests on every pull request. A change touches the desktop app if it changes `electron/`, `e2e/desktop/`, `e2e/packaged/`, the desktop bridge's page side (`src/ui/desktop-bridge-lookup.ts` and the files that use it: `exit.ts`, `full-screen.ts`, `save-file-store.ts` and `unsaved-progress.ts` in `src/ui/`), the Electron or Playwright version, or `playwright.config.ts`. Then run `npm run verify` in full, or at least `npm run test:desktop`.
+
 ## Chromium against the dev server
 
 The tests in `e2e/` run in the Playwright project `chromium`, against the Vite dev server, as a quick stand-in for the desktop app's window, which draws with the same engine ([ADR-0010](adr/0010-electron-desktop-app-for-windows.md)). They load and save through the browser's file picker and download, which the game uses when it isn't in the desktop app (`src/ui/browser-save-file-store.ts`); that path serves the tests and development only, not players. The browser version, and its Firefox tests, were dropped; [their setup](verification-history.md#firefox-end-to-end-runs-dropped-with-the-browser-version) is in the verification history. To run all the tests in Chromium:
