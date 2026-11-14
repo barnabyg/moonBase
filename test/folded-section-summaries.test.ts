@@ -5,13 +5,13 @@ import type {
   LanderSnapshot,
   PowerNetworkSnapshot,
 } from "../src/simulation";
+import { summariseBulkResources } from "../src/ui/status-panel-bulk-text";
+import { summariseMilestones } from "../src/ui/status-panel-milestone-text";
+import { summarisePower } from "../src/ui/status-panel-power-text";
+import { summariseResearch } from "../src/ui/status-panel-research-text";
 import {
-  summariseBulkResources,
-  summariseMilestones,
   summariseMissionDirector,
-  summarisePower,
   summariseStock,
-  summariseResearch,
   summariseTravel,
 } from "../src/ui/status-panel-text";
 import { toGameMinutes } from "./scenario";

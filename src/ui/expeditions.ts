@@ -5,7 +5,7 @@ import { formatDuration } from "./format";
 import {
   describeExpedition,
   describeExpeditionReward,
-} from "./status-panel-text";
+} from "./status-panel-expedition-text";
 import { createScreen } from "./screen";
 
 export interface ExpeditionsScreen {

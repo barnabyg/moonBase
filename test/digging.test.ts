@@ -9,7 +9,7 @@ import {
   type Snapshot,
 } from "../src/simulation";
 import { formatMachine } from "../src/ui/base-panel-text";
-import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 

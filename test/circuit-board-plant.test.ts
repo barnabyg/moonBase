@@ -13,7 +13,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { formatEvent } from "../src/ui/notifications-text";
-import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { formatPlant } from "../src/ui/structure-state";
 import { scenario } from "./scenario";
 import { changed } from "./worn";

@@ -9,13 +9,17 @@ import type {
 } from "../src/simulation";
 import {
   formatBasePower,
+  formatStoredPower,
+} from "../src/ui/status-panel-power-text";
+import {
+  formatResearchQueue,
+  formatScienceRate,
+} from "../src/ui/status-panel-research-text";
+import {
   formatLander,
   formatLifeSupport,
-  formatResearchQueue,
   formatResidence,
-  formatScienceRate,
   formatSpareComponents,
-  formatStoredPower,
   listStock,
 } from "../src/ui/status-panel-text";
 import { designsToUnlock } from "../src/ui/tech-tree-text";

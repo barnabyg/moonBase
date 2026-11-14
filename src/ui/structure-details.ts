@@ -40,11 +40,11 @@ import {
   radiusName,
 } from "./keep-clear-text";
 import type { MeterKind, Stat } from "./stat";
+import { formatPower } from "./status-panel-power-text";
 import {
   formatObservingProgramme,
-  formatPower,
   formatResearchRate,
-} from "./status-panel-text";
+} from "./status-panel-research-text";
 import {
   formatAntennaFields,
   isHome,

@@ -8,10 +8,8 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
-import {
-  formatSelfSufficiency,
-  withPlantsTaking,
-} from "../src/ui/status-panel-text";
+import { withPlantsTaking } from "../src/ui/status-panel-plant-text";
+import { formatSelfSufficiency } from "../src/ui/status-panel-text";
 import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { opticsBaseSave } from "./try-scenarios";
 

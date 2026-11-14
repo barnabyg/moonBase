@@ -12,7 +12,7 @@ import {
   formatAct,
   formatNextMilestone,
   summariseMilestones,
-} from "../src/ui/status-panel-text";
+} from "../src/ui/status-panel-milestone-text";
 import { scenario, toGameMinutes, type Scenario } from "./scenario";
 
 // Three Acts: Act 1 holds power storage and moving in; Act 2 the Lander

@@ -9,7 +9,7 @@ import {
 } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
 import { formatEvent } from "../src/ui/notifications-text";
-import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { describeStructureEntry, formatPlant } from "../src/ui/structure-state";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";

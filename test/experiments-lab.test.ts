@@ -15,7 +15,7 @@ import {
   formatExperimentsLabs,
   formatResearchRate,
   formatResearchTask,
-} from "../src/ui/status-panel-text";
+} from "../src/ui/status-panel-research-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
 
