@@ -175,6 +175,43 @@ function withStocks(
   });
 }
 
+const recordMinutes = catalogue.selfSufficiency.recordHours * HOUR;
+const windowRecords = windowMinutes / recordMinutes;
+
+/**
+ * The Campaign as saved, with every record of the self-sufficiency window but
+ * the last already written, as a whole Lunation of holding full leaves them:
+ * each record has the Plants credited with all that the Mission Director used,
+ * Night and Daylight alike. A stand-in for the Lunation the window would
+ * otherwise take to fill, so that a test plays only the last records, which
+ * judge it. `covered` gives a stock's records less: none, for a Plant that
+ * was switched off throughout.
+ */
+function withWindowHeldFull(
+  campaign: Campaign,
+  covered: { readonly water?: number; readonly oxygen?: number } = {},
+): Campaign {
+  return changed(campaign, (state) => {
+    for (const history of state.selfSufficiency) {
+      const use =
+        (catalogue.lifeSupportStocks.find(({ id }) => id === history.stockId)
+          ?.usePerEarthDayKilograms ?? 0) *
+        (recordMinutes / EARTH_DAY);
+      const share = covered[history.stockId as "water" | "oxygen"] ?? 1;
+      history.records = Array.from({ length: windowRecords - 1 }, () => ({
+        producedKilograms: share * use,
+        usedKilograms: use,
+      }));
+    }
+  });
+}
+
+/**
+ * What the tests of a window held full play: the last record, which makes the
+ * window whole, then two Earth Days more, eight records the window moves on by.
+ */
+const lastRecordsMinutes = recordMinutes + 2 * EARTH_DAY;
+
 /** Advances until a Plant is waiting for tank space, within the time given. */
 function untilWaiting(campaign: Campaign, id: string): void {
   for (let minutes = 0; minutes < 2 * EARTH_DAY; minutes++) {
@@ -462,18 +499,35 @@ describe("the forecasts of a stock held full", () => {
 });
 
 describe("self-sufficiency while a stock is full", () => {
+  it("is played from a base whose window is whole but for its last record", () => {
+    const campaign = withWindowHeldFull(base());
+    expect(campaign.snapshot().clock.elapsedMinutes % recordMinutes).toBe(0);
+    expect(
+      campaign
+        .snapshot()
+        .selfSufficiency.map(({ windowComplete }) => windowComplete),
+    ).toEqual([false, false]);
+
+    campaign.advance(recordMinutes);
+
+    expect(
+      campaign
+        .snapshot()
+        .selfSufficiency.map(({ windowComplete }) => windowComplete),
+    ).toEqual([true, true]);
+  });
+
   it("isn't lost over a whole Lunation of holding full, and reaches the Water and Oxygen self-sufficiency Milestones", () => {
-    const campaign = withStocks(base(), {
+    const campaign = withStocks(withWindowHeldFull(base()), {
       water: WATER_LIMIT * 2,
       oxygen: OXYGEN_LIMIT * 2,
     });
 
-    const events: GameEvent[] = [
-      ...campaign.advance(windowMinutes + 2 * EARTH_DAY),
-    ];
+    const events: GameEvent[] = [...campaign.advance(lastRecordsMinutes)];
 
     const state = campaign.snapshot();
-    // Over the limit throughout, so the Plants never ran.
+    // Over the limit throughout, so the Plants never ran: only being credited
+    // for waiting, in the records played, keeps the window covered.
     expect(stock(state, "water")).toBeGreaterThan(WATER_LIMIT);
     expect(stock(state, "oxygen")).toBeGreaterThan(OXYGEN_LIMIT);
     expect(
@@ -497,12 +551,12 @@ describe("self-sufficiency while a stock is full", () => {
   });
 
   it("holds with a Plant going in and out of waiting at the limit", () => {
-    const campaign = withStocks(base(), {
+    const campaign = withStocks(withWindowHeldFull(base()), {
       water: WATER_LIMIT,
       oxygen: OXYGEN_LIMIT,
     });
 
-    campaign.advance(windowMinutes + 2 * EARTH_DAY);
+    campaign.advance(lastRecordsMinutes);
 
     expect(
       campaign.snapshot().selfSufficiency.map((s) => s.selfSufficient),
@@ -514,14 +568,16 @@ describe("self-sufficiency while a stock is full", () => {
   });
 
   it("gives a switched-off Plant no credit for it, however full the store", () => {
-    const campaign = withStocks(base(), { water: WATER_LIMIT * 2 });
+    const campaign = withStocks(withWindowHeldFull(base(), { water: 0 }), {
+      water: WATER_LIMIT * 2,
+    });
     const switched = campaign.switchPlant(
       typed(campaign.snapshot(), "water-processing-plant").id,
       "off",
     );
     if (!switched.ok) throw new Error(switched.message);
 
-    campaign.advance(windowMinutes + 2 * EARTH_DAY);
+    campaign.advance(lastRecordsMinutes);
 
     const water = campaign
       .snapshot()
