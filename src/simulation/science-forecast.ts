@@ -5,7 +5,7 @@ import { structurePerformance } from "./condition";
 import { findStructureType } from "./construction";
 import { researchSpeedUp } from "./experiments-labs";
 import { nightObservingRate } from "./observing";
-import { readRadioArrays } from "./radio-arrays";
+import { readRadioArrays } from "./radio-telescope-arrays";
 import { researchTaskMinutes } from "./research";
 import type { Rounds } from "./rounds";
 
