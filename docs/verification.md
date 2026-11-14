@@ -62,7 +62,7 @@ F11 is pressed with Electron's `webContents.sendInputEvent`, as Playwright's key
 
 `e2e/desktop/fixtures.ts` has the fixtures they use:
 
-- `userDataDir`: a new, empty user-data folder for each test, removed after it, so every worker, and every test, has its own, and the tests run side by side (the project is `fullyParallel`). The main process uses it when `MOONBASE_USER_DATA_DIR` is set; an installed app ignores the variable.
+- `userDataDir`: a new, empty user-data folder for each test, removed after it, so every worker, and every test, has its own, and the tests run side by side (every project is `fullyParallel`). The main process uses it when `MOONBASE_USER_DATA_DIR` is set; an installed app ignores the variable.
 - `launchApp(options?)`: launches the app with that folder, with `options.env` added to its environment. Called again once the first has closed, it launches the app again with the same folder, to test what is kept from one run to the next. Whatever it launched is closed when the test ends, or killed if it won't close within 10 seconds.
 - `electronApp` and `window`: the app each test starts with, and its game window once loaded. `consoleErrors` collects every error the main process or a window logs.
 - `closeWindow(app)` closes the window as its close button does, so the window's `close` event runs; `exitCode(app)` waits for the app to exit and returns its code.
@@ -109,7 +109,7 @@ The tests in `e2e/` run in the Playwright project `chromium`, against the Vite d
 npm.cmd run test:e2e -- --project=chromium
 ```
 
-On the maintainer's PC (20 cores, four workers, on the GPU) they take about 3 minutes (2.8 in November 2026).
+On the maintainer's PC (20 cores, four workers, on the GPU) they take about 2 minutes (2.2 in November 2026).
 
 - In CI Chromium runs headed, one window at a time, in a virtual X display, drawing WebGL2 in software with Mesa's llvmpipe (`E2E_GL=mesa`; see [Software rendering in CI](#software-rendering-in-ci)). Its CI times are not yet measured; the job limit is 30 minutes.
 - Headless Chromium draws in software on a developer's PC too, unless told to use the GPU, and that made the first tests up to five times slower. `playwright.config.ts` therefore starts it with `--enable-gpu` outside CI. To draw in software, with SwiftShader, set `$env:CI = "1"` first; that also stops at the first failure, which `--max-failures=0` undoes.
@@ -141,7 +141,7 @@ In CI (`CI` set), both test runners stop at the first failure: `vitest.config.ts
 
 When the end-to-end tests run headed (`PLAYWRIGHT_HEADED=1`), `playwright.config.ts` runs them one at a time: windows on one display can hold back each other's animation frames, and the game updates what it shows only once a frame, so a starved test can time out. Headless runs on a developer machine use half the CPU cores, but no more than four (see below).
 
-CI gets its parallelism from separate runners: four jobs each run one share of the tests, chosen by `E2E_SHARD` (`1/4` to `4/4`). Playwright shares them out a whole file at a time. To run one share locally, set `$env:E2E_SHARD = "1/4"` first.
+CI gets its parallelism from separate runners: four jobs each run one share of the tests, chosen by `E2E_SHARD` (`1/4` to `4/4`). Playwright shares them out a test at a time, not a whole file (`fullyParallel` in `playwright.config.ts`), so a file with many slow tests is spread over the shares, and locally over the workers, rather than run one test after another on one. To run one share locally, set `$env:E2E_SHARD = "1/4"` first.
 
 ## Four workers at most for headless end-to-end runs
 

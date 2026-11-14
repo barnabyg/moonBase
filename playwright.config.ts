@@ -27,6 +27,13 @@ export default defineConfig({
   testDir: "e2e",
   forbidOnly: !!process.env["CI"],
   retries: 0,
+  // Each test loads its own page, so its own Campaign, or in e2e/desktop/
+  // launches its own app with its own user-data folder, and writes files only
+  // to its own output folder, so the tests in a file can run side by side.
+  // Workers, and CI's shares (E2E_SHARD), then take single tests rather than
+  // whole files, and a file with many slow tests no longer runs them one
+  // after another on one worker (see docs/verification.md).
+  fullyParallel: true,
   shard: shard && { current: Number(shard[1]), total: Number(shard[2]) },
   // In CI, stop at the first failure and report it, rather than making whoever
   // is waiting sit through every remaining test first (see
@@ -65,9 +72,6 @@ export default defineConfig({
     {
       name: "electron",
       testDir: "e2e/desktop",
-      // Each test launches its own app with its own user-data folder, so the
-      // tests in a file can run side by side too.
-      fullyParallel: true,
       // On CI's GPU-less Windows runner two apps drawing in software at once
       // each got about half the frames one got alone (5.3 a second against
       // 10), too few for the game's clock to keep up, so CI runs one at a time.
