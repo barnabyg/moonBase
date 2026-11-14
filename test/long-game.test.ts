@@ -21,6 +21,7 @@ import {
   type Purchase,
 } from "./long-game";
 import {
+  EARTH_DAYS_BETWEEN_REPORTS,
   keepingLastSnapshot,
   referenceSteps,
   REFERENCE_SEED,
@@ -84,9 +85,12 @@ describe("the long-game play guide", () => {
     expect(longGameSteps.length).toBeGreaterThan(referenceSteps.length);
   });
 
-  it("says how far it has got every hundred Earth Days, as it shows nothing else until it ends", () => {
+  // Waits until the Earth Day given, saying which Earth Days it reported.
+  function reportedWaitingUntil(
+    earthDay: number,
+    earthDaysBetweenReports?: number,
+  ): number[] {
     const reported: number[] = [];
-
     playLongGame(
       [
         {
@@ -94,17 +98,27 @@ describe("the long-game play guide", () => {
           description: "Wait.",
           play(play) {
             play.waitUntil(
-              "Earth Day 210",
-              (state) => state.clock.elapsedMinutes >= 210 * 24 * 60,
-              { earthDays: 220 },
+              `Earth Day ${earthDay}`,
+              (state) => state.clock.elapsedMinutes >= earthDay * 24 * 60,
+              { earthDays: earthDay + 10 },
             );
           },
         },
       ],
-      (earthDay) => reported.push(earthDay),
+      (reportedEarthDay) => reported.push(reportedEarthDay),
+      earthDaysBetweenReports,
     );
+    return reported;
+  }
 
-    expect(reported).toEqual([100, 200]);
+  it("says how far it has got every so many Earth Days, as it shows nothing else until it ends", () => {
+    // Every 2 Earth Days stands in for every hundred, so as not to play 200.
+    expect(reportedWaitingUntil(5, 2)).toEqual([2, 4]);
+  });
+
+  it("says it every hundred Earth Days unless told otherwise", () => {
+    expect(EARTH_DAYS_BETWEEN_REPORTS).toBe(100);
+    expect(reportedWaitingUntil(5)).toEqual([]);
   });
 
   it("says why it gave up, as the reference Campaign does", () => {

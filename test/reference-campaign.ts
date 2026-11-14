@@ -826,16 +826,18 @@ export function keepingLastSnapshot(campaign: Campaign): Campaign {
 }
 
 /** How many Earth Days of play go by between reports of progress. */
-const EARTH_DAYS_BETWEEN_REPORTS = 100;
+export const EARTH_DAYS_BETWEEN_REPORTS = 100;
 
 /**
  * Plays the reference Campaign from a fresh Campaign to the end of the play
  * guide, or until it gives up, saying how far it has got every so often, as a
- * long play shows nothing else until it ends.
+ * long play shows nothing else until it ends. A test can report more often,
+ * so as not to play a hundred Earth Days to see the reports come.
  */
 export function playReferenceCampaign(
   steps: readonly PlayStep[] = referenceSteps,
   onProgress?: (earthDay: number) => void,
+  earthDaysBetweenReports = EARTH_DAYS_BETWEEN_REPORTS,
 ): ReferenceTimeline {
   let reportedEarthDay = 0;
   const campaign = keepingLastSnapshot(
@@ -875,8 +877,8 @@ export function playReferenceCampaign(
         }
         record.margins(after);
         const earthDay = after.clock.elapsedMinutes / MINUTES_PER_EARTH_DAY;
-        if (earthDay >= reportedEarthDay + EARTH_DAYS_BETWEEN_REPORTS) {
-          reportedEarthDay += EARTH_DAYS_BETWEEN_REPORTS;
+        if (earthDay >= reportedEarthDay + earthDaysBetweenReports) {
+          reportedEarthDay += earthDaysBetweenReports;
           onProgress?.(reportedEarthDay);
         }
       }

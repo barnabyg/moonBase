@@ -1327,8 +1327,9 @@ export function playOnUntil(play: Play, earthDay: number): void {
 export function playLongGame(
   steps: readonly PlayStep[] = longGameSteps,
   onProgress?: (earthDay: number) => void,
+  earthDaysBetweenReports?: number,
 ): ReferenceTimeline {
-  return playReferenceCampaign(steps, onProgress);
+  return playReferenceCampaign(steps, onProgress, earthDaysBetweenReports);
 }
 
 const MINUTES_PER_EARTH_DAY = toGameMinutes({ earthDays: 1 });
