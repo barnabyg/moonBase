@@ -155,18 +155,18 @@ A timeout is there to stop a test that hangs, not to check how fast it runs. Eac
 
 The figures are the slowest seen in CI up to early November 2026: the tests' from one full run, the jobs' from the slowest of their recent green runs on `main`. [Which runs they came from](verification-history.md#the-ci-runs-behind-the-timeout-table) is in the verification history.
 
-| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                         | Margin     |
-| ------------------------------------- | ---------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- | ---------- |
-| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 18.0 s (`try-scenarios.test.ts`, "act-2 prepares a Campaign the game can load")                            | about 6.5× |
-| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 54 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its 6 tests) | about 5.5× |
-| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 1.3 min (`late-game.spec.ts`, a growing hall built on the late base earning its first round, one worker)   | about 4×   |
-| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                         | 7.5×       |
-| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)       | over 30×   |
-| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                    | about 3×   |
-| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | not yet measured in Chromium (8.6 min for one share in Firefox, before it was dropped)                     | about 3.5× |
-| CI desktop end-to-end job             | `.github/workflows/end-to-end.yml` | 20 min | not yet measured (about 40 s locally, four workers on the GPU)                                             | unknown    |
-| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                       | about 6×   |
-| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
+| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                                                  | Margin     |
+| ------------------------------------- | ---------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 25.8 s (`buried-habitat.test.ts`, "rises by about 0.02 mSv an Earth Day over a couple of Lunations, Solar Particle Events and all") | about 4.5× |
+| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 67.5 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its tests)                          | about 4.5× |
+| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 1.3 min (`late-game.spec.ts`, a growing hall built on the late base earning its first round, one worker)                            | about 4×   |
+| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                                  | 7.5×       |
+| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)                                | over 30×   |
+| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                                             | about 3×   |
+| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | not yet measured in Chromium (8.6 min for one share in Firefox, before it was dropped)                                              | about 3.5× |
+| CI desktop end-to-end job             | `.github/workflows/end-to-end.yml` | 20 min | not yet measured (about 40 s locally, four workers on the GPU)                                                                      | unknown    |
+| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                                                | about 6×   |
+| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                                                     | about 7×   |
 
 The long game's plays in CI took from 4.6 to 9.9 minutes, as the runners' speed varies; a developer's PC takes about 10.
 

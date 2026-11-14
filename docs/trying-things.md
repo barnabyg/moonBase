@@ -38,6 +38,6 @@ It prepares a Campaign, opens the game in the desktop app with that Campaign loa
 
 ## Adding a scenario
 
-Add it to `tryScenarios` in `test/try-scenarios.ts` and to the table above. A scenario returns the text of a save: it may play the Campaign through the simulation interface, or edit the save, as it is a way to look at something rather than a test of the game's balance. One that takes minutes to prepare is marked `slow`, which leaves it out of `test/try-scenarios.test.ts`. `?try=<scenario>` only works on the development server; the production build leaves it out.
+Add it to `tryScenarios` in `test/try-scenarios.ts` and to the table above. A scenario returns the text of a save: it may play the Campaign through the simulation interface, or edit the save, as it is a way to look at something rather than a test of the game's balance. One that takes minutes to prepare is marked `slow`, which leaves it out of `test/try-scenarios.test.ts`. So are `act-2` and `act-3`, which play Act 1 of the reference Campaign: `test/reference-campaign.test.ts` makes their saves from the play it makes already, and tests them there. `?try=<scenario>` only works on the development server; the production build leaves it out.
 
 The crowded catalogue (`test/crowded-catalogue.ts`) has 100 Launch items and 15 bulk resources. An end-to-end test can play on it too, with `useCrowdedCatalogue` from `e2e/crowded.ts`. To test several Acts before their content exists, `test/with-acts.ts` shares the Milestones out among made-up ones.
