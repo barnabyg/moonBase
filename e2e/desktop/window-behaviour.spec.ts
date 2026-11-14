@@ -180,7 +180,11 @@ test("a link to an outside page opens in the default browser, never in the game'
   });
   expect(after).toEqual({ windows: 1, url: gameAddress, clock: true });
   // Chromium itself refuses the file, before the main process hears of it.
-  expect(consoleErrors).toEqual([
-    "Not allowed to load local resource: file:///C:/Windows/win.ini",
-  ]);
+  // Its console message reaches the test on its own time, which in CI came
+  // after the checks above, so wait for it.
+  await expect
+    .poll(() => consoleErrors)
+    .toEqual([
+      "Not allowed to load local resource: file:///C:/Windows/win.ini",
+    ]);
 });
