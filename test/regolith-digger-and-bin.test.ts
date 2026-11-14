@@ -6,6 +6,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
+import { structureDetails } from "../src/ui/structure-details";
 import { formatPlant, formatTank } from "../src/ui/structure-state";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed } from "./worn";
@@ -112,6 +113,12 @@ describe("a Regolith bin", () => {
     expect(
       game.state.cables.some(({ toStructureId }) => toStructureId === bin.id),
     ).toBe(false);
+    // Its pop-up says what it holds.
+    expect(
+      structureDetails(game.state, bin.id)?.lines.find(
+        ({ label }) => label === "Tank",
+      )?.stat.value,
+    ).toMatch(new RegExp(` of ${BIN_HOLDS} kg of Regolith$`));
 
     for (
       let hours = 0;
