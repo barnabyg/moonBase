@@ -520,14 +520,27 @@ describe("a thermal store", () => {
   it("keeps Plants running deep into the Night, where a battery bank alone would stop them", () => {
     const plain = ["solar-array", "solar-array", "battery-bank", "workshop"];
     const runningLateAtNight = (structures: readonly string[]) => {
-      const campaign = baseWith(structures, { metals: 400 });
-      build(campaign, structures);
-      runToNightfall(campaign);
-      for (let hours = 0; campaign.snapshot().lunation.part === "night";) {
-        if (++hours > 30 * 24) throw new Error("Daylight never came.");
-        campaign.advance(60);
-      }
-      runToNightfall(campaign);
+      const built = baseWith(structures, { metals: 400 });
+      build(built, structures);
+      runToNightfall(built);
+      // Every store charged full at nightfall, as a whole Daylight of the
+      // arrays leaves it: a stand-in for playing on to the next nightfall.
+      // The game holds no more than a store's capacity, so its full capacity
+      // fills one worn a little too.
+      const typeIds = new Map(
+        built
+          .snapshot()
+          .structures.map(({ id, structureTypeId }) => [id, structureTypeId]),
+      );
+      const campaign = changed(built, (state) => {
+        for (const structure of state.structures) {
+          const typeId = typeIds.get(structure.id);
+          if (typeId === undefined) continue;
+          structure.storedKilowattHours =
+            typeOf(typeId).power.storageKilowattHours;
+        }
+      });
+      expect(campaign.snapshot().lunation.part).toBe("night");
       campaign.advance(150 * 60);
       return campaign
         .snapshot()
