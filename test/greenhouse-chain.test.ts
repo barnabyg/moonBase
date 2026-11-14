@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { loadCampaign, type Campaign, type Snapshot } from "../src/simulation";
-import { formatWaiting } from "../src/ui/construction-panel-text";
+import { formatWaiting } from "../src/ui/work-panel-text";
 import { formatEvent } from "../src/ui/notifications-text";
 import { describeStructure } from "../src/ui/describe";
 import { structureDetails } from "../src/ui/structure-details";

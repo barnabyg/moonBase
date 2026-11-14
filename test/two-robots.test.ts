@@ -10,7 +10,7 @@ import type {
 } from "../src/simulation";
 import { scenario, toGameMinutes, type Scenario } from "./scenario";
 import { isEveryRobotOnExpedition } from "../src/ui/base-panel-text";
-import { describeWork, isFor } from "../src/ui/construction-panel-text";
+import { describeWork, isFor } from "../src/ui/work-panel-text";
 import { robotLabel } from "../src/ui/labels";
 import { formatEvent } from "../src/ui/notifications-text";
 import { changed, withSpares, worn } from "./worn";

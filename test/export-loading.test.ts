@@ -11,7 +11,7 @@ import {
   type RobotActivity,
   type Snapshot,
 } from "../src/simulation";
-import { describeExportLoading } from "../src/ui/construction-panel-text";
+import { describeExportLoading } from "../src/ui/work-panel-text";
 import { formatReturnMass } from "../src/ui/launch-manifest-text";
 import { formatEvent } from "../src/ui/notifications-text";
 import { formatLander } from "../src/ui/status-panel-text";

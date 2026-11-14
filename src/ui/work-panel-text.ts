@@ -67,7 +67,7 @@ export function isFor(activity: RobotActivity, structureId: string): boolean {
   return "structureId" in activity && activity.structureId === structureId;
 }
 
-/** Says why a Construction is waiting, for the Construction panel. */
+/** Says why a Construction is waiting, for the Work panel. */
 export function formatWaiting(waiting: ConstructionWait): string {
   if (waiting.reason === "water-reserve") {
     const stock = stockLabel(waiting.stockId).toLowerCase();

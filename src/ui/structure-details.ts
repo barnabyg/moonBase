@@ -16,7 +16,7 @@ import {
   formatDismantlingStage,
   formatStage,
   formatWaiting,
-} from "./construction-panel-text";
+} from "./work-panel-text";
 import {
   formatCharge,
   formatCondition,

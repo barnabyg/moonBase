@@ -21,7 +21,7 @@ import {
   isConstructionHeldUp,
   isMaintenanceHeldUp,
   summariseHeldUp,
-} from "./construction-panel-text";
+} from "./work-panel-text";
 import { formatStageProgress } from "./format";
 import {
   drivenLabel,
@@ -34,7 +34,7 @@ import { placeInOrder, setText } from "./dom";
 import { createLingering, holdHeight } from "./hold";
 import { createPanelSection } from "./panel-section";
 
-export interface ConstructionPanel {
+export interface WorkPanel {
   /** Shows the snapshot, with the real time the frame counted, to time the rows that stay once their work is done. */
   update(snapshot: Snapshot, frameMs: number): void;
   /**
@@ -92,12 +92,12 @@ interface Row {
  * Construction from here, which removes it at once; the panel only sends
  * that choice to the Campaign.
  */
-export function createConstructionPanel(
+export function createWorkPanel(
   container: HTMLElement,
   campaign: Pick<Campaign, "cancelConstruction">,
-): ConstructionPanel {
+): WorkPanel {
   const panel = document.createElement("aside");
-  panel.className = "construction-panel";
+  panel.className = "work-panel";
   panel.setAttribute("aria-label", "Work");
   // Folds away like the sections of the other panels, its title saying how
   // many Work Orders there are and how many of them are held up.
@@ -105,7 +105,7 @@ export function createConstructionPanel(
   const list = document.createElement("ul");
   // In place of the rows while there are none, so that the panel stays.
   const idle = document.createElement("p");
-  idle.className = "construction-panel__idle";
+  idle.className = "work-panel__idle";
   idle.textContent = "No work under way";
   section.body.append(list, idle);
   panel.append(section.element);
@@ -147,20 +147,20 @@ export function createConstructionPanel(
   ): Row => {
     const item = document.createElement("li");
     const name = document.createElement("p");
-    name.className = "construction-panel__name";
+    name.className = "work-panel__name";
     name.textContent = title;
     const stage = document.createElement("p");
-    stage.className = "construction-panel__stage";
+    stage.className = "work-panel__stage";
     const progress = document.createElement("progress");
     progress.max = 1;
     const work = document.createElement("p");
-    work.className = "construction-panel__work";
+    work.className = "work-panel__work";
     item.append(name, stage, progress, work);
     let cancel: HTMLButtonElement | undefined;
     if (constructionId !== undefined) {
       cancel = document.createElement("button");
       cancel.type = "button";
-      cancel.className = "construction-panel__cancel";
+      cancel.className = "work-panel__cancel";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => {
         campaign.cancelConstruction(constructionId);
@@ -190,7 +190,7 @@ export function createConstructionPanel(
   const holdUp = (key: string, row: Row, held: boolean) => {
     if (held) heldUp.add(key);
     else heldUp.delete(key);
-    row.item.classList.toggle("construction-panel__row--held-up", held);
+    row.item.classList.toggle("work-panel__row--held-up", held);
   };
   /** Finds a row by its key, taking it back if its work was done. */
   const rowFor = (key: string): Row | undefined => {
