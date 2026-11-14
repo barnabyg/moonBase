@@ -114,7 +114,7 @@ import {
 } from "./research";
 import { runObservingProgramme } from "./observing";
 import { runInfraredTelescopes } from "./infrared-telescopes";
-import { runRadioArrays } from "./radio-arrays";
+import { runRadioArrays } from "./radio-telescope-arrays";
 import { runGreenhouses } from "./greenhouses";
 import { readSaveDocument, writeSaveDocument, type LoadRefusal } from "./save";
 import {

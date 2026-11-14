@@ -62,7 +62,10 @@ import {
   readInfraredTelescopes,
   type InfraredTelescopeSnapshot,
 } from "./infrared-telescopes";
-import { readRadioArrays, type RadioArraySnapshot } from "./radio-arrays";
+import {
+  readRadioArrays,
+  type RadioArraySnapshot,
+} from "./radio-telescope-arrays";
 import type { RobotActivity } from "./robot";
 import { roverPerformance, type RoverActivity } from "./rovers";
 import {

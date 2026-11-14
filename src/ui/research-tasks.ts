@@ -13,7 +13,7 @@ import {
   formatExperimentsLabs,
   formatObservingProgramme,
   formatResearchRate,
-} from "./status-panel-text";
+} from "./status-panel-research-text";
 import { holdHeight } from "./hold";
 import { createScreen } from "./screen";
 import { createMeter } from "./stat";

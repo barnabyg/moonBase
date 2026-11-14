@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { toGameMinutes } from "./scenario";
 
 /** The row for one bulk resource, as the status panel shows it. */

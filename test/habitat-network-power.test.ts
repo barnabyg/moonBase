@@ -9,7 +9,7 @@ import {
   formatHabitatNetworkPower,
   habitatNetworkApart,
   summarisePower,
-} from "../src/ui/status-panel-text";
+} from "../src/ui/status-panel-power-text";
 
 /** A power network as the status panel reads it, with nothing in it unless given. */
 function network(

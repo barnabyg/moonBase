@@ -1,24 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { ScreenPoint } from "../src/render/renderer";
 import { structuresList } from "./base-panel";
-import { placeOnClearGround } from "./placement";
-
-/**
- * Plans a solar array on clear ground with the game paused, and returns
- * where on the screen it stands.
- */
-async function planSolarArray(page: Page): Promise<ScreenPoint> {
-  await page.goto("/?seed=1");
-  await page
-    .getByRole("group", { name: "Game speed" })
-    .getByRole("button", { name: "Pause" })
-    .click();
-  await page
-    .getByRole("complementary", { name: "Build menu" })
-    .getByRole("button", { name: /Solar array/ })
-    .click();
-  return placeOnClearGround(page);
-}
+import { placeOnClearGround, planSolarArray } from "./placement";
 
 /** A point on the map well away from the solar array, as the placement helper tries others. */
 async function emptyGround(

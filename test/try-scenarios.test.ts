@@ -9,9 +9,7 @@ import {
 
 /**
  * The save a scenario prepares, prepared once and shared, as a save's text
- * never changes and the tests load it afresh. The act-2 and act-3 scenarios
- * play the reference Campaign to get there, which takes far longer than
- * anything else here.
+ * never changes and the tests load it afresh.
  */
 const saves = new Map<string, string>();
 function saveOf(scenario: TryScenario | undefined): string {
@@ -25,10 +23,11 @@ function saveOf(scenario: TryScenario | undefined): string {
 }
 
 describe("what npm run try can start the game in", () => {
-  // act-2 is slow, and kept: its save comes from playing the reference
-  // Campaign to Act 2, and that play still reaching it is the check. The act-4
-  // scenarios are left out as slow: they play the long-game play guide for minutes,
-  // and CI plays that already.
+  // The scenarios marked slow are left out. act-2 and act-3 play the reference
+  // Campaign's Act 1 to get there, which reference-campaign.test.ts plays
+  // already: it makes their saves from that play and tests them. The act-4
+  // scenarios play the long-game play guide for minutes, and CI plays that
+  // already.
   it.each(tryScenarios.filter((scenario) => scenario.slow !== true))(
     "$id prepares a Campaign the game can load",
     (scenario) => {
@@ -379,59 +378,6 @@ describe("what npm run try can start the game in", () => {
     expect(loaded.campaign.snapshot().unlockedDesignIds).toHaveLength(
       catalogue.designs.length,
     );
-  });
-
-  it("act-3 starts with Act 2 done and enough propellant to fly a tripled Return Mass", () => {
-    const scenario = tryScenarios.find((candidate) => candidate.id === "act-3");
-    const loaded = loadCampaign(saveOf(scenario));
-    if (!loaded.ok) throw new Error(loaded.message);
-    const { campaign } = loaded;
-    const state = campaign.snapshot();
-
-    expect(state.milestones).toMatchObject({
-      currentActId: "act-3",
-      currentId: "first-propellant",
-    });
-    expect(state.exports.returnMassKilograms).toBe(350);
-    expect(
-      campaign.loadExports([
-        { resourceId: "circuit-boards", kilograms: 150 },
-        { resourceId: "metals", kilograms: 150 },
-      ]).ok,
-    ).toBe(true);
-  });
-
-  it("act-2 starts with Act 1 done, Act 2 current, its first Milestone next to reach, and the means to reach it", () => {
-    const scenario = tryScenarios.find((candidate) => candidate.id === "act-2");
-    const loaded = loadCampaign(saveOf(scenario));
-    if (!loaded.ok) throw new Error(loaded.message);
-    const { campaign } = loaded;
-    const state = campaign.snapshot();
-
-    expect(state.milestones).toMatchObject({
-      currentActId: "act-2",
-      currentId: "workshop-running",
-      nextId: "spare-components-self-sufficient",
-    });
-    expect(state.fundingMillionDollars).toBe(2500);
-    expect(campaign.unlockDesign("molten-regolith-electrolysis").ok).toBe(true);
-    expect(campaign.unlockDesign("parts-machining").ok).toBe(true);
-    expect(
-      campaign.setLaunchManifest([
-        { itemId: "machine-tool", count: 1 },
-        { itemId: "casting-furnace", count: 1 },
-      ]).ok,
-    ).toBe(true);
-    expect(
-      campaign.loadExports([
-        { resourceId: "circuit-boards", kilograms: 60 },
-        { resourceId: "metals", kilograms: 40 },
-      ]).ok,
-    ).toBe(true);
-    // Loading it brings no notification of an Act already under way.
-    expect(
-      campaign.advance(60).filter(({ kind }) => kind === "act-started"),
-    ).toEqual([]);
   });
 
   it("last-milestone has every Milestone reached but power storage, and building a battery bank reaches it, which opens the last Act", () => {

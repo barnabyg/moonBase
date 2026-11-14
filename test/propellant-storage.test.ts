@@ -9,7 +9,8 @@ import {
 } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
 import { formatEvent } from "../src/ui/notifications-text";
-import { formatBulkResources } from "../src/ui/status-panel-text";
+import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
+import { structureDetails } from "../src/ui/structure-details";
 import { describeStructureEntry, formatPlant } from "../src/ui/structure-state";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
@@ -137,10 +138,17 @@ describe("the propellant limit", () => {
     runUntilBuilt(game);
 
     expect(limitOf(game.state, "propellant")).toBe(PLANT_HOLDS + TANK_HOLDS);
-    expect(typed(game.state, "propellant-tank").tank).toMatchObject({
+    const tank = typed(game.state, "propellant-tank");
+    expect(tank.tank).toMatchObject({
       resource: { kind: "bulk-resource", resourceId: "propellant" },
       addsKilograms: TANK_HOLDS,
     });
+    // Its pop-up says what it holds.
+    expect(
+      structureDetails(game.state, tank.id)?.lines.find(
+        ({ label }) => label === "Tank",
+      )?.stat.value,
+    ).toMatch(new RegExp(` of ${TANK_HOLDS} kg of propellant$`));
   });
 
   it("leaves every other bulk resource but the dug one with no limit, water ice among them", () => {

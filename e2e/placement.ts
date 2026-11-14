@@ -48,3 +48,20 @@ export async function placeOnClearGround(page: Page): Promise<ScreenPoint> {
     `Found no clear ground to place the Structure on: ${refusals.join(" / ")}`,
   );
 }
+
+/**
+ * Starts a game, plans a solar array on clear ground with the game paused,
+ * and returns where on the screen it stands.
+ */
+export async function planSolarArray(page: Page): Promise<ScreenPoint> {
+  await page.goto("/?seed=1");
+  await page
+    .getByRole("group", { name: "Game speed" })
+    .getByRole("button", { name: "Pause" })
+    .click();
+  await page
+    .getByRole("complementary", { name: "Build menu" })
+    .getByRole("button", { name: /Solar array/ })
+    .click();
+  return placeOnClearGround(page);
+}

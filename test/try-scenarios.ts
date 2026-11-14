@@ -10,6 +10,7 @@ import {
   playReferenceCampaign,
   REFERENCE_SEED,
   referenceSteps,
+  type PlayStep,
 } from "./reference-campaign";
 import { keepTheBaseGoing, playLongGame, playOnUntil } from "./long-game";
 import { toGameMinutes } from "./scenario";
@@ -29,7 +30,10 @@ export interface TryScenario {
   readonly steps: readonly string[];
   /** Runs on a catalogue crowded with made-up items (`crowded-catalogue.ts`). */
   readonly crowded?: boolean;
-  /** Plays too far to prepare in the tests. */
+  /**
+   * Left out of `try-scenarios.test.ts`, as it plays too far to prepare there:
+   * another test checks the play, or CI plays it already.
+   */
   readonly slow?: boolean;
   /** Prepares the Campaign, and returns it as the text of a save. */
   save(): string;
@@ -180,29 +184,54 @@ function workshopBaseSave(): string {
 }
 
 /**
- * The reference Campaign's base as Act 2 opens, the moment the base is
- * self-sufficient in water, reached by playing it, with the Design and Funding
- * for a Workshop and more metals to hand, so that Act 2 can be tried without
- * waiting for Science. It plays about 83 Earth Days.
+ * A step that keeps the Campaign's save as Act 1's last Milestone is reached,
+ * playing nothing, so that the play is the same with it as without it.
  */
-function playAct2Save(): string {
-  let save: string | undefined;
-  const { failure } = playReferenceCampaign([
-    ...referenceSteps.filter(({ milestoneId }) => milestoneId !== undefined),
-    {
-      milestoneId: undefined,
-      description: "Keep the Campaign as Act 2 opens.",
-      play(play) {
-        play.waitUntil(
-          "the Lander free to fly",
-          (state) => state.lander.state === "landed-free",
-        );
-        save = play.campaign.save();
-      },
+function keepingAct1sEnd(keep: (save: string) => void): PlayStep {
+  return {
+    milestoneId: undefined,
+    description: "Keep the Campaign as Act 1 ends.",
+    play(play) {
+      keep(play.campaign.save());
     },
-  ]);
-  if (save === undefined) throw new Error(failure ?? "It never got there.");
-  const opened = JSON.parse(save) as { state: EditableSaveState };
+  };
+}
+
+/**
+ * The reference Campaign's play guide with a step after Act 1's last Milestone
+ * that gives `keep` the save as it stands, so that a test that plays the
+ * reference Campaign anyway can make the act-2 and act-3 scenarios' saves
+ * from it, rather than play it again.
+ */
+export function referenceStepsKeepingAct1sEnd(
+  keep: (save: string) => void,
+): readonly PlayStep[] {
+  const last = referenceSteps.findLastIndex(
+    ({ milestoneId }) => milestoneId !== undefined,
+  );
+  return [
+    ...referenceSteps.slice(0, last + 1),
+    keepingAct1sEnd(keep),
+    ...referenceSteps.slice(last + 1),
+  ];
+}
+
+/**
+ * The reference Campaign's base as Act 2 opens, the moment the base is
+ * self-sufficient in water, from the save `referenceStepsKeepingAct1sEnd`
+ * keeps, played on until the Lander is free to fly, with the Design and
+ * Funding for a Workshop and more metals to hand, so that Act 2 can be tried
+ * without waiting for Science.
+ */
+export function act2SaveFrom(act1sEnd: string): string {
+  const loaded = loadCampaign(act1sEnd);
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  for (let hours = 0; campaign.snapshot().lander.state !== "landed-free";) {
+    if (++hours > 30 * 24) throw new Error("The Lander never came back.");
+    campaign.advance(60);
+  }
+  const opened = JSON.parse(campaign.save()) as { state: EditableSaveState };
   // Enough to live on and keep the base repaired while the game is tried.
   fillStocks(opened.state);
   addComponents(opened.state, [
@@ -215,20 +244,35 @@ function playAct2Save(): string {
   return JSON.stringify(opened, undefined, 2);
 }
 
-/** The save `playAct2Save` prepares, played once, as Act 3's is made from it too. */
+/**
+ * The act-2 scenario's save, played once, as Act 3's is made from it too. It
+ * plays Act 1 of the reference Campaign, about 83 Earth Days.
+ */
 let act2Text: string | undefined;
 function act2Save(): string {
-  act2Text ??= playAct2Save();
+  if (act2Text === undefined) {
+    let act1sEnd: string | undefined;
+    const { failure } = playReferenceCampaign([
+      ...referenceSteps.filter(({ milestoneId }) => milestoneId !== undefined),
+      keepingAct1sEnd((save) => {
+        act1sEnd = save;
+      }),
+    ]);
+    if (act1sEnd === undefined) {
+      throw new Error(failure ?? "It never got there.");
+    }
+    act2Text = act2SaveFrom(act1sEnd);
+  }
   return act2Text;
 }
 
 /**
- * Act 2's base with all of Act 2's Milestones reached, so that Act 3 is current,
- * with a propellant plant's Components, the Design for it and enough propellant
- * and Exports to fly a tripled Return Mass.
+ * Act 2's base, from the act-2 scenario's save, with all of Act 2's Milestones
+ * reached, so that Act 3 is current, with a propellant plant's Components, the
+ * Design for it and enough propellant and Exports to fly a tripled Return Mass.
  */
-function act3Save(): string {
-  const opened = JSON.parse(act2Save()) as {
+export function act3SaveFrom(act2: string): string {
+  const opened = JSON.parse(act2) as {
     state: EditableSaveState & {
       reachedMilestoneIds: string[];
       unlockedDesignIds: string[];
@@ -1250,6 +1294,7 @@ export const tryScenarios: readonly TryScenario[] = [
       "Leave it running on 20x for about 3 real minutes, a whole Lunation: the Spares chip says whether the Workshop has made as many as repairs have used. If it has, the Milestone is reached and, with the others reached, the Milestones section moves on to Act 3.",
       "Open the Guide: the Structures tab has the Concentrator tower under Power and the Array works under Industry, and Launches and Funding says metals are an Export.",
     ],
+    slow: true,
     save: act2Save,
   },
   {
@@ -1264,7 +1309,8 @@ export const tryScenarios: readonly TryScenario[] = [
       "When the Lander reaches Earth the Funding rises by $600M. When it is back, load the last of the propellant on the Exports tab, and send it again: Oxygen sold as propellant is reached as it reaches Earth, and the Milestones section moves on to Act 4.",
       "Pick the Propellant plant in the build menu and place it on the power network. Once it runs, the propellant in the status panel, shown now against the limit of 450 kg that the Plant brings, rises by about a kilogram a game-hour.",
     ],
-    save: act3Save,
+    slow: true,
+    save: () => act3SaveFrom(act2Save()),
   },
   {
     id: "act-4",

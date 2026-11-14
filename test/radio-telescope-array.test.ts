@@ -12,7 +12,7 @@ import {
   type StructureSnapshot,
 } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
-import { formatRadioSurvey } from "../src/ui/status-panel-text";
+import { formatRadioSurvey } from "../src/ui/status-panel-research-text";
 import { structureDetails } from "../src/ui/structure-details";
 import { describeStructureEntry } from "../src/ui/structure-state";
 import { loadSample } from "./sample-saves";

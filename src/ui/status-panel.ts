@@ -15,42 +15,52 @@ import {
 import { setText } from "./dom";
 import { stockLabel } from "./labels";
 import {
-  describeExpedition,
-  explainObservingProgramme,
-  formatAct,
   formatBulkResources,
-  formatHabitatNetworkPower,
-  formatLander,
-  formatLifeSupport,
+  summariseBulkResources,
+} from "./status-panel-bulk-text";
+import { describeExpedition } from "./status-panel-expedition-text";
+import {
+  formatAct,
   formatMilestoneMeasure,
   formatMilestonePlace,
   formatNextMilestone,
-  formatInfraredSurvey,
-  formatRadioSurvey,
-  formatObservingProgramme,
-  formatBasePower,
-  formatRadiationDose,
-  formatResidence,
-  formatResearchQueue,
-  formatResearchTask,
-  formatScienceRate,
-  formatSelfSufficiency,
-  formatSolarParticleEvent,
-  formatSpareComponents,
-  formatStoredPower,
   summariseMilestones,
-  summariseMissionDirector,
-  habitatNetworkApart,
-  listStock,
-  summarisePower,
-  summariseResearch,
-  summariseBulkResources,
-  summariseStock,
-  summariseTravel,
+} from "./status-panel-milestone-text";
+import {
   withPlantsTaking,
   withSwitchedOffPlants,
   withSwitchedOffSpareMakers,
   makesSpareComponents,
+} from "./status-panel-plant-text";
+import {
+  formatHabitatNetworkPower,
+  formatBasePower,
+  formatStoredPower,
+  habitatNetworkApart,
+  summarisePower,
+} from "./status-panel-power-text";
+import {
+  explainObservingProgramme,
+  formatInfraredSurvey,
+  formatRadioSurvey,
+  formatObservingProgramme,
+  formatResearchQueue,
+  formatResearchTask,
+  formatScienceRate,
+  summariseResearch,
+} from "./status-panel-research-text";
+import {
+  formatLander,
+  formatLifeSupport,
+  formatRadiationDose,
+  formatResidence,
+  formatSelfSufficiency,
+  formatSolarParticleEvent,
+  formatSpareComponents,
+  summariseMissionDirector,
+  listStock,
+  summariseStock,
+  summariseTravel,
 } from "./status-panel-text";
 import { holdHeight } from "./hold";
 import type { MapFinder } from "./map-finder";

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMilestoneMeasure,
-  formatSelfSufficiency,
   formatMilestonePlace,
-} from "../src/ui/status-panel-text";
+} from "../src/ui/status-panel-milestone-text";
+import { formatSelfSufficiency } from "../src/ui/status-panel-text";
 
 describe("the current Milestone's place, in the status panel", () => {
   it("says which of its Act's Milestones it is", () => {

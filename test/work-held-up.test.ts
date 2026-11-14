@@ -9,7 +9,7 @@ import {
   isConstructionHeldUp,
   isMaintenanceHeldUp,
   summariseHeldUp,
-} from "../src/ui/construction-panel-text";
+} from "../src/ui/work-panel-text";
 
 /** A solar array at Site Preparation, waiting for what it is given. */
 function construction(

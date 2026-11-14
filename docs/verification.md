@@ -49,11 +49,20 @@ npm.cmd run test:desktop
 
 It is `playwright test --project=electron`. The project depends on a setup project, `desktop-build` (`e2e/desktop/build.setup.ts`), which runs `npm run build:desktop` first, in about 2 seconds, so the tests never launch a stale build; add `--no-deps` to skip it when the build is known to be current. The `chromium` project ignores `e2e/desktop/`, and the `electron` project runs nothing else.
 
-They cover what only the desktop app does, starting with a smoke set (`e2e/desktop/smoke.spec.ts`): the app opens the game in a visible window titled "Moon Base", which draws with WebGL2 and logs no errors; a Structure placed from the build menu is built; the clock advances, and stops while paused; closing the window quits the app with exit code 0; what the game keeps in `localStorage` (folded sections) is still there when the app is started again; and an uncaught exception in the main process ends the app rather than waiting in a dialog. Saving and loading with the native dialogs (`e2e/desktop/save-and-load.spec.ts`) stubs the dialogs to answer with files in the test's output folder: save, load of every sample save in `test/saves/` (each saved again and compared with what the browser version writes for it), cancelling either dialog, a refused file, a file that can't be written, the folder last used kept between runs, and that the page gets only the bridge's functions. Fullscreen (`e2e/desktop/full-screen.spec.ts`): F11 and the top bar's Full screen button each enter and leave it, the button follows however the window got there, and in fullscreen Escape closes the structure pop-up, cancels placing, closes the Guide and the celebration, leaves the game-over screen up, and never leaves fullscreen. F11 is pressed with Electron's `webContents.sendInputEvent`, as Playwright's key presses go straight to the page, past the main process that catches F11. Each test leaves fullscreen as it ends, pass or fail, so no window is left covering the screen. The window's state (`e2e/desktop/window-state.spec.ts`): its size and place, maximised and fullscreen come back on the next launch with the same user-data folder, a window kept off every screen opens on the primary one, a damaged `window-state.json` is ignored, and the page can't be made smaller than 1366 × 660. The question before closing (`e2e/desktop/close-prompt.spec.ts`): with unsaved progress, closing the window asks whether to save first, and Save writes the save through the save dialog and exits, Save then cancelling the save dialog keeps the window open, Don't save exits without saving, Cancel keeps the window open, closing again while the question is open asks once, quitting asks too, and the top bar's Exit button, in fullscreen, asks as closing does; just after saving with the Save button, just after loading, and on the game-over screen, closing doesn't ask. The window's behaviour (`e2e/desktop/window-behaviour.spec.ts`): the production build has no menu bar and no developer tools, even asked for directly or with F12 and Ctrl+Shift+I; starting the app again with the same user-data folder quits at once and restores, shows and focuses the running window; and links to outside pages, which the test adds as the game has none, go to `shell.openExternal`, stubbed so that no browser opens, while the game's window stays on the game. Later desktop-only behaviour adds its tests here. Behaviour the browser and the desktop app share stays in `e2e/`, tested in Chromium against the dev server ([ADR-0010](adr/0010-electron-desktop-app-for-windows.md)).
+They cover what only the desktop app does, a spec file for each subject; the test names say what each checks:
+
+- `smoke.spec.ts`: the app opens, draws and runs the game, keeps `localStorage` between runs, and quits cleanly, or ends on an uncaught exception in the main process.
+- `save-and-load.spec.ts`: saving and loading through the native dialogs, which it stubs to answer with files in the test's output folder.
+- `full-screen.spec.ts`: entering and leaving fullscreen, and what Escape does there.
+- `window-state.spec.ts`: the window's size, place and state kept from one launch to the next.
+- `close-prompt.spec.ts`: the question before closing with unsaved progress.
+- `window-behaviour.spec.ts`: no menu bar or developer tools, a second start restoring the running window, and links to outside pages going to the system browser.
+
+F11 is pressed with Electron's `webContents.sendInputEvent`, as Playwright's key presses go straight to the page, past the main process that catches F11. Each fullscreen test leaves fullscreen as it ends, pass or fail, so no window is left covering the screen. Later desktop-only behaviour adds its tests here. Behaviour the browser and the desktop app share stays in `e2e/`, tested in Chromium against the dev server ([ADR-0010](adr/0010-electron-desktop-app-for-windows.md)).
 
 `e2e/desktop/fixtures.ts` has the fixtures they use:
 
-- `userDataDir`: a new, empty user-data folder for each test, removed after it, so every worker, and every test, has its own, and the tests run side by side (the project is `fullyParallel`). The main process uses it when `MOONBASE_USER_DATA_DIR` is set; an installed app ignores the variable.
+- `userDataDir`: a new, empty user-data folder for each test, removed after it, so every worker, and every test, has its own, and the tests run side by side (every project is `fullyParallel`). The main process uses it when `MOONBASE_USER_DATA_DIR` is set; an installed app ignores the variable.
 - `launchApp(options?)`: launches the app with that folder, with `options.env` added to its environment. Called again once the first has closed, it launches the app again with the same folder, to test what is kept from one run to the next. Whatever it launched is closed when the test ends, or killed if it won't close within 10 seconds.
 - `electronApp` and `window`: the app each test starts with, and its game window once loaded. `consoleErrors` collects every error the main process or a window logs.
 - `closeWindow(app)` closes the window as its close button does, so the window's `close` event runs; `exitCode(app)` waits for the app to exit and returns its code.
@@ -100,7 +109,7 @@ The tests in `e2e/` run in the Playwright project `chromium`, against the Vite d
 npm.cmd run test:e2e -- --project=chromium
 ```
 
-On the maintainer's PC (20 cores, four workers, on the GPU) they take about 3 minutes (2.8 in November 2026).
+On the maintainer's PC (20 cores, four workers, on the GPU) they take about 2 minutes (2.2 in November 2026).
 
 - In CI Chromium runs headed, one window at a time, in a virtual X display, drawing WebGL2 in software with Mesa's llvmpipe (`E2E_GL=mesa`; see [Software rendering in CI](#software-rendering-in-ci)). Its CI times are not yet measured; the job limit is 30 minutes.
 - Headless Chromium draws in software on a developer's PC too, unless told to use the GPU, and that made the first tests up to five times slower. `playwright.config.ts` therefore starts it with `--enable-gpu` outside CI. To draw in software, with SwiftShader, set `$env:CI = "1"` first; that also stops at the first failure, which `--max-failures=0` undoes.
@@ -132,7 +141,7 @@ In CI (`CI` set), both test runners stop at the first failure: `vitest.config.ts
 
 When the end-to-end tests run headed (`PLAYWRIGHT_HEADED=1`), `playwright.config.ts` runs them one at a time: windows on one display can hold back each other's animation frames, and the game updates what it shows only once a frame, so a starved test can time out. Headless runs on a developer machine use half the CPU cores, but no more than four (see below).
 
-CI gets its parallelism from separate runners: four jobs each run one share of the tests, chosen by `E2E_SHARD` (`1/4` to `4/4`). Playwright shares them out a whole file at a time. To run one share locally, set `$env:E2E_SHARD = "1/4"` first.
+CI gets its parallelism from separate runners: four jobs each run one share of the tests, chosen by `E2E_SHARD` (`1/4` to `4/4`). Playwright shares them out a test at a time, not a whole file (`fullyParallel` in `playwright.config.ts`), so a file with many slow tests is spread over the shares, and locally over the workers, rather than run one test after another on one. To run one share locally, set `$env:E2E_SHARD = "1/4"` first.
 
 ## Four workers at most for headless end-to-end runs
 
@@ -146,18 +155,18 @@ A timeout is there to stop a test that hangs, not to check how fast it runs. Eac
 
 The figures are the slowest seen in CI up to early November 2026: the tests' from one full run, the jobs' from the slowest of their recent green runs on `main`. [Which runs they came from](verification-history.md#the-ci-runs-behind-the-timeout-table) is in the verification history.
 
-| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                         | Margin     |
-| ------------------------------------- | ---------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- | ---------- |
-| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 18.0 s (`try-scenarios.test.ts`, "act-2 prepares a Campaign the game can load")                            | about 6.5× |
-| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 54 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its 6 tests) | about 5.5× |
-| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 1.3 min (`late-game.spec.ts`, a growing hall built on the late base earning its first round, one worker)   | about 4×   |
-| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                         | 7.5×       |
-| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)       | over 30×   |
-| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                    | about 3×   |
-| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | not yet measured in Chromium (8.6 min for one share in Firefox, before it was dropped)                     | about 3.5× |
-| CI desktop end-to-end job             | `.github/workflows/end-to-end.yml` | 20 min | not yet measured (about 15 s locally on the GPU)                                                           | unknown    |
-| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                       | about 6×   |
-| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                            | about 7×   |
+| Limit                                 | Where                              | Value  | Slowest seen in CI                                                                                                                  | Margin     |
+| ------------------------------------- | ---------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Vitest test and hook timeout          | `vitest.config.ts`                 | 120 s  | 25.8 s (`buried-habitat.test.ts`, "rises by about 0.02 mSv an Earth Day over a couple of Lunations, Solar Particle Events and all") | about 4.5× |
+| Vitest timeout, reference Campaign    | `test/reference-campaign.test.ts`  | 300 s  | 67.5 s (`reference-campaign.test.ts`, the whole file: playing the Campaign in `beforeAll`, then its tests)                          | about 4.5× |
+| Playwright test timeout               | `playwright.config.ts`, `timeout`  | 300 s  | 1.3 min (`late-game.spec.ts`, a growing hall built on the late base earning its first round, one worker)                            | about 4×   |
+| Playwright `expect` and `expect.poll` | `playwright.config.ts`, `expect`   | 60 s   | about 8 s (a refusal that hides after a fixed 8 s)                                                                                  | 7.5×       |
+| Playwright web server start           | Playwright's default               | 60 s   | under 2 s (the end-to-end tests start within 2 s of the check; Vite is ready in about 0.2 s locally)                                | over 30×   |
+| CI checks job                         | `.github/workflows/verify.yml`     | 30 min | 9.1 min                                                                                                                             | about 3×   |
+| CI end-to-end job, each of four       | `.github/workflows/end-to-end.yml` | 30 min | not yet measured in Chromium (8.6 min for one share in Firefox, before it was dropped)                                              | about 3.5× |
+| CI desktop end-to-end job             | `.github/workflows/end-to-end.yml` | 20 min | not yet measured (about 40 s locally, four workers on the GPU)                                                                      | unknown    |
+| Long game, hard limit                 | `scripts/long-game.mjs`            | 60 min | 9.9 min (the play, in the job below)                                                                                                | about 6×   |
+| CI long game job                      | `.github/workflows/long-game.yml`  | 75 min | 10.2 min; 15 min above the hard limit, so that the script reports being stopped                                                     | about 7×   |
 
 The long game's plays in CI took from 4.6 to 9.9 minutes, as the runners' speed varies; a developer's PC takes about 10.
 

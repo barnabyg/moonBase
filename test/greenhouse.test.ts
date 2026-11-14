@@ -169,6 +169,37 @@ function withStored(game: Scenario, kilowattHours: number): Scenario {
   );
 }
 
+/**
+ * Adds the minutes given to a saved state's clock and to every minute it has
+ * set for something to happen, as though that time had passed with nothing
+ * happening in it.
+ */
+function later(saved: unknown, minutes: number): void {
+  if (typeof saved !== "object" || saved === null) return;
+  const fields = saved as Record<string, unknown>;
+  for (const [key, value] of Object.entries(fields)) {
+    if (
+      typeof value === "number" &&
+      (key === "elapsedMinutes" || key.endsWith("AtMinute"))
+    ) {
+      fields[key] = value + minutes;
+    } else {
+      later(value, minutes);
+    }
+  }
+}
+
+/**
+ * The minutes from now until the next Daylight begins: the rest of this
+ * Daylight and a Night, or the rest of this Night.
+ */
+function minutesUntilDawn(state: Snapshot): number {
+  const { part, minutesRemaining } = state.lunation;
+  return part === "night"
+    ? minutesRemaining
+    : minutesRemaining + catalogue.lunation.nightEarthDays * 24 * 60;
+}
+
 /** Solar arrays, large battery banks and a Greenhouse, all commissioned and cabled. */
 function greenhouseBase(): Scenario {
   const game = scenario()
@@ -598,7 +629,8 @@ describe("the water forecast with a Greenhouse", () => {
         }
       }),
     );
-    runUntil(iced, "daylight");
+    // Still the first Daylight, as it was built: on to three hours before Night.
+    expect(iced.state.lunation.part).toBe("daylight");
     iced.advance({
       minutes: iced.state.lunation.minutesRemaining - 3 * 60,
     });
@@ -616,40 +648,47 @@ describe("the water forecast with a Greenhouse", () => {
 });
 
 describe("what a Greenhouse asks of a base", () => {
-  /** The Science a base earns over some Lunations, with plenty of ice. */
-  function scienceOver(
+  /**
+   * The Science a base earns over the first Earth Days of a Daylight, with
+   * plenty of ice. It starts at dawn, as though the Night before had passed
+   * with nothing happening, as Plants make water only in Daylight.
+   */
+  function scienceOverDaylight(
     plants: readonly GroundPosition[],
-    lunations: number,
+    earthDays: number,
   ): { science: number; lost: number } {
     const game = greenhouseBase();
     for (const site of plants) game.plan("water-processing-plant", site);
     runUntilBuilt(game);
     const home = livedIn(game);
+    const skipped = minutesUntilDawn(home.state);
     const iced = scenarioOf(
       changed(home.campaign, (saved) => {
         for (const stock of saved.bulkResources) {
           if (stock.resourceId === "water-ice") stock.kilograms = 20000;
         }
+        later(saved, skipped);
       }),
     );
+    expect(iced.state.lunation).toEqual({
+      part: "daylight",
+      minutesRemaining: catalogue.lunation.daylightEarthDays * 24 * 60,
+    });
     const science = iced.state.science;
-    const { daylightEarthDays, nightEarthDays } = catalogue.lunation;
-    const events = iced.campaign.advance(
-      lunations * (daylightEarthDays + nightEarthDays) * 24 * 60,
-    );
+    const events = iced.campaign.advance(earthDays * 24 * 60);
     return { science: iced.state.science - science, lost: lost(events).length };
   }
 
   it("is more than one Water-processing plant can feed: the second makes it earn far more", () => {
-    // One Lunation holds a Daylight and a Night, which is all this needs. One
-    // Plant makes less than the Greenhouse drinks even by day, so it starves
-    // from the first.
-    const one = scienceOver([plantSite], 1);
-    const two = scienceOver([plantSite, secondPlantSite], 1);
+    // Three of the Greenhouse's rounds of 5 Earth Days, in the Daylight, when
+    // the Plants make its water. One Plant makes less than the Greenhouse
+    // drinks even by day, so it starves from the first.
+    const one = scienceOverDaylight([plantSite], 15.5);
+    const two = scienceOverDaylight([plantSite, secondPlantSite], 15.5);
 
     expect(two.science).toBeGreaterThan(one.science * 1.5);
     // One earns nothing, so that alone would pass on any Science at all: two
-    // have to finish most of a Lunation's rounds of 20 Science.
+    // have to finish every round of 20 Science they had time for.
     expect(two.science).toBeGreaterThanOrEqual(60);
     expect(two.lost).toBeLessThan(one.lost + 1);
   });

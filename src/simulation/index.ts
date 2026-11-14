@@ -25,8 +25,11 @@ export type {
   InfraredStop,
   InfraredTelescopeSnapshot,
 } from "./infrared-telescopes";
-export { isRadioArray } from "./radio-arrays";
-export type { RadioArrayStop, RadioArraySnapshot } from "./radio-arrays";
+export { isRadioArray } from "./radio-telescope-arrays";
+export type {
+  RadioArrayStop,
+  RadioArraySnapshot,
+} from "./radio-telescope-arrays";
 export { isOfKind, keepClearOf, structuresInTheWay } from "./keep-clear";
 export type { StandingStructure } from "./keep-clear";
 export type {

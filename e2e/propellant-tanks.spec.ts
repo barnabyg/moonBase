@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
 import { dismantle, structureEntry } from "./base-panel";
-import { placeOnClearGround } from "./placement";
 
 // A full HD screen, with room for the status panel to show the lines checked.
 test.use({ viewport: { width: 1920, height: 1080 } });
@@ -64,28 +63,6 @@ test("the status panel shows propellant against its limit, and at the limit the 
   }));
   expect(size.height).toBeLessThan(20);
   expect(size.overflow).toBeLessThanOrEqual(0);
-});
-
-test("a second tank, picked from the build menu and commissioned, raises the limit with no propellant of its own, and its pop-up says what it holds", async ({
-  page,
-}) => {
-  await loadBase(page);
-  await page
-    .getByRole("complementary", { name: "Build menu" })
-    .getByRole("button", { name: /Propellant tank/ })
-    .click();
-  const site = await placeOnClearGround(page);
-  await page.mouse.click(site.x, site.y);
-  const popUp = page.getByRole("dialog", { name: "Propellant tank" });
-  await expect(popUp).toContainText("under Construction");
-
-  await speed(page, "20x");
-  await expect(propellantRow(page)).toContainText("of 1650 kg");
-  await speed(page, "Pause");
-
-  await expect(popUp.getByRole("status", { name: "Tank" })).toContainText(
-    "of 600 kg of propellant",
-  );
 });
 
 test("a dismantled Propellant plant lowers the limit and loses nothing, with no notification of a loss", async ({

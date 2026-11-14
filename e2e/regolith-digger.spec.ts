@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { tryScenarios } from "../test/try-scenarios";
 import { doing, structureEntry } from "./base-panel";
-import { placeOnClearGround } from "./placement";
 
 // A full HD screen, with room for the status panel to show the lines checked.
 test.use({ viewport: { width: 1920, height: 1080 } });
@@ -59,28 +58,6 @@ test("the status panel shows Regolith against the heap's and the bin's limit, an
     "making 30 kg of Regolith an hour from the ground",
   );
   await expect(regolithRow(page)).toContainText(/\+\d+\.\d kg\/day/);
-});
-
-test("a second bin, picked from the build menu and commissioned, raises the limit by 3000 kg with no cable", async ({
-  page,
-}) => {
-  await loadBase(page);
-  await page
-    .getByRole("complementary", { name: "Build menu" })
-    .getByRole("button", { name: /Regolith bin/ })
-    .click();
-  const site = await placeOnClearGround(page);
-  await page.mouse.click(site.x, site.y);
-  const popUp = page.getByRole("dialog", { name: "Regolith bin" });
-  await expect(popUp).toContainText("under Construction");
-
-  await speed(page, "20x");
-  await expect(regolithRow(page)).toContainText("of 8000 kg");
-  await speed(page, "Pause");
-
-  await expect(popUp.getByRole("status", { name: "Tank" })).toContainText(
-    "of 3000 kg of Regolith",
-  );
 });
 
 test("the Guide says what the bin and the digger do, and the Launch manifest offers their parts", async ({

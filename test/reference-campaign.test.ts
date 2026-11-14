@@ -1,12 +1,17 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
-import { lunationMinutes } from "../src/simulation";
+import { loadCampaign, lunationMinutes } from "../src/simulation";
 import { researchEndsOnEarthDay } from "./pacing-report";
 import {
   playReferenceCampaign,
   type ReferenceTimeline,
 } from "./reference-campaign";
 import { toGameMinutes } from "./scenario";
+import {
+  act2SaveFrom,
+  act3SaveFrom,
+  referenceStepsKeepingAct1sEnd,
+} from "./try-scenarios";
 
 // The reference Campaign plays some 170 Earth Days a game-minute at a time,
 // which takes about 20 s on a developer machine, and CI runs Vitest about
@@ -21,8 +26,17 @@ const { lunation } = lunationMinutes(catalogue.lunation);
 
 describe("the reference Campaign", () => {
   let timeline: ReferenceTimeline;
+  // The act-2 try scenario's save, made from this play as Act 1 ends, so that
+  // npm test plays Act 1 once (see try-scenarios.test.ts).
+  let act2: string | undefined;
   beforeAll(() => {
-    timeline = playReferenceCampaign();
+    let act1sEnd: string | undefined;
+    timeline = playReferenceCampaign(
+      referenceStepsKeepingAct1sEnd((save) => {
+        act1sEnd = save;
+      }),
+    );
+    if (act1sEnd !== undefined) act2 = act2SaveFrom(act1sEnd);
   }, timeoutMs);
 
   it("records what the long game's timeline shows: Research Tasks, Designs and Structures", () => {
@@ -132,5 +146,65 @@ describe("the reference Campaign", () => {
     expect(
       timeline.radiationDoseWithoutWaterWall?.earthDaysUntilLimit,
     ).toBeLessThan(365);
+  });
+
+  describe("the try scenarios made from it", () => {
+    const act2Save = (): string => {
+      if (act2 === undefined) throw new Error("It never reached Act 2.");
+      return act2;
+    };
+
+    it("act-3 starts with Act 2 done and enough propellant to fly a tripled Return Mass", () => {
+      const loaded = loadCampaign(act3SaveFrom(act2Save()));
+      if (!loaded.ok) throw new Error(loaded.message);
+      const { campaign } = loaded;
+      const state = campaign.snapshot();
+
+      expect(state.milestones).toMatchObject({
+        currentActId: "act-3",
+        currentId: "first-propellant",
+      });
+      expect(state.exports.returnMassKilograms).toBe(350);
+      expect(
+        campaign.loadExports([
+          { resourceId: "circuit-boards", kilograms: 150 },
+          { resourceId: "metals", kilograms: 150 },
+        ]).ok,
+      ).toBe(true);
+    });
+
+    it("act-2 starts with Act 1 done, Act 2 current, its first Milestone next to reach, and the means to reach it", () => {
+      const loaded = loadCampaign(act2Save());
+      if (!loaded.ok) throw new Error(loaded.message);
+      const { campaign } = loaded;
+      const state = campaign.snapshot();
+
+      expect(state.milestones).toMatchObject({
+        currentActId: "act-2",
+        currentId: "workshop-running",
+        nextId: "spare-components-self-sufficient",
+      });
+      expect(state.fundingMillionDollars).toBe(2500);
+      expect(campaign.unlockDesign("molten-regolith-electrolysis").ok).toBe(
+        true,
+      );
+      expect(campaign.unlockDesign("parts-machining").ok).toBe(true);
+      expect(
+        campaign.setLaunchManifest([
+          { itemId: "machine-tool", count: 1 },
+          { itemId: "casting-furnace", count: 1 },
+        ]).ok,
+      ).toBe(true);
+      expect(
+        campaign.loadExports([
+          { resourceId: "circuit-boards", kilograms: 60 },
+          { resourceId: "metals", kilograms: 40 },
+        ]).ok,
+      ).toBe(true);
+      // Loading it brings no notification of an Act already under way.
+      expect(
+        campaign.advance(60).filter(({ kind }) => kind === "act-started"),
+      ).toEqual([]);
+    });
   });
 });

@@ -10,6 +10,10 @@ The desktop app's end-to-end tests open real windows on the developer's screen. 
 
 A new Structure, Plant, type of Expedition, Milestone or Act touches many files, some of which nothing checks. `docs/adding-content.md` has a checklist for each, and says when the catalogue's version is raised.
 
+## Changing what the game does or says
+
+`docs/rules.md` describes the game's rules and quotes the panels' words. A change to what the game does, or to what the player sees, updates the passage of `docs/rules.md` that describes it, in the same commit, and `GLOSSARY.md` for a new term. The file is long: find the passage by searching for the words or numbers that changed. Nothing checks it.
+
 ## Agent skills
 
 ### Issue tracker

@@ -54,7 +54,7 @@ Each Act's pacing targets, added to the targets above as it is built, and measur
 
 ## The larger changes, and why
 
-Each change's reasons, with the figures it was decided on. What the long-game play guide played at each earlier version, and the maintainer's playtests, are in [the balancing history](balancing-history.md); the latest play is under What the guide played, at version 78, below.
+Each change's reasons, with the figures it was decided on. What the long-game play guide played at each earlier version, and the maintainer's playtests, are in [the balancing history](balancing-history.md); the latest play is under [The late science in the long game](#the-late-science-in-the-long-game), below.
 
 **Battery banks.** A Night lasts 228 hours. Through it the Habitat draws 274 kWh (1.2 kW), each solar array 11 kWh, and the heaters of the excavator, the regolith printer and the Rover, which the Robot plugs in before every Night, 137 kWh between them. A battery bank stores 200 kWh, about what a small electric car carries, and its heaters draw 0.07 kW, 16 kWh through a Night. The starting stock holds three battery banks, 600 kWh, which carry the Habitat, two solar arrays and all the heaters through a Night, about 480 kWh, with over 100 kWh to spare; two would not. The large battery bank stays the better buy: 800 kWh for 0.2 kW of heaters, less mass and money for each kWh. (A battery bank used to store 60 kWh, and its heaters to draw 0.25 kW, 57 of those 60 through a Night, so no number of battery banks could carry anything else through one.)
 
@@ -355,7 +355,7 @@ The lab sped up the Research Task running for 12,846 hours from Earth Day 1,728.
 
 ## Still to watch
 
-- **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end, and at version 78 about $7,500M.
+- **Funding in the late game.** See above. It is the Campaign's largest open balance problem. The Greenhouse chain took $28,053M of it in the guide at version 72, and left it idle again by the end (see [the balancing history](balancing-history.md#the-greenhouse-chain-at-version-72)). At version 76 the Large-scale Crew Habitat takes most of the rest, leaving about $5,400M idle at the end, and at version 78 about $7,500M. At version 88 the late science's Components keep it under $4,000M for much of Act 4, but the precision optics they let the base sell leave $19,859M at the end ([the play](#the-late-science-in-the-long-game)).
 - **A growing hall with nothing to buy.** With the late science, Vault cistern is unlocked with the end of research, on Earth Day 2,299 in the guide, before its growing hall comes, so the guide pays $5,000M for a hall it switches off at once. A player would skip it; the guide buys it so that the Design is used. If a growing hall is to stay worth building, Act 4 needs something past Vault cistern for Science to buy.
 - **What Science buys.** The playtest (#189) kept the chain's numbers. A player with several Greenhouses early reaches Vault cistern on about Earth Day 2,200, with 800 Earth Days to spare.
 

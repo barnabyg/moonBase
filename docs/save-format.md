@@ -1,6 +1,6 @@
 # Save format
 
-A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field, and `src/simulation/save-migrations.ts` holds the migrations. Saves are files the player manages; nothing is kept in the browser (ADR-0006).
+A `.moonbase` file is JSON: `"format": "moonbase-save"`, the format `version`, the random generator's state (`random`) and the rest of the simulation state (`state`), with anything unset written as `null`. `src/simulation/save.ts` writes it and reads it back, checking every field, and `src/simulation/save-migrations.ts` holds the migrations. Saves are files the player manages: the game never keeps a Campaign itself, at most the folder last used for one (ADR-0006).
 
 ## Where save files go
 

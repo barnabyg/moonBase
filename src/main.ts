@@ -7,7 +7,7 @@ import { createCampaign, MAX_SEED, type Snapshot } from "./simulation";
 import { createBasePanel } from "./ui/base-panel";
 import { createBuildMenu } from "./ui/build-menu";
 import { createCelebrationScreen } from "./ui/celebration";
-import { createConstructionPanel } from "./ui/construction-panel";
+import { createWorkPanel } from "./ui/work-panel";
 import { createExpeditionsScreen } from "./ui/expeditions";
 import { exitFor } from "./ui/exit";
 import { fullScreenFor } from "./ui/full-screen";
@@ -77,7 +77,7 @@ const saveFiles = createSaveFiles(campaign, () => {
   holds.startAfresh();
   notifications.startAfresh();
   statusPanel.startAfresh();
-  constructionPanel.startAfresh();
+  workPanel.startAfresh();
   basePanel.startAfresh();
   structurePopUp.startAfresh();
   renderer?.startAfresh();
@@ -112,7 +112,7 @@ const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
 const guide = createGuideScreen(container);
-const constructionPanel = createConstructionPanel(rightColumn, campaign);
+const workPanel = createWorkPanel(rightColumn, campaign);
 // Finds on the map what a panel lists. The panels are made before the map
 // and the pop-up it needs, so it asks for them only once it is used.
 const findOnMap: MapFinder = {
@@ -132,7 +132,7 @@ const techTree = createTechTreeScreen(container, campaign, (event) => {
 const loop = createGameLoop(campaign, {
   onEvents: (events) => {
     notifications.add(events);
-    constructionPanel.hear(events);
+    workPanel.hear(events);
     celebration.hear(events);
   },
 });
@@ -215,7 +215,7 @@ function frame(time: number): void {
   topBar.update(snapshot);
   statusPanel.update(snapshot, campaign.forecasts(), loop.frameMs);
   basePanel.update(snapshot);
-  constructionPanel.update(snapshot, loop.frameMs);
+  workPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);
   expeditions.update(snapshot);
   researchTasks.update(snapshot);
