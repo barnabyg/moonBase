@@ -1078,6 +1078,23 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 49 to 50: Decorations, behind the Decorations Design, a new starting
+  // Design, so an older save has it unlocked, after the Designs it had. Their
+  // kits are new Components, which reading counts as none.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    const { unlockedDesignIds } = state;
+    return {
+      ...document,
+      state: {
+        ...state,
+        unlockedDesignIds: Array.isArray(unlockedDesignIds)
+          ? [...(unlockedDesignIds as unknown[]), "decorations"]
+          : unlockedDesignIds,
+      },
+    };
+  },
 ];
 
 /**

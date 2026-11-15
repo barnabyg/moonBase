@@ -525,6 +525,16 @@ export const designs: Catalogue["designs"] = [
     prerequisiteDesignIds: [],
   },
   {
+    id: "decorations",
+    label: "Decorations",
+    description:
+      "A flag pole, a founding memorial, a rock garden and a viewing area for the Mission Director, there for how they look and what they mean rather than for what they do.",
+    category: "construction",
+    starting: true,
+    scienceCost: 0,
+    prerequisiteDesignIds: [],
+  },
+  {
     id: "prefabricated-solar-arrays",
     label: "Prefabricated solar arrays",
     description:

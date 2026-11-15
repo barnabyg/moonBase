@@ -98,7 +98,7 @@ describe("a save document", () => {
 
     expect(document).toMatchObject({
       format: "moonbase-save",
-      version: 49,
+      version: 50,
       random: {
         a: expect.any(Number) as number,
         b: expect.any(Number) as number,
@@ -225,14 +225,14 @@ describe("loading a file", () => {
 
   it("is refused when it comes from a newer format version", () => {
     const text = edited(validSave(), (document) => {
-      document.version = 50;
+      document.version = 51;
     });
 
     expect(loadCampaign(text)).toEqual({
       ok: false,
       reason: "newer-version",
       message:
-        "It was saved by a newer version of Moon Base, in save format version 50. This version can load up to version 49.",
+        "It was saved by a newer version of Moon Base, in save format version 51. This version can load up to version 50.",
     });
   });
 

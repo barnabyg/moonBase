@@ -464,6 +464,30 @@ describe("what npm run try can start the game in", () => {
     expect(spares()).toBe(before + 1);
   });
 
+  it("decorations has a flag pole standing, and the kits for a founding memorial and a viewing area in stock", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "decorations",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    const state = loaded.campaign.snapshot();
+    const inStock = (componentId: string) =>
+      state.stockpile.components.find(
+        (stock) => stock.componentId === componentId,
+      )?.count;
+
+    expect(
+      state.structures.filter(
+        ({ structureTypeId }) => structureTypeId === "flag-pole",
+      ),
+    ).toHaveLength(1);
+    expect(state.constructions).toEqual([]);
+    expect(state.unlockedDesignIds).toContain("decorations");
+    expect(inStock("flag-kit")).toBe(0);
+    expect(inStock("memorial-plaque")).toBe(1);
+    expect(inStock("viewing-area-kit")).toBe(1);
+  });
+
   it("crowded has some of every bulk resource, and silicon about to run out", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "crowded",

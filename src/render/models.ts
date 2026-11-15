@@ -65,6 +65,12 @@ export {
 import { createPlantModel, PLANT_SHAPES } from "./plant-models";
 import { createRegolithBinModel } from "./regolith-bin-model";
 import { createCrewHabitatModel } from "./crew-habitat-model";
+import {
+  createFlagPoleModel,
+  createFoundingMemorialModel,
+  createRockGardenModel,
+  createViewingAreaModel,
+} from "./decoration-models";
 
 // Low-poly models built in code, with physically based materials (ADR-0004).
 // Sizes are in metres, and each model stands on the ground at its origin.
@@ -174,6 +180,14 @@ export function createStructureModel(
   if (structureTypeId === "growing-hall") return createGrowingHallModel();
   if (structureTypeId === "vault-cistern") return createVaultCisternModel();
   if (structureTypeId === "crew-habitat") return createCrewHabitatModel();
+  if (structureTypeId === "flag-pole") return createFlagPoleModel();
+  if (structureTypeId === "founding-memorial") {
+    return createFoundingMemorialModel();
+  }
+  if (structureTypeId === "rock-garden") {
+    return createRockGardenModel(groundMaterial);
+  }
+  if (structureTypeId === "viewing-area") return createViewingAreaModel();
   const type = catalogue.structureTypes.find(
     (candidate) => candidate.id === structureTypeId,
   );

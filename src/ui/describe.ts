@@ -251,6 +251,11 @@ export function describeStructure(type: StructureType): string {
   ];
   const stage = type.stageMachines.assembly;
   return [
+    ...(type.listGroup === "decoration"
+      ? [
+          "It is there for how it looks and what it means, and does nothing else.",
+        ]
+      : []),
     facts.length === 0 ? "It needs no power." : `It ${listInWords(facts)}.`,
     ...(type.recipes?.[0] === undefined
       ? []
