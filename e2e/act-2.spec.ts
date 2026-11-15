@@ -4,6 +4,7 @@ import { catalogue } from "../src/catalogue";
 import { tryScenarios } from "../test/try-scenarios";
 import type { SaveFile } from "./crowded";
 import { placeOnClearGround } from "./placement";
+import { pickDesign } from "./tech-tree";
 
 // Act 2, on the real data catalogue, as the player meets it.
 
@@ -153,18 +154,20 @@ test("Act 2 from its start: unlock and ship a Workshop, sell metals beside circu
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree.getByRole("tab", { name: /^Industry/ }).click();
-  const industry = tree.getByRole("tabpanel", { name: /^Industry/ });
-  await industry
+  await (
+    await pickDesign(tree, "Molten regolith electrolysis")
+  )
     .getByRole("button", { name: "Unlock Molten regolith electrolysis" })
     .click();
-  await industry
+  await (
+    await pickDesign(tree, "Parts machining")
+  )
     .getByRole("button", { name: "Unlock Parts machining" })
     .click();
   // Act 2's dearer Designs are there, and say what they bring.
-  await expect(
-    industry.getByRole("article", { name: "Array fabrication" }),
-  ).toContainText("Unlocks the Array works");
+  await expect(await pickDesign(tree, "Array fabrication")).toContainText(
+    "Unlocks the Array works",
+  );
   await tree.getByRole("button", { name: "Close" }).click();
 
   await page.getByRole("button", { name: "Launch manifest" }).click();
