@@ -83,9 +83,7 @@ test("the Mission Director moves from behind a water wall into a Buried Habitat:
   const buried = structureEntry(page, /^Buried Habitat/);
 
   await expect(radiation(page)).toContainText("568.0 / 600 mSv");
-  await expect(radiation(page)).toContainText(
-    /\+0\.[12] a day, limit in 21\dd/,
-  );
+  await expect(radiation(page)).toContainText(/\+0\.3 a day, limit in 12\dd/);
   await expect(buried).toContainText("buried");
   await expect(buried.getByRole("button", { name: "Move here" })).toBeVisible();
   await expect(home.getByRole("button", { name: /^Move/ })).toBeHidden();
@@ -189,7 +187,7 @@ test("the Mission Director can move into a bare Habitat, where the pop-up, the s
   await clickOnMap(page, "Inflatable Habitat", "30.00 mSv a day");
   const popUp = page.getByRole("dialog", { name: "Inflatable Habitat" });
   await expect(popUp.getByRole("status", { name: "Dose rate" })).toHaveText(
-    /^Dose rate 30\.00 mSv a day · moving here raises it from 0\.15, and the limit would come in 1d 2h$/,
+    /^Dose rate 30\.00 mSv a day · moving here raises it from 0\.25, and the limit would come in 1d 2h$/,
   );
   await popUp.getByRole("button", { name: "Close" }).click();
 

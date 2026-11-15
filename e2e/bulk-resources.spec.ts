@@ -136,7 +136,7 @@ test("a bulk resource shows from when the base first has some, and stays once it
       );
       state.bulkResources = [
         { resourceId: "regolith", kilograms: 500 },
-        { resourceId: "silicon", kilograms: 0.35 },
+        { resourceId: "silicon", kilograms: 0.4 },
       ];
     }),
   );

@@ -93,7 +93,7 @@ test("a Milestone with something to measure shows how far along it is, under its
   ).toHaveText("Now Large-scale Crew Habitat commissioned");
   await expect(
     panel.getByRole("status", { name: "Place in the Act" }),
-  ).toHaveText("Milestone 3 of 3");
+  ).toHaveText("Milestone 2 of 2");
   // The Large-scale Crew Habitat being commissioned has been stocked.
   await expect(progress).toHaveText([
     "Oxygen 612 of 612 kg",
