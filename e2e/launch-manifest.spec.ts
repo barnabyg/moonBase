@@ -12,6 +12,7 @@ import { CROWDED_LAUNCH_ITEMS } from "../test/crowded-catalogue";
 import { freshSaveWith, tryScenarios } from "../test/try-scenarios";
 import { useCrowdedCatalogue } from "./crowded";
 import { fillColour, shownBefore, tokenColour } from "./meters";
+import { pickDesign } from "./tech-tree";
 
 const grant = catalogue.programmeGrantMillionDollars;
 const limit = catalogue.launch.payloadMassLimitKilograms;
@@ -510,8 +511,9 @@ test("a Design unlocked adds its group in its place, with every other row in the
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree.getByRole("tab", { name: /^Protection/ }).click();
-  await tree
+  await (
+    await pickDesign(tree, "Dust-sealed solar arrays")
+  )
     .getByRole("button", { name: "Unlock Dust-sealed solar arrays" })
     .click();
   await tree.getByRole("button", { name: "Close" }).click();

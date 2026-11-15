@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { designInTree, pickDesign } from "./tech-tree";
 
 /**
  * Waits until the game has drawn a frame. The game updates its interface in
@@ -15,7 +16,7 @@ async function nextFrame(page: Page): Promise<void> {
   );
 }
 
-test("the Tech Tree screen shows each Design by category with its cost, prerequisites and state, and says why one can't be unlocked yet", async ({
+test("the Tech Tree draws every Design in one tree, and picking one says what it costs, why it can't be unlocked yet and what it takes to get there", async ({
   page,
 }) => {
   await page.goto("/?seed=1");
@@ -51,35 +52,62 @@ test("the Tech Tree screen shows each Design by category with its cost, prerequi
   await expect(
     screen.getByRole("status", { name: "Science to spend" }),
   ).toHaveText("5 Science to spend");
-  // Power is shown first, one category to a tab.
-  const power = screen.getByRole("tabpanel", { name: /^Power/ });
-  await expect(screen.getByRole("tab", { name: /^Power/ })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  // A starting Design is unlocked, and has no Unlock button.
-  const solar = power.getByRole("article", { name: "Solar arrays" });
-  await expect(solar).toContainText("Starting");
-  await expect(solar).toContainText("Unlocked");
+  // Every category is a column of the one tree, with how many are unlocked.
+  for (const category of ["Power 2/7", "Mobility 2/6"]) {
+    await expect(screen.getByRole("group", { name: "Designs" })).toContainText(
+      category,
+    );
+  }
+  // A starting Design is unlocked, and says what it lets the base have.
+  const solarNode = designInTree(screen, "Solar arrays");
+  await expect(solarNode).toContainText("Starting");
+  await expect(solarNode).toContainText("Solar array");
+  await expect(solarNode).toHaveAttribute("data-state", "unlocked");
+  const solar = await pickDesign(screen, "Solar arrays");
+  await expect(solarNode).toHaveAttribute("aria-pressed", "true");
+  await expect(solar).toContainText("✓ Unlocked");
   await expect(
     solar.getByRole("button", { name: "Unlock Solar arrays" }),
   ).toBeHidden();
-  // One beyond them, with its cost, what it needs first and why it is out of reach.
-  const large = power.getByRole("article", { name: "Large battery banks" });
-  await expect(large).toContainText("25 Science");
-  await expect(large).toContainText("Battery banks");
-  await expect(large).toContainText("Needs 20 more Science");
-  // Another category is a tab away.
-  await screen.getByRole("tab", { name: /^Mobility/ }).click();
-  await expect(power).toBeHidden();
-  await expect(
-    screen
-      .getByRole("tabpanel", { name: /^Mobility/ })
-      .getByRole("article", { name: "Landing pad lights" }),
-  ).toContainText("Needs Tall Light Masts first");
 
-  await screen.getByRole("tab", { name: /^Power/ }).click();
-  await screen
+  // One beyond them, with its cost, what it needs first and why it is out of reach.
+  await expect(designInTree(screen, "Large battery banks")).toContainText(
+    "25 Science",
+  );
+  const large = await pickDesign(screen, "Large battery banks");
+  await expect(solarNode).toHaveAttribute("aria-pressed", "false");
+  await expect(large).toContainText("25 Science");
+  await expect(large).toContainText("Needs 20 more Science");
+  await expect(
+    large.getByRole("button", { name: "✓ Battery banks", exact: true }),
+  ).toBeVisible();
+
+  // One further along lists what is still to unlock to reach it, each after
+  // what it needs, and what that all costs.
+  const lights = await pickDesign(screen, "Landing pad lights");
+  await expect(lights).toContainText("Needs Tall Light Masts first");
+  await expect(lights.getByRole("listitem")).toHaveText([
+    "Large battery banks 25 Science",
+    "Tall Light Masts 150 Science",
+    "Landing pad lights 220 Science",
+  ]);
+  await expect(lights).toContainText(
+    "3 Designs, 395 Science in all; the base has 5 Science.",
+  );
+  // Picking one there picks it in the tree.
+  await lights
+    .getByRole("listitem")
+    .getByRole("button", { name: "Large battery banks" })
+    .click();
+  await expect(designInTree(screen, "Large battery banks")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(large.getByRole("heading", { level: 3 })).toHaveText(
+    "Large battery banks",
+  );
+
+  await large
     .getByRole("button", { name: "Unlock Large battery banks" })
     .click();
   await expect(screen.getByRole("alert")).toHaveText(

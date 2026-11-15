@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { LATE_GAME_SCIENCE, tryScenarios } from "../test/try-scenarios";
 import { doing, structureEntry } from "./base-panel";
 import { placeOnClearGround } from "./placement";
+import { pickDesign } from "./tech-tree";
 
 async function speed(page: Page, name: string): Promise<void> {
   await page
@@ -44,14 +45,15 @@ test("the Tech Tree offers a Vault cistern for all the Science a late base has, 
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree.getByRole("tab", { name: /^Life Support/ }).click();
+  const cistern = await pickDesign(tree, "Vault cistern");
+  // Growing halls, which it needs, is unlocked already, so it is the last
+  // step there.
+  await expect(cistern).toContainText(`${LATE_GAME_SCIENCE} Science`);
   await expect(
-    tree.getByRole("heading", { name: "Growing halls", exact: true }),
+    cistern.getByRole("button", { name: "✓ Growing halls", exact: true }),
   ).toBeVisible();
-  await tree.getByRole("tab", { name: /^Protection/ }).click();
-  await expect(tree).toContainText("Vault cistern");
-  await expect(tree).toContainText(`${LATE_GAME_SCIENCE} Science`);
-  await tree.getByRole("button", { name: "Unlock Vault cistern" }).click();
+  await expect(cistern.getByText("To get there")).toBeHidden();
+  await cistern.getByRole("button", { name: "Unlock Vault cistern" }).click();
   await expect(
     page.getByRole("status", { name: "Science", exact: true }),
   ).toContainText("0");

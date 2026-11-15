@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
+import { pickDesign } from "./tech-tree";
 
 function structureType(id: string) {
   const type = catalogue.structureTypes.find((each) => each.id === id);
@@ -45,7 +46,7 @@ test("the Tech Tree says what each Design unlocks, with what it does", async ({
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
   const tall = structureType("tall-light-mast");
 
-  const card = tree.getByRole("article", { name: "Tall Light Masts" });
+  const card = await pickDesign(tree, "Tall Light Masts");
   await expect(card).toContainText(`Unlocks the ${tall.label}`);
   await expect(card).toContainText(`${tall.lightRadiusMetres} m`);
 });
@@ -116,8 +117,7 @@ test("the Tech Tree says what the telescope earns, and its status line explains 
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree.getByRole("tab", { name: /^Industry/ }).click();
-  const card = tree.getByRole("article", { name: "Optical telescopes" });
+  const card = await pickDesign(tree, "Optical telescopes");
   await expect(card).toContainText(`Unlocks the ${telescope.label}`);
   await expect(card).toContainText(
     `observes the sky at Night for the ${label}`,

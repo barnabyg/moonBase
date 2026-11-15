@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
+import { pickDesign } from "./tech-tree";
 
 /**
  * Waits until the game has drawn a frame. The game updates its interface in
@@ -71,17 +72,19 @@ test("Science from a Research Task unlocks a Design, whose Components then appea
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree
+  const large = await pickDesign(tree, "Large battery banks");
+  await large
     .getByRole("button", { name: "Unlock Large battery banks" })
     .click();
   await expect(
     notifications.getByText("Large battery banks unlocked, for 25 Science"),
   ).toBeVisible();
   await expect(science).toHaveText("5");
-  // Its card now says only that it is unlocked, no longer what it needed.
-  const largeCard = tree.getByRole("article", { name: "Large battery banks" });
-  await expect(largeCard).toContainText("✓ Unlocked");
-  await expect(largeCard.getByText("Needs", { exact: true })).toBeHidden();
+  // It now says it is unlocked, and has no Unlock button.
+  await expect(large).toContainText("✓ Unlocked");
+  await expect(
+    large.getByRole("button", { name: "Unlock Large battery banks" }),
+  ).toBeHidden();
   await tree.getByRole("button", { name: "Close" }).click();
 
   // Its Components can now be shipped, with their mass and price.
@@ -149,8 +152,11 @@ test("Science unlocks Robots, and then a Robot is on the Launch manifest screen 
 
   await page.getByRole("button", { name: "Tech Tree" }).click();
   const tree = page.getByRole("dialog", { name: "Tech Tree" });
-  await tree.getByRole("tab", { name: /^Mobility/ }).click();
-  await tree.getByRole("button", { name: "Unlock Robots" }).click();
+  await (
+    await pickDesign(tree, "Robots")
+  )
+    .getByRole("button", { name: "Unlock Robots" })
+    .click();
   await expect(
     notifications.getByText("Robots unlocked, for 20 Science"),
   ).toBeVisible();

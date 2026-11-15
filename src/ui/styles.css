@@ -1371,22 +1371,6 @@ body {
   border-color: rgb(143 208 255 / 22%);
 }
 
-/* Green is kept for a Design that is itself unlocked, so a prerequisite
-   already met stays quiet and the one still missing is what stands out. */
-.chip--unmet {
-  color: var(--warning);
-  border-color: rgb(255 138 112 / 40%);
-}
-
-.chip--met {
-  color: var(--text-faint);
-  background: none;
-}
-
-.chip--met::before {
-  content: "✓ ";
-}
-
 .screen__tabs {
   grid-column: 1 / -1;
   display: flex;
@@ -1693,12 +1677,98 @@ body {
   margin: auto 0 0;
 }
 
-/* The Tech Tree. */
+/* The Tech Tree: the whole tree, a column for each category and a row for
+   each step along it, beside a panel on the Design picked. */
 
-/* The same size whichever category is shown, so that it doesn't jump. */
 .tech-tree {
-  width: min(1080px, 100vw - 32px);
-  height: min(680px, 100vh - 48px);
+  width: min(1320px, 100vw - 32px);
+  height: min(860px, 100vh - 48px);
+}
+
+.tech-tree .screen__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tech-tree__map {
+  min-height: 0;
+  padding: 0 18px 18px;
+  overflow: auto;
+}
+
+.tech-tree__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--categories), minmax(140px, 1fr));
+  gap: 6px 14px;
+  align-items: start;
+}
+
+/* Behind the Designs, which are opaque, so a line that passes a Design it
+   doesn't join goes under it. */
+.tech-tree__lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tech-tree__line {
+  fill: none;
+  stroke: rgb(255 255 255 / 16%);
+  stroke-width: 1.5;
+  transition:
+    stroke 120ms,
+    opacity 120ms;
+}
+
+.tech-tree__line--met {
+  stroke: rgb(111 208 140 / 30%);
+}
+
+.tech-tree__grid--focused .tech-tree__line {
+  opacity: 0.25;
+}
+
+.tech-tree__grid--focused .tech-tree__line--needed {
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 1;
+}
+
+/* What is unlocked already of the way there, apart from what is still to do. */
+.tech-tree__grid--focused .tech-tree__line--needed.tech-tree__line--met {
+  stroke: var(--good);
+  stroke-width: 1.5;
+}
+
+.tech-tree__grid--focused .tech-tree__line--next {
+  stroke: var(--science);
+  stroke-dasharray: 5 4;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+/* Each category's name stays in sight over its column as the tree scrolls. */
+.tech-tree__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 0 6px;
+  background: rgb(14 17 23);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.tech-tree__head-name {
+  margin: 0;
 }
 
 .tech-tree__tally {
@@ -1708,8 +1778,9 @@ body {
 }
 
 /* A dot on a category with a Design that can be unlocked now. */
-.tech-tree__tab--ready::after {
+.tech-tree__head--ready::after {
   content: "";
+  align-self: center;
   width: 7px;
   height: 7px;
   background: var(--accent);
@@ -1717,29 +1788,271 @@ body {
   box-shadow: 0 0 6px var(--accent);
 }
 
-.tech-tree__panel {
-  display: grid;
-  grid-auto-columns: minmax(230px, 1fr);
-  grid-auto-flow: column;
-  gap: 22px;
-  align-items: start;
+.tech-tree__step {
+  grid-column: 1 / -1;
+  margin: 10px 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 
-.tech-tree__column {
+.tech-tree__cell {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* Each column leads on to the next. */
-.tech-tree__column + .tech-tree__column::before {
-  content: "›";
-  position: absolute;
-  top: -4px;
-  left: -16px;
-  font-size: 1.2rem;
+/* A Design in the tree: its name, what it brings and its cost. Its three
+   states are told apart as the Guide's cards are: filled in, glowing, or
+   only an outline. */
+.tech-node {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--text);
+  background: #171b22;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms,
+    opacity 120ms;
+}
+
+.tech-node:hover {
+  border-color: rgb(255 255 255 / 30%);
+}
+
+.tech-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tech-node__name {
+  font-weight: 600;
+}
+
+.tech-node__brings {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tech-node__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tech-node__cost {
+  color: var(--science);
+}
+
+.tech-node__mark {
+  font-weight: 700;
+}
+
+.tech-node[data-state="unlocked"] {
+  background: #17251d;
+  border-color: rgb(111 208 140 / 45%);
+}
+
+.tech-node[data-state="unlocked"] .tech-node__cost {
   color: var(--text-faint);
+}
+
+.tech-node[data-state="unlocked"] .tech-node__mark {
+  color: var(--good);
+}
+
+.tech-node[data-state="out-of-reach"] {
+  border-style: dashed;
+}
+
+.tech-node[data-state="unlockable"] {
+  border-color: rgb(242 193 78 / 70%);
+  box-shadow: 0 0 14px rgb(242 193 78 / 14%);
+}
+
+.tech-node[data-state="unlockable"] .tech-node__mark {
+  color: var(--accent);
+}
+
+/* Once one is picked, what it needs and what it leads to stay; the rest
+   fade, but stay opaque, so that a line lit behind one doesn't show through. */
+.tech-tree__grid--focused
+  .tech-node:not(.tech-node--selected, .tech-node--needed, .tech-node--next) {
+  background: #111419;
+  border-color: rgb(255 255 255 / 7%);
+  box-shadow: none;
+}
+
+.tech-tree__grid--focused
+  .tech-node:not(.tech-node--selected, .tech-node--needed, .tech-node--next)
+  > * {
+  color: #3d424b;
+}
+
+.tech-node--selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tech-node--needed {
+  box-shadow: 0 0 0 1px rgb(242 193 78 / 55%);
+}
+
+.tech-node--next {
+  box-shadow: 0 0 0 1px rgb(143 208 255 / 55%);
+}
+
+/* The panel on the Design picked. */
+.tech-tree__details {
+  min-height: 0;
+  padding: 14px 18px 18px;
+  overflow: auto;
+  background: rgb(255 255 255 / 2%);
+  border-left: 1px solid var(--panel-border);
+}
+
+.tech-tree__details .screen__eyebrow {
+  margin: 0;
+}
+
+.tech-tree__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.tech-tree__name {
+  margin: 2px 0 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.tech-tree__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tech-tree__unlock {
+  margin-top: 10px;
+}
+
+.tech-tree__description,
+.tech-tree__brings {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.tech-tree__brings {
+  margin-top: 6px;
+  color: var(--text);
+}
+
+.tech-tree__part {
+  margin-top: 16px;
+}
+
+.tech-tree__part-title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tech-tree__path {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  font-size: 0.8rem;
+}
+
+.tech-tree__path li {
+  margin: 3px 0;
+}
+
+.tech-tree__path li::marker {
+  color: var(--text-faint);
+}
+
+.tech-tree__price {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--science);
+}
+
+.tech-tree__total {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.tech-tree__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 6px 0 0;
+}
+
+/* A Design named in the panel, which picks it; marked by its state. */
+.tech-tree__link {
+  padding: 1px 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--text-faint);
+  cursor: pointer;
+}
+
+.tech-tree__links .tech-tree__link {
+  padding: 1px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+}
+
+.tech-tree__link:hover {
+  color: var(--accent);
+}
+
+.tech-tree__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tech-tree__link--unlocked {
+  color: var(--text-faint);
+}
+
+.tech-tree__link--unlocked::before {
+  content: "✓ ";
+  color: var(--good);
+}
+
+.tech-tree__link--unlockable {
+  color: var(--accent);
 }
 
 .design-card__top {
@@ -1754,29 +2067,6 @@ body {
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text-muted);
-}
-
-.design-card__unlocks {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--text);
-}
-
-.design-card__needs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-}
-
-.design-card__needs-label {
-  margin-right: 2px;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-faint);
 }
 
 /* The three states have to be told apart at a glance: one unlocked is filled

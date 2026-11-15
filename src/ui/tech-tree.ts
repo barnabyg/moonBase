@@ -1,6 +1,5 @@
 import { catalogue, type Design } from "../catalogue";
 import {
-  designLabel,
   type Campaign,
   type DesignUnlockedEvent,
   type Snapshot,
@@ -8,22 +7,40 @@ import {
 import { describeUnlocks } from "./describe";
 import { setText } from "./dom";
 import { formatScience } from "./format";
-import { describeDesignState } from "./tech-tree-text";
 import { createScreen } from "./screen";
+import {
+  designBrings,
+  designById,
+  designSteps,
+  designsLeadingFrom,
+  designsNeededBefore,
+  pathToDesign,
+} from "./tech-tree-graph";
+import { describeDesignState } from "./tech-tree-text";
 
 export interface TechTreeScreen {
   open(): void;
   update(snapshot: Snapshot): void;
 }
 
+type DesignState = ReturnType<typeof describeDesignState>["state"];
+
+const SVG = "http://www.w3.org/2000/svg";
+
 /**
  * The Tech Tree screen, where the player spends Science to unlock a Design.
- * A tab for each category shows its Designs as cards, in columns by how far
- * along the tree each is: the starting ones first, then each one after all
- * the Designs it needs first. A card has its cost, what unlocking it
- * brings, the Designs it needs first and whether it is unlocked, can be unlocked now or is out of reach,
- * and why. The screen only sends the choice to unlock one to the Campaign,
- * which decides whether it is allowed and says why not, and passes on the
+ * It draws the whole tree at once: a column for each category, and a row for
+ * each step along it, the starting Designs at the top and every other one
+ * a row below the furthest along of the Designs it needs first, with a line
+ * from each of those to it. Each Design shows its name, what it lets the
+ * base have and its cost, marked unlocked, ready to unlock or out of reach.
+ *
+ * Picking one lights up everything it needs, however far back, and what it
+ * leads to, and fades the rest; a panel beside the tree says what it brings,
+ * lists the Designs still to unlock to reach it in an order they can be
+ * unlocked, with the Science they take in all, and has its Unlock button.
+ * The screen only sends the choice to unlock one to the Campaign, which
+ * decides whether it is allowed and says why not, and passes on the
  * notification of one unlocked. The game runs on while it is open.
  */
 export function createTechTreeScreen(
@@ -38,211 +55,392 @@ export function createTechTreeScreen(
   screen.figure.setAttribute("role", "status");
   screen.figure.setAttribute("aria-label", "Science to spend");
   screen.lead.textContent =
-    "Unlocking a Design permits what it covers, but adds nothing to the base: it still has to be shipped or built.";
+    "Each Design sits below the Designs it needs first. Pick one to see what it brings and what it takes to get there. Unlocking a Design permits what it covers, but adds nothing to the base: it still has to be shipped or built.";
 
-  const tiers = designTiers();
-  const shown = catalogue.designCategories
-    .map((category) => ({
-      ...category,
-      designs: catalogue.designs.filter(
-        (design) => design.category === category.id,
-      ),
-    }))
-    .filter((category) => category.designs.length > 0);
-  const tabs = screen.addTabs("Categories", shown);
-  const categories = shown.map((category, index) => {
-    const { tab, panel } = tabs[index] ?? {};
-    if (tab === undefined || panel === undefined) {
-      throw new Error(`No tab for ${category.label}`);
-    }
-    // How many are unlocked, and a mark when one can be now.
+  const steps = designSteps();
+  const categories = catalogue.designCategories.filter((category) =>
+    catalogue.designs.some((design) => design.category === category.id),
+  );
+  const lastStep = Math.max(0, ...steps.values());
+
+  // The tree, which scrolls, beside the panel on the Design picked.
+  const map = document.createElement("div");
+  map.className = "tech-tree__map";
+  const grid = document.createElement("div");
+  grid.className = "tech-tree__grid";
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", "Designs");
+  grid.style.setProperty("--categories", String(categories.length));
+  const lines = document.createElementNS(SVG, "svg");
+  lines.classList.add("tech-tree__lines");
+  lines.setAttribute("aria-hidden", "true");
+  grid.append(lines);
+  map.append(grid);
+
+  const details = document.createElement("aside");
+  details.className = "tech-tree__details";
+  details.setAttribute("role", "region");
+  details.setAttribute("aria-label", "Selected Design");
+  screen.body.append(map, details);
+
+  // A heading over each category's column, with how many are unlocked and a
+  // mark when one can be unlocked now.
+  const heads = categories.map((category, column) => {
+    const head = document.createElement("div");
+    head.className = "tech-tree__head";
+    head.style.gridColumn = String(column + 1);
+    const name = document.createElement("h3");
+    name.className = "screen__section-title tech-tree__head-name";
+    name.textContent = category.label;
     const tally = document.createElement("span");
     tally.className = "tech-tree__tally";
-    tab.append(tally);
-    panel.className = "tech-tree__panel";
-    const columns = new Map<number, HTMLElement>();
-    for (const tier of [
-      ...new Set(category.designs.map((d) => tiers.get(d.id) ?? 0)),
-    ].sort((a, b) => a - b)) {
-      const column = document.createElement("div");
-      column.className = "tech-tree__column";
-      const heading = document.createElement("h3");
-      heading.className = "screen__section-title";
-      heading.textContent = tier === 0 ? "Starting" : `Tier ${tier}`;
-      column.append(heading);
-      columns.set(tier, column);
-      panel.append(column);
-    }
-    return { ...category, tab, tally, columns };
+    head.append(name, " ", tally);
+    grid.append(head);
+    return {
+      category,
+      head,
+      tally,
+      designs: catalogue.designs.filter((d) => d.category === category.id),
+    };
   });
 
-  const cards = categories.flatMap((category) =>
-    category.designs.map((design) => {
-      const card = createCard(design, category.id, (message) => {
-        screen.refuse(message);
-      });
-      category.columns.get(tiers.get(design.id) ?? 0)?.append(card.element);
-      return card;
+  // A row for each step, under a label saying how far along it is.
+  const nodes = new Map<string, ReturnType<typeof createNode>>();
+  for (let step = 0; step <= lastStep; step++) {
+    const label = document.createElement("p");
+    label.className = "tech-tree__step";
+    label.textContent = step === 0 ? "Starting" : `Step ${step}`;
+    grid.append(label);
+    for (const [column, category] of categories.entries()) {
+      const cell = document.createElement("div");
+      cell.className = "tech-tree__cell";
+      cell.style.gridColumn = String(column + 1);
+      for (const design of catalogue.designs) {
+        if (design.category !== category.id || steps.get(design.id) !== step) {
+          continue;
+        }
+        const node = createNode(design);
+        nodes.set(design.id, node);
+        cell.append(node.element);
+      }
+      grid.append(cell);
+    }
+  }
+
+  // A line from each Design to each that needs it.
+  const edges = catalogue.designs.flatMap((design) =>
+    design.prerequisiteDesignIds.map((from) => {
+      const path = document.createElementNS(SVG, "path");
+      path.classList.add("tech-tree__line");
+      lines.append(path);
+      return { from, to: design.id, path };
     }),
   );
 
-  function createCard(
-    design: Design,
-    categoryId: string,
-    refuse: (message: string | undefined) => void,
-  ) {
-    const element = document.createElement("article");
-    element.className = "design-card";
+  function createNode(design: Design) {
+    const element = document.createElement("button");
+    element.type = "button";
+    element.className = "tech-node";
+    element.dataset["design"] = design.id;
     element.setAttribute("aria-label", design.label);
-    const top = document.createElement("div");
-    top.className = "design-card__top";
-    const name = document.createElement("h4");
-    name.className = "design-card__name";
+    element.setAttribute("aria-pressed", "false");
+    const name = document.createElement("span");
+    name.className = "tech-node__name";
     name.textContent = design.label;
+    const brings = document.createElement("span");
+    brings.className = "tech-node__brings";
+    brings.textContent = designBrings(design).join(" · ");
+    const foot = document.createElement("span");
+    foot.className = "tech-node__foot";
+    const cost = document.createElement("span");
+    cost.className = "tech-node__cost";
+    cost.textContent = design.starting
+      ? "Starting"
+      : formatScience(design.scienceCost);
+    const mark = document.createElement("span");
+    mark.className = "tech-node__mark";
+    mark.setAttribute("aria-hidden", "true");
+    foot.append(cost, mark);
+    // Its state in words, which a screen reader reads with its name.
+    const state = document.createElement("span");
+    state.className = "visually-hidden";
+    state.id = `tech-node-${design.id}`;
+    element.setAttribute("aria-describedby", state.id);
+    element.append(name, brings, foot, state);
+    element.addEventListener("click", (event) => {
+      event.stopPropagation();
+      select(selected === design.id ? undefined : design.id);
+    });
+    return { design, element, mark, state };
+  }
+
+  /** Places each line between the Designs it joins, as they are laid out now. */
+  function drawLines() {
+    const origin = grid.getBoundingClientRect();
+    if (origin.width === 0) return;
+    lines.setAttribute("width", String(grid.scrollWidth));
+    lines.setAttribute("height", String(grid.scrollHeight));
+    for (const { from, to, path } of edges) {
+      const a = nodes.get(from)?.element.getBoundingClientRect();
+      const b = nodes.get(to)?.element.getBoundingClientRect();
+      if (a === undefined || b === undefined) continue;
+      const x1 = a.left + a.width / 2 - origin.left;
+      const y1 = a.bottom - origin.top;
+      const x2 = b.left + b.width / 2 - origin.left;
+      const y2 = b.top - origin.top;
+      const bend = Math.max(16, Math.min(60, (y2 - y1) / 2));
+      path.setAttribute(
+        "d",
+        `M ${x1} ${y1} C ${x1} ${y1 + bend} ${x2} ${y2 - bend} ${x2} ${y2}`,
+      );
+    }
+  }
+  new ResizeObserver(drawLines).observe(grid);
+
+  // The Design picked, kept between visits, and the latest snapshot.
+  let selected: string | undefined;
+  let latest: Snapshot | undefined;
+  // What the panel was last drawn for, so it is drawn again only on a change.
+  let drawnFor = "";
+
+  map.addEventListener("click", () => {
+    select(undefined);
+  });
+
+  function select(designId: string | undefined) {
+    selected = designId;
+    screen.refuse(undefined);
+    const needed =
+      designId === undefined
+        ? new Set<string>()
+        : designsNeededBefore(designId);
+    const next = new Set(
+      designId === undefined ? [] : designsLeadingFrom(designId),
+    );
+    grid.classList.toggle("tech-tree__grid--focused", designId !== undefined);
+    for (const [id, node] of nodes) {
+      node.element.setAttribute("aria-pressed", String(id === designId));
+      node.element.classList.toggle("tech-node--selected", id === designId);
+      node.element.classList.toggle("tech-node--needed", needed.has(id));
+      node.element.classList.toggle("tech-node--next", next.has(id));
+    }
+    for (const { from, to, path } of edges) {
+      path.classList.toggle(
+        "tech-tree__line--needed",
+        needed.has(from) && (to === designId || needed.has(to)),
+      );
+      path.classList.toggle("tech-tree__line--next", from === designId);
+    }
+    if (latest !== undefined) drawDetails(latest);
+  }
+
+  /** Brings a Design into view in the tree and picks it. */
+  function show(designId: string) {
+    select(designId);
+    nodes.get(designId)?.element.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }
+
+  /** A button naming a Design, which picks it. */
+  function designButton(design: Design, state: DesignState): HTMLElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `tech-tree__link tech-tree__link--${state}`;
+    button.textContent = design.label;
+    button.addEventListener("click", () => {
+      show(design.id);
+    });
+    return button;
+  }
+
+  function section(title: string): HTMLElement {
+    const part = document.createElement("section");
+    part.className = "tech-tree__part";
+    const heading = document.createElement("h4");
+    heading.className = "tech-tree__part-title";
+    heading.textContent = title;
+    part.append(heading);
+    details.append(part);
+    return part;
+  }
+
+  function drawDetails(snapshot: Snapshot) {
+    const key = `${selected ?? ""}|${snapshot.unlockedDesignIds.join(",")}`;
+    if (key !== drawnFor) {
+      drawnFor = key;
+      fillDetails(snapshot);
+    }
+    refreshDetails(snapshot);
+  }
+
+  // What changes with the Science, without drawing the panel again.
+  let refreshDetails: (snapshot: Snapshot) => void = () => undefined;
+
+  function fillDetails(snapshot: Snapshot) {
+    details.replaceChildren();
+    refreshDetails = () => undefined;
+    if (selected === undefined) {
+      const hint = document.createElement("p");
+      hint.className = "tech-tree__hint";
+      hint.textContent =
+        "Pick a Design to see what it brings, the Designs it takes to get there and what it leads to.";
+      details.append(hint);
+      return;
+    }
+    const design = designById(selected);
+    const stateOf = (d: Design) => describeDesignState(d, snapshot).state;
+
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "screen__eyebrow";
+    const category = catalogue.designCategories.find(
+      ({ id }) => id === design.category,
+    );
+    const step = steps.get(design.id) ?? 0;
+    eyebrow.textContent = `${category?.label ?? ""} · ${step === 0 ? "Starting" : `Step ${step}`}`;
+    const name = document.createElement("h3");
+    name.className = "tech-tree__name";
+    name.textContent = design.label;
+    const top = document.createElement("div");
+    top.className = "tech-tree__top";
     const cost = document.createElement("span");
     cost.className = design.starting ? "chip" : "chip chip--science";
     cost.textContent = design.starting
       ? "Starting"
       : formatScience(design.scienceCost);
-    top.append(name, cost);
-    const description = document.createElement("p");
-    description.className = "design-card__description";
-    description.textContent = design.description;
-    element.append(top, description);
-    // What unlocking it brings, so that the choice needs no other screen.
-    for (const text of describeUnlocks(design)) {
-      const unlocks = document.createElement("p");
-      unlocks.className = "design-card__unlocks";
-      unlocks.textContent = text;
-      element.append(unlocks);
-    }
-
-    // Each Design it needs first, marked once it is unlocked. Gone once this
-    // one is unlocked, when what it needed no longer matters.
-    const needsLine = document.createElement("p");
-    const needs = design.prerequisiteDesignIds.map((id) => {
-      const chip = document.createElement("span");
-      chip.className = "chip design-card__need";
-      const prerequisite = catalogue.designs.find((d) => d.id === id);
-      const elsewhere =
-        prerequisite !== undefined && prerequisite.category !== categoryId
-          ? catalogue.designCategories.find(
-              (category) => category.id === prerequisite.category,
-            )?.label
-          : undefined;
-      chip.textContent =
-        elsewhere === undefined
-          ? designLabel(id)
-          : `${designLabel(id)} (${elsewhere})`;
-      return { id, chip };
-    });
-    if (needs.length > 0) {
-      needsLine.className = "design-card__needs";
-      const label = document.createElement("span");
-      label.className = "design-card__needs-label";
-      label.textContent = "Needs";
-      needsLine.append(label, ...needs.map(({ chip }) => chip));
-      element.append(needsLine);
-    }
-
-    const foot = document.createElement("div");
-    foot.className = "design-card__foot";
-    // Whether it is unlocked, can be now, or why not.
     const state = document.createElement("span");
+    top.append(cost, state);
     const unlock = document.createElement("button");
     unlock.type = "button";
-    unlock.className = "screen__button";
+    unlock.className = "screen__button tech-tree__unlock";
     unlock.textContent = "Unlock";
     unlock.setAttribute("aria-label", `Unlock ${design.label}`);
     unlock.addEventListener("click", () => {
       const result = campaign.unlockDesign(design.id);
-      refuse(result.ok ? undefined : result.message);
+      screen.refuse(result.ok ? undefined : result.message);
       if (result.ok) onUnlocked(result.event);
     });
-    foot.append(state, unlock);
-    element.append(foot);
+    const description = document.createElement("p");
+    description.className = "tech-tree__description";
+    description.textContent = design.description;
+    details.append(eyebrow, name, top, unlock, description);
 
-    return {
-      design,
-      element,
-      update(snapshot: Snapshot) {
-        const described = describeDesignState(design, snapshot);
+    const brings = section("Brings");
+    for (const text of describeUnlocks(design)) {
+      const line = document.createElement("p");
+      line.className = "tech-tree__brings";
+      line.textContent = text;
+      brings.append(line);
+    }
+
+    // The way there, in an order the player can follow, and what it costs.
+    const path = pathToDesign(design.id, snapshot.unlockedDesignIds);
+    let total: HTMLElement | undefined;
+    if (path.length > 1) {
+      const way = section("To get there");
+      const list = document.createElement("ol");
+      list.className = "tech-tree__path";
+      for (const along of path) {
+        const item = document.createElement("li");
+        const price = document.createElement("span");
+        price.className = "tech-tree__price";
+        price.textContent = formatScience(along.scienceCost);
+        item.append(designButton(along, stateOf(along)), " ", price);
+        list.append(item);
+      }
+      total = document.createElement("p");
+      total.className = "tech-tree__total";
+      way.append(list, total);
+    }
+
+    if (design.prerequisiteDesignIds.length > 0) {
+      const needs = section("Needs first");
+      const list = document.createElement("p");
+      list.className = "tech-tree__links";
+      for (const id of design.prerequisiteDesignIds) {
+        const need = designById(id);
+        list.append(designButton(need, stateOf(need)));
+      }
+      needs.append(list);
+    }
+
+    const leads = designsLeadingFrom(design.id);
+    if (leads.length > 0) {
+      const next = section("Leads to");
+      const list = document.createElement("p");
+      list.className = "tech-tree__links";
+      for (const id of leads) {
+        const lead = designById(id);
+        list.append(designButton(lead, stateOf(lead)));
+      }
+      next.append(list);
+    }
+
+    const pathCost = path.reduce((sum, d) => sum + d.scienceCost, 0);
+    refreshDetails = (now) => {
+      const described = describeDesignState(design, now);
+      setText(
+        state,
+        described.state === "unlocked" ? "✓ Unlocked" : described.text,
+      );
+      state.className = `design-card__state design-card__state--${described.state}`;
+      unlock.hidden = described.state === "unlocked";
+      unlock.classList.toggle(
+        "screen__button--primary",
+        described.state === "unlockable",
+      );
+      if (total !== undefined) {
         setText(
-          state,
-          described.state === "unlocked" ? "✓ Unlocked" : described.text,
+          total,
+          `${path.length} Designs, ${formatScience(pathCost)} in all; the base has ${formatScience(now.science)}.`,
         );
-        state.className = `design-card__state design-card__state--${described.state}`;
-        element.dataset["state"] = described.state;
-        needsLine.hidden = described.state === "unlocked";
-        for (const { id, chip } of needs) {
-          const met = snapshot.unlockedDesignIds.includes(id);
-          chip.classList.toggle("chip--met", met);
-          chip.classList.toggle("chip--unmet", !met);
-        }
-        // One out of reach keeps its button, so that unlocking it says why
-        // it can't; only one that can be unlocked now stands out.
-        unlock.hidden = described.state === "unlocked";
-        unlock.classList.toggle(
-          "screen__button--primary",
-          described.state === "unlockable",
-        );
-        return described.state;
-      },
+      }
     };
   }
 
   return {
     open() {
       screen.open();
+      // Laid out only once open, so the lines follow it.
+      requestAnimationFrame(drawLines);
     },
     update(snapshot) {
+      latest = snapshot;
       setText(screen.figure, `${formatScience(snapshot.science)} to spend`);
-      const states = new Map(
-        cards.map((card) => [card.design.id, card.update(snapshot)]),
-      );
-      for (const category of categories) {
-        const unlocked = category.designs.filter(
-          (design) => states.get(design.id) === "unlocked",
-        ).length;
-        const unlockable = category.designs.some(
-          (design) => states.get(design.id) === "unlockable",
+      const states = new Map<string, DesignState>();
+      for (const [id, node] of nodes) {
+        const described = describeDesignState(node.design, snapshot);
+        states.set(id, described.state);
+        node.element.dataset["state"] = described.state;
+        setText(
+          node.mark,
+          described.state === "unlocked"
+            ? "✓"
+            : described.state === "unlockable"
+              ? "Ready"
+              : "",
         );
-        const tally = `${unlocked}/${category.designs.length}`;
-        setText(category.tally, tally);
-        category.tab.classList.toggle("tech-tree__tab--ready", unlockable);
-        // Its name, then the tally and the mark in words.
-        const name = `${category.label}, ${unlocked} of ${category.designs.length} unlocked${unlockable ? ", a Design can be unlocked now" : ""}`;
-        if (category.tab.getAttribute("aria-label") !== name) {
-          category.tab.setAttribute("aria-label", name);
-          category.tab.title = name;
-        }
+        setText(node.state, described.text);
       }
+      for (const { category, head, tally, designs } of heads) {
+        const unlocked = designs.filter(
+          (d) => states.get(d.id) === "unlocked",
+        ).length;
+        const ready = designs.some((d) => states.get(d.id) === "unlockable");
+        setText(tally, `${unlocked}/${designs.length}`);
+        head.classList.toggle("tech-tree__head--ready", ready);
+        const name = `${category.label}, ${unlocked} of ${designs.length} unlocked${ready ? ", a Design can be unlocked now" : ""}`;
+        if (head.title !== name) head.title = name;
+      }
+      for (const { from, path } of edges) {
+        // A need already met.
+        path.classList.toggle(
+          "tech-tree__line--met",
+          snapshot.unlockedDesignIds.includes(from),
+        );
+      }
+      drawDetails(snapshot);
     },
   };
-}
-
-/**
- * How far along the tree each Design is: 0 for a starting one, and for any
- * other one more than the furthest along of the Designs it needs first.
- */
-function designTiers(): Map<string, number> {
-  const tiers = new Map<string, number>();
-  function tierOf(design: Design): number {
-    const known = tiers.get(design.id);
-    if (known !== undefined) return known;
-    const tier = design.starting
-      ? 0
-      : 1 +
-        Math.max(
-          0,
-          ...design.prerequisiteDesignIds.map((id) => {
-            const prerequisite = catalogue.designs.find((d) => d.id === id);
-            return prerequisite === undefined ? 0 : tierOf(prerequisite);
-          }),
-        );
-    tiers.set(design.id, tier);
-    return tier;
-  }
-  for (const design of catalogue.designs) tierOf(design);
-  return tiers;
 }
