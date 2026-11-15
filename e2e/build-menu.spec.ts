@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
-import { isPlannedAsItself } from "../src/simulation";
+import { isInBuildMenu } from "../src/simulation";
 import { groupBuildOptions } from "../src/ui/build-menu-text";
 import { tryScenarios } from "../test/try-scenarios";
+import { placeOnClearGround } from "./placement";
 
 /**
  * Starts the base `npm run try -- everything-unlocked` does, with the game
@@ -27,7 +28,7 @@ async function loadEverythingUnlocked(page: Page): Promise<void> {
   });
 }
 
-const offered = catalogue.structureTypes.filter(isPlannedAsItself);
+const offered = catalogue.structureTypes.filter(isInBuildMenu);
 
 /** The headings of the build menu's groups that show, in order. */
 function headings(page: Page) {
@@ -134,4 +135,51 @@ test("the grouped build menu fits a narrow left column without cutting a Design'
       .map((element) => element.textContent),
   );
   expect(overflowing).toEqual([]);
+});
+
+test("once Whipple shielding is unlocked, a tick in the Power group puts the next battery bank of either size in a Whipple-shielded cabinet, and the build menu says so", async ({
+  page,
+}) => {
+  await page.goto("/?seed=1");
+  const buildMenu = page.getByRole("complementary", { name: "Build menu" });
+  const shielded = buildMenu.getByRole("checkbox", {
+    name: "Whipple-shielded cabinet",
+  });
+  await expect(
+    buildMenu.getByRole("button", { name: /^Battery bank/ }),
+  ).toBeVisible();
+  await expect(shielded).toBeHidden();
+
+  await loadEverythingUnlocked(page);
+  const power = buildMenu.getByRole("group", { name: "Power" });
+  const small = power.getByRole("button", { name: /^Battery bank/ });
+  const large = power.getByRole("button", { name: /^Large battery bank/ });
+  // No entry of its own: the cabinet is a choice made for either size.
+  await expect(power.getByRole("button", { name: /Whipple/ })).toHaveCount(0);
+  await expect(shielded).toBeVisible();
+  await expect(shielded).not.toBeChecked();
+  await expect(small).toHaveAttribute(
+    "title",
+    /The next one will be a battery bank\b/,
+  );
+
+  await shielded.check();
+  await expect(small).toHaveAttribute(
+    "title",
+    /The next one will be a Whipple-shielded battery bank\b/,
+  );
+  await expect(large).toHaveAttribute(
+    "title",
+    /The next one will be a Whipple-shielded large battery bank\b/,
+  );
+
+  await large.click();
+  const placement = page.getByRole("status", { name: "Placement" });
+  await expect(placement).toContainText(
+    "Click the map to place the Whipple-shielded large battery bank.",
+  );
+  await placeOnClearGround(page);
+  await expect(placement).toContainText(
+    "Whipple-shielded large battery bank planned.",
+  );
 });

@@ -18,6 +18,7 @@ import {
   batteryBank,
   whippleShieldedBatteryBank,
   largeBatteryBank,
+  whippleShieldedLargeBatteryBank,
   thermalStore,
 } from "./structures-power";
 import { lightMast, tallLightMast } from "./structures-lights";
@@ -81,6 +82,7 @@ export const structureTypes: Catalogue["structureTypes"] = [
   batteryBank,
   whippleShieldedBatteryBank,
   largeBatteryBank,
+  whippleShieldedLargeBatteryBank,
   lightMast,
   tallLightMast,
   telescope,

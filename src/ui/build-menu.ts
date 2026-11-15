@@ -1,7 +1,9 @@
 import { catalogue, type StructureType } from "../catalogue";
 import type { Renderer } from "../render/renderer";
 import {
-  isPlannedAsItself,
+  batteryBankKind,
+  canShieldBatteryBanks,
+  isInBuildMenu,
   nextSolarArray,
   SOLAR_ARRAY_ID,
   solarArraysInStock,
@@ -32,7 +34,9 @@ export interface BuildMenu {
  * The build menu. It lists the Structures in the groups the Base panel
  * uses, by what they are for, each of which the player can fold away, and
  * dims one whose Components aren't in the base's stock, so that what can be
- * built now stands out. Hovering over a Structure says what it does. The
+ * built now stands out. Hovering over a Structure says what it does. Once
+ * Whipple shielding is unlocked, a tick in the Power group puts the battery
+ * banks planned from then on, of either size, in a Whipple-shielded cabinet. The
  * player picks one, moves its translucent preview over the map, and clicks
  * to plan a Construction there. A Structure whose Design isn't unlocked
  * isn't offered until it is, nor a group until it offers one. The menu only
@@ -67,10 +71,18 @@ export function createBuildMenu(
   const available = new Map<string, number>();
   /** What each Structure's badge shows, as of the latest snapshot. */
   const stocks = new Map<string, BuildOptionStock>();
-  // A solar array is planned as one, and its parts decide its kind.
-  const offered = catalogue.structureTypes.filter(isPlannedAsItself);
+  // A solar array is planned as one, and its parts decide its kind; a
+  // battery bank's cabinet is the tick under them.
+  const offered = catalogue.structureTypes.filter(isInBuildMenu);
   /** What the next solar array will be, as of the latest snapshot. */
   let nextArray = "";
+  /** The latest snapshot, to show a change of cabinet at once. */
+  let latest: Snapshot | undefined;
+  /** Whether a battery bank is to be planned in a Whipple-shielded cabinet. */
+  let shielded = false;
+  /** What planning a Structure from the build menu makes of it now. */
+  const kindOf = (type: StructureType): StructureType =>
+    batteryBankKind(type, shielded, latest?.unlockedDesignIds ?? []);
   // Each group keeps its place and each Structure its place in it, whatever
   // the stock, so that a button never moves under the pointer.
   const groups = groupBuildOptions(offered).map((group) => {
@@ -84,6 +96,24 @@ export function createBuildMenu(
     options.append(section.element);
     return { section, grid, types: group.types };
   });
+  // The cabinet is a choice for both sizes of battery bank, so it goes
+  // under them in their group rather than on either.
+  const shielding = document.createElement("label");
+  shielding.className = "build-menu__choice";
+  shielding.hidden = true;
+  const shieldingBox = document.createElement("input");
+  shieldingBox.type = "checkbox";
+  shieldingBox.title =
+    "Plans battery banks of either size in a Whipple-shielded cabinet, which takes a quarter of the wear from Micrometeorites, for more mass and money. Banks already planned or built keep their cabinet.";
+  shielding.append(shieldingBox, " Whipple-shielded cabinet");
+  shieldingBox.addEventListener("change", () => {
+    shielded = shieldingBox.checked;
+    if (latest !== undefined) update(latest);
+    if (placing !== undefined) startPlacing(placing);
+  });
+  groups
+    .find(({ types }) => types.some((type) => type.batteryBank !== undefined))
+    ?.section.body.append(shielding);
   const buttons = groups.flatMap(({ grid, types }) =>
     types.map((type) => {
       const button = document.createElement("button");
@@ -125,9 +155,10 @@ export function createBuildMenu(
   function startPlacing(type: StructureType): void {
     placing = type;
     showPlacing();
+    const kind = kindOf(type);
     setText(
       hint,
-      `Click the map to place the ${inSentence(type.label)}. Right-click or press Esc to cancel.${type.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(type)}`,
+      `Click the map to place the ${inSentence(kind.label)}. Right-click or press Esc to cancel.${type.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(kind)}`,
     );
   }
 
@@ -175,20 +206,21 @@ export function createBuildMenu(
     clientY: number,
   ): { type: StructureType; position: GroundPosition } | undefined {
     if (placing === undefined) return undefined;
+    const kind = kindOf(placing);
     const position = renderer.pickGround(clientX, clientY);
     if (position === undefined) {
       renderer.showPlacementPreview(undefined);
       return undefined;
     }
     const check = campaign.checkPlacement({
-      structureTypeId: placing.id,
+      structureTypeId: kind.id,
       position,
     });
     // Shown where it would stand, such as centred on the Habitat it shields.
     const at = check.ok ? check.position : position;
     const rule = placing.keepClear;
     renderer.showPlacementPreview({
-      structureTypeId: placing.id,
+      structureTypeId: kind.id,
       position: at,
       allowed: check.ok,
       plumeEjecta,
@@ -212,10 +244,10 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${inSentence(placing.label)} here.${keepClearWarning(placing, at)}${plumeWarning(placing, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(placing)}`
+        ? `Click to place the ${inSentence(kind.label)} here.${keepClearWarning(kind, at)}${plumeWarning(kind, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(kind)}`
         : check.message,
     );
-    return { type: placing, position };
+    return { type: kind, position };
   }
 
   const { canvas } = renderer;
@@ -256,66 +288,83 @@ export function createBuildMenu(
 
   showPlacing();
 
+  function update(snapshot: Snapshot): void {
+    latest = snapshot;
+    ({ plumeEjecta, structures } = snapshot);
+    shielding.hidden = !canShieldBatteryBanks(snapshot.unlockedDesignIds);
+    for (const { type, button, stock, count, meaning } of buttons) {
+      // Not offered until its Design is unlocked.
+      button.hidden = !snapshot.unlockedDesignIds.includes(type.designId);
+      const kind = kindOf(type);
+      const sets =
+        type.id === SOLAR_ARRAY_ID
+          ? solarArraysInStock(snapshot)
+          : setsAvailable(kind, snapshot);
+      if (type.id === SOLAR_ARRAY_ID) {
+        const next = nextSolarArray(snapshot, snapshot.launchManifest.items);
+        nextArray =
+          next === undefined
+            ? ""
+            : ` The next one will be a ${inSentence(next.label)}, from what the base has and what is on sale.`;
+        const about = [
+          designOf(next?.designId ?? type.designId)?.description,
+          describeStructure(next ?? type),
+          describeBuild(next ?? type),
+          nextArray.trim(),
+        ]
+          .filter((text) => text !== undefined)
+          .join(" ");
+        if (button.title !== about) button.title = about;
+      }
+      if (type.batteryBank !== undefined) {
+        // What the next one will be, as the tick in the group chooses.
+        const about = [
+          designOf(kind.designId)?.description,
+          describeStructure(kind),
+          describeBuild(kind),
+          `The next one will be a ${inSentence(kind.label)}.`,
+        ]
+          .filter((text) => text !== undefined)
+          .join(" ");
+        if (button.title !== about) button.title = about;
+      }
+      available.set(type.id, sets);
+      // One made from Regolith alone never runs short.
+      const unlimited = type.components.length === 0;
+      setText(count, unlimited ? "–" : String(sets));
+      setText(meaning, unlimited ? " no Components needed" : " available");
+      // Dimmed, while the badge's "0" says so in words.
+      const short = !unlimited && sets === 0;
+      stock.classList.toggle("build-menu__stock--none", short);
+      button.classList.toggle("build-menu__option--short", short);
+      stock.title = unlimited ? "No Components needed" : `${sets} available`;
+      stocks.set(type.id, { sets, unlimited });
+    }
+    // A group shows only while it offers something, and says how many of
+    // those could be built now, for while it is folded.
+    for (const { section, types } of groups) {
+      const shown = types.filter((type) =>
+        snapshot.unlockedDesignIds.includes(type.designId),
+      );
+      section.element.hidden = shown.length === 0;
+      section.count(shown.length);
+      section.summarise(
+        shown.length === 0
+          ? undefined
+          : summariseBuildGroup(
+              shown.map(
+                ({ id }) => stocks.get(id) ?? { sets: 0, unlimited: false },
+              ),
+            ),
+      );
+    }
+  }
+
   return {
     isPlacing() {
       return placing !== undefined;
     },
-    update(snapshot) {
-      ({ plumeEjecta, structures } = snapshot);
-      for (const { type, button, stock, count, meaning } of buttons) {
-        // Not offered until its Design is unlocked.
-        button.hidden = !snapshot.unlockedDesignIds.includes(type.designId);
-        const sets =
-          type.id === SOLAR_ARRAY_ID
-            ? solarArraysInStock(snapshot)
-            : setsAvailable(type, snapshot);
-        if (type.id === SOLAR_ARRAY_ID) {
-          const next = nextSolarArray(snapshot, snapshot.launchManifest.items);
-          nextArray =
-            next === undefined
-              ? ""
-              : ` The next one will be a ${inSentence(next.label)}, from what the base has and what is on sale.`;
-          const about = [
-            designOf(next?.designId ?? type.designId)?.description,
-            describeStructure(next ?? type),
-            describeBuild(next ?? type),
-            nextArray.trim(),
-          ]
-            .filter((text) => text !== undefined)
-            .join(" ");
-          if (button.title !== about) button.title = about;
-        }
-        available.set(type.id, sets);
-        // One made from Regolith alone never runs short.
-        const unlimited = type.components.length === 0;
-        setText(count, unlimited ? "–" : String(sets));
-        setText(meaning, unlimited ? " no Components needed" : " available");
-        // Dimmed, while the badge's "0" says so in words.
-        const short = !unlimited && sets === 0;
-        stock.classList.toggle("build-menu__stock--none", short);
-        button.classList.toggle("build-menu__option--short", short);
-        stock.title = unlimited ? "No Components needed" : `${sets} available`;
-        stocks.set(type.id, { sets, unlimited });
-      }
-      // A group shows only while it offers something, and says how many of
-      // those could be built now, for while it is folded.
-      for (const { section, types } of groups) {
-        const shown = types.filter((type) =>
-          snapshot.unlockedDesignIds.includes(type.designId),
-        );
-        section.element.hidden = shown.length === 0;
-        section.count(shown.length);
-        section.summarise(
-          shown.length === 0
-            ? undefined
-            : summariseBuildGroup(
-                shown.map(
-                  ({ id }) => stocks.get(id) ?? { sets: 0, unlimited: false },
-                ),
-              ),
-        );
-      }
-    },
+    update,
   };
 }
 

@@ -122,11 +122,14 @@ describe("the data catalogue", () => {
       expect(
         protection.map((design) =>
           catalogue.structureTypes
-            // Each solar array's kinds come from its parts: one Design, one new part.
+            // Each solar array's kinds come from its parts: one Design, one new
+            // part. A battery bank's cabinet is shielded at either size, the
+            // large one tested in catalogue-battery-banks.test.ts.
             .filter(
               (type) =>
                 type.designId === design.id &&
                 type.solarArray?.thinFilm !== true &&
+                type.batteryBank?.large !== true &&
                 (type.solarArray === undefined || type.solarArray.sealed),
             )
             .map((type) => type.id),

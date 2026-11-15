@@ -82,6 +82,16 @@ export const LARGE_BATTERY_BANK: BatteryBankShape = {
 };
 
 /**
+ * A Whipple-shielded large battery bank: a large battery bank with bumper
+ * plates standing further clear of its cabinet, beyond its end radiators.
+ */
+export const WHIPPLE_SHIELDED_LARGE_BATTERY_BANK: BatteryBankShape = {
+  ...LARGE_BATTERY_BANK,
+  name: "Whipple-shielded large battery bank",
+  bumperGap: 0.25,
+};
+
+/**
  * A thermal store: a low, wide block of sintered Regolith in three cores, with
  * a long row of charge lights and radiator panels at both ends for its
  * exchanger.
