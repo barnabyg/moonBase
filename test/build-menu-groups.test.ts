@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { isPlannedAsItself } from "../src/simulation";
-import {
-  groupBuildOptions,
-  summariseBuildGroup,
-} from "../src/ui/build-menu-text";
+import { groupBuildOptions, buildableNow } from "../src/ui/build-menu-text";
 
 const offered = catalogue.structureTypes.filter(isPlannedAsItself);
 const groups = groupBuildOptions(offered);
@@ -39,32 +36,34 @@ describe("how the build menu groups the Structures it offers", () => {
   });
 });
 
-describe("what a folded group of the build menu says", () => {
-  it("counts those the base's stock can supply, and those that need no Components", () => {
+describe("how many a group of the build menu can build now", () => {
+  it("adds up how many of each Structure the base's stock can supply", () => {
     expect(
-      summariseBuildGroup([
+      buildableNow([
         { sets: 2, unlimited: false },
+        { sets: 1, unlimited: false },
+        { sets: 0, unlimited: false },
+      ]),
+    ).toBe(3);
+  });
+
+  it("leaves out those made from Regolith alone", () => {
+    expect(
+      buildableNow([
+        { sets: 1, unlimited: false },
+        { sets: 0, unlimited: true },
+        { sets: 5, unlimited: true },
+      ]),
+    ).toBe(1);
+  });
+
+  it("is 0 when the stock can supply none of them", () => {
+    expect(
+      buildableNow([
         { sets: 0, unlimited: false },
         { sets: 0, unlimited: true },
       ]),
-    ).toBe("2 can be built now");
-  });
-
-  it("says when none can", () => {
-    expect(
-      summariseBuildGroup([
-        { sets: 0, unlimited: false },
-        { sets: 0, unlimited: false },
-      ]),
-    ).toBe("none can be built now");
-  });
-
-  it("says when all can", () => {
-    expect(
-      summariseBuildGroup([
-        { sets: 1, unlimited: false },
-        { sets: 3, unlimited: false },
-      ]),
-    ).toBe("all can be built now");
+    ).toBe(0);
+    expect(buildableNow([])).toBe(0);
   });
 });

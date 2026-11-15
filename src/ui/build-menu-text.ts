@@ -38,17 +38,16 @@ export interface BuildOptionStock {
 }
 
 /**
- * What a folded group of the build menu says after how many it offers: how
- * many of them could be built now, from what is in the base's stock, for
- * example "2 can be built now".
+ * How many items a group of the build menu could build now, as its heading
+ * shows: the sum of how many of each Structure the base's stock can supply.
+ * One made from Regolith alone is left out, as the stock never limits it.
  */
-export function summariseBuildGroup(
-  options: readonly BuildOptionStock[],
-): string {
-  const ready = options.filter(
-    ({ sets, unlimited }) => unlimited || sets > 0,
-  ).length;
-  if (ready === 0) return "none can be built now";
-  if (ready === options.length && ready > 1) return "all can be built now";
-  return `${ready} can be built now`;
+export function buildableNow(options: readonly BuildOptionStock[]): number {
+  return options.reduce(
+    (total, { sets, unlimited }) => (unlimited ? total : total + sets),
+    0,
+  );
 }
+
+/** What a group's heading number means, in words for screen readers. */
+export const BUILDABLE_NOW_MEANING = " can be built now from stock";

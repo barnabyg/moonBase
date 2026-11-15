@@ -37,9 +37,53 @@ function headings(page: Page) {
     .locator(".build-group:not([hidden]) > summary");
 }
 
-/** Matches an open group's heading: its label and how many it offers. */
-function heading(label: string, count: number): RegExp {
-  return new RegExp(String.raw`^${label}\s*${count}(?!\d)`);
+/** Matches a group's heading: its label, then a number. */
+function heading(label: string): RegExp {
+  return new RegExp(String.raw`^${label}\s*\d+(?!\d)`);
+}
+
+/**
+ * Each shown group's heading number, and the sum of the badges of the
+ * Structures it shows that the stock limits, by group label.
+ */
+function headingCounts(
+  page: Page,
+): Promise<{ label: string; heading: string; badges: number }[]> {
+  return page
+    .getByRole("complementary", { name: "Build menu" })
+    .evaluate((menu) =>
+      [...menu.querySelectorAll<HTMLElement>(".build-group:not([hidden])")].map(
+        (group) => {
+          const title = group.querySelector(":scope > summary");
+          const badges = [
+            ...group.querySelectorAll<HTMLElement>(
+              "button:not([hidden]) .build-menu__stock > span:first-child",
+            ),
+          ]
+            .map((badge) => badge.textContent)
+            .filter((text) => text !== "–")
+            .reduce((total, text) => total + Number(text), 0);
+          return {
+            label: title?.firstElementChild?.textContent ?? "",
+            heading:
+              title?.querySelector(".panel-section__count > span:first-child")
+                ?.textContent ?? "",
+            badges,
+          };
+        },
+      ),
+    );
+}
+
+/** Checks that each group's heading counts what its Structures' badges add up to. */
+async function expectHeadingsToCountBadges(page: Page): Promise<void> {
+  await expect
+    .poll(async () =>
+      (await headingCounts(page)).filter(
+        ({ heading, badges }) => heading !== String(badges),
+      ),
+    )
+    .toEqual([]);
 }
 
 test("a new Campaign's build menu shows only the groups that offer something, in the Base panel's order", async ({
@@ -54,9 +98,10 @@ test("a new Campaign's build menu shows only the groups that offer something, in
   );
   expect(expected.length).toBeLessThan(catalogue.structureListGroups.length);
   await expect(headings(page)).toHaveText(
-    expected.map(({ label, types }) => heading(label, types.length)),
+    expected.map(({ label }) => heading(label)),
     { useInnerText: true },
   );
+  await expectHeadingsToCountBadges(page);
 });
 
 test("with every Design unlocked the build menu lists them by what they are for, sets back those whose Components aren't in stock, and each group folds and stays folded after a reload", async ({
@@ -66,9 +111,14 @@ test("with every Design unlocked the build menu lists them by what they are for,
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const groups = groupBuildOptions(offered);
   await expect(headings(page)).toHaveText(
-    groups.map(({ label, types }) => heading(label, types.length)),
+    groups.map(({ label }) => heading(label)),
     { useInnerText: true },
   );
+  // Each heading counts what the stock could build now, and says so.
+  await expectHeadingsToCountBadges(page);
+  await expect(
+    buildMenu.locator(".build-group > summary", { hasText: /^Power/ }),
+  ).toHaveText(/^Power\d+ can be built now from stock$/);
 
   // A Design is found under its group.
   const power = buildMenu.getByRole("group", { name: "Power" });
@@ -97,15 +147,15 @@ test("with every Design unlocked the build menu lists them by what they are for,
       .evaluate((button) => getComputedStyle(button).backgroundColor),
   ).not.toBe("rgba(0, 0, 0, 0)");
 
-  // Folded, a group says how many of its Designs could be built now.
+  // A group folds away, with nothing beside its heading but the number.
   const powerHeading = buildMenu.locator(".build-group > summary", {
     hasText: /^Power/,
   });
-  const summary = buildMenu.getByRole("status", { name: "Power summary" });
-  await expect(summary).toBeHidden();
   await powerHeading.click();
   await expect(power.getByRole("button").first()).toBeHidden();
-  await expect(summary).toHaveText(/^(\d+|none|all) can be built now$/);
+  await expect(
+    buildMenu.getByRole("status", { name: "Power summary" }),
+  ).toBeHidden();
 
   await page.reload();
   await expect(
@@ -117,6 +167,29 @@ test("with every Design unlocked the build menu lists them by what they are for,
   await expect(
     buildMenu.getByRole("button", { name: /^Battery bank/ }),
   ).toBeHidden();
+});
+
+test("a group's heading counts down as a planned Construction takes the stock's Components", async ({
+  page,
+}) => {
+  await loadEverythingUnlocked(page);
+  const buildMenu = page.getByRole("complementary", { name: "Build menu" });
+  const powerCount = async () =>
+    Number(
+      (await headingCounts(page)).find(({ label }) => label === "Power")
+        ?.heading,
+    );
+  await expectHeadingsToCountBadges(page);
+  const before = await powerCount();
+  expect(before).toBeGreaterThan(0);
+
+  await buildMenu.getByRole("button", { name: /^Battery bank \d+/ }).click();
+  await placeOnClearGround(page);
+  await expect(page.getByRole("status", { name: "Placement" })).toContainText(
+    "planned.",
+  );
+  await expect.poll(powerCount).toBeLessThan(before);
+  await expectHeadingsToCountBadges(page);
 });
 
 test("the grouped build menu fits a narrow left column without cutting a Design's name or badge", async ({
