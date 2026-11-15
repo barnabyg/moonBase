@@ -4,8 +4,14 @@ import { findDesign, scenarioWithScience, unlock } from "./designs";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, withScience } from "./worn";
 
-/** A kind of solar array mixes parts of several Designs, so only those of one have one to test here. */
+/**
+ * A kind of solar array mixes parts of several Designs, and a
+ * Whipple-shielded large battery bank needs Large battery banks too
+ * (whipple-shielded-large-battery-bank.test.ts), so only those of one have
+ * one to test here.
+ */
 function isOfOneDesign(type: StructureType): boolean {
+  if ((type.alsoNeedsDesignIds ?? []).length > 0) return false;
   return (
     type.solarArray === undefined ||
     [

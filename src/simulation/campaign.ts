@@ -846,11 +846,17 @@ function checkCampaignPlacement(
     return { ok: false, reason: "campaign-ended", message: CAMPAIGN_OVER };
   }
   const type = findStructureType(plan.structureTypeId);
-  if (type !== undefined && !isDesignUnlocked(state, type.designId)) {
+  const locked =
+    type === undefined
+      ? undefined
+      : [type.designId, ...(type.alsoNeedsDesignIds ?? [])].find(
+          (designId) => !isDesignUnlocked(state, designId),
+        );
+  if (type !== undefined && locked !== undefined) {
     return {
       ok: false,
       reason: "design-locked",
-      message: `The ${inSentence(type.label)} needs the ${designLabel(type.designId)} Design unlocked first.`,
+      message: `The ${inSentence(type.label)} needs the ${designLabel(locked)} Design unlocked first.`,
     };
   }
   return checkPlacement(state, plan);

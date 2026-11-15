@@ -226,6 +226,10 @@ _Avoid_: lamp, floodlight
 A Structure of many mirrors throwing the sun onto one receiver on a tower, which generates in Daylight as much as a field of solar arrays, with far less to clean and repair.
 _Avoid_: solar tower, power tower
 
+**Whipple-shielded cabinet**:
+A battery bank's cabinet with a thin bumper plate standing clear of it, which shatters a Micrometeorite before it strikes. Either size of battery bank can be built in one, chosen in the build menu; it is dearer and heavier than a plain cabinet, which stays on sale beside it.
+_Avoid_: armoured battery, shielded battery
+
 **Thermal store**:
 A Structure of sintered Regolith that takes in heat by day and gives it back by night, storing as much as a row of large battery banks.
 _Avoid_: heat battery, thermal battery

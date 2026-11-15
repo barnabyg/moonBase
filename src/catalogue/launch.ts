@@ -60,6 +60,17 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 160,
       priceMillionDollars: 5,
     },
+    // A large battery cabinet with its bumper plate, which stands clear of
+    // a much bigger cabinet on longer posts: a Whipple-shielded large battery
+    // bank's worth comes to 960 kg.
+    {
+      id: "large-whipple-cabinet",
+      designId: "whipple-shielding",
+      alsoNeedsDesignIds: ["large-battery-banks"],
+      brings: { kind: "component", componentId: "large-whipple-cabinet" },
+      massKilograms: 280,
+      priceMillionDollars: 13,
+    },
     {
       id: "mast-pole",
       designId: "light-masts",

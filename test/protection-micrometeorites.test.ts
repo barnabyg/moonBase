@@ -5,9 +5,9 @@ import { scenario, type Scenario } from "./scenario";
 
 // A strike every 6 to 12 hours, each taking 20 percentage points off what
 // it hits in full, and nothing else wearing anything down, so that every
-// Condition change in these tests is a strike's. Whipple shielding and the
-// Hardened Habitat are unlocked from the start, with their Components in
-// the starting stock beside the inflatable Habitat's.
+// Condition change in these tests is a strike's. Whipple shielding, Large
+// battery banks and the Hardened Habitat are unlocked from the start, with
+// their Components in the starting stock beside the inflatable Habitat's.
 vi.mock("../src/catalogue", async (importOriginal) => {
   const actual = await importOriginal<{ catalogue: Catalogue }>();
   const { withoutDust } = await import("./without-dust");
@@ -15,6 +15,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
   const { withDesigns } = await import("./with-designs");
   const base = withDesigns(withoutCold(withoutDust(actual.catalogue)), [
     "whipple-shielding",
+    "large-battery-banks",
     "hardened-habitat",
   ]);
   return {
@@ -67,10 +68,12 @@ function firstStrikes(
 }
 
 describe("a Micrometeorite strike", () => {
-  it("takes a quarter as much Condition off a Whipple-shielded battery bank as off a battery bank, and off a hardened Habitat as off an inflatable Habitat", () => {
+  it("takes a quarter as much Condition off a Whipple-shielded battery bank of either size as off a plain one, and off a hardened Habitat as off an inflatable Habitat", () => {
     const left = firstStrikes([
       ["battery-bank", { x: 20, y: 12 }],
       ["whipple-shielded-battery-bank", { x: 30, y: 12 }],
+      ["large-battery-bank", { x: 20, y: 45 }],
+      ["whipple-shielded-large-battery-bank", { x: 32, y: 45 }],
       ["habitat", { x: 20, y: 30 }],
       ["hardened-habitat", { x: 35, y: 30 }],
     ]);
@@ -78,6 +81,8 @@ describe("a Micrometeorite strike", () => {
     expect(Object.fromEntries(left)).toEqual({
       "battery-bank": 80,
       "whipple-shielded-battery-bank": 95,
+      "large-battery-bank": 80,
+      "whipple-shielded-large-battery-bank": 95,
       habitat: 80,
       "hardened-habitat": 95,
     });

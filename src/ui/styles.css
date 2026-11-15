@@ -1028,6 +1028,21 @@ body {
   background: var(--panel-raised);
 }
 
+/* A choice made for several of a group's Structures, under them. */
+.build-menu__choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.build-menu__choice[hidden] {
+  display: none;
+}
+
 .build-menu__hint {
   margin: 6px 0 0;
   font-size: 0.8rem;

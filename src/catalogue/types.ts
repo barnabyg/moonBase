@@ -1024,8 +1024,19 @@ export interface StructureType {
   readonly label: string;
   /** The Design it belongs to. */
   readonly designId: string;
+  /** Any other Designs it needs unlocked, beside its own. */
+  readonly alsoNeedsDesignIds?: readonly string[];
   /** The group the Base panel lists it in. */
   readonly listGroup: StructureListGroup;
+  /**
+   * What its cabinet makes it, if it is a battery bank. The player plans a
+   * battery bank or a large one, and chooses whether its cabinet is
+   * Whipple-shielded in placing it.
+   */
+  readonly batteryBank?: {
+    readonly large: boolean;
+    readonly shielded: boolean;
+  };
   /**
    * What its parts make it, if it is a kind of solar array. The player only
    * plans the plain one; its parts decide which kind it turns out to be.

@@ -1,7 +1,16 @@
 import { catalogue } from "./catalogue";
 
-/** Lowercases a name, except one, such as the Rover or a Workshop, that the glossary always capitalises. */
+/**
+ * Lowercases a name, except one, such as the Rover or a Workshop, that the
+ * glossary always capitalises, and the surname Whipple within one.
+ */
 export function inSentence(label: string): string {
+  if (label.includes("Whipple")) {
+    return label
+      .split("Whipple")
+      .map((part) => part.toLowerCase())
+      .join("Whipple");
+  }
   return label === catalogue.rover.label ||
     label === "Workshop" ||
     label === "Greenhouse" ||

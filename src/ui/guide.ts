@@ -216,11 +216,15 @@ export function createGuideScreen(container: HTMLElement): GuideScreen {
     },
     update(snapshot) {
       for (const { type, state } of structureCards) {
+        // A Whipple-shielded large battery bank needs two Designs.
+        const locked = [type.designId, ...(type.alsoNeedsDesignIds ?? [])]
+          .filter((id) => !snapshot.unlockedDesignIds.includes(id))
+          .map(designLabel);
         setText(
           state,
-          snapshot.unlockedDesignIds.includes(type.designId)
+          locked.length === 0
             ? "Unlocked"
-            : `Needs the ${designLabel(type.designId)} Design`,
+            : `Needs the ${listInWords(locked)} Design${locked.length === 1 ? "" : "s"}`,
         );
       }
       for (const { component, item, state } of componentCards) {

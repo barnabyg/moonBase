@@ -12,6 +12,15 @@ describe("names in a sentence", () => {
     expect(inSentence("Regolith bin")).toBe("Regolith bin");
   });
 
+  it("keeps Whipple, a surname, capitalised and lowercases the rest", () => {
+    expect(inSentence("Whipple-shielded large battery bank")).toBe(
+      "Whipple-shielded large battery bank",
+    );
+    expect(inSentence("Large Whipple-shielded cabinet")).toBe(
+      "large Whipple-shielded cabinet",
+    );
+  });
+
   it.each([
     ["workshop", "The Workshop needs"],
     ["buried-habitat", "The Buried Habitat needs"],
