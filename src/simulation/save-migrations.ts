@@ -1095,6 +1095,14 @@ export const migrations: readonly Migration[] = [
       },
     };
   },
+  // 50 to 51: observing sites, the dark and radio-quiet sites a Survey finds for
+  // the late telescopes, kept as `observingSites`. No Survey found one before,
+  // so an older save has found none, and its next Survey back finds the first.
+  (document) => {
+    const state = document["state"];
+    if (!isRecord(state)) return { ...document };
+    return { ...document, state: { ...state, observingSites: [] } };
+  },
 ];
 
 /**

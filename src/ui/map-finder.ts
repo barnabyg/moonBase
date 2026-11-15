@@ -2,7 +2,7 @@ import type { MapSubject, Renderer } from "../render/renderer";
 import type { ChoiceResult } from "./refusal";
 import type { StructurePopUp } from "./structure-pop-up";
 
-/** Finds on the base map what a panel lists: a Structure, Robot, Machine or Rover. */
+/** Finds on the base map what a panel lists: a Structure, Robot, Machine or Rover, or an observing site. */
 export interface MapFinder {
   /**
    * Moves the camera to it and marks it there, and opens a Structure's
@@ -40,7 +40,10 @@ export function createMapFinder(
         ? { ok: true }
         : {
             ok: false,
-            message: "It is away on an Expedition, off the base map.",
+            message:
+              subject.kind === "observing-site"
+                ? "No Survey has found it yet."
+                : "It is away on an Expedition, off the base map.",
           };
     },
     pointOut(subject) {

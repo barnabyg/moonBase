@@ -91,6 +91,37 @@ describe("what npm run try can start the game in", () => {
     }
   });
 
+  it("observing-sites has a dark site found, the telescope observing at Night off it, and a second telescope's Components", () => {
+    const scenario = tryScenarios.find(
+      (candidate) => candidate.id === "observing-sites",
+    );
+    const loaded = loadCampaign(saveOf(scenario));
+    if (!loaded.ok) throw new Error(loaded.message);
+    loaded.campaign.advance(1);
+    const state = loaded.campaign.snapshot();
+
+    expect(state.lunation.part).toBe("night");
+    expect(state.observingSites).toEqual([
+      expect.objectContaining({ kindId: "dark" }),
+    ]);
+    expect(state.infraredTelescopes).toEqual([
+      expect.objectContaining({
+        observing: true,
+        observingSiteKindId: undefined,
+      }),
+    ]);
+    const telescope = catalogue.structureTypes.find(
+      ({ id }) => id === "infrared-telescope",
+    );
+    for (const { componentId, count } of telescope?.components ?? []) {
+      expect(
+        state.stockpile.components.find(
+          (stock) => stock.componentId === componentId,
+        )?.count,
+      ).toBeGreaterThanOrEqual(count);
+    }
+  });
+
   it("infrared-telescope has an infrared telescope observing at Night out past a Light Mast's reach, with propellant and a second set of its Components", () => {
     const scenario = tryScenarios.find(
       (candidate) => candidate.id === "infrared-telescope",

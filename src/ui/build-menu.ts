@@ -1,4 +1,5 @@
 import { catalogue, type StructureType } from "../catalogue";
+import { formatSiteFor } from "./observing-sites-text";
 import type { Renderer } from "../render/renderer";
 import {
   batteryBankKind,
@@ -68,6 +69,8 @@ export function createBuildMenu(
   let plumeEjecta: Snapshot["plumeEjecta"];
   /** The commissioned Structures, as of the latest snapshot. */
   let structures: Snapshot["structures"] = [];
+  /** The observing sites Surveys have found, as of the latest snapshot. */
+  let observingSites: Snapshot["observingSites"] = [];
   /** How many more of each Structure the base's stock can supply, as of the latest snapshot. */
   const available = new Map<string, number>();
   /** What each Structure's badge shows, as of the latest snapshot. */
@@ -194,6 +197,14 @@ export function createBuildMenu(
       : ` It won't work here: ${words}.`;
   }
 
+  /** Says whether a telescope a site suits would stand on one here. */
+  function siteNote(type: StructureType, at: GroundPosition): string {
+    const words = formatSiteFor(type.id, at, observingSites);
+    return words === undefined
+      ? ""
+      : ` ${words.charAt(0).toUpperCase()}${words.slice(1)}.`;
+  }
+
   function stopPlacing(message: string): void {
     placing = undefined;
     showPlacing();
@@ -245,7 +256,7 @@ export function createBuildMenu(
     setText(
       hint,
       check.ok
-        ? `Click to place the ${inSentence(kind.label)} here.${keepClearWarning(kind, at)}${plumeWarning(kind, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(kind)}`
+        ? `Click to place the ${inSentence(kind.label)} here.${keepClearWarning(kind, at)}${siteNote(kind, at)}${plumeWarning(kind, check.position)}${placing.id === SOLAR_ARRAY_ID ? nextArray : ""}${stockWarning(kind)}`
         : check.message,
     );
     return { type: kind, position };
@@ -291,7 +302,7 @@ export function createBuildMenu(
 
   function update(snapshot: Snapshot): void {
     latest = snapshot;
-    ({ plumeEjecta, structures } = snapshot);
+    ({ plumeEjecta, structures, observingSites } = snapshot);
     shielding.hidden = !canShieldBatteryBanks(snapshot.unlockedDesignIds);
     for (const { type, button, stock, count, meaning } of buttons) {
       // Not offered until its Design is unlocked.

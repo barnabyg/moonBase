@@ -325,8 +325,12 @@ The loose rock and soil covering the lunar surface, treated as a resource, such 
 _Avoid_: soil, dirt, sand
 
 **Survey**:
-A type of Expedition that studies a distant site and earns Science, bringing nothing back to store.
+A type of Expedition that studies a distant site and earns Science, bringing nothing back to store, and may find an Observing site.
 _Avoid_: study, scouting
+
+**Observing site**:
+A circle on the map, a dark site or a radio-quiet site, that a Survey finds once the Design of a telescope that needs one is unlocked. An infrared telescope standing wholly on the dark site, or a radio telescope array on the radio-quiet site, works its rounds faster. It is not a Deposit.
+_Avoid_: dark zone, quiet zone, observatory site
 
 **Deposit**:
 Planned: a concentration of a resource at a specific place on the map, such as water ice in a shadowed crater. Its location and grade would be unknown until it has been prospected.

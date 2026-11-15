@@ -39,6 +39,7 @@ import {
   formatKeptClearOf,
   radiusName,
 } from "./keep-clear-text";
+import { formatSiteFor } from "./observing-sites-text";
 import type { MeterKind, Stat } from "./stat";
 import { formatPower } from "./status-panel-power-text";
 import {
@@ -250,6 +251,7 @@ export function structureDetails(
       ...(type.keepClear === undefined
         ? []
         : [clearanceLine(snapshot, type, footing.position, structure)]),
+      ...siteLines(snapshot, type, footing.position),
       ...(type.lightRadiusMetres > 0 ? [lightLine(snapshot, structure)] : []),
       ...(type.telescope === true ? telescopeLines(snapshot, structure) : []),
       ...(type.parking === undefined ? [] : [baysLine(snapshot, structure)]),
@@ -681,6 +683,16 @@ function clearanceLine(
         "",
     },
   };
+}
+
+/** Whether it stands on an observing site that speeds its rounds, for a telescope one suits. */
+function siteLines(
+  snapshot: Snapshot,
+  type: StructureType,
+  position: GroundPosition,
+): DetailLine[] {
+  const value = formatSiteFor(type.id, position, snapshot.observingSites);
+  return value === undefined ? [] : [{ label: "Site", stat: { value } }];
 }
 
 function capitalised(text: string): string {

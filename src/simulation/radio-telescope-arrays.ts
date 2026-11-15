@@ -8,6 +8,7 @@ import {
 } from "./construction";
 import type { GameEvent, RadioRoundLoss } from "./events";
 import { structuresInTheWay } from "./keep-clear";
+import { observingSiteUnder, siteRoundsFactor } from "./observing-sites";
 import {
   loseRound,
   roundFraction,
@@ -55,16 +56,15 @@ function isAdding(field: StructureState): boolean {
  * commissioned antenna field's that joins it, unless that field is Broken or
  * without power.
  */
-function rateOf(
-  state: Pick<CampaignState, "structures">,
-  array: StructureState,
-): number {
-  return fieldsOf(state, array)
-    .filter(isAdding)
-    .reduce(
-      (rate, field) => rate + structurePerformance(field),
-      structurePerformance(array),
-    );
+function rateOf(state: CampaignState, array: StructureState): number {
+  return (
+    fieldsOf(state, array)
+      .filter(isAdding)
+      .reduce(
+        (rate, field) => rate + structurePerformance(field),
+        structurePerformance(array),
+      ) * siteRoundsFactor(state, array)
+  );
 }
 
 /**
@@ -183,6 +183,8 @@ export interface RadioArraySnapshot {
   readonly fieldIds: readonly string[];
   /** The Science it earns a Lunation at its rate, working all through. */
   readonly sciencePerLunation: number;
+  /** The kind of the found site it stands wholly on, which speeds its rounds; undefined if none. */
+  readonly observingSiteKindId: string | undefined;
 }
 
 export function readRadioArrays(state: CampaignState): RadioArraySnapshot[] {
@@ -215,6 +217,8 @@ export function readRadioArrays(state: CampaignState): RadioArraySnapshot[] {
         fieldIds: fields.map((field) => field.id),
         sciencePerLunation:
           (rounds.science * rate * lunationHours) / rounds.lengthHours,
+        observingSiteKindId: observingSiteUnder(state.observingSites, structure)
+          ?.kindId,
       },
     ];
   });

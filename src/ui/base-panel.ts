@@ -68,7 +68,8 @@ const FINDS = {
   robot: "Click to show it on the map.",
   machine: "Click to show it on the map.",
   rover: "Click to show it on the map.",
-};
+  "observing-site": "Click to show it on the map.",
+} satisfies Record<MapSubject["kind"], string>;
 
 /**
  * An entry with a name, a bar and figure for its Condition, with a tooltip

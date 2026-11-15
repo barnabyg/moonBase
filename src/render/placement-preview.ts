@@ -82,7 +82,7 @@ const previewMaterials = {
  * can be scaled to the zone's radius: the Plume Ejecta danger zone, or the radius
  * a Structure must be kept clear within.
  */
-function createZone(
+export function createZone(
   name: string,
   fill: THREE.Material,
   edgeMaterial: THREE.Material,

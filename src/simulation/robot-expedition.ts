@@ -1,4 +1,5 @@
 import { catalogue, type GroundPosition } from "../catalogue";
+import { findObservingSite } from "./observing-sites";
 import { addBulk } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import type { Driven } from "./driven";
@@ -134,7 +135,14 @@ export function goOnExpedition(
       state.expedition = undefined;
       if (type.kind === "science") {
         state.science += type.science;
-        return [{ kind: "survey-returned", atMinute, science: type.science }];
+        return [
+          {
+            kind: "survey-returned",
+            atMinute,
+            science: type.science,
+            observingSiteKindId: findObservingSite(state)?.kindId,
+          },
+        ];
       }
       const { resourceId, kilograms } = type;
       addBulk(state, resourceId, kilograms);

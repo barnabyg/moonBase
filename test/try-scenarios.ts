@@ -938,6 +938,42 @@ export function infraredTelescopeSave(): string {
 }
 
 /**
+ * The infrared telescope's base, as `infraredTelescopeSave` has it, once a Survey
+ * sent from it has come back with a dark site found, an hour into the next Night:
+ * the telescope observing, propellant, and a second telescope's Components in
+ * stock to build on the site.
+ */
+export function observingSitesSave(): string {
+  const save = JSON.parse(infraredTelescopeSave()) as {
+    state: EditableSaveState;
+  };
+  save.state.unlockedDesignIds.push("survey-expeditions");
+  const loaded = loadCampaign(JSON.stringify(save));
+  if (!loaded.ok) throw new Error(loaded.message);
+  const { campaign } = loaded;
+  const started = campaign.startExpedition("survey");
+  if (!started.ok) throw new Error(started.message);
+  for (let hours = 0; campaign.snapshot().expedition !== undefined; hours++) {
+    if (hours > 20 * 24) throw new Error("The Survey never came back.");
+    campaign.advance(60);
+  }
+  for (
+    let hours = 0;
+    campaign.snapshot().lunation.part !== "daylight";
+    hours++
+  ) {
+    if (hours > 40 * 24) throw new Error("Daylight never came.");
+    campaign.advance(60);
+  }
+  for (let hours = 0; campaign.snapshot().lunation.part !== "night"; hours++) {
+    if (hours > 40 * 24) throw new Error("Night never came.");
+    campaign.advance(60);
+  }
+  campaign.advance(60);
+  return campaign.save();
+}
+
+/**
  * Where `radioTelescopeArraySave` puts what it builds: the array out past the
  * quiet radius of the water-processing plant among the battery banks, at the end
  * of a long cable.
@@ -1593,6 +1629,20 @@ export const tryScenarios: readonly TryScenario[] = [
       "Open the Guide: Structures has the telescope's card, and Science and technologies says what it needs. The Launch manifest has its mirror segments, camera and mount, under Industry.",
     ],
     save: infraredTelescopeSave,
+  },
+  {
+    id: "observing-sites",
+    title:
+      "The infrared telescope's base after a Survey came back with a dark site found, an hour into the Night, with a second telescope's Components in stock",
+    steps: [
+      "Pause the game. A notification says the Survey came back with 25 Science and found a dark site. Open Expeditions: under Observing sites found is the Dark site, how far it is from the Lander, and that an infrared telescope standing wholly on it works its rounds 50% faster. The Survey's row says nothing more of sites, as the one its Design brings has been found.",
+      "Press Show the dark site on the map: the screen closes and the camera moves to a violet circle on the ground, ringed by the pulsing marker. The circle stays on the map when the marker has gone.",
+      "Click the telescope by the base: its pop-up has a Site line saying it is not wholly on the dark site, and how far from the Lander that is.",
+      "Pick Infrared telescope in the build menu and move it over the violet circle: inside it the hint says it would be on the dark site, working its rounds 50% faster; with any part of it outside, that it is not wholly on it. Place it inside, and set the game to 20x.",
+      "Once it is commissioned and observing at Night, its pop-up's Site line says it is on the dark site, working its rounds 50% faster, and its round takes 32 hours of observing where the first telescope's takes 48.",
+      "Save, reload the page and load the save: the violet circle is still there, and Expeditions still lists the Dark site.",
+    ],
+    save: observingSitesSave,
   },
   {
     id: "radio-telescope-array",

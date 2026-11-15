@@ -3,6 +3,7 @@ import { structurePerformance } from "./condition";
 import { findStructureType, type StructureState } from "./construction";
 import type { GameEvent, InfraredRoundLoss } from "./events";
 import { structuresInTheWay } from "./keep-clear";
+import { observingSiteUnder, siteRoundsFactor } from "./observing-sites";
 import {
   batchMinutes,
   loseRound,
@@ -49,7 +50,7 @@ export function runInfraredTelescopes(state: CampaignState): GameEvent[] {
         structure,
         rounds,
         "observedMinutes",
-        structurePerformance(structure),
+        structurePerformance(structure) * siteRoundsFactor(state, structure),
       );
       return completed
         ? [
@@ -118,6 +119,8 @@ export interface InfraredTelescopeSnapshot {
   readonly stoppedFor: InfraredStop | undefined;
   /** The ids of the lit Structures within its dark radius, which stop it observing. */
   readonly inTheWay: readonly string[];
+  /** The kind of the found site it stands wholly on, which speeds its rounds; undefined if none. */
+  readonly observingSiteKindId: string | undefined;
 }
 
 export function readInfraredTelescopes(
@@ -136,7 +139,7 @@ export function readInfraredTelescopes(
         minutesLeft: roundMinutesLeft(
           structure.observedMinutes,
           rounds,
-          structurePerformance(structure),
+          structurePerformance(structure) * siteRoundsFactor(state, structure),
         ),
         stoppedFor: structure.powered ? undefined : stopOf(structure),
         inTheWay: structuresInTheWay(
@@ -145,6 +148,8 @@ export function readInfraredTelescopes(
           state.structures,
           structure.id,
         ).map((other) => other.id),
+        observingSiteKindId: observingSiteUnder(state.observingSites, structure)
+          ?.kindId,
       },
     ];
   });

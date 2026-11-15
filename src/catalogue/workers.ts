@@ -123,4 +123,33 @@ export const expeditions: Catalogue["expeditions"] = {
       science: 25,
     },
   ],
+  // A Survey also finds where the late telescopes do best (ADR-0009, #264): once
+  // a telescope's Design is unlocked, the next Survey back finds a site of its
+  // kind. On a 1 km map their dark and quiet radii are easy to keep clear
+  // anywhere, so a site earns its place by rate: a telescope standing wholly on
+  // one works its rounds half as fast again, an infrared telescope 57 Science a
+  // Lunation more, an array with one field 44 more, against the Survey's 25. A
+  // 40 m circle holds several infrared telescopes; for an array only its own
+  // footprint counts, and its fields' work is sped up with it. Its centre is
+  // 250 m to 420 m from the Lander, so the whole circle is on the map and well
+  // clear of the base, beyond a long cable.
+  observingSites: {
+    kinds: [
+      {
+        id: "dark",
+        label: "Dark site",
+        designId: "infrared-astronomy",
+        keptClearOf: "lit",
+      },
+      {
+        id: "radio-quiet",
+        label: "Radio-quiet site",
+        designId: "radio-astronomy",
+        keptClearOf: "plants",
+      },
+    ],
+    radiusMetres: 40,
+    roundsFasterBy: 0.5,
+    fromLanderMetres: { least: 250, most: 420 },
+  },
 };

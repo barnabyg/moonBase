@@ -957,6 +957,15 @@ const simulationFields = object({
       workedMinutes: amount,
     }),
   ),
+  observingSites: list(
+    object({
+      kindId: catalogueId(
+        catalogue.expeditions.observingSites.kinds,
+        "kind of observing site",
+      ),
+      position: groundPosition,
+    }),
+  ),
 }) satisfies Decoder<Omit<CampaignState, "random">>;
 
 /**
@@ -1000,6 +1009,15 @@ const simulationState: Decoder<Omit<CampaignState, "random">> = (
           "isn't a commissioned radio telescope array, though it is an antenna field",
         );
       }
+    }
+  }
+  const sites = state.observingSites;
+  for (const [index, site] of sites.entries()) {
+    if (sites.findIndex(({ kindId }) => kindId === site.kindId) !== index) {
+      throw refuse(
+        at(at(path, "observingSites"), index),
+        `is a second "${site.kindId}" site, though a Survey finds only one of each kind`,
+      );
     }
   }
   const field = at(path, "researchQueue");

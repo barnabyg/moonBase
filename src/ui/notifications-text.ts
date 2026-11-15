@@ -1,4 +1,5 @@
 import { catalogue } from "../catalogue";
+import { formatSiteFound } from "./observing-sites-text";
 import {
   actAsks,
   actLabel,
@@ -184,7 +185,9 @@ export function formatEvent(
         })
         .join(", ")}. Choose their replacements on it`;
     case "survey-returned":
-      return `Survey back, earning ${event.science} Science`;
+      return event.observingSiteKindId === undefined
+        ? `Survey back, earning ${event.science} Science`
+        : `Survey back, earning ${event.science} Science, and ${formatSiteFound(event.observingSiteKindId)}. The Expeditions screen shows it on the map`;
     case "expedition-called-off":
       return "Expedition called off: the Rover is Broken";
     case "research-task-completed":

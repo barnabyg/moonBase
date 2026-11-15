@@ -103,6 +103,7 @@ import {
   type PlantSwitchSetting,
   type SwitchPlantResult,
 } from "./plants";
+import type { ObservingSiteState } from "./observing-sites";
 import { seedRandom, type RandomState } from "./random";
 import {
   queueResearchTask,
@@ -437,6 +438,8 @@ export interface CampaignState {
   parking: ParkingState[];
   /** The Expedition under way, if any. */
   expedition: ExpeditionState | undefined;
+  /** The dark and radio-quiet sites Surveys have found, in the order they were. */
+  observingSites: ObservingSiteState[];
 }
 
 export function createCampaign(options: CampaignOptions): Campaign {
@@ -506,6 +509,7 @@ export function createCampaign(options: CampaignOptions): Campaign {
     maintenance: [],
     parking: [],
     expedition: undefined,
+    observingSites: [],
   });
 }
 
