@@ -490,7 +490,9 @@ describe("what shielding earlier is worth", () => {
 
 describe("a base with no Buried Habitat", () => {
   it("reaches the limit behind its water wall when it always did, with real Solar Particle Events", () => {
-    const left = 3;
+    // Several Earth Days' worth, so that one Solar Particle Event can't take
+    // it all at once.
+    const left = 10;
     const campaign = edited(base(), (state) => {
       state.radiationDoseMillisieverts = doseLimitMillisieverts - left;
     });
@@ -498,15 +500,16 @@ describe("a base with no Buried Habitat", () => {
     expect(ratePerDay(campaign)).toBe(rates.waterWalledHabitat);
     const start = campaign.snapshot().clock.elapsedMinutes;
 
-    runUntil(campaign, (state) => state.ended !== undefined, 30 * 24);
+    runUntil(campaign, (state) => state.ended !== undefined, 45 * 24);
 
     const state = campaign.snapshot();
     expect(state.ended?.cause).toEqual({ kind: "radiation-dose-limit" });
     const earthDays = (state.clock.elapsedMinutes - start) / EARTH_DAY;
-    // The usual rate alone is the longest it can take, and the Solar Particle
-    // Events can't take more than half of that off.
+    // The usual rate alone is the longest it can take. The Solar Particle
+    // Events, 30 hours at most every 10 Earth Days at most, at ten times the
+    // rate, can't make it more than 2.125 times as fast.
     expect(earthDays).toBeLessThanOrEqual(left / rates.waterWalledHabitat);
-    expect(earthDays).toBeGreaterThan((left / rates.waterWalledHabitat) * 0.5);
+    expect(earthDays).toBeGreaterThan((left / rates.waterWalledHabitat) * 0.45);
   });
 });
 
@@ -798,7 +801,7 @@ describe("older saves", () => {
     expect(ratePerDay(again)).toBe(rates.shieldedHabitat);
   });
 
-  it("go on to the water wall's rate as they always did, none of it changed", () => {
+  it("go on to the water wall's rate, the data catalogue's as it is now (0.15 before #338), the others unchanged", () => {
     const campaign = load(sample);
 
     runUntil(campaign, (state) => state.constructions.length === 0, 24);
@@ -808,7 +811,7 @@ describe("older saves", () => {
       lander: 0,
       habitat: 30,
       shieldedHabitat: 1.5,
-      waterWalledHabitat: 0.15,
+      waterWalledHabitat: 0.25,
     });
   });
 });

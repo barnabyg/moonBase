@@ -8,9 +8,12 @@ test("a new Campaign's build menu offers the four Decorations last, and a rock g
   await page.goto("/?seed=1");
   const buildMenu = page.getByRole("complementary", { name: "Build menu" });
   const decoration = buildMenu.getByRole("group", { name: "Decoration" });
+  // Its number is how many can be built from stock: none of the three made
+  // from Components a Launch brings, and the rock garden, from Regolith
+  // alone, isn't counted.
   await expect(
     buildMenu.locator(".build-group:not([hidden]) > summary").last(),
-  ).toHaveText(/^Decoration\s*4(?!\d)/, { useInnerText: true });
+  ).toHaveText(/^Decoration\s*0(?!\d)/, { useInnerText: true });
   for (const name of [
     "Flag pole",
     "Founding memorial",

@@ -959,10 +959,6 @@ body {
   border-top-color: rgb(255 255 255 / 6%);
 }
 
-.build-group > .panel-section__title > .panel-section__summary {
-  color: var(--text-muted);
-}
-
 .build-menu__options {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -95,6 +95,14 @@ const site = {
   circuitBoardPlant: { x: 58, y: -33 },
 } as const satisfies Record<string, GroundPosition | readonly GroundPosition[]>;
 
+/**
+ * The Earth Day Act 2 opens, when the long-game play guide turns to making its
+ * own spare Components, and takes over loading the Exports from
+ * `tradeWithEarth`, putting the most valuable first. The reference Campaign
+ * ends long before, so its own play never reaches it.
+ */
+export const ACT_2_EARTH_DAY = 350;
+
 /** The play guide: what a sensible player does for each Milestone, in order. */
 export const referenceSteps: readonly PlayStep[] = [
   {
@@ -524,10 +532,11 @@ function makesSpares(state: Snapshot): boolean {
 
 /**
  * Sends the Lander with a full Return Mass of the most valuable Export the
- * base makes, and once it is away sets the Launch manifest: oxygen and water
- * if they are low, spare Components up to the number kept unless the base
- * makes its own, and a circuit board plant if the base has none and the
- * Funding runs to it.
+ * base makes, until Act 2, when the long-game play guide loads them instead
+ * (its `loadTheLander`), and sends it whoever loaded it. Once it is away, it
+ * sets the Launch manifest: oxygen and water if they are low, spare Components
+ * up to the number kept unless the base makes its own, and a circuit board
+ * plant if the base has none and the Funding runs to it.
  */
 function tradeWithEarth(): (play: Play) => void {
   let manifestSetOnTrip: number | undefined;
@@ -539,7 +548,12 @@ function tradeWithEarth(): (play: Play) => void {
     if (state.lander.state === "landed-free") {
       const loading =
         state.exports.toLoad.length > 0 || state.exports.aboard.length > 0;
-      if (!loading && bulkInStock(state, exportId) >= returnMass) {
+      if (
+        !loading &&
+        state.clock.elapsedMinutes <
+          toGameMinutes({ earthDays: ACT_2_EARTH_DAY }) &&
+        bulkInStock(state, exportId) >= returnMass
+      ) {
         succeed(
           play.campaign.loadExports([
             { resourceId: exportId, kilograms: returnMass },

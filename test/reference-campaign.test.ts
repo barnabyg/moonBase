@@ -130,7 +130,7 @@ describe("the reference Campaign", () => {
     );
   });
 
-  it("ends with Export income covering a typical Launch, and the Radiation Dose years from the limit thanks to the water wall, where without it the limit would come within a year", () => {
+  it("ends with Export income covering a typical Launch, and the Radiation Dose two to three years from the limit thanks to the water wall, close enough that a Buried Habitat is needed in Act 3, where without it the limit would come within a year", () => {
     const lastSale = timeline.sales.at(-1);
     const charges = timeline.launches
       .map((launch) => launch.chargedMillionDollars)
@@ -141,6 +141,9 @@ describe("the reference Campaign", () => {
     );
     expect(timeline.waterWallAtMinute).toBeDefined();
     expect(timeline.radiationDoseAtEnd.earthDaysUntilLimit).toBeGreaterThan(
+      2 * 365,
+    );
+    expect(timeline.radiationDoseAtEnd.earthDaysUntilLimit).toBeLessThan(
       3 * 365,
     );
     expect(

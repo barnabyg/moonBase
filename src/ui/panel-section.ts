@@ -30,8 +30,12 @@ export interface PanelSection {
   readonly element: HTMLDetailsElement;
   /** Where the section's lines go. */
   readonly body: HTMLElement;
-  /** Shows how many things the section lists beside its title, or nothing. */
-  count(count: number | undefined): void;
+  /**
+   * Shows a number beside the section's title, by default how many things
+   * it lists, or nothing. `meaning` says in words, for screen readers, what
+   * the number counts when it is something else.
+   */
+  count(count: number | undefined, meaning?: string): void;
   /**
    * Sums up the section's headline figures beside its title, shown only
    * while it is folded, or nothing.
@@ -58,6 +62,10 @@ export function createPanelSection(id: string, title: string): PanelSection {
   const badge = document.createElement("span");
   badge.className = "panel-section__count";
   badge.hidden = true;
+  const figure = document.createElement("span");
+  const meaningText = document.createElement("span");
+  meaningText.className = "visually-hidden";
+  badge.append(figure, meaningText);
   // Shown only while folded, in place of the lines it sums up.
   const summaryLine = document.createElement("span");
   summaryLine.className = "panel-section__summary";
@@ -91,9 +99,10 @@ export function createPanelSection(id: string, title: string): PanelSection {
   return {
     element,
     body,
-    count(count) {
+    count(count, meaning = "") {
       badge.hidden = count === undefined;
-      setText(badge, count === undefined ? "" : String(count));
+      setText(figure, count === undefined ? "" : String(count));
+      setText(meaningText, count === undefined ? "" : meaning);
     },
     summarise(text) {
       summaryLine.hidden = text === undefined;

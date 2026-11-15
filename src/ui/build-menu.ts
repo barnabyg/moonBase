@@ -19,8 +19,9 @@ import { formatInTheWay } from "./keep-clear-text";
 import { inSentence } from "./labels";
 import { createPanelSection } from "./panel-section";
 import {
+  BUILDABLE_NOW_MEANING,
+  buildableNow,
   groupBuildOptions,
-  summariseBuildGroup,
   type BuildOptionStock,
 } from "./build-menu-text";
 
@@ -340,22 +341,20 @@ export function createBuildMenu(
       stock.title = unlimited ? "No Components needed" : `${sets} available`;
       stocks.set(type.id, { sets, unlimited });
     }
-    // A group shows only while it offers something, and says how many of
-    // those could be built now, for while it is folded.
+    // A group shows only while it offers something, and its heading says how
+    // many of those the base's stock could build now.
     for (const { section, types } of groups) {
       const shown = types.filter((type) =>
         snapshot.unlockedDesignIds.includes(type.designId),
       );
       section.element.hidden = shown.length === 0;
-      section.count(shown.length);
-      section.summarise(
-        shown.length === 0
-          ? undefined
-          : summariseBuildGroup(
-              shown.map(
-                ({ id }) => stocks.get(id) ?? { sets: 0, unlimited: false },
-              ),
-            ),
+      section.count(
+        buildableNow(
+          shown.map(
+            ({ id }) => stocks.get(id) ?? { sets: 0, unlimited: false },
+          ),
+        ),
+        BUILDABLE_NOW_MEANING,
       );
     }
   }

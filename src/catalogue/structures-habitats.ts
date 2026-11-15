@@ -248,8 +248,8 @@ export const vaultCistern: StructureType = {
 };
 
 // A pressure vault sunk in a trench and heaped over with Regolith, so that
-// nothing goes over it and the Mission Director's dose rate falls to a
-// tenth of a water wall's. It is the way past the Radiation Dose limit, and
+// nothing goes over it and the Mission Director's dose rate falls to
+// under a sixteenth of a water wall's (a tenth before #338). It is the way past the Radiation Dose limit, and
 // priced as the Campaign's biggest single purchase: $4510M, and $450M for the
 // three Launch fees it takes. That is about what 17 Launches of circuit
 // boards sell for, 255 Earth Days of everything a base earns at a trip every

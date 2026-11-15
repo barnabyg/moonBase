@@ -49,7 +49,7 @@ function timeline(
     ...playLongGame([]),
     structureTypesBuilt: everythingBuilt,
     launchItemsManifested: catalogue.launch.items.map(({ id }) => id),
-    moves: [{ atMinute: 1500 * 24 * 60, structureTypeId: "buried-habitat" }],
+    moves: [{ atMinute: 950 * 24 * 60, structureTypeId: "buried-habitat" }],
     milestones: [
       { milestoneId: "workshop-running", atMinute: 400 * earthDay },
       { milestoneId: "metals-sold", atMinute: 400 * earthDay },
@@ -344,7 +344,7 @@ describe("the long-game play guide", () => {
       longGameSucceeded(
         timeline({
           moves: [
-            { atMinute: 1601 * 24 * 60, structureTypeId: "buried-habitat" },
+            { atMinute: 1001 * 24 * 60, structureTypeId: "buried-habitat" },
           ],
         }),
       ),
@@ -405,7 +405,7 @@ describe("the long-game play guide", () => {
       "  Earth Day 3000.0, at 588.0 mSv: the end, the Radiation Dose having risen 0.0201 mSv an Earth Day since they moved in (1.34 times the usual rate, for Solar Particle Events).",
     );
     expect(lines).toContain(
-      "  Behind the water wall it rose 0.212 mSv an Earth Day (1.41 times the usual rate).",
+      "  Behind the water wall it rose 0.212 mSv an Earth Day (0.85 times the usual rate).",
     );
   });
 
@@ -1045,7 +1045,7 @@ describe("why a play failed", () => {
 
   it("says they hadn't moved into a Buried Habitat by the Act's target", () => {
     expect(longGameFailures(timeline({ moves: [] }))).toEqual([
-      "The Mission Director hadn't moved into a Buried Habitat by Earth Day 1600.",
+      "The Mission Director hadn't moved into a Buried Habitat by Earth Day 1000.",
     ]);
   });
 

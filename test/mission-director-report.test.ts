@@ -195,7 +195,7 @@ describe("the Mission Director's Report", () => {
     const pleasedIn = (kind: Parameters<typeof livingIn>[0]) =>
       writeMissionDirectorReport(livingIn(kind), forecastsWith()).pleased;
     expect(pleasedIn({ shielded: true, waterWalled: true })).toContain(
-      "The water wall over my Habitat keeps out nearly all the radiation.",
+      "The water wall over my Habitat keeps out most of what the shielding lets through, though not enough to stay here for good.",
     );
     expect(pleasedIn({ shielded: true, buried: true })).toContain(
       "My Buried Habitat keeps out almost all the radiation: I could live here for years.",

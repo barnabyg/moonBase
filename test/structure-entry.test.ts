@@ -55,7 +55,7 @@ describe("what the Base panel's row says of a Structure", () => {
 
   it("says what a Plant is waiting for", () => {
     expect(entryOf(base.snapshot(), "vacuum-fabrication-plant")).toEqual({
-      value: "waiting for Silicon: 0.2 of 0.35 kg",
+      value: "waiting for Silicon: 0.2 of 0.4 kg",
     });
   });
 

@@ -611,7 +611,7 @@ export const designs: Catalogue["designs"] = [
     id: "buried-habitat",
     label: "Buried Habitat",
     description:
-      "A pressure vault sunk in a trench and heaped over with metres of Regolith, which cuts the Radiation Dose inside to a tenth of a water wall's.",
+      "A pressure vault sunk in a trench and heaped over with metres of Regolith, which cuts the Radiation Dose inside to under a sixteenth of a water wall's.",
     category: "protection",
     starting: false,
     scienceCost: 400,

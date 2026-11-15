@@ -349,7 +349,7 @@ describe("an extraction plant running for oxygen, and a vacuum fabrication plant
     expect(campaign.snapshot().lunation.part).toBe("daylight");
 
     const shown: string[] = [];
-    for (let minute = 0; minute < 20 * 60; minute++) {
+    for (let minute = 0; minute < 24 * 60; minute++) {
       campaign.advance(1);
       const state = campaign.snapshot();
       const plant = plantOf(state).plant ?? fail();
@@ -362,7 +362,7 @@ describe("an extraction plant running for oxygen, and a vacuum fabrication plant
       if (shown.at(-1) !== line) shown.push(line);
     }
 
-    // Waiting for silicon, one batch running once 18 of the extraction
+    // Waiting for silicon, one batch running once 20 of the extraction
     // plant's batches have made enough, then waiting again.
     expect(shown).toHaveLength(3);
     expect(shown[0]).toMatch(/^no-input +$/);

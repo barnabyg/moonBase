@@ -16,12 +16,12 @@ export const acts: Catalogue["acts"] = [
   {
     id: "act-3",
     label: "Act 3: Scale",
-    asks: "Break the Return Mass: make propellant at the base, burn it to carry three times as much off the Moon, and sell what you don't burn.",
+    asks: "Break the Return Mass: make propellant at the base, burn it to carry three times as much off the Moon, and sell what you don't burn. Even behind a water wall the Radiation Dose limit is coming: move the Mission Director underground before it.",
   },
   {
     id: "act-4",
     label: "Act 4: Permanence",
-    asks: "Stay for good: move the Mission Director underground before the Radiation Dose limit, sell the most valuable thing the Moon can make, and ready the base for Crew.",
+    asks: "Stay for good: sell the most valuable thing the Moon can make, and ready the base for Crew.",
   },
 ];
 
@@ -133,7 +133,7 @@ export const milestones: Catalogue["milestones"] = [
   },
   {
     id: "moved-into-buried-habitat",
-    actId: "act-4",
+    actId: "act-3",
     label: "Moved into a Buried Habitat",
     hint: "Unlock Buried Habitat on the Tech Tree, ship its eight vault sections, life support core and airlock over several Launches, and build it early in a Daylight. Move in once it has power, and dismantle the old Habitat before Night falls if the batteries can't carry both.",
     condition: {

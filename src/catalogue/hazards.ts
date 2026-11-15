@@ -21,22 +21,23 @@ export const daylightChargeMarginHours: Catalogue["daylightChargeMarginHours"] =
 // surface, so that the limit comes in 20 Earth Days and shielding the
 // Habitat is urgent. Regolith shielding cuts it to a twentieth, so that
 // with Solar Particle Events the limit still comes in about nine
-// Lunations; a water wall over the shielding cuts it to a tenth of that
-// again, so that it comes only after many years (docs/balancing.md has the
-// dates). A Buried Habitat cuts it to a tenth of that again, the
-// last of the Campaign's cuts: Act 4 opens at about 530 mSv and asks the
-// player to move in by Earth Day 1,600 at about 570, leaving 30 mSv for
-// 1,400 Earth Days, at most 0.02 mSv an Earth Day with Solar Particle Events
-// counted. They multiply a dose rate by 1.31 on average, measured over the
-// 1,400 Earth Days of the long game (each lasts 18 hours on average at 10
-// times the rate, 20 Earth Days apart, which works out at 1.33), so that
-// 0.015 comes to 0.0196.
+// Lunations; a water wall over the shielding cuts it to a sixth of that,
+// so that a base filling it on about Earth Day 96, at about 265 mSv,
+// reaches the limit around Earth Day 1,100, in Act 3, and has to move into
+// a Buried Habitat first (#338; docs/balancing.md has the dates). A Buried
+// Habitat cuts it to under a sixteenth of that, the last of the
+// Campaign's cuts: Act 3 asks the player to move in by Earth Day 1,000 at
+// about 555 mSv, leaving 45 mSv for 2,000 Earth Days, at most 0.022 mSv an
+// Earth Day with Solar Particle Events counted. They multiply a dose rate
+// by 1.14 to 1.33, measured over the long game (each lasts 18 hours on
+// average at 10 times the rate, 20 Earth Days apart, which works out at
+// 1.33), so that 0.015 comes to at most 0.02.
 export const radiation: Catalogue["radiation"] = {
   doseRateMillisievertsPerEarthDay: {
     lander: 0,
     habitat: 30,
     shieldedHabitat: 1.5,
-    waterWalledHabitat: 0.15,
+    waterWalledHabitat: 0.25,
     buriedHabitat: 0.015,
     // A fifth of a Buried Habitat's, so that a base at about 585 mSv by Earth Day
     // 2,900 has its limit thousands of Earth Days off rather than hundreds: see the
@@ -49,8 +50,8 @@ export const radiation: Catalogue["radiation"] = {
 
 // Roughly one a Lunation, with a few hours' warning. One lasting an Earth
 // Day or so takes half the dose limit in an unshielded Habitat, a
-// fortieth in a shielded one, a four-hundredth in a water-walled one and a
-// four-thousandth in a Buried one.
+// fortieth in a shielded one, a two-hundred-and-fortieth in a water-walled
+// one and a four-thousandth in a Buried one.
 export const solarParticleEvents: Catalogue["solarParticleEvents"] = {
   earthDaysBetween: { min: 10, max: 30 },
   durationHours: { min: 6, max: 30 },

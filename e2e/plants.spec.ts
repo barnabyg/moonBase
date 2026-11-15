@@ -10,7 +10,7 @@ import {
 /**
  * A sample save of a Campaign with an extraction plant half way through a
  * batch of oxygen, and a vacuum fabrication plant with 0.2 kg of silicon,
- * short of the 0.35 kg a batch needs.
+ * short of the 0.4 kg a batch needs.
  */
 const batchSave = fileURLToPath(
   new URL("../test/saves/version-35.moonbase", import.meta.url),
@@ -28,7 +28,7 @@ test("the Base panel says how much of its batch a Plant has left, and how much o
   const plants = structureEntry(page, /plant/);
   await expect(plants).toHaveText([
     /^Extraction plant Condition \d+% running, 30 min left of this batch(?! ·)/,
-    /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.35 kg(?! ·)/,
+    /^Vacuum fabrication plant Condition \d+% waiting for Silicon: 0\.2 of 0\.4 kg(?! ·)/,
   ]);
   // What it makes and uses is fixed for its recipe, so it is in the tooltip.
   await expect(doing(plants.first())).toHaveAttribute(

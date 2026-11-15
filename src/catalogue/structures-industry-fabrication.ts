@@ -39,10 +39,10 @@ export const vacuumFabricationPlant: StructureType = {
   habitat: false,
   shieldsHabitat: false,
   landingPad: false,
-  // It takes in a little less silicon than an extraction plant makes
-  // running for metals and silicon, so that, running together, the
-  // silicon never quite runs out and it keeps up without stopping and
-  // starting; the saw turns some of it to dust. Its furnace draws 6 kW: on its own, the starting solar array
+  // It takes in exactly the silicon an extraction plant makes running
+  // for metals and silicon, so that one feeds one with none left over
+  // (see test/catalogue-plant-ratios.test.ts); the saw turns some of it
+  // to dust. Its furnace draws 6 kW: on its own, the starting solar array
   // can spare that beside the Habitat and a battery bank, but the two
   // Plants together draw 10 kW, all that array makes, so earning money
   // from wafers takes a second solar array.
@@ -53,13 +53,13 @@ export const vacuumFabricationPlant: StructureType = {
       inputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "silicon" },
-          kilogramsPerHour: 0.35,
+          kilogramsPerHour: 0.4,
         },
       ],
       outputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "wafers" },
-          kilogramsPerHour: 0.3,
+          kilogramsPerHour: 0.34,
         },
       ],
       drawKilowatts: 6,
@@ -102,12 +102,11 @@ export const circuitBoardPlant: StructureType = {
   habitat: false,
   shieldsHabitat: false,
   landingPad: false,
-  // It takes in a little less in wafers than a vacuum fabrication plant
-  // makes, so that, running together, it keeps up without the wafers
-  // running out, and as much metals again, well within what an
-  // extraction plant makes running for metals and silicon, for the
-  // boards' cores and circuits; offcuts
-  // and what is etched away make up the rest. Its oven draws 3 kW, so
+  // It takes in exactly the wafers a vacuum fabrication plant makes, and
+  // half the metals an extraction plant makes running for metals and
+  // silicon, for the boards' cores and circuits, so one of each feeds it
+  // with metals to spare for a Workshop or to sell; offcuts and what is
+  // etched away make up the rest. Its oven draws 3 kW, so
   // the three Plants together, at 13 kW, still run on what two solar
   // arrays can spare beside the Habitat and a battery bank.
   recipes: [
@@ -117,17 +116,17 @@ export const circuitBoardPlant: StructureType = {
       inputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "wafers" },
-          kilogramsPerHour: 0.25,
+          kilogramsPerHour: 0.34,
         },
         {
           resource: { kind: "bulk-resource", resourceId: "metals" },
-          kilogramsPerHour: 0.25,
+          kilogramsPerHour: 0.3,
         },
       ],
       outputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
-          kilogramsPerHour: 0.4,
+          kilogramsPerHour: 0.5,
         },
       ],
       drawKilowatts: 3,
@@ -137,13 +136,16 @@ export const circuitBoardPlant: StructureType = {
 
 // A crystal furnace feeding a board assembly line, which saws the
 // crystals into wafers and turns them straight into circuit boards, so
-// that the wafers never leave it. By default it makes 0.5 kg of circuit
-// boards an hour from 0.45 kg of silicon and 0.3 kg of metals, a
-// quarter more than a circuit board plant, for 9 kW, as much as a
+// that the wafers never leave it. By default it makes 0.6 kg of circuit
+// boards an hour from 0.55 kg of silicon and 0.4 kg of metals, a fifth
+// more than a circuit board plant, and just short of what fills the
+// Return Mass, so a Plant's rate still limits circuit boards (see
+// test/pacing-report.test.ts), for 9 kW, as much as a
 // vacuum fabrication plant and a circuit board plant draw together. It
-// can run for wafers alone instead: 0.6 kg an hour, twice a vacuum
-// fabrication plant's, for 8 kW. Either takes more silicon than an
-// extraction plant makes, so it needs a large extraction plant. It
+// can run for wafers alone instead: 0.47 kg an hour from the same
+// silicon, for 8 kW. Either takes more silicon than an extraction plant
+// makes, so it needs a large extraction plant, whose silicon feeds two
+// of them exactly and whose metals four. It
 // ships 900 kg for $85M, against 1350 kg for $125M for the two Plants
 // it stands in for.
 export const integratedFabricationPlant: StructureType = {
@@ -185,17 +187,17 @@ export const integratedFabricationPlant: StructureType = {
       inputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "silicon" },
-          kilogramsPerHour: 0.45,
+          kilogramsPerHour: 0.55,
         },
         {
           resource: { kind: "bulk-resource", resourceId: "metals" },
-          kilogramsPerHour: 0.3,
+          kilogramsPerHour: 0.4,
         },
       ],
       outputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "circuit-boards" },
-          kilogramsPerHour: 0.5,
+          kilogramsPerHour: 0.6,
         },
       ],
       drawKilowatts: 9,
@@ -206,13 +208,13 @@ export const integratedFabricationPlant: StructureType = {
       inputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "silicon" },
-          kilogramsPerHour: 0.7,
+          kilogramsPerHour: 0.55,
         },
       ],
       outputs: [
         {
           resource: { kind: "bulk-resource", resourceId: "wafers" },
-          kilogramsPerHour: 0.6,
+          kilogramsPerHour: 0.47,
         },
       ],
       drawKilowatts: 8,

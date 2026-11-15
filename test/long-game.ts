@@ -1,5 +1,6 @@
 import { catalogue } from "../src/catalogue";
 import {
+  ACT_2_EARTH_DAY,
   formatTimeline,
   LOOK_EVERY_MINUTES,
   playReferenceCampaign,
@@ -88,9 +89,6 @@ export const designsTheLongGameUses: readonly string[] = [
  * Design. Waiting for Science doesn't count.
  */
 export const PURCHASE_STALL_EARTH_DAYS = 300;
-
-/** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
-const ACT_2_EARTH_DAY = 350;
 
 /** The Earth Day Act 2 is meant to last until. */
 const ACT_2_END_EARTH_DAY = 900;
@@ -189,13 +187,14 @@ const CREW_HABITAT_SITE = { x: 80, y: -116 } as const;
 
 /**
  * The Earth Day the guide sends for a Buried Habitat, in good time to move in by
- * the Act's target of Earth Day 1,600: three Launches at a trip every 15 Earth
- * Days or so, then about 9 Earth Days to build it in the Daylight after the last.
+ * Act 3's target of Earth Day 1,000: three Launches at a trip every 15 Earth
+ * Days or so, then about 9 Earth Days to build it in the Daylight after the
+ * last. Behind a water wall the limit comes around Earth Day 1,100 (#338).
  */
-const BURIED_HABITAT_EARTH_DAY = 1530;
+const BURIED_HABITAT_EARTH_DAY = 880;
 
-/** The latest Earth Day the guide should be moved in by, the Act's target. */
-const BURIED_HABITAT_MOVED_IN_BY_EARTH_DAY = 1600;
+/** The latest Earth Day the guide should be moved in by, Act 3's target. */
+const BURIED_HABITAT_MOVED_IN_BY_EARTH_DAY = 1000;
 
 /** Where a Buried Habitat stands: north of the old Habitat. */
 const BURIED_HABITAT_SITE = { x: 46, y: 8 } as const;
