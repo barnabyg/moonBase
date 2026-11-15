@@ -10,6 +10,9 @@ describe("names in a sentence", () => {
     expect(inSentence("Buried Habitat")).toBe("Buried Habitat");
     expect(inSentence("Regolith")).toBe("Regolith");
     expect(inSentence("Regolith bin")).toBe("Regolith bin");
+    expect(inSentence("Mission Director's viewing area")).toBe(
+      "Mission Director's viewing area",
+    );
   });
 
   it.each([

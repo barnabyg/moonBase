@@ -73,6 +73,12 @@ import {
   oxygenTank,
   regolithBin,
 } from "./structures-tanks";
+import {
+  flagPole,
+  foundingMemorial,
+  rockGarden,
+  viewingArea,
+} from "./structures-decoration";
 import type { Catalogue } from "./types";
 
 export const structureTypes: Catalogue["structureTypes"] = [
@@ -122,6 +128,10 @@ export const structureTypes: Catalogue["structureTypes"] = [
   coldTrapIceLine,
   arrayWorks,
   workshop,
+  flagPole,
+  foundingMemorial,
+  rockGarden,
+  viewingArea,
 ];
 
 export const structureListGroups: Catalogue["structureListGroups"] = [
@@ -133,4 +143,5 @@ export const structureListGroups: Catalogue["structureListGroups"] = [
   { id: "industry", label: "Industry" },
   { id: "tanks", label: "Tanks" },
   { id: "science", label: "Science" },
+  { id: "decoration", label: "Decoration" },
 ];

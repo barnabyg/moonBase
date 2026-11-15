@@ -29,6 +29,7 @@ It prepares a Campaign, opens the game in the desktop app with that Campaign loa
 | `storage-tanks`         | A base with a water tank and an oxygen tank half full, a few hours before Night, and a second water tank's Components in stock                                                       |
 | `propellant-tanks`      | A base with a propellant plant and a propellant tank three batches from full, a few hours before Night, and a second tank's Components in stock                                      |
 | `regolith-digger`       | A base with a propellant plant, a bucket-wheel digger and a Regolith bin, 4,800 of 5,000 kg of Regolith, a few hours before Night                                                    |
+| `decorations`           | Early in a Campaign with a flag pole standing, and the kits for a founding memorial and a viewing area in stock                                                                      |
 | `greenhouse`            | A base with a Greenhouse growing a few hours before Night on a day's water above the reserve, and a water-processing plant switched off                                              |
 | `experiments-lab`       | A base with an automated experiments lab speeding up a long Research Task in Daylight, and a second lab's Components in stock                                                        |
 | `infrared-telescope`    | A base with an infrared telescope observing at Night, out past a Light Mast's dark radius, with propellant and a second telescope's Components                                       |

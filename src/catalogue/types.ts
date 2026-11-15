@@ -660,7 +660,8 @@ export type StructureListGroup =
   | "life-support"
   | "industry"
   | "tanks"
-  | "science";
+  | "science"
+  | "decoration";
 
 /** The six categories the Tech Tree's Designs fall into. */
 export type DesignCategory =

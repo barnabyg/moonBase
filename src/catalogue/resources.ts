@@ -157,6 +157,9 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "antenna-tile", label: "Antenna tile" },
   { id: "array-correlator", label: "Array correlator" },
   { id: "field-receiver", label: "Field receiver" },
+  { id: "flag-kit", label: "Flag kit" },
+  { id: "memorial-plaque", label: "Memorial plaque" },
+  { id: "viewing-area-kit", label: "Viewing area kit" },
   ...solarArrayComponentTypes,
 ];
 
