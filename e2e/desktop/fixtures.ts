@@ -25,6 +25,7 @@ import {
 } from "@playwright/test";
 import type { Dialog } from "electron";
 import { appUrl } from "../../electron/app-files";
+import { channels } from "../../electron/desktop-bridge";
 
 export { expect } from "@playwright/test";
 
@@ -254,6 +255,47 @@ export async function closeWindow(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ BrowserWindow }) => {
     for (const window of BrowserWindow.getAllWindows()) window.close();
   });
+}
+
+/**
+ * Whether the game says it has unsaved progress, asked over the bridge as
+ * the main process asks before the window closes. A save the Save button
+ * started counts once the page hears it was written, a moment after the file
+ * appears, as the main process still remembers its folder before answering.
+ */
+export async function hasUnsavedProgress(
+  app: ElectronApplication,
+): Promise<boolean> {
+  return app.evaluate(
+    ({ BrowserWindow, ipcMain }, { asked, answered }) =>
+      new Promise<boolean>((resolve, reject) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        if (contents === undefined) {
+          reject(new Error("No window is open."));
+          return;
+        }
+        // Below the main process's own numbers, which count up from 1.
+        const id = -1 - Math.floor(Math.random() * 1e9);
+        const hear = (_event: unknown, ...args: unknown[]): void => {
+          if (args[0] !== id) return;
+          clearTimeout(timer);
+          ipcMain.removeListener(answered, hear);
+          resolve(args[1] !== null);
+        };
+        const timer = setTimeout(() => {
+          ipcMain.removeListener(answered, hear);
+          reject(
+            new Error("The page didn't say whether it has unsaved progress."),
+          );
+        }, 3000);
+        ipcMain.on(answered, hear);
+        contents.send(asked, id);
+      }),
+    {
+      asked: channels.unsavedProgressAsked,
+      answered: channels.unsavedProgressAnswered,
+    },
+  );
 }
 
 async function closeOrKill(app: ElectronApplication): Promise<void> {
