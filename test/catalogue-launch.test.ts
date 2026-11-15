@@ -79,7 +79,9 @@ describe("the data catalogue", () => {
 
   it("lets a Launch bring every Structure type's Components once its Design is unlocked, a full set within one Launch's Payload Mass, but for a Buried Habitat and a Large-scale Crew Habitat, which are meant to take several", () => {
     for (const type of catalogue.structureTypes) {
-      const unlocked = designsUnlockedWith(type.designId);
+      const unlocked = [type.designId, ...(type.alsoNeedsDesignIds ?? [])]
+        .map((id) => [...designsUnlockedWith(id)])
+        .flat();
       let mass = 0;
       for (const need of type.components) {
         const item = catalogue.launch.items.find(

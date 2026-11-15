@@ -598,7 +598,7 @@ export const designs: Catalogue["designs"] = [
     id: "whipple-shielding",
     label: "Whipple shielding",
     description:
-      "A thin bumper plate standing clear of a battery bank's cabinet, which shatters a Micrometeorite before it strikes.",
+      "A thin bumper plate standing clear of a battery bank's cabinet, which shatters a Micrometeorite before it strikes, so that it takes a quarter of the wear. Battery banks of either size can be built in a Whipple-shielded cabinet, chosen in the build menu, for more mass and money; plain cabinets stay on sale. Banks the base already has keep the cabinet they were built with.",
     category: "protection",
     starting: false,
     scienceCost: 60,

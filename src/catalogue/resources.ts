@@ -105,6 +105,7 @@ export const componentTypes: Catalogue["componentTypes"] = [
   { id: "sealed-array-mast", label: "Sealed array mast" },
   { id: "screened-solar-panel", label: "Screened solar panel" },
   { id: "whipple-cabinet", label: "Whipple-shielded cabinet" },
+  { id: "large-whipple-cabinet", label: "Large Whipple-shielded cabinet" },
   { id: "armoured-habitat-envelope", label: "Armoured habitat envelope" },
   { id: "thin-film-solar-panel", label: "Thin-film solar panel" },
   { id: "tall-mast-pole", label: "Tall mast pole" },

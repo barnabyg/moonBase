@@ -34,6 +34,7 @@ import {
   LARGE_BATTERY_BANK,
   THERMAL_STORE,
   WHIPPLE_SHIELDED_BATTERY_BANK,
+  WHIPPLE_SHIELDED_LARGE_BATTERY_BANK,
 } from "./battery-bank-models";
 import {
   createStorageTankModel,
@@ -127,6 +128,9 @@ export function createStructureModel(
   }
   if (structureTypeId === "whipple-shielded-battery-bank") {
     return createBatteryBankModel(WHIPPLE_SHIELDED_BATTERY_BANK);
+  }
+  if (structureTypeId === "whipple-shielded-large-battery-bank") {
+    return createBatteryBankModel(WHIPPLE_SHIELDED_LARGE_BATTERY_BANK);
   }
   if (structureTypeId === "habitat") return createHabitatModel(HABITAT);
   if (structureTypeId === "hardened-habitat") {

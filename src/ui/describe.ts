@@ -333,7 +333,7 @@ export function describeUnlocks(design: Design): string[] {
         .map(({ brings }) => {
           switch (brings.kind) {
             case "component":
-              return componentLabel(brings.componentId).toLowerCase();
+              return inSentence(componentLabel(brings.componentId));
             case "life-support":
               return stockLabel(brings.stockId).toLowerCase();
             case "robot":
