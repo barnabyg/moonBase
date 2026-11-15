@@ -5,6 +5,7 @@ import { structurePerformance } from "./condition";
 import { findStructureType } from "./construction";
 import { researchSpeedUp } from "./experiments-labs";
 import { nightObservingRate } from "./observing";
+import { siteRoundsFactor } from "./observing-sites";
 import { readRadioArrays } from "./radio-telescope-arrays";
 import { researchTaskMinutes } from "./research";
 import type { Rounds } from "./rounds";
@@ -104,7 +105,12 @@ function fromInfraredSurveys(state: CampaignState): number {
         structure.powered || structure.plantStop?.reason === "daylight";
       return rounds === undefined || !counts
         ? sum
-        : sum + perEarthDayOf(rounds, structurePerformance(structure));
+        : sum +
+            perEarthDayOf(
+              rounds,
+              structurePerformance(structure) *
+                siteRoundsFactor(state, structure),
+            );
     }, 0) * nightShare()
   );
 }

@@ -333,6 +333,8 @@ export type GameEvent =
       readonly kind: "survey-returned";
       readonly atMinute: number;
       readonly science: number;
+      /** The kind of observing site it found, if it found one. */
+      readonly observingSiteKindId: string | undefined;
     }
   | {
       /** The Rover was Broken before the Robot could drive it off, so the Expedition is off. */

@@ -498,7 +498,7 @@ describe("a save from before antenna fields", () => {
       };
     };
 
-    expect(document.version).toBe(50);
+    expect(document.version).toBe(51);
     expect(
       [...document.state.structures, ...document.state.constructions].every(
         ({ arrayId }) => arrayId === null,

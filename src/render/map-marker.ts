@@ -4,9 +4,12 @@ import * as THREE from "three";
 // the panels: a ring on the ground round it. Only the render layer draws
 // it; the simulation never knows.
 
-/** Something on the base map that the player can ask to be shown: a Structure, Robot, Machine or Rover, by its id. */
+/**
+ * Something on the base map that the player can ask to be shown: a Structure,
+ * Robot, Machine or Rover, by its id, or an observing site, by its kind's id.
+ */
 export interface MapSubject {
-  readonly kind: "structure" | "robot" | "machine" | "rover";
+  readonly kind: "structure" | "robot" | "machine" | "rover" | "observing-site";
   readonly id: string;
 }
 

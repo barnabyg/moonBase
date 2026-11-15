@@ -110,11 +110,6 @@ window.addEventListener("resize", () => {
 });
 const showResult = createRefusal(container);
 const launchManifest = createLaunchManifestScreen(container, campaign);
-const expeditions = createExpeditionsScreen(container, campaign);
-const researchTasks = createResearchTasksScreen(container, campaign);
-const guide = createGuideScreen(container);
-const report = createMissionDirectorReportScreen(container);
-const workPanel = createWorkPanel(rightColumn, campaign);
 // Finds on the map what a panel lists. The panels are made before the map
 // and the pop-up it needs, so it asks for them only once it is used.
 const findOnMap: MapFinder = {
@@ -123,6 +118,11 @@ const findOnMap: MapFinder = {
     mapFinder.pointOut(subject);
   },
 };
+const expeditions = createExpeditionsScreen(container, campaign, findOnMap);
+const researchTasks = createResearchTasksScreen(container, campaign);
+const guide = createGuideScreen(container);
+const report = createMissionDirectorReportScreen(container);
+const workPanel = createWorkPanel(rightColumn, campaign);
 const basePanel = createBasePanel(rightColumn, campaign, showResult, findOnMap);
 const notifications = createNotificationList(rightColumn, campaign);
 // A Design unlocking is the one notification that doesn't come from

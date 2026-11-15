@@ -12,6 +12,7 @@ import { toScene, type Frame } from "./interpolation";
 import { createLighting } from "./lighting";
 import { createMachineViews } from "./machine-views";
 import { createMapMarker, type MapSubject, type Marked } from "./map-marker";
+import { createObservingSiteViews } from "./observing-site-views";
 import { createMissionDirectorView } from "./mission-director-view";
 import { pickStructure } from "./picking";
 import { createLanderView } from "./lander-view";
@@ -174,12 +175,20 @@ export function createRenderer(
   const constructions = createConstructionViews(scene, ground.material);
   const placementPreview = createPlacementPreview(scene);
   const marker = createMapMarker(scene);
+  const observingSites = createObservingSiteViews(scene);
 
   /** How far the mark goes round a Robot, a Machine and a Rover, in metres. */
   const MARK_RADIUS_METRES = { robot: 1.2, machine: 3, rover: 2.5 };
 
   /** Where something on the base map was last drawn, if it is on it. */
   function where(subject: MapSubject): Marked | undefined {
+    if (subject.kind === "observing-site") {
+      const position = observingSites.positionOf(subject.id);
+      const radiusMetres = observingSites.radiusOf(subject.id);
+      return position === undefined || radiusMetres === undefined
+        ? undefined
+        : { position, radiusMetres };
+    }
     if (subject.kind === "structure") {
       const position = constructions.positionOf(subject.id);
       const radiusMetres = constructions.radiusOf(subject.id);
@@ -256,6 +265,7 @@ export function createRenderer(
         ),
       );
       regolithHeap.update(frame);
+      observingSites.update(current.observingSites);
       iceStore.update(frame);
       robots.update(frame, realSeconds);
       machines.update(frame, realSeconds);
@@ -322,6 +332,7 @@ export function createRenderer(
       cables.clear();
       constructions.clear();
       marker.clear();
+      observingSites.clear();
     },
   };
 }

@@ -32,6 +32,13 @@ export type {
   InfraredTelescopeSnapshot,
 } from "./infrared-telescopes";
 export { isRadioArray } from "./radio-telescope-arrays";
+export {
+  observingSiteKind,
+  observingSiteKindFor,
+  observingSiteUnder,
+  type ObservingSiteSnapshot,
+  type ObservingSiteState,
+} from "./observing-sites";
 export type {
   RadioArrayStop,
   RadioArraySnapshot,

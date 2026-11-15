@@ -87,4 +87,25 @@ describe("finding on the base map what a panel lists", () => {
 
     expect(map.pointedOut).toEqual(["robot-1", undefined]);
   });
+
+  it("shows an observing site on the map, opening no pop-up", () => {
+    const map = mapWith(["dark"]);
+    const structurePopUp = popUp();
+    const finder = createMapFinder(map, structurePopUp);
+
+    expect(finder.find({ kind: "observing-site", id: "dark" })).toEqual({
+      ok: true,
+    });
+    expect(map.shown).toEqual(["dark"]);
+    expect(structurePopUp.opened).toEqual([]);
+  });
+
+  it("says a site no Survey has found can't be shown", () => {
+    const finder = createMapFinder(mapWith([]), popUp());
+
+    expect(finder.find({ kind: "observing-site", id: "dark" })).toEqual({
+      ok: false,
+      message: "No Survey has found it yet.",
+    });
+  });
 });

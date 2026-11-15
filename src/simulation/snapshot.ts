@@ -4,6 +4,10 @@ import {
   type GroundPosition,
   type MapSize,
 } from "../catalogue";
+import {
+  readObservingSites,
+  type ObservingSiteSnapshot,
+} from "./observing-sites";
 import { readBulkResources, type BulkResourceSnapshot } from "./bulk-resources";
 import type { CampaignEnd, CampaignState } from "./campaign";
 import { unusedComponents } from "./cancel";
@@ -456,6 +460,8 @@ export interface Snapshot {
    * brought back is in the base's stock, or undefined if there is none.
    */
   readonly expedition: ExpeditionSnapshot | undefined;
+  /** The dark and radio-quiet sites Surveys have found, in the order they were. */
+  readonly observingSites: readonly ObservingSiteSnapshot[];
   /** Machines and Rovers being parked where they can plug in, or waiting for the Robot to park them. */
   readonly parking: readonly ParkingSnapshot[];
 }
@@ -602,6 +608,7 @@ export function readSnapshot(state: CampaignState): Snapshot {
     maintenance: readMaintenance(state),
     parking: readParking(state),
     expedition: readExpedition(state),
+    observingSites: readObservingSites(state),
   };
 }
 

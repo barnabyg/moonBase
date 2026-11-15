@@ -895,6 +895,35 @@ export interface ExpeditionRules {
    * Must come to a whole number of game-minutes.
    */
   readonly unloadingHours: number;
+  /** The dark and radio-quiet sites a Survey finds for the telescopes. */
+  readonly observingSites: ObservingSiteRules;
+}
+
+/**
+ * Observing sites (ADR-0009): a Survey returning, once the Design of a telescope
+ * that needs one is unlocked, finds one site of that kind, the first in this
+ * list the base hasn't found, a circle on the map well away from the Lander. A
+ * Structure that earns Science by rounds and is kept clear of the kind's
+ * Structures works its rounds faster while its whole footprint stands within a
+ * found site of that kind.
+ */
+export interface ObservingSiteRules {
+  readonly kinds: readonly ObservingSiteKind[];
+  readonly radiusMetres: number;
+  /** How much faster a telescope on a site works its rounds: 0.5 is half as fast again. */
+  readonly roundsFasterBy: number;
+  /** How far from the Lander a site's centre is drawn from, evenly over the ground between. */
+  readonly fromLanderMetres: { readonly least: number; readonly most: number };
+}
+
+export interface ObservingSiteKind {
+  readonly id: string;
+  /** What the player calls it, such as "Dark site". */
+  readonly label: string;
+  /** The Design that lets a Survey find one: the telescope's that needs it. */
+  readonly designId: string;
+  /** The kind of Structure the telescopes it suits are kept clear of. */
+  readonly keptClearOf: KeepClearOf;
 }
 
 /** What every type of Expedition has. */
