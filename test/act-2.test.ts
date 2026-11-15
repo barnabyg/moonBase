@@ -393,8 +393,9 @@ describe("the metals Export", () => {
 
     // Circuit boards fall short of what the Lander can carry away, whatever is
     // in stock: their Plant's rate is the limit.
-    expect(boards).toBeLessThan(0.7 * carried);
-    expect(boards).toBeGreaterThan(0.55 * carried);
+    // A circuit board plant makes about four fifths of it (#339).
+    expect(boards).toBeLessThan(0.9 * carried);
+    expect(boards).toBeGreaterThan(0.7 * carried);
     // Metals pile up far past it, net of what the circuit boards use.
     expect(metals).toBeGreaterThan(1.5 * carried);
 

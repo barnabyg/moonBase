@@ -464,7 +464,7 @@ describe("the sample save of format version 35", () => {
         reason: "no-input",
         resource: { kind: "bulk-resource", resourceId: "silicon" },
         kilograms: 0.2,
-        kilogramsNeeded: 0.35,
+        kilogramsNeeded: 0.4,
       },
       batch: undefined,
     });

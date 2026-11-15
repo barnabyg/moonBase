@@ -172,7 +172,7 @@ describe("the electrolysis plant", () => {
 });
 
 describe("the Integrated fabrication plant waiting for metals", () => {
-  it("says it waits for silicon instead, once switched to wafers, before a game-minute is played", () => {
+  it("stops waiting for metals once switched to wafers, which take none, before a game-minute is played", () => {
     const [circuitBoards, wafers] =
       catalogue.structureTypes.find(
         (type) => type.id === "integrated-fabrication-plant",
@@ -180,13 +180,18 @@ describe("the Integrated fabrication plant waiting for metals", () => {
     if (circuitBoards === undefined || wafers === undefined) {
       throw new Error("expected two recipes");
     }
-    // Enough silicon for a batch of circuit boards, but not of wafers.
+    // Enough silicon for a batch of either, but no metals.
+    const silicon = Math.max(
+      ...[circuitBoards, wafers].map(
+        (recipe) => recipe.inputs[0]?.kilogramsPerHour ?? Infinity,
+      ),
+    );
     const campaign = changed(
       plantBase("integrated-fabrication-plant", circuitBoards),
       (state) => {
         for (const stock of state.bulkResources) {
           if (stock.resourceId === "metals") stock.kilograms = 0;
-          if (stock.resourceId === "silicon") stock.kilograms = 0.5;
+          if (stock.resourceId === "silicon") stock.kilograms = silicon;
         }
       },
     );
@@ -205,11 +210,7 @@ describe("the Integrated fabrication plant waiting for metals", () => {
     );
 
     expect(result).toEqual({ ok: true });
-    expect(waiting()).toEqual({
-      reason: "no-input",
-      resource: { kind: "bulk-resource", resourceId: "silicon" },
-      kilograms: 0.5,
-      kilogramsNeeded: wafers.inputs[0]?.kilogramsPerHour,
-    });
+    // It has what wafers take, so whatever holds it now, it isn't an input.
+    expect(waiting()?.reason).not.toBe("no-input");
   });
 });

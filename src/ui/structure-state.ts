@@ -402,8 +402,8 @@ export function formatTank(
 
 /**
  * Says what a running Plant makes and uses an hour, as fast as its
- * Condition allows, for example "making 0.3 kg of wafers an hour from
- * 0.35 kg of silicon", or, for one that makes Components, what a batch
+ * Condition allows, for example "making 0.34 kg of wafers an hour from
+ * 0.4 kg of silicon", or, for one that makes Components, what a batch
  * does, for example "making 1 spare Component every 24 hours from 3.6 kg of
  * metals", and the recipe it switches to from its next batch if it was
  * switched during this one and will start another; undefined for one that

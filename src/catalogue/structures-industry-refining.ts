@@ -49,7 +49,7 @@ export const extractionPlant: StructureType = {
   // Director uses in a Lunation it has to run for oxygen for about 30%
   // of the Daylight (0.15 kg an hour for oxygen, 0.01 for metals and
   // silicon). In the rest it makes under 0.3 kg of silicon an hour,
-  // averaged over the Daylight: less than the 0.35 kg a vacuum
+  // averaged over the Daylight: less than the 0.4 kg a vacuum
   // fabrication plant takes. So one extraction plant can't keep the base
   // self-sufficient in oxygen and feed a vacuum fabrication plant too;
   // the player switches between the recipes, or imports a second one.

@@ -28,10 +28,10 @@ export const bulkResourceWarningEarthDaysLeft: Catalogue["bulkResourceWarningEar
 //
 // A full Return Mass of circuit boards sells for $300M, twice what one of
 // wafers does: the Launch fee and as much again in what it brings. A
-// circuit board plant makes 0.4 kg of them an hour, worth $1.2M, from
-// 0.25 kg of wafers that would sell for under $0.4M, so the wafers earn
-// over three times as much made into circuit boards, for the power and
-// time it takes. What limits them is that Plant's rate: 192 kg in a Daylight,
+// circuit board plant makes 0.5 kg of them an hour, worth $1.5M, from
+// 0.34 kg of wafers that would sell for about $0.5M, so the wafers earn
+// nearly three times as much made into circuit boards, for the power and
+// time it takes. What limits them is that Plant's rate: 240 kg in a Daylight,
 // against the 295 kg three round trips can carry away in a Lunation.
 //
 // Metals sell for a third of that by the kilogram, so that a full Return Mass,
