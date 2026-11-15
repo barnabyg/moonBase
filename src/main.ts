@@ -13,6 +13,7 @@ import { exitFor } from "./ui/exit";
 import { fullScreenFor } from "./ui/full-screen";
 import { createGameOverScreen } from "./ui/game-over";
 import { createGuideScreen } from "./ui/guide";
+import { createMissionDirectorReportScreen } from "./ui/mission-director-report";
 import { createHolds } from "./ui/hold";
 import { createLaunchManifestScreen } from "./ui/launch-manifest";
 import { createMapFinder, type MapFinder } from "./ui/map-finder";
@@ -112,6 +113,7 @@ const launchManifest = createLaunchManifestScreen(container, campaign);
 const expeditions = createExpeditionsScreen(container, campaign);
 const researchTasks = createResearchTasksScreen(container, campaign);
 const guide = createGuideScreen(container);
+const report = createMissionDirectorReportScreen(container);
 const workPanel = createWorkPanel(rightColumn, campaign);
 // Finds on the map what a panel lists. The panels are made before the map
 // and the pop-up it needs, so it asks for them only once it is used.
@@ -153,6 +155,9 @@ const topBar = createTopBar(
   },
   () => {
     guide.open();
+  },
+  () => {
+    report.open();
   },
   // The desktop app's window fills the screen with F11 or this button; a
   // browser has no button.
@@ -213,7 +218,8 @@ function frame(time: number): void {
   lastFrameTime = time;
   const snapshot = campaign.snapshot();
   topBar.update(snapshot);
-  statusPanel.update(snapshot, campaign.forecasts(), loop.frameMs);
+  const forecasts = campaign.forecasts();
+  statusPanel.update(snapshot, forecasts, loop.frameMs);
   basePanel.update(snapshot);
   workPanel.update(snapshot, loop.frameMs);
   launchManifest.update(snapshot);
@@ -221,6 +227,7 @@ function frame(time: number): void {
   researchTasks.update(snapshot);
   techTree.update(snapshot);
   guide.update(snapshot);
+  report.update(snapshot, forecasts);
 
   buildMenu?.update(snapshot);
   gameOver.update(snapshot);

@@ -19,7 +19,8 @@ export interface TopBar {
  * Lunation, the game speed and skipping to the next event, the Funding
  * balance beside the button that opens the Launch manifest screen, the
  * Science balance beside the buttons that open the Research Tasks and Tech
- * Tree screens, the button that opens the Guide, saving and loading, and,
+ * Tree screens, the buttons that open the Guide and the Mission Director's
+ * Report, saving and loading, and,
  * in the desktop app (`fullScreen` and `exit`), the Full screen and Exit
  * buttons. It sends the
  * player's speed choices to the game loop.
@@ -33,6 +34,7 @@ export function createTopBar(
   openResearchTasks: () => void,
   openTechTree: () => void,
   openGuide: () => void,
+  openReport: () => void,
   fullScreen: FullScreen | undefined,
   exit: (() => void) | undefined,
 ): TopBar {
@@ -139,15 +141,18 @@ export function createTopBar(
   guide.title =
     "How the base works, and what every Structure, Machine and technology does.";
   guide.addEventListener("click", openGuide);
+  const report = document.createElement("button");
+  report.type = "button";
+  report.className = "top-bar__report";
+  report.textContent = "Mission Director's Report";
+  report.title =
+    "What the Mission Director is pleased about at the base, and what concerns them.";
+  report.addEventListener("click", openReport);
+  const help = document.createElement("div");
+  help.className = "top-bar__help";
+  help.append(guide, report);
 
-  bar.append(
-    time,
-    speedGroup,
-    funding,
-    science,
-    guide,
-    saveButtons(showResult),
-  );
+  bar.append(time, speedGroup, funding, science, help, saveButtons(showResult));
   if (fullScreen !== undefined) bar.append(fullScreenButton(fullScreen));
   if (exit !== undefined) bar.append(exitButton(exit));
   container.append(bar);

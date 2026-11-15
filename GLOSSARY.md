@@ -8,6 +8,10 @@ A construction and management game about establishing a base at the lunar south 
 The person the player plays: a real, mortal human living at the base who plans and prioritises the work but never builds anything and is never seen on screen.
 _Avoid_: avatar, player character, commander
 
+**Mission Director's Report**:
+A screen, opened beside the Guide, in which the Mission Director says what pleases them about the base and what concerns them, as things stand. It only reads what the status panel shows.
+_Avoid_: status report, briefing
+
 **Campaign**:
 A single open-ended playthrough, advanced by reaching Milestones and lost by hitting a failure state.
 _Avoid_: run, scenario, game
