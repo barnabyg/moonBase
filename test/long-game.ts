@@ -1,5 +1,6 @@
 import { catalogue } from "../src/catalogue";
 import {
+  ACT_2_EARTH_DAY,
   formatTimeline,
   LOOK_EVERY_MINUTES,
   playReferenceCampaign,
@@ -88,9 +89,6 @@ export const designsTheLongGameUses: readonly string[] = [
  * Design. Waiting for Science doesn't count.
  */
 export const PURCHASE_STALL_EARTH_DAYS = 300;
-
-/** The Earth Day Act 2 opens, when the guide turns to making its own spare Components. */
-const ACT_2_EARTH_DAY = 350;
 
 /** The Earth Day Act 2 is meant to last until. */
 const ACT_2_END_EARTH_DAY = 900;
