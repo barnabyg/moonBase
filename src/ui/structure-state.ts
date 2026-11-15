@@ -471,7 +471,7 @@ function plantKilograms(kilograms: number): string {
 /**
  * Says whether a Plant is running, why not, and how much of its batch is
  * left, for its line in the status panel, for example "running, 40 min
- * left of this batch", "waiting for Silicon: 0.12 of 0.35 kg", "waiting for
+ * left of this batch", "waiting for Silicon: 0.12 of 0.4 kg", "waiting for
  * Water: 49.5 of 50 kg, to leave the Mission Director's reserve of 49 kg",
  * "waiting for tank space: Water is 399.5 of 400 kg", "running on and off:
  * little stored power to spare" or "switched off"; undefined once it is Broken, which the line says already. Given
