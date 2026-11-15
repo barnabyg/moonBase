@@ -173,11 +173,12 @@ describe("the sample saves from before the Tech Tree", () => {
     "version-25.moonbase",
     "version-26.moonbase",
   ])("%s loads with the starting Designs unlocked, and no others", (name) => {
-    // Parking areas, a starting Design since format version 38, comes after
-    // them.
+    // Parking areas, a starting Design since format version 38, and
+    // Decorations, one since version 50, come after them.
     expect(loadSample(name).snapshot().unlockedDesignIds).toEqual([
       ...startingDesignIds,
       "parking-areas",
+      "decorations",
     ]);
   });
 
@@ -197,6 +198,7 @@ describe("the sample saves from before the Tech Tree", () => {
     expect(state.unlockedDesignIds).toEqual([
       ...startingDesignIds,
       "parking-areas",
+      "decorations",
       design.id,
     ]);
   });

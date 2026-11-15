@@ -603,6 +603,29 @@ export const launch: Catalogue["launch"] = {
       massKilograms: 900,
       priceMillionDollars: 450,
     },
+    // The Decorations' kits, each as heavy and dear as a spare Component or a
+    // little more, so that dismantling one gives back no more than it cost.
+    {
+      id: "flag-kit",
+      designId: "decorations",
+      brings: { kind: "component", componentId: "flag-kit" },
+      massKilograms: 20,
+      priceMillionDollars: 1,
+    },
+    {
+      id: "memorial-plaque",
+      designId: "decorations",
+      brings: { kind: "component", componentId: "memorial-plaque" },
+      massKilograms: 30,
+      priceMillionDollars: 1,
+    },
+    {
+      id: "viewing-area-kit",
+      designId: "decorations",
+      brings: { kind: "component", componentId: "viewing-area-kit" },
+      massKilograms: 35,
+      priceMillionDollars: 1,
+    },
     // A humanoid Robot built for the Moon, crated with its spares and
     // tools. With the Launch fee, one costs half the Programme Grant, so
     // a second Robot is a real choice against Components and supplies.

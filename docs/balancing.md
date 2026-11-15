@@ -314,7 +314,7 @@ An array grows by antenna fields (#263), at data catalogue version 87, with no n
 
 So an array with n fields in all earns 88.5 × n Science a Lunation: one with three fields beside it, four in all, earns 354, three Greenhouses' worth, for no water or propellant. A field costs less than the array ($1,000M against $1,300M, as it needs no correlator) and a quarter of its draw, and it needs no long cable of its own, so after the first array each field is the cheapest Science the late base can build: Funding, which the late base has idle (see below), and the Robot's time. A Broken field, or one without power, adds nothing but loses the array no round. Each field carries the array's 120 m quiet radius, so a big array needs a wide stretch of ground away from the Plants. The array can't be dismantled while a field joins it.
 
-The long-game play guide builds two from #265 (below). One of every Launch item now comes to $13,657M, 92 Launches of circuit boards.
+The long-game play guide builds two from #265 (below). One of every Launch item now comes to $13,657M, 92 Launches of circuit boards; the large Whipple-shielded cabinet (version 90) and the Decorations' kits (version 91) bring it to $13,673M, still 92.
 
 ## The late science in the long game
 

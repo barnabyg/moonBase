@@ -17,7 +17,8 @@ export function inSentence(label: string): string {
     label === "Buried Habitat" ||
     label === "Large-scale Crew Habitat" ||
     label === "Regolith" ||
-    label === "Regolith bin"
+    label === "Regolith bin" ||
+    label === "Mission Director's viewing area"
     ? label
     : label.toLowerCase();
 }

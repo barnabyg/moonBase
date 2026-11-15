@@ -150,6 +150,10 @@ _Avoid_: building, facility
 A Structure that runs a recipe, turning resources into products by itself once it is commissioned, such as the extraction plant that turns Regolith into oxygen, metals and silicon. A recipe is a Plant's inputs and outputs, not a Design. The Mission Director can switch a Plant off, so that it starts no new Batch, and back on, without dismantling it.
 _Avoid_: factory, facility, Machine
 
+**Decoration**:
+A Structure there for how it looks and what it means, not for what it does: a flag pole, a founding memorial, a rock garden or the Mission Director's viewing area. It draws no power and makes nothing, but it wears and is maintained like any other Structure. The Base panel and build menu list them in a group of their own.
+_Avoid_: ornament, monument, cosmetic
+
 **Workshop**:
 A Plant that makes spare Components from metals at the base, so that they no longer need a Launch.
 _Avoid_: factory, fabricator, printer
