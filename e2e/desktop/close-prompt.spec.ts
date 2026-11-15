@@ -14,6 +14,7 @@ import {
   exitCode,
   expect,
   hasExited,
+  hasUnsavedProgress,
   stubDialog,
   test,
 } from "./fixtures";
@@ -238,6 +239,9 @@ test("just after saving with the Save button, closing doesn't ask", async ({
   });
   await window.getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(() => existsSync(path)).toBe(true);
+  // The page counts it saved only once the main process answers, a moment
+  // after the file appears; closing sooner rightly asks.
+  await expect.poll(() => hasUnsavedProgress(electronApp)).toBe(false);
 
   await closeWindow(electronApp);
 
