@@ -314,7 +314,7 @@ An array grows by antenna fields (#263), at data catalogue version 87, with no n
 
 So an array with n fields in all earns 88.5 × n Science a Lunation: one with three fields beside it, four in all, earns 354, three Greenhouses' worth, for no water or propellant. A field costs less than the array ($1,000M against $1,300M, as it needs no correlator) and a quarter of its draw, and it needs no long cable of its own, so after the first array each field is the cheapest Science the late base can build: Funding, which the late base has idle (see below), and the Robot's time. A Broken field, or one without power, adds nothing but loses the array no round. Each field carries the array's 120 m quiet radius, so a big array needs a wide stretch of ground away from the Plants. The array can't be dismantled while a field joins it.
 
-The long-game play guide builds two from #265 (below). One of every Launch item now comes to $13,657M, 92 Launches of circuit boards.
+The long-game play guide builds two from #265 (below). One of every Launch item came to $13,657M, 92 Launches of circuit boards, at version 87, and to $13,670M, still 92, from version 90's large Whipple-shielded cabinet ([below](#whipple-shielding-for-either-size-of-battery-bank)).
 
 ## The late science in the long game
 
@@ -352,6 +352,14 @@ The four large battery banks' 3,200 kWh carry the lab's and the telescope's 912 
 | Funding at the end                   | $14,254M                            | $19,859M      |
 
 The lab sped up the Research Task running for 12,846 hours from Earth Day 1,728.6, 94% of the time until research ended, saving about 696 Earth Days. The infrared telescope earned 2,040 Science in 85 rounds while it ran, to Earth Day 2,299, about 113 a Lunation, and lost only the round it was on as it was switched off. The array earned 10,569 Science in 3,523 rounds to the end, 260 a Lunation with its two fields, and lost none. The Greenhouse earned 2,620 Science before it was switched off. With research over on Earth Day 2,299 and Vault cistern unlocked with it, the Greenhouse stood switched off from then on, leaving its water to the optics: in Act 4 the guide sold 7,003 kg of precision optics, 10,839 kg of circuit boards and 1,859 kg of propellant, $76,905M over 146 trips, against $57,165M over 147 at version 83. The late science's Components came to about $10,000M from Earth Day 1,690, which kept the Funding under $4,000M for much of Act 4, but the optics paid it back, and the Large-scale Crew Habitat came 166 Earth Days sooner. The growing hall, commissioned on Earth Day 2,416, after Vault cistern, never ran, as the guide switches it off with the Greenhouses. The play took 8.2 minutes of one core.
+
+It played the same at versions 89 and 90, every line of the timeline but the catalogue's version and the time it took: version 89 changed only words, and the guide builds no Whipple-shielded battery bank, so version 90's large one changes nothing it does. CI's play on #334 took 6.4 minutes.
+
+## Whipple shielding for either size of battery bank
+
+Whipple shielding was a battery bank of its own, the size of the small one, so a base that wanted storage and protection together couldn't have both (#332). From data catalogue version 90 it is a choice of cabinet for either size, ticked in the build menu, and a Whipple-shielded large battery bank takes a quarter of the wear from Micrometeorites, as the small one does. The shield is a trade, more protection for more mass and money, rather than an upgrade, so the plain cabinets stay on sale beside the shielded ones: taking them off sale, as the solar array upgrades do, would have made every battery bank after the Design dearer.
+
+The large Whipple-shielded cabinet is 280 kg and $13M, against the large cabinet's 160 kg and $5M, as its bumper plate stands clear of a much bigger cabinet on longer posts. A shielded large bank is then 960 kg and $53M against 840 kg and $45M, still well within one Launch. The small shield adds 40 kg and $3M to a $20M bank, about 15%; the large one adds 120 kg and $8M to a $45M bank, about 18%, so it stays a choice a player weighs rather than a default. Neither Design's Science changed, and the long-game play guide builds none, so its timeline is unchanged ([above](#the-late-science-in-the-long-game)).
 
 ## Still to watch
 
