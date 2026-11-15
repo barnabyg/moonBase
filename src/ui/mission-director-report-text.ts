@@ -89,7 +89,7 @@ function shelter(
     );
   } else if (habitat?.waterWalled === true) {
     pleased.push(
-      "The water wall over my Habitat keeps out nearly all the radiation.",
+      "The water wall over my Habitat keeps out most of what the shielding lets through, though not enough to stay here for good.",
     );
   } else if (habitat?.shielded === true) {
     pleased.push(
