@@ -4,7 +4,7 @@
 // HTML Fullscreen API's) on Escape, but the game uses Escape to close its
 // screens and cancel placing a Structure, and closing one of those must never
 // leave fullscreen too. The window's fullscreen ignores Escape, so only F11
-// and the button leave it (docs/rules.md says so for players).
+// and the button leave it (docs/rules/ says so for players).
 import {
   BrowserWindow,
   ipcMain,

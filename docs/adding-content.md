@@ -41,12 +41,12 @@ Trying and playing it:
 - `test/long-game.ts` and the files under `test/long-game/`: steps that build it (the steps in `test/long-game.ts`, what the guide runs at each look in `running.ts`, what Funding buys in `purchases.ts`), with its Design in `designsTheLongGameUses` in `settings.ts`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
-- Open the pull request and let CI play the long game ([when it plays](reference-campaign.md#ci-plays-it), and [what to run first](reference-campaign.md#before-ci-plays-it)). From the timeline in the run's summary, put the new figures in [`docs/balancing.md`](balancing.md) in place of the latest play's, each naming its version, and move the replaced play unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` doesn't grow with each play. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
+- Open the pull request and let CI play the long game ([when it plays](reference-campaign.md#ci-plays-it), and [what to run first](reference-campaign.md#before-ci-plays-it)). From the timeline in the run's summary, put the new figures in [`docs/balancing.md`](balancing.md) in place of the latest play's, each naming its version, and move the replaced play unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` doesn't grow with each play. A balancing note whose numbers a later change replaces goes there too ([Changing a number](#changing-a-number)). If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
 
 Tests and docs:
 
 - `test/<name>.test.ts` and `e2e/<name>.spec.ts`: its whole path, from unlocking the Design to using it. Nothing catches their absence. The spec finds its entry in the Base panel with `structureEntry` from `e2e/base-panel.ts`, not a locator of its own. Existing tests that build a Snapshot by hand, or filter a category's Structures, may need it too.
-- `GLOSSARY.md`, [`docs/rules.md`](rules.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
+- `GLOSSARY.md`, [`docs/rules/`](rules/README.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
 - [`docs/save-format.md`](save-format.md) says whether the save format changes: new Components and bulk resources don't, and new saved state does.
 
 ## A Plant
@@ -93,7 +93,7 @@ Trying and playing it:
 Tests and docs:
 
 - `test/<name>.test.ts`, and `e2e/<name>.spec.ts` for a new Act. `e2e/milestones-acts.spec.ts` names the last Act, so a new one fails it. `test/with-acts.ts` tries several Acts with made-up ones and needs no change.
-- `GLOSSARY.md` (the Act entry says which Acts are in the game), [`docs/rules.md`](rules.md), and the Act's row and pacing targets in [`docs/balancing.md`](balancing.md). Nothing catches them.
+- `GLOSSARY.md` (the Act entry says which Acts are in the game), [`docs/rules/`](rules/README.md), and the Act's row and pacing targets in [`docs/balancing.md`](balancing.md). Nothing catches them.
 
 ## Changing a number
 
@@ -109,7 +109,7 @@ Changing a number the catalogue already holds, such as a Plant's rate, a dose ra
 - Where it is cheap, have a test read the number from the catalogue rather than quote it, as `test/life-support-industry-plants.test.ts` reads a recipe's silicon.
 - Run the unit tests and the end-to-end specs the searches found before handing over, and then `npm run verify -- --project=chromium`, as an end-to-end failure found in CI costs a run.
 - `src/catalogue/catalogue.ts`: raise `version` ([see below](#the-catalogues-version)).
-- [`docs/rules.md`](rules.md) where it quotes the number, and [`docs/balancing.md`](balancing.md): the reason for the new number, in place of the old one's. When a balancing note's numbers are replaced, move the note unedited to [`docs/balancing-history.md`](balancing-history.md), as for a long-game play (see [A Structure](#a-structure)).
+- [`docs/rules/`](rules/README.md) where it quotes the number, and [`docs/balancing.md`](balancing.md): the reason for the new number, in place of the old one's. When a balancing note's numbers are replaced, move the note unedited to [`docs/balancing-history.md`](balancing-history.md), as for a long-game play (see [A Structure](#a-structure)).
 - Let CI play the long game, as for a new Structure, if the number changes what the base can make, earn or survive.
 
 ## The catalogue's version

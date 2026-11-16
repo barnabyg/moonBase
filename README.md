@@ -54,7 +54,7 @@ npm.cmd run package:win
 
 ## Documentation
 
-- [`docs/rules.md`](docs/rules.md): how the game works, system by system.
+- [`docs/rules/`](docs/rules/README.md): how the game works, a file for each system.
 - [`GLOSSARY.md`](GLOSSARY.md): the game's language.
 - [`docs/adr/`](docs/adr/): the design decisions.
 - [`docs/balancing.md`](docs/balancing.md): how the data catalogue is balanced, with the targets, the Acts, the decisions behind them, the latest long-game play and the catalogue's consistency rules.

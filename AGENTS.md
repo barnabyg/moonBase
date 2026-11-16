@@ -12,7 +12,7 @@ A new Structure, Plant, type of Expedition, Milestone or Act touches many files,
 
 ## Changing what the game does or says
 
-`docs/rules.md` describes the game's rules and quotes the panels' words. A change to what the game does, or to what the player sees, updates the passage of `docs/rules.md` that describes it, in the same commit, and `GLOSSARY.md` for a new term. The file is long: find the passage by searching for the words or numbers that changed. Nothing checks it.
+`docs/rules/` describes the game's rules and quotes the panels' words, a file for each system, listed in `docs/rules/README.md`. A change to what the game does, or to what the player sees, updates the passage that describes it, in the same commit, and `GLOSSARY.md` for a new term. Find the passage by searching the folder for the words or numbers that changed. Nothing checks it.
 
 ## Agent skills
 
