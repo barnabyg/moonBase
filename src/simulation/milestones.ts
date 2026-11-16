@@ -7,7 +7,7 @@ import {
 } from "../catalogue";
 import { bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
-import { findStructureType, isShielded } from "./construction";
+import { isShielded, findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { readExports } from "./exports";
 import { earthDaysOfUseKilograms } from "./life-support-reserve";

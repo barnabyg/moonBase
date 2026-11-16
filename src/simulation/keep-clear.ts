@@ -1,8 +1,8 @@
 import type { GroundPosition, KeepClear, KeepClearOf } from "../catalogue";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 
 // What a Structure can't work near (see `KeepClear` in the data catalogue): an

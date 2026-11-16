@@ -14,6 +14,7 @@ import {
 import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { scenario, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Dust wears nothing down, so that only the cold changes a Machine's
 // Condition.
@@ -223,9 +224,7 @@ describe("heaters", () => {
 
     const structuresDraw = ["solar-array", "battery-bank"].reduce(
       (sum, id) =>
-        sum +
-        (catalogue.structureTypes.find((type) => type.id === id)?.power
-          .drawKilowatts ?? Number.NaN),
+        sum + (findStructureType(id)?.power.drawKilowatts ?? Number.NaN),
       0,
     );
     expect(machines(campaign).map((m) => m.powered)).toEqual([true, true]);

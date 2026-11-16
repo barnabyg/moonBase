@@ -6,6 +6,7 @@ import {
   rod,
   roundedBox,
   windowGlass,
+  setStatusLight,
 } from "./materials";
 import type { StructureModel } from "./models";
 import {
@@ -401,13 +402,7 @@ export function createHabitatModel(shape: HabitatShape): StructureModel {
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit: () => undefined,
@@ -602,13 +597,7 @@ export function createBuriedHabitatModel(
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit: () => undefined,

@@ -10,6 +10,7 @@ import { describeStructureEntry } from "../src/ui/structure-state";
 import { structureDetails } from "../src/ui/structure-details";
 import { scenarioOf, scenario, type Scenario } from "./scenario";
 import { changed, withFunding, withScience } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The whole path, from a locked Design to earning Science and to losing a round,
 // at the real prices and Science costs. The Habitat needs no power and keeps the
@@ -34,8 +35,7 @@ const batterySite: GroundPosition = { x: 32, y: 28 };
 const greenhouseSite: GroundPosition = { x: 36, y: 12 };
 
 const componentsOf = (structureTypeId: string) =>
-  catalogue.structureTypes.find(({ id }) => id === structureTypeId)
-    ?.components ?? [];
+  findStructureType(structureTypeId)?.components ?? [];
 
 /** Every Design on the way to the Greenhouse's. */
 function designsTo(designId: string): string[] {

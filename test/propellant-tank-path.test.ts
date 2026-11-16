@@ -3,6 +3,7 @@ import { catalogue, type Catalogue } from "../src/catalogue";
 import { type GroundPosition, type Snapshot } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { withFunding, withScience } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The whole path, from a locked Design to a raised limit, at the real prices and
 // Science costs. The Habitat needs no power and keeps the Mission Director safe,
@@ -26,8 +27,7 @@ const plantSite: GroundPosition = { x: 36, y: 12 };
 const tankSite: GroundPosition = { x: 36, y: 24 };
 
 const componentsOf = (structureTypeId: string) =>
-  catalogue.structureTypes.find(({ id }) => id === structureTypeId)
-    ?.components ?? [];
+  findStructureType(structureTypeId)?.components ?? [];
 
 function propellantLine(state: Snapshot) {
   return state.bulkResources.find(
@@ -151,8 +151,7 @@ describe("the data catalogue's figures for the Lander's ceiling", () => {
       (propellant.mostReturnMassKilograms - returnMassKilograms) *
       propellant.kilogramsPerReturnKilogram;
     const holds = (id: string) =>
-      catalogue.structureTypes.find((type) => type.id === id)?.ownStorage
-        ?.kilograms ?? 0;
+      findStructureType(id)?.ownStorage?.kilograms ?? 0;
     const tank =
       catalogue.structureTypes.find(({ id }) => id === "propellant-tank")
         ?.storageTank?.kilograms ?? 0;

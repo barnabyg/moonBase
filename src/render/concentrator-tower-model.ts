@@ -8,6 +8,7 @@ import {
   placed,
   rodGeometry,
   rods,
+  setStatusLight,
 } from "./materials";
 import type { StructureModel } from "./models";
 
@@ -308,13 +309,7 @@ export function createConcentratorTowerModel(): StructureModel {
       for (const mirror of mirrors) mirror.rotation.y = angle;
     },
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
       const receiver =
         state === "on" ? materials.statusTesting : materials.statusOff;
       receiverGlow.color.copy(receiver.color);

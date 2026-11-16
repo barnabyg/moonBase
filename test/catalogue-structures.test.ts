@@ -6,6 +6,7 @@ import {
   type StructureType,
 } from "../src/catalogue";
 import { shipped } from "./catalogue-helpers";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * The data catalogue's structures.ts and structures-*.ts: Structure types and
@@ -27,9 +28,7 @@ describe("the data catalogue", () => {
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "has the excavator do a %s's Site Preparation, and the Robot the rest",
     (structureTypeId) => {
-      const structureType = catalogue.structureTypes.find(
-        (type) => type.id === structureTypeId,
-      );
+      const structureType = findStructureType(structureTypeId);
 
       expect(structureType?.stageMachines).toEqual({
         sitePreparation: "excavator",
@@ -320,8 +319,7 @@ describe("the data catalogue", () => {
   });
 
   describe("the vacuum fabrication plant", () => {
-    const typeOf = (id: string) =>
-      catalogue.structureTypes.find((type) => type.id === id);
+    const typeOf = (id: string) => findStructureType(id);
     const plant = typeOf("vacuum-fabrication-plant")?.recipes?.[0];
     const extraction = typeOf("extraction-plant")?.recipes?.find(
       (recipe) => recipe.id === "metals-and-silicon",
@@ -369,8 +367,7 @@ describe("the data catalogue", () => {
   });
 
   describe("the circuit board plant", () => {
-    const typeOf = (id: string) =>
-      catalogue.structureTypes.find((type) => type.id === id);
+    const typeOf = (id: string) => findStructureType(id);
     const plant = typeOf("circuit-board-plant")?.recipes?.[0];
     const rateOf = (
       flows: readonly ResourceFlow[] | undefined,

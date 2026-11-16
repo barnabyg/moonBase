@@ -15,14 +15,14 @@ import {
   MINUTES_PER_EARTH_DAY,
 } from "./settings";
 import { act2TargetsMissed, laterActTargetsMissed } from "./targets";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** The Designs the long-game play guide says it uses, but built nothing of and sent for nothing of. */
 export function designsNotUsed(timeline: ReferenceTimeline): string[] {
   const used = new Set([
     ...timeline.structureTypesBuilt.flatMap(
       ({ structureTypeId }) =>
-        catalogue.structureTypes.find((type) => type.id === structureTypeId)
-          ?.designId ?? [],
+        findStructureType(structureTypeId)?.designId ?? [],
     ),
     ...timeline.launchItemsManifested.flatMap(
       (itemId) =>

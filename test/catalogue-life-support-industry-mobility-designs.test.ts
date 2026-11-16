@@ -7,6 +7,7 @@ import {
   resourceOutputs,
 } from "../src/catalogue";
 import { shipped } from "./catalogue-helpers";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * The data catalogue's Life Support, Industry and Mobility Designs, in
@@ -16,7 +17,7 @@ import { shipped } from "./catalogue-helpers";
 describe("the data catalogue", () => {
   describe("the Industry Designs", () => {
     const structureType = (id: string) => {
-      const found = catalogue.structureTypes.find((type) => type.id === id);
+      const found = findStructureType(id);
       if (found === undefined) throw new Error(`expected a ${id}`);
       return found;
     };
@@ -239,7 +240,7 @@ describe("the data catalogue", () => {
 
   describe("the Mobility Designs", () => {
     const structureType = (id: string) => {
-      const found = catalogue.structureTypes.find((type) => type.id === id);
+      const found = findStructureType(id);
       if (found === undefined) throw new Error(`expected a ${id}`);
       return found;
     };
@@ -322,7 +323,7 @@ describe("the data catalogue", () => {
 
   describe("the Life Support Designs", () => {
     const structureType = (id: string) => {
-      const found = catalogue.structureTypes.find((type) => type.id === id);
+      const found = findStructureType(id);
       if (found === undefined) throw new Error(`expected a ${id}`);
       return found;
     };

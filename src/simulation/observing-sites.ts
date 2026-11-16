@@ -4,7 +4,7 @@ import {
   type ObservingSiteKind,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
-import { findStructureType, type StructureState } from "./construction";
+import { type StructureState, findStructureType } from "./construction";
 import { nextFraction, seedRandom } from "./random";
 import { isDesignUnlocked } from "./tech-tree";
 

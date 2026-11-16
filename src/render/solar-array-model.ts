@@ -1,7 +1,7 @@
 import { catalogue } from "../catalogue";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { boxAt, materials, part, rod } from "./materials";
+import { boxAt, materials, part, rod, setStatusLight } from "./materials";
 
 // The solar arrays, in each of the Structure types that look different.
 
@@ -250,13 +250,7 @@ export function createSolarArrayModel(
       head.rotation.y = angle;
     },
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
   };
 }

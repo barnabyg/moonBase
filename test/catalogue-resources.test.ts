@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { batchHoursOf, catalogue, resourceOutputs } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * The data catalogue's resources.ts: bulk resources, Exports, digging,
@@ -215,9 +216,7 @@ describe("the data catalogue", () => {
   it.each(["solar-array", "battery-bank", "light-mast", "habitat"])(
     "brings the Components for a %s in the starting stock",
     (structureTypeId) => {
-      const structureType = catalogue.structureTypes.find(
-        (type) => type.id === structureTypeId,
-      );
+      const structureType = findStructureType(structureTypeId);
 
       expect(structureType).toBeDefined();
       for (const need of structureType?.components ?? []) {

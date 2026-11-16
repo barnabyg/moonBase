@@ -13,6 +13,7 @@ import { formatPlantRates } from "../src/ui/structure-state";
 import { exportEconomics } from "./pacing-report";
 import { freshSaveWith } from "./try-scenarios";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Act 2 through the simulation interface: its Milestones, the metals Export and
 // what limits it, and the Plants that take nothing in.
@@ -20,9 +21,7 @@ import { changed } from "./worn";
 const EARTH_DAY = 24 * 60;
 
 function typeOf(id: string) {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a Structure type ${id}`);
   return type;
 }

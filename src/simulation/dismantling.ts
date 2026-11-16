@@ -6,9 +6,9 @@ import {
 import type { CampaignState } from "./campaign";
 import {
   chooseWorkSpot,
-  findStructureType,
   shieldingOver,
   waterWallOver,
+  findStructureType,
 } from "./construction";
 import { padUnderLander } from "./lander";
 import { livesIn } from "./mission-director";

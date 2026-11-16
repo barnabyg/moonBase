@@ -10,6 +10,7 @@ import {
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
 import { changed, coated, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Dust coats solar arrays but wears nothing down, so that output changes
 // only with the coating, or with a Condition a test sets; no Machine draws
@@ -225,9 +226,7 @@ describe("a solar array's Dust coating", () => {
 
     const nightDraw = ["solar-array", "battery-bank"].reduce(
       (sum, id) =>
-        sum +
-        (catalogue.structureTypes.find((type) => type.id === id)?.power
-          .drawKilowatts ?? Number.NaN),
+        sum + (findStructureType(id)?.power.drawKilowatts ?? Number.NaN),
       0,
     );
     const storedBy = (kilowatts: number) => hoursLeft * (kilowatts - nightDraw);

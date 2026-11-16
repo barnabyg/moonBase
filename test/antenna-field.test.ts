@@ -16,6 +16,7 @@ import { describeStructureEntry } from "../src/ui/structure-state";
 import { loadSample } from "./sample-saves";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // A radio telescope array's Design is unlocked from the start, with its
 // Components, three antenna fields', two large battery banks', a second solar
@@ -74,9 +75,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

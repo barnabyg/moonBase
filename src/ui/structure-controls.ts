@@ -1,9 +1,9 @@
-import { catalogue } from "../catalogue";
 import type { Campaign, Snapshot, StructureSnapshot } from "../simulation";
 import { dismantlingReturn, structureLabel } from "./labels";
 import type { ChoiceResult } from "./refusal";
 import { formatDoseRate } from "./format";
 import { isHabitat, isHome, isToBeDismantled } from "./structure-state";
+import { findStructureType } from "../simulation";
 
 /** The choices the player can make about a commissioned Structure, which the Campaign decides on. */
 export type StructureChoices = Pick<
@@ -40,10 +40,7 @@ export function createStructureControls(
 ): StructureControls {
   const structureId = structure.id;
   // The recipes of a Plant that has more than one, to choose from.
-  const recipes =
-    catalogue.structureTypes.find(
-      (type) => type.id === structure.structureTypeId,
-    )?.recipes ?? [];
+  const recipes = findStructureType(structure.structureTypeId)?.recipes ?? [];
   let recipe: HTMLSelectElement | undefined;
   if (recipes.length > 1) {
     const select = document.createElement("select");

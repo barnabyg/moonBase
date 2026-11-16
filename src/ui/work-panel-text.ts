@@ -1,4 +1,3 @@
-import { catalogue } from "../catalogue";
 import type {
   ConstructionSnapshot,
   ConstructionStage,
@@ -29,6 +28,7 @@ import {
   structureLabel,
   subjectLabel,
 } from "./labels";
+import { findStructureType } from "../simulation";
 
 // What is happening on each Work Order, in words, for the Work panel and a
 // Structure's details.
@@ -46,10 +46,7 @@ export function formatStage(stage: ConstructionStage): string {
 
 /** Whether a Structure is assembled from Components, rather than from Regolith alone. */
 export function hasComponents(structureTypeId: string): boolean {
-  return (
-    (catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.components.length ?? 0) > 0
-  );
+  return (findStructureType(structureTypeId)?.components.length ?? 0) > 0;
 }
 
 /**

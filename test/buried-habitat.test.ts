@@ -16,6 +16,7 @@ import {
   freshSaveWith,
 } from "./try-scenarios";
 import { changed, type SavedState } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Oxygen and water last, so that a test can live in a Habitat for as long as
 // it runs, and nothing but the wear of ordinary work breaks anything or leaves
@@ -41,9 +42,7 @@ const { doseLimitMillisieverts } = catalogue.radiation;
 const EARTH_DAY = 24 * 60;
 
 function typeOf(id: string) {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected ${id}`);
   return type;
 }
@@ -115,9 +114,7 @@ function structureAt(state: Snapshot, site: GroundPosition): StructureSnapshot {
     (structure) =>
       structure.position.x === site.x &&
       structure.position.y === site.y &&
-      catalogue.structureTypes.find(
-        (type) => type.id === structure.structureTypeId,
-      )?.habitat === true,
+      findStructureType(structure.structureTypeId)?.habitat === true,
   );
   if (found === undefined) throw new Error("expected a Habitat there");
   return found;

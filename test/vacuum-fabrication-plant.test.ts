@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  catalogue,
   type Catalogue,
   type PlantRecipe,
   resourceOutputs,
@@ -15,6 +14,7 @@ import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Nothing wears down at random or in the cold, the Robot digs no Regolith,
 // and the Mission Director comes to no harm in the Habitat from radiation.
@@ -35,9 +35,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 
 /** A Plant's recipe: the one given, or its default. */
 function recipeOf(structureTypeId: string, recipeId?: string): PlantRecipe {
-  const recipes = catalogue.structureTypes.find(
-    (type) => type.id === structureTypeId,
-  )?.recipes;
+  const recipes = findStructureType(structureTypeId)?.recipes;
   const recipe =
     recipeId === undefined
       ? recipes?.[0]
@@ -84,9 +82,7 @@ function plantOf(
 function base(plans: readonly [string, GroundPosition][]): Campaign {
   const campaign = changed(scenario().campaign, (state) => {
     for (const [structureTypeId] of plans) {
-      const type = catalogue.structureTypes.find(
-        (candidate) => candidate.id === structureTypeId,
-      );
+      const type = findStructureType(structureTypeId);
       for (const need of type?.components ?? []) {
         const stock = state.stockpile.components.find(
           (candidate) => candidate.componentId === need.componentId,

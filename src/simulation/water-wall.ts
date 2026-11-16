@@ -1,5 +1,5 @@
 import type { CampaignState } from "./campaign";
-import { findStructureType, type ConstructionState } from "./construction";
+import { type ConstructionState, findStructureType } from "./construction";
 import { earthDaysOfUseKilograms } from "./life-support-reserve";
 import { storageLimitKilograms } from "./storage-limits";
 

@@ -11,9 +11,9 @@ import {
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import {
   kilogramsAboveReserve,

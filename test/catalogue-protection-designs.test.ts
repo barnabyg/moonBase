@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { catalogue, type StructureType } from "../src/catalogue";
 import { designsUnlockedWith } from "./catalogue-helpers";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * The data catalogue's Protection Designs, in research.ts, and the Structures
@@ -79,7 +80,7 @@ describe("the data catalogue", () => {
 
   describe("the Protection Designs", () => {
     const structureType = (id: string) => {
-      const found = catalogue.structureTypes.find((type) => type.id === id);
+      const found = findStructureType(id);
       if (found === undefined) throw new Error(`expected a ${id}`);
       return found;
     };

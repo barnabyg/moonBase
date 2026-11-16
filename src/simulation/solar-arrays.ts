@@ -5,6 +5,7 @@ import {
   type StructureType,
 } from "../catalogue";
 import type { CampaignState } from "./campaign";
+import { findStructureType } from "./construction";
 
 /**
  * The player plans a solar array, and what kind it is comes from its parts:
@@ -126,10 +127,6 @@ export interface SolarArrayParts {
   }[];
 }
 
-function typeOf(id: string): StructureType | undefined {
-  return catalogue.structureTypes.find((type) => type.id === id);
-}
-
 /** The Components the base has, or that are aboard or on a manifest. */
 function partsToHand(
   parts: SolarArrayParts,
@@ -162,7 +159,10 @@ export function nextSolarArray(
   const free = partsToHand(parts, manifest);
   for (const construction of parts.constructions) {
     if (!construction.componentsTaken) {
-      take(free, typeOf(construction.structureTypeId)?.components ?? []);
+      take(
+        free,
+        findStructureType(construction.structureTypeId)?.components ?? [],
+      );
     }
   }
   return chooseKind(free, parts.unlockedDesignIds);
@@ -181,7 +181,10 @@ export function solarArraysInStock(parts: SolarArrayParts): number {
   );
   for (const construction of parts.constructions) {
     if (!construction.componentsTaken) {
-      take(free, typeOf(construction.structureTypeId)?.components ?? []);
+      take(
+        free,
+        findStructureType(construction.structureTypeId)?.components ?? [],
+      );
     }
   }
   let sets = 0;
@@ -208,12 +211,12 @@ export function rechooseSolarArrays(state: CampaignState): void {
   const waiting = state.constructions.filter(
     (construction) =>
       !construction.componentsTaken &&
-      typeOf(construction.structureTypeId)?.solarArray !== undefined,
+      findStructureType(construction.structureTypeId)?.solarArray !== undefined,
   );
   if (waiting.length === 0) return;
   const free = partsToHand(state, state.launchManifest);
   for (const construction of waiting) {
-    const type = typeOf(construction.structureTypeId);
+    const type = findStructureType(construction.structureTypeId);
     if (type === undefined) continue;
     const choice = chooseKind(free, state.unlockedDesignIds);
     const changes =

@@ -26,12 +26,12 @@ import {
 import {
   checkPlacement,
   chooseWorkSpot,
-  findStructureType,
   type ConstructionPlan,
   type ConstructionState,
   type PlacementCheck,
   type PlacementRefusal,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import type { DeathCause, GameEvent } from "./events";
 import {

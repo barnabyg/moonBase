@@ -4,6 +4,7 @@ import { isOnSale, loadCampaign } from "../src/simulation";
 import { describeStructure } from "../src/ui/describe";
 import { scenarioOf, type Scenario } from "./scenario";
 import { freshSaveWith } from "./try-scenarios";
+import { findStructureType } from "../src/simulation/construction";
 
 const site = { x: 25, y: -20 };
 const SEALED = "dust-sealed-solar-arrays";
@@ -102,9 +103,7 @@ describe("what a Launch can bring of solar arrays", () => {
 
 describe("what the player is told of a kind of solar array", () => {
   function about(id: string): string {
-    const type = catalogue.structureTypes.find(
-      (candidate) => candidate.id === id,
-    );
+    const type = findStructureType(id);
     if (type === undefined) throw new Error(`expected a ${id}`);
     return describeStructure(type);
   }
@@ -128,9 +127,7 @@ describe("the kind of solar array planned", () => {
     const game = baseWith([SEALED, SCREENS, THIN_FILM], {});
 
     const id = planned(game);
-    const type = catalogue.structureTypes.find(
-      (candidate) => candidate.id === id,
-    );
+    const type = findStructureType(id);
 
     expect(type).toMatchObject({
       id: "dust-screened-thin-film-solar-array",

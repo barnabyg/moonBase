@@ -6,6 +6,7 @@ import {
   type ResourceRef,
   type StructureType,
 } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 // The pacing report: how the Campaign's numbers fit together, worked out from
 // the data catalogue alone, so that a balancing change can be judged without
@@ -210,9 +211,7 @@ export function greenhouseChainDates(
   { greenhouses, halls }: { greenhouses: number; halls: number },
 ): DesignDate[] {
   const perEarthDay = (id: string): number => {
-    const growing = catalogue.structureTypes.find(
-      (type) => type.id === id,
-    )?.growing;
+    const growing = findStructureType(id)?.growing;
     return growing === undefined
       ? 0
       : (growing.science / growing.lengthHours) * HOURS_PER_EARTH_DAY;
@@ -1252,7 +1251,7 @@ export function formatPacingReport(
       "water-processing-plant",
       "water-tank",
     ].flatMap((id) => {
-      const type = catalogue.structureTypes.find((other) => other.id === id);
+      const type = findStructureType(id);
       if (type === undefined) return [];
       const { millionDollars, kilograms } = importCost(catalogue, type);
       return [

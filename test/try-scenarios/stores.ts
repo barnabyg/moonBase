@@ -13,6 +13,7 @@ import {
   stockOf,
 } from "./save-editing";
 import type { TryScenario } from "./try-scenario";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** Where `opticsBase` puts what makes precision optics, and what powers it. */
 const OPTICS_BASE_SITES = [
@@ -32,8 +33,7 @@ const OPTICS_BASE_SITES = [
  * a save edited to have what it needs.
  */
 function opticsBase(): Campaign {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push("precision-optics", "water-processing");
@@ -167,8 +167,7 @@ const PROPELLANT_BASE_SITES = [
  * Components in stock. It stops a few hours before Night, as `storageTanksSave` does.
  */
 export function propellantTanksSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push("propellant-production");
@@ -226,8 +225,7 @@ const REGOLITH_BASE_SITES = [
  * the digger carry on.
  */
 export function regolithDiggerSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(
@@ -285,8 +283,7 @@ const TANKS_BASE_SITES = [
  * to run, so that more can be built before Night slows the building down.
  */
 export function storageTanksSave({ nearNight = true } = {}): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push("water-electrolysis", "bulk-supply-tanks");

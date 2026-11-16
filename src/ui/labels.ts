@@ -6,6 +6,7 @@ import {
   type ExportLine,
   type MaintenanceSubject,
   type RobotSnapshot,
+  findStructureType,
 } from "../simulation";
 import { formatKilograms, listInWords } from "./format";
 
@@ -20,10 +21,7 @@ export function stockLabel(stockId: string): string {
 }
 
 export function structureLabel(structureTypeId: string): string {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.label ?? structureTypeId
-  );
+  return findStructureType(structureTypeId)?.label ?? structureTypeId;
 }
 
 /** Names a bulk resource or life support stock, for example "Regolith" or "Oxygen". */
@@ -101,8 +99,7 @@ export function formatComponents(counts: readonly ComponentCount[]): string {
  */
 export function dismantlingReturn(structureTypeId: string): string | undefined {
   const count =
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.dismantlingSpareComponents ?? 0;
+    findStructureType(structureTypeId)?.dismantlingSpareComponents ?? 0;
   return count === 0
     ? undefined
     : formatComponents([

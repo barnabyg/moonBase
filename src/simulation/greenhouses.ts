@@ -1,6 +1,6 @@
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
-import { findStructureType, type StructureState } from "./construction";
+import { type StructureState, findStructureType } from "./construction";
 import type { GameEvent, GreenhouseRoundLoss } from "./events";
 import { batchMinutes, loseRound, workRound } from "./rounds";
 

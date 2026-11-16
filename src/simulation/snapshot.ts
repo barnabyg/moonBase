@@ -14,13 +14,13 @@ import { unusedComponents } from "./cancel";
 import { readClock, type ClockSnapshot } from "./clock";
 import { structurePerformance } from "./condition";
 import {
-  findStructureType,
   isBuried,
   isShielded,
   isWaterWalled,
   stageMinutes,
   type ConstructionStage,
   type ConstructionState,
+  findStructureType,
 } from "./construction";
 import { dismantlingStageMinutes, type DismantlingStage } from "./dismantling";
 import { readExpedition, type ExpeditionSnapshot } from "./expeditions";

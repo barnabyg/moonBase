@@ -3,7 +3,6 @@ import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { isOperating } from "./condition";
 import { isAway, isRoverOnExpedition } from "./expeditions";
-import { findStructureType } from "./construction";
 import type { GameEvent } from "./events";
 import { minutesUntilEmptyThroughLunations, readLunation } from "./lunation";
 import { findMachineType, isMachineBroken } from "./machines";
@@ -16,6 +15,7 @@ import {
   isComponentMadeByPlants,
 } from "./plants";
 import { inStock } from "./stockpile";
+import { findStructureType } from "./construction";
 
 /** How long the base's stock of spare Components will last, as things stand. */
 export interface SpareComponentsForecast {

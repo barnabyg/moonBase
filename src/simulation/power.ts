@@ -8,11 +8,11 @@ import { structurePerformance } from "./condition";
 import { outputUnderCoating } from "./dust-coating";
 import {
   distance,
-  findStructureType,
   footprintRadius,
   isBroken,
   type ConstructionState,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import {

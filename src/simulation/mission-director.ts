@@ -1,6 +1,6 @@
 import type { CampaignState } from "./campaign";
 import type { DeathCause, GameEvent } from "./events";
-import { findStructureType, isBroken } from "./construction";
+import { isBroken, findStructureType } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 
 /** Where the Mission Director lives: aboard the Lander, or in a commissioned Habitat. */

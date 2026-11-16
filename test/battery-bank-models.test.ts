@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 // The materials draw their textures on a canvas when they load; under Node
 // there is none, so they fall back to plain colours, as in a browser that
@@ -28,8 +28,7 @@ function boundsOf(structureTypeId: string): THREE.Box3 {
 }
 
 const footprint = (id: string) =>
-  catalogue.structureTypes.find((type) => type.id === id)
-    ?.footprintRadiusMetres ?? 0;
+  findStructureType(id)?.footprintRadiusMetres ?? 0;
 
 describe("the Whipple-shielded large battery bank's model", () => {
   it("is drawn as a large battery bank with bumper plates standing clear of it, within its footprint", () => {

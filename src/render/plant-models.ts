@@ -7,6 +7,7 @@ import {
   placed,
   rodGeometry,
   type DetailParts,
+  setStatusLight,
 } from "./materials";
 import type { StructureModel } from "./models";
 import {
@@ -569,13 +570,7 @@ export function createPlantModel(shape: PlantShape): StructureModel {
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit: () => undefined,

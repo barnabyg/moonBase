@@ -1,4 +1,3 @@
-import { catalogue } from "../catalogue";
 import type {
   MissionDirectorResidence,
   PowerForecast,
@@ -7,6 +6,7 @@ import type {
 } from "../simulation";
 import { formatCharge, formatShortDuration, kilowatts, signed } from "./format";
 import type { Stat } from "./stat";
+import { findStructureType } from "../simulation";
 
 // The status panel's power figures in words, and the summary beside the
 // folded power section's title.
@@ -108,9 +108,7 @@ export function formatStoredPower(
 
 /** Whether a Structure of this type generates or stores power. */
 function isPowerSource(structureTypeId: string): boolean {
-  const type = catalogue.structureTypes.find(
-    ({ id }) => id === structureTypeId,
-  );
+  const type = findStructureType(structureTypeId);
   return (
     type !== undefined &&
     (type.power.generationKilowatts > 0 || type.power.storageKilowattHours > 0)

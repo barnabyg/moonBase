@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { ParkingBays } from "../catalogue";
-import { materials, part } from "./materials";
+import { materials, part, setStatusLight } from "./materials";
 import type { StructureModel } from "./models";
 import {
   SHIELDING_HEIGHT,
@@ -146,13 +146,7 @@ export function createLandingPadModel(shape: LandingPadShape): StructureModel {
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit(on) {
@@ -269,13 +263,7 @@ export function createParkingAreaModel(
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit: () => undefined,
@@ -361,13 +349,7 @@ export function createSinteredLandingPadModel(): StructureModel {
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit: () => undefined,

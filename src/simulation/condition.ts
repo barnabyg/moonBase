@@ -1,9 +1,9 @@
 import { catalogue, type PerformanceCurve } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import type { GameEvent } from "./events";
 import { usesPower } from "./power";

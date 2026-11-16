@@ -2,9 +2,9 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import type { GameEvent, RadioRoundLoss } from "./events";
 import { structuresInTheWay } from "./keep-clear";

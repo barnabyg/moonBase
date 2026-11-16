@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import type { GroundPosition } from "../src/simulation";
 import { samples, untilBatteriesFull, loadSample } from "./sample-saves";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * What an older sample save gets once it loads into rules that came after it:
@@ -33,8 +34,7 @@ describe("the sample saves from before bulk resources", () => {
 
 describe("the sample saves from before the Rover", () => {
   const footprint = (typeId: string): number =>
-    catalogue.structureTypes.find((type) => type.id === typeId)
-      ?.footprintRadiusMetres ??
+    findStructureType(typeId)?.footprintRadiusMetres ??
     catalogue.machineTypes.find((type) => type.id === typeId)
       ?.footprintRadiusMetres ??
     0;
@@ -222,9 +222,7 @@ describe("the sample saves from before a Plant could choose its recipe", () => {
         structures.some((structure) => structure.plant !== undefined),
       ).toBe(true);
       for (const structure of structures) {
-        const recipes = catalogue.structureTypes.find(
-          (type) => type.id === structure.structureTypeId,
-        )?.recipes;
+        const recipes = findStructureType(structure.structureTypeId)?.recipes;
         expect(structure.recipeId).toBe(recipes?.[0]?.id);
       }
     },

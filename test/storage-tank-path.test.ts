@@ -3,6 +3,7 @@ import { catalogue, type Catalogue } from "../src/catalogue";
 import { type GroundPosition, type Snapshot } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { withFunding, withScience } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The whole path, from a locked Design to a raised limit, at the real prices and
 // Science costs. The Habitat needs no power and keeps the Mission Director safe,
@@ -26,8 +27,7 @@ const waterTankSite: GroundPosition = { x: 34, y: 12 };
 const oxygenTankSite: GroundPosition = { x: 44, y: 18 };
 
 const componentsOf = (structureTypeId: string) =>
-  catalogue.structureTypes.find(({ id }) => id === structureTypeId)
-    ?.components ?? [];
+  findStructureType(structureTypeId)?.components ?? [];
 
 function limit(state: Snapshot, stockId: string): number | undefined {
   return state.lifeSupport.find((line) => line.stockId === stockId)

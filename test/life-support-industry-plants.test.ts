@@ -14,6 +14,7 @@ import {
 } from "../src/simulation";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Water electrolysis, Molten regolith electrolysis and Integrated
 // fabrication are unlocked from the start, with a kit for each of their
@@ -51,9 +52,7 @@ const cases = [
   "large-extraction-plant",
   "integrated-fabrication-plant",
 ].flatMap((typeId) => {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === typeId,
-  );
+  const type = findStructureType(typeId);
   if (type?.recipes === undefined) throw new Error(`expected a ${typeId}`);
   return type.recipes.map(
     (recipe, index) =>

@@ -15,7 +15,6 @@ const PREFABRICATED = "prefabricated-solar-arrays";
 
 interface Mast {
   readonly componentId: string;
-  readonly label: string;
   readonly sealed: boolean;
   readonly massKilograms: number;
   readonly priceMillionDollars: number;
@@ -23,7 +22,6 @@ interface Mast {
 
 interface Panel {
   readonly componentId: string;
-  readonly label: string;
   readonly screened: boolean;
   readonly thinFilm: boolean;
   readonly massKilograms: number;
@@ -33,7 +31,6 @@ interface Panel {
 const MASTS: readonly Mast[] = [
   {
     componentId: "array-mast",
-    label: "Array mast",
     sealed: false,
     massKilograms: 80,
     priceMillionDollars: 3,
@@ -41,7 +38,6 @@ const MASTS: readonly Mast[] = [
   // Heavier and dearer than an array mast for its seals.
   {
     componentId: "sealed-array-mast",
-    label: "Sealed array mast",
     sealed: true,
     massKilograms: 100,
     priceMillionDollars: 6,
@@ -51,7 +47,6 @@ const MASTS: readonly Mast[] = [
 const PANELS: readonly Panel[] = [
   {
     componentId: "solar-panel",
-    label: "Solar panel",
     screened: false,
     thinFilm: false,
     massKilograms: 60,
@@ -60,7 +55,6 @@ const PANELS: readonly Panel[] = [
   // The electrodes woven through the cells add mass and price.
   {
     componentId: "screened-solar-panel",
-    label: "Screened solar panel",
     screened: true,
     thinFilm: false,
     massKilograms: 70,
@@ -69,7 +63,6 @@ const PANELS: readonly Panel[] = [
   // Two of them and an array mast come to 150 kg, for half as much power again.
   {
     componentId: "thin-film-solar-panel",
-    label: "Thin-film solar panel",
     screened: false,
     thinFilm: true,
     massKilograms: 35,
@@ -78,7 +71,6 @@ const PANELS: readonly Panel[] = [
   // A thin-film panel with the same electrodes, at what they add to any panel.
   {
     componentId: "screened-thin-film-solar-panel",
-    label: "Screened thin-film solar panel",
     screened: true,
     thinFilm: true,
     massKilograms: 45,

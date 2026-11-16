@@ -8,6 +8,7 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { findStructureType } from "../src/simulation/construction";
 
 // Landing pad lights are unlocked from the start, with a lit landing pad's
 // kit in the starting stock. The Habitat needs no power and keeps the
@@ -112,8 +113,7 @@ describe("a lit landing pad", () => {
       lightRadiusMetres: padType.lightRadiusMetres,
     });
     const draw = (typeId: string) =>
-      catalogue.structureTypes.find((type) => type.id === typeId)?.power
-        .drawKilowatts ?? Number.NaN;
+      findStructureType(typeId)?.power.drawKilowatts ?? Number.NaN;
     expect(networkOf(game.state, pad.id).consumptionKilowatts).toBeCloseTo(
       draw("solar-array") +
         draw("battery-bank") +

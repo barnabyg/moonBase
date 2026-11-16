@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import { isInBuildMenu, isOnSale } from "../src/simulation";
+import { findStructureType } from "../src/simulation/construction";
 
 const structureType = (id: string) => {
-  const found = catalogue.structureTypes.find((type) => type.id === id);
+  const found = findStructureType(id);
   if (found === undefined) throw new Error(`expected a ${id}`);
   return found;
 };

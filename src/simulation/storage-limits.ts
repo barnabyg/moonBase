@@ -2,9 +2,9 @@ import { catalogue, type ResourceRef, type StorageTank } from "../catalogue";
 import { addBulk, bulkInStock } from "./bulk-resources";
 import type { CampaignState } from "./campaign";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 
 /**

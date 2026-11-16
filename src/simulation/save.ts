@@ -28,6 +28,7 @@ import type {
   WorkOrder,
   WorkOrderKind,
 } from "./work-orders";
+import { findStructureType } from "./construction";
 
 /** What every save document says it is, to tell it from any other JSON. */
 const SAVE_FORMAT = "moonbase-save";
@@ -409,10 +410,7 @@ const structure: Decoder<StructureState> = (() => {
   });
   return (value, path) => {
     const decoded = fields(value, path);
-    const recipes =
-      catalogue.structureTypes.find(
-        (type) => type.id === decoded.structureTypeId,
-      )?.recipes ?? [];
+    const recipes = findStructureType(decoded.structureTypeId)?.recipes ?? [];
     const notAPlant = "isn't null, though the Structure isn't a Plant";
     /** Refuses a recipe the Structure's type doesn't have, or any recipe if it isn't a Plant. */
     const refuseUnknownRecipe = (
@@ -450,9 +448,7 @@ const structure: Decoder<StructureState> = (() => {
     }
     if (
       decoded.growingMinutes > 0 &&
-      catalogue.structureTypes.find(
-        (type) => type.id === decoded.structureTypeId,
-      )?.growing === undefined
+      findStructureType(decoded.structureTypeId)?.growing === undefined
     ) {
       throw refuse(
         at(path, "growingMinutes"),
@@ -461,12 +457,9 @@ const structure: Decoder<StructureState> = (() => {
     }
     if (
       decoded.observedMinutes > 0 &&
-      catalogue.structureTypes.find(
-        (type) => type.id === decoded.structureTypeId,
-      )?.observingRounds === undefined &&
-      catalogue.structureTypes.find(
-        (type) => type.id === decoded.structureTypeId,
-      )?.radioArray === undefined
+      findStructureType(decoded.structureTypeId)?.observingRounds ===
+        undefined &&
+      findStructureType(decoded.structureTypeId)?.radioArray === undefined
     ) {
       throw refuse(
         at(path, "observedMinutes"),
@@ -985,9 +978,7 @@ const simulationState: Decoder<Omit<CampaignState, "random">> = (
   for (const key of ["structures", "constructions"] as const) {
     for (const [index, joining] of state[key].entries()) {
       const isField =
-        catalogue.structureTypes.find(
-          (type) => type.id === joining.structureTypeId,
-        )?.antennaField !== undefined;
+        findStructureType(joining.structureTypeId)?.antennaField !== undefined;
       const where = at(at(at(path, key), index), "arrayId");
       if (!isField) {
         if (joining.arrayId !== undefined) {
@@ -1000,9 +991,7 @@ const simulationState: Decoder<Omit<CampaignState, "random">> = (
       );
       if (
         array === undefined ||
-        catalogue.structureTypes.find(
-          (type) => type.id === array.structureTypeId,
-        )?.radioArray === undefined
+        findStructureType(array.structureTypeId)?.radioArray === undefined
       ) {
         throw refuse(
           where,

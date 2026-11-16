@@ -2,9 +2,10 @@ import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
 import { pickDesign } from "./tech-tree";
+import { findStructureType } from "../src/simulation/construction";
 
 function structureType(id: string) {
-  const type = catalogue.structureTypes.find((each) => each.id === id);
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

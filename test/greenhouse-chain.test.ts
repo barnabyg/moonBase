@@ -7,14 +7,13 @@ import { describeStructure } from "../src/ui/describe";
 import { structureDetails } from "../src/ui/structure-details";
 import { buriedHabitatBase, buriedHabitatSites } from "./try-scenarios";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // What Science buys after Lunar greenhouses: a growing hall and a vault cistern,
 // on the base with everything a Mission Director could live in.
 
 const typeOf = (id: string) => {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 };

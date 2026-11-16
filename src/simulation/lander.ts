@@ -7,9 +7,9 @@ import { isClimbingDown } from "./arrival";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import { isDueToBeDismantled } from "./dismantling";
 import type { GameEvent } from "./events";
