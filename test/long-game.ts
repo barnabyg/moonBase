@@ -53,7 +53,7 @@ import { giveUpOnMissedTargets } from "./long-game/targets";
 // docs/reference-campaign.md).
 //
 // A later Act adds its steps to `longGameSteps`, and whatever Designs they use
-// to `designsTheLongGameUses`.
+// to `designsTheLongGameUses` in `test/long-game/settings.ts`.
 
 export {
   LONG_GAME_END_EARTH_DAY,
