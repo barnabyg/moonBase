@@ -39,7 +39,7 @@ function sampleSaves(): string[] {
 /**
  * The sample saves, shared among a few tests. One test loading them all took
  * up to 3 minutes in CI, and grew with every format version; a share each
- * keeps every test well inside the suite's limit, and lets workers share them.
+ * keeps every test well inside the suite's limit, and lets local workers share them.
  */
 const SAMPLE_SHARES = 4;
 const allSamples = sampleSaves();
