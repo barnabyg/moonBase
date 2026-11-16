@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogue } from "../src/catalogue";
 import type { GameEvent, Snapshot } from "../src/simulation";
 import { untilBatteriesFull, loadSample } from "./sample-saves";
+import { findStructureType } from "../src/simulation/construction";
 
 /**
  * What the sample saves of format versions 27 to 41 hold once loaded, and that
@@ -71,8 +72,8 @@ describe("the sample save of format version 28", () => {
   // and Large battery banks was unlocked for all of it, with a large
   // battery bank an hour into its Assembly beside a solar array.
   const storageOf = (structureTypeId: string) =>
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)?.power
-      .storageKilowattHours ?? Number.NaN;
+    findStructureType(structureTypeId)?.power.storageKilowattHours ??
+    Number.NaN;
 
   it("loads with Large battery banks unlocked, no Science left, and a large battery bank being assembled from its Components", () => {
     const state = loadSample("version-28.moonbase").snapshot();

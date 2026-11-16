@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { catalogue } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 // The materials draw their textures on a canvas when they load; under Node
 // there is none, so they fall back to plain colours.
@@ -19,8 +19,7 @@ afterAll(() => {
 });
 
 const footprintOf = (id: string) =>
-  catalogue.structureTypes.find((type) => type.id === id)
-    ?.footprintRadiusMetres ?? 0;
+  findStructureType(id)?.footprintRadiusMetres ?? 0;
 
 function halfWidth(object: THREE.Object3D): number {
   object.updateMatrixWorld(true);

@@ -15,6 +15,7 @@ import {
 import { formatEvent } from "../src/ui/notifications-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The telescope's Design is unlocked from the start, with a telescope's
 // Components in the starting stock. Nothing wears down by Dust or
@@ -48,9 +49,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

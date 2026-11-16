@@ -5,6 +5,7 @@ import {
   routeBetween,
   type GroundPosition,
   type Grounds,
+  findStructureType,
 } from "../simulation";
 import { facingAngle, toScene } from "./interpolation";
 import { landerLadderFoot } from "./lander-model";
@@ -18,8 +19,7 @@ export interface WalkEnd {
 
 /** How far out along +x from its centre a type of Habitat's airlock hatch stands. */
 function hatchOut(structureTypeId: string): number {
-  return catalogue.structureTypes.find((type) => type.id === structureTypeId)
-    ?.buried === true
+  return findStructureType(structureTypeId)?.buried === true
     ? BURIED_HABITAT_HATCH_OUT
     : HABITAT_HATCH_OUT;
 }

@@ -17,6 +17,7 @@ import { formatBulkResources } from "../src/ui/status-panel-bulk-text";
 import { formatPlant } from "../src/ui/structure-state";
 import { scenario } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Nothing wears down at random or in the cold, the Robot digs no Regolith,
 // and the Mission Director comes to no harm in the Habitat, which draws no
@@ -37,9 +38,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function recipeOf(structureTypeId: string): PlantRecipe {
-  const recipe = catalogue.structureTypes.find(
-    (type) => type.id === structureTypeId,
-  )?.recipes?.[0];
+  const recipe = findStructureType(structureTypeId)?.recipes?.[0];
   if (recipe === undefined) throw new Error(`expected ${structureTypeId}`);
   return recipe;
 }
@@ -89,9 +88,7 @@ function plantOf(state: Snapshot): StructureSnapshot {
 function base(plans: readonly [string, GroundPosition][]): Campaign {
   const campaign = changed(scenario().campaign, (state) => {
     for (const [structureTypeId] of plans) {
-      const type = catalogue.structureTypes.find(
-        (candidate) => candidate.id === structureTypeId,
-      );
+      const type = findStructureType(structureTypeId);
       for (const need of type?.components ?? []) {
         const stock = state.stockpile.components.find(
           (candidate) => candidate.componentId === need.componentId,

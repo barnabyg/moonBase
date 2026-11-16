@@ -8,6 +8,7 @@ import {
   stockOf,
 } from "./save-editing";
 import type { TryScenario } from "./try-scenario";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** Where `lateGameSave` puts what it builds. */
 const LATE_GAME_SITES = [
@@ -36,8 +37,7 @@ export const LATE_GAME_SCIENCE =
  * the Robot's building takes, on a save edited to have what it needs.
  */
 function lateGameSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       for (const design of catalogue.designs) {

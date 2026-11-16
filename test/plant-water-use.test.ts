@@ -12,6 +12,7 @@ import { withPlantsTaking } from "../src/ui/status-panel-plant-text";
 import { formatSelfSufficiency } from "../src/ui/status-panel-text";
 import { formatPlant, formatPlantRates } from "../src/ui/structure-state";
 import { opticsBaseSave } from "./try-scenarios";
+import { findStructureType } from "../src/simulation/construction";
 
 const HOUR = 60;
 const EARTH_DAY = 24 * HOUR;
@@ -89,8 +90,7 @@ describe("the water an optics works and a grinding line use as coolant", () => {
     ["optics-works", OPTICS_WORKS_KILOGRAMS],
     ["grinding-line", GRINDING_LINE_KILOGRAMS],
   ])("%s takes water for its precision optics", (id, kilograms) => {
-    const recipe = catalogue.structureTypes.find((type) => type.id === id)
-      ?.recipes?.[0];
+    const recipe = findStructureType(id)?.recipes?.[0];
 
     expect(recipe?.inputs).toContainEqual({
       resource: { kind: "life-support", stockId: "water" },

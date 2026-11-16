@@ -14,6 +14,7 @@ import { structureDetails } from "../src/ui/structure-details";
 import { describeStructureEntry, formatPlant } from "../src/ui/structure-state";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Both Plants' Designs are unlocked from the start, with Components for two of
 // each Plant and two tanks in the starting stock, and three more solar arrays, so
@@ -683,9 +684,7 @@ describe("a Propellant plant no longer there to hold it", () => {
 
 describe("the words for propellant storage", () => {
   const typeOf = (id: string) => {
-    const type = catalogue.structureTypes.find(
-      (candidate) => candidate.id === id,
-    );
+    const type = findStructureType(id);
     if (type === undefined) throw new Error(`expected a ${id}`);
     return type;
   };

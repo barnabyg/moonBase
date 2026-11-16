@@ -1,6 +1,6 @@
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
-import { findStructureType, type StructureState } from "./construction";
+import { type StructureState, findStructureType } from "./construction";
 import type { GameEvent, InfraredRoundLoss } from "./events";
 import { structuresInTheWay } from "./keep-clear";
 import { observingSiteUnder, siteRoundsFactor } from "./observing-sites";

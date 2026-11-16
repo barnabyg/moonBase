@@ -10,6 +10,7 @@ import {
   type GroundPosition,
   type Snapshot,
   type StructureSnapshot,
+  findStructureType,
 } from "../simulation";
 import { designOf, formatHours, powerRatings } from "./describe";
 import {
@@ -210,9 +211,7 @@ export function structureDetails(
   if (phase === undefined) return undefined;
   const footing = footingIn(phase);
   const { structureTypeId } = footing;
-  const type = catalogue.structureTypes.find(
-    ({ id }) => id === structureTypeId,
-  );
+  const type = findStructureType(structureTypeId);
   if (type === undefined) return undefined;
   const structure = phase.kind === "commissioned" ? phase.structure : undefined;
   return {

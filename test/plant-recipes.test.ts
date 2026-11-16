@@ -19,6 +19,7 @@ import {
 import { formatPlantRates } from "../src/ui/structure-state";
 import { DEFAULT_SEED } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Only the Plants and the Mission Director change the oxygen and water:
 // nothing wears down, the Robot digs no Regolith, and the Habitat needs no
@@ -42,10 +43,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function recipesOf(structureTypeId: string): readonly PlantRecipe[] {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.recipes ?? []
-  );
+  return findStructureType(structureTypeId)?.recipes ?? [];
 }
 
 function recipe(structureTypeId: string, recipeId: string): PlantRecipe {

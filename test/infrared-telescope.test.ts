@@ -13,6 +13,7 @@ import {
 } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // An infrared telescope's Design is unlocked from the start, with its Components,
 // two large battery banks', a second solar array's and Light Masts' in the
@@ -64,9 +65,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

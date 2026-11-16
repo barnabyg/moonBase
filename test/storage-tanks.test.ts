@@ -12,6 +12,7 @@ import { formatEvent } from "../src/ui/notifications-text";
 import { describeStructureEntry } from "../src/ui/structure-state";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The tanks' Design is unlocked from the start, with a set of each tank's
 // Components in the starting stock, and a second water tank's. Only a tank wears
@@ -513,9 +514,7 @@ describe("a tank that is another entry in the data catalogue", () => {
 
 describe("a storage tank's words", () => {
   const typeOf = (id: string) => {
-    const type = catalogue.structureTypes.find(
-      (candidate) => candidate.id === id,
-    );
+    const type = findStructureType(id);
     if (type === undefined) throw new Error(`expected a ${id}`);
     return type;
   };

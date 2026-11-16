@@ -11,6 +11,7 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { findStructureType } from "../src/simulation/construction";
 
 // No Machine feels the cold or draws power for a heater at Night, and the
 // Robot never has to park one, so that power and time pass as the test
@@ -26,9 +27,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

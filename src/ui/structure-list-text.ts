@@ -1,4 +1,3 @@
-import { catalogue } from "../catalogue";
 import type { Snapshot, StructureSnapshot } from "../simulation";
 import { maintenanceState } from "./base-panel-text";
 import { formatCondition } from "./format";
@@ -8,6 +7,7 @@ import {
   maintenanceOf,
   structureStatus,
 } from "./structure-state";
+import { findStructureType } from "../simulation";
 
 // How the Base panel sums up its Structures, in words: the one row that
 // stands for several of a type, and what a group's heading says of them.
@@ -21,9 +21,7 @@ import {
  * its shielding and water wall under it.
  */
 export function stacksInList(structureTypeId: string): boolean {
-  const type = catalogue.structureTypes.find(
-    ({ id }) => id === structureTypeId,
-  );
+  const type = findStructureType(structureTypeId);
   return (
     type !== undefined &&
     !type.habitat &&

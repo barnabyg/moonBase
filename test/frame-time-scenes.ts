@@ -6,6 +6,7 @@ import {
 } from "../src/simulation";
 import { toGameMinutes } from "./scenario";
 import { tryScenarios } from "./try-scenarios";
+import { findStructureType } from "../src/simulation/construction";
 
 // The fixed scenes `npm run frame-time` draws, to measure how long the game
 // takes to draw a frame (see docs/rendering-performance.md). Each starts from a
@@ -114,9 +115,7 @@ function withLights(base: string, lights: readonly LightMast[]): Campaign {
   };
   const { state } = opened;
   for (const [structureTypeId] of lights) {
-    const type = catalogue.structureTypes.find(
-      ({ id }) => id === structureTypeId,
-    );
+    const type = findStructureType(structureTypeId);
     if (type === undefined) throw new Error(`No ${structureTypeId}.`);
     if (!state.unlockedDesignIds.includes(type.designId)) {
       state.unlockedDesignIds.push(type.designId);

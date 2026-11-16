@@ -14,6 +14,7 @@ import {
   stockOf,
 } from "./save-editing";
 import type { TryScenario } from "./try-scenario";
+import { findStructureType } from "../../src/simulation/construction";
 
 /**
  * Early in a Campaign with a Workshop running, on a second solar array and a
@@ -84,8 +85,7 @@ export const buriedHabitatSites = {
  * building takes, on a save edited to have what it needs.
  */
 export function buriedHabitatBase(): Campaign {
-  const typeOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id);
+  const typeOf = (id: string) => findStructureType(id);
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(

@@ -11,6 +11,7 @@ import {
   isExperimentsLab,
   isInfraredTelescope,
   isGreenhouse,
+  isTelescope,
   recipeOf,
   workingRecipeOf,
   type MaintenanceSnapshot,
@@ -18,6 +19,7 @@ import {
   type RadioArraySnapshot,
   type Snapshot,
   type StructureSnapshot,
+  findStructureType,
 } from "../simulation";
 import { maintenanceState } from "./base-panel-text";
 import { formatComponentsMade, formatHours } from "./describe";
@@ -67,20 +69,9 @@ export function maintenanceOf(
   );
 }
 
-/** Whether a type of Structure is a telescope, which observes at Night for the observing programme. */
-export function isTelescope(structureTypeId: string): boolean {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.telescope === true
-  );
-}
-
 /** Whether a type of Structure is a Habitat, which the Mission Director can live in. */
 export function isHabitat(structureTypeId: string): boolean {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.habitat === true
-  );
+  return findStructureType(structureTypeId)?.habitat === true;
 }
 
 /**
@@ -118,8 +109,7 @@ export function structureStatus(
 export function growingRoundsOf(
   structureTypeId: string,
 ): GrowingRounds | undefined {
-  return catalogue.structureTypes.find((type) => type.id === structureTypeId)
-    ?.growing;
+  return findStructureType(structureTypeId)?.growing;
 }
 
 /**
@@ -171,9 +161,7 @@ export function formatInfraredTelescope(
   >,
 ): string {
   const { plant } = structure;
-  const rounds = catalogue.structureTypes.find(
-    (type) => type.id === structure.structureTypeId,
-  )?.observingRounds;
+  const rounds = findStructureType(structure.structureTypeId)?.observingRounds;
   const left = Math.max(
     Math.ceil(
       ((rounds?.lengthHours ?? 0) * 60 - structure.observedMinutes) /
@@ -283,7 +271,7 @@ export function structureNotes(
     light: structure.lit
       ? "lit"
       : structure.savingPower
-        ? isTelescope(structure.structureTypeId)
+        ? isTelescope(structure)
           ? "not observing, to save power"
           : "light off to save power"
         : undefined,
@@ -393,8 +381,8 @@ export function formatTank(
   const stock = inSentence(resourceRefLabel(tank.resource));
   if (tank.losing) return `no power: losing ${stock}`;
   const kilowatts =
-    catalogue.structureTypes.find(({ id }) => id === structure.structureTypeId)
-      ?.power.nightUpkeepKilowatts ?? 0;
+    findStructureType(structure.structureTypeId)?.power.nightUpkeepKilowatts ??
+    0;
   const holds = `holds ${formatKilogramAmount(tank.heldKilograms)} of ${tank.addsKilograms} kg of ${stock}`;
   if (kilowatts === 0) return holds;
   return `${holds}, ${night ? `drawing ${kilowatts} kW` : `draws ${kilowatts} kW at Night`}`;
@@ -442,8 +430,8 @@ export function formatPlantRates(
   if (isExperimentsLab(structure)) {
     return `using ${flows(recipe.inputs, structure.performance)} an hour`;
   }
-  const observing = catalogue.structureTypes.find(
-    (type) => type.id === structure.structureTypeId,
+  const observing = findStructureType(
+    structure.structureTypeId,
   )?.observingRounds;
   if (observing !== undefined) {
     return `boiling off ${flows(recipe.inputs, structure.performance)} an hour, for ${formatScience(observing.science)} a round`;
@@ -530,9 +518,8 @@ export function formatDustCoating(
   structure: Pick<StructureSnapshot, "structureTypeId" | "dustCoatingPercent">,
 ): string | undefined {
   const generates =
-    (catalogue.structureTypes.find(
-      (type) => type.id === structure.structureTypeId,
-    )?.power.generationKilowatts ?? 0) > 0;
+    (findStructureType(structure.structureTypeId)?.power.generationKilowatts ??
+      0) > 0;
   return generates
     ? `Dust coating ${Math.round(structure.dustCoatingPercent)}%`
     : undefined;

@@ -4,6 +4,7 @@ import {
   habitatUnder,
   type Snapshot,
   type StructureSnapshot,
+  findStructureType,
 } from "../simulation";
 import { placeInOrder, setText } from "./dom";
 import {
@@ -578,10 +579,7 @@ function typePlace(structureTypeId: string): number {
 }
 
 function listGroupOf(structureTypeId: string): StructureListGroup {
-  return (
-    catalogue.structureTypes.find(({ id }) => id === structureTypeId)
-      ?.listGroup ?? "industry"
-  );
+  return findStructureType(structureTypeId)?.listGroup ?? "industry";
 }
 
 /**

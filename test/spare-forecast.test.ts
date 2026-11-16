@@ -13,6 +13,7 @@ import {
 } from "../src/simulation/spare-forecast";
 import { scenario, type Scenario } from "./scenario";
 import { changed, withSpares } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The Mission Director can live in the Habitat through a round trip of the
 // Lander. Only Structures and the Robot wear, and Machines and the cold
@@ -40,8 +41,7 @@ const habitatSite: GroundPosition = { x: 60, y: 0 };
 const farArraySite: GroundPosition = { x: 40, y: 25 };
 const { conditionPercentPerSpareComponent } = catalogue.maintenance;
 const wear = (structureTypeId: string) =>
-  catalogue.structureTypes.find((type) => type.id === structureTypeId)
-    ?.dustWearPercentPerHour ?? 0;
+  findStructureType(structureTypeId)?.dustWearPercentPerHour ?? 0;
 
 /** Runs the game until the Robot has carried out every planned Construction. */
 function buildAll(game: Scenario): Scenario {

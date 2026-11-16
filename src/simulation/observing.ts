@@ -2,9 +2,9 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import type { GameEvent } from "./events";
 import { readLunation } from "./lunation";
@@ -45,7 +45,9 @@ export interface ObservingProgrammeSnapshot {
 }
 
 /** Whether a Structure is a telescope. */
-export function isTelescope(structure: StructureState): boolean {
+export function isTelescope(structure: {
+  readonly structureTypeId: string;
+}): boolean {
   return findStructureType(structure.structureTypeId)?.telescope === true;
 }
 

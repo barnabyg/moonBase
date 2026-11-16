@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { catalogue } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 // The materials draw their textures on a canvas when they load; under Node
 // there is none, so they fall back to plain colours, as in a browser that
@@ -63,9 +64,7 @@ const newStructures = [
 ] as const;
 
 describe.each(newStructures)("the %s's model", (id, name) => {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a Structure type ${id}`);
 
   it("is its own, unlike any other Structure's, standing on the ground within its footprint", () => {

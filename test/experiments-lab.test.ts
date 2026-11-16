@@ -18,6 +18,7 @@ import {
 } from "../src/ui/status-panel-research-text";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed, worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // An automated experiments lab's Design is unlocked from the start, with two labs'
 // Components, two large battery banks' and a second solar array's in the starting
@@ -71,9 +72,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

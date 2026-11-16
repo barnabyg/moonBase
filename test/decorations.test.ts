@@ -9,6 +9,7 @@ import { describeStructure } from "../src/ui/describe";
 import { structureStatus } from "../src/ui/structure-state";
 import { shipped } from "./catalogue-helpers";
 import { scenario, type Scenario } from "./scenario";
+import { findStructureType } from "../src/simulation/construction";
 
 // Decorations, built from a starting stock that holds a kit for each, with the
 // Habitat keeping the Mission Director safe and no Micrometeorites, so that
@@ -44,9 +45,7 @@ const DECORATION_IDS = [
 ];
 
 function typeOf(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

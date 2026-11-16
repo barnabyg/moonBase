@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
 import type { GroundPosition, PlumeEjectaSnapshot } from "../simulation";
 import { createFootprintRing } from "./construction-views";
 import { toScene } from "./interpolation";
 import { createStructureModel } from "./models";
+import { findStructureType } from "../simulation";
 
 /**
  * A Structure the player is about to place, whether it may go there, and
@@ -126,8 +126,7 @@ export function createPlacementPreview(scene: THREE.Scene) {
 
   const build = (structureTypeId: string) => {
     const radius =
-      catalogue.structureTypes.find((type) => type.id === structureTypeId)
-        ?.footprintRadiusMetres ?? 1;
+      findStructureType(structureTypeId)?.footprintRadiusMetres ?? 1;
     const model = createStructureModel(structureTypeId);
     model.setAssembled(1);
     const group = new THREE.Group();

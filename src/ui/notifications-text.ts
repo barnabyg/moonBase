@@ -10,6 +10,7 @@ import {
   type ManifestLine,
   type RobotSnapshot,
   type StrikeTarget,
+  findStructureType,
 } from "../simulation";
 import {
   formatCondition,
@@ -270,15 +271,15 @@ function strikeTargetLabel(
 /** The name of the survey a type of infrared telescope observes for. */
 function surveyLabel(structureTypeId: string): string {
   return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.observingRounds?.label ?? structureLabel(structureTypeId)
+    findStructureType(structureTypeId)?.observingRounds?.label ??
+    structureLabel(structureTypeId)
   );
 }
 
 /** The name of the survey a type of radio telescope array works on. */
 function radioSurveyLabel(structureTypeId: string): string {
   return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.radioArray?.label ?? structureLabel(structureTypeId)
+    findStructureType(structureTypeId)?.radioArray?.label ??
+    structureLabel(structureTypeId)
   );
 }

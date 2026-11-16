@@ -3,10 +3,10 @@ import type { CampaignState } from "./campaign";
 import {
   chooseParkingSpot,
   distance,
-  findStructureType,
   stageMachine,
   type Footing,
   type StructureState,
+  findStructureType,
 } from "./construction";
 import { needsDigging } from "./digging";
 import {

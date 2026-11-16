@@ -23,7 +23,7 @@ export {
 } from "./milestones";
 export { exportsCountedInWords, launchItemLabel } from "./launch-manifest";
 export { researchTaskMinutes } from "./research";
-export { roundMinutes } from "./observing";
+export { isTelescope, roundMinutes } from "./observing";
 export { isGreenhouse } from "./greenhouses";
 export { isExperimentsLab } from "./experiments-labs";
 export { isInfraredTelescope } from "./infrared-telescopes";
@@ -55,7 +55,12 @@ export { MAX_SEED } from "./random";
 export { recipeOf, workingRecipeOf } from "./plants";
 export { habitatDoseRate } from "./radiation";
 export { baysTaken } from "./parking";
-export { habitatUnder, shieldingOver, waterWallOver } from "./construction";
+export {
+  findStructureType,
+  habitatUnder,
+  shieldingOver,
+  waterWallOver,
+} from "./construction";
 export { obstaclesFor, routeBetween } from "./walking";
 export { regolithHeap, regolithHeapGround } from "./regolith-heap";
 export { iceStore, iceStoreGround } from "./ice-store";

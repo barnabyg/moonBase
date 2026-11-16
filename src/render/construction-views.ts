@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
 import type {
   ConstructionSnapshot,
   DismantlingSnapshot,
@@ -12,6 +11,7 @@ import {
   type StructureModel,
 } from "./models";
 import { markStructure, type StructureSite } from "./picking";
+import { findStructureType } from "../simulation";
 
 const gradedGround = new THREE.MeshStandardMaterial({
   color: 0x8f8c87,
@@ -310,9 +310,7 @@ function createView(
   position: GroundPosition,
   groundMaterial: THREE.Material,
 ): StructureView {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === structureTypeId,
-  );
+  const type = findStructureType(structureTypeId);
   const radius = type?.footprintRadiusMetres ?? 1;
   const group = new THREE.Group();
   group.name = `${type?.label ?? structureTypeId} site`;

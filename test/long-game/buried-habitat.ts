@@ -13,15 +13,15 @@ import {
   BURIED_HABITAT_SITE,
   DAYLIGHT_TO_BUILD_AND_MOVE,
 } from "./settings";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** The Components a type of Structure takes, as Launch manifest lines. */
 export function manifestLinesOf(
   structureTypeId: string,
 ): readonly ManifestLine[] {
-  return (
-    catalogue.structureTypes.find(({ id }) => id === structureTypeId)
-      ?.components ?? []
-  ).map(({ componentId, count }) => ({ itemId: componentId, count }));
+  return (findStructureType(structureTypeId)?.components ?? []).map(
+    ({ componentId, count }) => ({ itemId: componentId, count }),
+  );
 }
 
 /**

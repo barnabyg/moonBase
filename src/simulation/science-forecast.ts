@@ -2,13 +2,13 @@ import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { MINUTES_PER_EARTH_DAY } from "./clock";
 import { structurePerformance } from "./condition";
-import { findStructureType } from "./construction";
 import { researchSpeedUp } from "./experiments-labs";
 import { nightObservingRate } from "./observing";
 import { siteRoundsFactor } from "./observing-sites";
 import { readRadioArrays } from "./radio-telescope-arrays";
 import { researchTaskMinutes } from "./research";
 import type { Rounds } from "./rounds";
+import { findStructureType } from "./construction";
 
 // How fast the base earns Science, as things stand. Science comes a round at a
 // time: a Research Task's as it completes, and a round's of the observing

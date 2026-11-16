@@ -17,6 +17,7 @@ import {
 } from "../src/simulation";
 import { DEFAULT_SEED } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // Only the Plants and the Mission Director change the stocks: nothing
 // wears down, the Robot digs no Regolith, and the Habitat needs no power
@@ -40,9 +41,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function recipeOf(structureTypeId: string): PlantRecipe {
-  const found = catalogue.structureTypes.find(
-    (type) => type.id === structureTypeId,
-  )?.recipes?.[0];
+  const found = findStructureType(structureTypeId)?.recipes?.[0];
   if (found === undefined) throw new Error(`expected ${structureTypeId}`);
   return found;
 }
@@ -64,9 +63,7 @@ const waterUsePerHour =
 function built(plans: readonly [string, GroundPosition][]): Campaign {
   const campaign = changed(createCampaign({ seed: DEFAULT_SEED }), (state) => {
     for (const [structureTypeId] of plans) {
-      const type = catalogue.structureTypes.find(
-        (candidate) => candidate.id === structureTypeId,
-      );
+      const type = findStructureType(structureTypeId);
       if (type?.recipes === undefined) continue;
       for (const need of type.components) {
         const stock = state.stockpile.components.find(

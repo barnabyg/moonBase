@@ -17,6 +17,7 @@ import {
   reserveKilograms,
   SOLAR_ARRAY_ID,
   type Snapshot,
+  findStructureType,
 } from "../simulation";
 import { formatScience, listInWords, plural } from "./format";
 import { describeKeepClear } from "./keep-clear-text";
@@ -383,9 +384,7 @@ export function describeComponentUse(componentId: string): string {
         : ` A ${listInWords(makers.map((type) => type.label))} makes them at the base.`
     }`;
   }
-  const solarArrayLabel =
-    catalogue.structureTypes.find(({ id }) => id === SOLAR_ARRAY_ID)?.label ??
-    "";
+  const solarArrayLabel = findStructureType(SOLAR_ARRAY_ID)?.label ?? "";
   const uses = [
     ...new Set(
       catalogue.structureTypes.flatMap((type) =>

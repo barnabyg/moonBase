@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  catalogue,
-  type Catalogue,
-  type StructureType,
-} from "../src/catalogue";
+import type { Catalogue, StructureType } from "../src/catalogue";
 import type {
   GameEvent,
   GroundPosition,
@@ -13,6 +9,7 @@ import type {
 } from "../src/simulation";
 import { scenario, scenarioOf, type Scenario } from "./scenario";
 import { changed } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The Construction Designs are unlocked from the start, with a kit for each
 // of their Structures in the starting stock. The Mission Director needs no
@@ -39,9 +36,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

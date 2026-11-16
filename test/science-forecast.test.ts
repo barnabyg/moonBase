@@ -9,6 +9,7 @@ import {
 import { loadSample } from "./sample-saves";
 import { scenario } from "./scenario";
 import { tryScenarios } from "./try-scenarios";
+import { findStructureType } from "../src/simulation/construction";
 
 // How fast the base earns Science, as things stand. Science comes a round at
 // a time, so the forecast spreads each round's over the time the round takes,
@@ -150,9 +151,7 @@ describe("the Science the base earns an Earth Day", () => {
         .snapshot()
         .structures.filter(
           (structure) =>
-            catalogue.structureTypes.find(
-              (type) => type.id === structure.structureTypeId,
-            )?.telescope === true,
+            findStructureType(structure.structureTypeId)?.telescope === true,
         )
         .reduce((sum, structure) => sum + structure.performance, 0);
     const expected = (): number =>

@@ -9,6 +9,7 @@ import {
   type EditableSaveState,
 } from "./save-editing";
 import type { TryScenario } from "./try-scenario";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** Where `greenhouseSave` puts what it builds. */
 const GREENHOUSE_BASE_SITES = [
@@ -29,8 +30,7 @@ const GREENHOUSE_WATER_ABOVE_RESERVE_KILOGRAMS = 30;
  * they like.
  */
 export function greenhouseSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(
@@ -117,8 +117,7 @@ export const EXPERIMENTS_LAB_TASK = "solar-wind-volatiles-survey";
  * that the Mission Director's stay aboard the Lander leaves the stocks to the lab.
  */
 export function experimentsLabSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(
@@ -177,8 +176,7 @@ export const INFRARED_TELESCOPE_SITES = [
  * aboard the Lander leaves the battery banks to the telescope.
  */
 export function infraredTelescopeSave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(
@@ -277,8 +275,7 @@ export const RADIO_TELESCOPE_ARRAY_SITES = [
  * battery banks to the array.
  */
 export function radioTelescopeArraySave(): string {
-  const componentsOf = (id: string) =>
-    catalogue.structureTypes.find((type) => type.id === id)?.components ?? [];
+  const componentsOf = (id: string) => findStructureType(id)?.components ?? [];
   const loaded = loadCampaign(
     freshSaveWith((state) => {
       state.unlockedDesignIds.push(

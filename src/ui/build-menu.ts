@@ -12,6 +12,7 @@ import {
   type Campaign,
   type GroundPosition,
   type Snapshot,
+  findStructureType,
 } from "../simulation";
 import { describeBuild, describeStructure, designOf } from "./describe";
 import { onClick } from "./click";
@@ -245,9 +246,8 @@ export function createBuildMenu(
                 (other) => ({
                   position: other.position,
                   footprintRadiusMetres:
-                    catalogue.structureTypes.find(
-                      ({ id }) => id === other.structureTypeId,
-                    )?.footprintRadiusMetres ?? 1,
+                    findStructureType(other.structureTypeId)
+                      ?.footprintRadiusMetres ?? 1,
                 }),
               ),
             },
@@ -390,9 +390,7 @@ function setsAvailable(type: StructureType, snapshot: Snapshot): number {
       .filter((construction) => !construction.componentsTaken)
       .flatMap(
         (construction) =>
-          catalogue.structureTypes.find(
-            (other) => other.id === construction.structureTypeId,
-          )?.components ?? [],
+          findStructureType(construction.structureTypeId)?.components ?? [],
       )
       .filter((need) => need.componentId === componentId)
       .reduce((total, need) => total + need.count, 0);

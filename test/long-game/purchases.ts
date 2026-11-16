@@ -17,6 +17,7 @@ import {
   TANKS_EARTH_DAY,
   WATER_FOR_THE_CREW_HABITAT_KILOGRAMS,
 } from "./settings";
+import { findStructureType } from "../../src/simulation/construction";
 
 /** Something Funding buys from Act 2 on. */
 export interface Purchase {
@@ -376,15 +377,12 @@ export function buyInTurn(
       // A solar array is whatever kind its parts made it.
       (footing.structureTypeId === structureTypeId ||
         (structureTypeId === SOLAR_ARRAY_ID &&
-          catalogue.structureTypes.find(
-            ({ id }) => id === footing.structureTypeId,
-          )?.solarArray !== undefined)) &&
+          findStructureType(footing.structureTypeId)?.solarArray !==
+            undefined)) &&
       footing.position.x === site.x &&
       footing.position.y === site.y;
     const next = purchases.find((purchase) => {
-      const type = catalogue.structureTypes.find(
-        ({ id }) => id === purchase.structureTypeId,
-      );
+      const type = findStructureType(purchase.structureTypeId);
       return (
         type !== undefined &&
         state.unlockedDesignIds.includes(type.designId) &&

@@ -9,6 +9,7 @@ import {
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
 import { worn } from "./worn";
+import { findStructureType } from "../src/simulation/construction";
 
 // The starting stock holds a landing pad's Components too, for a Structure
 // that has nothing to do with power. No Dust coats the solar arrays, so
@@ -42,10 +43,7 @@ const bankCapacity =
     .storageKilowattHours ?? Number.NaN;
 
 function wearRate(structureTypeId: string): number {
-  return (
-    catalogue.structureTypes.find((type) => type.id === structureTypeId)
-      ?.dustWearPercentPerHour ?? 0
-  );
+  return findStructureType(structureTypeId)?.dustWearPercentPerHour ?? 0;
 }
 
 /** Runs the game until the Robot has carried out every planned Construction. */

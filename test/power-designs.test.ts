@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  catalogue,
-  type Catalogue,
-  type StructureType,
-} from "../src/catalogue";
+import type { Catalogue, StructureType } from "../src/catalogue";
 import type {
   GroundPosition,
   PowerNetworkSnapshot,
@@ -11,6 +7,7 @@ import type {
   StructureSnapshot,
 } from "../src/simulation";
 import { scenario, type Scenario } from "./scenario";
+import { findStructureType } from "../src/simulation/construction";
 
 // The Power Designs are unlocked from the start, with a kit for each of
 // their Structures in the starting stock. Dust neither wears down nor
@@ -31,9 +28,7 @@ vi.mock("../src/catalogue", async (importOriginal) => {
 });
 
 function structureType(id: string): StructureType {
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === id,
-  );
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

@@ -2,9 +2,9 @@ import type { ResourceRef } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import { structurePerformance } from "./condition";
 import {
-  findStructureType,
   isBroken,
   type StructureState,
+  findStructureType,
 } from "./construction";
 
 // The automated experiments lab (ADR-0009). It is a Plant, for its water and

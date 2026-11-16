@@ -2,11 +2,11 @@ import type { ComponentCount, GroundPosition } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
   componentsFor,
-  findStructureType,
   stageMachine,
   stageMinutes,
   type ConstructionStage,
   type ConstructionState,
+  findStructureType,
 } from "./construction";
 import { arrivalSpot, isClimbingDown, type ArrivalState } from "./arrival";
 import type { GameEvent } from "./events";

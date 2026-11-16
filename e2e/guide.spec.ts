@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { catalogue } from "../src/catalogue";
+import { findStructureType } from "../src/simulation/construction";
 
 function structureType(id: string) {
-  const type = catalogue.structureTypes.find((each) => each.id === id);
+  const type = findStructureType(id);
   if (type === undefined) throw new Error(`expected a ${id}`);
   return type;
 }

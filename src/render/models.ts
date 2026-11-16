@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { catalogue } from "../catalogue";
+import { findStructureType } from "../simulation";
 // In the order they were first written, so that the materials they make at load
 // keep their ids, which the renderer sorts by when it draws.
 import {
@@ -188,9 +188,7 @@ export function createStructureModel(
     return createRockGardenModel(groundMaterial);
   }
   if (structureTypeId === "viewing-area") return createViewingAreaModel();
-  const type = catalogue.structureTypes.find(
-    (candidate) => candidate.id === structureTypeId,
-  );
+  const type = findStructureType(structureTypeId);
   if (type?.parking !== undefined) {
     return createParkingAreaModel(type.footprintRadiusMetres, type.parking);
   }

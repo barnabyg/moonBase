@@ -1,9 +1,9 @@
 import { catalogue } from "../catalogue";
 import type { CampaignState } from "./campaign";
 import {
-  findStructureType,
   hazardShare,
   type StructureState,
+  findStructureType,
 } from "./construction";
 
 /** Whether Dust coats a type of Structure: only solar arrays, those that generate power. */
