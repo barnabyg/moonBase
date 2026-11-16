@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { materials, part } from "./materials";
+import { materials, part, setStatusLight } from "./materials";
 import type { StructureModel } from "./models";
 
 // The Light Masts.
@@ -155,13 +155,7 @@ export function createLightMastModel(shape: LightMastShape): StructureModel {
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge: () => undefined,
     setLit(on) {

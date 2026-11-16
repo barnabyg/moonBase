@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { boxAt, materials, part } from "./materials";
+import { boxAt, materials, part, setStatusLight } from "./materials";
 import type { StructureModel } from "./models";
 
 // The battery banks, and the thermal store, which is built the same way.
@@ -245,13 +245,7 @@ export function createBatteryBankModel(
     },
     setFacing: () => undefined,
     setStatusLight(state) {
-      const source = {
-        off: materials.statusOff,
-        testing: materials.statusTesting,
-        on: materials.statusOn,
-      }[state];
-      statusLightMaterial.color.copy(source.color);
-      statusLightMaterial.emissive.copy(source.emissive);
+      setStatusLight(statusLightMaterial, state);
     },
     setCharge(fraction) {
       const lit = Math.ceil(
