@@ -16,6 +16,7 @@ on:
       - "src/simulation/**"
       - "src/catalogue/**"
       - "test/long-game.ts"
+      - "test/long-game/**"
       - "test/reference-campaign.ts"
       - "test/scenario.ts"
       - "test/pacing-report.ts"
