@@ -1,0 +1,64 @@
+/* The panels in the columns. */
+
+.status-panel,
+.base-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+}
+
+/* It keeps the height its work needs, up to its limit, and scrolls past
+   that. When the column runs out of room it is the Base panel below, far the
+   longer of the two, that gives way: sharing the squeeze cut the Work panel
+   through a row while it had only two or three. */
+.work-panel {
+  flex: none;
+  max-height: 40%;
+  font-variant-numeric: tabular-nums;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+}
+
+/* The status panel above it keeps the height it needs, up to its limit, and
+   the build menu gives way first, so that grouping the build menu's
+   Structures doesn't cut the status panel's figures short. */
+.left-column > .status-panel {
+  flex-shrink: 0;
+  max-height: 65%;
+}
+
+/* With every Design unlocked it is taller than the window has room for, so it
+   scrolls rather than push its last Structures off the bottom. */
+.build-menu {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  margin-top: auto;
+  padding: 10px 12px;
+}
+
+/* Newest last, at the bottom, with any room it keeps while it holds its
+   height above the oldest. */
+.notifications {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-menu h2 {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

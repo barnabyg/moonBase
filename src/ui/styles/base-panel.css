@@ -1,0 +1,180 @@
+/* The base's Structures, Robots, Machines and Rovers. */
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entries + .entries {
+  margin-top: 4px;
+}
+
+/* A group of Structures, by what they are for, under a heading that folds them away. */
+
+.structure-group > .panel-section__title {
+  padding: 4px 0;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.structure-group > .panel-section__body {
+  padding: 0 0 2px 11px;
+}
+
+/* What matters in a group stays beside its title, open or folded. */
+.structure-group[open] > .panel-section__title > .panel-section__summary {
+  display: block;
+}
+
+.structure-group > .panel-section__title > .panel-section__summary {
+  color: var(--text-muted);
+}
+
+.structure-group + .structure-group {
+  border-top-color: rgb(255 255 255 / 6%);
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 5px 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A Habitat's shielding, water wall or vault cistern, set in under it. */
+.entry--cover {
+  padding-left: 14px;
+}
+
+.entry + .entry {
+  border-top: 1px solid rgb(255 255 255 / 6%);
+}
+
+.entry__head {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Its name, a button that finds it on the map, looking like the name it is. */
+.entry__name {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.entry__name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.entry__condition {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry__condition .meter {
+  width: 52px;
+}
+
+/* A low Condition's bar turns amber, and a sign follows its figure, so that
+   it isn't told by colour alone. */
+.entry__condition--low .meter__fill {
+  background: var(--accent);
+}
+
+.entry__condition--low::after {
+  content: "\26A0\FE0E";
+  color: var(--accent);
+}
+
+/* Its own, and not those of the rows inside a row that several share. */
+.entry--broken > .entry__head > .entry__name,
+.entry--broken > .entry__state,
+.entry--broken > .entry__head > .entry__condition,
+.stack__head--broken .entry__name,
+.stack__head--broken .entry__state,
+.stack__head--broken .entry__condition {
+  color: var(--warning);
+}
+
+/* The one row for several Structures of a type, which opens to show each. */
+
+.entry--stack {
+  display: block;
+}
+
+.stack__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  list-style: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.stack__head::-webkit-details-marker {
+  display: none;
+}
+
+.stack__name::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 6px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.stack[open] .stack__name::before {
+  transform: rotate(90deg);
+}
+
+.stack__members {
+  margin-top: 5px;
+  padding-left: 11px;
+  border-top: 1px solid rgb(255 255 255 / 6%);
+}
+
+.entry__state {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.entry__actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.entry__actions .panel-button {
+  padding: 1px 7px;
+  font-size: 0.75rem;
+}

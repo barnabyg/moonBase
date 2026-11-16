@@ -1,0 +1,51 @@
+/* The Expeditions screen. */
+
+.expeditions {
+  width: min(520px, 100vw - 32px);
+}
+
+.expeditions__status {
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.expeditions__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__type[hidden] {
+  display: none;
+}
+
+.expeditions__type p {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.expeditions__type .screen__button {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.expeditions__actions .screen__button {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+
+.expeditions__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
