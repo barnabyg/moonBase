@@ -1,6 +1,6 @@
 # Adding content
 
-A new Structure, Plant, Milestone or Act reaches about 30 files, and the type check and tests only find some of them. These checklists come from the commits that added a Workshop (`5a81a54`), a Buried Habitat (`2b5bf20`) and Act 2 (`ce8bc96`), which are worked examples of each item. Not every item applies to every addition.
+A new Structure, Plant, Milestone or Act reaches about 30 files, and a changed number reaches tests far from it ([Changing a number](#changing-a-number)), and the type check and tests only find some of them. These checklists come from the commits that added a Workshop (`5a81a54`), a Buried Habitat (`2b5bf20`) and Act 2 (`ce8bc96`), which are worked examples of each item. Not every item applies to every addition.
 
 Where an item names a test, that test fails if you forget. "Nothing catches it" means no check will remind you.
 
@@ -37,16 +37,16 @@ Words for the player:
 
 Trying and playing it:
 
-- `test/try-scenarios.ts`: a scenario, its test in `test/try-scenarios.test.ts`, and a row in the table in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
-- `test/long-game.ts`: steps that build it, with its Design in `designsTheLongGameUses`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
+- `test/try-scenarios/`: a scenario, in the group file for what it builds (`campaign.ts`, `base.ts`, `stores.ts`, `science.ts` and the rest), or in a new group file whose array goes into `tryScenarios` in `test/try-scenarios.ts`, in the list's order; its test in `test/try-scenarios.test.ts`; and a row in the table in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
+- `test/long-game.ts` and the files under `test/long-game/`: steps that build it (the steps in `test/long-game.ts`, what the guide runs at each look in `running.ts`, what Funding buys in `purchases.ts`), with its Design in `designsTheLongGameUses` in `settings.ts`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
-- Open the pull request and let CI play the long game ([when it plays](reference-campaign.md#ci-plays-it), and [what to run first](reference-campaign.md#before-ci-plays-it)). From the timeline in the run's summary, put the new figures in [`docs/balancing.md`](balancing.md) in place of the latest play's, each naming its version, and move the replaced play unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` doesn't grow with each play. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
+- Open the pull request and let CI play the long game ([when it plays](reference-campaign.md#ci-plays-it), and [what to run first](reference-campaign.md#before-ci-plays-it)). From the timeline in the run's summary, put the new figures in [`docs/balancing.md`](balancing.md) in place of the latest play's, each naming its version, and move the replaced play unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` doesn't grow with each play. A balancing note whose numbers a later change replaces goes there too ([Changing a number](#changing-a-number)). If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
 
 Tests and docs:
 
 - `test/<name>.test.ts` and `e2e/<name>.spec.ts`: its whole path, from unlocking the Design to using it. Nothing catches their absence. The spec finds its entry in the Base panel with `structureEntry` from `e2e/base-panel.ts`, not a locator of its own. Existing tests that build a Snapshot by hand, or filter a category's Structures, may need it too.
-- `GLOSSARY.md`, [`docs/rules.md`](rules.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
+- `GLOSSARY.md`, [`docs/rules/`](rules/README.md), and [`docs/reference-campaign.md`](reference-campaign.md) if the reference Campaign's play guide changed, or what either guide prints. The long-game guide's steps are only in `test/long-game.ts`. Nothing catches them.
 - [`docs/save-format.md`](save-format.md) says whether the save format changes: new Components and bulk resources don't, and new saved state does.
 
 ## A Plant
@@ -84,8 +84,8 @@ Rules and words:
 
 Trying and playing it:
 
-- `test/try-scenarios.ts`: an `act-<n>` scenario for a new Act, with its test and its row in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
-- `test/long-game.ts`: steps that reach it, and for a new Act its targets and a check of them, as `act2Targets` and `act2TargetsMissed` are, tested in `test/long-game.test.ts`. Nothing fails a Milestone the play guide never reaches, unless you add it.
+- `test/try-scenarios/campaign.ts`: an `act-<n>` scenario for a new Act, with its test and its row in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
+- `test/long-game.ts`: steps that reach it, and for a new Act its targets and a check of them, as `act2Targets` (`test/long-game/settings.ts`) and `act2TargetsMissed` (`test/long-game/targets.ts`) are, tested in `test/long-game.test.ts`. Nothing fails a Milestone the play guide never reaches, unless you add it.
 - `test/pacing-report.ts` and its test: the Act's Science and Funding.
 - `test/reference-campaign.ts`: only for a Milestone in Act 1. It stops there, and its timeline shows a later Act's Milestones only once reached.
 - Let CI play the long game (see above), and read its timeline, as nothing else plays that far.
@@ -93,7 +93,24 @@ Trying and playing it:
 Tests and docs:
 
 - `test/<name>.test.ts`, and `e2e/<name>.spec.ts` for a new Act. `e2e/milestones-acts.spec.ts` names the last Act, so a new one fails it. `test/with-acts.ts` tries several Acts with made-up ones and needs no change.
-- `GLOSSARY.md` (the Act entry says which Acts are in the game), [`docs/rules.md`](rules.md), and the Act's row and pacing targets in [`docs/balancing.md`](balancing.md). Nothing catches them.
+- `GLOSSARY.md` (the Act entry says which Acts are in the game), [`docs/rules/`](rules/README.md), and the Act's row and pacing targets in [`docs/balancing.md`](balancing.md). Nothing catches them.
+
+## Changing a number
+
+Changing a number the catalogue already holds, such as a Plant's rate, a dose rate or a price, touches few files of its own, but tests and end-to-end specs across the repository quote such numbers, and what follows from them, as literals. The type check finds none of them, and an end-to-end spec may only fail late in a CI run. The rebalance of #339 (`6bafa84`) needed three more commits to follow it (`41072af`, `dc1218f`, `476a767`), and #337's (`e0bb5db`) one (`ef1bf60`).
+
+- The catalogue file that holds the number, in `src/catalogue/`, and any comment there or in `src/` that quotes it or works from it, as `src/catalogue/resources.ts` explains the Exports' prices from the Plants' rates, and `src/ui/structure-state.ts` gives an example rate in a doc comment. Nothing catches a stale comment.
+- Search for the old value, and for what follows from it, in `src/`, `test/` and `e2e/`: `git grep -n -F "0.35" -- src test e2e` for a silicon rate, and, for a derived figure, the words around it, such as `git grep -n "limit in" -- e2e` for a dose rate. Then search for the Structure's id and its label (`git grep -n -i "vacuum fabrication" -- test e2e`): a test about it may quote a number computed from the one changed, such as a ratio, a count of batches or a time to a limit.
+- The suites that most often quote catalogue numbers, and which the search above should reach:
+  - unit tests named after the Structure or system (`test/vacuum-fabrication-plant.test.ts`, `test/life-support-industry-plants.test.ts`), the Act tests (`test/act-2.test.ts`), and `test/structure-entry.test.ts`, which pins what the Base panel's rows say;
+  - the sample save tests (`test/sample-saves-*.test.ts`), which load old saves with today's catalogue, so what a loaded Plant waits for follows the new number;
+  - the play guides, `test/long-game.ts` (with `test/long-game/`) and `test/reference-campaign.ts`, whose steps were tuned to the old rates and may now build, load or sell at the wrong time, and `test/reference-campaign.test.ts`, which fails if a pacing target slips;
+  - the end-to-end specs that read rates, doses or counts off the panels, such as `e2e/plants.spec.ts`, `e2e/bulk-resources.spec.ts`, `e2e/buried-habitat.spec.ts`, `e2e/milestones.spec.ts` and `e2e/decorations.spec.ts`.
+- Where it is cheap, have a test read the number from the catalogue rather than quote it, as `test/life-support-industry-plants.test.ts` reads a recipe's silicon.
+- Run the unit tests and the end-to-end specs the searches found before handing over, and then `npm run verify -- --project=chromium`, as an end-to-end failure found in CI costs a run.
+- `src/catalogue/catalogue.ts`: raise `version` ([see below](#the-catalogues-version)).
+- [`docs/rules/`](rules/README.md) where it quotes the number, and [`docs/balancing.md`](balancing.md): the reason for the new number, in place of the old one's. When a balancing note's numbers are replaced, move the note unedited to [`docs/balancing-history.md`](balancing-history.md), as for a long-game play (see [A Structure](#a-structure)).
+- Let CI play the long game, as for a new Structure, if the number changes what the base can make, earn or survive.
 
 ## The catalogue's version
 

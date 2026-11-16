@@ -1,0 +1,146 @@
+/* The Research Tasks screen. */
+
+.research-tasks__now-name {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.screen__card .meter {
+  height: 6px;
+  margin: 10px 0 6px;
+  border-radius: 3px;
+}
+
+.research-tasks__now-detail {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.screen__card--idle .research-tasks__now-name {
+  margin: 4px 0;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.research-tasks__group + .research-tasks__group {
+  margin-top: 20px;
+}
+
+.research-tasks__queue,
+.research-tasks__buys {
+  margin-bottom: 16px;
+}
+
+.research-tasks__queue-list {
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+
+.research-tasks__queue-item {
+  min-height: 30px;
+  margin-top: 6px;
+}
+
+.research-tasks__queue-item--empty {
+  color: var(--text-muted);
+}
+
+.research-tasks__queue-name {
+  margin-right: 10px;
+}
+
+.research-tasks__buys-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.research-tasks__buys-cost {
+  color: var(--science);
+}
+
+.task-card__reach {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.task-card,
+.design-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--panel-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+
+.task-card:hover,
+.design-card:hover {
+  border-color: rgb(255 255 255 / 24%);
+}
+
+.task-card__name,
+.design-card__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.task-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.task-card__foot,
+.design-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin-top: auto;
+}
+
+.task-card__state,
+.design-card__state {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.task-card--running {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgb(242 193 78 / 30%);
+}
+
+.task-card--running .task-card__state {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.task-card--completed {
+  opacity: 0.7;
+}
+
+.task-card--completed .task-card__state {
+  color: var(--good);
+}

@@ -1,0 +1,89 @@
+/* The Work panel. */
+
+.work-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-panel li + li {
+  margin-top: 10px;
+}
+
+.work-panel p {
+  margin: 0;
+}
+
+.work-panel__name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.work-panel__stage {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.work-panel progress {
+  width: 100%;
+  height: 5px;
+  margin: 3px 0;
+  accent-color: var(--progress);
+}
+
+.work-panel__work {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Work that can't go on, listed below the rest: a bar down its side, as well
+   as the warning colour, so that it shows at a glance without telling
+   colours apart. */
+.work-panel__row--held-up {
+  padding-left: 7px;
+  border-left: 3px solid var(--warning);
+}
+
+.work-panel__row--held-up .work-panel__work {
+  color: var(--warning);
+}
+
+/* How many are held up, beside the title, open or folded. */
+.work-panel .panel-section__summary {
+  color: var(--warning);
+}
+
+.work-panel
+  .panel-section[open]
+  > .panel-section__title
+  > .panel-section__summary:not([hidden]) {
+  display: inline;
+}
+
+.work-panel__idle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.work-panel__cancel {
+  margin-top: 4px;
+}
+
+/* The notification list. */
+
+.notifications__item {
+  margin: 0;
+}
+
+.notifications__item + .notifications__item {
+  margin-top: 4px;
+}
+
+.notifications__time {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.notifications__item--warning {
+  color: var(--warning);
+}

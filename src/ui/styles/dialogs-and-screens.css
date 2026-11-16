@@ -1,0 +1,380 @@
+/* Dialogs over the map. */
+
+.game-over {
+  max-width: 440px;
+  padding: 20px 22px;
+  color: var(--text);
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.game-over::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.game-over h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: var(--warning);
+}
+
+.game-over p {
+  margin: 0 0 10px;
+}
+
+.game-over button {
+  padding: 6px 12px;
+  font: inherit;
+  color: #000;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.game-over button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.game-over__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-over__actions .save-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.game-over__refusal {
+  margin: 10px 0 0;
+  color: var(--warning);
+}
+
+.game-over__refusal[hidden] {
+  display: none;
+}
+
+.renderer-unavailable {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 480px;
+  margin: 0;
+  padding: 16px 18px;
+  transform: translate(-50%, -50%);
+  line-height: 1.5;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+/* Screens with a header that stays in place over a body that scrolls,
+   such as the Research Tasks screen and the Tech Tree. */
+
+.screen {
+  width: min(720px, 100vw - 32px);
+  max-width: none;
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: rgb(14 17 23 / 94%);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 55%);
+  line-height: 1.45;
+}
+
+.screen[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.screen::backdrop {
+  background: rgb(0 0 0 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.screen__header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 16px 16px 12px 22px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.screen__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.screen__figure {
+  margin: 0;
+  padding: 3px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--science);
+  background: rgb(143 208 255 / 10%);
+  border: 1px solid rgb(143 208 255 / 25%);
+  border-radius: 999px;
+}
+
+.screen__figure:empty {
+  display: none;
+}
+
+.screen__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.screen__close:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+  border-color: var(--panel-border);
+}
+
+.screen__lead {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.screen__body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 22px 22px;
+  overflow: auto;
+}
+
+.screen__refusal {
+  margin: 0;
+  padding: 10px 22px;
+  color: var(--warning);
+  background: rgb(255 138 112 / 8%);
+  border-top: 1px solid rgb(255 138 112 / 30%);
+}
+
+.screen__section-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.screen__count {
+  margin-left: 4px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  background: var(--panel-raised);
+  border-radius: 999px;
+}
+
+.screen__button {
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.screen__button:hover {
+  border-color: var(--text-muted);
+}
+
+.screen__button--primary {
+  font-weight: 600;
+  color: #111;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.screen__button--primary:hover {
+  background: #f6d27a;
+  border-color: #f6d27a;
+}
+
+.screen__close:focus-visible,
+.screen__button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--panel-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+}
+
+.chip--science {
+  color: var(--science);
+  background: rgb(143 208 255 / 8%);
+  border-color: rgb(143 208 255 / 22%);
+}
+
+.screen__tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.screen__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.screen__tab:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.screen__tab[aria-selected="true"] {
+  color: var(--text);
+  background: rgb(255 255 255 / 9%);
+  border-color: var(--panel-border);
+}
+
+.screen__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A card at the top of a screen saying what is under way, such as the
+   Research Task running, or how things work while nothing is. */
+.screen__card {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: linear-gradient(
+    120deg,
+    rgb(242 193 78 / 14%),
+    rgb(242 193 78 / 2%) 70%
+  );
+  border: 1px solid rgb(242 193 78 / 40%);
+  border-radius: 8px;
+}
+
+.screen__card p {
+  margin: 0;
+}
+
+.screen__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.screen__card--idle {
+  background: var(--panel-raised);
+  border-style: dashed;
+  border-color: var(--panel-border);
+}
+
+.screen__card--idle .screen__eyebrow {
+  color: var(--text-muted);
+}
+
+/* A figure over a bar showing how much of its limit it takes. */
+/* The bars line up at the foot, however the figures above them wrap. */
+.gauge {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gauge__text {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge .meter {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.gauge--full .gauge__text {
+  color: var(--warning);
+}
+
+/* A table of things to choose, row by row. */
+.screen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.screen th,
+.screen td {
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.screen thead th {
+  padding-top: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.screen tbody th {
+  font-weight: normal;
+}
+
+.screen tbody tr {
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+}
+
+.screen tbody tr:hover {
+  background: var(--panel-raised);
+}

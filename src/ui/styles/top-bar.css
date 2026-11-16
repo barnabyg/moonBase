@@ -1,0 +1,128 @@
+/* The bar across the top. */
+
+.top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  min-height: var(--top-bar-height);
+  padding: 6px 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-bar p {
+  margin: 0;
+}
+
+.top-bar__clock {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.top-bar__lunation {
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.top-bar__lunation--night {
+  color: #9db8ff;
+}
+
+.top-bar__speeds,
+.top-bar__funding,
+.top-bar__science,
+.top-bar__help,
+.top-bar .save-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.top-bar__funding,
+.top-bar__science {
+  gap: 8px;
+}
+
+.top-bar__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.top-bar__funds {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.top-bar button,
+.panel-button,
+.work-panel__cancel {
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.top-bar__speeds button {
+  min-width: 2.8em;
+}
+
+.top-bar button:hover,
+.panel-button:hover,
+.work-panel__cancel:hover {
+  border-color: var(--text-muted);
+}
+
+.top-bar__speeds button[aria-pressed="true"],
+.panel-button--primary {
+  color: #000;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.top-bar__skip {
+  margin-left: 4px;
+}
+
+.top-bar__full-screen[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
+.top-bar button:focus-visible,
+.panel-button:focus-visible,
+.attention__line:focus-visible,
+.entry__name:focus-visible,
+.stack__head:focus-visible,
+.work-panel__cancel:focus-visible,
+.build-menu__options button:focus-visible,
+.milestone-hint__toggle:focus-visible,
+.panel-section__title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The refusal of the player's latest choice, under the top bar. */
+
+.refusal {
+  position: absolute;
+  top: calc(var(--gutter) * 2 + var(--top-bar-height));
+  left: 50%;
+  max-width: min(
+    520px,
+    calc(100% - var(--left-column-width) - var(--right-column-width) - 20px)
+  );
+  margin: 0;
+  padding: 8px 14px;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  color: #000;
+  background: var(--warning);
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 50%);
+}

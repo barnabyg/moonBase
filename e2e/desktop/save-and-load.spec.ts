@@ -1,7 +1,7 @@
 // Saving and loading in the desktop app, with the operating system's save
 // and open dialogs (ADR-0006). A test can't click those dialogs, so each one
 // is stubbed to answer with a file in the test's own output folder.
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,15 +26,26 @@ import {
 const samples = fileURLToPath(new URL("../../test/saves/", import.meta.url));
 
 /** Every sample save, oldest format version first, the ended Campaign last. */
-async function sampleSaves(): Promise<string[]> {
+function sampleSaves(): string[] {
   const version = (name: string): number =>
     name.includes("ended")
       ? Infinity
       : Number(/^version-(\d+)\.moonbase$/.exec(name)?.[1]);
-  return (await readdir(samples))
+  return readdirSync(samples)
     .filter((name) => name.endsWith(".moonbase"))
     .sort((a, b) => version(a) - version(b));
 }
+
+/**
+ * The sample saves, shared among a few tests. One test loading them all took
+ * up to 3 minutes in CI, and grew with every format version; a share each
+ * keeps every test well inside the suite's limit, and lets local workers share them.
+ */
+const SAMPLE_SHARES = 4;
+const allSamples = sampleSaves();
+const sampleShares = Array.from({ length: SAMPLE_SHARES }, (_, share) =>
+  allSamples.filter((_, index) => index % SAMPLE_SHARES === share),
+);
 
 /** The save the game writes for `text` once it has loaded it, as the browser version would. */
 function resaved(text: string): string {
@@ -141,42 +152,47 @@ test("Save writes the Campaign through the save dialog, to a file the browser ve
   expect(consoleErrors).toEqual([]);
 });
 
-test("Load opens the open dialog, filtered to save files, and loads the file chosen: a save of every format version, from the browser version's samples", async ({
-  electronApp,
-  window,
-  consoleErrors,
-}, testInfo) => {
-  const saves = await savesFolder(testInfo);
-  await pausedGame(window);
-  const clock = window.getByRole("status", { name: "Game clock" });
-  const gameOver = window.getByRole("dialog", { name: "Game over" });
-  const names = await sampleSaves();
-  expect(names.length).toBeGreaterThan(40);
-
-  for (const name of names) {
-    const sample = await readFile(join(samples, name), "utf8");
-    const ended = name.includes("ended");
-    await loadFrom(electronApp, button(window, "Load"), join(samples, name));
-    await expect(clock, name).toHaveText(clockOf(sample));
-    await expect(gameOver, name).toBeVisible({ visible: ended });
-    await expect(window.getByRole("alert"), name).toBeHidden();
-    // What was loaded is the sample, whole: saved again, it is what the
-    // browser version writes for it.
-    const written = await saveTo(
-      electronApp,
-      button(ended ? gameOver : window, "Save"),
-      join(saves, `resaved-${name}`),
-    );
-    expect(written, name).toBe(resaved(sample));
-  }
-
-  const [options] = await dialogCalls(electronApp, "showOpenDialog");
-  expect(options).toMatchObject({
-    filters: [{ name: "Moon Base save files", extensions: ["moonbase"] }],
-    properties: ["openFile"],
-  });
-  expect(consoleErrors).toEqual([]);
+test("there is a sample save of every format version to load", () => {
+  expect(allSamples.length).toBeGreaterThan(40);
+  expect(sampleShares.flat().sort()).toEqual([...allSamples].sort());
 });
+
+for (const [share, names] of sampleShares.entries()) {
+  test(`Load opens the open dialog, filtered to save files, and loads the file chosen: the browser version's sample saves, share ${share + 1} of ${SAMPLE_SHARES}`, async ({
+    electronApp,
+    window,
+    consoleErrors,
+  }, testInfo) => {
+    const saves = await savesFolder(testInfo);
+    await pausedGame(window);
+    const clock = window.getByRole("status", { name: "Game clock" });
+    const gameOver = window.getByRole("dialog", { name: "Game over" });
+
+    for (const name of names) {
+      const sample = await readFile(join(samples, name), "utf8");
+      const ended = name.includes("ended");
+      await loadFrom(electronApp, button(window, "Load"), join(samples, name));
+      await expect(clock, name).toHaveText(clockOf(sample));
+      await expect(gameOver, name).toBeVisible({ visible: ended });
+      await expect(window.getByRole("alert"), name).toBeHidden();
+      // What was loaded is the sample, whole: saved again, it is what the
+      // browser version writes for it.
+      const written = await saveTo(
+        electronApp,
+        button(ended ? gameOver : window, "Save"),
+        join(saves, `resaved-${name}`),
+      );
+      expect(written, name).toBe(resaved(sample));
+    }
+
+    const [options] = await dialogCalls(electronApp, "showOpenDialog");
+    expect(options).toMatchObject({
+      filters: [{ name: "Moon Base save files", extensions: ["moonbase"] }],
+      properties: ["openFile"],
+    });
+    expect(consoleErrors).toEqual([]);
+  });
+}
 
 test("cancelling either dialog changes nothing", async ({
   electronApp,
