@@ -37,8 +37,8 @@ Words for the player:
 
 Trying and playing it:
 
-- `test/try-scenarios.ts`: a scenario, its test in `test/try-scenarios.test.ts`, and a row in the table in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
-- `test/long-game.ts`: steps that build it, with its Design in `designsTheLongGameUses`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
+- `test/try-scenarios/`: a scenario, in the group file for what it builds (`campaign.ts`, `base.ts`, `stores.ts`, `science.ts` and the rest), or in a new group file whose array goes into `tryScenarios` in `test/try-scenarios.ts`, in the list's order; its test in `test/try-scenarios.test.ts`; and a row in the table in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
+- `test/long-game.ts` and the files under `test/long-game/`: steps that build it (the steps in `test/long-game.ts`, what the guide runs at each look in `running.ts`, what Funding buys in `purchases.ts`), with its Design in `designsTheLongGameUses` in `settings.ts`. The `design-has-a-purpose` rule in `test/catalogue-rules.test.ts` fails a Design the long game doesn't use and that offers no choice, unless it has a reason on the exemption list in `test/catalogue-rules.ts`.
 - `test/pacing-report.ts`: in `offerings`, what it does better, as the Buried Habitat's `buried` is. Without it, the `design-not-beaten` rule fails a dear Structure that looks no better than a cheap one.
 - `test/reference-campaign.ts`: keep its play the same (the long game plays it first, so a step may have to allow for what comes later), and add to its recorder whatever the long game has to report. `test/reference-campaign.test.ts` fails if a pacing target slips.
 - Open the pull request and let CI play the long game ([when it plays](reference-campaign.md#ci-plays-it), and [what to run first](reference-campaign.md#before-ci-plays-it)). From the timeline in the run's summary, put the new figures in [`docs/balancing.md`](balancing.md) in place of the latest play's, each naming its version, and move the replaced play unedited to [`docs/balancing-history.md`](balancing-history.md) under a heading naming its version, so that `docs/balancing.md` doesn't grow with each play. If it takes much longer than it did, raise `HARD_LIMIT_MINUTES` in `scripts/long-game.mjs` and the job's limit in `.github/workflows/long-game.yml`.
@@ -84,8 +84,8 @@ Rules and words:
 
 Trying and playing it:
 
-- `test/try-scenarios.ts`: an `act-<n>` scenario for a new Act, with its test and its row in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
-- `test/long-game.ts`: steps that reach it, and for a new Act its targets and a check of them, as `act2Targets` and `act2TargetsMissed` are, tested in `test/long-game.test.ts`. Nothing fails a Milestone the play guide never reaches, unless you add it.
+- `test/try-scenarios/campaign.ts`: an `act-<n>` scenario for a new Act, with its test and its row in [`docs/trying-things.md`](trying-things.md). Nothing catches it.
+- `test/long-game.ts`: steps that reach it, and for a new Act its targets and a check of them, as `act2Targets` (`test/long-game/settings.ts`) and `act2TargetsMissed` (`test/long-game/targets.ts`) are, tested in `test/long-game.test.ts`. Nothing fails a Milestone the play guide never reaches, unless you add it.
 - `test/pacing-report.ts` and its test: the Act's Science and Funding.
 - `test/reference-campaign.ts`: only for a Milestone in Act 1. It stops there, and its timeline shows a later Act's Milestones only once reached.
 - Let CI play the long game (see above), and read its timeline, as nothing else plays that far.
@@ -104,7 +104,7 @@ Changing a number the catalogue already holds, such as a Plant's rate, a dose ra
 - The suites that most often quote catalogue numbers, and which the search above should reach:
   - unit tests named after the Structure or system (`test/vacuum-fabrication-plant.test.ts`, `test/life-support-industry-plants.test.ts`), the Act tests (`test/act-2.test.ts`), and `test/structure-entry.test.ts`, which pins what the Base panel's rows say;
   - the sample save tests (`test/sample-saves-*.test.ts`), which load old saves with today's catalogue, so what a loaded Plant waits for follows the new number;
-  - the play guides, `test/long-game.ts` and `test/reference-campaign.ts`, whose steps were tuned to the old rates and may now build, load or sell at the wrong time, and `test/reference-campaign.test.ts`, which fails if a pacing target slips;
+  - the play guides, `test/long-game.ts` (with `test/long-game/`) and `test/reference-campaign.ts`, whose steps were tuned to the old rates and may now build, load or sell at the wrong time, and `test/reference-campaign.test.ts`, which fails if a pacing target slips;
   - the end-to-end specs that read rates, doses or counts off the panels, such as `e2e/plants.spec.ts`, `e2e/bulk-resources.spec.ts`, `e2e/buried-habitat.spec.ts`, `e2e/milestones.spec.ts` and `e2e/decorations.spec.ts`.
 - Where it is cheap, have a test read the number from the catalogue rather than quote it, as `test/life-support-industry-plants.test.ts` reads a recipe's silicon.
 - Run the unit tests and the end-to-end specs the searches found before handing over, and then `npm run verify -- --project=chromium`, as an end-to-end failure found in CI costs a run.

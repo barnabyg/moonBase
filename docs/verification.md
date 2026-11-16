@@ -115,7 +115,7 @@ On the maintainer's PC (20 cores, four workers, on the GPU) they take about 2 mi
 - In CI Chromium runs headed, one window at a time, in a virtual X display, drawing WebGL2 in software with Mesa's llvmpipe (`E2E_GL=mesa`; see [Software rendering in CI](#software-rendering-in-ci)). In CI a share's job takes up to about 6.5 minutes, setup included; the job limit is 30 minutes (see [Timeouts](#timeouts)).
 - Headless Chromium draws in software on a developer's PC too, unless told to use the GPU, and that made the first tests up to five times slower. `playwright.config.ts` therefore starts it with `--enable-gpu` outside CI. To draw in software, with SwiftShader, set `$env:CI = "1"` first; that also stops at the first failure, which `--max-failures=0` undoes.
 - The game turns off anisotropic filtering and multisampling when WebGL is drawn in software: the first slowed every frame several times over, the second by over half again. Chromium hides the renderer's name behind "WebKit WebGL", so `src/render/renderer.ts` reads it from the `WEBGL_debug_renderer_info` extension.
-- To reproduce a CI-only failure, draw in software as above. The runner's fonts are also wider than Windows', which can wrap text that fits locally: setting `font-family: Verdana` for a run in `src/ui/styles.css` reproduces that.
+- To reproduce a CI-only failure, draw in software as above. The runner's fonts are also wider than Windows', which can wrap text that fits locally: setting `font-family: Verdana` for a run in `src/ui/styles/layout.css`, where the page sets its font, reproduces that.
 
 ## Software rendering in CI
 
