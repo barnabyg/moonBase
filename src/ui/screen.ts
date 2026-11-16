@@ -12,8 +12,6 @@ import { createMeter, limitState } from "./stat";
  */
 export interface Screen {
   readonly dialog: HTMLDialogElement;
-  /** What stays in place over the body, for anything else that should, such as tabs. */
-  readonly header: HTMLElement;
   /** Beside the title, for a figure such as the Science to spend. */
   readonly figure: HTMLElement;
   /** Under the title, for a line saying what the screen is for. */
@@ -123,7 +121,6 @@ export function createScreen(
 
   return {
     dialog,
-    header,
     figure,
     lead,
     body,

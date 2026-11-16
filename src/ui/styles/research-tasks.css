@@ -111,8 +111,7 @@
   margin: 0;
 }
 
-.task-card__foot,
-.design-card__foot {
+.task-card__foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
