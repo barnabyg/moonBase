@@ -8,7 +8,7 @@ The desktop app's end-to-end tests open real windows on the developer's screen. 
 
 ## Adding content
 
-A new Structure, Plant, type of Expedition, Milestone or Act touches many files, some of which nothing checks. `docs/adding-content.md` has a checklist for each, and says when the catalogue's version is raised.
+A new Structure, Plant, type of Expedition, Milestone or Act touches many files, some of which nothing checks. `docs/adding-content.md` has a checklist for each, and says when the catalogue's version is raised. Changing a number the catalogue already holds, as a rebalance does, breaks tests and end-to-end specs that quote it: its checklist, "Changing a number", says how to find them.
 
 ## Changing what the game does or says
 
