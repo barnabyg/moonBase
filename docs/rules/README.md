@@ -6,7 +6,7 @@ Each system has a file of its own, so a change reads and edits only the file it 
 
 ## Conventions
 
-These hold throughout, so the sections below don't repeat them:
+These hold throughout, so the files for each system don't repeat them:
 
 - **Refusals give the reason.** Any command that can't be carried out (an item that won't fit on the Launch manifest, a Structure placed where it can't stand, a Design that isn't unlocked) is refused, and the game says why.
 - **Notifications never pause the game.** They appear in the list at the bottom right. "Skip to next event" jumps straight to the next notable moment: Night falling, a Construction commissioned, a warning, a Milestone (with a new Act, if it brings one), each leg of the Lander's round trip, a Solar Particle Event's warning, start and end, an Expedition leaving or returning, a Research Task, a round of the observing programme or a Greenhouse's round of growing completed, a Greenhouse's round lost, or a Structure needing Maintenance.
