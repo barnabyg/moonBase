@@ -1,28 +1,45 @@
 import * as THREE from "three";
-import { materials, part } from "./materials";
+import { boxAt, materials, merged, part, roundedBox } from "./materials";
 import type { StructureModel } from "./models";
 
 // The Decorations: a flag pole, a founding memorial, a rock garden and the
 // Mission Director's viewing area. None has a light or a status light, as
 // none has power; each shows more of itself as it is assembled.
 
-/** The flag's cloth: white, with an orange band to match the Machines. */
-const flagCloth = new THREE.MeshStandardMaterial({
-  color: 0xf4f4f0,
-  metalness: 0,
-  roughness: 0.85,
-  side: THREE.DoubleSide,
-});
-const flagBand = new THREE.MeshStandardMaterial({
-  color: 0xe0661b,
-  metalness: 0,
-  roughness: 0.85,
-  side: THREE.DoubleSide,
-});
+/** Screen-printed lunar disc and an orange horizon across the fly. */
+function flagMaterial(): THREE.MeshStandardMaterial {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 160;
+  const ink = canvas.getContext("2d");
+  if (ink) {
+    ink.fillStyle = "#f4ede0";
+    ink.fillRect(0, 0, 256, 160);
+    ink.fillStyle = "#233749";
+    ink.beginPath();
+    ink.arc(185, 69, 42, 0, 2 * Math.PI);
+    ink.fill();
+    ink.fillStyle = "#e56b29";
+    ink.beginPath();
+    ink.moveTo(0, 118);
+    ink.lineTo(256, 78);
+    ink.lineTo(256, 103);
+    ink.lineTo(0, 143);
+    ink.fill();
+  }
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshStandardMaterial({
+    ...(ink ? { map } : { color: 0xe0661b }),
+    roughness: 0.9,
+    side: THREE.DoubleSide,
+  });
+}
+const flagCloth = flagMaterial();
 /** The memorial's cast plaque. */
 const bronze = new THREE.MeshStandardMaterial({
-  color: 0x8c6a3c,
-  metalness: 0.85,
+  color: 0xc18a4c,
+  metalness: 0.55,
   roughness: 0.45,
 });
 /** The rock garden's rocks: darker and blockier than the Regolith round them. */
@@ -60,8 +77,8 @@ function progress(fraction: number, share: number): number {
 
 const FLAG_POLE_HEIGHT = 3.2;
 /** As wide as its footprint allows: the flag hangs out to one side of the pole. */
-const FLAG_WIDTH = 0.75;
-const FLAG_HEIGHT = 0.5;
+const FLAG_WIDTH = 1.15;
+const FLAG_HEIGHT = 0.72;
 /** The share of Assembly spent raising the pole, before the flag goes up. */
 const FLAG_POLE_SHARE = 0.7;
 
@@ -73,43 +90,42 @@ export function createFlagPoleModel(): StructureModel {
   const model = new THREE.Group();
   model.name = "Flag pole";
   const footHeight = 0.12;
+  // Offset the mast so the whole banner fits within the circular site.
+  const mastX = 0.4;
   model.add(
     part(
       new THREE.CylinderGeometry(0.3, 0.38, footHeight, 10),
       materials.darkMetal,
-      [0, footHeight / 2, 0],
+      [mastX, footHeight / 2, 0],
     ),
   );
   const poleLength = FLAG_POLE_HEIGHT - footHeight;
   const pole = part(
     new THREE.CylinderGeometry(0.025, 0.035, 1, 8),
     materials.aluminium,
-    [0, 0, 0],
+    [mastX, 0, 0],
   );
   model.add(pole);
 
   // Hung from the top on the -x side of the pole, within its footprint.
   const flag = new THREE.Group();
-  flag.position.set(0, FLAG_POLE_HEIGHT - 0.05, 0);
+  flag.position.set(mastX, FLAG_POLE_HEIGHT - 0.05, 0);
   const rod = part(
     new THREE.CylinderGeometry(0.012, 0.012, FLAG_WIDTH, 6),
     materials.aluminium,
     [-FLAG_WIDTH / 2, 0, 0],
   );
   rod.rotation.z = Math.PI / 2;
-  flag.add(
-    rod,
-    part(
-      new THREE.BoxGeometry(FLAG_WIDTH, FLAG_HEIGHT * 0.7, 0.01),
-      flagCloth,
-      [-FLAG_WIDTH / 2, -FLAG_HEIGHT * 0.35, 0],
-    ),
-    part(new THREE.BoxGeometry(FLAG_WIDTH, FLAG_HEIGHT * 0.3, 0.01), flagBand, [
-      -FLAG_WIDTH / 2,
-      -FLAG_HEIGHT * 0.85,
-      0,
-    ]),
-  );
+  const cloth = new THREE.PlaneGeometry(FLAG_WIDTH, FLAG_HEIGHT, 20, 5);
+  const vertices = cloth.getAttribute("position");
+  for (let i = 0; i < vertices.count; i++) {
+    const x = vertices.getX(i) - FLAG_WIDTH / 2;
+    const y = vertices.getY(i) - FLAG_HEIGHT / 2;
+    // Packing creases deepen away from the rigid top rail.
+    vertices.setXYZ(i, x, y, 0.075 * Math.sin(x * 12) * (-y / FLAG_HEIGHT));
+  }
+  cloth.computeVertexNormals();
+  flag.add(rod, part(cloth, flagCloth, [0, 0, 0]));
   model.add(flag);
 
   return standing(model, (fraction) => {
@@ -125,7 +141,7 @@ const PLINTH_SHARE = 0.8;
 
 /**
  * A founding memorial: a low plinth on a square slab, with a bronze plaque
- * set at an angle on its top. The plinth rises during Assembly, and the
+ * below a bronze orbit and lunar sample. The plinth rises during Assembly, and the
  * plaque goes on last.
  */
 export function createFoundingMemorialModel(): StructureModel {
@@ -141,18 +157,39 @@ export function createFoundingMemorialModel(): StructureModel {
       [0, slabHeight / 2, 0],
     ),
   );
-  const plinth = part(
-    new THREE.BoxGeometry(0.5, 1, 0.4),
-    materials.hull,
-    [0, 0, 0],
-  );
+  const plinth = part(roundedBox(0.5, 1, 0.4, 0.04), materials.hull, [0, 0, 0]);
   model.add(plinth);
-  const plaque = part(new THREE.BoxGeometry(0.46, 0.04, 0.34), bronze, [
-    0,
-    slabHeight + plinthHeight + 0.04,
-    0,
-  ]);
-  plaque.rotation.x = -0.35;
+  // A bronze orbital hoop cradles a faceted lunar sample. Its plaque
+  // leans against the front of the pedestal, below the sculpture.
+  const plaque = new THREE.Group();
+  plaque.position.y = slabHeight + plinthHeight;
+  const orbit = part(
+    new THREE.TorusGeometry(0.29, 0.032, 8, 40),
+    bronze,
+    [0, 0.25, 0],
+  );
+  orbit.rotation.set(-0.36, 0.32, 0);
+  const sample = part(
+    new THREE.IcosahedronGeometry(0.18, 1),
+    materials.regolith,
+    [0, 0.15, 0],
+  );
+  const tablet = part(
+    roundedBox(0.44, 0.26, 0.034, 0.012),
+    bronze,
+    [0, -0.18, 0.215],
+  );
+  tablet.add(
+    part(
+      merged([
+        boxAt(0.27, 0.018, 0.008, [0, 0.03, 0.018]),
+        boxAt(0.16, 0.012, 0.008, [0, -0.03, 0.018]),
+      ]),
+      materials.hull,
+      [0, 0, 0],
+    ),
+  );
+  plaque.add(orbit, sample, tablet);
   model.add(plaque);
 
   return standing(model, (fraction) => {
@@ -174,7 +211,7 @@ const GARDEN_ROCKS: readonly {
     distance: 2.05,
     size: 0.22 + 0.06 * ((index * 7) % 3),
   })),
-  { angle: 0.6, distance: 0.7, size: 0.45 },
+  { angle: 0.45, distance: 0.34, size: 0.52 },
   { angle: 2.9, distance: 0.9, size: 0.32 },
   { angle: 4.4, distance: 0.5, size: 0.38 },
 ];
@@ -200,6 +237,14 @@ export function createRockGardenModel(
     groundMaterial ?? materials.regolith,
     [0, bedHeight / 2, 0],
   );
+  // Low ridges catch the grazing sun, like rake marks around a stone.
+  const furrows = [0.48, 0.76, 1.04, 1.32, 1.6].map((radius) =>
+    new THREE.TorusGeometry(radius, 0.029, 5, 64)
+      .rotateX(Math.PI / 2)
+      .scale(1.14, 0.55, 0.87)
+      .translate(0.3, bedHeight / 2, 0.14),
+  );
+  bed.add(part(merged(furrows), materials.regolith, [0, 0, 0]));
   model.add(bed);
   const rocks = GARDEN_ROCKS.map(({ angle, distance, size }, index) => {
     const stone = part(new THREE.DodecahedronGeometry(size, 0), rock, [
@@ -209,7 +254,9 @@ export function createRockGardenModel(
     ]);
     // Turned only about the upright, so that every rock sits on the ground.
     stone.rotation.y = index * 1.3;
-    stone.scale.y = ROCK_SQUASH;
+    const height = index === 10 ? 1.45 : ROCK_SQUASH;
+    stone.scale.set(1.05, height, 0.65 + (index % 3) * 0.12);
+    stone.position.y = bedHeight + size * height * 0.92;
     model.add(stone);
     return stone;
   });
@@ -250,15 +297,23 @@ export function createViewingAreaModel(): StructureModel {
     ]),
   );
 
+  const tread = Array.from({ length: 9 }, (_, index) =>
+    boxAt(0.135, 0.025, 1.53, [(index - 4) * 0.17, deckHeight, 0]),
+  );
+  model.add(part(merged(tread), materials.padPanel, [0, 0, 0]));
+
   // Three panels in an arc behind the chair, on its -x side.
   const windbreak = new THREE.Group();
   for (const angle of [-0.6, 0, 0.6]) {
     const panel = part(
-      new THREE.BoxGeometry(0.06, 1, 0.75),
-      materials.radiator,
+      roundedBox(0.08, 1, 0.7, 0.035),
+      materials.waterBladder,
       [-Math.cos(angle) * 1.05, 0.5, Math.sin(angle) * 1.05],
     );
-    panel.rotation.y = -angle;
+    panel.rotation.y = angle;
+    panel.add(
+      part(roundedBox(0.095, 0.06, 0.71, 0.02), materials.hull, [0, 0.46, 0]),
+    );
     windbreak.add(panel);
   }
   windbreak.position.y = deckHeight;
@@ -276,6 +331,19 @@ export function createViewingAreaModel(): StructureModel {
       new THREE.BoxGeometry(0.06, 0.6, 0.5),
       materials.darkMetal,
       [-0.25, 0.75, 0],
+    ),
+    part(roundedBox(0.49, 0.12, 0.48, 0.05), materials.accent, [0, 0.52, 0]),
+    part(
+      roundedBox(0.11, 0.48, 0.47, 0.045),
+      materials.accent,
+      [-0.19, 0.79, 0],
+    ),
+    ...[-0.29, 0.29].map((z) =>
+      part(roundedBox(0.42, 0.07, 0.065, 0.025), materials.hull, [
+        -0.045,
+        0.69,
+        z,
+      ]),
     ),
     ...[-0.2, 0.2].flatMap((x) =>
       [-0.2, 0.2].map((z) =>
@@ -295,6 +363,13 @@ export function createViewingAreaModel(): StructureModel {
     new THREE.BoxGeometry(0.03, 0.3, 0.45),
     materials.darkMetal,
     [0, 0.85, 0],
+  );
+  display.add(
+    part(
+      roundedBox(0.012, 0.25, 0.39, 0.006),
+      materials.precisionOptic,
+      [-0.018, 0, 0],
+    ),
   );
   display.rotation.y = -0.5;
   screen.add(
