@@ -8,7 +8,7 @@ const timeoutMs = 120_000;
 
 export default defineConfig({
   test: {
-    include: ["test/**/*.test.ts"],
+    include: ["test/**/*.test.{ts,mjs}"],
     environment: "node",
     testTimeout: timeoutMs,
     hookTimeout: timeoutMs,

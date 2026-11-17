@@ -31,7 +31,7 @@
     "long-game": "node scripts/long-game.mjs",
     "try": "node scripts/try.mjs",
     "frame-time": "node scripts/frame-time.mjs",
-    "audit": "npm audit",
+    "audit": "node scripts/audit.mjs",
     "secrets": "secretlint --maskSecrets \"**/*\"",
     "verify": "node scripts/verify.mjs"
   },
