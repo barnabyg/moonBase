@@ -29,7 +29,7 @@ const milestones = [
   { id: "oxygen-self-sufficient", label: "Oxygen self-sufficiency Milestone" },
   { id: "water-self-sufficient", label: "Water self-sufficiency Milestone" },
 ];
-const metrics = milestones.map(({ id, label }) => {
+const milestoneMetrics = milestones.map(({ id, label }) => {
   const reached = timeline.milestones.find(
     ({ milestoneId }) => milestoneId === id,
   );
@@ -41,6 +41,18 @@ const metrics = milestones.map(({ id, label }) => {
     sampleSize: reached === undefined ? 0 : 1,
   };
 });
+
+const metrics = [
+  {
+    id: "playthrough.completion",
+    label: "Reference Campaign playthrough completion",
+    value:
+      timeline.failure === undefined && timeline.ended === undefined ? 100 : 0,
+    unit: "percent",
+    sampleSize: 1,
+  },
+  ...milestoneMetrics,
+];
 
 const report = {
   schemaVersion: 1,
