@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "workflow": ".github/workflows/gamebench-metrics.yml",
+  "artifact": "gamebench-metrics"
+}
