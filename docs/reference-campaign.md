@@ -40,6 +40,22 @@ It plays the reference Campaign, which takes about 20 seconds, and prints its ti
 
 If the play guide can't go on, it says why and the command fails. That happens when a command is refused, something it waits for never comes, or the Mission Director dies.
 
+## gameBench metrics
+
+From the repository root in a clean Git checkout with the Node version in [`.nvmrc`](../.nvmrc), install dependencies and generate the report with one command:
+
+```powershell
+npm.cmd ci && npm.cmd run metrics
+```
+
+The command writes the ignored `metrics.json` at the repository root. It records the full Git SHA and UTC generation time. In GitHub Actions, run **Generate gameBench metrics** on the desired branch or tag and download the `gamebench-metrics` artifact from the run.
+
+Version 1 of the `reference-campaign` pacing suite plays the reference Campaign once, headless, with seed `20261025`, the checked-out data catalogue, and the scripted strategy above. It uses the guide's usual 60-game-minute advances, 60-Earth-Day default wait limit (individual steps can override it), and after the last Milestone plays on for at least three Lunations, with an eight-Lunation limit on waiting for the water wall. No browser or viewport is involved.
+
+The three metrics give the elapsed game-minutes since landing when the Landing Pad, Oxygen self-sufficiency, and Water self-sufficiency Milestones were reached. Each uses the recorded Milestone event from the one playthrough. If the play stops early, the report retains reached Milestones and gives each unreached one `null` with `sampleSize: 0`. For the same revision, all measurements and sample sizes are deterministic. Only `generatedAt` changes. Compare the values with `npm.cmd run reference-campaign`, which prints the same times as rounded Earth Days (1,440 game-minutes per Earth Day).
+
+Increment the suite version when a change to the scenario, sample selection, or measurement method breaks comparability. Ordinary game tuning keeps the same version.
+
 ## The pacing report
 
 To judge a balancing change without replaying the game, run this from the repository's root folder:

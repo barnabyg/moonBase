@@ -47,3 +47,6 @@ desktop.ini
 # Playwright
 playwright-report/
 test-results/
+
+# Generated gameBench report
+/metrics.json
